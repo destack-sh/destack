@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Enum,
@@ -87,21 +87,21 @@ class ColorIntent(Enum):
     ERROR = 13
 
 
-@builtin_struct(StructType.COLOR, frozen=True)
+@builtin_struct(StructType.COLOR, frozen=True, is_final=True)
+@final
 class Color(StructFrozen):
     """A color value."""
 
     type: ColorType = builtin_property(100, is_repr=True)
-    style: Optional["ColorStyle"] = builtin_property(101, is_repr=True)
-    x: Optional[Float32] = builtin_property(105, is_repr=True)
-    y: Optional[Float32] = builtin_property(106, is_repr=True)
-    z: Optional[Float32] = builtin_property(107, is_repr=True)
-    alpha: Optional[Float32] = builtin_property(108, is_repr=True)
+    x: Float32 = builtin_property(101, is_repr=True)
+    y: Float32 = builtin_property(102, is_repr=True)
+    z: Float32 = builtin_property(103, is_repr=True)
+    alpha: Float32 = builtin_property(104, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
         r, g, b, a = hex_to_rgb(hex)
-        return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)
+        return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a or 1.0)
 
 
 @builtin_node(NodeType.COLOR_STYLE)

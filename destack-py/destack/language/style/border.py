@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Enum,
@@ -33,7 +33,12 @@ class BorderType(Enum):
     DOUBLE = 13
 
 
-@builtin_struct(StructType.BORDER, frozen=True)
+@builtin_struct(
+    StructType.BORDER,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Border(StructFrozen):
     """A border value."""
 

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Enum,
@@ -30,7 +30,12 @@ class StrokeType(Enum):
     FREEHAND = 4
 
 
-@builtin_struct(StructType.STROKE, frozen=True)
+@builtin_struct(
+    StructType.STROKE,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Stroke(StructFrozen):
     """A Stroke."""
 
@@ -51,7 +56,8 @@ class Stroke(StructFrozen):
     end: Optional["StrokeCap"] = builtin_property(111, description="The end cap configuration.")
 
 
-@builtin_struct(StructType.STROKE_CAP, frozen=True)
+@builtin_struct(StructType.STROKE_CAP, frozen=True, is_final=True)
+@final
 class StrokeCap(StructFrozen):
     """A stroke cap."""
 
@@ -60,7 +66,8 @@ class StrokeCap(StructFrozen):
     easing: "Easing" = builtin_property(103, description="The easing function for taper.")
 
 
-@builtin_node(NodeType.STROKE_STYLE)
+@builtin_node(NodeType.STROKE_STYLE, is_final=True)
+@final
 class StrokeStyle(Style):
     """A StrokeStyle."""
 
@@ -80,7 +87,8 @@ class StrokeStyle(Style):
     end: Optional["StrokeCap"] = builtin_property(206, description="The end cap configuration.")
 
 
-@builtin_struct(StructType.STROKE_POINT, frozen=True)
+@builtin_struct(StructType.STROKE_POINT, frozen=True, is_final=True)
+@final
 class StrokePoint(StructFrozen):
     """A computed point in a stroke."""
 
@@ -99,7 +107,8 @@ class StrokePoint(StructFrozen):
     radius: Float32 = builtin_property(107, description="The computed radius at this point.")
 
 
-@builtin_struct(StructType.STROKE_PATH, frozen=True)
+@builtin_struct(StructType.STROKE_PATH, frozen=True, is_final=True)
+@final
 class StrokePath(StructFrozen):
     """A stroke path."""
 

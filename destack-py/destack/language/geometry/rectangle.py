@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     NodeType,
@@ -17,7 +17,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_struct(StructType.RECTANGLE2D, frozen=True)
+@builtin_struct(
+    StructType.RECTANGLE2D,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Rectangle2D(StructFrozen):
     """A Rectangle is a rectangle."""
 

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
     Float32,
@@ -19,7 +19,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_struct(StructType.STAR2D, frozen=True)
+@builtin_struct(
+    StructType.STAR2D,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Star2D(StructFrozen):
     """A Star2D is a star with a radius and height."""
 

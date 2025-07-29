@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Enum,
@@ -79,7 +79,12 @@ class TextTransform(Enum):
     CAPITALIZE = 4
 
 
-@builtin_struct(StructType.FONT, frozen=True)
+@builtin_struct(
+    StructType.FONT,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Font(StructFrozen):
     """A font value."""
 

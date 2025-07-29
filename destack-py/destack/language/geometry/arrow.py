@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
     Enum,
@@ -27,7 +27,12 @@ class ArrowHeadType(Enum):
     DOT = 3
 
 
-@builtin_struct(StructType.ARROW2D, frozen=True)
+@builtin_struct(
+    StructType.ARROW2D,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Arrow2D(StructFrozen):
     """An Arrow is a shape that represents an arrow."""
 

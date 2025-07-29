@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Enum,
@@ -31,7 +31,12 @@ class GradientType(Enum):
     CONIC = 12
 
 
-@builtin_struct(StructType.GRADIENT_STOP, frozen=True)
+@builtin_struct(
+    StructType.GRADIENT_STOP,
+    frozen=True,
+    is_final=True,
+)
+@final
 class GradientStop(StructFrozen):
     """A gradient stop with color and position."""
 
@@ -39,7 +44,12 @@ class GradientStop(StructFrozen):
     position: Float32 = builtin_property(102, is_repr=True)
 
 
-@builtin_struct(StructType.GRADIENT, frozen=True)
+@builtin_struct(
+    StructType.GRADIENT,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Gradient(StructFrozen):
     """A gradient value."""
 

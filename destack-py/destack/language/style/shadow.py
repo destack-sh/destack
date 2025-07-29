@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Enum,
@@ -38,7 +38,12 @@ class ShadowPosition(Enum):
     INSIDE = 2
 
 
-@builtin_struct(StructType.SHADOW, frozen=True)
+@builtin_struct(
+    StructType.SHADOW,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Shadow(StructFrozen):
     """A shadow value."""
 

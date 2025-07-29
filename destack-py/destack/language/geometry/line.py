@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
     NodeType,
@@ -17,7 +17,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_struct(StructType.LINE2D, frozen=True)
+@builtin_struct(
+    StructType.LINE2D,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Line2D(StructFrozen):
     """A Line is a line between two points."""
 

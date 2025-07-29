@@ -87,6 +87,11 @@ def builtin_struct(
         # cannot be both abstract and final
         if is_abstract and is_final:
             raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+        # final classes must be annotated with @final
+        if is_final != getattr(cls, "__final__", False):
+            raise ValueError(
+                f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
+            )
         # final objects cannot be extended
         if any(
             hasattr(base, "__declaration__") and base.__declaration__.is_final
