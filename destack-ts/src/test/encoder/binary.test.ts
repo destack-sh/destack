@@ -290,145 +290,121 @@ test("uint128", () => {
 });
 
 test("float16", () => {
-  // zero should be 1 byte
-  let writer = new BinaryWriter();
-  writer.writeFloat16(0.0);
-  expect(writer.toBytes().length).toBe(1);
+  // Basic roundtrip
+  const writer = new BinaryWriter();
+  writer.writeFloat16(3.14);
+  const reader = new BinaryReader(writer.toBytes());
+  expect(reader.readFloat16()).toBeCloseTo(3.14, 2); // rel=1e-3
 
-  // non-zero should be 3 bytes (1 flag + 2 float)
-  writer = new BinaryWriter();
-  writer.writeFloat16(Math.PI);
-  expect(writer.toBytes().length).toBe(3);
+  // Test special values and sizes
+  const testValues = [
+    0.0,
+    -0.0,
+    1.0,
+    -1.0,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    Number.NaN,
+    3.14159,
+    -3.14159,
+    65504.0, // max normal float16
+  ];
 
-  // test roundtrip with expected sizes
-  const valueToBytes: Record<number, number> = {
-    0.0: 1, // zero optimization
-    [-0.0]: 1, // negative zero optimization
-    [Number.POSITIVE_INFINITY]: 1, // positive infinity
-    [Number.NEGATIVE_INFINITY]: 1, // negative infinity
-    [Number.NaN]: 1, // NaN
-    1.0: 2, // sint8
-    [-1.0]: 2, // sint8
-    [Math.PI]: 3, // flag + float16
-    [-Math.PI]: 3, // flag + float16
-    65504.0: 3, // max normal float16
-  };
-
-  writer = new BinaryWriter();
-  for (const value of Object.keys(valueToBytes).map(Number)) {
-    writer.writeFloat16(value);
+  const writer2 = new BinaryWriter();
+  for (const value of testValues) {
+    writer2.writeFloat16(value);
   }
 
-  expect(writer.toBytes().length).toBe(Object.values(valueToBytes).reduce((a, b) => a + b, 0)); // 22 bytes
+  // All float16 values are 2 bytes each
+  expect(writer2.toBytes().length).toBe(2 * testValues.length);
 
-  const reader = new BinaryReader(writer.toBytes());
-  for (const value of Object.keys(valueToBytes).map(Number)) {
-    const result = reader.readFloat16();
-    if (Number.isNaN(value)) {
+  const reader2 = new BinaryReader(writer2.toBytes());
+  for (const expected of testValues) {
+    const result = reader2.readFloat16();
+    if (Number.isNaN(expected)) {
       expect(Number.isNaN(result)).toBe(true);
     } else {
-      // float16 has lower precision, so we need a larger tolerance
-      // Using precision 2 to match Python's rel=1e-3 tolerance
-      expect(result).toBeCloseTo(value, 2);
+      expect(result).toBeCloseTo(expected, 2); // rel=1e-3
     }
   }
-  expect(reader.remaining).toBe(0);
 });
 
 test("float32", () => {
-  // zero should be 1 byte
-  let writer = new BinaryWriter();
-  writer.writeFloat32(0.0);
-  expect(writer.toBytes().length).toBe(1);
+  // Basic roundtrip
+  const writer = new BinaryWriter();
+  writer.writeFloat32(3.14);
+  const reader = new BinaryReader(writer.toBytes());
+  expect(reader.readFloat32()).toBeCloseTo(3.14, 6);
 
-  // non-zero should be 5 bytes (1 flag + 4 float)
-  writer = new BinaryWriter();
-  writer.writeFloat32(Math.PI);
-  expect(writer.toBytes().length).toBe(5);
+  // Test special values and sizes
+  const testValues = [
+    0.0,
+    -0.0,
+    1.0,
+    -1.0,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    Number.NaN,
+    3.14159,
+    -3.14159,
+  ];
 
-  // test with expected sizes
-  const valueToBytes: Record<number, number> = {
-    0.0: 1, // zero optimization
-    [-0.0]: 1, // negative zero optimization
-    [Number.POSITIVE_INFINITY]: 1, // positive infinity
-    [Number.NEGATIVE_INFINITY]: 1, // negative infinity
-    [Number.NaN]: 1, // NaN
-    1.0: 2, // sint16 (varint)
-    [-1.0]: 2, // sint16 (varint)
-    [Math.PI]: 5, // flag + float32
-    [-Math.PI]: 5, // flag + float32
-  };
-
-  writer = new BinaryWriter();
-  for (const value of Object.keys(valueToBytes).map(Number)) {
-    writer.writeFloat32(value);
+  const writer2 = new BinaryWriter();
+  for (const value of testValues) {
+    writer2.writeFloat32(value);
   }
 
-  expect(writer.toBytes().length).toBe(Object.values(valueToBytes).reduce((a, b) => a + b, 0)); // 31 bytes
+  // All float32 values are 4 bytes each
+  expect(writer2.toBytes().length).toBe(4 * testValues.length);
 
-  const reader = new BinaryReader(writer.toBytes());
-  for (const value of Object.keys(valueToBytes).map(Number)) {
-    const result = reader.readFloat32();
-    if (Number.isNaN(value)) {
+  const reader2 = new BinaryReader(writer2.toBytes());
+  for (const expected of testValues) {
+    const result = reader2.readFloat32();
+    if (Number.isNaN(expected)) {
       expect(Number.isNaN(result)).toBe(true);
     } else {
-      expect(result).toBeCloseTo(value, 6);
+      expect(result).toBeCloseTo(expected, 6);
     }
   }
 });
 
 test("float64", () => {
-  // zero should be 1 byte
-  let writer = new BinaryWriter();
-  writer.writeFloat64(0.0);
-  expect(writer.toBytes().length).toBe(1);
+  // Basic roundtrip
+  const writer = new BinaryWriter();
+  writer.writeFloat64(3.14);
+  const reader = new BinaryReader(writer.toBytes());
+  expect(reader.readFloat64()).toBeCloseTo(3.14);
 
-  // small integers should use sint32 varint encoding (1 flag + varint bytes)
-  writer = new BinaryWriter();
-  writer.writeFloat64(42.0);
-  const data = writer.toBytes();
-  expect(data.length).toBe(2); // 1 flag + 1 byte for 84 (zigzag of 42)
-  expect(data[0]).toBe(5); // sint32 flag
+  // Test special values and sizes
+  const testValues = [
+    0.0,
+    -0.0,
+    1.0,
+    -1.0,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    Number.NaN,
+    3.14159,
+    -3.14159,
+    1e100,
+    -1e100,
+  ];
 
-  // large float should be 9 bytes (1 flag + 8 float)
-  writer = new BinaryWriter();
-  writer.writeFloat64(Math.PI);
-  expect(writer.toBytes().length).toBe(9);
-
-  const valueToBytes: Record<number, number> = {
-    0.0: 1, // zero optimization
-    [-0.0]: 1, // negative zero optimization
-    [Number.POSITIVE_INFINITY]: 1, // positive infinity
-    [Number.NEGATIVE_INFINITY]: 1, // negative infinity
-    [Number.NaN]: 1, // NaN
-    1.0: 2, // flag + (zigzag(1) = 2)
-    [-1.0]: 2, // flag + (zigzag(-1) = 1)
-    42.0: 2, // flag + (zigzag(42) = 84)
-    [-42.0]: 2, // flag + (zigzag(-42) = 83)
-    1000.0: 3, // flag + (zigzag(1000) = 2000)
-    [-1000.0]: 3, // flag + (zigzag(-1000) = 1999)
-    [2 ** 53]: 9, // flag + float64 (exceeds sint32 range)
-    [-(2 ** 53)]: 9, // flag + float64 (exceeds sint32 range)
-    [Math.PI]: 9, // flag + double
-    [-Math.PI]: 9, // flag + double
-    1e100: 9, // flag + double
-    [-1e100]: 9, // flag + double
-  };
-
-  writer = new BinaryWriter();
-  for (const value of Object.keys(valueToBytes).map(Number)) {
-    writer.writeFloat64(value);
+  const writer2 = new BinaryWriter();
+  for (const value of testValues) {
+    writer2.writeFloat64(value);
   }
 
-  expect(writer.toBytes().length).toBe(Object.values(valueToBytes).reduce((a, b) => a + b, 0)); // 87 bytes
+  // All float64 values are 8 bytes each
+  expect(writer2.toBytes().length).toBe(8 * testValues.length);
 
-  const reader = new BinaryReader(writer.toBytes());
-  for (const value of Object.keys(valueToBytes).map(Number)) {
-    const result = reader.readFloat64();
-    if (Number.isNaN(value)) {
+  const reader2 = new BinaryReader(writer2.toBytes());
+  for (const expected of testValues) {
+    const result = reader2.readFloat64();
+    if (Number.isNaN(expected)) {
       expect(Number.isNaN(result)).toBe(true);
     } else {
-      expect(result).toBeCloseTo(value);
+      expect(result).toBeCloseTo(expected);
     }
   }
 });
@@ -491,9 +467,9 @@ test("mixed types", () => {
     [() => writer.writeInt32(-1234567), 4], // 4 bytes (varint)
     [() => writer.writeInt128(BigInt("-1267650600228229401496703205376")), 15], // 15 bytes (varint)
     [() => writer.writeUint128(BigInt("1267650600228229401496703205376")), 15], // 15 bytes (varint)
-    [() => writer.writeFloat16(1.5), 3], // 3 bytes
-    [() => writer.writeFloat32(Math.PI), 5], // 5 bytes
-    [() => writer.writeFloat64(Math.E), 9], // 9 bytes
+    [() => writer.writeFloat16(1.5), 2], // 2 bytes (fixed)
+    [() => writer.writeFloat32(Math.PI), 4], // 4 bytes (fixed)
+    [() => writer.writeFloat64(Math.E), 8], // 8 bytes (fixed)
     [() => writer.writeString("test string"), 12], // 12 bytes (1 + 11)
     [() => writer.writeBytes(new Uint8Array([1, 2, 3])), 4], // 4 bytes (1 + 3)
   ];

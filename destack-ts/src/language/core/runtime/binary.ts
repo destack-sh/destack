@@ -156,112 +156,36 @@ export class BinaryWriter {
 
   // PrimitiveType.FLOAT16
   /**
-   * Write a 16-bit float with flag byte:
-   *   - 0: zero (1 byte)
-   *   - 1: negative zero (1 byte)
-   *   - 2: positive infinity (1 byte)
-   *   - 3: negative infinity (1 byte)
-   *   - 4: NaN (1 byte)
-   *   - 5: sint8 for integers (2 bytes)
-   *   - 6: little-endian float16 for others (3 bytes)
+   * Write a fixed-length 16-bit float.
+   * Size: 2 bytes.
    */
   writeFloat16(value: number): void {
-    this.ensureCapacity(3);
-    if (value === 0.0) {
-      if (Object.is(value, -0)) {
-        this.view.setUint8(this.pos++, 1); // negative zero
-      } else {
-        this.view.setUint8(this.pos++, 0); // positive zero
-      }
-    } else if (value === Number.POSITIVE_INFINITY) {
-      this.view.setUint8(this.pos++, 2); // positive infinity
-    } else if (value === Number.NEGATIVE_INFINITY) {
-      this.view.setUint8(this.pos++, 3); // negative infinity
-    } else if (Number.isNaN(value)) {
-      this.view.setUint8(this.pos++, 4); // NaN
-    } else if (Number.isInteger(value) && value >= -(2 ** 7) && value <= 2 ** 7) {
-      // can be represented as sint8
-      this.view.setUint8(this.pos++, 5);
-      this.writeInt8(value);
-    } else {
-      this.view.setUint8(this.pos++, 6);
-      // Encode float16
-      const float16Bytes = this.encodeFloat16(value);
-      this.view.setUint8(this.pos++, float16Bytes[0]);
-      this.view.setUint8(this.pos++, float16Bytes[1]);
-    }
+    this.ensureCapacity(2);
+    const float16Bytes = this.encodeFloat16(value);
+    this.view.setUint8(this.pos++, float16Bytes[0]);
+    this.view.setUint8(this.pos++, float16Bytes[1]);
   }
 
   // PrimitiveType.FLOAT32
   /**
-   * Write a 32-bit float with flag byte:
-   *   - 0: zero (1 byte)
-   *   - 1: negative zero (1 byte)
-   *   - 2: positive infinity (1 byte)
-   *   - 3: negative infinity (1 byte)
-   *   - 4: NaN (1 byte)
-   *   - 5: sint16 for integers (3 bytes)
-   *   - 6: little-endian float32 for others (5 bytes)
+   * Write a fixed-length 32-bit float.
+   * Size: 4 bytes.
    */
   writeFloat32(value: number): void {
-    this.ensureCapacity(5);
-    if (value === 0.0) {
-      if (Object.is(value, -0)) {
-        this.view.setUint8(this.pos++, 1); // negative zero
-      } else {
-        this.view.setUint8(this.pos++, 0); // positive zero
-      }
-    } else if (value === Number.POSITIVE_INFINITY) {
-      this.view.setUint8(this.pos++, 2); // positive infinity
-    } else if (value === Number.NEGATIVE_INFINITY) {
-      this.view.setUint8(this.pos++, 3); // negative infinity
-    } else if (Number.isNaN(value)) {
-      this.view.setUint8(this.pos++, 4); // NaN
-    } else if (Number.isInteger(value) && value >= -(2 ** 15) && value <= 2 ** 15) {
-      // can be represented as sint16
-      this.view.setUint8(this.pos++, 5);
-      this.writeInt16(value);
-    } else {
-      this.view.setUint8(this.pos++, 6);
-      this.view.setFloat32(this.pos, value, true); // little-endian
-      this.pos += 4;
-    }
+    this.ensureCapacity(4);
+    this.view.setFloat32(this.pos, value, true); // little-endian
+    this.pos += 4;
   }
 
   // PrimitiveType.FLOAT64
   /**
-   * Write a 64-bit float with flag byte:
-   *   - 0: zero (1 byte)
-   *   - 1: negative zero (1 byte)
-   *   - 2: positive infinity (1 byte)
-   *   - 3: negative infinity (1 byte)
-   *   - 4: NaN (1 byte)
-   *   - 5: sint32 for integers (6 bytes)
-   *   - 6: little-endian float64 for others (9 bytes)
+   * Write a fixed-length 64-bit float.
+   * Size: 8 bytes.
    */
   writeFloat64(value: number): void {
-    this.ensureCapacity(9);
-    if (value === 0.0) {
-      if (Object.is(value, -0)) {
-        this.view.setUint8(this.pos++, 1); // negative zero
-      } else {
-        this.view.setUint8(this.pos++, 0); // positive zero
-      }
-    } else if (value === Number.POSITIVE_INFINITY) {
-      this.view.setUint8(this.pos++, 2); // positive infinity
-    } else if (value === Number.NEGATIVE_INFINITY) {
-      this.view.setUint8(this.pos++, 3); // negative infinity
-    } else if (Number.isNaN(value)) {
-      this.view.setUint8(this.pos++, 4); // NaN
-    } else if (Number.isInteger(value) && value >= -(2 ** 31) && value <= 2 ** 31) {
-      // can be represented as sint32
-      this.view.setUint8(this.pos++, 5);
-      this.writeInt32(value);
-    } else {
-      this.view.setUint8(this.pos++, 6);
-      this.view.setFloat64(this.pos, value, true); // little-endian
-      this.pos += 8;
-    }
+    this.ensureCapacity(8);
+    this.view.setFloat64(this.pos, value, true); // little-endian
+    this.pos += 8;
   }
 
   // PrimitiveType.DATETIME
@@ -636,125 +560,44 @@ export class BinaryReader {
 
   // PrimitiveType.FLOAT16
   /**
-   * Read a 16-bit float from flag byte + data:
-   *   - 0: zero (1 byte)
-   *   - 1: negative zero (1 byte)
-   *   - 2: positive infinity (1 byte)
-   *   - 3: negative infinity (1 byte)
-   *   - 4: NaN (1 byte)
-   *   - 5: sint8 for integers (2 bytes)
-   *   - 6: little-endian float16 for others (3 bytes)
+   * Read a fixed-length 16-bit float.
+   * Size: 2 bytes.
    */
   readFloat16(): number {
-    if (this.pos >= this.buffer.length) {
+    if (this.pos + 2 > this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
     }
-
-    const flag = this.buffer[this.pos++];
-    if (flag === 0) {
-      return 0.0;
-    } else if (flag === 1) {
-      return -0.0;
-    } else if (flag === 2) {
-      return Number.POSITIVE_INFINITY;
-    } else if (flag === 3) {
-      return Number.NEGATIVE_INFINITY;
-    } else if (flag === 4) {
-      return Number.NaN;
-    } else if (flag === 5) {
-      return this.readInt8();
-    } else if (flag === 6) {
-      if (this.pos + 2 > this.buffer.length) {
-        throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
-      }
-      const float16Bytes = new Uint8Array(this.buffer.slice(this.pos, this.pos + 2));
-      this.pos += 2;
-      return this.decodeFloat16(float16Bytes);
-    } else {
-      throw new BinaryError(`invalid float16 encoding flag at ${this.pos - 1}: ${flag}`);
-    }
+    const float16Bytes = new Uint8Array(this.buffer.slice(this.pos, this.pos + 2));
+    this.pos += 2;
+    return this.decodeFloat16(float16Bytes);
   }
 
   // PrimitiveType.FLOAT32
   /**
-   * Read a 32-bit float from flag byte + data:
-   *   - 0: zero (1 byte)
-   *   - 1: negative zero (1 byte)
-   *   - 2: positive infinity (1 byte)
-   *   - 3: negative infinity (1 byte)
-   *   - 4: NaN (1 byte)
-   *   - 5: sint16 for integers (3 bytes)
-   *   - 6: little-endian float32 for others (5 bytes)
+   * Read a fixed-length 32-bit float.
+   * Size: 4 bytes.
    */
   readFloat32(): number {
-    if (this.pos >= this.buffer.length) {
+    if (this.pos + 4 > this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
     }
-
-    const flag = this.buffer[this.pos++];
-    if (flag === 0) {
-      return 0.0;
-    } else if (flag === 1) {
-      return -0.0;
-    } else if (flag === 2) {
-      return Number.POSITIVE_INFINITY;
-    } else if (flag === 3) {
-      return Number.NEGATIVE_INFINITY;
-    } else if (flag === 4) {
-      return Number.NaN;
-    } else if (flag === 5) {
-      return this.readInt16();
-    } else if (flag === 6) {
-      if (this.pos + 4 > this.buffer.length) {
-        throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
-      }
-      const value = this.view.getFloat32(this.pos, true); // little-endian
-      this.pos += 4;
-      return value;
-    } else {
-      throw new BinaryError(`invalid float32 encoding flag at ${this.pos - 1}: ${flag}`);
-    }
+    const value = this.view.getFloat32(this.pos, true); // little-endian
+    this.pos += 4;
+    return value;
   }
 
   // PrimitiveType.FLOAT64
   /**
-   * Read a 64-bit float from flag byte + data:
-   *   - 0: zero (1 byte)
-   *   - 1: negative zero (1 byte)
-   *   - 2: positive infinity (1 byte)
-   *   - 3: negative infinity (1 byte)
-   *   - 4: NaN (1 byte)
-   *   - 5: sint32 for integers (6 bytes)
-   *   - 6: little-endian float64 for others (9 bytes)
+   * Read a fixed-length 64-bit float.
+   * Size: 8 bytes.
    */
   readFloat64(): number {
-    if (this.pos >= this.buffer.length) {
+    if (this.pos + 8 > this.buffer.length) {
       throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
     }
-
-    const flag = this.buffer[this.pos++];
-    if (flag === 0) {
-      return 0.0;
-    } else if (flag === 1) {
-      return -0.0;
-    } else if (flag === 2) {
-      return Number.POSITIVE_INFINITY;
-    } else if (flag === 3) {
-      return Number.NEGATIVE_INFINITY;
-    } else if (flag === 4) {
-      return Number.NaN;
-    } else if (flag === 5) {
-      return this.readInt32();
-    } else if (flag === 6) {
-      if (this.pos + 8 > this.buffer.length) {
-        throw new BinaryError(`unexpected end of buffer at ${this.pos}`);
-      }
-      const value = this.view.getFloat64(this.pos, true); // little-endian
-      this.pos += 8;
-      return value;
-    } else {
-      throw new BinaryError(`invalid float64 encoding flag at ${this.pos - 1}: ${flag}`);
-    }
+    const value = this.view.getFloat64(this.pos, true); // little-endian
+    this.pos += 8;
+    return value;
   }
 
   // PrimitiveType.DATETIME

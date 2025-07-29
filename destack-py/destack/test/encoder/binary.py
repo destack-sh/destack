@@ -293,39 +293,29 @@ def test_uint128():
 
 
 def test_float16():
-    """Test 16-bit float encoding with zero optimization."""
-    # zero should be 1 byte
-    writer = BinaryWriter()
-    writer.write_float16(0.0)
-    assert len(writer.to_bytes()) == 1
-
-    # non-zero should be 3 bytes (1 flag + 2 float)
-    writer = BinaryWriter()
-    writer.write_float16(math.pi)
-    assert len(writer.to_bytes()) == 3
-
+    """Test 16-bit float encoding."""
     # test roundtrip with expected sizes
-    value_to_bytes = {
-        0.0: 1,  # zero optimization
-        -0.0: 1,  # zero optimization
-        float("inf"): 1,
-        float("-inf"): 1,
-        float("nan"): 1,
-        1.0: 2,  # sint8
-        -1.0: 2,  # sint8
-        math.pi: 3,
-        -math.pi: 3,
-        65504.0: 3,  # max normal float16
-    }
+    value_to_bytes = [
+        (0.0, 2),
+        (-0.0, 2),  # full float16 (different bits than 0.0)
+        (float("inf"), 2),
+        (float("-inf"), 2),
+        (float("nan"), 2),
+        (1.0, 2),  # full float16
+        (-1.0, 2),  # full float16
+        (math.pi, 2),
+        (-math.pi, 2),
+        (65504.0, 2),
+    ]
 
     writer = BinaryWriter()
-    for value in value_to_bytes:
+    for value, _ in value_to_bytes:
         writer.write_float16(value)
 
-    assert len(writer.to_bytes()) == sum(value_to_bytes.values())  # 22 bytes
+    assert len(writer.to_bytes()) == sum(size for _, size in value_to_bytes)
 
     reader = BinaryReader(writer.to_bytes())
-    for value in value_to_bytes:
+    for value, _ in value_to_bytes:
         result = reader.read_float16()
         if value != value:  # NaN check
             assert result != result
@@ -335,38 +325,28 @@ def test_float16():
 
 
 def test_float32():
-    """Test 32-bit float encoding with zero optimization."""
-    # zero should be 1 byte
-    writer = BinaryWriter()
-    writer.write_float32(0.0)
-    assert len(writer.to_bytes()) == 1
-
-    # non-zero should be 5 bytes (1 flag + 4 float)
-    writer = BinaryWriter()
-    writer.write_float32(math.pi)
-    assert len(writer.to_bytes()) == 5
-
+    """Test 32-bit float encoding."""
     # test roundtrip with expected sizes
-    value_to_bytes = {
-        0.0: 1,  # zero optimization
-        -0.0: 1,  # zero optimization
-        float("inf"): 1,
-        float("-inf"): 1,
-        float("nan"): 1,
-        1.0: 2,  # sint16 (varint)
-        -1.0: 2,  # sint16 (varint)
-        math.pi: 5,
-        -math.pi: 5,
-    }
+    value_to_bytes = [
+        (0.0, 4),
+        (-0.0, 4),  # full float32 (different bits than 0.0)
+        (float("inf"), 4),
+        (float("-inf"), 4),
+        (float("nan"), 4),
+        (1.0, 4),  # full float32
+        (-1.0, 4),  # full float32
+        (math.pi, 4),
+        (-math.pi, 4),
+    ]
 
     writer = BinaryWriter()
-    for value in value_to_bytes:
+    for value, _ in value_to_bytes:
         writer.write_float32(value)
 
-    assert len(writer.to_bytes()) == sum(value_to_bytes.values())  # 31 bytes
+    assert len(writer.to_bytes()) == sum(size for _, size in value_to_bytes)
 
     reader = BinaryReader(writer.to_bytes())
-    for value in value_to_bytes:
+    for value, _ in value_to_bytes:
         result = reader.read_float32()
         if value != value:  # NaN check
             assert result != result
@@ -375,52 +355,36 @@ def test_float32():
 
 
 def test_float64():
-    """Test 64-bit float encoding with optimizations."""
-    # zero should be 1 byte
-    writer = BinaryWriter()
-    writer.write_float64(0.0)
-    assert len(writer.to_bytes()) == 1
-
-    # small integers should use sint16 varint encoding (1 flag + varint bytes)
-    writer = BinaryWriter()
-    writer.write_float64(42.0)
-    data = writer.to_bytes()
-    assert len(data) == 2  # 1 varint byte for 84 (sint16 of 42)
-
-    # large float should be 9 bytes (1 flag + 8 float)
-    writer = BinaryWriter()
-    writer.write_float64(math.pi)
-    assert len(writer.to_bytes()) == 9
-
+    """Test 64-bit float encoding."""
     # test roundtrip with expected sizes
-    value_to_bytes = {
-        0.0: 1,  # zero optimization
-        -0.0: 1,  # zero optimization
-        float("inf"): 1,  # float64
-        float("-inf"): 1,  # float64
-        float("nan"): 1,  # float64
-        1.0: 2,  # sint16 (varint)
-        -1.0: 2,  # sint16 (varint)
-        42.0: 2,  # sint16 (varint)
-        -42.0: 2,  # sint16 (varint)
-        1000.0: 3,  # sint16 (varint)
-        -1000.0: 3,  # sint16 (varint)
-        2**53: 9,  # sint32 (varint)
-        -(2**53): 9,  # sint32 (varint)
-        math.pi: 9,  # float64
-        -math.pi: 9,  # float64
-        1e100: 9,  # float64
-        -1e100: 9,  # float64
-    }
+    value_to_bytes = [
+        (0.0, 8),  # zero optimization
+        (-0.0, 8),  # full float64 (different bits than 0.0)
+        (float("inf"), 8),  # float64
+        (float("-inf"), 8),  # float64
+        (float("nan"), 8),  # float64
+        (1.0, 8),  # float64
+        (-1.0, 8),  # float64
+        (42.0, 8),  # float64
+        (-42.0, 8),  # float64
+        (1000.0, 8),  # float64
+        (-1000.0, 8),  # float64
+        (2**53, 8),  # float64
+        (-(2**53), 8),  # float64
+        (math.pi, 8),  # float64
+        (-math.pi, 8),  # float64
+        (1e100, 8),  # float64
+        (-1e100, 8),  # float64
+    ]
 
     writer = BinaryWriter()
-    for value in value_to_bytes:
+    for value, _ in value_to_bytes:
         writer.write_float64(value)
 
-    assert len(writer.to_bytes()) == sum(value_to_bytes.values())  # 87 bytes
+    assert len(writer.to_bytes()) == sum(size for _, size in value_to_bytes)  # 129 bytes
 
     reader = BinaryReader(writer.to_bytes())
-    for value in value_to_bytes:
+    for value, _ in value_to_bytes:
         result = reader.read_float64()
         if value != value:  # NaN check
             assert result != result
