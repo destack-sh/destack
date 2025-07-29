@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, final
 
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
@@ -18,7 +18,8 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-@builtin_struct(StructType.VALUE)
+@builtin_struct(StructType.VALUE, is_final=True)
+@final
 class Value(Struct):
     """
     A generic Value of any Type.

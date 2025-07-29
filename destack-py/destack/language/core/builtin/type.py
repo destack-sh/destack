@@ -3,6 +3,7 @@ from typing import (
     Any,
     Optional,
     Union,
+    final,
 )
 
 from destack.language.registry import ENUM_TYPE_BY_CLASS
@@ -48,7 +49,6 @@ class Type(StructFrozen):
     # cardinality
     cardinality: TypeCardinality = builtin_property(
         110,
-        default=TypeCardinality.SCALAR,
         is_repr=True,
         description="Cardinality of this Type.",
     )
@@ -67,11 +67,12 @@ class Type(StructFrozen):
         is_repr=True,
         description="Element types of this Type (tuple).",
     )
-    dimensions: list[UInt32] | None = builtin_property(
-        114,
-        is_repr=True,
-        description="Dimensions of this Type (list, ndarray).",
-    )
+    # dimensions: list[UInt32] | None = builtin_property(
+    #     114,
+    #     is_repr=True,
+    #     description="Dimensions of this Type (ndarray).",
+    # )
+    is_required: bool = builtin_property(119, default=True)
 
     # scalar
     scalar_type: Optional[ScalarType] = builtin_property(
@@ -99,19 +100,16 @@ class Type(StructFrozen):
         is_repr=True,
         description="Struct type of this Type (if it's a struct scalar).",
     )
-    literal_value: Optional["Value"] = builtin_property(
-        125,
-        is_repr=True,
-        description="Literal value of this Type (if it's a literal scalar).",
-    )
-    union_types: list["Type"] | None = builtin_property(
-        126,
-        is_repr=True,
-        description="Union types of this Type (if it's a union scalar).",
-    )
-
-    # flags
-    is_required: bool = builtin_property(130, default=True)
+    # literal_value: Optional["Value"] = builtin_property(
+    #     125,
+    #     is_repr=True,
+    #     description="Literal value of this Type (if it's a literal scalar).",
+    # )
+    # union_types: list["Type"] | None = builtin_property(
+    #     126,
+    #     is_repr=True,
+    #     description="Union types of this Type (if it's a union scalar).",
+    # )
 
     @classmethod
     def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
@@ -219,7 +217,12 @@ URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
 
 
-@builtin_struct(StructType.NUMBER_CONSTRAINT, frozen=True)
+@builtin_struct(
+    StructType.NUMBER_CONSTRAINT,
+    frozen=True,
+    is_final=True,
+)
+@final
 class NumberConstraint(StructFrozen):
     """The constraint of a number."""
 
@@ -228,7 +231,12 @@ class NumberConstraint(StructFrozen):
     step_value: Optional[Float32] = builtin_property(43)
 
 
-@builtin_struct(StructType.COLLECTION_CONSTRAINT, frozen=True)
+@builtin_struct(
+    StructType.COLLECTION_CONSTRAINT,
+    frozen=True,
+    is_final=True,
+)
+@final
 class CollectionConstraint(StructFrozen):
     """The constraint of a collection."""
 

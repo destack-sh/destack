@@ -40,7 +40,7 @@ class Enum(enum.IntEnum):
         obj.__doc__ = text
 
         # check id
-        assert id > 0, f"invalid id {id}"
+        assert id > 0, f"invalid id {id}"  # 0 is reserved for null
         existing = first((v for v in cls if v.id == id), None)
         assert existing is None, f"{cls} has duplicate id {id} for {id} and {existing}"
 
@@ -86,6 +86,7 @@ def builtin_enum(enum_type: "EnumType"):
         _ENUM_TYPE_BY_CLASS[cls] = enum_type
         enum_name = to_casing(cls.__name__, Casing.ALL_CAPS)
         assert enum_type.name == enum_name, f"enum name mismatch: {enum_type.name} != {enum_name}"
+        assert max(cls) < 2**32, f"enum {cls} has values greater than 2**32"
         return cls
 
     return register_enum

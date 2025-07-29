@@ -10,7 +10,6 @@ from destack.language.core import (
     Entity,
     Materialization,
     Node,
-    NodeType,
     Object,
     ObjectKind,
     PrimitiveType,
@@ -696,7 +695,7 @@ _encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _sess
         else:
             assert_never(type.scalar_type)
 
-    def generate(self) -> dict[tuple[ObjectKind, NodeType | StructType], JsonObjectEncoder]:
+    def generate(self) -> dict[tuple[ObjectKind, int], JsonObjectEncoder]:
         # generate pack/unpack methods
         encoders = {}
         for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
@@ -711,6 +710,6 @@ _encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _sess
                 encoder_name,
             )
             encoder_cls = locals_[encoder_name]
-            encoders[node_cls.__kind__, node_cls.metatype] = encoder_cls()
+            encoders[node_cls.__kind__, node_cls.metatype.value] = encoder_cls()
 
         return encoders

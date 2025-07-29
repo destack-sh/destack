@@ -133,15 +133,15 @@ class PermissionDeclaration:
     tags: tuple[str, ...] = ()
 
 
-@builtin_enum(EnumType.METHOD_TYPE)
-class MethodType(Enum):
+@builtin_enum(EnumType.FUNCTION_TYPE)
+class FunctionType(Enum):
     PROPERTY = 1, "Property", "Computed property"
     INSTANCE = 2, "Instance", "Instance method"
     STATIC = 3, "Static", "Static method"
 
 
-@builtin_enum(EnumType.METHOD_CARDINALITY)
-class MethodCardinality(Enum):
+@builtin_enum(EnumType.FUNCTION_CARDINALITY)
+class FunctionCardinality(Enum):
     UNARY = 1, "Unary", "Single in, single out"
     # UNARY_STREAM = 2, "Unary Stream", "Single in, stream out"
 
@@ -159,7 +159,7 @@ class FunctionDeclaration:
     properties: tuple["PropertyDeclaration", ...]
     tags: tuple[str, ...]
     func: Callable
-    type: MethodType
+    type: FunctionType
     is_async: bool
     is_abstract: bool
 

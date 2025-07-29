@@ -33,8 +33,8 @@ def builtin_struct(
     *,
     frozen: bool = False,
     is_abstract: bool = False,
+    is_final: bool = False,
     stability: ObjectStability = ObjectStability.DYNAMIC,
-    enum_types: tuple[EnumType, ...] = (),
     tags: tuple["TagDeclaration", ...] = (),
 ):
     """Register a class as a concrete struct for the given struct type."""
@@ -62,7 +62,7 @@ def builtin_struct(
             stability=stability,
             is_abstract=is_abstract,
             is_frozen=frozen,
-            is_final=False,
+            is_final=is_final,
             # inherits
             base_type=inherits[0] if inherits else None,
             inherits=list(reversed(inherits)),
@@ -79,11 +79,25 @@ def builtin_struct(
             self_enum_types=list(all_enum_types),
         )
 
-        # abstract nodes cannot extend non-abstract nodes
+        # abstract objects cannot extend non-abstract objects
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
             raise ValueError(
                 f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
             )
+        # cannot be both abstract and final
+        if is_abstract and is_final:
+            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+        # final objects cannot be extended
+        if any(
+            hasattr(base, "__declaration__") and base.__declaration__.is_final
+            for base in cls.__bases__
+        ):
+            bad_base = next(
+                base
+                for base in cls.__bases__
+                if hasattr(base, "__declaration__") and base.__declaration__.is_final
+            )
+            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
 
         # process class
         cls, _ = _process_object_cls(cast(type["Struct"], cls), declaration)

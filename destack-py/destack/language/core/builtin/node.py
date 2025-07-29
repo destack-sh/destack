@@ -104,6 +104,20 @@ def builtin_node(
             raise ValueError(
                 f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
             )
+        # cannot be both abstract and final
+        if is_abstract and is_final:
+            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+        # final objects cannot be extended
+        if any(
+            hasattr(base, "__declaration__") and base.__declaration__.is_final
+            for base in cls.__bases__
+        ):
+            bad_base = next(
+                base
+                for base in cls.__bases__
+                if hasattr(base, "__declaration__") and base.__declaration__.is_final
+            )
+            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
         if NodeType.EVENT in inherits:
             frozen = True  # Events are always frozen
 

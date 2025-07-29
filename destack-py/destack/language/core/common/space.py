@@ -45,7 +45,10 @@ _HEAD_SNAPSHOT_ID = UUID(int=30)
 _ROOT_BRANCH_ID = UUID(int=31)
 
 
-@builtin_node(NodeType.UNIVERSE, is_abstract=True, is_final=True)
+@builtin_node(
+    NodeType.UNIVERSE,
+    is_final=True,
+)
 @final
 class Universe(Entity):
     """The Destack computational universe."""

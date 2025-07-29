@@ -16,8 +16,10 @@ if TYPE_CHECKING:
 class EncoderOptions(IntFlag):
     """Options for encoding."""
 
-    # whether to include the metatype of the object
-    INCLUDE_METATYPE = 1
+    DEFAULT = 0
+
+    # whether to always include the metatype of the object
+    PREFER_OMIT_METATYPE = 1
     # whether to include the key of properties
     # INCLUDE_KEY = 1 << 1
     # whether to include the type of the value
@@ -33,15 +35,13 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
-    TAGGED: ClassVar[EncoderOptions] = (
-        EncoderOptions.INCLUDE_METATYPE | EncoderOptions.PREFER_OMIT_NONE
-    )
+    TAGGED: ClassVar[EncoderOptions] = EncoderOptions.DEFAULT
 
     @abstractmethod
     def pack_object(
         self,
         kind: ObjectKind,
-        metatype: NodeType | StructType,
+        type: int,
         object: Object,
         options: EncoderOptions,
     ) -> T:
@@ -49,22 +49,10 @@ class Encoder[T: Any = Any](ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def pack_object_binary(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        object: Object,
-        writer: "BinaryWriter",
-        options: EncoderOptions,
-    ) -> None:
-        """Pack a BuiltinObject into the byte representation of its encoded format."""
-        raise NotImplementedError
-
-    @abstractmethod
     def unpack_object(
         self,
         kind: ObjectKind,
-        metatype: NodeType | StructType,
+        type: int,
         value: T,
         session: "Session | None",
         options: EncoderOptions,
@@ -73,10 +61,22 @@ class Encoder[T: Any = Any](ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def pack_object_binary(
+        self,
+        kind: ObjectKind,
+        type: NodeType | StructType,
+        object: Object,
+        writer: "BinaryWriter",
+        options: EncoderOptions,
+    ) -> None:
+        """Pack a BuiltinObject into the byte representation of its encoded format."""
+        raise NotImplementedError
+
+    @abstractmethod
     def unpack_object_binary(
         self,
         kind: ObjectKind,
-        metatype: NodeType | StructType,
+        type: int,
         reader: "BinaryReader",
         session: "Session | None",
         options: EncoderOptions,
@@ -94,6 +94,15 @@ class Encoder[T: Any = Any](ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def unpack_type(
+        self,
+        value: T,
+        options: EncoderOptions,
+    ) -> Any:
+        """Unpack a Type from some encoded format."""
+        raise NotImplementedError
+
+    @abstractmethod
     def pack_type_binary(
         self,
         type: "Type",
@@ -101,15 +110,6 @@ class Encoder[T: Any = Any](ABC):
         options: EncoderOptions,
     ) -> None:
         """Pack a Type into the byte representation of its encoded format."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def unpack_type(
-        self,
-        value: T,
-        options: EncoderOptions,
-    ) -> Any:
-        """Unpack a Type from some encoded format."""
         raise NotImplementedError
 
     @abstractmethod
@@ -132,17 +132,6 @@ class Encoder[T: Any = Any](ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def pack_value_binary(
-        self,
-        type: "Type",
-        value: Any,
-        writer: "BinaryWriter",
-        options: EncoderOptions,
-    ) -> None:
-        """Pack a value into the byte representation of its encoded format."""
-        raise NotImplementedError
-
-    @abstractmethod
     def unpack_value(
         self,
         type: "Type",
@@ -151,6 +140,17 @@ class Encoder[T: Any = Any](ABC):
         options: EncoderOptions,
     ) -> Any:
         """Unpack a value from some encoded format."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def pack_value_binary(
+        self,
+        type: "Type",
+        value: Any,
+        writer: "BinaryWriter",
+        options: EncoderOptions,
+    ) -> None:
+        """Pack a value into the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod

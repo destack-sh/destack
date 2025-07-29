@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
+from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, final
 
 from destack.utils.uuid import UUID
 
@@ -29,36 +29,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
-
-#
-# Functions
-#
-
-
-@builtin_enum(EnumType.FUNCTION_TYPE)
-class FunctionType(Enum):
-    ADD = 1  # +
-    SUBTRACT = 2  # -
-    MULTIPLY = 3  # *
-    DIVIDE = 4  # /
-    MODULO = 5  # %
-    POWER = 6  # ^ / **
-
-
-@builtin_struct(StructType.FUNCTION, frozen=True)
-class Function(StructFrozen):
-    type: FunctionType = builtin_property(100, is_repr=True)
-    left: "Expression" = builtin_property(101, is_repr=True)
-    right: Optional["Expression"] = builtin_property(102, is_repr=True)
-
-    @classmethod
-    def of(
-        cls: type_["Function"],
-        type: FunctionType,
-        left: "Expression",
-        right: Optional["Expression"] = None,
-    ) -> "Function":
-        return cls(type=type, left=left, right=right)
 
 
 #
@@ -91,7 +61,12 @@ class ConditionalType(Enum):
     NOT_EXISTS = 41
 
 
-@builtin_struct(StructType.CONDITION, frozen=True)
+@builtin_struct(
+    StructType.CONDITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Condition(StructFrozen):
     """Boolean predicate (AND, =, <, etc.)."""
 
@@ -176,7 +151,12 @@ class ExpressionType(Enum):
     # SUBQUERY?
 
 
-@builtin_struct(StructType.EXPRESSION, frozen=True)
+@builtin_struct(
+    StructType.EXPRESSION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Expression(StructFrozen):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
@@ -184,7 +164,6 @@ class Expression(StructFrozen):
     literal: Optional[Value] = builtin_property(101, is_repr=True)
     attribute: Optional[PropertyReference] = builtin_property(102, is_repr=True)
     condition: Optional[Condition] = builtin_property(103, is_repr=True)
-    function: Optional[Function] = builtin_property(104, is_repr=True)
     aggregation: Optional[Aggregation] = builtin_property(105, is_repr=True)
     # subquery?
 
@@ -200,8 +179,6 @@ class Expression(StructFrozen):
             return Expression(type=ExpressionType.ATTRIBUTE, attribute=PropertyReference.of(thing))
         elif isinstance(thing, Condition):
             return Expression(type=ExpressionType.CONDITION, condition=thing)
-        elif isinstance(thing, Function):
-            return Expression(type=ExpressionType.FUNCTION, function=thing)
         elif isinstance(thing, Aggregation):
             return Expression(type=ExpressionType.AGGREGATION, aggregation=thing)
         elif isinstance(thing, Expression):
@@ -217,7 +194,6 @@ ExpressionIn = Union[
     "PropertyDefinition",
     "CustomPropertyDefinition",
     "Condition",
-    "Function",
     "Aggregation",
     "Expression",
 ]
@@ -252,7 +228,12 @@ SortIn = Union[
 ]
 
 
-@builtin_struct(StructType.SORT, frozen=True)
+@builtin_struct(
+    StructType.SORT,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Sort(StructFrozen):
     """ORDER BY specification."""
 
@@ -277,7 +258,12 @@ class Sort(StructFrozen):
 #
 
 
-@builtin_struct(StructType.SELECT, frozen=True)
+@builtin_struct(
+    StructType.SELECT,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Select(StructFrozen):
     """Select specific Attributes."""
 
@@ -301,7 +287,12 @@ class JoinType(Enum):
     CHILD = 11
 
 
-@builtin_struct(StructType.JOIN, frozen=True)
+@builtin_struct(
+    StructType.JOIN,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Join(StructFrozen):
     """Join a Query with another Query."""
 
@@ -339,7 +330,12 @@ class QueryType(Enum):
     GROUPED_SCALAR = 15, "Grouped Scalar", "Grouped list of scalar Values"
 
 
-@builtin_struct(StructType.QUERY, frozen=True)
+@builtin_struct(
+    StructType.QUERY,
+    frozen=True,
+    is_final=True,
+)
+@final
 class Query(StructFrozen):
     """
     A Query into the supergraph about Nodes (node or scalar and potentially grouped).
