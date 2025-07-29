@@ -99,8 +99,6 @@ class TypeDeclaration:
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
     node_types: Sequence[NodeType] | None = None  # for node scalar nodes
-    literal_value: Any | None = None
-    union_types: Sequence["TypeDeclaration"] | None = None
 
     # flags
     is_required: bool = True
@@ -115,7 +113,6 @@ class TypeDeclaration:
             return self._basic_type
 
         from .type import Type
-        from .value import Value
 
         # type
         type = Type(
@@ -130,8 +127,6 @@ class TypeDeclaration:
             enum_type=self.enum_type,
             node_types=list(self.node_types) if self.node_types else None,
             struct_type=self.struct_type,
-            literal_value=Value.wrap(self.literal_value) if self.literal_value else None,
-            union_types=[t.to_type() for t in self.union_types] if self.union_types else None,
             # flags
             is_required=self.is_required,
         )
@@ -207,8 +202,6 @@ class CheckedTypeDeclaration(TypeDeclaration):
             enum_type=self.enum_type,
             node_types=list(self.node_types) if self.node_types else None,
             struct_type=self.struct_type,
-            literal_value=Value.wrap(self.literal_value) if self.literal_value else None,
-            union_types=[t.to_type() for t in self.union_types] if self.union_types else None,
             is_required=self.is_required,
             # default
             default_value=default_value,

@@ -52,7 +52,6 @@ class EnumType(Enum):
     SORT_MODE = 302
     SORT_TYPE = 303
     JOIN_TYPE = 304
-    FUNCTION_TYPE = 305
     EXPRESSION_TYPE = 306
     QUERY_TYPE = 320
 
@@ -76,8 +75,8 @@ class EnumType(Enum):
     MIGRATION_TYPE = 31_000
 
     # logic
-    METHOD_TYPE = 40_000
-    METHOD_CARDINALITY = 40_001
+    FUNCTION_TYPE = 40_000
+    FUNCTION_CARDINALITY = 40_001
 
     # universe [100_000-200_000]
     USER_STATUS = 121_000
@@ -213,6 +212,7 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 class ObjectKind(Enum):
     NODE = 1
     STRUCT = 2
+    # FUNCTION/ACTION?
 
 
 @builtin_enum(EnumType.OBJECT_STABILITY)
@@ -255,7 +255,6 @@ class StructType(Enum):
 
     # expressions
     EXPRESSION = 200
-    FUNCTION = 201
     JOIN = 202
     AGGREGATION = 203
     CONDITION = 204
@@ -280,8 +279,9 @@ class StructType(Enum):
     MIGRATION_OPERATION_DEFINITION = 31_100
 
     # logic
-    METHOD_DEFINITION = 40_000
-    ACTION_DEFINITION = 40_100
+    FUNCTION_DEFINITION = 40_000
+    METHOD_DEFINITION = 40_100
+    ACTION_DEFINITION = 40_200
 
     # access
     PERMISSION_DEFINITION = 50_000
@@ -563,8 +563,9 @@ class NodeType(Enum):
     # nocheckin: *_definition/custom_*_definition inconsistency (Index, Event, Method/Action, Permission, ...)
 
     # logic
-    METHOD = 40_000, "Method", None, "fas fa-code"
-    ACTION = 40_100, "Action", None, "fas fa-code"
+    FUNCTION = 40_000, "Function", None, "fas fa-code"
+    METHOD = 40_100, "Method", None, "fas fa-code"
+    ACTION = 40_200, "Action", None, "fas fa-code"
 
     # access
     PERMISSION = 50_000, "Permission", "Permission for something", "fas fa-user-shield"

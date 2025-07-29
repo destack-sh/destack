@@ -40,9 +40,7 @@ class JsonEncoder(Encoder[Json]):
 
     encoding: ClassVar[Encoding] = Encoding.JSON
 
-    def __init__(
-        self, encoders: Mapping[tuple[ObjectKind, NodeType | StructType], JsonObjectEncoder]
-    ):
+    def __init__(self, encoders: Mapping[tuple[ObjectKind, int], JsonObjectEncoder]):
         self.encoders = encoders
 
     @classmethod
@@ -57,52 +55,52 @@ class JsonEncoder(Encoder[Json]):
     def pack_object(
         self,
         kind: ObjectKind,
-        metatype: NodeType | StructType,
+        type: int,
         object: Object,
         options: EncoderOptions,
     ) -> dict[str, Any]:
-        encoder = self.encoders.get((kind, metatype))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{metatype.name}"
+        encoder = self.encoders.get((kind, type))
+        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
         return encoder.pack_object(self, object, options)
-
-    @override
-    def pack_object_binary(
-        self,
-        kind: ObjectKind,
-        metatype: NodeType | StructType,
-        object: Object,
-        writer: BinaryWriter,
-        options: EncoderOptions,
-    ) -> None:
-        encoder = self.encoders.get((kind, metatype))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{metatype.name}"
-        object_packed = encoder.pack_object(self, object, options)
-        writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
 
     @override
     def unpack_object(
         self,
         kind: ObjectKind,
-        metatype: NodeType | StructType,
+        type: int,
         value: Json,
         session: Session | None,
         options: EncoderOptions,
     ) -> Object:
-        encoder = self.encoders.get((kind, metatype))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{metatype.name}"
+        encoder = self.encoders.get((kind, type))
+        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
         return encoder.unpack_object(self, value, session, options)
+
+    @override
+    def pack_object_binary(
+        self,
+        kind: ObjectKind,
+        type: NodeType | StructType,
+        object: Object,
+        writer: BinaryWriter,
+        options: EncoderOptions,
+    ) -> None:
+        encoder = self.encoders.get((kind, type))
+        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
+        object_packed = encoder.pack_object(self, object, options)
+        writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
 
     @override
     def unpack_object_binary(
         self,
         kind: ObjectKind,
-        metatype: NodeType | StructType,
+        type: int,
         reader: BinaryReader,
         session: Session | None,
         options: EncoderOptions,
     ) -> Object:
-        encoder = self.encoders.get((kind, metatype))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{metatype.name}"
+        encoder = self.encoders.get((kind, type))
+        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return encoder.unpack_object(self, value_decoded, session, options)
 
@@ -115,15 +113,6 @@ class JsonEncoder(Encoder[Json]):
         return self.pack_object(ObjectKind.STRUCT, type.metatype, type, options)
 
     @override
-    def pack_type_binary(
-        self,
-        type: Type,
-        writer: BinaryWriter,
-        options: EncoderOptions,
-    ) -> None:
-        self.pack_object_binary(ObjectKind.STRUCT, StructType.TYPE, type, writer, options)
-
-    @override
     def unpack_type(
         self,
         value: Json,
@@ -132,6 +121,15 @@ class JsonEncoder(Encoder[Json]):
         unpacked_type = self.unpack_object(ObjectKind.STRUCT, StructType.TYPE, value, None, options)
         assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
         return unpacked_type
+
+    @override
+    def pack_type_binary(
+        self,
+        type: Type,
+        writer: BinaryWriter,
+        options: EncoderOptions,
+    ) -> None:
+        self.pack_object_binary(ObjectKind.STRUCT, StructType.TYPE, type, writer, options)
 
     @override
     def unpack_type_binary(
@@ -155,62 +153,39 @@ class JsonEncoder(Encoder[Json]):
         value: Any,
         options: EncoderOptions,
     ) -> Json:
+        if value is None:
+            return None
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            if value is None:
-                return None
-            else:
-                return self.pack_scalar_value(type, value, options)
-
+            return self.pack_scalar_value(type, value, options)
         # list
         elif type.cardinality == TypeCardinality.LIST:
-            if value is None:
-                return None
-            else:
-                assert type.value_type is not None, f"no value type for {type!r}"
-                packed_list: list[Any] = []
-                for item in value:
-                    packed_list.append(self.pack_scalar_value(type.value_type, item, options))
-                return packed_list
-
+            assert type.value_type is not None, f"no value type for {type!r}"
+            packed_list: list[Any] = []
+            for item in value:
+                packed_list.append(self.pack_scalar_value(type.value_type, item, options))
+            return packed_list
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
-            if value is None:
-                return None
-            else:
-                assert type.element_types is not None, f"no element types for {type!r}"
-                packed_tuple: list[Any] = []
-                for item, element_type in zip(value, type.element_types):
-                    packed_tuple.append(self.pack_scalar_value(element_type, item, options))
-                return packed_tuple
-
+            assert type.element_types is not None, f"no element types for {type!r}"
+            packed_tuple: list[Any] = []
+            for item, element_type in zip(value, type.element_types):
+                packed_tuple.append(self.pack_scalar_value(element_type, item, options))
+            return packed_tuple
         # map
         elif type.cardinality == TypeCardinality.MAP:
-            if value is None:
-                return None
-            else:
-                assert type.key_type is not None, f"no key type for {type!r}"
-                assert type.value_type is not None, f"no value type for {type!r}"
-                packed_map: dict[str, Any] = {}
-                for key, val in value.items():
-                    # always use string keys in JSON
-                    packed_key = str(self.pack_scalar_value(type.key_type, key, options))
-                    packed_val = self.pack_scalar_value(type.value_type, val, options)
-                    packed_map[packed_key] = packed_val
-                return packed_map
-
+            assert type.key_type is not None, f"no key type for {type!r}"
+            assert type.value_type is not None, f"no value type for {type!r}"
+            packed_map: dict[str, Any] = {}
+            for key, val in value.items():
+                # always use string keys in JSON
+                packed_key = str(self.pack_scalar_value(type.key_type, key, options))
+                packed_val = self.pack_scalar_value(type.value_type, val, options)
+                packed_map[packed_key] = packed_val
+            return packed_map
+        # 
         else:
             assert_never(type.cardinality)
-
-    @override
-    def pack_value_binary(
-        self,
-        type: Type,
-        value: Any,
-        writer: BinaryWriter,
-        options: EncoderOptions,
-    ) -> None:
-        writer.write_bytes(json.dumps(self.pack_value(type, value, options)).encode("utf-8"))
 
     @override
     def unpack_value(
@@ -220,78 +195,52 @@ class JsonEncoder(Encoder[Json]):
         session: Session | None,
         options: EncoderOptions,
     ) -> Any:
+        if value is None:
+            return None
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            if value is None:
-                return None
-            else:
-                return self.unpack_scalar_value(type, value, session, options)
-
+            return self.unpack_scalar_value(type, value, session, options)
         # list
         elif type.cardinality == TypeCardinality.LIST:
-            if value is None:
-                return None
-            else:
-                assert type.value_type is not None, f"no value type for {type!r}"
-                unpacked_list: list[Any] = []
-                for item in value:
-                    unpacked_list.append(
-                        self.unpack_scalar_value(type.value_type, item, session, options)
-                    )
-                return unpacked_list
-
+            assert type.value_type is not None, f"no value type for {type!r}"
+            unpacked_list: list[Any] = []
+            for item in value:
+                unpacked_list.append(
+                    self.unpack_scalar_value(type.value_type, item, session, options)
+                )
+            return unpacked_list
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
-            if value is None:
-                return None
-            else:
-                assert type.element_types is not None, f"no element types for {type!r}"
-                unpacked_tuple: list[Any] = []
-                for item, element_type in zip(value, type.element_types):
-                    unpacked_tuple.append(
-                        self.unpack_scalar_value(element_type, item, session, options)
-                    )
-                return unpacked_tuple
-
+            assert type.element_types is not None, f"no element types for {type!r}"
+            unpacked_tuple: list[Any] = []
+            for item, element_type in zip(value, type.element_types):
+                unpacked_tuple.append(
+                    self.unpack_scalar_value(element_type, item, session, options)
+                )
+            return unpacked_tuple
         # map
         elif type.cardinality == TypeCardinality.MAP:
-            if value is None:
-                return None
-            else:
-                assert type.key_type is not None, f"no key type for {type!r}"
-                assert type.value_type is not None, f"no value type for {type!r}"
-                unpacked_map = {}
-                assert isinstance(value, dict), f"expected dict for map type, got {type_(value)}"
-                for key, val in value.items():
-                    unpacked_key = (
-                        self.unpack_scalar_value(type.key_type, key, session, options)
-                        if type.key_type
-                        else key
-                    )
-                    unpacked_val = self.unpack_scalar_value(type.value_type, val, session, options)
-                    unpacked_map[unpacked_key] = unpacked_val
-                return unpacked_map
-
-        # literal
+            assert type.key_type is not None, f"no key type for {type!r}"
+            assert type.value_type is not None, f"no value type for {type!r}"
+            unpacked_map = {}
+            assert isinstance(value, dict), f"expected dict for map type, got {type_(value)}"
+            for key, val in value.items():
+                unpacked_key = (
+                    self.unpack_scalar_value(type.key_type, key, session, options)
+                    if type.key_type
+                    else key
+                )
+                unpacked_val = self.unpack_scalar_value(type.value_type, val, session, options)
+                unpacked_map[unpacked_key] = unpacked_val
+            return unpacked_map
+        # 
         else:
             assert_never(type.cardinality)
-
-    @override
-    def unpack_value_binary(
-        self,
-        type: Type,
-        reader: BinaryReader,
-        session: Session | None,
-        options: EncoderOptions,
-    ) -> Any:
-        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
-        return self.unpack_value(type, value_decoded, session, options)
 
     def pack_scalar_value(self, type: Type, value: Any, options: EncoderOptions) -> Any:
         """Pack a scalar value to JSON."""
         assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
         assert type.scalar_type is not None, f"no scalar type for {type!r}"
-
         # primitive
         if type.scalar_type == ScalarType.PRIMITIVE:
             assert type.primitive_type is not None, f"no primitive type for {type!r}"
@@ -342,11 +291,9 @@ class JsonEncoder(Encoder[Json]):
                 return value
             else:
                 assert_never(type.primitive_type)
-
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             return value.name
-
         # node reference, node value, struct
         elif type.scalar_type in (
             ScalarType.NODE_REFERENCE,
@@ -356,7 +303,6 @@ class JsonEncoder(Encoder[Json]):
             assert type.struct_type is not None, f"no struct type for {type!r}"
             assert isinstance(value, Object), f"expected BuiltinObject for {type!r}, got {value!r}"
             return self.pack_object(ObjectKind.STRUCT, type.struct_type, value, options)
-
         #
         else:
             assert_never(type.scalar_type)
@@ -371,7 +317,6 @@ class JsonEncoder(Encoder[Json]):
         """Unpack a scalar value from JSON."""
         assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
         assert type.scalar_type is not None, f"no scalar type for {type!r}"
-
         # primitive
         if type.scalar_type == ScalarType.PRIMITIVE:
             assert type.primitive_type is not None, f"no primitive type for {type!r}"
@@ -417,29 +362,45 @@ class JsonEncoder(Encoder[Json]):
                 return value
             else:
                 assert_never(type.primitive_type)
-
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return enum_cls[value]
-
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return self.unpack_object(
                 ObjectKind.STRUCT, StructType.NODE_REFERENCE, value, session, options
             )
-
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             node_type = NodeType[value["metatype"]]
             return self.unpack_object(ObjectKind.NODE, node_type, value, session, options)
-
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
             return self.unpack_object(ObjectKind.STRUCT, type.struct_type, value, session, options)
-
         #
         else:
             assert_never(type.scalar_type)
+
+    @override
+    def pack_value_binary(
+        self,
+        type: Type,
+        value: Any,
+        writer: BinaryWriter,
+        options: EncoderOptions,
+    ) -> None:
+        writer.write_bytes(json.dumps(self.pack_value(type, value, options)).encode("utf-8"))
+
+    @override
+    def unpack_value_binary(
+        self,
+        type: Type,
+        reader: BinaryReader,
+        session: Session | None,
+        options: EncoderOptions,
+    ) -> Any:
+        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
+        return self.unpack_value(type, value_decoded, session, options)

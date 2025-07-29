@@ -4,6 +4,7 @@ from typing import (
     Union,
     assert_never,
     cast,
+    final,
 )
 
 from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
@@ -38,7 +39,8 @@ class NodeDefinitionType(Enum):
     CUSTOM = 2
 
 
-@builtin_struct(StructType.NODE_DEFINITION_REFERENCE, frozen=True)
+@builtin_struct(StructType.NODE_DEFINITION_REFERENCE, frozen=True, is_final=True)
+@final
 class NodeDefinitionReference(StructFrozen):
     """Reference to a Node definition."""
 
@@ -121,7 +123,8 @@ class ObjectDefinitionType(Enum):
     # BUILTIN_ENUM, CUSTOM_ENUM?
 
 
-@builtin_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True)
+@builtin_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True, is_final=True)
+@final
 class ObjectDefinitionReference(StructFrozen):
     """Reference to an object "type" (builtin, custom or trait)."""
 
@@ -219,7 +222,12 @@ class StructDefinitionType(Enum):
     CUSTOM_ENUM = 4
 
 
-@builtin_struct(StructType.STRUCT_DEFINITION_REFERENCE, frozen=True)
+@builtin_struct(
+    StructType.STRUCT_DEFINITION_REFERENCE,
+    frozen=True,
+    is_final=True,
+)
+@final
 class StructDefinitionReference(StructFrozen):
     """Reference to a Struct definition (builtin, custom or by trait)."""
 
@@ -242,7 +250,12 @@ class PropertyReferenceType(Enum):
     CUSTOM = 2
 
 
-@builtin_struct(StructType.PROPERTY_REFERENCE, frozen=True)
+@builtin_struct(
+    StructType.PROPERTY_REFERENCE,
+    frozen=True,
+    is_final=True,
+)
+@final
 class PropertyReference(StructFrozen):
     """
     A reference to a builtin object's Property.
@@ -317,7 +330,13 @@ class PropertyReference(StructFrozen):
             assert_never(base)
 
 
-@builtin_struct(StructType.NODE_REFERENCE, frozen=True, stability=ObjectStability.GROWABLE)
+@builtin_struct(
+    StructType.NODE_REFERENCE,
+    frozen=True,
+    is_final=True,
+    stability=ObjectStability.GROWABLE,
+)
+@final
 class NodeReference(StructFrozen):
     """
     A reference to a Node in spacetime.

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Self, assert_never, cast
+from typing import TYPE_CHECKING, Any, Self, assert_never, cast, final
 
 from destack.language.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
 
@@ -122,7 +122,12 @@ class ObjectDefinition(StructFrozen):
     )
 
 
-@builtin_struct(StructType.NODE_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.NODE_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class NodeDefinition(ObjectDefinition):
     """Definition of a builtin Node."""
 
@@ -360,7 +365,12 @@ class NodeDefinition(ObjectDefinition):
         )
 
 
-@builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.STRUCT_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class StructDefinition(ObjectDefinition):
     """Definition of a builtin Struct."""
 
@@ -486,7 +496,12 @@ class StructDefinition(ObjectDefinition):
         )
 
 
-@builtin_struct(StructType.ENUM_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.ENUM_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class EnumDefinition(StructFrozen):
     """Definition of a builtin Enum."""
 
@@ -518,7 +533,12 @@ class EnumDefinition(StructFrozen):
         )
 
 
-@builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.PROPERTY_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class PropertyDefinition(CheckedType):
     """Definition of a builtin Property."""
 
@@ -744,7 +764,12 @@ Whether this Property is part of the object's identity.
         return Sort.of(self, SortType.DESCENDING)
 
 
-@builtin_struct(StructType.OPTION_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.OPTION_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class OptionDefinition(StructFrozen):
     """Definition of a builtin Enum Option."""
 
@@ -769,7 +794,12 @@ class OptionDefinition(StructFrozen):
         )
 
 
-@builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.CONSTANT_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
 
@@ -796,7 +826,12 @@ class ConstantDefinition(StructFrozen):
         )
 
 
-@builtin_struct(StructType.TAG_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.TAG_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class TagDefinition(StructFrozen):
     """Definition of a builtin Tag to associate builtin definitions to."""
 
@@ -814,7 +849,12 @@ class TagDefinition(StructFrozen):
         )
 
 
-@builtin_struct(StructType.INDEX_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.INDEX_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class IndexDefinition(StructFrozen):
     """Definition of a builtin Index."""
 
@@ -840,7 +880,12 @@ class IndexDefinition(StructFrozen):
         )
 
 
-@builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.CONSTRAINT_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class ConstraintDefinition(StructFrozen):
     """Definition of a builtin Constraint."""
 
@@ -864,7 +909,12 @@ class ConstraintDefinition(StructFrozen):
         )
 
 
-@builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
+@builtin_struct(
+    StructType.PERMISSION_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
 class PermissionDefinition(StructFrozen):
     """Definition of a builtin Permission for a builtin Node."""
 

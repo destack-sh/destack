@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, final
 
 from ..builtin import (
     CascadeAction,
@@ -62,15 +62,17 @@ class CustomEvent(Event):
 
 
 @builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
-class CustomStructDefinition(
-    Entity,
-):
+class CustomStructDefinition(Entity):
     """A CustomStruct describes a custom Struct with custom Properties."""
 
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_struct(StructType.CUSTOM_STRUCT)
+@builtin_struct(
+    StructType.CUSTOM_STRUCT,
+    is_final=True,
+)
+@final
 class CustomStruct(Struct):
     """A CustomStruct is an instance of a custom Struct with custom Properties."""
 
@@ -88,18 +90,14 @@ class CustomStruct(Struct):
 
 
 @builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
-class CustomEnumDefinition(
-    Entity,
-):
+class CustomEnumDefinition(Entity):
     """A CustomEnum describes a custom Enum with custom Options."""
 
     icon: "Icon | None" = builtin_property(102)
 
 
 @builtin_node(NodeType.CUSTOM_OPTION_DEFINITION)
-class CustomOptionDefinition(
-    Entity,
-):
+class CustomOptionDefinition(Entity):
     parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
 
     icon: "Icon | None" = builtin_property(102)
