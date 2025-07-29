@@ -296,6 +296,34 @@ class BinaryReader:
         """Number of bytes remaining."""
         return len(self.buffer) - self.pos
 
+    # PrimitiveType.UINT8
+    def peek_uint8(self) -> int:
+        """Peek at the next unsigned 8-bit integer without advancing the position."""
+        if self.pos >= len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+        return self.buffer[self.pos] & 0xFF
+
+    # PrimitiveType.UINT16
+    def peek_uint16(self) -> int:
+        """Peek at the next unsigned 16-bit integer without advancing the position."""
+        if self.pos + 2 > len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+        return self._peek_varint()
+
+    # PrimitiveType.UINT32
+    def peek_uint32(self) -> int:
+        """Peek at the next unsigned 32-bit integer without advancing the position."""
+        if self.pos + 4 > len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+        return self._peek_varint()
+
+    # PrimitiveType.UINT64
+    def peek_uint64(self) -> int:
+        """Peek at the next unsigned 64-bit integer without advancing the position."""
+        if self.pos + 8 > len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+        return self._peek_varint()
+
     # PrimitiveType.BOOLEAN
     def read_bool(self) -> bool:
         """
@@ -569,6 +597,20 @@ class BinaryReader:
             byte = self.buffer[self.pos]
             self.pos += 1
             value |= (byte & 0x7F) << shift
+            if (byte & 0x80) == 0:
+                return value
+            shift += 7
+            if shift >= 140:
+                raise BinaryError(f"varint too long at {self.pos}")
+
+    def _peek_varint(self) -> int:
+        """Peek at the next unsigned integer using variable-length encoding."""
+        value = 0
+        shift = 0
+        while True:
+            if self.pos >= len(self.buffer):
+                raise BinaryError(f"unexpected end of buffer at {self.pos}")
+            byte = self.buffer[self.pos]
             if (byte & 0x80) == 0:
                 return value
             shift += 7

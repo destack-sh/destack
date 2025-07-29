@@ -2,7 +2,7 @@ import base64
 import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
-from typing import Any, ClassVar, assert_never, override
+from typing import Any, ClassVar, assert_never, cast, override
 
 from destack.language.core import (
     BinaryReader,
@@ -21,6 +21,7 @@ from destack.language.core import (
     StructType,
     Type,
     TypeCardinality,
+    Value,
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE
 from destack.utils.log import get_logger
@@ -48,7 +49,10 @@ class JsonEncoder(Encoder[Json]):
         from .generate import JsonEncoderGenerator
 
         generator = JsonEncoderGenerator()
-        encoders = generator.generate()
+        encoders: dict[tuple[ObjectKind, int], JsonObjectEncoder] = {}
+        encoders[ObjectKind.STRUCT, StructType.TYPE] = cast(JsonObjectEncoder, JsonTypeEncoder())
+        encoders[ObjectKind.STRUCT, StructType.VALUE] = cast(JsonObjectEncoder, JsonValueEncoder())
+        encoders.update(generator.generate(omit=list(encoders.keys())))
         return cls(encoders)
 
     @override
@@ -413,3 +417,70 @@ class JsonEncoder(Encoder[Json]):
     ) -> Any:
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return self.unpack_value(type, value_decoded, session, options)
+
+
+class JsonTypeEncoder(JsonObjectEncoder[Type]):
+    """Short-circuit Type encoding to the JsonEncoder's own methods."""
+
+    @override
+    def pack_object(
+        self,
+        _encoder: "JsonEncoder",
+        _object: Type,
+        _options: EncoderOptions,
+    ) -> dict[str, Any]:
+        return _encoder.pack_object(ObjectKind.STRUCT, StructType.TYPE, _object, _options)
+
+    @override
+    def unpack_object(
+        self,
+        _encoder: "JsonEncoder",
+        _object_json: dict[str, Any],
+        _session: Session | None,
+        _options: EncoderOptions,
+    ) -> Type:
+        unpacked_type = _encoder.unpack_object(
+            ObjectKind.STRUCT, StructType.TYPE, _object_json, _session, _options
+        )
+        assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
+        return unpacked_type
+
+
+class JsonValueEncoder(JsonObjectEncoder[Value]):
+    """Short-circuit Value encoding to the JsonEncoder's own methods."""
+
+    @override
+    def pack_object(
+        self,
+        _encoder: "JsonEncoder",
+        _object: Value,
+        _options: EncoderOptions,
+    ) -> dict[str, Any]:
+        type_key = _encoder.get_target_property_key(Value.__properties__["type"])
+        value_key = _encoder.get_target_property_key(Value.__properties__["value"])
+        return {
+            type_key: _encoder.pack_object(
+                ObjectKind.STRUCT, StructType.TYPE, _object.type, _options
+            ),
+            value_key: _encoder.pack_value(_object.type, _object.value, _options),
+        }
+
+    @override
+    def unpack_object(
+        self,
+        _encoder: "JsonEncoder",
+        _object_json: dict[str, Any],
+        _session: Session | None,
+        _options: EncoderOptions,
+    ) -> Value:
+        type_key = _encoder.get_target_property_key(Value.__properties__["type"])
+        value_key = _encoder.get_target_property_key(Value.__properties__["value"])
+        unpacked_type = _encoder.unpack_object(
+            ObjectKind.STRUCT, StructType.TYPE, _object_json[type_key], _session, _options
+        )
+        assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
+        unpacked_value = _encoder.unpack_value(
+            unpacked_type, _object_json[value_key], _session, _options
+        )
+        assert isinstance(unpacked_value, Value), f"expected Value, got {unpacked_value!r}"
+        return unpacked_value

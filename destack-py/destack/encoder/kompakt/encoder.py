@@ -16,6 +16,7 @@ from destack.language.core import (
     StructType,
     Type,
     TypeCardinality,
+    Value,
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE
 
@@ -35,10 +36,14 @@ class KompaktEncoder(Encoder[bytes]):
         from .generate import KompaktEncoderGenerator
 
         generator = KompaktEncoderGenerator()
-        encoders: dict[tuple[ObjectKind, int], KompaktObjectEncoder] = {**generator.generate()}
+        encoders: dict[tuple[ObjectKind, int], KompaktObjectEncoder] = {}
         encoders[ObjectKind.STRUCT, StructType.TYPE] = cast(
             KompaktObjectEncoder, KompaktTypeEncoder()
         )
+        encoders[ObjectKind.STRUCT, StructType.VALUE] = cast(
+            KompaktObjectEncoder, KompaktValueEncoder()
+        )
+        encoders.update(generator.generate(omit=list(encoders.keys())))
         return cls(encoders)
 
     @override
@@ -517,7 +522,7 @@ class KompaktTypeEncoder(KompaktObjectEncoder[Type]):
         _writer: BinaryWriter,
         _options: EncoderOptions,
     ) -> None:
-        return _encoder.pack_type_binary(_object, _writer, _options)
+        _encoder.pack_type_binary(_object, _writer, _options)
 
     @override
     def unpack_object(
@@ -530,4 +535,28 @@ class KompaktTypeEncoder(KompaktObjectEncoder[Type]):
         return _encoder.unpack_type_binary(_reader, _options)
 
 
-# nocheckin: KompaktValueEncoder?
+class KompaktValueEncoder(KompaktObjectEncoder[Value]):
+    """Short-circuit Value encoding to the KompaktEncoder's own methods."""
+
+    @override
+    def pack_object(
+        self,
+        _encoder: "KompaktEncoder",
+        _object: Value,
+        _writer: BinaryWriter,
+        _options: EncoderOptions,
+    ) -> None:
+        _encoder.pack_type_binary(_object.type, _writer, _options)
+        _encoder.pack_value_binary(_object.type, _object, _writer, _options)
+
+    @override
+    def unpack_object(
+        self,
+        _encoder: "KompaktEncoder",
+        _reader: BinaryReader,
+        _session: Session | None,
+        _options: EncoderOptions,
+    ) -> Value:
+        type = _encoder.unpack_type_binary(_reader, _options)
+        value = _encoder.unpack_value_binary(type, _reader, _session, _options)
+        return Value(type=type, value=value)

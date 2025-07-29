@@ -1,4 +1,5 @@
 import textwrap
+from collections.abc import Collection
 from datetime import UTC, date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
@@ -9,7 +10,6 @@ from destack.language.core import (
     EncoderOptions,
     Encoding,
     Entity,
-    NodeType,
     Object,
     ObjectKind,
     ObjectStability,
@@ -127,16 +127,6 @@ class {encoder_name}(KompaktObjectEncoder):
         """Generate the pack method for a BuiltinObject."""
         lines: list[str] = []
 
-        # metatype
-        needs_metatype = not cls.__declaration__.is_final
-        if needs_metatype:
-            lines.append(f"_writer.write_uint32({cls.metatype.value})")
-        else:
-            lines.append(f"""\
-if not _options | EncoderOptions.OMIT_METATYPE:
-    _writer.write_uint32({cls.metatype.value})
-""")
-
         # nocheckin: include object encoded byte size in KompaktEncoder (so we know when to stop)
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
@@ -150,13 +140,6 @@ if not _options | EncoderOptions.OMIT_METATYPE:
 
         # pack always set properties
         for prop in set_properties:
-            # special case: generic Value.value
-            if cls.metatype == StructType.VALUE and prop.name == "value":
-                lines.append(
-                    "_encoder.pack_value_binary(_object.value.type, _object.value, _writer, _options)"
-                )
-                continue
-
             prop_name = self.get_source_property_name(prop)
             pack_code = self.generate_pack_value(
                 prop,
@@ -206,16 +189,6 @@ else:
         """Generate the unpack method for a BuiltinObject."""
         lines: list[str] = []
 
-        # metatype
-        needs_metatype = not cls.__declaration__.is_final
-        if needs_metatype:
-            lines.append("metatype = _reader.read_uint32()")
-        else:
-            lines.append("""\
-if not _options | EncoderOptions.OMIT_METATYPE:
-    metatype = _reader.read_uint32()
-""")
-
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
@@ -228,13 +201,6 @@ if not _options | EncoderOptions.OMIT_METATYPE:
 
         # unpack always set properties
         for prop in set_properties:
-            # special case: generic Value.value
-            if cls.metatype == StructType.VALUE and prop.name == "value":
-                lines.append(
-                    "_encoder.unpack_value_binary(_object.value.type, _reader, _session, _options)"
-                )
-                continue
-
             prop_name = self.get_source_property_name(prop)
             unpack_code = self.generate_unpack_value(
                 prop,
@@ -602,20 +568,26 @@ _encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_e
         else:
             assert_never(type.scalar_type)
 
-    def generate(self) -> dict[tuple[ObjectKind, NodeType | StructType], KompaktObjectEncoder]:
+    def generate(
+        self,
+        *,
+        omit: Collection[tuple[ObjectKind, int]] = (),
+    ) -> dict[tuple[ObjectKind, int], KompaktObjectEncoder]:
         # generate pack/unpack methods
         encoders = {}
         for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-            if node_cls.__declaration__.is_abstract:
+            if (
+                node_cls.__declaration__.is_abstract
+                or (node_cls.__kind__, node_cls.metatype.value) in omit
+            ):
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
             locals_ = {}
-            # nocheckin
-            # print("=" * 80)
-            # print(node_cls.__name__ + ":kompakt")
-            # print("=" * 80)
-            # print(impl)
-            # print("=" * 80)
+            print("=" * 80)
+            print(node_cls.__name__ + ":kompakt")
+            print("=" * 80)
+            print(impl)
+            print("=" * 80)
             exec_(
                 impl,
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},

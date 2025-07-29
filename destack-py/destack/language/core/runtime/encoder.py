@@ -8,8 +8,7 @@ from .binary import BinaryReader, BinaryWriter
 if TYPE_CHECKING:
     from destack.language.core import Session, Type
 
-# nocheckin: pack/unpack Struct subclasses properly
-#  (in general, but specifically for Errors/Frames/Packets/...)
+# nocheckin: pack/unpack subclasses properly (where to put the metatype prefix?)
 # nocheckin: pack partial Nodes properly (.materialization<FULL)
 
 

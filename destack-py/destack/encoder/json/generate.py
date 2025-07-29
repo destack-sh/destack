@@ -1,5 +1,6 @@
 import base64
 import textwrap
+from collections.abc import Collection
 from datetime import UTC, date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
@@ -136,14 +137,6 @@ class {encoder_name}(JsonObjectEncoder):
 
         # pack always set properties
         for prop in set_properties:
-            # special case: generic Value.value
-            if cls.metatype == StructType.VALUE and prop.name == "value":
-                target_expr = f"_object_json['{self.get_target_property_key(prop)}']"
-                lines.append(
-                    f"{target_expr} = _encoder.pack_value(_object.type, _object.value, _options)"
-                )
-                continue
-
             prop_name = self.get_source_property_name(prop)
             pack_code = self.generate_pack_value(
                 prop,
@@ -208,15 +201,6 @@ else:
 
         # unpack always set properties
         for prop in set_properties:
-            # special case: generic Value.value
-            if cls.metatype == StructType.VALUE and prop.name == "value":
-                value_key = self.get_target_property_key(prop)
-                lines.append(
-                    f"_unpacked_value = _encoder.unpack_value(_unpacked_type, _object_json.get('{value_key}'), _session, _options)"
-                )
-                assignments.append("value = _unpacked_value")
-                continue
-
             prop_name = self.get_source_property_name(prop)
             unpack_code = self.generate_unpack_value(
                 prop,
@@ -695,11 +679,16 @@ _encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _sess
         else:
             assert_never(type.scalar_type)
 
-    def generate(self) -> dict[tuple[ObjectKind, int], JsonObjectEncoder]:
+    def generate(
+        self, *, omit: Collection[tuple[ObjectKind, int]] = ()
+    ) -> dict[tuple[ObjectKind, int], JsonObjectEncoder]:
         # generate pack/unpack methods
         encoders = {}
         for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-            if node_cls.__declaration__.is_abstract:
+            if (
+                node_cls.__declaration__.is_abstract
+                or (node_cls.__kind__, node_cls.metatype.value) in omit
+            ):
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
             locals_ = {}
