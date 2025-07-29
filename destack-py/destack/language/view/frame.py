@@ -7,7 +7,6 @@ from .layout import LayoutView
 
 @builtin_node(
     NodeType.FRAME_VIEW,
-    is_extensible=True,
 )
 class FrameView(LayoutView):
     """

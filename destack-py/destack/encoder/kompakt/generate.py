@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, assert_never, override
 from destack.language.core import (
     BinaryReader,
     BinaryWriter,
+    EncoderOptions,
     Encoding,
     Entity,
     NodeType,
@@ -112,6 +113,7 @@ class {encoder_name}(KompaktObjectEncoder):
                 "BuiltinObject": Object,
                 "Encoding": Encoding,
                 "Session": Session,
+                "EncoderOptions": EncoderOptions,
             },
         )
 

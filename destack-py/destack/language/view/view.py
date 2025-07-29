@@ -32,7 +32,6 @@ class ViewEvent(Event["View"]):
 @builtin_node(
     NodeType.VIEW,
     is_abstract=True,
-    is_extensible=True,
     event_types=(
         NodeType.VIEW_EVENT,
         NodeType.POINTER_EVENT,

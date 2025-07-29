@@ -63,7 +63,6 @@ class NodeDeclaration(ObjectDeclaration):
     cls: type_["Node"]
     kind: Literal[ObjectKind.NODE]
     type: NodeType
-    is_extensible: bool
 
     # inheritance
     base_type: NodeType | None

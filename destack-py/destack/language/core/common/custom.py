@@ -44,7 +44,6 @@ class CustomEventDefinition(
 @builtin_node(
     NodeType.CUSTOM_EVENT,
     frozen=True,  # type: ignore (frozen)
-    is_extensible=True,
     is_abstract=True,
 )
 class CustomEvent(Event):

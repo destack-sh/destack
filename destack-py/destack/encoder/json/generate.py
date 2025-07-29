@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.language.core import (
     UNSET,
+    EncoderOptions,
     Entity,
     Materialization,
     Node,
@@ -104,6 +105,7 @@ class {encoder_name}(JsonObjectEncoder):
                 "Self": cls,
                 "cls": cls,
                 "BuiltinObject": Object,
+                "EncoderOptions": EncoderOptions,
             },
         )
 
@@ -302,7 +304,7 @@ else:
                 return f"""\
 if {source_expr} is not None:
     {target_expr} = {value_packed}
-{"elif not _options.prefer_omit_none:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         # list
@@ -330,7 +332,7 @@ if {source_expr} is not None:
     for {item_source_expr} in {source_expr}:
 {textwrap.indent(item_packed, " " * 8)}
         {target_expr}.append({item_target_expr})
-{"elif not _options.prefer_omit_none:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         # tuple
@@ -360,7 +362,7 @@ if {source_expr} is not None:
 if {source_expr} is not None:
 {textwrap.indent(element_packed_str, " " * 4)}
     {target_expr} = [{", ".join(element_target_exprs)}]
-{"elif not _options.prefer_omit_none:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         # map
@@ -400,7 +402,7 @@ if {source_expr} is not None:
 {textwrap.indent(key_packed, " " * 8)}
 {textwrap.indent(value_packed, " " * 8)}
         {target_expr}[{key_target_expr}] = {value_target_expr}
-{"elif not _options.prefer_omit_none:" if can_omit_none else "else:"}
+{"elif not _options & EncoderOptions.PREFER_OMIT_NONE:" if can_omit_none else "else:"}
     {target_expr} = None"""
 
         else:
@@ -702,11 +704,6 @@ _encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _sess
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
             locals_ = {}
-            print("=" * 80)
-            print(node_cls.__name__ + ":json")
-            print("=" * 80)
-            print(impl)
-            print("=" * 80)
             exec_(
                 impl,
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},

@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.INPUT_VIEW,
-    is_extensible=True,
     is_abstract=True,
 )
 class InputView(View):

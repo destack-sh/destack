@@ -1,6 +1,7 @@
 from typing import (
     TYPE_CHECKING,
     Optional,
+    final,
 )
 
 from .builtin import NodeType, TraitType
@@ -32,7 +33,6 @@ object_set_ = object.__setattr__
 
 @builtin_node(
     NodeType.RESOURCE,
-    is_extensible=True,
     is_abstract=True,
     traits=(TraitType.OWNABLE,),
 )
@@ -47,7 +47,6 @@ class Resource(Entity):
 
 @builtin_node(
     NodeType.VARIANT,
-    is_extensible=True,
     is_abstract=True,
     traits=(TraitType.OWNABLE,),
 )
@@ -59,7 +58,6 @@ class Variant(Entity):
 
 @builtin_node(
     NodeType.TAG,
-    is_extensible=True,
     traits=(TraitType.ORDERED,),
 )
 class Tag(Entity):
@@ -71,7 +69,9 @@ class Tag(Entity):
 @builtin_node(
     NodeType.TAGGING,
     traits=(TraitType.ORDERED,),
+    is_final=True,
 )
+@final
 class Tagging(Entity):
     """A Tagging of a Node by a Tag."""
 
@@ -82,7 +82,6 @@ class Tagging(Entity):
 
 @builtin_node(
     NodeType.ENTITY2D,
-    is_extensible=True,
     is_abstract=True,
 )
 class Entity2D(Entity):
@@ -121,7 +120,6 @@ class Entity2D(Entity):
 
 @builtin_node(
     NodeType.ENTITY3D,
-    is_extensible=True,
     is_abstract=True,
 )
 class Entity3D(Entity):
