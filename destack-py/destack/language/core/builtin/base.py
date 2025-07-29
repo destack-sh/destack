@@ -3,15 +3,11 @@ from typing import (
     Optional,
 )
 
-from .builtin import NodeType
+from .builtin import NodeType, TraitType
 from .const import UNSET
 from .node import builtin_node
 from .property import (
     builtin_property,
-)
-from .trait import (
-    IsOrdered,
-    IsOwnable,
 )
 
 if TYPE_CHECKING:
@@ -38,8 +34,9 @@ object_set_ = object.__setattr__
     NodeType.RECORD,
     is_extensible=True,
     is_abstract=True,
+    traits=(TraitType.OWNABLE,),
 )
-class Record(IsOwnable, Entity):
+class Record(Entity):
     """
     A generic Record instance of a CustomEntity.
     """
@@ -51,8 +48,9 @@ class Record(IsOwnable, Entity):
     NodeType.RESOURCE,
     is_extensible=True,
     is_abstract=True,
+    traits=(TraitType.OWNABLE,),
 )
-class Resource(IsOwnable, Entity):
+class Resource(Entity):
     """
     A Resource represents an external asset outside of Destack.
     The lifecycle of a Resource may be managed by some Provisioner (Service).
@@ -65,8 +63,9 @@ class Resource(IsOwnable, Entity):
     NodeType.VARIANT,
     is_extensible=True,
     is_abstract=True,
+    traits=(TraitType.OWNABLE,),
 )
-class Variant(IsOwnable, Entity):
+class Variant(Entity):
     """A Variant is an alternative version of an Entity."""
 
     icon: "Icon | None" = builtin_property(102)
@@ -75,15 +74,19 @@ class Variant(IsOwnable, Entity):
 @builtin_node(
     NodeType.TAG,
     is_extensible=True,
+    traits=(TraitType.ORDERED,),
 )
-class Tag(IsOrdered, Entity):
+class Tag(Entity):
     """A Tag to tag an Entity with (in a Tagging)."""
 
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_node(NodeType.TAGGING)
-class Tagging(IsOrdered, Entity):
+@builtin_node(
+    NodeType.TAGGING,
+    traits=(TraitType.ORDERED,),
+)
+class Tagging(Entity):
     """A Tagging of a Node by a Tag."""
 
     tag: Tag = builtin_property(110)

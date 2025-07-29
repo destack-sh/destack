@@ -3,11 +3,11 @@ from typing import Any, ClassVar, cast, override
 from destack.language.core import (
     BinaryReader,
     BinaryWriter,
-    BuiltinObject,
     Encoder,
     EncoderOptions,
     Encoding,
     NodeType,
+    Object,
     ObjectKind,
     Session,
     StructType,
@@ -45,7 +45,7 @@ class KompaktEncoder(Encoder[bytes]):
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        object: BuiltinObject,
+        object: Object,
         options: EncoderOptions,
     ) -> bytes:
         writer = BinaryWriter()
@@ -58,7 +58,7 @@ class KompaktEncoder(Encoder[bytes]):
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        object: BuiltinObject,
+        object: Object,
         writer: BinaryWriter,
         options: EncoderOptions,
     ) -> None:
@@ -74,7 +74,7 @@ class KompaktEncoder(Encoder[bytes]):
         value: bytes,
         session: Session | None,
         options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> Object:
         reader = BinaryReader(value)
         object = self.unpack_object_binary(kind, metatype, reader, session, options)
         return object
@@ -87,7 +87,7 @@ class KompaktEncoder(Encoder[bytes]):
         reader: BinaryReader,
         session: Session | None,
         options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> Object:
         encoder = self.encoders.get((kind, metatype))
         assert encoder is not None, f"no KompaktObjectEncoder for {kind.name}:{metatype.name}"
         return encoder.unpack_object(self, reader, session, options)

@@ -5,9 +5,8 @@ from destack.language.core import (
     Enum,
     EnumType,
     Float32,
-    IsOrdered,
-    IsOwnable,
     NodeType,
+    TraitType,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -30,14 +29,11 @@ class LayerType(Enum):
 
 @builtin_node(
     NodeType.LAYER,
+    traits=(TraitType.OWNABLE, TraitType.ORDERED),
     expected_ancestor_types=(NodeType.SCENE,),
     expected_descendant_types=(NodeType.VIEW,),
 )
-class Layer(
-    IsOwnable,
-    IsOrdered,
-    Entity,
-):
+class Layer(Entity):
     """A Layer is a container for Views."""
 
     type: LayerType = builtin_property(100, default=LayerType.GENERAL)

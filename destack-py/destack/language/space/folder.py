@@ -4,13 +4,8 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    IsFollowable,
-    IsJoinable,
-    IsOrdered,
-    IsOwnable,
-    IsReactable,
-    IsStarable,
     NodeType,
+    TraitType,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -33,16 +28,18 @@ class FolderType(Enum):
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
-@builtin_node(NodeType.FOLDER)
-class Folder(
-    IsOwnable,
-    IsJoinable,
-    IsOrdered,
-    IsStarable,
-    IsFollowable,
-    IsReactable,
-    Entity,
-):
+@builtin_node(
+    NodeType.FOLDER,
+    traits=(
+        TraitType.OWNABLE,
+        TraitType.ORDERED,
+        TraitType.JOINABLE,
+        TraitType.STARABLE,
+        TraitType.FOLLOWABLE,
+        TraitType.REACTABLE,
+    ),
+)
+class Folder(Entity):
     """A Folder is a sub-space of a Space."""
 
     parent: Union["Space", "Folder", None] = builtin_property_parent()

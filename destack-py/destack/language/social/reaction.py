@@ -5,8 +5,8 @@ from destack.language.core import (
     ConstraintType,
     Entity,
     Event,
-    IsOwned,
     NodeType,
+    TraitType,
     builtin_node,
     builtin_property,
 )
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.REACTION,
+    traits=(TraitType.OWNED,),
     constraints=(
         ConstraintDeclaration(
             id=1,
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
         ),
     ),
 )
-class Reaction(IsOwned, Entity):
+class Reaction(Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""
 
     content: str = builtin_property(101, is_repr=True)

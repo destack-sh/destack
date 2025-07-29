@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.language.core import BinaryReader, BinaryWriter, BuiltinObject, EncoderOptions, Session
+from destack.language.core import BinaryReader, BinaryWriter, EncoderOptions, Object, Session
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
@@ -16,7 +16,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-class KompaktObjectEncoder[T: BuiltinObject = BuiltinObject]:
+class KompaktObjectEncoder[T: Object = Object]:
     """Kompakt object encoder."""
 
     def pack_object(

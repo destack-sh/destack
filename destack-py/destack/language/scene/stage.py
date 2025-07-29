@@ -2,10 +2,8 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    IsJoinable,
-    IsOrdered,
-    IsOwnable,
     NodeType,
+    TraitType,
     builtin_node,
 )
 
@@ -15,13 +13,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.STAGE)
-class Stage(
-    IsOwnable,
-    IsOrdered,
-    IsJoinable,
-    Entity,
-):
+@builtin_node(
+    NodeType.STAGE,
+    traits=(TraitType.OWNABLE, TraitType.ORDERED, TraitType.JOINABLE),
+)
+class Stage(Entity):
     """
     A Stage for someone to interact with a Space.
     """

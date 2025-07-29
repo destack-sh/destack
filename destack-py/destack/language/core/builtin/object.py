@@ -1,5 +1,4 @@
 import base64
-import contextvars
 import inspect
 import json
 import textwrap
@@ -32,7 +31,6 @@ from .builtin import (
     ObjectKind,
     ObjectStability,
     StructType,
-    TraitType,
 )
 from .common import (
     EdgeType,
@@ -55,7 +53,12 @@ from .const import (
     REGION,
     UNSET,
 )
-from .meta import ConstantDeclaration, builtin_method
+from .declaration import (
+    ConstantDeclaration,
+    NodeDeclaration,
+    ObjectDeclaration,
+    builtin_method,
+)
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -88,26 +91,21 @@ def get_tk_b64_from_ck(ck: UUID) -> str:
     return base64.b64encode(ck.bytes).decode()
 
 
-_processed_classes: dict[type["BuiltinObject"], type["BuiltinObject"]] = {}
+_processed_classes: dict[type["Object"], type["Object"]] = {}
 
 
-def _generate_init[ObjectT: BuiltinObject](
-    cls: type[ObjectT],
-    is_node: bool,
-    is_entity: bool,
-    is_root_node: bool,
-    is_frozen: bool,
-    traits: tuple[TraitType, ...],
-    inherits: tuple[StructType, ...] | tuple[NodeType, ...],
-    properties: dict[str, PropertyDeclaration],
+def _generate_init[ObjectT: Object](
+    cls: type[ObjectT], declaration: ObjectDeclaration
 ) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
 
     extra_glbls: dict[str, Any] = {}
 
     # header properties
-    header_properties = dict(properties)
-    if is_node:
+    header_properties = {
+        prop.name: prop for prop in cls.__properties__.values() if not prop.is_computed
+    }
+    if declaration.kind == ObjectKind.NODE:
         header_properties.pop("_ref")
         header_properties.pop("_is_new")
     properties_in_order = list(header_properties.values())
@@ -131,7 +129,7 @@ def _generate_init[ObjectT: BuiltinObject](
         method_header_lines.append(prop.name)
     # then add properties with defaults or that are managed
     for prop in properties_in_order:
-        if prop.is_computed or prop in required_properties:
+        if prop in required_properties:
             continue
         elif prop.default_value is UNSET:
             default_str = "None"
@@ -169,25 +167,26 @@ def _generate_init[ObjectT: BuiltinObject](
     extra_glbls["REGION"] = REGION
 
     method_body_lines = []
-    body_properties = dict(properties)
-    if not is_frozen and is_node:
+    body_properties = {prop.name: prop for prop in declaration.properties}
+    if not declaration.is_frozen and declaration.kind == ObjectKind.NODE:
         method_body_lines.append("__setattr__ = object.__setattr__")
         set_template_str = "__setattr__(self, '{0}', {1})"
     else:
         set_template_str = "self.{0} = {1}"
 
     # setup
-    if is_node:
+    if declaration.kind == ObjectKind.NODE:
+        assert isinstance(declaration, NodeDeclaration), f"unexpected declaration: {declaration!r}"
         # node setup
         body_properties.pop("id")
-        if NodeType.ENTITY in inherits:
+        if NodeType.ENTITY in declaration.inherits:
             body_properties.pop("created_at")
             body_properties.pop("created_epoch")
             body_properties.pop("created_by")
             body_properties.pop("updated_at")
             body_properties.pop("updated_epoch")
             body_properties.pop("updated_by")
-        elif NodeType.EVENT in inherits:
+        elif NodeType.EVENT in declaration.inherits:
             body_properties.pop("created_at")
             body_properties.pop("created_epoch")
             body_properties.pop("created_by")
@@ -195,7 +194,7 @@ def _generate_init[ObjectT: BuiltinObject](
             body_properties.pop("client_created_at")
             body_properties.pop("client_epoch")
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
+            raise NotImplementedError(f"unexpected node {cls.__name__}")
         body_properties.pop("_session")
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
@@ -210,7 +209,7 @@ if _session is None:
 # node identity
 if id is None:
     """)
-        if NodeType.ENTITY in inherits:
+        if NodeType.ENTITY in declaration.inherits:
             method_body_lines.append("""\
     id = uuid4()
     _now = self._session.oracle.now()
@@ -222,7 +221,7 @@ if id is None:
     updated_epoch = _epoch
     updated_by_ptr = self._session.actor_ptr
 """)
-        elif NodeType.EVENT in inherits:
+        elif NodeType.EVENT in declaration.inherits:
             method_body_lines.append("""\
     id = uuid7()
     _now = self._session.oracle.now()
@@ -236,7 +235,7 @@ if id is None:
     client_created_at = _now
 """)
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
+            raise NotImplementedError(f"unexpected node {cls.__name__}")
         method_body_lines.append(f"""\
     _is_new = True
 else:
@@ -244,7 +243,7 @@ else:
 {set_template_str.format("id", "id")}
 """)
 
-        if NodeType.ENTITY in inherits:
+        if NodeType.ENTITY in declaration.inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
@@ -253,7 +252,7 @@ else:
 {set_template_str.format("updated_epoch", "updated_epoch")}
 {set_template_str.format("updated_by_ptr", "updated_by_ptr")}
 """)
-        elif NodeType.EVENT in inherits:
+        elif NodeType.EVENT in declaration.inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
@@ -264,7 +263,7 @@ else:
 {set_template_str.format("client_epoch", "client_epoch")}
 """)
         else:
-            raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
+            raise NotImplementedError(f"unexpected node {cls.__name__}")
         method_body_lines.append(f"""\
 {set_template_str.format("_ref", "None")}
 {set_template_str.format("_is_new", "_is_new")}
@@ -301,7 +300,7 @@ if {arg_name} is None:
 if {arg_name} is None:
     {arg_name} = uuid7()""")
             elif prop.default_factory == ValueFactory.NOW:
-                if is_node:
+                if declaration.kind == ObjectKind.NODE:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     assert self._session is not None, "no session for {cls.__name__}"
@@ -314,7 +313,7 @@ if {arg_name} is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {arg_name} = session.oracle.now()""")
             elif prop.default_factory == ValueFactory.EPOCH:
-                if is_node:
+                if declaration.kind == ObjectKind.NODE:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = self._session.epoch""")
@@ -342,12 +341,16 @@ if {arg_name} is None:
 if {arg_name} is None:
     {arg_name} = REGION""")
             elif prop.default_factory == ValueFactory.SELF:
-                assert is_node, f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
+                assert declaration.kind == ObjectKind.NODE, (
+                    f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
+                )
                 method_body_lines.append(f"""\
 if {self_name} is None:
     {self_name} = self.to_ref()""")
             elif prop.default_factory == ValueFactory.SPACE:
-                assert is_node, f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
+                assert declaration.kind == ObjectKind.NODE, (
+                    f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
+                )
                 method_body_lines.append(f"""\
 if {self_name} is None:
     space = ACTIVE_SPACE.get()
@@ -369,7 +372,7 @@ if {self_name} is None:
         raise RuntimeError("no active Snapshot for {cls.__name__}")
     {self_name} = snapshot.to_ref()""")
             elif prop.default_factory == ValueFactory.NAME:
-                assert is_node, (
+                assert declaration.kind == ObjectKind.NODE, (
                     f"{cls.__name__} is not a Node, cannot use {prop.default_factory} in {prop!r}"
                 )
                 method_body_lines.append(f"""\
@@ -389,29 +392,27 @@ if {self_name} is None:
             if prop.cardinality == TypeCardinality.LIST:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name} = {"[]" if not is_frozen else "EMPTY_LIST"}""")
+    {arg_name} = {"[]" if not declaration.is_frozen else "EMPTY_LIST"}""")
             elif prop.cardinality == TypeCardinality.MAP:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name} = {"{}" if not is_frozen else "EMPTY_DICT"}""")
+    {arg_name} = {"{}" if not declaration.is_frozen else "EMPTY_DICT"}""")
 
         # regular assignment
-        if is_node and not is_frozen:
+        if declaration.kind == ObjectKind.NODE and not declaration.is_frozen:
             method_body_lines.append(f"__setattr__(self, '{self_name}', {self_name})")
         else:
             method_body_lines.append(f"self.{self_name} = {self_name}")
 
-    if is_node:
-        if is_entity:
+    if declaration.kind == ObjectKind.NODE:
+        assert isinstance(declaration, NodeDeclaration), f"unexpected declaration: {declaration!r}"
+        if NodeType.ENTITY in declaration.inherits or NodeType.EVENT in declaration.inherits:
             method_body_lines.append(f"""\
 # graph
 {set_template_str.format("_graph", "_graph")}
 """)
-        else:  # is event
-            method_body_lines.append(f"""\
-# graph
-{set_template_str.format("_graph", "_graph")}
-""")
+        else:
+            raise NotImplementedError(f"unexpected node {cls.__name__}")
 
     method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
@@ -451,13 +452,13 @@ def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
         assert_never(prop.scalar_type)
 
 
-def _generate_repr[ObjectT: BuiltinObject](
+def _generate_repr[ObjectT: Object](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.__repr__."""
     repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
     if not repr_properties:
-        if cls.__is_node__:
+        if cls.__declaration__.kind == ObjectKind.NODE:
             repr_impl = f"""\
 def __repr__(self) -> str:
     return f"<{cls.__name__} \\"{{self.path}}\\">"
@@ -529,7 +530,7 @@ if self.{prop_name}:
 
     # wrap in repr
     repr_parts_str = "\n".join(repr_parts_lines)
-    if cls.__is_node__:
+    if cls.__declaration__.kind == ObjectKind.NODE:
         if has_required_repr_props:
             inner_repr_impl = f"""\
 {repr_parts_str}
@@ -558,7 +559,7 @@ else:
     return f"<{cls.__name__}>"
 """
 
-    if cls.__is_frozen__ and not cls.__is_node__:
+    if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
         # cache _repr in __repr__ (frozen Struct)
         inner_repr_impl = inner_repr_impl.replace("return ", "self._repr = ")
         inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
@@ -587,7 +588,7 @@ def _generate_ref[NodeT: "Node"](
     """Generates Node.__to_ref__ method."""
     from .relation import NodeReference
 
-    assert cls.__is_node__, f"{cls.__name__} is not a Node"
+    assert cls.__declaration__.kind == ObjectKind.NODE, f"{cls.__name__} is not a Node"
     if node_type == NodeType.SPACE:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
@@ -642,13 +643,15 @@ def __to_ref__(self) -> "NodeReference":
 #
 
 
-def _generate_equals[ObjectT: BuiltinObject](
+def _generate_equals[ObjectT: Object](
     cls: type[ObjectT],
     is_node: bool,
 ) -> tuple[str, dict[str, Any]]:
     """Generate BuiltinObject.equals method."""
 
-    eq_properties = [prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_wired]
+    eq_properties = [
+        prop for prop in cls.__properties__.values() if prop.is_eq and not prop.is_runtime_only
+    ]
     cmp_strs = []
     for prop in eq_properties:
         cmp_str = _generate_property_cmp_impl(prop)
@@ -787,12 +790,12 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration | PropertyDeclaration) -> tu
 #
 
 
-def _generate_hash[ObjectT: BuiltinObject](
+def _generate_hash[ObjectT: Object](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generate BuiltinObject.hash method."""
     hash_properties = [
-        prop for prop in cls.__properties__.values() if prop.is_hash and prop.is_wired
+        prop for prop in cls.__properties__.values() if prop.is_hash and not prop.is_runtime_only
     ]
     hash_parts: list[str] = ["h = 1"]
     for prop in hash_properties:
@@ -800,7 +803,7 @@ def _generate_hash[ObjectT: BuiltinObject](
         hash_parts.append(prop_hash_impl)
     hash_parts_str = "\n".join(hash_parts)
 
-    if cls.__is_frozen__ and not cls.__is_node__:
+    if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
         hash_impl = f"""\
 def hash(self) -> int:
     if self._hash is not None:
@@ -939,7 +942,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
 
 def _generate_path[NodeT: Node](cls: type[NodeT]) -> tuple[str, dict[str, Any]]:
     """Generates Node.path property (and Node._path_key helper)."""
-    assert cls.__is_node__, f"{cls.__name__} is not a Node"
+    assert cls.__declaration__.kind == ObjectKind.NODE, f"{cls.__name__} is not a Node"
 
     # Node._path_key
     if "slug" in cls.__properties__:
@@ -998,7 +1001,7 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
     # NOTE :Performance: we could inline Supergraph.get into node property getters
 
     assert prop.cardinality == TypeCardinality.SCALAR, f"node properties must be scalar: {prop!r}"
-    is_node = prop.component.__is_node__
+    is_node = prop.component.__declaration__.kind == ObjectKind.NODE
 
     if is_node:
         getter = f"""\
@@ -1048,42 +1051,31 @@ def {prop.name}(self: "BuiltinObject", value: "Node | None"):
 _time_spent_in_process_object_cls = 0
 
 
-def _process_object_cls[ObjectT: BuiltinObject](
-    cls: type[ObjectT],
-    object_type: NodeType | StructType | None,
-    is_frozen: bool,
-    is_concrete: bool,
-    is_struct: bool,
-    is_node: bool,
-    is_entity: bool,
-    is_root_node: bool,
-    is_abstract: bool,
-    base_type: StructType | NodeType | None,
-    traits: tuple[TraitType, ...],
-    inherits: tuple[StructType, ...] | tuple[NodeType, ...] = (),
-) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
+def _process_object_cls[ObjectT: Object](
+    cls: type[ObjectT], declaration: ObjectDeclaration
+) -> tuple[type[ObjectT], ObjectDeclaration]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
     global _time_spent_in_process_object_cls
     start = time.time()
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
-    cls.__is_struct__ = is_struct
-    cls.__is_node__ = is_node
-    cls.__is_frozen__ = is_frozen
+    cls.__declaration__ = declaration
 
-    metatype = PropertyDeclaration(
+    # metatype
+    metatype_property = PropertyDeclaration(
         id=METATYPE_PROPERTY_ID,
         name="metatype",
-        py_type=NodeType if is_node else StructType,
+        py_type=Any,
         cardinality=TypeCardinality.SCALAR,
         is_required=True,
+        is_runtime_only=True,
         is_computed=True,  # is set statically by class decorator
         is_identity=True,
-        is_wired=False,
-        is_stored=False,
         primitive_type=PrimitiveType.INT32,
-        enum_type=EnumType.NODE_TYPE if is_node else EnumType.STRUCT_TYPE,
+        enum_type=EnumType.NODE_TYPE
+        if declaration.kind == ObjectKind.NODE
+        else EnumType.STRUCT_TYPE,
         component=cls,
     )
 
@@ -1101,7 +1093,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     )
 
     # collect all components from class hierarchy (including self)
-    components: list[type[BuiltinObject]] = []
+    components: list[type[Object]] = []
     for base_cls in get_superclasses(cls):
         base_cls = _processed_classes.get(base_cls, base_cls)
         if base_cls.__name__ == "ABC":
@@ -1110,7 +1102,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             components.append(base_cls)
 
     # collect properties from this class definition
-    properties: dict[str, PropertyDeclaration] = {"metatype": metatype}
+    properties: dict[str, PropertyDeclaration] = {metatype_property.name: metatype_property}
     for name, attribute in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -1136,36 +1128,38 @@ def _process_object_cls[ObjectT: BuiltinObject](
             raise TypeError(
                 f"{cls.__name__}.{name} is not a Property or Constant: {attribute} ({type(attribute)})"
             )
-    cls.__declared_properties__ = frozendict(properties)
 
     # add properties from ancestor components (closest first)
     for component in components[1:]:
-        for name, prop in component.__declared_properties__.items():
-            existing = properties.get(name)
-            if existing is not None:
+        for prop in component.__declaration__.properties:
+            existing = properties.get(prop.name)
+            if (
+                existing is not None
+                and existing.original_component is not component
+                and existing.original_component is not prop.original_component
+            ):
                 if existing.name in ("id", "metatype", "parent", "definition", "_graph"):
                     continue  # may be narrowed/duplicated
-                elif (
-                    component.__is_trait__ or component.__is_abstract__
-                ) and existing.id == prop.id:
+                elif component.__declaration__.is_abstract and existing.id == prop.id:
                     continue  # may be overridden by the trait
                 else:
                     # error: property conflicts with ancestor component
                     raise RuntimeError(
-                        f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
+                        f"property '{prop.name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
                     )
             # add property
             prop = prop.clone()
             prop.component = cls
             if prop.original_component is UNSET:
                 prop.original_component = component
-            properties[name] = prop
+            properties[prop.name] = prop
 
     # determine property types
     for prop in tuple(properties.values()):
-        prop.determine(object_type, is_root_node=is_root_node and not is_abstract)
+        prop.determine(declaration.type, is_root_node=declaration.type == NodeType.SPACE)
 
     # index properties
+    cls.__declaration__.properties = list(properties.values())
     cls.__properties__ = frozendict(properties)
     properties_by_id: dict[int, PropertyDeclaration] = {}
     properties_by_alias: dict[str, PropertyDeclaration] = {}
@@ -1178,7 +1172,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             else:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
         # index by aliases (if not runtime only)
-        if prop.is_wired:
+        if not prop.is_runtime_only:
             lower_camel_name = to_casing(prop.name, Casing.LOWER_CAMEL)
             upper_camel_name = to_casing(prop.name, Casing.CAMEL)
             if prop.scalar_type == ScalarType.NODE_REFERENCE:
@@ -1198,37 +1192,14 @@ def _process_object_cls[ObjectT: BuiltinObject](
                     properties_by_alias[alias] = prop
                 elif existing is not prop:
                     raise ValueError(f"property alias conflict: {prop!r}, {existing!r}")
-    props = properties.values()
     cls.__properties_by_alias__ = frozendict(properties_by_alias)
     cls.__properties_by_id__ = frozendict(properties_by_id)
-    cls.__node_properties__ = frozendict(
-        {p.name: p for p in props if p.scalar_type == ScalarType.NODE_REFERENCE}
-    )
-    cls.__wired_properties__ = frozendict({p.name: p for p in props if p.is_wired is True})
-    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored is True})
-    if is_frozen:
-        cls.__tracked_properties__ = frozendict()
-    else:
-        cls.__tracked_properties__ = frozendict(
-            {p.name: p for p in props if not p.is_internal and not p.is_computed}
-        )
-
-    # assign property ordinals
-    cls.__properties_in_order__ = tuple(
-        sorted(properties_by_id.values(), key=lambda p: cast(int, p.id))
-    )
-    for i, prop in enumerate(cls.__properties_in_order__):
-        prop.component = cls
-        if prop.original_component is UNSET:
-            prop.original_component = cls
-        prop.ord = i
-    cls.__properties_id_in_order__ = tuple(cast(int, p.id) for p in cls.__properties_in_order__)
 
     cls_dict = dict(cls.__dict__)
 
     # define final methods in leaf classes
-    if is_concrete:
-        assert object_type is not None, f"concrete objects need a type: {cls.__name__}"
+    if not declaration.is_abstract:
+        assert declaration.type is not None, f"concrete objects need a type: {cls.__name__}"
 
         # __init__
         glbls = {
@@ -1237,34 +1208,27 @@ def _process_object_cls[ObjectT: BuiltinObject](
             "EMPTY_DICT": frozendict(),
             "uuid4": uuid4,
         }
-        if not is_abstract:
-            init_str, init_glbls = _generate_init(
-                cls,
-                is_node=is_node,
-                is_entity=is_entity,
-                is_frozen=is_frozen,
-                is_root_node=is_root_node,
-                properties=properties,
-                traits=traits,
-                inherits=inherits,
-            )
-            exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
-            # __repr__
-            repr_str, repr_glbls = _generate_repr(cls)
-            exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
-            # equals
-            equals_str, equals_glbls = _generate_equals(cls, is_node=is_node)
-            exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
-            # hash
-            hash_str, hash_glbls = _generate_hash(cls)
-            exec_(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
-            if is_node:
-                # __to_ref__
-                ref_str, ref_glbls = _generate_ref(cast(type["Node"], cls), NodeType(object_type))
-                exec_(ref_str, {**glbls, **ref_glbls}, cls_dict, f"{cls.__name__}:to_ref")
-                # path
-                path_str, path_glbls = _generate_path(cast(type["Node"], cls))
-                exec_(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
+        init_str, init_glbls = _generate_init(cls, declaration)
+        exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
+        # __repr__
+        repr_str, repr_glbls = _generate_repr(cls)
+        exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
+        # equals
+        equals_str, equals_glbls = _generate_equals(
+            cls, is_node=declaration.kind == ObjectKind.NODE
+        )
+        exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
+        # hash
+        hash_str, hash_glbls = _generate_hash(cls)
+        exec_(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
+        if declaration.kind == ObjectKind.NODE:
+            assert isinstance(declaration.type, NodeType), f"unexpected type: {declaration.type!r}"
+            # __to_ref__
+            ref_str, ref_glbls = _generate_ref(cast(type["Node"], cls), declaration.type)
+            exec_(ref_str, {**glbls, **ref_glbls}, cls_dict, f"{cls.__name__}:to_ref")
+            # path
+            path_str, path_glbls = _generate_path(cast(type["Node"], cls))
+            exec_(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
         # pack/unpack are generated after setup because we need all classes
 
         # add computed properties to concrete classes
@@ -1273,14 +1237,10 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 node_property_str = _generate_node_property_impl(prop)
                 exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
 
-        # freeze
-        if is_frozen:
-            pass  # do nothing since a custom __setattr__ kills :Performance?
-
     # slots
     cls_dict.pop("__dict__", None)
     cls_dict.pop("__weakref__", None)
-    if is_concrete:  # (only define actual slots in leaf, otherwise slots clash)
+    if not declaration.is_abstract:  # (only define actual slots in leaf, otherwise slots clash)
         for prop in properties.values():
             if isinstance(cls_dict.get(prop.name), PropertyDeclaration):
                 cls_dict.pop(prop.name, None)
@@ -1314,66 +1274,46 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def _builtin_object[ObjectT: BuiltinObject](
+def _object[ObjectT: Object](
     object_type: NodeType | StructType | None = None,
     frozen: bool = False,
-    concrete: bool = False,
-    struct: bool = False,
-    node: bool = False,
 ):
     """
     Mark a class as an object component (or concrete struct for a StructType).
     """
 
     def decorate(cls_in: type[ObjectT]) -> type[ObjectT]:
-        cls, _properties = _process_object_cls(
-            cls=cast(Any, cls_in),
-            object_type=object_type,
-            is_frozen=frozen,
-            is_concrete=concrete,
-            is_struct=struct,
-            is_node=node,
-            is_root_node=False,
-            is_entity=False,
+        declaration = ObjectDeclaration(
+            cls=cls_in,
+            kind=ObjectKind.STRUCT,
+            type=object_type,
+            id=0,
+            stability=ObjectStability.DYNAMIC,
             is_abstract=True,
-            base_type=None,
-            traits=(),
+            is_frozen=frozen,
+            is_final=False,
+            properties=[],
         )
+        cls, _properties = _process_object_cls(cast(Any, cls_in), declaration)
         cls.__is_abstract__ = True
         return cast(type[ObjectT], cls)
 
     return decorate
 
 
-_HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
-
-
-@_builtin_object()
-class BuiltinObject:
+@_object()
+class Object:
     """The base for all intrinsic objects like Structs and Nodes."""
 
     metatype: ClassVar[NodeType | StructType] = UNSET
+    __declaration__: ClassVar[ObjectDeclaration] = UNSET
     __kind__: ClassVar[ObjectKind] = UNSET
-    __stability__: ClassVar[ObjectStability] = ObjectStability.CAN_CHANGE
+    __stability__: ClassVar[ObjectStability] = ObjectStability.DYNAMIC
 
-    __is_frozen__: ClassVar[bool] = False
-    __is_struct__: ClassVar[bool] = False
-    __is_node__: ClassVar[bool] = False
-    __is_trait__: ClassVar[bool] = False
-    __is_abstract__: ClassVar[bool] = False
-
+    # runtime index
     __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
     __properties_by_alias__: ClassVar[dict[str, PropertyDeclaration]] = {}
     __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
-
-    __declared_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
-    __node_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
-    __wired_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
-    __stored_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
-    __tracked_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
-
-    __properties_in_order__: ClassVar[tuple[PropertyDeclaration, ...]]
-    __properties_id_in_order__: ClassVar[tuple[int, ...]]
 
     __slots__: ClassVar[tuple[str, ...]] = ()
 

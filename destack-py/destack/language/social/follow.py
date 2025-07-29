@@ -5,8 +5,8 @@ from destack.language.core import (
     ConstraintType,
     Entity,
     Event,
-    IsOwned,
     NodeType,
+    TraitType,
     builtin_node,
     builtin_property,
 )
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.FOLLOW,
+    traits=(TraitType.OWNED,),
     constraints=(
         ConstraintDeclaration(
             id=1,
@@ -27,10 +28,7 @@ if TYPE_CHECKING:
         ),
     ),
 )
-class Follow(
-    IsOwned,
-    Entity,
-):
+class Follow(Entity):
     """A Follow is a relationship between a Actor and an IsFollowable Node."""
 
     pass

@@ -3,12 +3,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import assert_never
 
-from destack.language import EnumType, NodeType, StructType, TraitType
+from destack.language import EnumType, NodeType, StructType
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
-    TRAIT_CLASS_BY_TYPE,
 )
 
 from .const import Definition, Kind
@@ -36,14 +35,6 @@ class TypescriptFile:
                 return None
             struct_cls = STRUCT_CLASS_BY_TYPE[StructType(id)]
             return self.definitions.get(struct_cls.__name__)
-        elif kind == "TRAIT":
-            if id not in TraitType:
-                return None
-            trait_type = TraitType(id)
-            trait_cls = TRAIT_CLASS_BY_TYPE[trait_type]
-            return self.definitions.get(trait_cls.__name__) or self.definitions.get(
-                trait_type.camel_name
-            )
         elif kind == "NODE":
             if id not in NodeType:
                 return None

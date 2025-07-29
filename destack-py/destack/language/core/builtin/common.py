@@ -50,12 +50,6 @@ class GraphKey(Enum):
     # EVENT_SEARCH, EVENT_AGGREGATE, ...
 
 
-@builtin_enum(EnumType.GRAPH_DOMAIN)
-class GraphDomain(Enum):
-    ENTITY = 1
-    EVENT = 2
-
-
 @builtin_enum(EnumType.RUNTIME_LANGUAGE)
 class RuntimeLanguage(Enum):
     PYTHON = 1
@@ -590,3 +584,19 @@ class ClientType(Enum):
 class Tenancy(Enum):
     DEDICATED = 1
     SHARED = 2
+
+
+@builtin_enum(EnumType.CONSTRAINT_TYPE)
+class ConstraintType(Enum):
+    """Type of a Constraint."""
+
+    UNIQUE = 1
+    # CHECK, ...
+
+
+@builtin_enum(EnumType.INDEX_TYPE)
+class IndexType(Enum):
+    """Type of an Index."""
+
+    BTREE = 1
+    # HASH, ...

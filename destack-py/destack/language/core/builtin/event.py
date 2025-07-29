@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Optional, Union
 from destack.utils.uuid import UUID
 
 from .builtin import EnumType, NodeType
-from .common import GraphDomain, UInt128
 from .const import ACTIVE_EVENT, UNSET
+from .declaration import TagDeclaration
 from .entity import Entity
 from .enum import Enum, builtin_enum
-from .meta import TagDeclaration
 from .node import Node, builtin_node
 from .property import ValueFactory, builtin_property
+from .types import UInt128
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -56,8 +56,6 @@ class Event[N: Node = Node](Node):
     An Event is an immutable datum of something happening to an Entity.
     Events are proposed by Clients as pending Events, then approved or rejected by the system.
     """
-
-    __domain__ = GraphDomain.EVENT
 
     # 10-20: Event identity
     definition: Union["Entity", None] = builtin_property(

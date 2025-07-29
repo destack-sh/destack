@@ -2,10 +2,8 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    IsActor,
-    IsOwnable,
-    IsRunnable,
     NodeType,
+    TraitType,
     builtin_action,
     builtin_node,
     builtin_property,
@@ -18,13 +16,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@builtin_node(NodeType.SERVICE)
-class Service(
-    IsOwnable,
-    IsActor,
-    IsRunnable,
-    Entity,
-):
+@builtin_node(
+    NodeType.SERVICE,
+    traits=(TraitType.OWNABLE, TraitType.ACTOR, TraitType.RUNNABLE),
+)
+class Service(Entity):
     """
     A Service provides related functionality via Actions (and Methods).
     Services may be stateful (with custom Properties and runtime only state).

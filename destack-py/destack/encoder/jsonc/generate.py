@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, override
 
 from destack.language.core import (
     METATYPE_PROPERTY_KEY,
-    BuiltinObject,
+    Object,
     PropertyDeclaration,
 )
 from destack.utils.log import get_logger
@@ -23,12 +23,12 @@ type_ = type
 
 class JsoncEncoderGenerator(JsonEncoderGenerator):
     @override
-    def get_encoder_name(self, cls: type["BuiltinObject"]) -> str:
+    def get_encoder_name(self, cls: type["Object"]) -> str:
         """Get the name of the JsonObjectEncoder for a BuiltinObject."""
         return f"{cls.__name__}JsoncEncoder"
 
     @override
-    def generate_pack_object_metatype(self, cls: type["BuiltinObject"]) -> str:
+    def generate_pack_object_metatype(self, cls: type["Object"]) -> str:
         """Generate the metatype code for a BuiltinObject."""
         return f"_object_json['{METATYPE_PROPERTY_KEY}'] = {cls.metatype.id}"
 

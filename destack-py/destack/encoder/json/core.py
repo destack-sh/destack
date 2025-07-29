@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from destack.language.core import BuiltinObject, EncoderOptions, Session
+from destack.language.core import EncoderOptions, Object, Session
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
@@ -22,7 +22,7 @@ class JsonObjectEncoder:
     def pack_object(
         self,
         _encoder: "JsonEncoder",
-        _object: BuiltinObject,
+        _object: Object,
         _options: EncoderOptions,
     ) -> dict[str, Any]:
         raise NotImplementedError
@@ -33,5 +33,5 @@ class JsonObjectEncoder:
         _object_json: dict[str, Any],
         _session: Session | None,
         _options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> Object:
         raise NotImplementedError

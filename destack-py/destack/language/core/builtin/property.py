@@ -18,8 +18,8 @@ from destack.utils.string import Casing, to_casing
 from .builtin import (
     NODE_TYPES,
     NodeType,
+    ObjectKind,
     StructType,
-    TraitType,
 )
 from .common import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
@@ -36,9 +36,9 @@ from .const import UNSET
 
 if TYPE_CHECKING:
     from destack.language import (
-        BuiltinObject,
         CheckedType,
         Condition,
+        Object,
         PropertyDefinition,
         PropertyReference,
         Sort,
@@ -69,19 +69,6 @@ def resolve_struct_type(class_name: str) -> StructType | None:
     if struct_type := StructType.__members__.get(enum_name):
         return struct_type
     return None
-
-
-def resolve_trait_type(name: str) -> TraitType | None:
-    """Get a trait by name."""
-    from .trait import TRAIT_PREFIXES
-
-    for trait_prefix in TRAIT_PREFIXES:
-        if name.startswith(trait_prefix):
-            name = name[len(trait_prefix) :]
-            break
-    name = to_casing(name, Casing.ALL_CAPS)
-    trait = TraitType.__members__.get(name)
-    return trait
 
 
 def resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
@@ -252,8 +239,8 @@ class PropertyDeclaration(CheckedTypeDeclaration):
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
-    component: type_["BuiltinObject"] = UNSET  # builtin object component
-    original_component: type_["BuiltinObject"] = UNSET  # original component (first in chain)
+    component: type_["Object"] = UNSET  # builtin object component
+    original_component: type_["Object"] = UNSET  # original component (first in chain)
     tags: tuple[str, ...] = ()
 
     # relationships
@@ -262,13 +249,12 @@ class PropertyDeclaration(CheckedTypeDeclaration):
 
     # flags
     is_unique: bool = False  # unique in DB
-    is_wired: bool = False  # serialized onto wire
-    is_stored: bool = False  # stored in DB
     is_repr: bool = False  # included in BuiltinObject.__repr__
     is_hash: bool = True  # included in BuiltinObject.__hash__
     is_eq: bool = True  # included in BuiltinObject.equals check
     is_internal: bool = False  # managed internally by the system
     is_computed: bool = False  # set automatically at runtime
+    is_runtime_only: bool = False  # only set at runtime
     is_readonly: bool = False  # can only be set once (at init time)
 
     _ref: Optional["PropertyReference"] = None
@@ -313,23 +299,13 @@ class PropertyDeclaration(CheckedTypeDeclaration):
             assert self.id is not None, f"{self!r} has no id"
             metatype = getattr(self.component, "metatype", None)
 
-            if self.component.__is_trait__:
+            if self.component.__declaration__.kind == ObjectKind.NODE:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN,
-                    trait_type=metatype,
-                    id=self.id,
-                )
-            elif self.component.__is_node__:
-                ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN,
-                    node_type=metatype,
-                    id=self.id,
+                    type=PropertyReferenceType.BUILTIN, node_type=metatype, id=self.id
                 )
             else:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN,
-                    struct_type=metatype,
-                    id=self.id,
+                    type=PropertyReferenceType.BUILTIN, struct_type=metatype, id=self.id
                 )
             self._ref = ref
 
@@ -357,7 +333,7 @@ class PropertyDeclaration(CheckedTypeDeclaration):
 
     def determine(self, object_type: NodeType | StructType | None, is_root_node: bool) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
-        if not self.is_wired:
+        if self.is_runtime_only:
             return  # runtime only, nothing to do
 
         # parse annotation
@@ -401,12 +377,12 @@ class PropertyDeclaration(CheckedTypeDeclaration):
         if self.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
             self.edge_type = EdgeType.REGULAR
         # references get a _ptr property (which is wired/stored)
-        if self.scalar_type == ScalarType.NODE_REFERENCE:
+        if self.value_type is not None and self.value_type.scalar_type == ScalarType.NODE_REFERENCE:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
-            assert self.cardinality == TypeCardinality.SCALAR or not self.component.__is_node__, (
-                f"invalid list: {self!r}"
-            )
-            self.primitive_type = PrimitiveType.JSON
+            assert (
+                self.cardinality == TypeCardinality.SCALAR
+                or self.component.__declaration__.kind != ObjectKind.NODE
+            ), f"cannot have a list of Node references: {self!r}"
 
     #
     # Querying
@@ -705,8 +681,6 @@ def builtin_property(
         constraint=constraint,
         edge_type=edge_type,
         cascade=cascade,
-        is_wired=True,
-        is_stored=True,
         is_internal=is_internal,
         is_repr=is_repr,
         is_hash=is_hash,
@@ -724,8 +698,6 @@ def builtin_property_parent(*, is_readonly: bool = False, description: str | Non
         id=3,  # NOTE: never change this id! :Encoding
         edge_type=EdgeType.PARENT,
         default_value=None,
-        is_wired=True,
-        is_stored=True,
         is_required=False,
         is_internal=True,
         is_eq=False,
@@ -740,8 +712,8 @@ def builtin_property_runtime(*, default: Any = UNSET) -> Any:
     return PropertyDeclaration(
         id=None,
         is_internal=True,
-        is_wired=False,
-        is_stored=False,
+        is_computed=False,
+        is_runtime_only=True,
         is_repr=False,
         is_hash=False,
         is_eq=False,

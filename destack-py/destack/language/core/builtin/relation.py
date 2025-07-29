@@ -6,26 +6,15 @@ from typing import (
     cast,
 )
 
-from destack.language.registry import (
-    NODE_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
-    TRAIT_CLASS_BY_TYPE,
-)
+from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.uuid import UUID
 
-from .builtin import (
-    EnumType,
-    NodeType,
-    ObjectStability,
-    StructType,
-    TraitType,
-)
+from .builtin import EnumType, NodeType, ObjectStability, StructType
 from .common import GraphKey, UInt8
 from .enum import Enum, builtin_enum
-from .object import BuiltinObject
+from .object import Object
 from .property import PropertyDeclaration, builtin_property
 from .struct import Struct, StructFrozen, builtin_struct
-from .trait import Trait
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -65,14 +54,14 @@ class NodeDefinitionReference(StructFrozen):
         if self.type == NodeDefinitionType.BUILTIN:
             assert self.node_type is not None, f"no node_type for {self!r}"
             node_cls = NODE_CLASS_BY_TYPE[self.node_type]
-            return bool(node_cls.__inherited_by__)
+            return bool(node_cls.__definition__.inherited_by)
         elif self.type == NodeDefinitionType.CUSTOM:
             raise NotImplementedError(f"unexpected node definition reference: {self!r}")
         else:
             assert_never(self.type)
 
     @property
-    def object_cls(self) -> type_[BuiltinObject] | None:
+    def object_cls(self) -> type_[Object] | None:
         return NODE_CLASS_BY_TYPE.get(self.node_type)
 
     def resolve_property_maybe(self, key: str | int) -> "PropertyDeclaration | None":
@@ -103,9 +92,9 @@ class NodeDefinitionReference(StructFrozen):
         elif isinstance(base, NodeReference):
             if base.definition_id is not None:
                 node_cls = NODE_CLASS_BY_TYPE[base.type]
-                if NodeType.ENTITY in node_cls.__inherits__:
+                if NodeType.ENTITY in node_cls.__definition__.inherits:
                     definition_node_type = base.type  # same as instance
-                elif NodeType.EVENT in node_cls.__inherits__:
+                elif NodeType.EVENT in node_cls.__definition__.inherits:
                     definition_node_type = NodeType.CUSTOM_EVENT_DEFINITION
                 else:
                     raise ValueError(f"unexpected node reference: {base!r}")
@@ -127,8 +116,6 @@ class NodeDefinitionReference(StructFrozen):
 class ObjectDefinitionType(Enum):
     BUILTIN_NODE = 1
     CUSTOM_NODE = 2
-    BUILTIN_TRAIT = 3
-    CUSTOM_TRAIT = 4
     BUILTIN_STRUCT = 5
     CUSTOM_STRUCT = 6
     # BUILTIN_ENUM, CUSTOM_ENUM?
@@ -140,7 +127,6 @@ class ObjectDefinitionReference(StructFrozen):
 
     type: ObjectDefinitionType = builtin_property(100, is_repr=True)
     node_type: Optional[NodeType] = builtin_property(101, is_repr=True)
-    trait_type: Optional[TraitType] = builtin_property(102, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(103, is_repr=True)
     custom_definition: Optional["Entity"] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
@@ -151,22 +137,16 @@ class ObjectDefinitionReference(StructFrozen):
         return self
 
     @property
-    def object_cls(self) -> type_[BuiltinObject] | None:
+    def object_cls(self) -> type_[Object] | None:
         if self.type == ObjectDefinitionType.BUILTIN_NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"
             return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == ObjectDefinitionType.CUSTOM_NODE:
             raise NotImplementedError(f"unexpected object definition reference: {self!r}")
-        elif self.type == ObjectDefinitionType.BUILTIN_TRAIT:
-            assert self.trait_type is not None, f"no trait_type for {self!r}"
-            return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
         elif self.type == ObjectDefinitionType.BUILTIN_STRUCT:
             assert self.struct_type is not None, f"no struct_type for {self!r}"
             return STRUCT_CLASS_BY_TYPE.get(self.struct_type)
-        elif (
-            self.type == ObjectDefinitionType.CUSTOM_STRUCT
-            or self.type == ObjectDefinitionType.CUSTOM_TRAIT
-        ):
+        elif self.type == ObjectDefinitionType.CUSTOM_STRUCT:
             raise NotImplementedError(f"unexpected object definition reference: {self!r}")
         else:
             assert_never(self.type)
@@ -193,10 +173,9 @@ class ObjectDefinitionReference(StructFrozen):
     @classmethod
     def of(
         cls,
-        base: Union[
+        definition: Union[
             "NodeType",
             "type[Node]",
-            "type[Trait]",
             "type[Struct]",
             "CustomEventDefinition",
             "CustomStructDefinition",
@@ -205,34 +184,31 @@ class ObjectDefinitionReference(StructFrozen):
         from ..common.custom import CustomEventDefinition, CustomStructDefinition
         from .node import Node
 
-        if isinstance(base, NodeType):
-            return ObjectDefinitionReference(type=ObjectDefinitionType.BUILTIN_NODE, node_type=base)
-        elif isinstance(base, StructType):
+        if isinstance(definition, NodeType):
             return ObjectDefinitionReference(
-                type=ObjectDefinitionType.BUILTIN_STRUCT, struct_type=base
+                type=ObjectDefinitionType.BUILTIN_NODE, node_type=definition
             )
-        elif isinstance(base, type):
-            if issubclass(base, Node):
+        elif isinstance(definition, StructType):
+            return ObjectDefinitionReference(
+                type=ObjectDefinitionType.BUILTIN_STRUCT, struct_type=definition
+            )
+        elif isinstance(definition, type):
+            if issubclass(definition, Node):
                 return ObjectDefinitionReference(
                     type=ObjectDefinitionType.BUILTIN_NODE,
-                    node_type=cast(NodeType, base.metatype),
+                    node_type=cast(NodeType, definition.metatype),
                 )
-            elif issubclass(base, Trait):
-                return ObjectDefinitionReference(
-                    type=ObjectDefinitionType.BUILTIN_TRAIT,
-                    trait_type=cast(TraitType, base.metatype),
-                )
-            elif issubclass(base, Struct):
+            elif issubclass(definition, Struct):
                 return ObjectDefinitionReference(
                     type=ObjectDefinitionType.BUILTIN_STRUCT,
-                    struct_type=base.metatype,
+                    struct_type=definition.metatype,
                 )
             else:
-                assert_never(base)
-        elif isinstance(base, (CustomEventDefinition, CustomStructDefinition)):
-            raise NotImplementedError(f"unexpected object definition reference: {base!r}")
+                assert_never(definition)
+        elif isinstance(definition, (CustomEventDefinition, CustomStructDefinition)):
+            raise NotImplementedError(f"unexpected object definition reference: {definition!r}")
         else:
-            assert_never(base)
+            assert_never(definition)
 
 
 @builtin_enum(EnumType.STRUCT_DEFINITION_TYPE)
@@ -274,7 +250,6 @@ class PropertyReference(StructFrozen):
 
     type: PropertyReferenceType = builtin_property(100, is_repr=True)
     node_type: NodeType | None = builtin_property(101, is_repr=True)
-    trait_type: TraitType | None = builtin_property(102, is_repr=True)
     struct_type: StructType | None = builtin_property(103, is_repr=True)
     id: UInt8 | None = builtin_property(
         105,
@@ -303,8 +278,6 @@ class PropertyReference(StructFrozen):
                 object_cls = NODE_CLASS_BY_TYPE[node_type]
             elif (struct_type := self.struct_type) is not None:
                 object_cls = STRUCT_CLASS_BY_TYPE[struct_type]
-            elif (trait_type := self.trait_type) is not None:
-                object_cls = TRAIT_CLASS_BY_TYPE[trait_type]
             else:
                 object_cls = Node
             assert self.id is not None, f"no id for {self!r}"
@@ -344,7 +317,7 @@ class PropertyReference(StructFrozen):
             assert_never(base)
 
 
-@builtin_struct(StructType.NODE_REFERENCE, frozen=True, stability=ObjectStability.CAN_GROW)
+@builtin_struct(StructType.NODE_REFERENCE, frozen=True, stability=ObjectStability.GROWABLE)
 class NodeReference(StructFrozen):
     """
     A reference to a Node in spacetime.

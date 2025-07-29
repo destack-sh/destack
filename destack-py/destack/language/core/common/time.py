@@ -13,8 +13,8 @@ from ..builtin import (
     Entity,
     Enum,
     EnumType,
-    IsOwnable,
     NodeType,
+    TraitType,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -36,9 +36,13 @@ class BranchType(Enum):
     ROOT = 11
 
 
-@builtin_node(NodeType.BRANCH, is_final=True)
+@builtin_node(
+    NodeType.BRANCH,
+    is_final=True,
+    traits=(TraitType.OWNABLE,),
+)
 @final
-class Branch(IsOwnable, Entity):
+class Branch(Entity):
     """
     A Branch is a version of a Snapshot.
 
@@ -76,9 +80,13 @@ class SnapshotStatus(Enum):
     PASSIVE = 50, "Passive", "Inactive and read-only"
 
 
-@builtin_node(NodeType.SNAPSHOT, is_final=True)
+@builtin_node(
+    NodeType.SNAPSHOT,
+    is_final=True,
+    traits=(TraitType.OWNABLE,),
+)
 @final
-class Snapshot(IsOwnable, Entity):
+class Snapshot(Entity):
     """
     A Snapshot is a point in Space-time.
     Snapshots may branch off of other Snapshots, either as a full copy or a partial override.

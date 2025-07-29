@@ -3,9 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
-    IsOrdered,
-    IsOwnable,
     NodeType,
+    TraitType,
     builtin_node,
     builtin_property,
 )
@@ -27,14 +26,11 @@ class SceneEvent(Event["Scene"]):
 
 @builtin_node(
     NodeType.SCENE,
+    traits=(TraitType.OWNABLE, TraitType.ORDERED),
     event_types=(NodeType.SCENE_EVENT,),
     expected_ancestor_types=(NodeType.STAGE,),
 )
-class Scene(
-    IsOwnable,
-    IsOrdered,
-    Entity,
-):
+class Scene(Entity):
     """A Scene contains some interactive part of a Stage."""
 
     root_view: Optional["LayoutView"] = builtin_property(

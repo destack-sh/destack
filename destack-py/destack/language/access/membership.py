@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
-    IsOwnable,
     NodeType,
+    TraitType,
     builtin_node,
     builtin_property,
 )
@@ -42,11 +42,9 @@ class MembershipLeftEvent(MembershipEvent):
 @builtin_node(
     NodeType.MEMBERSHIP,
     event_types=(NodeType.MEMBERSHIP_EVENT,),
+    traits=(TraitType.OWNABLE,),
 )
-class Membership(
-    IsOwnable,
-    Entity,
-):
+class Membership(Entity):
     """A Membership of a Actor in a Joinable."""
 
     member: "Entity" = builtin_property(110)

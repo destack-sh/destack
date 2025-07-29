@@ -3,9 +3,9 @@ from itertools import chain
 from typing import TYPE_CHECKING, assert_never
 
 from destack.language import (
-    BuiltinObject,
     Encoding,
     Node,
+    Object,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -74,7 +74,7 @@ def generate_jsonc_encoders() -> str:
         "loaded = true;",
     ]
     for cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        if cls.__is_abstract__:
+        if cls.__declaration__.is_abstract:
             continue
         encoder_name, encoder_str = generate_object_jsonc_encoder(cls)
         body_parts.append(encoder_str)
@@ -93,10 +93,10 @@ loadEncoders();
     return "\n".join(file_parts)
 
 
-def generate_object_jsonc_encoder(cls: type["BuiltinObject"]) -> tuple[str, str]:
+def generate_object_jsonc_encoder(cls: type["Object"]) -> tuple[str, str]:
     """Generate the BuiltinObject Encoder class."""
 
-    if cls.__is_abstract__:
+    if cls.__declaration__.is_abstract:
         pack_jsonc = f"throw new Error('cannot pack abstract {cls.__name__}');"
         unpack_jsonc = f"throw new Error('cannot unpack abstract {cls.__name__}');"
     else:
@@ -121,15 +121,15 @@ class {encoder_name} implements JsoncObjectEncoder {{
     )
 
 
-def _generate_to_jsonc(cls: type["BuiltinObject"]) -> str:
+def _generate_to_jsonc(cls: type["Object"]) -> str:
     """Generate the packObject method implementation."""
     lines: list[str] = []
     lines.append("const objectJsonc: { [key: string]: any } = {};")
 
-    wired_properties_in_order = list(cls.__wired_properties__.values())
-    wired_properties_in_order.sort(key=lambda p: p.id or 0)
+    properties_in_order = list(cls.__properties__.values())
+    properties_in_order.sort(key=lambda p: p.id or 0)
 
-    for prop in wired_properties_in_order:
+    for prop in properties_in_order:
         if prop.name == "metatype":
             from destack.language.registry import get_builtin_type
 
@@ -145,7 +145,7 @@ def _generate_to_jsonc(cls: type["BuiltinObject"]) -> str:
     return "\n".join(lines)
 
 
-def _get_indirect_object_cls(type: type[BuiltinObject]) -> str:
+def _get_indirect_object_cls(type: type[Object]) -> str:
     if issubclass(type, Node):
         return f"NODE_CLASS_BY_TYPE[{type.metatype.value}] as typeof {type.__name__}"
     elif issubclass(type, Struct):
@@ -154,7 +154,7 @@ def _get_indirect_object_cls(type: type[BuiltinObject]) -> str:
         raise ValueError(f"unexpected type {type!r}")
 
 
-def _generate_from_jsonc(cls: type["BuiltinObject"]) -> str:
+def _generate_from_jsonc(cls: type["Object"]) -> str:
     """Generate the unpackObject method implementation."""
     from ..language import _get_object_references
 
@@ -162,10 +162,9 @@ def _generate_from_jsonc(cls: type["BuiltinObject"]) -> str:
     unpack_assignments: list[str] = []
     unpack_body_parts: list[str] = []
 
-    for prop in cls.__wired_properties__.values():
-        if prop.is_computed:
+    for prop in cls.__properties__.values():
+        if prop.is_runtime_only:
             continue  # set implicitly
-
         # regular unpacking
         unpack_code = _generate_unpack_jsonc_property(prop)
         ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
@@ -179,10 +178,6 @@ def _generate_from_jsonc(cls: type["BuiltinObject"]) -> str:
         else:
             unpack_body_parts.extend(unpack_code)
             unpack_assignments.append(f"{self_name}: unpacked{_upper_first(ts_name)}")
-    if cls.__is_frozen__ and not cls.__is_node__:
-        unpack_assignments.append(
-            f"_PackedObjectCache: [{{ encoding: {Encoding.JSONC.value}, isBytes: false, packed: objectJsonc }}]"
-        )
 
     unpack_body_parts.append(f"return new ({_get_indirect_object_cls(cls)})({{")
     for assignment in unpack_assignments:

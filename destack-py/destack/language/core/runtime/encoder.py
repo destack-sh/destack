@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple
 
-from ..builtin import BuiltinObject, Encoding, NodeType, ObjectKind, StructType
+from ..builtin import Encoding, NodeType, Object, ObjectKind, StructType
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ class Encoder[T: Any = Any](ABC):
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        object: BuiltinObject,
+        object: Object,
         options: EncoderOptions,
     ) -> T:
         """Pack a BuiltinObject into some encoded format."""
@@ -50,7 +50,7 @@ class Encoder[T: Any = Any](ABC):
         self,
         kind: ObjectKind,
         metatype: NodeType | StructType,
-        object: BuiltinObject,
+        object: Object,
         writer: "BinaryWriter",
         options: EncoderOptions,
     ) -> None:
@@ -65,7 +65,7 @@ class Encoder[T: Any = Any](ABC):
         value: T,
         session: "Session | None",
         options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> Object:
         """Unpack a BuiltinObject from some encoded format."""
         raise NotImplementedError
 
@@ -77,7 +77,7 @@ class Encoder[T: Any = Any](ABC):
         reader: "BinaryReader",
         session: "Session | None",
         options: EncoderOptions,
-    ) -> BuiltinObject:
+    ) -> Object:
         """Unpack a BuiltinObject from the byte representation of its encoded format."""
         raise NotImplementedError
 

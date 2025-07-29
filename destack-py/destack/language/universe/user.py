@@ -5,9 +5,8 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    IsActor,
-    IsFollowable,
     NodeType,
+    TraitType,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -26,13 +25,13 @@ class UserStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(NodeType.USER, is_final=True)
+@builtin_node(
+    NodeType.USER,
+    is_final=True,
+    traits=(TraitType.ACTOR, TraitType.FOLLOWABLE),
+)
 @final
-class User(
-    IsActor,
-    IsFollowable,
-    Entity,
-):
+class User(Entity):
     """A User is a human using Destack."""
 
     parent: Optional["Space"] = builtin_property_parent()

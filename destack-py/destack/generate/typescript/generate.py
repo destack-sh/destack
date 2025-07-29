@@ -13,13 +13,9 @@ from destack.language.registry import (
     NODE_DEFINITION_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
-    TRAIT_CLASS_BY_TYPE,
-    TRAIT_DEFINITION_BY_TYPE,
 )
 
-from .const import (
-    GENERATION_PATH,
-)
+from .const import GENERATION_PATH
 from .core import TypescriptDefinition, TypescriptFile
 from .encoder import generate_json_encoders, generate_jsonc_encoders
 from .language import (
@@ -44,9 +40,6 @@ def generate():
             continue  # manually defined
         definition = _generate_definition(STRUCT_DEFINITION_BY_TYPE[struct_type])
         definitions_by_module[struct_cls.__module__].append(definition)
-    for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
-        definition = _generate_definition(TRAIT_DEFINITION_BY_TYPE[trait_type])
-        definitions_by_module[trait_cls.__module__].append(definition)
     for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
         if node_type == NodeType.NODE:
             continue  # manually defined

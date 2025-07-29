@@ -12,25 +12,25 @@ def test_struct_inheritance(session: Session):
     """Test the Struct inheritance hierarchy."""
     # test Struct as base
     assert Struct.metatype == StructType.STRUCT
-    assert Struct.__is_abstract__
+    assert Struct.__definition__.is_abstract
 
     # test Type extends Struct
     assert Type.metatype == StructType.TYPE
-    assert not Type.__is_abstract__
-    assert Type.__base_type__ == StructType.STRUCT
-    assert Type.__inherits__ == (StructType.STRUCT,)
+    assert not Type.__definition__.is_abstract
+    assert Type.__definition__.base_type == StructType.STRUCT
+    assert Type.__definition__.inherits == (StructType.STRUCT,)
 
     # test CheckedType extends Type
     assert CheckedType.metatype == StructType.CHECKED_TYPE
-    assert not CheckedType.__is_abstract__
-    assert CheckedType.__base_type__ == StructType.TYPE
-    assert CheckedType.__inherits__ == (StructType.STRUCT, StructType.TYPE)
+    assert not CheckedType.__definition__.is_abstract
+    assert CheckedType.__definition__.base_type == StructType.TYPE
+    assert CheckedType.__definition__.inherits == (StructType.STRUCT, StructType.TYPE)
 
     # test PropertyDefinition extends CheckedType
     assert PropertyDefinition.metatype == StructType.PROPERTY_DEFINITION
-    assert not PropertyDefinition.__is_abstract__
-    assert PropertyDefinition.__base_type__ == StructType.CHECKED_TYPE
-    assert PropertyDefinition.__inherits__ == (
+    assert not PropertyDefinition.__definition__.is_abstract
+    assert PropertyDefinition.__definition__.base_type == StructType.CHECKED_TYPE
+    assert PropertyDefinition.__definition__.inherits == (
         StructType.STRUCT,
         StructType.TYPE,
         StructType.CHECKED_TYPE,
