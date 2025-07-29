@@ -20,7 +20,7 @@ from .scaffold import *  # noqa: F403
 
 
 @entity
-class TicTacToeGame(IsStarable, Record):
+class TicTacToeGame(Entity):
     pass
 
 
@@ -30,7 +30,7 @@ class TicTacToeGame(IsStarable, Record):
 
 
 @entity
-class TicTacToeBoard(Record):
+class TicTacToeBoard(Entity):
     size: tuple[int, int]
 
     @method
@@ -51,6 +51,7 @@ class TicTacToeCellState(Enum):
 
 
 @entity
-class TicTacToeCell(IsOwnable, Record):
+class TicTacToeCell(Entity):
     parent: TicTacToeBoard
+    position: tuple[int, int]
     state: TicTacToeCellState

@@ -31,20 +31,6 @@ object_set_ = object.__setattr__
 
 
 @builtin_node(
-    NodeType.RECORD,
-    is_extensible=True,
-    is_abstract=True,
-    traits=(TraitType.OWNABLE,),
-)
-class Record(Entity):
-    """
-    A generic Record instance of a CustomEntity.
-    """
-
-    pass
-
-
-@builtin_node(
     NodeType.RESOURCE,
     is_extensible=True,
     is_abstract=True,

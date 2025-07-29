@@ -1,7 +1,6 @@
 from .base import (
     Entity2D,
     Entity3D,
-    Record,
     Resource,
     Tag,
     Tagging,
@@ -271,7 +270,6 @@ __all__ = [
     "PropertyReference",
     "PropertyReferenceType",
     "PropertyZone",
-    "Record",
     "Region",
     "RegionArea",
     "RegionContinent",

@@ -523,7 +523,6 @@ class NodeType(Enum):
     SNAPSHOT = 2_100, "Snapshot", "Point in Space-time", "fas fa-save"
 
     # base
-    RECORD = 10_000, "Record", "Data Entity", "fas fa-database"
     RESOURCE = 10_100, "Resource", "External asset outside of Destack", "fas fa-dot"
     METRIC = 10_200, "Metric", None, "fas fa-gauge"
     SERVICE = 10_300, "Service", None, "fas fa-screwdriver-wrench"
@@ -561,7 +560,7 @@ class NodeType(Enum):
         "fas fa-database",
     )
 
-    # nocheckin: *_definition/custom_*_definition inconsistency (Event, Method, Permission, ...)
+    # nocheckin: *_definition/custom_*_definition inconsistency (Index, Event, Method/Action, Permission, ...)
 
     # logic
     METHOD = 40_000, "Method", None, "fas fa-code"
