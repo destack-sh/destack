@@ -1,13 +1,11 @@
-from typing import TYPE_CHECKING, Optional, final
+from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
-    ActionType,
     Entity,
     MethodType,
     NodeType,
     PlatformType,
     RuntimeLanguage,
-    TraitType,
     builtin_node,
     builtin_property,
 )
@@ -32,26 +30,3 @@ class Function(Entity):
         131,
         description="The languages this Function is available in (all if empty).",
     )
-
-
-@builtin_node(NodeType.METHOD, is_final=True)
-@final
-class Method(Function):
-    """
-    A Method is a small runtime-specific piece of logic.
-    """
-
-
-@builtin_node(
-    NodeType.ACTION,
-    traits=(TraitType.RUNNABLE,),
-    is_final=True,
-)
-@final
-class Action(Function):
-    """
-    An implementation of a unit of work implemented for some runtimes.
-    Actions are stateful and can be called and managed across runtimes.
-    """
-
-    cardinality: ActionType = builtin_property(120)

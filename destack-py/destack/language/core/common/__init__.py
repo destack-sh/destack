@@ -1,4 +1,5 @@
-from .access import Permission
+from .action import Action
+from .constraint import Constraint
 from .custom import (
     CustomEnumDefinition,
     CustomEventDefinition,
@@ -6,9 +7,10 @@ from .custom import (
     CustomPropertyDefinition,
     CustomStructDefinition,
 )
+from .function import Function
 from .icon import Icon, IconIn, IconType, icon, to_icon
-from .integrity import Constraint, Index
-from .logic import Action, Function, Method
+from .index import Index
+from .method import Method
 from .migration import (
     Migration,
     MigrationDefinition,
@@ -16,6 +18,7 @@ from .migration import (
     MigrationOperationDefinition,
     MigrationType,
 )
+from .permission import Permission
 from .query import (
     Aggregation,
     AggregationType,
@@ -34,7 +37,7 @@ from .query import (
     SortMode,
     SortType,
 )
-from .space import Space, Universe
+from .space import Space
 from .text import (
     Text,
     TextIn,
@@ -47,6 +50,7 @@ from .text import (
     to_text,
 )
 from .time import Branch, BranchType, Snapshot, SnapshotStatus, SnapshotType
+from .universe import Universe
 
 __all__ = [
     "Action",
