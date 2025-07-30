@@ -146,12 +146,6 @@ def test_roundtrip_struct_subclass(session: Session, space: Space):
     # nocheckin: pack/unpack subclasses properly (where to pack/unpack the metatype prefix?)
 
 
-def test_roundtrip_custom_struct_instance(session: Session, space: Space):
-    """Pack and unpack a custom Struct instance."""
-
-    ...
-
-
 def test_roundtrip_user(session: Session, space: Space):
     """Pack and unpack a User."""
     user = User(

@@ -214,9 +214,9 @@ class ObjectKind(Enum):
 
 @builtin_enum(EnumType.OBJECT_STABILITY)
 class ObjectStability(Enum):
-    DYNAMIC = 1, "Definition can change in every allowed way"
-    GROWABLE = 2, "Definition can only be extended with properties at the end"
-    STATIC = 3, "Definition can never change"
+    DYNAMIC = 1, "Definition may change in every compatible way"
+    # GROWABLE = 2, "Definition may change with new properties at the end (only)"
+    STATIC = 7, "Definition may never change"
 
 
 @builtin_enum(EnumType.STRUCT_TYPE)

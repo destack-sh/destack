@@ -342,7 +342,7 @@ class NodeDefinition(ObjectDefinition):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
-            stability=node_cls.__stability__,
+            stability=declaration.stability,
             is_abstract=node_cls.__declaration__.is_abstract,
             is_final=node_cls.__declaration__.is_final,
             is_frozen=node_cls.__declaration__.is_frozen,
@@ -502,7 +502,7 @@ class StructDefinition(ObjectDefinition):
             name=struct_cls.__name__,
             icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
             description=struct_cls.__doc__,
-            stability=struct_cls.__stability__,
+            stability=declaration.stability,
             is_frozen=declaration.is_frozen,
             is_abstract=declaration.is_abstract,
             # content

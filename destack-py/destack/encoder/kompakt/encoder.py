@@ -7,6 +7,7 @@ from destack.language.core import (
     EncoderOptions,
     Encoding,
     EnumType,
+    NodeReference,
     NodeType,
     Object,
     ObjectKind,
@@ -19,8 +20,11 @@ from destack.language.core import (
     Value,
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE
+from destack.utils.uuid import UUID
 
 from .core import KompaktObjectEncoder
+
+_UUID_NULL = UUID(int=0)
 
 
 class KompaktEncoder(Encoder[bytes]):
@@ -42,6 +46,9 @@ class KompaktEncoder(Encoder[bytes]):
         )
         encoders[ObjectKind.STRUCT, StructType.VALUE] = cast(
             KompaktObjectEncoder, KompaktValueEncoder()
+        )
+        encoders[ObjectKind.STRUCT, StructType.NODE_REFERENCE] = cast(
+            KompaktObjectEncoder, KompaktNodeReferenceEncoder()
         )
         encoders.update(generator.generate(omit=list(encoders.keys())))
         return cls(encoders)
@@ -560,3 +567,49 @@ class KompaktValueEncoder(KompaktObjectEncoder[Value]):
         type = _encoder.unpack_type_binary(_reader, _options)
         value = _encoder.unpack_value_binary(type, _reader, _session, _options)
         return Value(type=type, value=value)
+
+
+class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
+    """More compact NodeReference Kompakt encoding (because it's so heavily used)."""
+
+    @override
+    def pack_object(
+        self,
+        _encoder: "KompaktEncoder",
+        _object: NodeReference,
+        _writer: BinaryWriter,
+        _options: EncoderOptions,
+    ) -> None:
+        _writer.write_uint32(_object.type)
+        _writer.write_uuid(_object.id)
+        _writer.write_uuid(_object.space_id)
+        _writer.write_uuid(
+            _object.definition_id if _object.definition_id is not None else _UUID_NULL
+        )
+        _writer.write_uuid(_object.branch_id)
+        _writer.write_uuid(_object.snapshot_id)
+
+    @override
+    def unpack_object(
+        self,
+        _encoder: "KompaktEncoder",
+        _reader: BinaryReader,
+        _session: Session | None,
+        _options: EncoderOptions,
+    ) -> NodeReference:
+        type = NodeType(_reader.read_uint32())
+        id = _reader.read_uuid()
+        space_id = _reader.read_uuid()
+        definition_id = _reader.read_uuid()
+        if definition_id == _UUID_NULL:
+            definition_id = None
+        branch_id = _reader.read_uuid()
+        snapshot_id = _reader.read_uuid()
+        return NodeReference(
+            type=type,
+            id=id,
+            space_id=space_id,
+            definition_id=definition_id,
+            branch_id=branch_id,
+            snapshot_id=snapshot_id,
+        )

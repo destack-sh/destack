@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, final
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
+from .builtin import ObjectStability
 from .property import builtin_property
 from .struct import Struct, StructType, builtin_struct
 from .type import ScalarType, Type, TypeCardinality
@@ -18,7 +19,11 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-@builtin_struct(StructType.VALUE, is_final=True)
+@builtin_struct(
+    StructType.VALUE,
+    stability=ObjectStability.STATIC,
+    is_final=True,
+)
 @final
 class Value(Struct):
     """

@@ -108,7 +108,10 @@ def builtin_event(
 class Event[N: Node = Node](Node):
     """
     An Event is an immutable datum of something happening to an Entity.
+
     Events are proposed by Clients as pending Events, then approved or rejected by the system.
+
+    The client_* data is as-is provided by Clients, and is not verified by the system.
     """
 
     # 10-20: Event identity
