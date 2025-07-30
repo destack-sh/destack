@@ -50,7 +50,6 @@ class JsonEncoder(Encoder[Json]):
 
         generator = JsonEncoderGenerator()
         encoders: dict[tuple[ObjectKind, int], JsonObjectEncoder] = {}
-        encoders[ObjectKind.STRUCT, StructType.TYPE] = cast(JsonObjectEncoder, JsonTypeEncoder())
         encoders[ObjectKind.STRUCT, StructType.VALUE] = cast(JsonObjectEncoder, JsonValueEncoder())
         encoders.update(generator.generate(omit=list(encoders.keys())))
         return cls(encoders)
@@ -223,7 +222,7 @@ class JsonEncoder(Encoder[Json]):
                 unpacked_tuple.append(
                     self.unpack_scalar_value(element_type, item, session, inner_options)
                 )
-            return unpacked_tuple
+            return tuple(unpacked_tuple)
         # map
         elif type.cardinality == TypeCardinality.MAP:
             assert type.key_type is not None, f"no key type for {type!r}"
@@ -419,33 +418,6 @@ class JsonEncoder(Encoder[Json]):
         return self.unpack_value(type, value_decoded, session, options)
 
 
-class JsonTypeEncoder(JsonObjectEncoder[Type]):
-    """Short-circuit Type encoding to the JsonEncoder's own methods."""
-
-    @override
-    def pack_object(
-        self,
-        _encoder: "JsonEncoder",
-        _object: Type,
-        _options: EncoderOptions,
-    ) -> dict[str, Any]:
-        return _encoder.pack_object(ObjectKind.STRUCT, StructType.TYPE, _object, _options)
-
-    @override
-    def unpack_object(
-        self,
-        _encoder: "JsonEncoder",
-        _object_json: dict[str, Any],
-        _session: Session | None,
-        _options: EncoderOptions,
-    ) -> Type:
-        unpacked_type = _encoder.unpack_object(
-            ObjectKind.STRUCT, StructType.TYPE, _object_json, _session, _options
-        )
-        assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
-        return unpacked_type
-
-
 class JsonValueEncoder(JsonObjectEncoder[Value]):
     """Short-circuit Value encoding to the JsonEncoder's own methods."""
 
@@ -482,5 +454,5 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         unpacked_value = _encoder.unpack_value(
             unpacked_type, _object_json[value_key], _session, _options
         )
-        assert isinstance(unpacked_value, Value), f"expected Value, got {unpacked_value!r}"
-        return unpacked_value
+        value = Value(type=unpacked_type, value=unpacked_value)
+        return value

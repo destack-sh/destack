@@ -60,6 +60,7 @@ class RuntimeLanguage(Enum):
 @builtin_enum(EnumType.PLATFORM_TYPE)
 class PlatformType(Enum):
     SYSTEM = 1, "System", "The Destack system (internal use only)"
+    # nocheckin: RUNTIME->SERVER
     RUNTIME = 2, "Runtime", "User runtime environment"
     WEB = 10, "Web", "Web browser"
     # MOBILE, DESKTOP, ...

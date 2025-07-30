@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, override
+from typing import Any, ClassVar, cast, override
 
 from destack.language.core import (
     EncoderOptions,
@@ -7,12 +7,13 @@ from destack.language.core import (
     ObjectKind,
     ScalarType,
     Session,
+    StructType,
     Type,
 )
 from destack.language.core.builtin.const import METATYPE_PROPERTY_KEY
 from destack.language.registry import ENUM_CLASS_BY_TYPE
 
-from ..json.encoder import JsonEncoder
+from ..json.encoder import JsonEncoder, JsonObjectEncoder, JsonValueEncoder
 
 
 class JsoncEncoder(JsonEncoder):
@@ -25,7 +26,9 @@ class JsoncEncoder(JsonEncoder):
         from .generate import JsoncEncoderGenerator
 
         generator = JsoncEncoderGenerator()
-        encoders = generator.generate()
+        encoders: dict[tuple[ObjectKind, int], JsonObjectEncoder] = {}
+        encoders[ObjectKind.STRUCT, StructType.VALUE] = cast(JsonObjectEncoder, JsonValueEncoder())
+        encoders.update(generator.generate(omit=list(encoders.keys())))
         return cls(encoders)
 
     @override

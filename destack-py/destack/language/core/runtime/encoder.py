@@ -33,6 +33,12 @@ class Encoder[T: Any = Any](ABC):
 
     encoding: ClassVar[Encoding]
 
+    def __str__(self) -> str:
+        return f"{self.encoding.name}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}>"
+
     @abstractmethod
     def pack_object(
         self,

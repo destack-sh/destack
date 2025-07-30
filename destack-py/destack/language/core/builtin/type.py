@@ -22,6 +22,7 @@ from .common import (
     UInt32,
     ValueFactory,
 )
+from .declaration import builtin_method
 from .property import builtin_property
 from .struct import Struct, StructFrozen, builtin_struct
 
@@ -112,6 +113,7 @@ class Type(StructFrozen):
     # )
 
     @classmethod
+    @builtin_method(130)
     def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
         """
         Infer the Type of a value or class.

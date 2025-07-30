@@ -547,7 +547,7 @@ class KompaktValueEncoder(KompaktObjectEncoder[Value]):
         _options: EncoderOptions,
     ) -> None:
         _encoder.pack_type_binary(_object.type, _writer, _options)
-        _encoder.pack_value_binary(_object.type, _object, _writer, _options)
+        _encoder.pack_value_binary(_object.type, _object.value, _writer, _options)
 
     @override
     def unpack_object(
