@@ -13,6 +13,7 @@ from destack.language import (
     NodeReference,
     NodeType,
     Object,
+    Rectangle2D,
     Session,
     Space,
     Type,
@@ -31,13 +32,13 @@ def _do_test_roundtrip_object(
     print(f" -> {encoding.name}")  # noqa: T201
     print("=" * 80)  # noqa: T201
     writer = BinaryWriter()
-    encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer)
+    encoder.pack_object_binary(obj, writer)
     packed_obj_bytes = writer.to_bytes()
     print(f"bytes: {len(packed_obj_bytes)}")  # noqa: T201
-    bytes_gzip = gzip.compress(packed_obj_bytes)
-    print(f"bytes (gzip): {len(bytes_gzip)}")  # noqa: T201
+    packed_obj_bytes_gzip = gzip.compress(packed_obj_bytes)
+    print(f"bytes (gzip): {len(packed_obj_bytes_gzip)}")  # noqa: T201
     reader = BinaryReader(packed_obj_bytes)
-    unpacked_obj = encoder.unpack_object_binary(obj.__kind__, obj.metatype, reader, session)
+    unpacked_obj = encoder.unpack_object_binary((obj.metakind, obj.metatype), reader, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
     return packed_obj_bytes
@@ -52,8 +53,8 @@ def _do_test_roundtrip_value(
     packed_value_bytes = writer.to_bytes()
     print(repr(value))  # noqa: T201
     print(f"bytes: {len(packed_value_bytes)}")  # noqa: T201
-    bytes_gzip = gzip.compress(packed_value_bytes)
-    print(f"bytes (gzip): {len(bytes_gzip)}")  # noqa: T201
+    packed_value_bytes_gzip = gzip.compress(packed_value_bytes)
+    print(f"bytes (gzip): {len(packed_value_bytes_gzip)}")  # noqa: T201
     if encoding == Encoding.KOMPAKT:
         print(packed_value_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_value_bytes)
@@ -121,6 +122,8 @@ def test_roundtrip_value(session: Session, space: Space):
         Value.wrap(1),
         Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
         Value.wrap((2, True, "Hello")),
+        Value.wrap(Rectangle2D(width=1.0, height=2.0)),
+        Value.wrap(Folder(name="Hello"), node_as_value=False),
     ):
         for encoding, encoder in ENCODERS.items():
             _ = _do_test_roundtrip_object(value, session, encoder, encoding)
@@ -138,12 +141,6 @@ def test_roundtrip_query(session: Session, space: Space):
     )
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_object(query, session, encoder, encoding)
-
-
-def test_roundtrip_struct_subclass(session: Session, space: Space):
-    """Pack and unpack a Struct subclass."""
-
-    # nocheckin: pack/unpack subclasses properly (where to pack/unpack the metatype prefix?)
 
 
 def test_roundtrip_user(session: Session, space: Space):

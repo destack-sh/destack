@@ -200,10 +200,12 @@ if _object.{prop_name} is None:
             assert_never(stability)
 
         # pack always set properties
-        body_lines.append("# always set properties")
+        body_lines.append("\n# properties")
         for prop in properties:
             if is_entity and not prop.is_identity:
                 continue  # maybe set
+            if is_entity and prop.name == "materialization":
+                continue  # already packed above
             body_lines.append(f"# {prop.component.__name__}.{prop.name}")
             if stability == ObjectStability.DYNAMIC:
                 # if the property order may change, prefix with property id
@@ -221,10 +223,11 @@ if _object.{prop_name} is None:
 
         # pack properties
         if is_entity:
-            body_lines.append("# maybe set properties")
             for prop in properties:
                 if prop.is_identity:
                     continue  # always set
+                if is_entity and prop.name == "materialization":
+                    continue  # already packed above
                 prop_name = self.get_source_property_name(prop)
                 pack_code = self.generate_pack_value(
                     prop,
@@ -275,10 +278,13 @@ if _object.{prop_name} is None:
             assert_never(stability)
 
         # unpack properties
+        body_lines.append("\n# properties")
         if stability == ObjectStability.DYNAMIC:
             # dynamic set of properties, map them dynamically
             for prop in properties:
                 # init to None outside the loop
+                if is_entity and prop.name == "materialization":
+                    continue  # already set above
                 body_lines.append(f"_{self.get_source_property_name(prop)} = None")
             # main loop to map them
             prop_map_lines: list[str] = []
@@ -301,7 +307,7 @@ for _i in range(_num_set_properties):
 {textwrap.indent("\n".join(prop_map_lines), " " * 4)}
     else:
         # unknown property, skip bytes
-        _reader.skip(_prop_bytes)""")
+        raise ValueError(f"unknown property for {cls.__name__}: {{_prop_id}}")""")
         elif stability == ObjectStability.STATIC:
             # static set of properties, just expect them in order
             for i, prop in enumerate(properties):
@@ -320,12 +326,12 @@ for _i in range(_num_set_properties):
         constructor_args = []
         for prop in properties:
             prop_name = self.get_source_property_name(prop)
-            constructor_args.append(f"    {prop.name}=_{prop_name}")
+            constructor_args.append(f"    {prop_name}=_{prop_name}")
 
         body_lines.append(f"return {cls.__name__}(\n{',\n'.join(constructor_args)}\n)")
         return "\n".join(body_lines), "\n".join(extra_lines)
 
-    def wrap_pack_maybe(self, code: str, is_not_null_expr: str | None) -> str:
+    def _wrap_pack_maybe(self, code: str, is_not_null_expr: str | None) -> str:
         """Wrap code in an if statement to check if the value is not null."""
         if is_not_null_expr is None:
             return code
@@ -334,7 +340,7 @@ for _i in range(_num_set_properties):
 if {is_not_null_expr}:
 {textwrap.indent(code, " " * 4)}"""
 
-    def wrap_unpack_maybe(self, code: str, target_expr: str, is_not_null_expr: str | None) -> str:
+    def _wrap_unpack_maybe(self, code: str, target_expr: str, is_not_null_expr: str | None) -> str:
         """Wrap code in an if statement to set the target expression to None if the value is null."""
         if is_not_null_expr is None:
             return code
@@ -351,7 +357,7 @@ if not {is_not_null_expr}:
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             scalar_packed = self.generate_pack_scalar_value(type, source_expr)
-            return self.wrap_pack_maybe(scalar_packed, is_not_null_expr)
+            return self._wrap_pack_maybe(scalar_packed, is_not_null_expr)
 
         # list
         elif type.cardinality == TypeCardinality.LIST:
@@ -362,7 +368,7 @@ if not {is_not_null_expr}:
 _writer.write_uint32(len({source_expr}))
 for {item_source_expr} in {source_expr}:
 {textwrap.indent(item_packed, " " * 4)}"""
-            return self.wrap_pack_maybe(list_packed, is_not_null_expr)
+            return self._wrap_pack_maybe(list_packed, is_not_null_expr)
 
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
@@ -381,7 +387,7 @@ _writer.write_uint32(len({source_expr}))
 for {key_source_expr}, {value_source_expr} in {source_expr}.items():
 {textwrap.indent(key_packed, " " * 4)}
 {textwrap.indent(value_packed, " " * 4)}"""
-            return self.wrap_pack_maybe(map_packed, is_not_null_expr)
+            return self._wrap_pack_maybe(map_packed, is_not_null_expr)
 
         else:
             assert_never(type.cardinality)
@@ -398,7 +404,7 @@ for {key_source_expr}, {value_source_expr} in {source_expr}.items():
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             value_unpacked = self.generate_unpack_scalar_value(type)
-            return self.wrap_unpack_maybe(
+            return self._wrap_unpack_maybe(
                 f"{target_expr} = {value_unpacked}", target_expr, is_not_null_expr
             )
 
@@ -411,7 +417,7 @@ for {key_source_expr}, {value_source_expr} in {source_expr}.items():
 {target_expr} = []
 for _ in range({key}_length):
     {target_expr}.append({element_unpacked})"""
-            return self.wrap_unpack_maybe(list_unpacked, target_expr, is_not_null_expr)
+            return self._wrap_unpack_maybe(list_unpacked, target_expr, is_not_null_expr)
 
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
@@ -432,7 +438,7 @@ for _ in range({key}_length):
     {key_source_expr} = {key_unpacked}
     {value_source_expr} = {value_unpacked}
     {target_expr}[{key_source_expr}] = {value_source_expr}"""
-            return self.wrap_unpack_maybe(map_unpacked, target_expr, is_not_null_expr)
+            return self._wrap_unpack_maybe(map_unpacked, target_expr, is_not_null_expr)
 
         else:
             assert_never(type.cardinality)
@@ -494,26 +500,24 @@ for _ in range({key}_length):
                 return f"_writer.write_json({source_expr})"
             else:
                 assert_never(type.primitive_type)
-
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             return f"_writer.write_uint32({source_expr}.value)"
-
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            return f"_encoder.pack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, {source_expr}, _writer, _options)"
-
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+            else:
+                return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"_encoder.pack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, {source_expr}, _writer, _options)"
-
+            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            return f"""\
-_writer.write_uint32({source_expr}.metatype.value)
-_encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_expr}, _writer, _options)"""
-
+            return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
+        #
         else:
             assert_never(type.scalar_type)
 
@@ -574,29 +578,26 @@ _encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_e
                 return "_reader.read_json()"
             else:
                 assert_never(type.primitive_type)
-
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return f"{enum_cls.__name__}(_reader.read_uint32())"
-
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-            return (
-                f"{struct_cls.__name__}.unpack_binary({Encoding.KOMPAKT.value}, _reader, _session)"
-            )
-
+            if struct_cls.__declaration__.is_final:
+                return f"_encoder.unpack_object_binary(({ObjectKind.STRUCT}, {type.struct_type}), _reader, _session, _options)"
+            else:
+                return "_encoder.unpack_object_binary(None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, _reader, _session, _options)"
-
+            return f"_encoder.unpack_object_binary(({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}), _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            return f"_encoder.unpack_object_binary({ObjectKind.NODE}, _reader.read_uint32(), _reader, _session, _options)"
-
+            return "_encoder.unpack_object_binary(None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        #
         else:
             assert_never(type.scalar_type)
 
@@ -610,7 +611,7 @@ _encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_e
         for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
             if (
                 node_cls.__declaration__.is_abstract
-                or (node_cls.__kind__, node_cls.metatype.value) in omit
+                or (node_cls.metakind, node_cls.metatype.value) in omit
             ):
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
@@ -623,6 +624,6 @@ _encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_e
                 log=True,  # nocheckin
             )
             encoder_cls = locals_[encoder_name]
-            encoders[node_cls.__kind__, node_cls.metatype] = encoder_cls()
+            encoders[node_cls.metakind, node_cls.metatype] = encoder_cls()
 
         return encoders

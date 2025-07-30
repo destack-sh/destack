@@ -10,7 +10,6 @@ from destack.language.core import (
     EncoderOptions,
     Entity,
     Materialization,
-    Node,
     Object,
     ObjectKind,
     PrimitiveType,
@@ -561,33 +560,29 @@ else:
                 return source_expr
             else:
                 assert_never(type.primitive_type)
-
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return self.generate_pack_enum(enum_cls.__name__, source_expr)
-
         # struct
-        elif type.scalar_type in (
-            ScalarType.STRUCT,
-            ScalarType.NODE_REFERENCE,
-            ScalarType.NODE_VALUE,
-        ):
-            return f"""\
-_encoder.pack_object({ObjectKind.STRUCT}, {source_expr}.metatype, {source_expr}, _options)"""
-
+        elif type.scalar_type == ScalarType.STRUCT:
+            assert type.struct_type is not None, f"no struct type for {type!r}"
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return f"""\
+_encoder.pack_object({source_expr}, _options)"""
+            else:
+                return f"""\
+_encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"""\
-_encoder.pack_object({ObjectKind.STRUCT}, {source_expr}.metatype, {source_expr}, _options)"""
-
+_encoder.pack_object({source_expr}, _options)"""
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return f"""\
-_encoder.pack_object({ObjectKind.STRUCT}, {source_expr}.metatype, {source_expr}, _options)"""
-
-        #
+_encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
         else:
             assert_never(type.scalar_type)
 
@@ -644,37 +639,29 @@ _encoder.pack_object({ObjectKind.STRUCT}, {source_expr}.metatype, {source_expr},
                 return source_expr
             else:
                 assert_never(type.primitive_type)
-
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return self.generate_unpack_enum(enum_cls.__name__, source_expr)
-
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            metatype_key = self.get_target_property_key(Node.__properties__["metatype"])
-            struct_type_expr = self.generate_unpack_enum(
-                "StructType", f"{source_expr}['{metatype_key}']"
-            )
-            return f"""\
-_encoder.unpack_object({ObjectKind.STRUCT}, {struct_type_expr}, {source_expr}, _session, _options)"""
-
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return f"""\
+_encoder.unpack_object(({ObjectKind.STRUCT}, {type.struct_type}), {source_expr}, _session, _options)"""
+            else:
+                return f"""\
+_encoder.unpack_object(None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"""\
-_encoder.unpack_object({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, {source_expr}, _session, _options)"""
-
+_encoder.unpack_object(({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}), {source_expr}, _session, _options)"""
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            metatype_key = self.get_target_property_key(Node.__properties__["metatype"])
-            node_type_expr = self.generate_unpack_enum(
-                "NodeType", f"{source_expr}['{metatype_key}']"
-            )
             return f"""\
-_encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _session, _options)"""
-
+_encoder.unpack_object(None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         #
         else:
             assert_never(type.scalar_type)
@@ -687,7 +674,7 @@ _encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _sess
         for node_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
             if (
                 node_cls.__declaration__.is_abstract
-                or (node_cls.__kind__, node_cls.metatype.value) in omit
+                or (node_cls.metakind, node_cls.metatype.value) in omit
             ):
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
@@ -699,6 +686,6 @@ _encoder.unpack_object({ObjectKind.NODE}, {node_type_expr}, {source_expr}, _sess
                 encoder_name,
             )
             encoder_cls = locals_[encoder_name]
-            encoders[node_cls.__kind__, node_cls.metatype.value] = encoder_cls()
+            encoders[node_cls.metakind, node_cls.metatype.value] = encoder_cls()
 
         return encoders

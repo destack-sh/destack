@@ -83,7 +83,7 @@ def generate_json_encoders() -> str:
         encoder_name, encoder_str = generate_object_json_encoder(cls)
         body_parts.append(encoder_str)
         body_parts.append(
-            f"JSON_OBJECT_ENCODERS[getObjectKey({cls.__kind__.value}, {cls.metatype.value})] = new {encoder_name}();"
+            f"JSON_OBJECT_ENCODERS[getObjectKey({cls.metakind.value}, {cls.metatype.value})] = new {encoder_name}();"
         )
     body_str = textwrap.indent("\n".join(body_parts), "  ")
     file_parts.append(f"""\

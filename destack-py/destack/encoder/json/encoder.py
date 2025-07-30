@@ -2,6 +2,7 @@ import base64
 import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
+from enum import Enum
 from typing import Any, ClassVar, assert_never, cast, override
 
 from destack.language.core import (
@@ -11,6 +12,7 @@ from destack.language.core import (
     EncoderOptions,
     Encoding,
     Json,
+    Node,
     NodeType,
     Object,
     ObjectKind,
@@ -23,7 +25,7 @@ from destack.language.core import (
     TypeCardinality,
     Value,
 )
-from destack.language.registry import ENUM_CLASS_BY_TYPE
+from destack.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
@@ -57,55 +59,72 @@ class JsonEncoder(Encoder[Json]):
     @override
     def pack_object(
         self,
-        kind: ObjectKind,
-        type: int,
         object: Object,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> dict[str, Any]:
-        encoder = self.encoders.get((kind, type))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
-        return encoder.pack_object(self, object, options)
+        type = (object.metakind, object.metatype)
+        encoder = self.encoders.get(type)
+        assert encoder is not None, f"no JsonObjectEncoder for {type!r}"
+        packed_object = encoder.pack_object(self, object, options)
+        # metatype
+        if not options & EncoderOptions.OMIT_METATYPE:
+            metakind_key = self.get_target_property_key(Object.__properties__["metakind"])
+            metatype_key = self.get_target_property_key(Object.__properties__["metatype"])
+            packed_object[metakind_key] = self.pack_scalar_enum(ObjectKind, object.metakind)
+            packed_object[metatype_key] = self.pack_scalar_enum(
+                type_(object.metatype), object.metatype
+            )
+        return packed_object
 
     @override
     def unpack_object(
         self,
-        kind: ObjectKind,
-        type: int,
+        type: tuple[ObjectKind, int] | None,
         value: Json,
         session: Session | None,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        encoder = self.encoders.get((kind, type))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
+        # infer metatype from value
+        if type is None:
+            metakind_key = self.get_target_property_key(Object.__properties__["metakind"])
+            metakind = self.unpack_scalar_enum(ObjectKind, value[metakind_key])
+            if metakind == ObjectKind.NODE:
+                metatype_key = self.get_target_property_key(Node.__properties__["metatype"])
+                metatype = self.unpack_scalar_enum(NodeType, value[metatype_key])
+                type = (metakind, metatype)
+            elif metakind == ObjectKind.STRUCT:
+                metatype_key = self.get_target_property_key(Object.__properties__["metatype"])
+                metatype = self.unpack_scalar_enum(StructType, value[metatype_key])
+                type = (metakind, metatype)
+            else:
+                assert_never(metakind)
+        encoder = self.encoders.get(type)
+        assert encoder is not None, f"no JsonObjectEncoder for {type!r}"
         return encoder.unpack_object(self, value, session, options)
 
     @override
     def pack_object_binary(
         self,
-        kind: ObjectKind,
-        type: NodeType | StructType,
         object: Object,
         writer: BinaryWriter,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
-        encoder = self.encoders.get((kind, type))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
+        type = (object.metakind, object.metatype)
+        encoder = self.encoders.get(type)
+        assert encoder is not None, f"no JsonObjectEncoder for {type!r}"
         object_packed = encoder.pack_object(self, object, options)
         writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
 
     @override
     def unpack_object_binary(
         self,
-        kind: ObjectKind,
-        type: int,
+        type: tuple[ObjectKind, int] | None,
         reader: BinaryReader,
         session: Session | None,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        encoder = self.encoders.get((kind, type))
-        assert encoder is not None, f"no JsonObjectEncoder for {kind.name}:{type}"
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
-        return encoder.unpack_object(self, value_decoded, session, options)
+        return self.unpack_object(type, value_decoded, session, options)
 
     @override
     def pack_type(
@@ -113,7 +132,7 @@ class JsonEncoder(Encoder[Json]):
         type: Type,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Json:
-        return self.pack_object(ObjectKind.STRUCT, type.metatype, type, options)
+        return self.pack_object(type, options)
 
     @override
     def unpack_type(
@@ -121,7 +140,8 @@ class JsonEncoder(Encoder[Json]):
         value: Json,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Type:
-        unpacked_type = self.unpack_object(ObjectKind.STRUCT, StructType.TYPE, value, None, options)
+        type = (ObjectKind.STRUCT, StructType.TYPE)
+        unpacked_type = self.unpack_object(type, value, None, options)
         assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
         return unpacked_type
 
@@ -132,7 +152,7 @@ class JsonEncoder(Encoder[Json]):
         writer: BinaryWriter,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
-        self.pack_object_binary(ObjectKind.STRUCT, StructType.TYPE, type, writer, options)
+        self.pack_object_binary(type, writer, options)
 
     @override
     def unpack_type_binary(
@@ -141,7 +161,7 @@ class JsonEncoder(Encoder[Json]):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Type:
         unpacked_type = self.unpack_object_binary(
-            ObjectKind.STRUCT, StructType.TYPE, reader, None, options
+            (ObjectKind.STRUCT, StructType.TYPE), reader, None, options
         )
         assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
         return unpacked_type
@@ -305,16 +325,23 @@ class JsonEncoder(Encoder[Json]):
                 assert_never(type.primitive_type)
         # enum
         elif type.scalar_type == ScalarType.ENUM:
-            return value.name
-        # node reference, node value, struct
-        elif type.scalar_type in (
-            ScalarType.NODE_REFERENCE,
-            ScalarType.NODE_VALUE,
-            ScalarType.STRUCT,
-        ):
+            assert type.enum_type is not None, f"no enum type for {type!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+            return self.pack_scalar_enum(enum_cls, value)
+        # struct
+        elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            assert isinstance(value, Object), f"expected Object for {type!r}, got {value!r}"
-            return self.pack_object(ObjectKind.STRUCT, type.struct_type, value, options)
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return self.pack_object(value, options)
+            else:
+                return self.pack_object(value, options & ~EncoderOptions.OMIT_METATYPE)
+        # node reference
+        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+            return self.pack_object(value, options)
+        # node value
+        elif type.scalar_type == ScalarType.NODE_VALUE:
+            return self.pack_object(value, options & ~EncoderOptions.OMIT_METATYPE)
         #
         else:
             assert_never(type.scalar_type)
@@ -378,23 +405,38 @@ class JsonEncoder(Encoder[Json]):
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-            return enum_cls[value]
+            return self.unpack_scalar_enum(enum_cls, value)
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return self.unpack_object(
-                ObjectKind.STRUCT, StructType.NODE_REFERENCE, value, session, options
+                (ObjectKind.STRUCT, StructType.NODE_REFERENCE), value, session, options
             )
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            node_type = NodeType[value["metatype"]]
-            return self.unpack_object(ObjectKind.NODE, node_type, value, session, options)
+            return self.unpack_object(None, value, session, options & ~EncoderOptions.OMIT_METATYPE)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            return self.unpack_object(ObjectKind.STRUCT, type.struct_type, value, session, options)
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return self.unpack_object(
+                    (ObjectKind.STRUCT, type.struct_type), value, session, options
+                )
+            else:
+                return self.unpack_object(
+                    None, value, session, options & ~EncoderOptions.OMIT_METATYPE
+                )
         #
         else:
             assert_never(type.scalar_type)
+
+    def pack_scalar_enum(self, enum_cls: type[Enum], value: Any) -> Any:
+        """Pack an enum value to JSON."""
+        return value.name
+
+    def unpack_scalar_enum(self, enum_cls: type[Enum], value: Any) -> Any:
+        """Unpack an enum value from JSON."""
+        return enum_cls[value]
 
     @override
     def pack_value_binary(
@@ -431,9 +473,7 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         type_key = _encoder.get_target_property_key(Value.__properties__["type"])
         value_key = _encoder.get_target_property_key(Value.__properties__["value"])
         return {
-            type_key: _encoder.pack_object(
-                ObjectKind.STRUCT, StructType.TYPE, _object.type, _options
-            ),
+            type_key: _encoder.pack_object(_object.type, _options),
             value_key: _encoder.pack_value(_object.type, _object.value, _options),
         }
 
@@ -448,7 +488,7 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         type_key = _encoder.get_target_property_key(Value.__properties__["type"])
         value_key = _encoder.get_target_property_key(Value.__properties__["value"])
         unpacked_type = _encoder.unpack_object(
-            ObjectKind.STRUCT, StructType.TYPE, _object_json[type_key], _session, _options
+            (ObjectKind.STRUCT, StructType.TYPE), _object_json[type_key], _session, _options
         )
         assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
         unpacked_value = _encoder.unpack_value(

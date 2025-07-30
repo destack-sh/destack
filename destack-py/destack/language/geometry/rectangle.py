@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, Optional, final
+from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
+    Float32,
     NodeType,
     StructFrozen,
     StructType,
@@ -12,7 +13,7 @@ from destack.language.core import (
 from .shape import Shape2D
 
 if TYPE_CHECKING:
-    from destack.language import Vector2
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -26,13 +27,13 @@ if TYPE_CHECKING:
 class Rectangle2D(StructFrozen):
     """A Rectangle is a rectangle."""
 
-    width: Optional["Vector2"] = builtin_property(210)
-    height: Optional["Vector2"] = builtin_property(220)
+    width: Float32 = builtin_property(210)
+    height: Float32 = builtin_property(220)
 
 
 @builtin_entity(NodeType.RECTANGLE_SHAPE2D)
 class RectangleShape2D(Shape2D):
     """A RectangleShape is a shape that represents a rectangle."""
 
-    width: Optional["Vector2"] = builtin_property(210)
-    height: Optional["Vector2"] = builtin_property(220)
+    width: Float32 = builtin_property(210)
+    height: Float32 = builtin_property(220)

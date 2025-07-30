@@ -51,6 +51,7 @@ from .const import (
     ENCODERS,
     EPSILON,
     EPSILON_EXPONENT,
+    METAKIND_PROPERTY_ID,
     METATYPE_PROPERTY_ID,
     REGION,
     UNSET,
@@ -1089,6 +1090,19 @@ def _process_object_cls[ObjectT: Object](
     cls.__declaration__ = declaration
 
     # metatype
+    metakind_property = PropertyDeclaration(
+        id=METAKIND_PROPERTY_ID,
+        name="metakind",
+        py_type=Any,
+        cardinality=TypeCardinality.SCALAR,
+        is_required=True,
+        is_runtime_only=True,
+        is_computed=True,  # is set statically by class decorator
+        is_identity=True,
+        primitive_type=PrimitiveType.INT32,
+        enum_type=EnumType.OBJECT_KIND,
+        component=cls,
+    )
     metatype_property = PropertyDeclaration(
         id=METATYPE_PROPERTY_ID,
         name="metatype",
@@ -1128,7 +1142,10 @@ def _process_object_cls[ObjectT: Object](
             components.append(base_cls)
 
     # walk the class definition and collect class-level stuff
-    properties: dict[str, PropertyDeclaration] = {metatype_property.name: metatype_property}
+    properties: dict[str, PropertyDeclaration] = {
+        metakind_property.name: metakind_property,
+        metatype_property.name: metatype_property,
+    }
     for name, attribute in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -1136,6 +1153,7 @@ def _process_object_cls[ObjectT: Object](
             or inspect.ismethod(attribute)
             or inspect.isfunction(attribute)
             or isinstance(attribute, (property, classmethod, staticmethod, dualmethod))
+            or name in ("metakind", "metatype")
         ):
             continue  # ignore reserved names and non-fields
         elif isinstance(attribute, PropertyDeclaration):
@@ -1165,7 +1183,14 @@ def _process_object_cls[ObjectT: Object](
                 and existing.original_component is not component
                 and existing.original_component is not prop.original_component
             ):
-                if existing.name in ("id", "metatype", "parent", "definition", "_graph"):
+                if existing.name in (
+                    "id",
+                    "metatype",
+                    "metakind",
+                    "parent",
+                    "definition",
+                    "_graph",
+                ):
                     continue  # may be narrowed/duplicated
                 elif component.__declaration__.is_abstract and existing.id == prop.id:
                     continue  # may be overridden by the trait
@@ -1339,9 +1364,11 @@ def _object[ObjectT: Object](
 class Object:
     """The base for all intrinsic objects like Structs and Nodes."""
 
+    # Object.metakind: 0
+    metakind: ClassVar[ObjectKind] = UNSET
+    # Object.metatype: 1
     metatype: ClassVar[NodeType | StructType] = UNSET
     __declaration__: ClassVar[ObjectDeclaration] = UNSET
-    __kind__: ClassVar[ObjectKind] = UNSET
 
     # runtime index
     __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
@@ -1349,8 +1376,6 @@ class Object:
     __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
 
     __slots__: ClassVar[tuple[str, ...]] = ()
-
-    # Object.metatype: 1
 
     """The Session this Object is in."""
     _session: "Session | None" = builtin_property_runtime()
@@ -1391,7 +1416,7 @@ class Object:
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        packed_object = encoder.pack_object(self.__kind__, self.metatype, self, options)
+        packed_object = encoder.pack_object(self, options)
         return packed_object
 
     @builtin_method(31)
@@ -1403,7 +1428,7 @@ class Object:
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        encoder.pack_object_binary(self.__kind__, self.metatype, self, writer, options)
+        encoder.pack_object_binary(self, writer, options)
 
     @builtin_method(32)
     @classmethod
@@ -1419,7 +1444,9 @@ class Object:
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        unpacked_object = encoder.unpack_object(cls.__kind__, cls.metatype, value, session, options)
+        unpacked_object = encoder.unpack_object(
+            (cls.metakind, cls.metatype), value, session, options
+        )
         return cast(Self, unpacked_object)
 
     @builtin_method(33)
@@ -1437,7 +1464,7 @@ class Object:
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
         unpacked_object = encoder.unpack_object_binary(
-            cls.__kind__, cls.metatype, reader, session, options
+            (cls.metakind, cls.metatype), reader, session, options
         )
         return cast(Self, unpacked_object)
 

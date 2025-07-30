@@ -152,7 +152,7 @@ class Entity(Node):
      (id, definition_id) @ (branch_id, snapshot_id)
     """
 
-    __kind__ = ObjectKind.NODE
+    metakind = ObjectKind.NODE
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
     parent: Optional["Entity"] = builtin_property_parent(
