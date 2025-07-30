@@ -16,7 +16,7 @@
     "types": ["bun"],
     "paths": {
       "@destack/*": ["../destack-ts/src/*"],
-      "@destack-system/*": ["./src/*"]
+      "@destack-server/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

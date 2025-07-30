@@ -15,7 +15,7 @@ const defaultConfig = defineConfig(() => ({
     preserveSymlinks: true,
     alias: {
       "@destack": fileURLToPath(new URL("../destack-ts/src", import.meta.url)),
-      "@destack-system": fileURLToPath(new URL("./src", import.meta.url)),
+      "@destack-server": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   build: {

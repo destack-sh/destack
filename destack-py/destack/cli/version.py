@@ -41,25 +41,26 @@ def bump(revision: int | None = typer.Option(None)):
     # check that version is in all files first
     files_to_update = (
         "pyproject.toml",
-        "destack-py-runtime/pyproject.toml",
         "package.json",
         "destack-py/destack/language/core/builtin/const.py",
+        "destack-py-server/pyproject.toml",
         "destack-ts/package.json",
         "destack-ts-web/package.json",
+        "destack-ts-server/package.json",
         "destack-ts-system/package.json",
         "destack-ts-test/package.json",
         "destack-ts/src/language/core/builtin/const.ts",
         "destack-ts-web/src/utils/globals.ts",
     )
 
+    file_texts = {}
     for path in files_to_update:
-        original_text = Path(path).read_text()
-        if current_version not in original_text:
+        file_texts[path] = Path(path).read_text()
+        if current_version not in file_texts[path]:
             raise ValueError(f"{current_version} not found in {path}")
 
     # write version to 'version' file and update all other files
     Path("version").write_text(new_version)
     for path in files_to_update:
-        original_text = Path(path).read_text()
-        updated_text = original_text.replace(current_version, new_version)
+        updated_text = file_texts[path].replace(current_version, new_version)
         Path(path).write_text(updated_text)
