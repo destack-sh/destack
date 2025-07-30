@@ -6,8 +6,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -76,7 +76,7 @@ class Fill(StructFrozen):
         return Fill(type=FillType.GRADIENT, gradient=gradient)
 
 
-@builtin_node(NodeType.FILL_STYLE)
+@builtin_entity(NodeType.FILL_STYLE)
 class FillStyle(Style):
     """A fill style."""
 

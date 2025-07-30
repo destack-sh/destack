@@ -6,7 +6,7 @@ from ..builtin import (
     NodeType,
     PlatformType,
     RuntimeLanguage,
-    builtin_node,
+    builtin_entity,
     builtin_property,
 )
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.FUNCTION, is_abstract=True)
+@builtin_entity(NodeType.FUNCTION, is_abstract=True)
 class Function(Entity):
     # meta
     type: MethodType = builtin_property(100)

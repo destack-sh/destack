@@ -4,7 +4,7 @@ from destack.language.core import (
     Entity,
     Event,
     NodeType,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -14,11 +14,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
-    NodeType.INPUT_EVENT,
-    frozen=True,  # type: ignore (frozen)
-    is_abstract=True,
-)
+@builtin_event(NodeType.INPUT_EVENT, is_abstract=True)
 class InputEvent[NodeT: View = View](Event[NodeT]):
     """An InputEvent is an Event that corresponds to some direct user input."""
 

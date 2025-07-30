@@ -4,7 +4,7 @@ from destack.language.core import (
     Entity2D,
     Entity3D,
     NodeType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
 )
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from destack.language import Stroke
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SHAPE2D,
     is_abstract=True,
 )
@@ -26,7 +26,7 @@ class Shape2D(Entity2D):
     )
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SHAPE3D,
     is_abstract=True,
 )

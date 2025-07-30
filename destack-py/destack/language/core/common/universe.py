@@ -6,13 +6,17 @@ from destack.language.core import (
     EPSILON_EXPONENT,
     VERSION,
     Entity,
+    Message,
     NodeReference,
     NodeType,
     PlatformType,
     Region,
+    StructType,
     builtin_action,
     builtin_constant,
-    builtin_node,
+    builtin_entity,
+    builtin_message,
+    builtin_property,
 )
 from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
@@ -22,8 +26,7 @@ from destack.language.registry import (
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
-    from destack.language import User
-    from destack.language.core.common.space import CreateSpaceResult
+    from destack.language import Space, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -39,7 +42,31 @@ _HEAD_SNAPSHOT_ID = UUID(int=30)
 _ROOT_BRANCH_ID = UUID(int=31)
 
 
-@builtin_node(NodeType.UNIVERSE, is_final=True, is_singleton=True)
+@builtin_message(StructType.UNIVERSE_SIGNUP_REQUEST)
+class UniverseSignupRequest(Message):
+    name: str = builtin_property(101)
+    email: str = builtin_property(102)
+    password: str = builtin_property(103)
+
+
+@builtin_message(StructType.UNIVERSE_SIGNUP_RESPONSE)
+class UniverseSignupResponse(Message):
+    user: "User" = builtin_property(101)
+
+
+@builtin_message(StructType.UNIVERSE_SPAWN_REQUEST)
+class UniverseSpawnRequest(Message):
+    name: str = builtin_property(101)
+    region: Region = builtin_property(102)
+    slug: str = builtin_property(103)
+
+
+@builtin_message(StructType.UNIVERSE_SPAWN_RESPONSE)
+class UniverseSpawnResponse(Message):
+    space: "Space" = builtin_property(101)
+
+
+@builtin_entity(NodeType.UNIVERSE, is_final=True, is_singleton=True)
 @final
 class Universe(Entity):
     """The Destack computational universe."""
@@ -147,23 +174,11 @@ class Universe(Entity):
     )
 
     @builtin_action(100, platforms=(PlatformType.SYSTEM,))
-    async def signup_user(
-        self,
-        id: UUID | None,
-        name: str,
-        email: str,
-        password: str,
-    ) -> "User":
+    async def signup(self, request: "UniverseSignupRequest") -> "UniverseSignupResponse":
         """Sign up a new user."""
         ...
 
     @builtin_action(101, platforms=(PlatformType.SYSTEM,))
-    async def create_space(
-        self,
-        name: str,
-        region: Region,
-        slug: str,
-        owned_by: "Entity | NodeReference",
-    ) -> "CreateSpaceResult":
+    async def spawn(self, request: "UniverseSpawnRequest") -> "UniverseSpawnResponse":
         """Create a new Space with a root Branch, meta Snapshot and head Snapshot."""
         ...

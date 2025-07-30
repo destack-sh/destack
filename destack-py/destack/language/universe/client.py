@@ -6,7 +6,7 @@ from destack.language.core import (
     Entity,
     NodeReference,
     NodeType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
 )
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.CLIENT, is_final=True)
+@builtin_entity(NodeType.CLIENT, is_final=True)
 @final
 class Client(
     Entity,

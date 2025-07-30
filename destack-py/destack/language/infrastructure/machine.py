@@ -8,8 +8,8 @@ from destack.language.core import (
     NodeType,
     Resource,
     UInt32,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
 )
 
@@ -28,7 +28,7 @@ class MachineType(Enum):
     CUSTOM = 9000, "Custom", "A custom Docker image", "fas fa-whale"
 
 
-@builtin_node(NodeType.MACHINE)
+@builtin_entity(NodeType.MACHINE)
 class Machine(Resource):
     """
     A Machine provides physical compute.

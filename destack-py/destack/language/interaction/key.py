@@ -1,6 +1,6 @@
 from destack.language.core import (
     NodeType,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -9,7 +9,7 @@ from .input import InputEvent
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.KEY_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.KEY_EVENT, is_abstract=True)
 class KeyEvent(InputEvent):
     """A KeyEvent is an InputEvent that corresponds to some direct user input with a keyboard."""
 
@@ -51,21 +51,21 @@ class KeyEvent(InputEvent):
     )
 
 
-@builtin_node(NodeType.KEY_DOWN_EVENT, frozen=True)
+@builtin_event(NodeType.KEY_DOWN_EVENT)
 class KeyDownEvent(KeyEvent):
     """A KeyDownEvent is a KeyboardEvent when a key is pressed down."""
 
     pass
 
 
-@builtin_node(NodeType.KEY_UP_EVENT, frozen=True)
+@builtin_event(NodeType.KEY_UP_EVENT)
 class KeyUpEvent(KeyEvent):
     """A KeyUpEvent is a KeyboardEvent when a key is released."""
 
     pass
 
 
-@builtin_node(NodeType.KEY_PRESS_EVENT, frozen=True)
+@builtin_event(NodeType.KEY_PRESS_EVENT)
 class KeyPressEvent(KeyEvent):
     """A KeyPressEvent is a KeyboardEvent when a key is pressed."""
 

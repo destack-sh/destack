@@ -5,7 +5,7 @@ from destack.language.core import (
     NodeType,
     TraitType,
     builtin_action,
-    builtin_node,
+    builtin_entity,
     builtin_property,
 )
 
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SERVICE,
     traits=(TraitType.OWNABLE, TraitType.ACTOR, TraitType.RUNNABLE),
 )

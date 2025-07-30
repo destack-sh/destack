@@ -3,6 +3,7 @@ from .constraint import Constraint
 from .custom import (
     CustomEnumDefinition,
     CustomEventDefinition,
+    CustomMessageDefinition,
     CustomOptionDefinition,
     CustomPropertyDefinition,
     CustomStructDefinition,
@@ -63,6 +64,7 @@ __all__ = [
     "Constraint",
     "CustomEnumDefinition",
     "CustomEventDefinition",
+    "CustomMessageDefinition",
     "CustomOptionDefinition",
     "CustomPropertyDefinition",
     "CustomStructDefinition",

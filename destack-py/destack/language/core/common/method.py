@@ -1,12 +1,12 @@
 from typing import final
 
-from ..builtin import NodeType, builtin_node
+from ..builtin import NodeType, builtin_entity
 from .function import Function
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.METHOD, is_final=True)
+@builtin_entity(NodeType.METHOD, is_final=True)
 @final
 class Method(Function):
     """

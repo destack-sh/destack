@@ -4,7 +4,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_struct,
 )
@@ -24,7 +24,7 @@ class Ellipse2D(StructFrozen):
     stroke: Optional["Stroke"] = builtin_property(200, is_repr=True)
 
 
-@builtin_node(NodeType.ELLIPSE_SHAPE2D)
+@builtin_entity(NodeType.ELLIPSE_SHAPE2D)
 class EllipseShape2D(Shape2D):
     """A EllipseShape is a shape that represents a ellipse."""
 

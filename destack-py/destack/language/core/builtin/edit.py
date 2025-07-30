@@ -8,8 +8,7 @@ from .common import UInt8
 from .const import UNSET
 from .entity import Entity
 from .enum import Enum, builtin_enum
-from .event import Event
-from .node import builtin_node
+from .event import Event, builtin_event
 from .property import builtin_property
 
 if TYPE_CHECKING:
@@ -56,7 +55,7 @@ class EditOperation(Enum):
     # BITMAP_INSERT, BITMAP_DELETE, ...
 
 
-@builtin_node(NodeType.EDIT_EVENT, frozen=True)
+@builtin_event(NodeType.EDIT_EVENT)
 class EditEvent(Event):
     """A recorded Edit of an Entity."""
 

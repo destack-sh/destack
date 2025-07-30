@@ -126,12 +126,12 @@ class EmailSender(Service):
         )
         meetup.add_child(reminder_timer)
 
-    @trigger(Meetup.event(EditType.CREATE))
+    # @trigger(Meetup.event(EditType.CREATE))
     @action
     def on_meetup_created(self, meetup: Meetup):
         self._create_timers(meetup)
 
-    @trigger(Meetup.event(EditType.UPDATE), TriggerBehavior.COALESCE_LAST)
+    # @trigger(Meetup.event(EditType.UPDATE), TriggerBehavior.COALESCE_LAST)
     @action
     def on_meetup_updated(self, meetup: Meetup):
         """Update Timers when meetup is updated."""
@@ -176,7 +176,7 @@ class MeetupResponse(Entity):
     def on_new_response(self, event: Meetup):
         pass
 
-    @trigger(Meetup.MeetupFull)
+    # @trigger(Meetup.MeetupFull)
     @action
     def on_event_full(self, event: Meetup):
         pass

@@ -7,8 +7,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -60,7 +60,7 @@ class Gradient(StructFrozen):
     center_anchor: Optional["Axis2"] = builtin_property(104, is_repr=True)
 
 
-@builtin_node(NodeType.GRADIENT_STYLE)
+@builtin_entity(NodeType.GRADIENT_STYLE)
 class GradientStyle(Style):
     """A gradient style."""
 

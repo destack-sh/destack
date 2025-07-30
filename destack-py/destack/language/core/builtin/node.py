@@ -16,7 +16,7 @@ from destack.language.registry import (
 )
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, TraitType
+from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 from .const import UNSET
 from .declaration import NodeDeclaration, TagDeclaration, builtin_method
 from .object import Object, ValueFactory, _process_object_cls
@@ -49,8 +49,140 @@ if TYPE_CHECKING:
 type_ = type
 
 
+def _process_node_cls(
+    *,
+    # meta
+    cls: type,
+    node_type: NodeType,
+    is_abstract: bool,
+    is_final: bool,
+    is_singleton: bool,
+    is_frozen: bool,
+    # inheritance
+    traits: tuple[TraitType, ...],
+    # content
+    indexes: tuple["IndexDeclaration", ...],
+    constraints: tuple["ConstraintDeclaration", ...],
+    permissions: tuple["PermissionDeclaration", ...],
+    tags: tuple["TagDeclaration", ...],
+    # tree
+    expected_parent_types: tuple[NodeType, ...],
+    expected_child_types: tuple[NodeType, ...],
+    expected_ancestor_types: tuple[NodeType, ...],
+    expected_descendant_types: tuple[NodeType, ...],
+    # associations
+    message_types: tuple[StructType, ...],
+    event_types: tuple[NodeType, ...],
+    enum_types: tuple[EnumType, ...],
+) -> type["Node"]:
+    assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
+
+    # bases
+    inherits: list[NodeType] = []
+    all_traits: list[TraitType] = list(traits)
+    all_message_types: list[StructType] = []
+    all_enum_types: list[EnumType] = []
+    all_event_types: list[NodeType] = []
+    if cls.__name__ != "Node":
+        for base in cls.__mro__:
+            if issubclass(base, Node):
+                if base.metatype not in inherits:
+                    inherits.append(base.metatype)
+                for trait in base.__declaration__.traits:
+                    if trait not in all_traits:
+                        all_traits.append(trait)
+                for enum_type in base.__declaration__.enum_types:
+                    if enum_type not in all_enum_types:
+                        all_enum_types.append(enum_type)
+                for event_type in base.__declaration__.event_types:
+                    if event_type not in all_event_types:
+                        all_event_types.append(event_type)
+                for message_type in base.__declaration__.message_types:
+                    if message_type not in all_message_types:
+                        all_message_types.append(message_type)
+
+    # abstract nodes cannot extend non-abstract nodes
+    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+        raise ValueError(
+            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+        )
+    # cannot be both abstract and final
+    if is_abstract and is_final:
+        raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+    # final objects cannot be extended
+    if any(
+        hasattr(base, "__declaration__") and base.__declaration__.is_final for base in cls.__bases__
+    ):
+        bad_base = next(
+            base
+            for base in cls.__bases__
+            if hasattr(base, "__declaration__") and base.__declaration__.is_final
+        )
+        raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
+    if NodeType.EVENT in inherits:
+        is_frozen = True  # Events are always frozen
+
+    # declaration
+    declaration = NodeDeclaration(
+        # meta
+        cls=cls,
+        type=node_type,
+        id=node_type.value,
+        kind=ObjectKind.NODE,
+        stability=ObjectStability.DYNAMIC,
+        is_abstract=is_abstract,
+        is_frozen=is_frozen,
+        is_final=is_final,
+        is_singleton=is_singleton,
+        # inherits
+        base_type=inherits[0] if inherits else None,
+        inherits=list(reversed(inherits)),
+        inherited_by=[],
+        extended_by=[],
+        traits=list(reversed(all_traits)),
+        self_traits=list(all_traits),
+        # content
+        properties=[],
+        methods=[],
+        actions=[],
+        constants=[],
+        indexes=list(indexes),
+        constraints=list(constraints),
+        permissions=list(permissions),
+        tags=list(tags),
+        # graph
+        parent_property=None,
+        parent_types=[],
+        child_types=[],
+        ancestor_types=[],
+        descendant_types=[],
+        expected_parent_types=list(expected_parent_types),
+        expected_child_types=list(expected_child_types),
+        expected_ancestor_types=list(expected_ancestor_types),
+        expected_descendant_types=list(expected_descendant_types),
+        # associations
+        event_types=list(reversed(all_event_types)),
+        self_event_types=list(event_types),
+        enum_types=list(reversed(all_enum_types)),
+        self_enum_types=list(enum_types),
+        message_types=list(all_message_types),
+        self_message_types=list(message_types),
+    )
+
+    # process class
+    cls, _ = _process_object_cls(cast(type["Node"], cls), declaration)
+    cls.metatype = node_type
+
+    # register
+    NODE_CLASS_BY_TYPE[node_type] = cls
+    NODE_TYPE_BY_CLASS[cls] = node_type
+    NODE_CLASS_BY_TYPE[node_type] = cls
+
+    return cast(type["Node"], cls)
+
+
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def builtin_node(
+def _builtin_node(
     # meta
     node_type: NodeType,
     *,
@@ -73,115 +205,41 @@ def builtin_node(
     # associations
     event_types: tuple[NodeType, ...] = (),
     enum_types: tuple[EnumType, ...] = (),
+    message_types: tuple[StructType, ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
 
     def decorate(cls: type) -> type:
-        nonlocal frozen
-        assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
-
-        # bases
-        inherits: list[NodeType] = []
-        all_traits: list[TraitType] = list(traits)
-        all_enum_types: list[EnumType] = []
-        all_event_types: list[NodeType] = []
-        if cls.__name__ != "Node":
-            for base in cls.__mro__:
-                if issubclass(base, Node):
-                    if base.metatype not in inherits:
-                        inherits.append(base.metatype)
-                    for trait in base.__declaration__.traits:
-                        if trait not in all_traits:
-                            all_traits.append(trait)
-                    for enum_type in base.__declaration__.enum_types:
-                        if enum_type not in all_enum_types:
-                            all_enum_types.append(enum_type)
-                    for event_type in base.__declaration__.event_types:
-                        if event_type not in all_event_types:
-                            all_event_types.append(event_type)
-
-        # abstract nodes cannot extend non-abstract nodes
-        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-            raise ValueError(
-                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-            )
-        # cannot be both abstract and final
-        if is_abstract and is_final:
-            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
-        # final objects cannot be extended
-        if any(
-            hasattr(base, "__declaration__") and base.__declaration__.is_final
-            for base in cls.__bases__
-        ):
-            bad_base = next(
-                base
-                for base in cls.__bases__
-                if hasattr(base, "__declaration__") and base.__declaration__.is_final
-            )
-            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
-        if NodeType.EVENT in inherits:
-            frozen = True  # Events are always frozen
-
-        # declaration
-        declaration = NodeDeclaration(
+        return _process_node_cls(
             # meta
             cls=cls,
-            type=node_type,
-            id=node_type.value,
-            kind=ObjectKind.NODE,
-            stability=ObjectStability.DYNAMIC,
+            node_type=node_type,
             is_abstract=is_abstract,
-            is_frozen=frozen,
             is_final=is_final,
             is_singleton=is_singleton,
-            # inherits
-            base_type=inherits[0] if inherits else None,
-            inherits=list(reversed(inherits)),
-            inherited_by=[],
-            extended_by=[],
-            traits=list(reversed(all_traits)),
-            self_traits=list(all_traits),
+            is_frozen=frozen,
+            # inheritance
+            traits=traits,
             # content
-            properties=[],
-            methods=[],
-            actions=[],
-            constants=[],
-            indexes=list(indexes),
-            constraints=list(constraints),
-            permissions=list(permissions),
-            tags=list(tags),
-            # graph
-            parent_property=None,
-            parent_types=[],
-            child_types=[],
-            ancestor_types=[],
-            descendant_types=[],
-            expected_parent_types=list(expected_parent_types),
-            expected_child_types=list(expected_child_types),
-            expected_ancestor_types=list(expected_ancestor_types),
-            expected_descendant_types=list(expected_descendant_types),
+            indexes=indexes,
+            constraints=constraints,
+            permissions=permissions,
+            tags=tags,
+            # tree
+            expected_parent_types=expected_parent_types,
+            expected_child_types=expected_child_types,
+            expected_ancestor_types=expected_ancestor_types,
+            expected_descendant_types=expected_descendant_types,
             # associations
-            event_types=list(reversed(all_event_types)),
-            self_event_types=list(event_types),
-            enum_types=list(reversed(all_enum_types)),
-            self_enum_types=list(enum_types),
+            event_types=event_types,
+            enum_types=enum_types,
+            message_types=message_types,
         )
-
-        # process class
-        cls, _ = _process_object_cls(cast(type["Node"], cls), declaration)
-        cls.metatype = node_type
-
-        # register
-        NODE_CLASS_BY_TYPE[node_type] = cls
-        NODE_TYPE_BY_CLASS[cls] = node_type
-        NODE_CLASS_BY_TYPE[node_type] = cls
-
-        return cls
 
     return decorate
 
 
-@builtin_node(
+@_builtin_node(
     node_type=NodeType.NODE,
     is_abstract=True,
     tags=(

@@ -6,8 +6,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -48,7 +48,7 @@ class Border(StructFrozen):
     style: Optional["BorderStyle"] = builtin_property(103, is_repr=True)
 
 
-@builtin_node(NodeType.BORDER_STYLE)
+@builtin_entity(NodeType.BORDER_STYLE)
 class BorderStyle(Style):
     """A border style."""
 

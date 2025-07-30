@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 from .enum import Enum, builtin_enum
 
@@ -123,7 +123,6 @@ class EnumType(Enum):
     REGION_AREA = 1_000_002
     REGION_CONTINENT = 1_000_003
     TENANCY = 1_000_004
-    DATABASE_TYPE = 1_000_005
     MACHINE_TYPE = 1_001_000
 
     # deployment [1_100_000-1_200_000]
@@ -211,13 +210,6 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 class ObjectKind(Enum):
     NODE = 1
     STRUCT = 2
-    # MESSAGE? (= FUNCTION/ACTION/...INPUTS/OUTPUTS?)
-
-
-class ObjectKey(NamedTuple):
-    kind: ObjectKind
-    # object_type
-    #
 
 
 @builtin_enum(EnumType.OBJECT_STABILITY)
@@ -232,6 +224,8 @@ class StructType(Enum):
     # core [1-100_000]
     # root
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
+    MESSAGE = 2, "Message", "Message", "fas fa-envelope"
+
     OBJECT_DEFINITION = 10
     OBJECT_DEFINITION_REFERENCE = 11
     NODE_DEFINITION = 12
@@ -265,11 +259,18 @@ class StructType(Enum):
     QUERY = 300
 
     # references
-    NODE_REFERENCE = 1_000
-    PROPERTY_REFERENCE = 1_001
+    NODE_REFERENCE = 400
+    PROPERTY_REFERENCE = 41
+
+    # universe
+    UNIVERSE_SIGNUP_REQUEST = 1_000
+    UNIVERSE_SIGNUP_RESPONSE = 1_001
+    UNIVERSE_SPAWN_REQUEST = 1_002
+    UNIVERSE_SPAWN_RESPONSE = 1_003
 
     # custom
-    CUSTOM_STRUCT = 20_100, "Custom Struct", "Custom Struct Instance", "fas fa-shapes"
+    CUSTOM_STRUCT = 20_200, "Custom Struct", "Custom Struct Instance", "fas fa-shapes"
+    CUSTOM_MESSAGE = 20_300, "Custom Message", "Custom Message Instance", "fas fa-envelope"
 
     # integrity
     INDEX_DEFINITION = 30_100
@@ -537,14 +538,20 @@ class NodeType(Enum):
     # custom
     CUSTOM_EVENT_DEFINITION = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
     CUSTOM_STRUCT_DEFINITION = 20_100, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
-    CUSTOM_PROPERTY_DEFINITION = (
+    CUSTOM_MESSAGE_DEFINITION = (
         20_200,
+        "Custom Message",
+        "Custom Message Definition",
+        "fas fa-envelope",
+    )
+    CUSTOM_PROPERTY_DEFINITION = (
+        20_300,
         "Custom Property",
         "Custom Property Definition",
         "fas fa-triangle",
     )
-    CUSTOM_ENUM_DEFINITION = 20_300, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
-    CUSTOM_OPTION_DEFINITION = 20_400, "Custom Option", "Custom Option Definition", "fas fa-circle"
+    CUSTOM_ENUM_DEFINITION = 20_400, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
+    CUSTOM_OPTION_DEFINITION = 20_500, "Custom Option", "Custom Option Definition", "fas fa-circle"
     # CUSTOM_ALIAS, CUSTOM_UNION, ...
 
     # integrity
@@ -675,7 +682,7 @@ class NodeType(Enum):
     # RECOMMENDATION, ...
 
     # infrastructure [1_000_000-1_100_000]
-    DATABASE = 1_000_000, "Database", "Database for Postgres data", "fas fa-database"
+    # DATABASE, ...
     MACHINE = 1_001_000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # SEARCH, VAULT, CACHE, S3, ...
     # GALAXY, ...

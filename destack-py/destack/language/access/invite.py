@@ -5,7 +5,8 @@ from destack.language.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_node,
+    builtin_entity,
+    builtin_event,
     builtin_property,
 )
 
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.INVITE_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.INVITE_EVENT, is_abstract=True)
 class InviteEvent(Event["Invite"]):
     """A Event regarding an Invite."""
 
@@ -24,7 +25,7 @@ class InviteEvent(Event["Invite"]):
     member: "Entity" = builtin_property(103)
 
 
-@builtin_node(NodeType.INVITE_SENT_EVENT, frozen=True)
+@builtin_event(NodeType.INVITE_SENT_EVENT)
 class InviteSentEvent(InviteEvent):
     """An Invite was sent."""
 
@@ -32,14 +33,14 @@ class InviteSentEvent(InviteEvent):
     role_type: "RoleType" = builtin_property(111)
 
 
-@builtin_node(NodeType.INVITE_RESCINDED_EVENT, frozen=True)
+@builtin_event(NodeType.INVITE_RESCINDED_EVENT)
 class InviteRescindedEvent(InviteEvent):
     """An Invite was rescinded."""
 
     pass
 
 
-@builtin_node(NodeType.INVITE_ACCEPTED_EVENT, frozen=True)
+@builtin_event(NodeType.INVITE_ACCEPTED_EVENT)
 class InviteAcceptedEvent(InviteEvent):
     """An Invite was accepted."""
 
@@ -47,14 +48,14 @@ class InviteAcceptedEvent(InviteEvent):
     role_type: "RoleType" = builtin_property(111)
 
 
-@builtin_node(NodeType.INVITE_REJECTED_EVENT, frozen=True)
+@builtin_event(NodeType.INVITE_REJECTED_EVENT)
 class InviteRejectedEvent(InviteEvent):
     """An Invite was rejected."""
 
     pass
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.INVITE,
     event_types=(NodeType.INVITE_EVENT,),
     traits=(TraitType.OWNABLE,),

@@ -7,8 +7,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -57,7 +57,7 @@ class Shadow(StructFrozen):
     diffusion: Optional[Float32] = builtin_property(107, is_repr=True)
 
 
-@builtin_node(NodeType.SHADOW_STYLE)
+@builtin_entity(NodeType.SHADOW_STYLE)
 class ShadowStyle(Style):
     """A shadow style."""
 

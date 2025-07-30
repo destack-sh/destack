@@ -7,7 +7,8 @@ from destack.language.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_node,
+    builtin_entity,
+    builtin_event,
     builtin_property,
 )
 
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.REACTION,
     traits=(TraitType.OWNED,),
     constraints=(
@@ -34,17 +35,17 @@ class Reaction(Entity):
     content: str = builtin_property(101, is_repr=True)
 
 
-@builtin_node(NodeType.REACTION_EVENT, frozen=True)
+@builtin_event(NodeType.REACTION_EVENT)
 class ReactionEvent(Event["Reaction"]):
     node: "Reaction" = builtin_property(101)
     content: str = builtin_property(102)
 
 
-@builtin_node(NodeType.REACTION_ADDED_EVENT, frozen=True)
+@builtin_event(NodeType.REACTION_ADDED_EVENT)
 class ReactionAddedEvent(ReactionEvent):
     pass
 
 
-@builtin_node(NodeType.REACTION_REMOVED_EVENT, frozen=True)
+@builtin_event(NodeType.REACTION_REMOVED_EVENT)
 class ReactionRemovedEvent(ReactionEvent):
     pass

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     NodeType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_property_parent,
 )
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.ENVIRONMENT)
+@builtin_entity(NodeType.ENVIRONMENT)
 class Environment(Entity):
     """An Environment is a deployment scenario of a Space."""
 

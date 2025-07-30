@@ -1,13 +1,13 @@
 from typing import Optional
 
-from destack.language.core import Float64, NodeType, builtin_node, builtin_property
+from destack.language.core import Float64, NodeType, builtin_entity, builtin_property
 
 from .input import InputView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SLIDER_INPUT_VIEW,
 )
 class SliderInputView(InputView):

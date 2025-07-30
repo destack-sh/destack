@@ -4,7 +4,7 @@ from destack.language.core import (
     Entity,
     NodeType,
     TraitType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_property_parent,
 )
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.TEAM,
     traits=(TraitType.ACTOR, TraitType.JOINABLE),
 )

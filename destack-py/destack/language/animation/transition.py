@@ -7,8 +7,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -54,7 +54,7 @@ class Transition(StructFrozen):
     spring_type: Optional[SpringType] = builtin_property(109, is_repr=True)
 
 
-@builtin_node(NodeType.TRANSITION_STYLE)
+@builtin_entity(NodeType.TRANSITION_STYLE)
 class TransitionStyle(Style):
     """A transition style."""
 

@@ -6,8 +6,9 @@ from destack.language.core import (
     EnumType,
     Event,
     NodeType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -19,42 +20,42 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.TIMER_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.TIMER_EVENT, is_abstract=True)
 class TimerEvent(Event["Timer"]):
     """A TimerEvent is an Event that corresponds to a Timer."""
 
     node: "Timer" = builtin_property(101)
 
 
-@builtin_node(NodeType.TIMER_STARTED_EVENT, frozen=True)
+@builtin_event(NodeType.TIMER_STARTED_EVENT)
 class TimerStartedEvent(TimerEvent):
     """A Timer was started."""
 
     pass
 
 
-@builtin_node(NodeType.TIMER_PAUSED_EVENT, frozen=True)
+@builtin_event(NodeType.TIMER_PAUSED_EVENT)
 class TimerPausedEvent(TimerEvent):
     """A Timer was paused."""
 
     pass
 
 
-@builtin_node(NodeType.TIMER_RESUMED_EVENT, frozen=True)
+@builtin_event(NodeType.TIMER_RESUMED_EVENT)
 class TimerResumedEvent(TimerEvent):
     """A Timer was resumed."""
 
     pass
 
 
-@builtin_node(NodeType.TIMER_COMPLETED_EVENT, frozen=True)
+@builtin_event(NodeType.TIMER_COMPLETED_EVENT)
 class TimerCompletedEvent(TimerEvent):
     """A Timer was completed."""
 
     pass
 
 
-@builtin_node(NodeType.TIMER_CANCELLED_EVENT, frozen=True)
+@builtin_event(NodeType.TIMER_CANCELLED_EVENT)
 class TimerCancelledEvent(TimerEvent):
     """A Timer was cancelled."""
 
@@ -67,7 +68,7 @@ class TimerType(Enum):
     RECURRING = 2
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.TIMER,
     event_types=(
         NodeType.TIMER_STARTED_EVENT,

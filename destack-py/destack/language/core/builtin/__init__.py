@@ -1,10 +1,4 @@
-from .base import (
-    Entity2D,
-    Entity3D,
-    Resource,
-    Tag,
-    Tagging,
-)
+from .base import Entity2D, Entity3D, Resource, Tag, Tagging
 from .builtin import (
     ENUM_TYPES,
     NODE_TYPES,
@@ -125,10 +119,12 @@ from .entity import (
     Entity,
     EntityPartial,
     Materialization,
+    builtin_entity,
 )
 from .enum import Enum, builtin_enum
-from .event import Event, EventStatus
-from .node import Node, builtin_node, expand_node_inheritance, expand_node_types
+from .event import Event, EventStatus, builtin_event
+from .message import Message, builtin_message
+from .node import Node, expand_node_inheritance, expand_node_types
 from .object import Object, _is_finalized
 from .property import (
     PropertyDeclaration,
@@ -252,6 +248,7 @@ __all__ = [
     "Int128",
     "Json",
     "Materialization",
+    "Message",
     "MethodDeclaration",
     "MethodDefinition",
     "MethodType",
@@ -321,9 +318,11 @@ __all__ = [
     "active_space_ptr",
     "builtin_action",
     "builtin_constant",
+    "builtin_entity",
     "builtin_enum",
+    "builtin_event",
+    "builtin_message",
     "builtin_method",
-    "builtin_node",
     "builtin_property",
     "builtin_property_parent",
     "builtin_property_runtime",

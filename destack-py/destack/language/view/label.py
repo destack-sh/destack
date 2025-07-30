@@ -1,11 +1,11 @@
-from destack.language.core import NodeType, builtin_node
+from destack.language.core import NodeType, builtin_entity
 
 from .layout import LayoutView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.LABEL_VIEW,
 )
 class LabelView(LayoutView):

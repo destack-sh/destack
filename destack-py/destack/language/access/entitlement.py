@@ -9,8 +9,9 @@ from destack.language.core import (
     Event,
     NodeReference,
     NodeType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -20,28 +21,28 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.ENTITLEMENT_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.ENTITLEMENT_EVENT, is_abstract=True)
 class EntitlementEvent(Event["Entitlement"]):
     node: "Entitlement" = builtin_property(101)
     target: "Entity" = builtin_property(110)
 
 
-@builtin_node(NodeType.ENTITLEMENT_REQUESTED_EVENT, frozen=True)
+@builtin_event(NodeType.ENTITLEMENT_REQUESTED_EVENT)
 class EntitlementRequestedEvent(EntitlementEvent):
     pass
 
 
-@builtin_node(NodeType.ENTITLEMENT_GRANTED_EVENT, frozen=True)
+@builtin_event(NodeType.ENTITLEMENT_GRANTED_EVENT)
 class EntitlementGrantedEvent(EntitlementEvent):
     pass
 
 
-@builtin_node(NodeType.ENTITLEMENT_REVOKED_EVENT, frozen=True)
+@builtin_event(NodeType.ENTITLEMENT_REVOKED_EVENT)
 class EntitlementRevokedEvent(EntitlementEvent):
     pass
 
 
-@builtin_node(NodeType.ENTITLEMENT_EXPIRED_EVENT, frozen=True)
+@builtin_event(NodeType.ENTITLEMENT_EXPIRED_EVENT)
 class EntitlementExpiredEvent(EntitlementEvent):
     pass
 
@@ -54,7 +55,7 @@ class EntitlementType(Enum):
     ROLE = 2
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.ENTITLEMENT,
     event_types=(NodeType.ENTITLEMENT_EVENT,),
 )
