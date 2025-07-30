@@ -6,8 +6,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -104,7 +104,7 @@ class Font(StructFrozen):
     )
 
 
-@builtin_node(NodeType.FONT_STYLE)
+@builtin_entity(NodeType.FONT_STYLE)
 class FontStyle(Style):
     """A font style."""
 

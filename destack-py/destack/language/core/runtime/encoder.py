@@ -15,7 +15,6 @@ class EncoderOptions(IntFlag):
     """Options for encoding."""
 
     DEFAULT = 0
-
     # whether to omit the metatype of the object (if possible)
     OMIT_METATYPE = 1
     # whether to omit the key of properties (if possible)

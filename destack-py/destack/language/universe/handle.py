@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional, final
 from destack.language.core import (
     Entity,
     NodeType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_property_parent,
 )
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.HANDLE, is_final=True)
+@builtin_entity(NodeType.HANDLE, is_final=True)
 @final
 class Handle(Entity):
     """A Destack @handle."""

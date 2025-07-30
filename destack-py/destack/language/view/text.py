@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     NodeType,
     Text,
-    builtin_node,
+    builtin_entity,
     builtin_property,
 )
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.TEXT_VIEW,
 )
 class TextView(ContentView):

@@ -6,7 +6,7 @@ from typing import (
 
 from .builtin import NodeType, TraitType
 from .const import UNSET
-from .node import builtin_node
+from .entity import builtin_entity
 from .property import (
     builtin_property,
 )
@@ -31,7 +31,7 @@ type_ = type
 object_set_ = object.__setattr__
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.RESOURCE,
     is_abstract=True,
     traits=(TraitType.OWNABLE,),
@@ -45,7 +45,7 @@ class Resource(Entity):
     region: Optional["Region"] = builtin_property(111)
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.VARIANT,
     is_abstract=True,
     traits=(TraitType.OWNABLE,),
@@ -56,7 +56,7 @@ class Variant(Entity):
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.TAG,
     traits=(TraitType.ORDERED,),
 )
@@ -66,7 +66,7 @@ class Tag(Entity):
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.TAGGING,
     traits=(TraitType.ORDERED,),
     is_final=True,
@@ -80,7 +80,7 @@ class Tagging(Entity):
         tag_ptr: NodeReference = UNSET
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.ENTITY2D,
     is_abstract=True,
 )
@@ -118,7 +118,7 @@ class Entity2D(Entity):
     )
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.ENTITY3D,
     is_abstract=True,
 )

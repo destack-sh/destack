@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from destack.language.core import Float32, NodeType, builtin_node, builtin_property
+from destack.language.core import Float32, NodeType, builtin_entity, builtin_property
 
 from .view import View
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.LAYOUT_VIEW,
     is_abstract=True,
     expected_descendant_types=(NodeType.VIEW,),

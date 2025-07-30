@@ -1,10 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ..builtin import (
-    Entity,
-    NodeType,
-    builtin_node,
-)
+from ..builtin import Entity, NodeType, builtin_entity
 
 if TYPE_CHECKING:
     pass
@@ -12,7 +8,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.PERMISSION)
+@builtin_entity(NodeType.PERMISSION)
 class Permission(
     Entity,
 ):

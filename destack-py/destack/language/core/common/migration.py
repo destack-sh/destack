@@ -8,8 +8,8 @@ from ..builtin import (
     StructFrozen,
     StructType,
     UInt32,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -37,7 +37,7 @@ class MigrationDefinition(StructFrozen):
     description: str | None = builtin_property(103, is_repr=True)
 
 
-@builtin_node(NodeType.MIGRATION)
+@builtin_entity(NodeType.MIGRATION)
 class Migration(Entity):
     """Migration of an Entity."""
 
@@ -55,6 +55,6 @@ class MigrationOperationDefinition(StructFrozen):
     type: "MigrationType" = builtin_property(100, is_repr=True)
 
 
-@builtin_node(NodeType.MIGRATION_OPERATION)
+@builtin_entity(NodeType.MIGRATION_OPERATION)
 class MigrationOperation(Entity):
     """MigrationOperation of an Entity."""

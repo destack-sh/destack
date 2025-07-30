@@ -1,12 +1,12 @@
 from typing import final
 
-from ..builtin import ActionType, NodeType, TraitType, builtin_node, builtin_property
+from ..builtin import ActionType, NodeType, TraitType, builtin_entity, builtin_property
 from .function import Function
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.ACTION,
     traits=(TraitType.RUNNABLE,),
     is_final=True,

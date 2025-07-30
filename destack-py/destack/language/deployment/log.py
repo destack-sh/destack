@@ -7,7 +7,7 @@ from destack.language.core import (
     Json,
     NodeType,
     builtin_enum,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -27,7 +27,7 @@ class LogLevel(Enum):
     PANIC = 6
 
 
-@builtin_node(NodeType.LOG_EVENT, frozen=True)
+@builtin_event(NodeType.LOG_EVENT)
 class LogEvent(Event):
     """A Log message."""
 

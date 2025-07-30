@@ -4,7 +4,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_struct,
 )
@@ -30,7 +30,7 @@ class Line2D(StructFrozen):
     end: "Vector2" = builtin_property(220)
 
 
-@builtin_node(NodeType.LINE_SHAPE2D)
+@builtin_entity(NodeType.LINE_SHAPE2D)
 class LineShape2D(Shape2D):
     """A LineShape is a shape that represents a line between two points."""
 

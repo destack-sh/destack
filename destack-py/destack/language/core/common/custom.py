@@ -5,10 +5,13 @@ from ..builtin import (
     EdgeType,
     Entity,
     Event,
+    Message,
     NodeType,
     Struct,
     StructType,
-    builtin_node,
+    builtin_entity,
+    builtin_event,
+    builtin_message,
     builtin_property,
     builtin_property_parent,
     builtin_struct,
@@ -28,7 +31,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
+@builtin_entity(NodeType.CUSTOM_EVENT_DEFINITION)
 class CustomEventDefinition(
     Entity,
 ):
@@ -41,11 +44,7 @@ class CustomEventDefinition(
     is_abstract: bool = builtin_property(112, default=False)
 
 
-@builtin_node(
-    NodeType.CUSTOM_EVENT,
-    frozen=True,  # type: ignore (frozen)
-    is_abstract=True,
-)
+@builtin_event(NodeType.CUSTOM_EVENT, is_abstract=True)
 class CustomEvent(Event):
     """
     A CustomEvent is an instance of a CustomEventDefinition.
@@ -61,20 +60,24 @@ class CustomEvent(Event):
         definition_ptr: Optional[NodeReference] = None
 
 
-@builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
+@builtin_entity(NodeType.CUSTOM_STRUCT_DEFINITION)
 class CustomStructDefinition(Entity):
     """A CustomStruct describes a custom Struct with custom Properties."""
 
-    icon: "Icon | None" = builtin_property(102)
+    pass
 
 
-@builtin_struct(
-    StructType.CUSTOM_STRUCT,
-    is_final=True,
-)
+@builtin_entity(NodeType.CUSTOM_MESSAGE_DEFINITION)
+class CustomMessageDefinition(CustomStructDefinition):
+    """A CustomMessage describes a custom Message with custom Properties."""
+
+    pass
+
+
+@builtin_struct(StructType.CUSTOM_STRUCT, is_final=True)
 @final
 class CustomStruct(Struct):
-    """A CustomStruct is an instance of a custom Struct with custom Properties."""
+    """A CustomStruct is a generic instance of a custom Struct with custom Values."""
 
     definition: "CustomStructDefinition" = builtin_property(11, is_repr=True)
     custom_values: dict[str, "Value"] = builtin_property(
@@ -89,14 +92,32 @@ class CustomStruct(Struct):
         return self.custom_values.get(name)
 
 
-@builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
+@builtin_message(StructType.CUSTOM_MESSAGE, is_final=True)
+@final
+class CustomMessage(Message):
+    """A CustomMessage is an instance of a custom Message with custom Values."""
+
+    definition: "CustomMessageDefinition" = builtin_property(11, is_repr=True)
+    custom_values: dict[str, "Value"] = builtin_property(
+        45,
+        description="The custom Values of this Message, keyed by custom Property name.",
+    )
+
+    def __getitem__(self, key: str) -> "Value":
+        return self.custom_values[key]
+
+    def __getattr__(self, name: str) -> "Value | None":
+        return self.custom_values.get(name)
+
+
+@builtin_entity(NodeType.CUSTOM_ENUM_DEFINITION)
 class CustomEnumDefinition(Entity):
     """A CustomEnum describes a custom Enum with custom Options."""
 
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_node(NodeType.CUSTOM_OPTION_DEFINITION)
+@builtin_entity(NodeType.CUSTOM_OPTION_DEFINITION)
 class CustomOptionDefinition(Entity):
     parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
 
@@ -105,7 +126,7 @@ class CustomOptionDefinition(Entity):
     value: "Value" = builtin_property(110)
 
 
-@builtin_node(NodeType.CUSTOM_PROPERTY_DEFINITION)
+@builtin_entity(NodeType.CUSTOM_PROPERTY_DEFINITION)
 class CustomPropertyDefinition(Entity):
     """
     A CustomProperty is a custom attribute of an Entity.

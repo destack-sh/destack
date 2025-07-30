@@ -14,8 +14,8 @@ from destack.language.core import (
     Resource,
     UInt32,
     UInt64,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_property_parent,
     builtin_property_runtime,
@@ -426,7 +426,7 @@ MIME_TYPES_BY_FILE_FORMAT = group_by(
 MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MIME_TYPE.items()}
 
 
-@builtin_node(NodeType.FILE)
+@builtin_entity(NodeType.FILE)
 class File(Resource):
     """
     A File stored somewhere.

@@ -7,8 +7,8 @@ from destack.language.core import (
     Float32,
     NodeType,
     TraitType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
 )
 
@@ -27,7 +27,7 @@ class LayerType(Enum):
     # RASTER, ...
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.LAYER,
     traits=(TraitType.OWNABLE, TraitType.ORDERED),
     expected_ancestor_types=(NodeType.SCENE,),

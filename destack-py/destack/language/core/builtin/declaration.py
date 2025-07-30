@@ -117,6 +117,8 @@ class NodeDeclaration(ObjectDeclaration):
     self_event_types: list[NodeType]
     enum_types: list[EnumType]
     self_enum_types: list[EnumType]
+    message_types: list[StructType]
+    self_message_types: list[StructType]
 
 
 @dataclass(slots=True)
@@ -166,9 +168,6 @@ class FunctionDeclaration:
     is_abstract: bool
 
     # content
-    input_properties: tuple["PropertyDeclaration", ...]
-    output_properties: tuple["PropertyDeclaration", ...]
-    output_is_scalar: bool
     tags: tuple[str, ...]
 
     languages: tuple[RuntimeLanguage, ...] | None
@@ -179,7 +178,13 @@ class FunctionDeclaration:
 class MethodDeclaration(FunctionDeclaration):
     """Declaration of a MethodDefinition (internal use only)."""
 
+    # meta
     type: MethodType
+
+    # content
+    input_properties: tuple["PropertyDeclaration", ...]
+    output_properties: tuple["PropertyDeclaration", ...]
+    output_is_scalar: bool
 
 
 def builtin_method(
@@ -224,6 +229,16 @@ def builtin_action(
         return func
 
     return decorate
+
+
+@dataclass(slots=True)
+class MessageDeclaration:
+    """Declaration of a MessageDefinition (internal use only)."""
+
+    id: int
+    name: str
+    description: str
+    properties: tuple["PropertyDeclaration", ...]
 
 
 @dataclass(slots=True)

@@ -5,7 +5,8 @@ from destack.language.core import (
     Event,
     Float32,
     NodeType,
-    builtin_node,
+    builtin_entity,
+    builtin_event,
     builtin_property,
 )
 
@@ -22,14 +23,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.VIEW_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.VIEW_EVENT, is_abstract=True)
 class ViewEvent(Event["View"]):
     """A Event regarding a View."""
 
     node: "View" = builtin_property(101)
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.VIEW,
     is_abstract=True,
     event_types=(

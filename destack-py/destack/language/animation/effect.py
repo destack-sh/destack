@@ -8,8 +8,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -83,7 +83,7 @@ class Effect(StructFrozen):
     transition: Optional["Transition"] = builtin_property(115, is_repr=True)
 
 
-@builtin_node(NodeType.EFFECT_STYLE)
+@builtin_entity(NodeType.EFFECT_STYLE)
 class EffectStyle(Style):
     """An effect style."""
 

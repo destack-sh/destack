@@ -15,8 +15,8 @@ from ..builtin import (
     EnumType,
     NodeType,
     TraitType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_property_parent,
 )
@@ -36,7 +36,7 @@ class BranchType(Enum):
     ROOT = 11
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.BRANCH,
     is_final=True,
     traits=(TraitType.OWNABLE,),
@@ -80,7 +80,7 @@ class SnapshotStatus(Enum):
     PASSIVE = 50, "Passive", "Inactive and read-only"
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SNAPSHOT,
     is_final=True,
     traits=(TraitType.OWNABLE,),

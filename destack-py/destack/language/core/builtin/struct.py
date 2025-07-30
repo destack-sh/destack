@@ -27,6 +27,97 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
+def _process_struct_cls(
+    cls: type,
+    struct_type: StructType,
+    stability: ObjectStability,
+    is_frozen: bool,
+    is_abstract: bool,
+    is_final: bool,
+    tags: tuple["TagDeclaration", ...],
+) -> type["Struct"]:
+    # bases
+    inherits: list[StructType] = []
+    all_enum_types: list[EnumType] = []
+    if cls.__name__ != "Struct" and cls.__name__ != "StructFrozen":
+        for base in cls.__mro__:
+            if issubclass(base, Struct):
+                if base.metatype not in inherits:
+                    inherits.append(base.metatype)
+                for enum_type in base.__declaration__.self_enum_types:
+                    if enum_type not in all_enum_types:
+                        all_enum_types.append(enum_type)
+
+    # declaration
+    declaration = StructDeclaration(
+        # meta
+        cls=cls,
+        type=struct_type,
+        id=struct_type.value,
+        kind=ObjectKind.STRUCT,
+        stability=stability,
+        is_abstract=is_abstract,
+        is_frozen=is_frozen,
+        is_final=is_final,
+        # inherits
+        base_type=inherits[0] if inherits else None,
+        inherits=list(reversed(inherits)),
+        inherited_by=[],
+        extended_by=[],
+        # content
+        properties=[],
+        methods=[],
+        constants=[],
+        tags=list(tags),
+        # associations
+        enum_types=list(all_enum_types),
+        self_enum_types=list(all_enum_types),
+    )
+
+    # abstract objects cannot extend non-abstract objects
+    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+        raise ValueError(
+            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+        )
+    # cannot be both abstract and final
+    if is_abstract and is_final:
+        raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+    # final classes must be annotated with @final
+    if is_final != getattr(cls, "__final__", False):
+        raise ValueError(
+            f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
+        )
+    # final objects cannot be extended
+    if any(
+        hasattr(base, "__declaration__") and base.__declaration__.is_final for base in cls.__bases__
+    ):
+        bad_base = next(
+            base
+            for base in cls.__bases__
+            if hasattr(base, "__declaration__") and base.__declaration__.is_final
+        )
+        raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
+
+    # process object class
+    cls, _ = _process_object_cls(cast(type["Struct"], cls), declaration)
+    if struct_type is not None:
+        cls.metatype = struct_type
+
+    # register struct
+    if struct_type is not None and cls.__name__ != "StructFrozen":
+        assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
+            f"struct class {cls} is not a Struct"
+        )
+        if struct_type in STRUCT_CLASS_BY_TYPE:
+            raise ValueError(
+                f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
+            )
+        STRUCT_CLASS_BY_TYPE[struct_type] = cls
+        STRUCT_TYPE_BY_CLASS[cls] = struct_type
+
+    return cast(type["Struct"], cls)
+
+
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_struct(
     struct_type: StructType,
@@ -40,87 +131,16 @@ def builtin_struct(
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type) -> type:
-        # bases
-        inherits: list[StructType] = []
-        all_enum_types: list[EnumType] = []
-        if cls.__name__ != "Struct" and cls.__name__ != "StructFrozen":
-            for base in cls.__mro__:
-                if issubclass(base, Struct):
-                    if base.metatype not in inherits:
-                        inherits.append(base.metatype)
-                    for enum_type in base.__declaration__.self_enum_types:
-                        if enum_type not in all_enum_types:
-                            all_enum_types.append(enum_type)
-
-        # declaration
-        declaration = StructDeclaration(
-            # meta
-            cls=cls,
-            type=struct_type,
-            id=struct_type.value,
-            kind=ObjectKind.STRUCT,
+        cls = _process_struct_cls(
+            cls=cast(type["Struct"], cls),
+            struct_type=struct_type,
             stability=stability,
-            is_abstract=is_abstract,
             is_frozen=frozen,
+            is_abstract=is_abstract,
             is_final=is_final,
-            # inherits
-            base_type=inherits[0] if inherits else None,
-            inherits=list(reversed(inherits)),
-            inherited_by=[],
-            extended_by=[],
-            # content
-            properties=[],
-            methods=[],
-            constants=[],
-            tags=list(tags),
-            # associations
-            enum_types=list(all_enum_types),
-            self_enum_types=list(all_enum_types),
+            tags=tags,
         )
-
-        # abstract objects cannot extend non-abstract objects
-        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-            raise ValueError(
-                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-            )
-        # cannot be both abstract and final
-        if is_abstract and is_final:
-            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
-        # final classes must be annotated with @final
-        if is_final != getattr(cls, "__final__", False):
-            raise ValueError(
-                f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
-            )
-        # final objects cannot be extended
-        if any(
-            hasattr(base, "__declaration__") and base.__declaration__.is_final
-            for base in cls.__bases__
-        ):
-            bad_base = next(
-                base
-                for base in cls.__bases__
-                if hasattr(base, "__declaration__") and base.__declaration__.is_final
-            )
-            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
-
-        # process class
-        cls, _ = _process_object_cls(cast(type["Struct"], cls), declaration)
-        if struct_type is not None:
-            cls.metatype = struct_type
-
-        # register struct
-        if struct_type is not None and cls.__name__ != "StructFrozen":
-            assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
-                f"struct class {cls} is not a Struct"
-            )
-            if struct_type in STRUCT_CLASS_BY_TYPE:
-                raise ValueError(
-                    f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
-                )
-            STRUCT_CLASS_BY_TYPE[struct_type] = cls
-            STRUCT_TYPE_BY_CLASS[cls] = struct_type
-
-        return cast(type["Struct"], cls)
+        return cls
 
     return decorate
 

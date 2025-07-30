@@ -7,8 +7,8 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -92,19 +92,18 @@ class ColorIntent(Enum):
 class Color(StructFrozen):
     """A color value."""
 
-    type: ColorType = builtin_property(100, is_repr=True)
-    x: Float32 = builtin_property(101, is_repr=True)
-    y: Float32 = builtin_property(102, is_repr=True)
-    z: Float32 = builtin_property(103, is_repr=True)
-    alpha: Float32 = builtin_property(104, is_repr=True)
+    r: Float32 = builtin_property(101, is_repr=True)
+    g: Float32 = builtin_property(102, is_repr=True)
+    b: Float32 = builtin_property(103, is_repr=True)
+    a: Float32 = builtin_property(104, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
         r, g, b, a = hex_to_rgb(hex)
-        return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a or 1.0)
+        return Color(r=r, g=g, b=b, a=a or 1.0)
 
 
-@builtin_node(NodeType.COLOR_STYLE)
+@builtin_entity(NodeType.COLOR_STYLE)
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
@@ -112,21 +111,21 @@ class ColorStyle(Style):
     hue: Optional[ColorHue] = builtin_property(200, is_repr=True)
     shade: Optional[ColorShade] = builtin_property(201, is_repr=True)
     intent: Optional[ColorIntent] = builtin_property(202, is_repr=True)
-    x: Optional[Float32] = builtin_property(203, is_repr=True)
-    y: Optional[Float32] = builtin_property(204, is_repr=True)
-    z: Optional[Float32] = builtin_property(205, is_repr=True)
-    alpha: Optional[Float32] = builtin_property(206, is_repr=True)
+    r: Optional[Float32] = builtin_property(203, is_repr=True)
+    g: Optional[Float32] = builtin_property(204, is_repr=True)
+    b: Optional[Float32] = builtin_property(205, is_repr=True)
+    a: Optional[Float32] = builtin_property(206, is_repr=True)
     dark: Color | None = builtin_property(207)
 
     @staticmethod
     def from_color(name: str, color: Color, dark: Color | None = None) -> "ColorStyle":
         return ColorStyle(
-            type=color.type,
             name=name,
-            x=color.x,
-            y=color.y,
-            z=color.z,
-            alpha=color.alpha,
+            type=ColorType.RGB,
+            r=color.r,
+            g=color.g,
+            b=color.b,
+            a=color.a,
             dark=dark,
         )
 

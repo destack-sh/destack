@@ -4,7 +4,8 @@ from destack.language.core import (
     Entity,
     Event,
     NodeType,
-    builtin_node,
+    builtin_entity,
+    builtin_event,
     builtin_property,
 )
 
@@ -14,14 +15,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.METRIC, is_abstract=True)
+@builtin_entity(NodeType.METRIC, is_abstract=True)
 class Metric(Entity):
     """An Entity that represents a Metric."""
 
     icon: "Icon | None" = builtin_property(102)
 
 
-@builtin_node(NodeType.MEASUREMENT_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.MEASUREMENT_EVENT, is_abstract=True)
 class MeasurementEvent(Event):
     """An Event that represents a Measurement."""
 
@@ -32,7 +33,7 @@ class MeasurementEvent(Event):
     )
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.GAUGE_METRIC,
     event_types=(NodeType.GAUGE_MEASUREMENT_EVENT,),
 )
@@ -42,14 +43,14 @@ class GaugeMetric(Metric):
     pass
 
 
-@builtin_node(NodeType.GAUGE_MEASUREMENT_EVENT, frozen=True)
+@builtin_event(NodeType.GAUGE_MEASUREMENT_EVENT)
 class GaugeMeasurementEvent(MeasurementEvent):
     """A Gauge Measurement."""
 
     definition: "GaugeMetric" = builtin_property(6)
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.COUNTER_METRIC,
     event_types=(NodeType.COUNTER_MEASUREMENT_EVENT,),
 )
@@ -59,14 +60,14 @@ class CounterMetric(Metric):
     pass
 
 
-@builtin_node(NodeType.COUNTER_MEASUREMENT_EVENT, frozen=True)
+@builtin_event(NodeType.COUNTER_MEASUREMENT_EVENT)
 class CounterMeasurementEvent(MeasurementEvent):
     """A Counter Measurement."""
 
     definition: "CounterMetric" = builtin_property(6)
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.HISTOGRAM_METRIC,
     event_types=(NodeType.HISTOGRAM_MEASUREMENT_EVENT,),
 )
@@ -76,7 +77,7 @@ class HistogramMetric(Metric):
     pass
 
 
-@builtin_node(NodeType.HISTOGRAM_MEASUREMENT_EVENT, frozen=True)
+@builtin_event(NodeType.HISTOGRAM_MEASUREMENT_EVENT)
 class HistogramMeasurementEvent(MeasurementEvent):
     """A Histogram Measurement."""
 

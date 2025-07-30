@@ -584,11 +584,6 @@ _encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_e
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
             locals_ = {}
-            print("=" * 80)
-            print(node_cls.__name__ + ":kompakt")
-            print("=" * 80)
-            print(impl)
-            print("=" * 80)
             exec_(
                 impl,
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},

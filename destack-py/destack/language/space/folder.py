@@ -6,8 +6,8 @@ from destack.language.core import (
     EnumType,
     NodeType,
     TraitType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_property_parent,
 )
@@ -28,7 +28,7 @@ class FolderType(Enum):
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.FOLDER,
     traits=(
         TraitType.OWNABLE,

@@ -6,7 +6,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_struct,
 )
@@ -33,7 +33,7 @@ class Star2D(StructFrozen):
     points: Int8 = builtin_property(212)
 
 
-@builtin_node(NodeType.STAR_SHAPE2D)
+@builtin_entity(NodeType.STAR_SHAPE2D)
 class StarShape2D(Shape2D):
     """A StarShape is a shape that represents a star."""
 

@@ -8,8 +8,9 @@ from destack.language.core import (
     NodeDefinitionReference,
     NodeType,
     Value,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 from destack.utils.uuid import UUID
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.TRIGGER_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.TRIGGER_EVENT, is_abstract=True)
 class TriggerEvent(Event["Trigger"]):
     """A TriggerEvent is an Event that corresponds to a Trigger."""
 
@@ -32,9 +33,7 @@ class TriggerType(Enum):
     EVENT = 1
 
 
-@builtin_node(
-    NodeType.TRIGGER,
-)
+@builtin_entity(NodeType.TRIGGER)
 class Trigger(Entity):
     """A Trigger is a dynamic event to run something."""
 

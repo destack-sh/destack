@@ -1,17 +1,19 @@
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, dataclass_transform
 
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, NodeType
+from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT, UNSET
-from .declaration import TagDeclaration
+from .declaration import (
+    TagDeclaration,
+)
 from .entity import Entity
 from .enum import Enum, builtin_enum
-from .node import Node, builtin_node
-from .property import ValueFactory, builtin_property
+from .node import Node, _process_node_cls
+from .property import _PROPERTY_SPECIFIERS, ValueFactory, builtin_property
 from .types import UInt128
 
 if TYPE_CHECKING:
@@ -42,15 +44,67 @@ class EventStatus(Enum):
     # COMPACTED, ...
 
 
-@builtin_node(
+@dataclass_transform(
+    kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS, frozen_default=True
+)
+def builtin_event(
+    # meta
+    event_type: NodeType,
+    *,
+    is_abstract: bool = False,
+    is_final: bool = False,
+    # inheritance
+    tags: tuple["TagDeclaration", ...] = (),
+    # associations
+    event_types: tuple[NodeType, ...] = (),
+    enum_types: tuple[EnumType, ...] = (),
+    message_types: tuple[StructType, ...] = (),
+):
+    """Register a class as a concrete Event for the given Event type."""
+
+    def decorate(cls: type) -> type:
+        cls = _process_node_cls(
+            # meta
+            cls=cls,
+            node_type=event_type,
+            is_abstract=is_abstract,
+            is_final=is_final,
+            is_singleton=False,
+            is_frozen=False,
+            # inheritance
+            traits=(),
+            # content
+            indexes=(),
+            constraints=(),
+            permissions=(),
+            tags=tags,
+            # tree
+            expected_parent_types=(),
+            expected_child_types=(),
+            expected_ancestor_types=(),
+            expected_descendant_types=(),
+            # associations
+            event_types=event_types,
+            enum_types=enum_types,
+            message_types=message_types,
+        )
+        assert event_type.name.endswith("EVENT"), f"Event {cls.__name__} must end with 'EVENT'"
+        assert event_type == NodeType.EVENT or NodeType.EVENT in cls.__declaration__.inherits, (
+            f"Event {cls.__name__} must inherit from Event"
+        )
+        return cls
+
+    return decorate
+
+
+@builtin_event(
     NodeType.EVENT,
-    frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
     tags=(
         TagDeclaration(id=20, name="system", description="System authority"),
         TagDeclaration(id=21, name="client", description="Client authority"),
     ),
-)
+)  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine here)
 class Event[N: Node = Node](Node):
     """
     An Event is an immutable datum of something happening to an Entity.

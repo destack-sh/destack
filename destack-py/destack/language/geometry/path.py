@@ -4,7 +4,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_struct,
 )
@@ -29,7 +29,7 @@ class Path2D(StructFrozen):
     points: list["Vector2"] = builtin_property(210)
 
 
-@builtin_node(NodeType.PATH_SHAPE2D)
+@builtin_entity(NodeType.PATH_SHAPE2D)
 class PathShape2D(Shape2D):
     """A PathShape is a shape that represents a path of multiple points."""
 

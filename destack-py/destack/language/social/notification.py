@@ -7,8 +7,9 @@ from destack.language.core import (
     Event,
     NodeType,
     TraitType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -29,49 +30,49 @@ class NotificationStatus(Enum):
     RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
 
 
-@builtin_node(NodeType.NOTIFICATION_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.NOTIFICATION_EVENT, is_abstract=True)
 class NotificationEvent(Event["Notification"]):
     """A Event regarding a Notification."""
 
     node: "Notification" = builtin_property(101)
 
 
-@builtin_node(NodeType.NOTIFICATION_SENT_EVENT, frozen=True)
+@builtin_event(NodeType.NOTIFICATION_SENT_EVENT)
 class NotificationSentEvent(NotificationEvent):
     """A Notification was sent."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_RESCINDED_EVENT, frozen=True)
+@builtin_event(NodeType.NOTIFICATION_RESCINDED_EVENT)
 class NotificationRescindedEvent(NotificationEvent):
     """A Notification was rescinded."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_READ_EVENT, frozen=True)
+@builtin_event(NodeType.NOTIFICATION_READ_EVENT)
 class NotificationReadEvent(NotificationEvent):
     """A Notification was read."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_DISMISSED_EVENT, frozen=True)
+@builtin_event(NodeType.NOTIFICATION_DISMISSED_EVENT)
 class NotificationDismissedEvent(NotificationEvent):
     """A Notification was dismissed."""
 
     pass
 
 
-@builtin_node(NodeType.NOTIFICATION_EXPIRED_EVENT, frozen=True)
+@builtin_event(NodeType.NOTIFICATION_EXPIRED_EVENT)
 class NotificationExpiredEvent(NotificationEvent):
     """A Notification was expired."""
 
     pass
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.NOTIFICATION,
     traits=(TraitType.OWNABLE,),
     event_types=(NodeType.NOTIFICATION_EVENT,),

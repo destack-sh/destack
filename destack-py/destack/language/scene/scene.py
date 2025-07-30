@@ -5,7 +5,8 @@ from destack.language.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_node,
+    builtin_entity,
+    builtin_event,
     builtin_property,
 )
 
@@ -17,14 +18,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SCENE_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.SCENE_EVENT, is_abstract=True)
 class SceneEvent(Event["Scene"]):
     """A Event regarding a Scene."""
 
     node: "Scene" = builtin_property(101)
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SCENE,
     traits=(TraitType.OWNABLE, TraitType.ORDERED),
     event_types=(NodeType.SCENE_EVENT,),

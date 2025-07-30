@@ -1,6 +1,7 @@
 import { loadPyodide, type PyodideInterface } from "pyodide";
 
-// nocheckin: generalize pyodide for destack-ts-* (core?/web/system/simulation)
+// nocheckin: generalize pyodide for destack-ts-*? (core?/web/system/simulation)
+//  or maybe just drop pyodide on web for now? (would simplify the destack-py protection requirements)
 
 const DESTACK_ROOT_PATH = new URL("../../../", import.meta.url).pathname;
 const DESTACK_ENV_PATHS = [".env.test", ".env.test.local"];

@@ -7,8 +7,9 @@ from destack.language.core import (
     EnumType,
     Event,
     NodeType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
+    builtin_event,
     builtin_property,
     builtin_property_parent,
 )
@@ -60,7 +61,7 @@ class RunStatus(Enum):
         return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
-@builtin_node(NodeType.RUN_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.RUN_EVENT, is_abstract=True)
 class RunEvent(Event["Run"]):
     """An Event regarding a Run."""
 
@@ -70,7 +71,7 @@ class RunEvent(Event["Run"]):
         target_ptr: Optional[NodeReference] = None
 
 
-@builtin_node(NodeType.RUN_STARTED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_STARTED_EVENT)
 class RunStartedEvent(
     RunEvent,
 ):
@@ -79,56 +80,56 @@ class RunStartedEvent(
     pass
 
 
-@builtin_node(NodeType.RUN_PAUSE_REQUESTED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_PAUSE_REQUESTED_EVENT)
 class RunPauseRequestedEvent(RunEvent):
     """A Run was paused."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_PAUSED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_PAUSED_EVENT)
 class RunPausedEvent(RunEvent):
     """A Run was paused."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_RESUME_REQUESTED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_RESUME_REQUESTED_EVENT)
 class RunResumeRequestedEvent(RunEvent):
     """A Run was resumed."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_RESUMED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_RESUMED_EVENT)
 class RunResumedEvent(RunEvent):
     """A Run was resumed."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_STOP_REQUESTED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_STOP_REQUESTED_EVENT)
 class RunStopRequestedEvent(RunEvent):
     """A Run was stopped."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_FAILED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_FAILED_EVENT)
 class RunFailedEvent(RunEvent):
     """A Run failed."""
 
     pass
 
 
-@builtin_node(NodeType.RUN_COMPLETED_EVENT, frozen=True)
+@builtin_event(NodeType.RUN_COMPLETED_EVENT)
 class RunCompletedEvent(RunEvent):
     """A Run completed."""
 
     pass
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.RUN,
     event_types=(NodeType.RUN_EVENT,),
     is_abstract=True,

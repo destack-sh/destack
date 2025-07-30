@@ -9,8 +9,9 @@ from destack.language.core import (
     Event,
     NodeReference,
     NodeType,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -20,28 +21,28 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SANCTION_EVENT, frozen=True, is_abstract=True)
+@builtin_event(NodeType.SANCTION_EVENT, is_abstract=True)
 class SanctionEvent(Event["Sanction"]):
     node: "Sanction" = builtin_property(101)
     target: "Entity" = builtin_property(110)
 
 
-@builtin_node(NodeType.SANCTION_REQUESTED_EVENT, frozen=True)
+@builtin_event(NodeType.SANCTION_REQUESTED_EVENT)
 class SanctionRequestedEvent(SanctionEvent):
     pass
 
 
-@builtin_node(NodeType.SANCTION_GRANTED_EVENT, frozen=True)
+@builtin_event(NodeType.SANCTION_GRANTED_EVENT)
 class SanctionGrantedEvent(SanctionEvent):
     pass
 
 
-@builtin_node(NodeType.SANCTION_REVOKED_EVENT, frozen=True)
+@builtin_event(NodeType.SANCTION_REVOKED_EVENT)
 class SanctionRevokedEvent(SanctionEvent):
     pass
 
 
-@builtin_node(NodeType.SANCTION_EXPIRED_EVENT, frozen=True)
+@builtin_event(NodeType.SANCTION_EXPIRED_EVENT)
 class SanctionExpiredEvent(SanctionEvent):
     pass
 
@@ -54,7 +55,7 @@ class SanctionType(Enum):
     MUTE = 2
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SANCTION,
     event_types=(NodeType.SANCTION_EVENT,),
 )

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Event,
     NodeType,
-    builtin_node,
+    builtin_event,
     builtin_property,
 )
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.SPAN_EVENT, frozen=True)
+@builtin_event(NodeType.SPAN_EVENT)
 class SpanEvent(Event["Run"]):
     """
     A Span is a trace inside a Run.

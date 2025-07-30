@@ -318,6 +318,16 @@ class NodeDefinition(ObjectDefinition):
         description="The enum types declared by this Node (directly).",
         tags=("associations",),
     )
+    message_types: list[StructType] = builtin_property(
+        212,
+        description="The message types related to this Node.",
+        tags=("associations",),
+    )
+    self_message_types: list[StructType] = builtin_property(
+        213,
+        description="The message types declared by this Node (directly).",
+        tags=("associations",),
+    )
 
     @classmethod
     def from_declaration(
@@ -987,13 +997,7 @@ class FunctionDefinition(StructFrozen):
     is_async: bool = builtin_property(110)
     is_abstract: bool = builtin_property(111)
 
-    # content
-    input_properties: list["PropertyDefinition"] = builtin_property(121)
-    output_properties: list["PropertyDefinition"] | None = builtin_property(122)
-    output_is_scalar: bool = builtin_property(
-        123, description="Whether the output is just the first output property."
-    )
-
+    # availability
     platforms: list[PlatformType] | None = builtin_property(
         130,
         description="The platforms this Method is available on (all if empty).",
@@ -1014,6 +1018,13 @@ class MethodDefinition(FunctionDefinition):
     """Definition of a builtin Method."""
 
     type: MethodType = builtin_property(100)
+
+    # content
+    input_properties: list["PropertyDefinition"] = builtin_property(121)
+    output_properties: list["PropertyDefinition"] | None = builtin_property(122)
+    output_is_scalar: bool = builtin_property(
+        123, description="Whether the output is just the first output property."
+    )
 
     @classmethod
     def from_declaration(
@@ -1037,6 +1048,8 @@ class ActionDefinition(FunctionDefinition):
     """Definition of a builtin Action."""
 
     type: ActionType = builtin_property(100)
+    request_message: "StructDefinition" = builtin_property(120)
+    response_message: "StructDefinition" = builtin_property(121)
 
     @classmethod
     def from_declaration(

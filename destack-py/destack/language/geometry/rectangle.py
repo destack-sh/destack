@@ -4,7 +4,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_node,
+    builtin_entity,
     builtin_property,
     builtin_struct,
 )
@@ -30,7 +30,7 @@ class Rectangle2D(StructFrozen):
     height: Optional["Vector2"] = builtin_property(220)
 
 
-@builtin_node(NodeType.RECTANGLE_SHAPE2D)
+@builtin_entity(NodeType.RECTANGLE_SHAPE2D)
 class RectangleShape2D(Shape2D):
     """A RectangleShape is a shape that represents a rectangle."""
 

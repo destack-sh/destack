@@ -8,8 +8,8 @@ from destack.language.core import (
     StructFrozen,
     StructType,
     UInt8,
+    builtin_entity,
     builtin_enum,
-    builtin_node,
     builtin_property,
     builtin_struct,
 )
@@ -66,7 +66,7 @@ class StrokeCap(StructFrozen):
     easing: "Easing" = builtin_property(103, description="The easing function for taper.")
 
 
-@builtin_node(NodeType.STROKE_STYLE, is_final=True)
+@builtin_entity(NodeType.STROKE_STYLE, is_final=True)
 @final
 class StrokeStyle(Style):
     """A StrokeStyle."""

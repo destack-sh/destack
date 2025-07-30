@@ -7,19 +7,27 @@ from typing import (
     Optional,
     Self,
     cast,
+    dataclass_transform,
 )
 
 from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import INTEGER_ZERO, get_order_key
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, NodeType, ObjectKind, TraitType
+from .builtin import EnumType, NodeType, ObjectKind, StructType, TraitType
 from .common import UInt128, ValueFactory
 from .const import UNSET
-from .declaration import PermissionDeclaration, TagDeclaration, builtin_method
+from .declaration import (
+    ConstraintDeclaration,
+    IndexDeclaration,
+    PermissionDeclaration,
+    TagDeclaration,
+    builtin_method,
+)
 from .enum import Enum, builtin_enum
-from .node import Node, builtin_node
+from .node import Node, _process_node_cls
 from .property import (
+    _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
     builtin_property,
     builtin_property_parent,
@@ -47,7 +55,6 @@ object_set_ = object.__setattr__
 class Materialization(Enum):
     """
     The materialization level of an Entity.
-
     """
 
     VIRTUAL = 1, "Virtual", "Entity matches its definition, only exists when queried"
@@ -56,7 +63,68 @@ class Materialization(Enum):
     ROOT = 11, "Root", "Entity is its own root (no other definition)"
 
 
-@builtin_node(
+@dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
+def builtin_entity(
+    # meta
+    entity_type: NodeType,
+    *,
+    is_abstract: bool = False,
+    is_final: bool = False,
+    is_singleton: bool = False,
+    # inheritance
+    traits: tuple[TraitType, ...] = (),
+    # content
+    indexes: tuple["IndexDeclaration", ...] = (),
+    constraints: tuple["ConstraintDeclaration", ...] = (),
+    permissions: tuple["PermissionDeclaration", ...] = (),
+    tags: tuple["TagDeclaration", ...] = (),
+    # tree
+    expected_parent_types: tuple[NodeType, ...] = (),
+    expected_child_types: tuple[NodeType, ...] = (),
+    expected_ancestor_types: tuple[NodeType, ...] = (),
+    expected_descendant_types: tuple[NodeType, ...] = (),
+    # associations
+    event_types: tuple[NodeType, ...] = (),
+    enum_types: tuple[EnumType, ...] = (),
+    message_types: tuple[StructType, ...] = (),
+):
+    """Register a class as a concrete Entity for the given Node type."""
+
+    def decorate(cls: type) -> type:
+        cls = _process_node_cls(
+            # meta
+            cls=cls,
+            node_type=entity_type,
+            is_abstract=is_abstract,
+            is_final=is_final,
+            is_singleton=is_singleton,
+            is_frozen=False,
+            # inheritance
+            traits=traits,
+            # content
+            indexes=indexes,
+            constraints=constraints,
+            permissions=permissions,
+            tags=tags,
+            # tree
+            expected_parent_types=expected_parent_types,
+            expected_child_types=expected_child_types,
+            expected_ancestor_types=expected_ancestor_types,
+            expected_descendant_types=expected_descendant_types,
+            # associations
+            event_types=event_types,
+            enum_types=enum_types,
+            message_types=message_types,
+        )
+        assert entity_type == NodeType.ENTITY or NodeType.ENTITY in cls.__declaration__.inherits, (
+            f"Entity {cls.__name__} must inherit from Entity"
+        )
+        return cls
+
+    return decorate
+
+
+@builtin_entity(
     NodeType.ENTITY,
     is_abstract=True,
     event_types=(NodeType.EDIT_EVENT,),

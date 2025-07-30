@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     NodeType,
-    builtin_node,
+    builtin_entity,
 )
 
 if TYPE_CHECKING:
@@ -12,9 +12,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
-    NodeType.THEME,
-)
+@builtin_entity(NodeType.THEME)
 class Theme(
     Entity,
 ):

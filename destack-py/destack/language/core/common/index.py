@@ -2,8 +2,7 @@ from typing import TYPE_CHECKING
 
 from ..builtin.builtin import NodeType
 from ..builtin.declaration import IndexType
-from ..builtin.entity import Entity
-from ..builtin.node import builtin_node
+from ..builtin.entity import Entity, builtin_entity
 from ..builtin.property import builtin_property
 
 if TYPE_CHECKING:
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@builtin_node(NodeType.INDEX)
+@builtin_entity(NodeType.INDEX)
 class Index(Entity):
     """Index of an Entity for faster querying."""
 

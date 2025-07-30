@@ -13,7 +13,7 @@ from destack.language.core import (
     TraitType,
     ValueFactory,
     builtin_action,
-    builtin_node,
+    builtin_entity,
     builtin_property,
 )
 from destack.language.core.common.universe import Universe
@@ -42,7 +42,7 @@ class CreateSpaceResult(NamedTuple):
     head_snapshot: "Snapshot"
 
 
-@builtin_node(
+@builtin_entity(
     NodeType.SPACE,
     is_final=True,
     traits=(TraitType.FOLLOWABLE, TraitType.JOINABLE, TraitType.OWNABLE, TraitType.STARABLE),
