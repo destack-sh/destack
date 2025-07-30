@@ -26,29 +26,26 @@ from destack.utils.uuid import uuid4
 def _do_test_roundtrip_object(
     obj: Object, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
-    # pack/unpack as bytes
+    print("=" * 80)  # noqa: T201
+    print(repr(obj))  # noqa: T201
+    print(f" -> {encoding.name}")  # noqa: T201
     print("=" * 80)  # noqa: T201
     writer = BinaryWriter()
     encoder.pack_object_binary(obj.__kind__, obj.metatype, obj, writer)
     packed_obj_bytes = writer.to_bytes()
-    print(repr(obj))  # noqa: T201
     print(f"bytes: {len(packed_obj_bytes)}")  # noqa: T201
     bytes_gzip = gzip.compress(packed_obj_bytes)
     print(f"bytes (gzip): {len(bytes_gzip)}")  # noqa: T201
-    if encoding == Encoding.KOMPAKT:
-        print(packed_obj_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_obj_bytes)
     unpacked_obj = encoder.unpack_object_binary(obj.__kind__, obj.metatype, reader, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
-    print(repr(unpacked_obj))  # noqa: T201
     return packed_obj_bytes
 
 
 def _do_test_roundtrip_value(
     type: Type, value: Any, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
-    # pack/unpack as bytes
     print("=" * 80)  # noqa: T201
     writer = BinaryWriter()
     encoder.pack_value_binary(type, value, writer)
@@ -123,10 +120,11 @@ def test_roundtrip_value(session: Session, space: Space):
     for value in (
         Value.wrap(1),
         Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
-        Value.wrap((2, bool, "Hello")),
+        Value.wrap((2, True, "Hello")),
     ):
         for encoding, encoder in ENCODERS.items():
             _ = _do_test_roundtrip_object(value, session, encoder, encoding)
+            _ = _do_test_roundtrip_value(value.type, value.value, session, encoder, encoding)
 
 
 def test_roundtrip_query(session: Session, space: Space):
