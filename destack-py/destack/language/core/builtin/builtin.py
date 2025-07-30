@@ -13,11 +13,11 @@ if TYPE_CHECKING:
 
 class EnumType(Enum):
     # core [1-100_000]
-    ENUM_TYPE = 1
-    NODE_TYPE = 2
-    STRUCT_TYPE = 3
-    TRAIT_TYPE = 4
-    OBJECT_KIND = 7
+    OBJECT_KIND = 1
+    ENUM_TYPE = 2
+    NODE_TYPE = 3
+    STRUCT_TYPE = 4
+    TRAIT_TYPE = 5
     OBJECT_STABILITY = 8
     UNIVERSE_CATEGORY = 9
     NODE_DEFINITION_TYPE = 10

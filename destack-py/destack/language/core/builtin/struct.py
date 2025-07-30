@@ -154,7 +154,7 @@ class Struct(Object, abc.ABC):
 
     # meta
     metatype: ClassVar[StructType]
-    __kind__: ClassVar[ObjectKind] = ObjectKind.STRUCT
+    metakind: ClassVar[ObjectKind] = ObjectKind.STRUCT
     __declaration__: ClassVar["StructDeclaration"]
     __definition__: ClassVar["StructDefinition"]
 

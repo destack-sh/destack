@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import IntFlag
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from ..builtin import Encoding, NodeType, Object, ObjectKind, StructType
+from ..builtin import Encoding, Object, ObjectKind
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
@@ -41,8 +41,6 @@ class Encoder[T: Any = Any](ABC):
     @abstractmethod
     def pack_object(
         self,
-        kind: ObjectKind,
-        type: int,
         object: Object,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> T:
@@ -52,20 +50,20 @@ class Encoder[T: Any = Any](ABC):
     @abstractmethod
     def unpack_object(
         self,
-        kind: ObjectKind,
-        type: int,
+        type: tuple[ObjectKind, int] | None,
         value: T,
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        """Unpack an Object from some encoded format."""
+        """
+        Unpack an Object from some encoded format.
+        If type is not provided, the ObjectKind and metatype will be inferred/consumed from the value.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def pack_object_binary(
         self,
-        kind: ObjectKind,
-        type: NodeType | StructType,
         object: Object,
         writer: "BinaryWriter",
         options: EncoderOptions = EncoderOptions.DEFAULT,
@@ -76,13 +74,15 @@ class Encoder[T: Any = Any](ABC):
     @abstractmethod
     def unpack_object_binary(
         self,
-        kind: ObjectKind,
-        type: int,
+        type: tuple[ObjectKind, int] | None,
         reader: "BinaryReader",
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        """Unpack an Object from the byte representation of its encoded format."""
+        """
+        Unpack an Object from the byte representation of its encoded format.
+        If type is not provided, the ObjectKind and metatype will be inferred/consumed from the value.
+        """
         raise NotImplementedError
 
     @abstractmethod
