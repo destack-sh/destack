@@ -14,6 +14,7 @@ from destack.language.registry import (
     NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPE_BY_CLASS,
 )
+from destack.utils.env import IS_DEV
 from destack.utils.uuid import UUID
 
 from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
@@ -100,27 +101,29 @@ def _process_node_cls(
                 for message_type in base.__declaration__.message_types:
                     if message_type not in all_message_types:
                         all_message_types.append(message_type)
-
-    # abstract nodes cannot extend non-abstract nodes
-    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-        raise ValueError(
-            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-        )
-    # cannot be both abstract and final
-    if is_abstract and is_final:
-        raise ValueError(f"{cls.__name__} cannot be both abstract and final")
-    # final objects cannot be extended
-    if any(
-        hasattr(base, "__declaration__") and base.__declaration__.is_final for base in cls.__bases__
-    ):
-        bad_base = next(
-            base
-            for base in cls.__bases__
-            if hasattr(base, "__declaration__") and base.__declaration__.is_final
-        )
-        raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
     if NodeType.EVENT in inherits:
         is_frozen = True  # Events are always frozen
+
+    if IS_DEV:
+        # abstract nodes cannot extend non-abstract nodes
+        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+            raise ValueError(
+                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+            )
+        # cannot be both abstract and final
+        if is_abstract and is_final:
+            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+        # final objects cannot be extended
+        if any(
+            hasattr(base, "__declaration__") and base.__declaration__.is_final
+            for base in cls.__bases__
+        ):
+            bad_base = next(
+                base
+                for base in cls.__bases__
+                if hasattr(base, "__declaration__") and base.__declaration__.is_final
+            )
+            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
 
     # declaration
     declaration = NodeDeclaration(
@@ -178,6 +181,13 @@ def _process_node_cls(
     NODE_TYPE_BY_CLASS[cls] = node_type
     NODE_CLASS_BY_TYPE[node_type] = cls
 
+    # check for too many nullable properties (for :Encoding)
+    if IS_DEV:
+        nullable_properties = [p for p in cls.__properties__.values() if not p.is_required]
+        assert len(nullable_properties) <= 64, (
+            f"Node {cls.__name__} has too many nullable properties"
+        )
+
     return cast(type["Node"], cls)
 
 
@@ -210,7 +220,7 @@ def _builtin_node(
     """Register a class as a concrete node for the given node type."""
 
     def decorate(cls: type) -> type:
-        return _process_node_cls(
+        cls = _process_node_cls(
             # meta
             cls=cls,
             node_type=node_type,
@@ -235,6 +245,7 @@ def _builtin_node(
             enum_types=enum_types,
             message_types=message_types,
         )
+        return cls
 
     return decorate
 

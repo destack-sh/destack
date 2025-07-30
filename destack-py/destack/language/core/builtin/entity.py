@@ -59,8 +59,8 @@ class Materialization(Enum):
 
     VIRTUAL = 1, "Virtual", "Entity matches its definition, only exists when queried"
     PARTIAL = 2, "Partial", "Entity is a partial override of its definition"
-    FULL = 10, "Full", "Entity is a full copy of its definition"
-    ROOT = 11, "Root", "Entity is its own root (no other definition)"
+    FULL = 3, "Full", "Entity is a full copy of its definition"
+    ROOT = 4, "Root", "Entity is its own root (no other definition)"
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)

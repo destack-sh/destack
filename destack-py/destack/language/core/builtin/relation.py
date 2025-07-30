@@ -10,7 +10,7 @@ from typing import (
 from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, NodeType, ObjectStability, StructType
+from .builtin import EnumType, NodeType, StructType
 from .common import UInt8
 from .enum import Enum, builtin_enum
 from .object import Object
@@ -330,12 +330,7 @@ class PropertyReference(StructFrozen):
             assert_never(base)
 
 
-@builtin_struct(
-    StructType.NODE_REFERENCE,
-    frozen=True,
-    is_final=True,
-    stability=ObjectStability.GROWABLE,
-)
+@builtin_struct(StructType.NODE_REFERENCE, frozen=True, is_final=True)
 @final
 class NodeReference(StructFrozen):
     """

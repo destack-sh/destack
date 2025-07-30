@@ -10,6 +10,7 @@ from destack.language.core import (
     EncoderOptions,
     Encoding,
     Entity,
+    Materialization,
     Object,
     ObjectKind,
     ObjectStability,
@@ -17,6 +18,7 @@ from destack.language.core import (
     PropertyDeclaration,
     ScalarType,
     Session,
+    Struct,
     StructType,
     TypeCardinality,
     TypeDeclaration,
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
 
 from .core import KompaktObjectEncoder
 
+# ruff: noqa: FURB113
 # pyright: reportIncompatibleVariableOverride=false
 
 
@@ -63,16 +66,20 @@ class KompaktEncoderGenerator:
         """Generate the KompaktObjectEncoder class for an Object."""
 
         is_entity = issubclass(cls, Entity)
-        pack_kompakt = self.generate_pack_object(
-            cls, is_entity=is_entity, stability=cls.__stability__
+        pack_kompakt, extra_pack_kompakt = self.generate_pack_object(
+            cls, is_entity=is_entity, stability=cls.__declaration__.stability
         )
-        unpack_kompakt = self.generate_unpack_object(
-            cls, is_entity=is_entity, stability=cls.__stability__
+        unpack_kompakt, extra_unpack_kompakt = self.generate_unpack_object(
+            cls, is_entity=is_entity, stability=cls.__declaration__.stability
         )
         encoder_name = self.get_encoder_name(cls)
 
         impl = f"""
 class {encoder_name}(KompaktObjectEncoder):
+
+# hard coded pack/unpack helpers
+{textwrap.indent(extra_pack_kompakt, " " * 4)}
+{textwrap.indent(extra_unpack_kompakt, " " * 4)}
     
     @override
     def pack_object(
@@ -123,62 +130,114 @@ class {encoder_name}(KompaktObjectEncoder):
         *,
         is_entity: bool,
         stability: ObjectStability,
-    ) -> str:
+    ) -> tuple[str, str]:
         """Generate the pack method for an Object."""
-        lines: list[str] = []
-
-        # nocheckin: include object encoded byte size in KompaktEncoder? (so we know when to stop)
+        body_lines: list[str] = []
+        extra_lines: list[str] = []
 
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
-        if is_entity:
-            set_properties = [p for p in properties if p.is_identity]
-            maybe_set_properties = [p for p in properties if not p.is_identity]
+
+        # determine properties (count, set/null flags)
+        body_lines.append("# preamble")
+        if stability == ObjectStability.DYNAMIC:
+            # if properties may change we need to determine which ones are set
+            if is_entity:
+                # dynamic entity with a dynamic set of properties
+                #  count set properties and null flags
+                body_lines.append(f"_is_partial = _object.materialization < {Materialization.FULL}")
+                num_identity_properties = sum(1 for p in properties if p.is_identity)
+                body_lines.append(
+                    f"_num_set_properties = {num_identity_properties} if _is_partial else {len(properties)}"
+                )
+                body_lines.append("_null_flags = 0")
+                for i, prop in enumerate(properties):
+                    prop_name = self.get_source_property_name(prop)
+                    if not prop.is_identity:
+                        if not prop.is_required:
+                            body_lines.append(f"""\
+if not _is_partial or _object.is_set("{prop.name}"):
+    _num_set_properties += 1
+    if _object.{prop_name} is None:
+        _null_flags |= 1 << {i}""")
+                        else:
+                            body_lines.append(f"""\
+if _object.{prop_name} is None:
+    _null_flags |= 1 << {i}""")
+            else:
+                # dynamic event or struct with a fixed set of properties
+                body_lines.append(f"_num_set_properties = {len(properties)}")
+                body_lines.append("_null_flags = 0")
+                for i, prop in enumerate(properties):
+                    prop_name = self.get_source_property_name(prop)
+                    if not prop.is_required:
+                        body_lines.append(f"""\
+if _object.{prop_name} is None:
+    _null_flags |= 1 << {i}""")
+
+            # prefix with number of set properties and their null flags
+            if is_entity:
+                body_lines.append("_writer.write_uint8(_object.materialization.value)")
+            body_lines.append("_writer.write_uint8(_num_set_properties)")
+            body_lines.append("_writer.write_uint64(_null_flags)")
+        elif stability == ObjectStability.STATIC:
+            # properties can't change
+            assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
+            if all(p.is_required for p in properties):
+                # nothing to do, all properties are always set in same order
+                pass
+            else:
+                # if only some properties are required, determine null flags
+                body_lines.append("_null_flags = 0")
+                for i, prop in enumerate(properties):
+                    prop_name = self.get_source_property_name(prop)
+                    if not prop.is_required:
+                        body_lines.append(f"""\
+if _object.{prop_name} is None:
+    _null_flags |= 1 << {i}""")
         else:
-            set_properties = properties
-            maybe_set_properties = []
+            assert_never(stability)
 
         # pack always set properties
-        for prop in set_properties:
+        body_lines.append("# always set properties")
+        for prop in properties:
+            if is_entity and not prop.is_identity:
+                continue  # maybe set
+            body_lines.append(f"# {prop.component.__name__}.{prop.name}")
+            if stability == ObjectStability.DYNAMIC:
+                # if the property order may change, prefix with property id
+                body_lines.append(f"_writer.write_uint8({prop.id})")
             prop_name = self.get_source_property_name(prop)
             pack_code = self.generate_pack_value(
                 prop,
                 key=f"_{prop.name}",
                 source_expr=f"_object.{prop_name}",
+                is_not_null_expr=f"_object.{prop_name} is not None"
+                if not prop.is_required
+                else None,
             )
-            lines.append(pack_code)
+            body_lines.append(pack_code)
 
-        # pack partial properties
-        if is_entity and maybe_set_properties:
-            maybe_set_lines: list[str] = []
-            set_lines: list[str] = []
-            for prop in maybe_set_properties:
+        # pack properties
+        if is_entity:
+            body_lines.append("# maybe set properties")
+            for prop in properties:
+                if prop.is_identity:
+                    continue  # always set
                 prop_name = self.get_source_property_name(prop)
                 pack_code = self.generate_pack_value(
                     prop,
                     key=f"_{prop.name}",
                     source_expr=f"_object.{prop_name}",
+                    is_not_null_expr=f"_object.{prop_name} is not None"
+                    if not prop.is_required
+                    else None,
                 )
-                set_lines.append(pack_code)
-                maybe_set_lines.append(f"""\
-if _object.is_set("{prop.name}"):
-    _writer.write_bool(True)
-{textwrap.indent(pack_code, " " * 4)}
-else:
-    _writer.write_bool(False)
-""")
+                body_lines.append(f"# {prop.component.__name__}.{prop.name}")
+                body_lines.append(pack_code)
 
-            maybe_set_code = "\n".join(maybe_set_lines)
-            set_code = "\n".join(set_lines)
-            lines.append(f"""\
-if _object.is_partial:
-{textwrap.indent(maybe_set_code, " " * 4)}
-else:
-{textwrap.indent(set_code, " " * 4)}
-""")
-
-        return "\n".join(lines)
+        return "\n".join(body_lines), "\n".join(extra_lines)
 
     def generate_unpack_object(
         self,
@@ -186,111 +245,124 @@ else:
         *,
         is_entity: bool,
         stability: ObjectStability,
-    ) -> str:
+    ) -> tuple[str, str]:
         """Generate the unpack method for an Object."""
-        lines: list[str] = []
+        body_lines: list[str] = []
+        extra_lines: list[str] = []
 
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
-        if is_entity:
-            set_properties = [p for p in properties if p.is_identity]
-            maybe_set_properties = [p for p in properties if not p.is_identity]
+
+        # unpack preamble
+        body_lines.append("# preamble")
+        if stability == ObjectStability.DYNAMIC:
+            # dynamic set of properties
+            if is_entity:
+                body_lines.append("_materialization = Materialization(_reader.read_uint8())")
+            body_lines.append("_num_set_properties = _reader.read_uint8()")
+            body_lines.append("_null_flags = _reader.read_uint64()")
+        elif stability == ObjectStability.STATIC:
+            # properties can't change
+            assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
+            if all(p.is_required for p in properties):
+                # nothing to do, all properties are always set in same order
+                pass
+            else:
+                # some properties may be null
+                body_lines.append("_null_flags = _reader.read_uint64()")
         else:
-            set_properties = properties
-            maybe_set_properties = []
+            assert_never(stability)
 
-        # unpack always set properties
-        for prop in set_properties:
-            prop_name = self.get_source_property_name(prop)
-            unpack_code = self.generate_unpack_value(
-                prop,
-                key=f"_{prop.name}",
-                target_expr=f"_{prop_name}",
-            )
-            lines.append(unpack_code)
-
-        # unpack partial properties
-        if is_entity and maybe_set_properties:
-            maybe_set_lines: list[str] = []
-            set_lines: list[str] = []
-            for prop in maybe_set_properties:
+        # unpack properties
+        if stability == ObjectStability.DYNAMIC:
+            # dynamic set of properties, map them dynamically
+            for prop in properties:
+                # init to None outside the loop
+                body_lines.append(f"_{self.get_source_property_name(prop)} = None")
+            # main loop to map them
+            prop_map_lines: list[str] = []
+            for i, prop in enumerate(properties):
                 prop_name = self.get_source_property_name(prop)
-                unpack_code = self.generate_unpack_value(
+                prop_unpacked = self.generate_unpack_value(
                     prop,
-                    key=f"_{prop.name}",
+                    key=f"_{prop_name}",
                     target_expr=f"_{prop_name}",
+                    is_not_null_expr=f"_null_flags & {1 << i}" if not prop.is_required else None,
                 )
-                set_lines.append(unpack_code)
-                maybe_set_lines.append(f"""\
-if _reader.read_bool():
-{textwrap.indent(unpack_code, " " * 4)}
-else:
-    _{prop_name} = None
-""")
-
-            maybe_set_code = "\n".join(maybe_set_lines)
-            set_code = "\n".join(set_lines)
-            lines.append(f"""\
-_is_partial = _reader.read_bool()
-if _is_partial:
-{textwrap.indent(maybe_set_code, " " * 4)}
-else:
-{textwrap.indent(set_code, " " * 4)}
-""")
+                prop_map_lines.append(f"""\
+# {prop.component.__name__}.{prop.name}
+{"if" if i == 0 else "elif"} _prop_id == {prop.id}:
+{textwrap.indent(prop_unpacked, " " * 4)}""")
+            body_lines.append(f"""\
+for _i in range(_num_set_properties):
+    _prop_id = _reader.read_uint8()
+    # _prop_bytes = _reader.read_uint32()
+{textwrap.indent("\n".join(prop_map_lines), " " * 4)}
+    else:
+        # unknown property, skip bytes
+        _reader.skip(_prop_bytes)""")
+        elif stability == ObjectStability.STATIC:
+            # static set of properties, just expect them in order
+            for i, prop in enumerate(properties):
+                prop_name = self.get_source_property_name(prop)
+                prop_unpacked = self.generate_unpack_value(
+                    prop,
+                    key=f"_{prop_name}",
+                    target_expr=f"_{prop_name}",
+                    is_not_null_expr=f"_null_flags & {1 << i}" if not prop.is_required else None,
+                )
+                body_lines.append(prop_unpacked)
+        else:
+            assert_never(stability)
 
         # construct object
         constructor_args = []
         for prop in properties:
             prop_name = self.get_source_property_name(prop)
-            constructor_args.append(f"{prop.name}=_{prop_name}")
+            constructor_args.append(f"    {prop.name}=_{prop_name}")
 
-        lines.append(f"return {cls.__name__}({', '.join(constructor_args)})")
-        return "\n".join(lines)
+        body_lines.append(f"return {cls.__name__}(\n{',\n'.join(constructor_args)}\n)")
+        return "\n".join(body_lines), "\n".join(extra_lines)
+
+    def wrap_pack_maybe(self, code: str, is_not_null_expr: str | None) -> str:
+        """Wrap code in an if statement to check if the value is not null."""
+        if is_not_null_expr is None:
+            return code
+        else:
+            return f"""\
+if {is_not_null_expr}:
+{textwrap.indent(code, " " * 4)}"""
+
+    def wrap_unpack_maybe(self, code: str, target_expr: str, is_not_null_expr: str | None) -> str:
+        """Wrap code in an if statement to set the target expression to None if the value is null."""
+        if is_not_null_expr is None:
+            return code
+        else:
+            return f"""\
+if not {is_not_null_expr}:
+{textwrap.indent(code, " " * 4)}"""
 
     def generate_pack_value(
-        self,
-        type: TypeDeclaration,
-        key: str,
-        source_expr: str,
+        self, type: TypeDeclaration, key: str, source_expr: str, is_not_null_expr: str | None
     ) -> str:
         """Generate code to pack a property to the Kompakt encoding."""
 
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            if type.is_required:
-                return self.generate_pack_scalar_value(type, source_expr)
-            else:
-                scalar_packed = self.generate_pack_scalar_value(type, source_expr)
-                return f"""\
-if {source_expr} is not None:
-    _writer.write_bool(True)
-{textwrap.indent(scalar_packed, " " * 4)}
-else:
-    _writer.write_bool(False)"""
+            scalar_packed = self.generate_pack_scalar_value(type, source_expr)
+            return self.wrap_pack_maybe(scalar_packed, is_not_null_expr)
 
         # list
         elif type.cardinality == TypeCardinality.LIST:
             assert type.value_type is not None, f"no value type for {type!r}"
             item_source_expr = f"{key}_item"
-            item_packed = self.generate_pack_scalar_value(
-                type.value_type,
-                item_source_expr,
-            )
-            if type.is_required:
-                return f"""\
+            item_packed = self.generate_pack_scalar_value(type.value_type, item_source_expr)
+            list_packed = f"""\
 _writer.write_uint32(len({source_expr}))
 for {item_source_expr} in {source_expr}:
 {textwrap.indent(item_packed, " " * 4)}"""
-            else:
-                return f"""\
-if {source_expr} is not None:
-    _writer.write_bool(True)
-    _writer.write_uint32(len({source_expr}))
-    for {item_source_expr} in {source_expr}:
-{textwrap.indent(item_packed, " " * 8)}
-else:
-    _writer.write_bool(False)"""
+            return self.wrap_pack_maybe(list_packed, is_not_null_expr)
 
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
@@ -302,30 +374,14 @@ else:
             assert type.value_type is not None, f"no value type for {type!r}"
             key_source_expr = f"{key}_key"
             value_source_expr = f"{key}_value"
-            key_packed = self.generate_pack_scalar_value(
-                type.key_type,
-                key_source_expr,
-            )
-            value_packed = self.generate_pack_scalar_value(
-                type.value_type,
-                value_source_expr,
-            )
-            if type.is_required:
-                return f"""\
+            key_packed = self.generate_pack_scalar_value(type.key_type, key_source_expr)
+            value_packed = self.generate_pack_scalar_value(type.value_type, value_source_expr)
+            map_packed = f"""\
 _writer.write_uint32(len({source_expr}))
 for {key_source_expr}, {value_source_expr} in {source_expr}.items():
 {textwrap.indent(key_packed, " " * 4)}
 {textwrap.indent(value_packed, " " * 4)}"""
-            else:
-                return f"""\
-if {source_expr} is not None:
-    _writer.write_bool(True)
-    _writer.write_uint32(len({source_expr}))
-    for {key_source_expr}, {value_source_expr} in {source_expr}.items():
-{textwrap.indent(key_packed, " " * 8)}
-{textwrap.indent(value_packed, " " * 8)}
-else:
-    _writer.write_bool(False)"""
+            return self.wrap_pack_maybe(map_packed, is_not_null_expr)
 
         else:
             assert_never(type.cardinality)
@@ -335,41 +391,27 @@ else:
         type: TypeDeclaration,
         key: str,
         target_expr: str,
+        is_not_null_expr: str | None,
     ) -> str:
         """Generate code to unpack a property from the Kompakt encoding."""
 
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            if type.is_required:
-                value_unpacked = self.generate_unpack_scalar_value(type)
-                return f"{target_expr} = {value_unpacked}"
-            else:
-                value_unpacked = self.generate_unpack_scalar_value(type)
-                return f"""\
-if _reader.read_bool():
-    {target_expr} = {value_unpacked}
-else:
-    {target_expr} = None"""
+            value_unpacked = self.generate_unpack_scalar_value(type)
+            return self.wrap_unpack_maybe(
+                f"{target_expr} = {value_unpacked}", target_expr, is_not_null_expr
+            )
 
         # list
         elif type.cardinality == TypeCardinality.LIST:
             assert type.value_type is not None, f"no value type for {type!r}"
             element_unpacked = self.generate_unpack_scalar_value(type.value_type)
-            if type.is_required:
-                return f"""\
+            list_unpacked = f"""\
 {key}_length = _reader.read_uint32()
 {target_expr} = []
 for _ in range({key}_length):
     {target_expr}.append({element_unpacked})"""
-            else:
-                return f"""\
-if _reader.read_bool():
-    {key}_length = _reader.read_uint32()
-    {target_expr} = []
-    for _ in range({key}_length):
-        {target_expr}.append({element_unpacked})
-else:
-    {target_expr} = None"""
+            return self.wrap_unpack_maybe(list_unpacked, target_expr, is_not_null_expr)
 
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
@@ -383,25 +425,14 @@ else:
             value_source_expr = f"{key}_value"
             key_unpacked = self.generate_unpack_scalar_value(type.key_type)
             value_unpacked = self.generate_unpack_scalar_value(type.value_type)
-            if type.is_required:
-                return f"""\
+            map_unpacked = f"""\
 {key}_length = _reader.read_uint32()
 {target_expr} = {{}}
 for _ in range({key}_length):
     {key_source_expr} = {key_unpacked}
     {value_source_expr} = {value_unpacked}
     {target_expr}[{key_source_expr}] = {value_source_expr}"""
-            else:
-                return f"""\
-if _reader.read_bool():
-    {key}_length = _reader.read_uint32()
-    {target_expr} = {{}}
-    for _ in range({key}_length):
-        {key_source_expr} = {key_unpacked}
-        {value_source_expr} = {value_unpacked}
-        {target_expr}[{key_source_expr}] = {value_source_expr}
-else:
-    {target_expr} = None"""
+            return self.wrap_unpack_maybe(map_unpacked, target_expr, is_not_null_expr)
 
         else:
             assert_never(type.cardinality)
@@ -589,6 +620,7 @@ _encoder.pack_object_binary({ObjectKind.NODE}, {source_expr}.metatype, {source_e
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},
                 locals_,
                 encoder_name,
+                log=True,  # nocheckin
             )
             encoder_cls = locals_[encoder_name]
             encoders[node_cls.__kind__, node_cls.metatype] = encoder_cls()

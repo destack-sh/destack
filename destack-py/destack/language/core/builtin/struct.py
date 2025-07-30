@@ -9,6 +9,7 @@ from typing import (
 )
 
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
+from destack.utils.env import IS_DEV
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
@@ -74,29 +75,31 @@ def _process_struct_cls(
         self_enum_types=list(all_enum_types),
     )
 
-    # abstract objects cannot extend non-abstract objects
-    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-        raise ValueError(
-            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-        )
-    # cannot be both abstract and final
-    if is_abstract and is_final:
-        raise ValueError(f"{cls.__name__} cannot be both abstract and final")
-    # final classes must be annotated with @final
-    if is_final != getattr(cls, "__final__", False):
-        raise ValueError(
-            f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
-        )
-    # final objects cannot be extended
-    if any(
-        hasattr(base, "__declaration__") and base.__declaration__.is_final for base in cls.__bases__
-    ):
-        bad_base = next(
-            base
+    if IS_DEV:
+        # abstract objects cannot extend non-abstract objects
+        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+            raise ValueError(
+                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+            )
+        # cannot be both abstract and final
+        if is_abstract and is_final:
+            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+        # final classes must be annotated with @final
+        if is_final != getattr(cls, "__final__", False):
+            raise ValueError(
+                f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
+            )
+        # final objects cannot be extended
+        if any(
+            hasattr(base, "__declaration__") and base.__declaration__.is_final
             for base in cls.__bases__
-            if hasattr(base, "__declaration__") and base.__declaration__.is_final
-        )
-        raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
+        ):
+            bad_base = next(
+                base
+                for base in cls.__bases__
+                if hasattr(base, "__declaration__") and base.__declaration__.is_final
+            )
+            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
 
     # process object class
     cls, _ = _process_object_cls(cast(type["Struct"], cls), declaration)

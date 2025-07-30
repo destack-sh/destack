@@ -10,7 +10,12 @@ def exec_(code: str, globals: dict, locals: dict, filename: str, log: bool = Fal
     """
     global _time_spent_in_exec
     start = time.time()
-    code_co = compile(code, filename, "exec")
+    if log:
+        print("=" * 80)  # noqa: T201
+        print(filename)  # noqa: T201
+        print("=" * 80)  # noqa: T201
+        print(code)  # noqa: T201
+        print("=" * 80)  # noqa: T201
     assert filename not in linecache.cache, f"filename {filename} already in cache"
     linecache.cache[filename] = (
         len(code),  # size (ignored)
@@ -18,13 +23,7 @@ def exec_(code: str, globals: dict, locals: dict, filename: str, log: bool = Fal
         code.splitlines(True),  # list with trailing '\n'
         filename,
     )
-    if log:
-        print("=" * 80)  # noqa: T201
-        print(filename)  # noqa: T201
-        print("=" * 80)  # noqa: T201
-        print(code)  # noqa: T201
-        print("=" * 80)  # noqa: T201
-    exec(code_co, globals, locals)
+    exec(code, globals, locals)
     _time_spent_in_exec += time.time() - start
 
 

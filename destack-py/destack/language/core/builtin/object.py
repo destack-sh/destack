@@ -1342,7 +1342,6 @@ class Object:
     metatype: ClassVar[NodeType | StructType] = UNSET
     __declaration__: ClassVar[ObjectDeclaration] = UNSET
     __kind__: ClassVar[ObjectKind] = UNSET
-    __stability__: ClassVar[ObjectStability] = ObjectStability.DYNAMIC
 
     # runtime index
     __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
