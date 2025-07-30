@@ -220,7 +220,7 @@ class Event[N: Node = Node](Node):
         27,
         is_internal=True,
         is_readonly=True,
-        default_factory=ValueFactory.REMOTE_EPOCH,
+        default_factory=ValueFactory.LOCAL_EPOCH,
         description="The logical time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )

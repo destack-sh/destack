@@ -316,19 +316,31 @@ if {arg_name} is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {arg_name} = session.oracle.now()""")
             elif prop.default_factory == ValueFactory.REMOTE_EPOCH:
+                assert declaration.kind is not None, f"unexpected declaration: {declaration!r}"
                 if declaration.kind == ObjectKind.NODE:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = self._session.remote_epoch""")
+                elif declaration.kind == ObjectKind.STRUCT:
+                    method_body_lines.append(f"""\
+if {arg_name} is None:
+    assert self._session is not None, "no session for {cls.__name__}"
+    {arg_name} = self._session.remote_epoch""")
                 else:
-                    raise NotImplementedError(f"unexpected node {cls.__name__}")
+                    assert_never(declaration.kind)
             elif prop.default_factory == ValueFactory.LOCAL_EPOCH:
+                assert declaration.kind is not None, f"unexpected declaration: {declaration!r}"
                 if declaration.kind == ObjectKind.NODE:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = self._session.local_epoch""")
+                elif declaration.kind == ObjectKind.STRUCT:
+                    method_body_lines.append(f"""\
+if {arg_name} is None:
+    assert self._session is not None, "no session for {cls.__name__}"
+    {arg_name} = self._session.local_epoch""")
                 else:
-                    raise NotImplementedError(f"unexpected node {cls.__name__}")
+                    assert_never(declaration.kind)
             elif prop.default_factory == ValueFactory.ACTOR:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
@@ -1338,6 +1350,8 @@ class Object:
     __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
 
     __slots__: ClassVar[tuple[str, ...]] = ()
+
+    # Object.metatype: 1
 
     """The Session this Object is in."""
     _session: "Session | None" = builtin_property_runtime()

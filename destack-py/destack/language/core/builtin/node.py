@@ -260,7 +260,7 @@ class Node(Object):
     __definition_reference__: ClassVar["NodeDefinitionReference"]
 
     # 1-20: node identity
-    # Node.metatype: 1
+    # Object.metatype: 1
     id: UUID = builtin_property(
         2,
         is_internal=True,
