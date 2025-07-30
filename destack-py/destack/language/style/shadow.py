@@ -17,7 +17,7 @@ from .color import Color
 from .style import Style
 
 if TYPE_CHECKING:
-    from destack.language import Axis2
+    from destack import Axis2
 
 # pyright: reportIncompatibleVariableOverride=false
 

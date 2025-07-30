@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     cast,
@@ -6,14 +7,17 @@ from typing import (
 
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
+from destack.utils.uuid import UUID
 
 from .builtin import ObjectStability, StructType
+from .common import ValueFactory
 from .declaration import TagDeclaration
-from .property import _PROPERTY_SPECIFIERS
+from .property import _PROPERTY_SPECIFIERS, builtin_property
 from .struct import StructFrozen, _process_struct_cls
+from .types import UInt128
 
 if TYPE_CHECKING:
-    pass
+    from destack import Client
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -61,8 +65,67 @@ def builtin_message(
     return decorate
 
 
-@builtin_message(StructType.MESSAGE, is_abstract=True)
+@builtin_message(
+    StructType.MESSAGE,
+    is_abstract=True,
+    tags=(
+        TagDeclaration(id=20, name="identity", description="Message identity"),
+        TagDeclaration(id=21, name="tracking", description="Message tracking"),
+    ),
+)
 class Message(StructFrozen):
-    """A Message is an object containing data for communication with Actions."""
+    """
+    A Message contains data for communicating with Nodes via Actions.
+    
+    Because Message are as-is provided by Clients, they only contain client-authority data.
+    """
 
-    ...
+    # 1-20: Message identity
+    id: UUID = builtin_property(
+        2,
+        default_factory=ValueFactory.UUID7,
+        description="The universally unique identifier of this Message.",
+        tags=("identity",),
+    )
+
+    # 20-40: Message tracking
+    client: "Client" = builtin_property(
+        23,
+        is_internal=True,
+        is_readonly=True,
+        default_factory=ValueFactory.CLIENT,
+        description="The Client that created this Message (client).",
+        tags=("tracking",),
+    )
+    client_nonce: UUID = builtin_property(
+        24,
+        is_internal=True,
+        is_readonly=True,
+        default_factory=ValueFactory.CLIENT_NONCE,
+        description="The nonce of the Client that created this Message (client).",
+        tags=("tracking",),
+    )
+    client_created_at: datetime = builtin_property(
+        25,
+        is_internal=True,
+        is_readonly=True,
+        default_factory=ValueFactory.NOW,
+        description="The time in the Client when it created this Message (client).",
+        tags=("tracking",),
+    )
+    client_remote_epoch: UInt128 = builtin_property(
+        26,
+        is_internal=True,
+        is_readonly=True,
+        default_factory=ValueFactory.REMOTE_EPOCH,
+        description="The logical time last seen from the system in the Client for this space (client).",
+        tags=("tracking",),
+    )
+    client_local_epoch: UInt128 = builtin_property(
+        27,
+        is_internal=True,
+        is_readonly=True,
+        default_factory=ValueFactory.LOCAL_EPOCH,
+        description="The logical time in the Client when it created this Message (client).",
+        tags=("tracking",),
+    )
