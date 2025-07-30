@@ -24,12 +24,12 @@ type_ = type
 class JsoncEncoderGenerator(JsonEncoderGenerator):
     @override
     def get_encoder_name(self, cls: type["Object"]) -> str:
-        """Get the name of the JsonObjectEncoder for a BuiltinObject."""
+        """Get the name of the JsonObjectEncoder for an Object."""
         return f"{cls.__name__}JsoncEncoder"
 
     @override
     def generate_pack_object_metatype(self, cls: type["Object"]) -> str:
-        """Generate the metatype code for a BuiltinObject."""
+        """Generate the metatype code for an Object."""
         return f"_object_json['{METATYPE_PROPERTY_KEY}'] = {cls.metatype.id}"
 
     @override

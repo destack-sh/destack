@@ -758,7 +758,7 @@ export class GaugeMetric extends Metric {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1199,7 +1199,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1797,7 +1797,7 @@ export class CounterMetric extends Metric {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -2238,7 +2238,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -2836,7 +2836,7 @@ export class HistogramMetric extends Metric {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -3277,7 +3277,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;

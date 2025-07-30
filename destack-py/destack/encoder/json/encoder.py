@@ -314,7 +314,7 @@ class JsonEncoder(Encoder[Json]):
             ScalarType.STRUCT,
         ):
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            assert isinstance(value, Object), f"expected BuiltinObject for {type!r}, got {value!r}"
+            assert isinstance(value, Object), f"expected Object for {type!r}, got {value!r}"
             return self.pack_object(ObjectKind.STRUCT, type.struct_type, value, options)
         #
         else:

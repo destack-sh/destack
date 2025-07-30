@@ -178,7 +178,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         is_hash=False,
-        default_factory=ValueFactory.EPOCH,
+        default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time this Entity was created (system time).",
         tags=("tracking",),
     )
@@ -204,7 +204,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         is_hash=False,
-        default_factory=ValueFactory.EPOCH,
+        default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time this Entity was last updated (system time).",
         tags=("tracking",),
     )
@@ -288,7 +288,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The Script that defines this Node.",
         tags=("source",),
     )
-    # ...
+    # ... (from script, dynamic effect, manual function, import, ...)
 
     def set(self, key: str, value: Any):
         """Set a Property on this Node (direct SET operations)."""

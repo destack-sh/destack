@@ -227,7 +227,6 @@ def finalize():
                     attribute.value = attribute.value()
                 constant = ConstantDefinition.from_declaration(attribute)
                 constants.append(constant)
-
                 # replace constant with value
                 setattr(object_cls, name, attribute.value)
         object_cls.__definition__.constants = list(constants)

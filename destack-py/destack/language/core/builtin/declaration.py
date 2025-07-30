@@ -1,9 +1,23 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
-from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
-from .common import ConstraintType, IndexType
-from .enum import Enum, builtin_enum
+from .builtin import (
+    EnumType,
+    NodeType,
+    ObjectKind,
+    ObjectStability,
+    StructType,
+    TraitType,
+)
+from .common import (
+    ActionType,
+    ConstraintType,
+    FunctionOperator,
+    IndexType,
+    MethodType,
+    PlatformType,
+    RuntimeLanguage,
+)
 
 if TYPE_CHECKING:
     from .node import Node
@@ -54,7 +68,6 @@ class StructDeclaration(ObjectDeclaration):
 
     # content
     methods: list["MethodDeclaration"]
-    actions: list["ActionDeclaration"]
     constants: list["ConstantDeclaration"]
     tags: list["TagDeclaration"]
 
@@ -69,6 +82,7 @@ class NodeDeclaration(ObjectDeclaration):
     cls: type_["Node"]
     kind: Literal[ObjectKind.NODE]
     type: NodeType
+    is_singleton: bool
 
     # inheritance
     base_type: NodeType | None
@@ -139,47 +153,50 @@ class PermissionDeclaration:
     tags: tuple[str, ...] = ()
 
 
-@builtin_enum(EnumType.FUNCTION_TYPE)
-class FunctionType(Enum):
-    PROPERTY = 1, "Property", "Computed property"
-    INSTANCE = 2, "Instance", "Instance method"
-    STATIC = 3, "Static", "Static method"
-
-
-@builtin_enum(EnumType.FUNCTION_CARDINALITY)
-class FunctionCardinality(Enum):
-    UNARY = 1, "Unary", "Single in, single out"
-    # UNARY_STREAM = 2, "Unary Stream", "Single in, stream out"
-
-    @property
-    def is_boundary(self) -> bool:
-        return self < 40
-
-
 @dataclass(slots=True)
 class FunctionDeclaration:
     """Declaration of a FunctionDefinition (internal use only)."""
 
+    # meta
     id: int
     name: str
-    properties: tuple["PropertyDeclaration", ...]
-    tags: tuple[str, ...]
+    description: str
     func: Callable
-    type: FunctionType
     is_async: bool
     is_abstract: bool
+
+    # content
+    input_properties: tuple["PropertyDeclaration", ...]
+    output_properties: tuple["PropertyDeclaration", ...]
+    output_is_scalar: bool
+    tags: tuple[str, ...]
+
+    languages: tuple[RuntimeLanguage, ...] | None
+    platforms: tuple[PlatformType, ...] | None
 
 
 @dataclass(slots=True)
 class MethodDeclaration(FunctionDeclaration):
     """Declaration of a MethodDefinition (internal use only)."""
 
+    type: MethodType
 
-def builtin_method(id: int, *, name: str | None = None, tags: tuple[str, ...] = ()):
+
+def builtin_method(
+    id: int,
+    *,
+    name: str | None = None,
+    tags: tuple[str, ...] = (),
+    proxies: str | None = None,
+    type: MethodType = MethodType.INSTANCE,
+    operator: FunctionOperator | None = None,
+    languages: tuple[RuntimeLanguage, ...] | None = None,
+    platforms: tuple[PlatformType, ...] | None = None,
+):
     """Declare a builtin Method."""
 
     def decorate(func):
-        # nocheckin: register the method on the BuiltinObject
+        # nocheckin: register the functions (methods/actions) on the Object
         return func
 
     return decorate
@@ -189,10 +206,18 @@ def builtin_method(id: int, *, name: str | None = None, tags: tuple[str, ...] = 
 class ActionDeclaration(FunctionDeclaration):
     """Declaration of an ActionDefinition (internal use only)."""
 
-    pass
+    type: ActionType
 
 
-def builtin_action(id: int, *, name: str | None = None, tags: tuple[str, ...] = ()):
+def builtin_action(
+    id: int,
+    *,
+    name: str | None = None,
+    tags: tuple[str, ...] = (),
+    type: ActionType = ActionType.UNARY_IN_UNARY_OUT,
+    languages: tuple[RuntimeLanguage, ...] | None = None,
+    platforms: tuple[PlatformType, ...] | None = None,
+):
     """Declare a builtin Action."""
 
     def decorate(func):

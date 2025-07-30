@@ -3,11 +3,8 @@ from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Entity,
-    Enum,
-    EnumType,
     NodeType,
     TraitType,
-    builtin_enum,
     builtin_node,
     builtin_property,
     builtin_property_parent,
@@ -17,12 +14,6 @@ if TYPE_CHECKING:
     from destack.language import Handle, NodeReference, Space
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@builtin_enum(EnumType.USER_STATUS)
-class UserStatus(Enum):
-    CREATING = 2
-    ACTIVE = 10
 
 
 @builtin_node(
@@ -37,7 +28,6 @@ class User(Entity):
     parent: Optional["Space"] = builtin_property_parent()
     slug: str = builtin_property(102, is_repr=True)
 
-    status: UserStatus = builtin_property(110, is_repr=True, default=UserStatus.CREATING)
     last_logged_in_at: Optional[datetime] = builtin_property(111)
     # last_active_at, seen_at, ...
     is_staff: bool = builtin_property(112, default=False)

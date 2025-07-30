@@ -46,7 +46,7 @@ type_ = type
 
 
 class KompaktEncoderGenerator:
-    """Generate a KompaktObjectEncoder for a BuiltinObject."""
+    """Generate a KompaktObjectEncoder for an Object."""
 
     def get_source_property_name(self, prop: PropertyDeclaration) -> str:
         """Get the name of a property."""
@@ -56,11 +56,11 @@ class KompaktEncoderGenerator:
         return source_name
 
     def get_encoder_name(self, cls: type["Object"]) -> str:
-        """Get the name of the KompaktObjectEncoder for a BuiltinObject."""
+        """Get the name of the KompaktObjectEncoder for an Object."""
         return f"{cls.__name__}KompaktEncoder"
 
     def generate_object_encoder(self, cls: type["Object"]) -> tuple[str, str, dict[str, Any]]:
-        """Generate the KompaktObjectEncoder class for a BuiltinObject."""
+        """Generate the KompaktObjectEncoder class for an Object."""
 
         is_entity = issubclass(cls, Entity)
         pack_kompakt = self.generate_pack_object(
@@ -110,7 +110,7 @@ class {encoder_name}(KompaktObjectEncoder):
                 "override": override,
                 "Self": cls,
                 "cls": cls,
-                "BuiltinObject": Object,
+                "Object": Object,
                 "Encoding": Encoding,
                 "Session": Session,
                 "EncoderOptions": EncoderOptions,
@@ -124,10 +124,11 @@ class {encoder_name}(KompaktObjectEncoder):
         is_entity: bool,
         stability: ObjectStability,
     ) -> str:
-        """Generate the pack method for a BuiltinObject."""
+        """Generate the pack method for an Object."""
         lines: list[str] = []
 
-        # nocheckin: include object encoded byte size in KompaktEncoder (so we know when to stop)
+        # nocheckin: include object encoded byte size in KompaktEncoder? (so we know when to stop)
+
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
@@ -186,7 +187,7 @@ else:
         is_entity: bool,
         stability: ObjectStability,
     ) -> str:
-        """Generate the unpack method for a BuiltinObject."""
+        """Generate the unpack method for an Object."""
         lines: list[str] = []
 
         # collect properties

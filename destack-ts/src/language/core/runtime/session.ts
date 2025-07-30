@@ -19,7 +19,9 @@ import type { Temporal } from "temporal-polyfill";
  */
 export class Session {
   graph: Graph;
-  epoch: number;
+  remoteEpoch: number;
+  localEpoch: number;
+
   clientPtr: NodeReference;
   clientNonce: string;
   actorPtr: NodeReference;
@@ -33,7 +35,8 @@ export class Session {
 
   constructor(options: {
     graph: Graph;
-    epoch: number;
+    remoteEpoch: number;
+    localEpoch: number;
     actor: Entity | NodeReference;
     client: Client | NodeReference;
     clientNonce: string;
@@ -44,7 +47,8 @@ export class Session {
     this.clientNonce = options.clientNonce;
     this.actorPtr = options.actor.toRef();
     this.graph = options.graph;
-    this.epoch = options.epoch;
+    this.remoteEpoch = options.remoteEpoch;
+    this.localEpoch = options.localEpoch;
 
     this.pendingEvents = [];
     this.connections = [];

@@ -491,7 +491,7 @@ export class PointerDownEvent extends PointerEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1005,7 +1005,7 @@ export class PointerUpEvent extends PointerEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1519,7 +1519,7 @@ export class PointerMoveEvent extends PointerEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -2033,7 +2033,7 @@ export class PointerEnterEvent extends PointerEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -2547,7 +2547,7 @@ export class PointerOverEvent extends PointerEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -3061,7 +3061,7 @@ export class PointerLeaveEvent extends PointerEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -3575,7 +3575,7 @@ export class PointerLongPressEvent extends PointerEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;

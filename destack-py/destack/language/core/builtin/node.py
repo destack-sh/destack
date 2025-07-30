@@ -57,6 +57,7 @@ def builtin_node(
     frozen: bool = False,
     is_abstract: bool = False,
     is_final: bool = False,
+    is_singleton: bool = False,
     # inheritance
     traits: tuple[TraitType, ...] = (),
     # content
@@ -132,6 +133,7 @@ def builtin_node(
             is_abstract=is_abstract,
             is_frozen=frozen,
             is_final=is_final,
+            is_singleton=is_singleton,
             # inherits
             base_type=inherits[0] if inherits else None,
             inherits=list(reversed(inherits)),

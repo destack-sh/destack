@@ -3,7 +3,7 @@ from .client import Client, ClientType
 from .handle import Handle
 from .organization import Organization
 from .team import Team
-from .user import User, UserStatus
+from .user import User
 
 __all__ = [
     "Client",
@@ -13,5 +13,4 @@ __all__ = [
     "Space",
     "Team",
     "User",
-    "UserStatus",
 ]

@@ -449,7 +449,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -892,7 +892,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1335,7 +1335,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1778,7 +1778,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -2437,7 +2437,7 @@ export class Entitlement extends Entity {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;

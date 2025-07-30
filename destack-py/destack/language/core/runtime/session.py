@@ -44,10 +44,11 @@ class Session:
         "client_ptr",
         "closed_at",
         "connections",
-        "epoch",
         "graph",
+        "local_epoch",
         "oracle",
         "pending_events",
+        "remote_epoch",
         "runtime",
     )
 
@@ -55,13 +56,15 @@ class Session:
         self,
         *,
         graph: "Graph",
-        epoch: int,
+        remote_epoch: int,
+        local_epoch: int,
         actor: "Entity | NodeReference",
         client: "Client | NodeReference",
         client_nonce: UUID,
         oracle: Oracle = WORLD_ORACLE,
     ):
-        self.epoch: int = epoch
+        self.remote_epoch: int = remote_epoch
+        self.local_epoch: int = local_epoch
         self.graph: Graph = graph
         self.actor_ptr: NodeReference = actor.to_ref() if isinstance(actor, Entity) else actor
         self.client_ptr: NodeReference = client.to_ref() if isinstance(client, Entity) else client
@@ -79,8 +82,10 @@ class Session:
             content_parts.append(f"actor={self.actor_ptr!r}")
         if self.graph is not None:
             content_parts.append(f"graph={self.graph!r}")
-        if self.epoch is not None:
-            content_parts.append(f"epoch={self.epoch}")
+        if self.remote_epoch is not None:
+            content_parts.append(f"remote_epoch={self.remote_epoch}")
+        if self.local_epoch is not None:
+            content_parts.append(f"local_epoch={self.local_epoch}")
         if self.closed_at is not None:
             content_parts.append(f"closed_at={self.closed_at.isoformat()}")
         return ", ".join(content_parts)

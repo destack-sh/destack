@@ -41,7 +41,7 @@ def generate_json_encoders() -> str:
     # imports
     import_parts: list[str] = []
     import_parts.append(
-        "import type { BuiltinObject, Graph, GraphConnection, Session, Encoder } from '@destack/language';"
+        "import type { Object, Graph, GraphConnection, Session, Encoder } from '@destack/language';"
     )
     import_parts.append(
         "import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from '@destack/language/registry';"
@@ -98,7 +98,7 @@ loadEncoders();
 
 
 def generate_object_json_encoder(cls: type["Object"]) -> tuple[str, str]:
-    """Generate the BuiltinObject Encoder class."""
+    """Generate the Object Encoder class."""
 
     if cls.__declaration__.is_abstract:
         pack_json = f"throw new Error('cannot pack abstract {cls.__name__}');"

@@ -422,7 +422,8 @@ def _generate_init(cls: type[Object]) -> str:
         body_properties.pop("updated_epoch", None)
         body_properties.pop("updated_by", None)
         body_properties.pop("client_created_at", None)
-        body_properties.pop("client_epoch", None)
+        body_properties.pop("client_remote_epoch", None)
+        body_properties.pop("client_local_epoch", None)
 
     # header
     header_parts: list[str] = []
@@ -557,10 +558,15 @@ if (_{ts_name_in} == null) {{
 if (_{ts_name_in} == null) {{
     _{ts_name_in} = Temporal.Now.zonedDateTimeISO("UTC");
 }}""")
-            elif prop.default_factory == ValueFactory.EPOCH:
+            elif prop.default_factory == ValueFactory.REMOTE_EPOCH:
                 body_parts.append(f"""\
 if (_{ts_name_in} == null) {{
-    _{ts_name_in} = this._session.epoch;
+    _{ts_name_in} = this._session.remoteEpoch;
+}}""")
+            elif prop.default_factory == ValueFactory.LOCAL_EPOCH:
+                body_parts.append(f"""\
+if (_{ts_name_in} == null) {{
+    _{ts_name_in} = this._session.localEpoch;
 }}""")
             elif prop.default_factory == ValueFactory.ACTOR:
                 body_parts.append(f"""\
@@ -648,12 +654,11 @@ if (_{ts_name_in} == null) {{
             identity_str = f"""\
 if (options.id == null) {{
   const now = Temporal.Now.zonedDateTimeISO("UTC");
-  const epoch = this._session.epoch;
   this.createdAt = now;
-  this.createdEpoch = epoch;
+  this.createdEpoch = this._session.remoteEpoch;
   this.createdByPtr = this._session.actorPtr;
   this.updatedAt = now;
-  this.updatedEpoch = epoch;
+  this.updatedEpoch = this._session.remoteEpoch;
   this.updatedByPtr = this._session.actorPtr;
 }} else {{
   if (options.createdAt == null || options.updatedAt == null || options.createdEpoch == null || options.updatedEpoch == null) {{
@@ -671,21 +676,22 @@ if (options.id == null) {{
             identity_str = f"""\
 if (options.id == null) {{
   const now = Temporal.Now.zonedDateTimeISO("UTC");
-  const epoch = this._session.epoch;
   this.createdAt = now;
-  this.createdEpoch = epoch;
+  this.createdEpoch = this._session.remoteEpoch;
   this.createdByPtr = this._session.actorPtr;
   this.clientCreatedAt = now;
-  this.clientEpoch = epoch;
+  this.clientRemoteEpoch = this._session.remoteEpoch;
+  this.clientLocalEpoch = this._session.localEpoch;
 }} else {{
-  if (options.createdAt == null || options.createdEpoch == null || options.clientCreatedAt == null || options.clientEpoch == null) {{
+  if (options.createdAt == null || options.createdEpoch == null || options.clientCreatedAt == null || options.clientRemoteEpoch == null) {{
     throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
   }}
   this.createdAt = options.createdAt;
   this.createdEpoch = options.createdEpoch;
   this.createdByPtr = options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
   this.clientCreatedAt = options.clientCreatedAt;
-  this.clientEpoch = options.clientEpoch;
+  this.clientRemoteEpoch = options.clientRemoteEpoch;
+  this.clientLocalEpoch = options.clientLocalEpoch;
 }}
 """
         else:
@@ -699,8 +705,6 @@ if (options.id == null) {{
 this._hash = options._hash ?? null;
 // @ts-expect-error(readonly)
 this._repr = options._repr ?? null;
-// @ts-expect-error(readonly)
-this._PackedObjectCache = options._PackedObjectCache ?? null;
 """
         else:
             identity_str = """\
@@ -727,7 +731,7 @@ constructor(options: {{
 
 
 def _generate_repr(cls: type[Object]) -> str:
-    """Generate BuiltinObject.repr method."""
+    """Generate Object.repr method."""
     repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
     if not repr_properties:
         if cls.__declaration__.kind == ObjectKind.NODE:
@@ -2064,8 +2068,8 @@ def _generate_file(
     language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass", "isNode", "hasTrait"}
     value_dependencies.update(("Node", "isNode", "hasTrait"))
     language_imports_by_module["core.builtin.trait"] = {"TraitClass"}
-    language_imports_by_module["core.builtin.object"] = {"BuiltinObject", "PackedObjectCache"}
-    value_dependencies.add("BuiltinObject")
+    language_imports_by_module["core.builtin.object"] = {"Object", "PackedObjectCache"}
+    value_dependencies.add("Object")
     language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen", "isStruct"}
     value_dependencies.update(("Struct", "StructFrozen", "isStruct"))
     language_imports_by_module["registry"] = {

@@ -8,7 +8,6 @@ from .binary import BinaryReader, BinaryWriter
 if TYPE_CHECKING:
     from destack.language.core import Session, Type
 
-# nocheckin: pack/unpack subclasses properly (where to put the metatype prefix?)
 # nocheckin: pack partial Nodes properly (.materialization<FULL)
 
 
@@ -30,7 +29,7 @@ class EncoderOptions(IntFlag):
 
 
 class Encoder[T: Any = Any](ABC):
-    """Encoder for packing/unpacking BuiltinObjects."""
+    """Encoder for packing/unpacking Objects."""
 
     encoding: ClassVar[Encoding]
 
@@ -42,7 +41,7 @@ class Encoder[T: Any = Any](ABC):
         object: Object,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> T:
-        """Pack a BuiltinObject into some encoded format."""
+        """Pack an Object into some encoded format."""
         raise NotImplementedError
 
     @abstractmethod
@@ -54,7 +53,7 @@ class Encoder[T: Any = Any](ABC):
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        """Unpack a BuiltinObject from some encoded format."""
+        """Unpack an Object from some encoded format."""
         raise NotImplementedError
 
     @abstractmethod
@@ -66,7 +65,7 @@ class Encoder[T: Any = Any](ABC):
         writer: "BinaryWriter",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
-        """Pack a BuiltinObject into the byte representation of its encoded format."""
+        """Pack an Object into the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod
@@ -78,7 +77,7 @@ class Encoder[T: Any = Any](ABC):
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        """Unpack a BuiltinObject from the byte representation of its encoded format."""
+        """Unpack an Object from the byte representation of its encoded format."""
         raise NotImplementedError
 
     @abstractmethod

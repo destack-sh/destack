@@ -1,5 +1,4 @@
 from .access import Permission
-from .action import Action, ActionDefinition
 from .custom import (
     CustomEnumDefinition,
     CustomEventDefinition,
@@ -9,7 +8,7 @@ from .custom import (
 )
 from .icon import Icon, IconIn, IconType, icon, to_icon
 from .integrity import Constraint, Index
-from .method import Method, MethodDefinition
+from .logic import Action, Function, Method
 from .migration import (
     Migration,
     MigrationDefinition,
@@ -51,7 +50,6 @@ from .time import Branch, BranchType, Snapshot, SnapshotStatus, SnapshotType
 
 __all__ = [
     "Action",
-    "ActionDefinition",
     "Aggregation",
     "AggregationType",
     "Branch",
@@ -67,6 +65,7 @@ __all__ = [
     "Expression",
     "ExpressionIn",
     "ExpressionType",
+    "Function",
     "Icon",
     "IconIn",
     "IconType",
@@ -75,7 +74,6 @@ __all__ = [
     "JoinIn",
     "JoinType",
     "Method",
-    "MethodDefinition",
     "Migration",
     "MigrationDefinition",
     "MigrationOperation",

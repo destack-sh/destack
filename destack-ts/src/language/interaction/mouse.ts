@@ -661,7 +661,7 @@ export class SingleClickEvent extends ClickEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1191,7 +1191,7 @@ export class DoubleClickEvent extends ClickEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1721,7 +1721,7 @@ export class TripleClickEvent extends ClickEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -2262,7 +2262,7 @@ export class WheelEvent extends MouseEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;

@@ -22,8 +22,7 @@ if TYPE_CHECKING:
 )
 class Service(Entity):
     """
-    A Service provides related functionality via Actions (and Methods).
-    Services may be stateful (with custom Properties and runtime only state).
+    A Service provides related functionality via Actions.
     """
 
     icon: "Icon | None" = builtin_property(102)
@@ -31,9 +30,9 @@ class Service(Entity):
     @builtin_action(101)
     async def start(self):
         """Start the Service."""
-        pass
+        ...
 
     @builtin_action(102)
     async def stop(self):
         """Stop the Service."""
-        pass
+        ...
