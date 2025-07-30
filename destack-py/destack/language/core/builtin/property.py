@@ -219,7 +219,7 @@ class CheckedTypeDeclaration(TypeDeclaration):
 @dataclass(eq=False, slots=True)
 class PropertyDeclaration(CheckedTypeDeclaration):
     """
-    A system-defined attribute of a BuiltinObject (Struct or Node).
+    A system-defined attribute of an Object (Struct or Node).
     PropertyDeclarations are turned into PropertyDefinitions during construction,
      PropertyDeclarations (like their *Declaration brethren) are only for internal use.
     """
@@ -242,9 +242,9 @@ class PropertyDeclaration(CheckedTypeDeclaration):
 
     # flags
     is_unique: bool = False  # unique in DB
-    is_repr: bool = False  # included in BuiltinObject.__repr__
-    is_hash: bool = True  # included in BuiltinObject.__hash__
-    is_eq: bool = True  # included in BuiltinObject.equals check
+    is_repr: bool = False  # included in Object.__repr__
+    is_hash: bool = True  # included in Object.__hash__
+    is_eq: bool = True  # included in Object.equals check
     is_internal: bool = False  # managed internally by the system
     is_computed: bool = False  # set automatically at runtime
     is_runtime_only: bool = False  # only set at runtime

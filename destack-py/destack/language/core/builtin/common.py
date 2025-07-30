@@ -59,9 +59,9 @@ class RuntimeLanguage(Enum):
 
 @builtin_enum(EnumType.PLATFORM_TYPE)
 class PlatformType(Enum):
-    SYSTEM = 1
-    RUNTIME = 2
-    WEB = 10
+    SYSTEM = 1, "System", "The Destack system (internal use only)"
+    RUNTIME = 2, "Runtime", "User runtime environment"
+    WEB = 10, "Web", "Web browser"
     # MOBILE, DESKTOP, ...
     # EMAIL?
 
@@ -547,16 +547,17 @@ class ValueFactory(Enum):
     UUID4 = 1, "UUID4", "Generate a random UUIDv4"
     UUID7 = 2, "UUID7", "Generate a random (time-sorted) UUIDv7"
     NOW = 10, "Now", "Get the current timestamp (system)"
-    EPOCH = 11, "Epoch", "Get the current logical time (system)"
-    ACTOR = 12, "Actor", "Get the current Actor"
-    CLIENT = 13, "Client", "Get the current Client"
-    CLIENT_NONCE = 14, "ClientNonce", "Get the current Client nonce"
-    REGION = 20, "Region", "Get the current Region"
-    SELF = 30, "Self", "Get the current Node"
-    SPACE = 31, "Space", "Get the current Space"
-    BRANCH = 32, "Branch", "Get the current Branch"
-    SNAPSHOT = 33, "Snapshot", "Get the current Snapshot"
-    NAME = 40, "Name", "Generate a relevant name"
+    REMOTE_EPOCH = 11, "Remote Epoch", "Get the current logical time (system)"
+    LOCAL_EPOCH = 12, "Local Epoch", "Get the current logical time (system)"
+    ACTOR = 20, "Actor", "Get the current Actor"
+    CLIENT = 21, "Client", "Get the current Client"
+    CLIENT_NONCE = 22, "ClientNonce", "Get the current Client nonce"
+    REGION = 30, "Region", "Get the current Region"
+    SELF = 40, "Self", "Get the current Node"
+    SPACE = 41, "Space", "Get the current Space"
+    BRANCH = 42, "Branch", "Get the current Branch"
+    SNAPSHOT = 43, "Snapshot", "Get the current Snapshot"
+    NAME = 50, "Name", "Generate a relevant name"
 
 
 @builtin_enum(EnumType.ROLE_TYPE)
@@ -600,3 +601,71 @@ class IndexType(Enum):
 
     BTREE = 1
     # HASH, ...
+
+
+@builtin_enum(EnumType.METHOD_TYPE)
+class MethodType(Enum):
+    PROPERTY = 1, "Property", "Computed property"
+    INSTANCE = 2, "Instance", "Instance method"
+    STATIC = 3, "Static", "Static method"
+
+
+@builtin_enum(EnumType.ACTION_TYPE)
+class ActionType(Enum):
+    UNARY_IN_UNARY_OUT = 1, "Unary In, Unary Out", "Single in, single out"
+    UNARY_IN_STREAM_OUT = 2, "Unary In, Stream Out", "Single in, stream out"
+    STREAM_IN_UNARY_OUT = 3, "Stream In, Unary Out", "Stream in, single out"
+    STREAM_IN_STREAM_OUT = 4, "Stream In, Stream Out", "Stream in, stream out"
+
+
+@builtin_enum(EnumType.FUNCTION_OPERATOR)
+class FunctionOperator(Enum):
+    """The overridable builtin operators for Functions (depends on runtime language)."""
+
+    # comparison operators
+    EQ = 1, "Equals", "="
+    NEQ = 2, "Not Equals", "!="
+    GT = 3, "Greater Than", ">"
+    LT = 4, "Less Than", "<"
+    GTE = 5, "Greater Than or Equal To", ">="
+    LTE = 6, "Less Than or Equal To", "<="
+    IN = 7, "In", "in"
+    NOT_IN = 8, "Not In", "not in"
+    IS = 9, "Is", "is"
+    IS_NOT = 10, "Is Not", "is not"
+
+    # arithmetic operators
+    ADD = 20, "Add", "+"
+    SUB = 21, "Subtract", "-"
+    MUL = 22, "Multiply", "*"
+    TRUEDIV = 23, "True Divide", "/"
+    FLOORDIV = 24, "Floor Divide", "//"
+    MOD = 25, "Modulo", "%"
+    POW = 26, "Power", "**"
+    DIVMOD = 27, "Divmod", "divmod"
+
+    # unary operators
+    POS = 30, "Positive", "+"
+    NEG = 31, "Negative", "-"
+    ABS = 32, "Absolute", "abs"
+    INVERT = 33, "Invert", "~"
+
+    # bitwise operators
+    AND = 40, "Bitwise And", "&"
+    OR = 41, "Bitwise Or", "|"
+    XOR = 42, "Bitwise Xor", "^"
+    LSHIFT = 43, "Left Shift", "<<"
+    RSHIFT = 44, "Right Shift", ">>"
+
+    # logical operators
+    BOOL = 50, "Boolean", "bool"
+    NOT = 51, "Not", "not"
+
+    # container operators
+    LEN = 60, "Length", "len"
+    GETITEM = 61, "Get Item", "[]"
+    SETITEM = 62, "Set Item", "[]="
+    DELITEM = 63, "Delete Item", "del []"
+    CONTAINS = 64, "Contains", "in"
+    ITER = 65, "Iterator", "iter"
+    NEXT = 66, "Next", "next"

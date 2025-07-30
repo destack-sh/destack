@@ -1,3 +1,4 @@
+import gzip
 from typing import Any
 
 from destack.language import (
@@ -16,7 +17,6 @@ from destack.language import (
     Space,
     Type,
     User,
-    UserStatus,
     Value,
     Vector3,
 )
@@ -33,6 +33,8 @@ def _do_test_roundtrip_object(
     packed_obj_bytes = writer.to_bytes()
     print(repr(obj))  # noqa: T201
     print(f"bytes: {len(packed_obj_bytes)}")  # noqa: T201
+    bytes_gzip = gzip.compress(packed_obj_bytes)
+    print(f"bytes (gzip): {len(bytes_gzip)}")  # noqa: T201
     if encoding == Encoding.KOMPAKT:
         print(packed_obj_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_obj_bytes)
@@ -53,6 +55,8 @@ def _do_test_roundtrip_value(
     packed_value_bytes = writer.to_bytes()
     print(repr(value))  # noqa: T201
     print(f"bytes: {len(packed_value_bytes)}")  # noqa: T201
+    bytes_gzip = gzip.compress(packed_value_bytes)
+    print(f"bytes (gzip): {len(bytes_gzip)}")  # noqa: T201
     if encoding == Encoding.KOMPAKT:
         print(packed_value_bytes.hex(sep=" "))  # noqa: T201
     reader = BinaryReader(packed_value_bytes)
@@ -141,7 +145,7 @@ def test_roundtrip_query(session: Session, space: Space):
 def test_roundtrip_struct_subclass(session: Session, space: Space):
     """Pack and unpack a Struct subclass."""
 
-    ...
+    # nocheckin: pack/unpack subclasses properly (where to pack/unpack the metatype prefix?)
 
 
 def test_roundtrip_custom_struct_instance(session: Session, space: Space):
@@ -153,7 +157,6 @@ def test_roundtrip_custom_struct_instance(session: Session, space: Space):
 def test_roundtrip_user(session: Session, space: Space):
     """Pack and unpack a User."""
     user = User(
-        status=UserStatus.ACTIVE,
         name="Florian",
         slug="florian",
         space_ptr=space.to_ref(),

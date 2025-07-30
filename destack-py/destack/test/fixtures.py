@@ -23,7 +23,8 @@ async def memory_session() -> AsyncGenerator[Session, None]:
         actor=Universe.ACTOR,
         client=Universe.CLIENT,
         client_nonce=uuid4(),
-        epoch=0,
+        remote_epoch=0,
+        local_epoch=0,
     )
     await session.open()
     yield session
@@ -38,7 +39,8 @@ async def session():
         actor=Universe.ACTOR,
         client=Universe.CLIENT,
         client_nonce=uuid4(),
-        epoch=0,
+        remote_epoch=0,
+        local_epoch=0,
     )
     await session.open()
     yield session

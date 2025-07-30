@@ -117,7 +117,7 @@ class Event[N: Node = Node](Node):
         is_hash=False,
         is_repr=True,
         is_readonly=True,
-        default_factory=ValueFactory.EPOCH,
+        default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time this Event was created (system).",
         tags=("tracking", "system"),
     )
@@ -154,15 +154,22 @@ class Event[N: Node = Node](Node):
         description="The time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )
-    client_epoch: UInt128 = builtin_property(
+    client_remote_epoch: UInt128 = builtin_property(
         26,
         is_internal=True,
         is_readonly=True,
-        default_factory=ValueFactory.EPOCH,
+        default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time last seen from the system in the Client for this space (client).",
         tags=("tracking", "client"),
     )
-    # nocheckin: Event.client_logical_clock?
+    client_local_epoch: UInt128 = builtin_property(
+        27,
+        is_internal=True,
+        is_readonly=True,
+        default_factory=ValueFactory.REMOTE_EPOCH,
+        description="The logical time in the Client when it created this Event (client).",
+        tags=("tracking", "client"),
+    )
     status: "EventStatus" = builtin_property(
         30,
         is_repr=True,

@@ -491,7 +491,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -967,7 +967,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -1644,7 +1644,7 @@ export class Membership extends Entity implements IsOwnable {
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;

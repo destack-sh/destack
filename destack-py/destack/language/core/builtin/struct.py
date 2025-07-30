@@ -71,7 +71,6 @@ def builtin_struct(
             # content
             properties=[],
             methods=[],
-            actions=[],
             constants=[],
             tags=list(tags),
             # associations

@@ -48,14 +48,14 @@ type_ = type
 
 
 class JsonEncoderGenerator:
-    """Generate a JsonObjectEncoder for a BuiltinObject."""
+    """Generate a JsonObjectEncoder for an Object."""
 
     def get_encoder_name(self, cls: type["Object"]) -> str:
-        """Get the name of the JsonObjectEncoder for a BuiltinObject."""
+        """Get the name of the JsonObjectEncoder for an Object."""
         return f"{cls.__name__}JsonEncoder"
 
     def generate_object_encoder(self, cls: type["Object"]) -> tuple[str, str, dict[str, Any]]:
-        """Generate the JsonObjectEncoder class for a BuiltinObject."""
+        """Generate the JsonObjectEncoder class for an Object."""
 
         is_entity = issubclass(cls, Entity)
         pack_json = self.generate_pack_object(cls, is_entity=is_entity)
@@ -104,13 +104,13 @@ class {encoder_name}(JsonObjectEncoder):
                 "Any": Any,
                 "Self": cls,
                 "cls": cls,
-                "BuiltinObject": Object,
+                "Object": Object,
                 "EncoderOptions": EncoderOptions,
             },
         )
 
     def generate_pack_object_metatype(self, cls: type["Object"]) -> str:
-        """Generate the metatype code for a BuiltinObject."""
+        """Generate the metatype code for an Object."""
         return f"_object_json['metatype'] = '{cls.metatype.name}'"
 
     def generate_pack_object(
@@ -119,7 +119,7 @@ class {encoder_name}(JsonObjectEncoder):
         *,
         is_entity: bool,
     ) -> str:
-        """Generate the pack method for a BuiltinObject."""
+        """Generate the pack method for an Object."""
         lines: list[str] = [
             "_object_json: dict[str, Any] = {}",
             self.generate_pack_object_metatype(cls),
@@ -179,7 +179,7 @@ else:
         return "\n".join(lines)
 
     def generate_unpack_object(self, cls: type["Object"], *, is_entity: bool) -> str:
-        """Generate the unpack method for a BuiltinObject."""
+        """Generate the unpack method for an Object."""
         assignments: list[str] = []
         lines: list[str] = []
         if is_entity:

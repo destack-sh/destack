@@ -788,7 +788,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     /* identity */
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
+      const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
       this.createdByPtr = this._session.actorPtr;
@@ -970,7 +970,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
 
     const spaceId = id ?? uuid4();
-    const epoch = session.epoch;
+    const epoch = session.remoteEpoch;
     const now = Temporal.Now.zonedDateTimeISO("UTC");
 
     const spacePtr = new _NodeReference({

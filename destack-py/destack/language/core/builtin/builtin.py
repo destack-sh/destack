@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from .enum import Enum, builtin_enum
 
@@ -75,13 +75,12 @@ class EnumType(Enum):
     MIGRATION_TYPE = 31_000
 
     # logic
-    FUNCTION_TYPE = 40_000
-    FUNCTION_CARDINALITY = 40_001
+    FUNCTION_OPERATOR = 40_002
+    METHOD_TYPE = 40_100
+    ACTION_TYPE = 40_200
 
     # universe [100_000-200_000]
-    USER_STATUS = 121_000
     CLIENT_TYPE = 121_300
-    ORGANIZATION_STATUS = 122_000
 
     # space [200_000-300_000]
     FOLDER_TYPE = 200_000
@@ -212,7 +211,13 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 class ObjectKind(Enum):
     NODE = 1
     STRUCT = 2
-    # FUNCTION/ACTION?
+    # MESSAGE? (= FUNCTION/ACTION/...INPUTS/OUTPUTS?)
+
+
+class ObjectKey(NamedTuple):
+    kind: ObjectKind
+    # object_type
+    #
 
 
 @builtin_enum(EnumType.OBJECT_STABILITY)
@@ -227,12 +232,7 @@ class StructType(Enum):
     # core [1-100_000]
     # root
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
-    OBJECT_DEFINITION = (
-        10,
-        "Builtin Definition",
-        "Definition of a builtin Node or Struct",
-        "fas fa-shapes",
-    )
+    OBJECT_DEFINITION = 10
     OBJECT_DEFINITION_REFERENCE = 11
     NODE_DEFINITION = 12
     NODE_DEFINITION_REFERENCE = 13
@@ -511,12 +511,11 @@ class NodeType(Enum):
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
 
     # space
-    # nocheckin: Context (as local partial instances attached to some Nodes?)
-    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
-    #   merge Oracle / actor_ptr / client_ptr /epoch into Context?)
     UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"
     SPACE = 1_100, "Space", "Universal Space", "fas fa-galaxy"
-    # CONTEXT?
+    # nocheckin: CONTEXT (as local partial instances attached to some Nodes?)
+    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
+    #   merge Oracle/Session.actor_ptr/.../epoch into Context?)
 
     # time
     BRANCH = 2_000, "Branch", None, "fas fa-code-branch"

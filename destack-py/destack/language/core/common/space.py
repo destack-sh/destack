@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple, Optional, final
 
@@ -8,12 +8,15 @@ from destack.language.core import (
     EPSILON,
     EPSILON_EXPONENT,
     VERSION,
+    ActionType,
     Entity,
     NodeReference,
     NodeType,
+    PlatformType,
     Region,
     TraitType,
     ValueFactory,
+    builtin_action,
     builtin_constant,
     builtin_node,
     builtin_property,
@@ -28,15 +31,18 @@ from destack.utils.uuid import UUID, uuid4
 if TYPE_CHECKING:
     from destack.language import (
         Branch,
+        Event,
         Handle,
         NodeReference,
         Session,
         Snapshot,
+        User,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
 
-_UNIVERSE_SPACE_ID = UUID(int=0)
+_UNIVERSE_ID = UUID(int=1)
+_UNIVERSE_SPACE_ID = UUID(int=2)
 _UNIVERSE_ACTOR_ID = UUID(int=10)
 _UNIVERSE_CLIENT_ID = UUID(int=11)
 
@@ -46,10 +52,7 @@ _HEAD_SNAPSHOT_ID = UUID(int=30)
 _ROOT_BRANCH_ID = UUID(int=31)
 
 
-@builtin_node(
-    NodeType.UNIVERSE,
-    is_final=True,
-)
+@builtin_node(NodeType.UNIVERSE, is_final=True, is_singleton=True)
 @final
 class Universe(Entity):
     """The Destack computational universe."""
@@ -91,13 +94,18 @@ class Universe(Entity):
         description="All Enum definitions.",
     )
 
-    SPACE_ID = builtin_constant(
+    UNIVERSE_ID = builtin_constant(
         100,
+        value=_UNIVERSE_ID,
+        description="The system Universe ID.",
+    )
+    SPACE_ID = builtin_constant(
+        101,
         value=_UNIVERSE_SPACE_ID,
         description="The system Space ID.",
     )
     SPACE = builtin_constant(
-        101,
+        102,
         description="The system Space.",
         value=lambda: NodeReference(
             type=NodeType.SPACE,
@@ -108,29 +116,29 @@ class Universe(Entity):
         ),
     )
     META_SNAPSHOT_ID = builtin_constant(
-        102,
+        103,
         value=_META_SNAPSHOT_ID,
         description="The 'meta' Snapshot.id, the Snapshot containing time-related Entities (like Snapshots, Branches, etc.)",
     )
     META_BRANCH_ID = builtin_constant(
-        104,
+        105,
         value=_META_BRANCH_ID,
         description="The 'meta' Branch.id, the Branch containing time-related Entities (like Snapshots, Branches, etc.)",
     )
     ROOT_BRANCH_ID = builtin_constant(
-        106,
+        107,
         value=_ROOT_BRANCH_ID,
         description="The 'root' Branch.id, the Branch all other Branches originate from.",
     )
     HEAD_SNAPSHOT_ID = builtin_constant(
-        108,
+        109,
         value=_HEAD_SNAPSHOT_ID,
         description="The 'head' Snapshot.id, the current active Snapshot.",
     )
 
     ACTOR = builtin_constant(
         120,
-        description="God himself, the creator of the Universe.",
+        description="God Himself, the creator of the Universe.",
         value=lambda: NodeReference(
             type=NodeType.ENTITY,
             id=_UNIVERSE_ACTOR_ID,
@@ -151,14 +159,36 @@ class Universe(Entity):
         ),
     )
 
+    @builtin_action(100, platforms=(PlatformType.SYSTEM,))
+    async def signup_user(
+        self,
+        id: UUID | None,
+        name: str,
+        email: str,
+        password: str,
+    ) -> "User":
+        """Sign up a new user."""
+        ...
+
+    @builtin_action(101, platforms=(PlatformType.SYSTEM,))
+    async def create_space(
+        self,
+        name: str,
+        region: Region,
+        slug: str,
+        owned_by: "Entity | NodeReference",
+    ) -> "CreateSpaceResult":
+        """Create a new Space with a root Branch, meta Snapshot and head Snapshot."""
+        ...
+
 
 class CreateSpaceResult(NamedTuple):
     """The result of creating a new Space."""
 
     space: "Space"
-    root_branch: "Branch"
     meta_branch: "Branch"
     meta_snapshot: "Snapshot"
+    root_branch: "Branch"
     head_snapshot: "Snapshot"
 
 
@@ -170,7 +200,7 @@ class CreateSpaceResult(NamedTuple):
 @final
 class Space(Entity):
     """
-    A Space is the home of your personal software studio.
+    A Space is the root of a Destack workspace.
     """
 
     space: "Space" = builtin_property(
@@ -190,6 +220,29 @@ class Space(Entity):
 
     # infra
     region: Region = builtin_property(120)
+
+    @builtin_action(
+        101,
+        type=ActionType.UNARY_IN_UNARY_OUT,
+        platforms=(PlatformType.SYSTEM,),
+    )
+    async def append(
+        self,
+        events: "list[Event]",
+    ) -> None:
+        """Append Events to the Space."""
+        ...
+
+    @builtin_action(
+        102,
+        type=ActionType.UNARY_IN_STREAM_OUT,
+        platforms=(PlatformType.SYSTEM,),
+    )
+    async def watch(
+        self,
+    ) -> AsyncGenerator[list["Event"], None]:
+        """Watch for Events in the Space."""
+        ...
 
     @contextmanager
     def active(self: "Space") -> Generator["Space", None, None]:
@@ -229,7 +282,7 @@ class Space(Entity):
             owned_by = owned_by.to_ref()
 
         space_id = id or uuid4()
-        epoch = session.epoch
+        epoch = session.remote_epoch
         now = session.oracle.now()
         space_ptr = NodeReference(
             type=NodeType.SPACE,
@@ -347,4 +400,10 @@ class Space(Entity):
         session.create(meta_snapshot)
         session.create(root_branch)
         session.create(head_snapshot)
-        return CreateSpaceResult(space, root_branch, meta_branch, meta_snapshot, head_snapshot)
+        return CreateSpaceResult(
+            space=space,
+            meta_branch=meta_branch,
+            meta_snapshot=meta_snapshot,
+            root_branch=root_branch,
+            head_snapshot=head_snapshot,
+        )

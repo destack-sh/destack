@@ -3,10 +3,24 @@ from typing import TYPE_CHECKING, Any, Self, assert_never, cast, final
 from destack.language.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
 
 from .builtin import NodeType, ObjectStability, StructType, TraitType
-from .common import CascadeAction, EdgeType, Enum, EnumType, UInt8, UInt32
+from .common import (
+    ActionType,
+    CascadeAction,
+    EdgeType,
+    Enum,
+    EnumType,
+    MethodType,
+    PlatformType,
+    RuntimeLanguage,
+    UInt8,
+    UInt16,
+    UInt32,
+)
 from .declaration import (
+    ActionDeclaration,
     ConstraintDeclaration,
     IndexDeclaration,
+    MethodDeclaration,
     NodeDeclaration,
     PermissionDeclaration,
     StructDeclaration,
@@ -27,7 +41,6 @@ from .value import Value
 
 if TYPE_CHECKING:
     from destack.language import (
-        ActionDefinition,
         CheckedType,
         Condition,
         ConditionalType,
@@ -35,7 +48,6 @@ if TYPE_CHECKING:
         ConstraintType,
         Icon,
         IndexType,
-        MethodDefinition,
         Node,
         ObjectDefinitionReference,
         Sort,
@@ -160,7 +172,11 @@ class NodeDefinition(ObjectDefinition):
         description="Whether this Node cannot be modified.",
         tags=("meta",),
     )
-    # is_singleton? is_static?
+    is_singleton: bool = builtin_property(
+        113,
+        description="Whether this Node is a singleton (only one instance can exist).",
+        tags=("meta",),
+    )
 
     # content
     properties: list["PropertyDefinition"] = builtin_property(
@@ -185,7 +201,7 @@ class NodeDefinition(ObjectDefinition):
     )
     methods: list["MethodDefinition"] = builtin_property(
         125,
-        description="All methods of this Node (including inherited, excluding actions).",
+        description="All methods of this Node (including inherited).",
         tags=("content",),
     )
     actions: list["ActionDefinition"] = builtin_property(
@@ -320,6 +336,7 @@ class NodeDefinition(ObjectDefinition):
             is_abstract=node_cls.__declaration__.is_abstract,
             is_final=node_cls.__declaration__.is_final,
             is_frozen=node_cls.__declaration__.is_frozen,
+            is_singleton=node_cls.__declaration__.is_singleton,
             # content
             properties=[
                 PropertyDefinition.from_declaration(prop)
@@ -337,10 +354,18 @@ class NodeDefinition(ObjectDefinition):
                 PermissionDefinition.from_declaration(permission)
                 for permission in declaration.permissions
             ],
-            methods=[],
-            actions=[],
-            constants=[],
-            tags=[],
+            methods=[
+                MethodDefinition.from_declaration(node_cls, method)
+                for method in declaration.methods
+            ],
+            actions=[
+                ActionDefinition.from_declaration(node_cls, action)
+                for action in declaration.actions
+            ],
+            constants=[
+                ConstantDefinition.from_declaration(constant) for constant in declaration.constants
+            ],
+            tags=[TagDefinition.from_declaration(tag) for tag in declaration.tags],
             # inheritance
             base_type=declaration.base_type,
             extended_by=list(declaration.extended_by),
@@ -411,11 +436,6 @@ class StructDefinition(ObjectDefinition):
         description="All methods of this Struct (excluding actions).",
         tags=("content",),
     )
-    actions: list["ActionDefinition"] = builtin_property(
-        126,
-        description="All actions of this Struct.",
-        tags=("content",),
-    )
     constants: list["ConstantDefinition"] = builtin_property(
         128,
         tags=("content",),
@@ -481,10 +501,14 @@ class StructDefinition(ObjectDefinition):
                 for prop in struct_cls.__properties__.values()
                 if not prop.is_runtime_only
             ],
-            methods=[],
-            actions=[],
-            constants=[],
-            tags=[],
+            methods=[
+                MethodDefinition.from_declaration(struct_cls, method)
+                for method in declaration.methods
+            ],
+            constants=[
+                ConstantDefinition.from_declaration(constant) for constant in declaration.constants
+            ],
+            tags=[TagDefinition.from_declaration(tag) for tag in declaration.tags],
             # inheritance
             base_type=declaration.base_type,
             extended_by=list(declaration.extended_by),
@@ -643,6 +667,7 @@ Whether this Property is part of the object's identity.
 
     @builtin_method(102)
     def to_ref(self) -> PropertyReference:
+        """Convert to a PropertyReference."""
         if self.object.type == ObjectDefinitionType.BUILTIN_NODE:
             return PropertyReference(
                 type=PropertyReferenceType.BUILTIN,
@@ -665,6 +690,7 @@ Whether this Property is part of the object's identity.
 
     @builtin_method(110)
     def eq(self, value: Any) -> "Condition":
+        """Create a Condition that checks if this Property is equal to a value."""
         from ..common import Condition
 
         if value is None:
@@ -673,6 +699,7 @@ Whether this Property is part of the object's identity.
 
     @builtin_method(111)
     def neq(self, value: Any) -> "Condition":
+        """Create a Condition that checks if this Property is not equal to a value."""
         from ..common import Condition
 
         if value is None:
@@ -681,84 +708,98 @@ Whether this Property is part of the object's identity.
 
     @builtin_method(112)
     def gt(self, value: Any) -> "Condition":
+        """Create a Condition that checks if this Property is greater than a value."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
 
     @builtin_method(113)
     def gte(self, value: Any) -> "Condition":
+        """Create a Condition that checks if this Property is greater than or equal to a value."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
     @builtin_method(114)
     def lt(self, value: Any) -> "Condition":
+        """Create a Condition that checks if this Property is less than a value."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN, value=value)
 
     @builtin_method(115)
     def lte(self, value: Any) -> "Condition":
+        """Create a Condition that checks if this Property is less than or equal to a value."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
     @builtin_method(116)
     def starts_with(self, value: str) -> "Condition":
+        """Create a Condition that checks if this Property starts with a value."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
 
     @builtin_method(117)
     def ends_with(self, value: str) -> "Condition":
+        """Create a Condition that checks if this Property ends with a value."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
 
     @builtin_method(118)
     def in_(self, *values: Any) -> "Condition":
+        """Create a Condition that checks if this Property is in a list of values."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.IN, value=values)
 
     @builtin_method(119)
     def not_in(self, *values: Any) -> "Condition":
+        """Create a Condition that checks if this Property is not in a list of values."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_IN, value=values)
 
     @builtin_method(120)
     def exists(self) -> "Condition":
+        """Create a Condition that checks if this Property exists."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
     @builtin_method(121)
     def is_not_none(self) -> "Condition":
+        """Create a Condition that checks if this Property is not None."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
     @builtin_method(122)
     def not_exists(self) -> "Condition":
+        """Create a Condition that checks if this Property does not exist."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     @builtin_method(123)
     def is_none(self) -> "Condition":
+        """Create a Condition that checks if this Property is None."""
         from ..common import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     @builtin_method(124)
     def asc(self) -> "Sort":
+        """Create a Sort that sorts this Property in ascending order."""
         from ..common import Sort
 
         return Sort.of(self, SortType.ASCENDING)
 
     @builtin_method(125)
     def desc(self) -> "Sort":
+        """Create a Sort that sorts this Property in descending order."""
         from ..common import Sort
 
         return Sort.of(self, SortType.DESCENDING)
@@ -926,6 +967,84 @@ class PermissionDefinition(StructFrozen):
     def from_declaration(cls, declaration: "PermissionDeclaration") -> "Self":
         return cls(
             id=declaration.id,
+            name=declaration.name,
+            description=declaration.description,
+        )
+
+
+@builtin_struct(
+    StructType.FUNCTION_DEFINITION,
+    frozen=True,
+    is_abstract=True,
+)
+class FunctionDefinition(StructFrozen):
+    """Definition of a builtin Function."""
+
+    # meta
+    id: UInt16 = builtin_property(2, is_repr=True)
+    name: str = builtin_property(101)
+    description: str | None = builtin_property(103, is_repr=True)
+    is_async: bool = builtin_property(110)
+    is_abstract: bool = builtin_property(111)
+
+    # content
+    input_properties: list["PropertyDefinition"] = builtin_property(121)
+    output_properties: list["PropertyDefinition"] | None = builtin_property(122)
+    output_is_scalar: bool = builtin_property(
+        123, description="Whether the output is just the first output property."
+    )
+
+    platforms: list[PlatformType] | None = builtin_property(
+        130,
+        description="The platforms this Method is available on (all if empty).",
+    )
+    languages: list[RuntimeLanguage] | None = builtin_property(
+        131,
+        description="The languages this Method is available in (all if empty).",
+    )
+
+
+@builtin_struct(
+    StructType.METHOD_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
+class MethodDefinition(FunctionDefinition):
+    """Definition of a builtin Method."""
+
+    type: MethodType = builtin_property(100)
+
+    @classmethod
+    def from_declaration(
+        cls, object_cls: type_["Object"], declaration: "MethodDeclaration"
+    ) -> "Self":
+        return cls(
+            id=declaration.id,
+            type=declaration.type,
+            name=declaration.name,
+            description=declaration.description,
+        )
+
+
+@builtin_struct(
+    StructType.ACTION_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
+class ActionDefinition(FunctionDefinition):
+    """Definition of a builtin Action."""
+
+    type: ActionType = builtin_property(100)
+
+    @classmethod
+    def from_declaration(
+        cls, object_cls: type_["Object"], declaration: "ActionDeclaration"
+    ) -> "Self":
+        return cls(
+            id=declaration.id,
+            type=declaration.type,
             name=declaration.name,
             description=declaration.description,
         )

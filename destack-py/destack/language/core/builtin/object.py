@@ -99,7 +99,7 @@ _processed_classes: dict[type["Object"], type["Object"]] = {}
 def _generate_init[ObjectT: Object](
     cls: type[ObjectT], declaration: ObjectDeclaration
 ) -> tuple[str, dict[str, Any]]:
-    """Generates an __init__ for a BuiltinObject class."""
+    """Generates an __init__ for an Object class."""
 
     extra_glbls: dict[str, Any] = {}
 
@@ -194,7 +194,8 @@ def _generate_init[ObjectT: Object](
             body_properties.pop("created_by")
             body_properties.pop("client")
             body_properties.pop("client_created_at")
-            body_properties.pop("client_epoch")
+            body_properties.pop("client_remote_epoch")
+            body_properties.pop("client_local_epoch")
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__}")
         body_properties.pop("_session")
@@ -215,25 +216,24 @@ if id is None:
             method_body_lines.append("""\
     id = uuid4()
     _now = self._session.oracle.now()
-    _epoch = self._session.epoch
     created_at = _now
-    created_epoch = _epoch
+    created_epoch = self._session.remote_epoch
     created_by_ptr = self._session.actor_ptr
     updated_at = _now
-    updated_epoch = _epoch
+    updated_epoch = self._session.remote_epoch
     updated_by_ptr = self._session.actor_ptr
 """)
         elif NodeType.EVENT in declaration.inherits:
             method_body_lines.append("""\
     id = uuid7()
     _now = self._session.oracle.now()
-    _epoch = self._session.epoch
-    created_epoch = _epoch
+    created_epoch = self._session.remote_epoch
     created_at = _now
     created_by_ptr = self._session.actor_ptr
     client_ptr = self._session.client_ptr
     client_nonce = self._session.client_nonce
-    client_epoch = _epoch
+    client_remote_epoch = self._session.remote_epoch
+    client_local_epoch = self._session.local_epoch
     client_created_at = _now
 """)
         else:
@@ -262,7 +262,8 @@ else:
 {set_template_str.format("client_ptr", "client_ptr")}
 {set_template_str.format("client_nonce", "client_nonce")}
 {set_template_str.format("client_created_at", "client_created_at")}
-{set_template_str.format("client_epoch", "client_epoch")}
+{set_template_str.format("client_remote_epoch", "client_remote_epoch")}
+{set_template_str.format("client_local_epoch", "client_local_epoch")}
 """)
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__}")
@@ -314,18 +315,20 @@ if {arg_name} is None:
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {arg_name} = session.oracle.now()""")
-            elif prop.default_factory == ValueFactory.EPOCH:
+            elif prop.default_factory == ValueFactory.REMOTE_EPOCH:
                 if declaration.kind == ObjectKind.NODE:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name} = self._session.epoch""")
+    {arg_name} = self._session.remote_epoch""")
                 else:
+                    raise NotImplementedError(f"unexpected node {cls.__name__}")
+            elif prop.default_factory == ValueFactory.LOCAL_EPOCH:
+                if declaration.kind == ObjectKind.NODE:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
-    session = ACTIVE_SESSION.get()
-    if session is None:
-        raise RuntimeError("no active session for {cls.__name__}")
-    {arg_name} = session.epoch""")
+    {arg_name} = self._session.local_epoch""")
+                else:
+                    raise NotImplementedError(f"unexpected node {cls.__name__}")
             elif prop.default_factory == ValueFactory.ACTOR:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
@@ -463,7 +466,7 @@ def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
 def _generate_repr[ObjectT: Object](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
-    """Generates BuiltinObject.__repr__."""
+    """Generates Object.__repr__."""
     repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
     if not repr_properties:
         if cls.__declaration__.kind == ObjectKind.NODE:
@@ -655,7 +658,7 @@ def _generate_equals[ObjectT: Object](
     cls: type[ObjectT],
     is_node: bool,
 ) -> tuple[str, dict[str, Any]]:
-    """Generate BuiltinObject.equals method."""
+    """Generate Object.equals method."""
 
     eq_properties = [
         prop for prop in cls.__properties__.values() if prop.is_eq and not prop.is_runtime_only
@@ -804,7 +807,7 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration | PropertyDeclaration) -> tu
 def _generate_hash[ObjectT: Object](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
-    """Generate BuiltinObject.hash method."""
+    """Generate Object.hash method."""
     hash_properties = [
         prop for prop in cls.__properties__.values() if prop.is_hash and not prop.is_runtime_only
     ]
@@ -1017,7 +1020,7 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
     if is_node:
         getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> "Node | None":
+def {prop.name}(self: "Object") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
         return self._session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
@@ -1027,7 +1030,7 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
     else:
         getter = f"""\
 @property
-def {prop.name}(self: "BuiltinObject") -> "Node | None":
+def {prop.name}(self: "Object") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
         if self._session is None:
@@ -1040,7 +1043,7 @@ def {prop.name}(self: "BuiltinObject") -> "Node | None":
     if is_node:
         setter = f"""\
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObject", value: "Node | None"):
+def {prop.name}(self: "Object", value: "Node | None"):
     if value is None:
         self._do_set("{prop.name}_ptr", None)
     else:
@@ -1049,7 +1052,7 @@ def {prop.name}(self: "BuiltinObject", value: "Node | None"):
     else:
         setter = f"""\
 @{prop.name}.setter
-def {prop.name}(self: "BuiltinObject", value: "Node | None"):
+def {prop.name}(self: "Object", value: "Node | None"):
     if value is None:
         self.{prop.name}_ptr = None
     else:
@@ -1065,7 +1068,7 @@ _time_spent_in_process_object_cls = 0
 def _process_object_cls[ObjectT: Object](
     cls: type[ObjectT], declaration: ObjectDeclaration
 ) -> tuple[type[ObjectT], ObjectDeclaration]:
-    """Process a BuiltinObject base class and return the processed class and its properties."""
+    """Process an Object base class and return the processed class and its properties."""
     global _time_spent_in_process_object_cls
     start = time.time()
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -1112,7 +1115,7 @@ def _process_object_cls[ObjectT: Object](
         if hasattr(base_cls, "__properties__"):
             components.append(base_cls)
 
-    # collect properties from this class definition
+    # walk the class definition and collect class-level stuff
     properties: dict[str, PropertyDeclaration] = {metatype_property.name: metatype_property}
     for name, attribute in list(cls.__dict__.items()):
         if (
@@ -1131,6 +1134,7 @@ def _process_object_cls[ObjectT: Object](
             attribute.py_type = cls.__annotations__.get(name, None)
             properties[name] = attribute
         elif isinstance(attribute, ConstantDeclaration):
+            # constants are replaced with their value during finalization
             attribute.name = intern(name)
             attribute.component = cls
             if attribute.original_component is UNSET:
@@ -1335,9 +1339,9 @@ class Object:
 
     __slots__: ClassVar[tuple[str, ...]] = ()
 
-    """The Session this BuiltinObject is in."""
+    """The Session this Object is in."""
     _session: "Session | None" = builtin_property_runtime()
-    """The Graph this BuiltinObject is in."""
+    """The Graph this Object is in."""
     _graph: "Graph | None" = builtin_property_runtime()
 
     @classmethod
@@ -1369,7 +1373,7 @@ class Object:
 
     @builtin_method(30)
     def pack(self, encoding: Encoding, options: "EncoderOptions | None" = None) -> Any:
-        """Pack this BuiltinObject into some encoded format."""
+        """Pack this Object into some encoded format."""
 
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
@@ -1381,7 +1385,7 @@ class Object:
     def pack_binary(
         self, encoding: Encoding, writer: "BinaryWriter", options: "EncoderOptions | None" = None
     ) -> None:
-        """Pack this BuiltinObject into the byte representation of its encoded format."""
+        """Pack this Object into the byte representation of its encoded format."""
 
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
@@ -1397,7 +1401,7 @@ class Object:
         session: "Session | None",
         options: "EncoderOptions | None" = None,
     ) -> Self:
-        """Unpack a BuiltinObject from some encoded format."""
+        """Unpack an Object from some encoded format."""
 
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
@@ -1414,7 +1418,7 @@ class Object:
         session: "Session | None",
         options: "EncoderOptions | None" = None,
     ) -> Self:
-        """Unpack a BuiltinObject from the byte representation of its encoded format."""
+        """Unpack an Object from the byte representation of its encoded format."""
 
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
