@@ -229,7 +229,7 @@ def finalize():
                 constants.append(constant)
                 # replace constant with value
                 setattr(object_cls, name, attribute.value)
-        object_cls.__definition__.constants = list(constants)
+        object_cls.__definition__.constants = list(constants)  # type: ignore (frozen)
 
     # sanity check stuff
     if IS_DEV or IS_TEST:
