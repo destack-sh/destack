@@ -34,6 +34,42 @@
         "vite-tsconfig-paths": "catalog:build",
       },
     },
+    "destack-ts-server": {
+      "name": "destack-ts-server",
+      "dependencies": {
+        "@opentelemetry/api": "catalog:telemetry",
+        "@opentelemetry/exporter-trace-otlp-http": "catalog:telemetry",
+        "@opentelemetry/instrumentation": "catalog:telemetry",
+        "@opentelemetry/resources": "catalog:telemetry",
+        "@opentelemetry/sdk-metrics": "catalog:telemetry",
+        "@opentelemetry/sdk-node": "catalog:telemetry",
+        "@opentelemetry/sdk-trace-node": "catalog:telemetry",
+        "@opentelemetry/semantic-conventions": "catalog:telemetry",
+        "destack": "link:destack-ts",
+        "ink": "catalog:",
+        "meow": "catalog:",
+        "pino": "catalog:",
+        "pyodide": "catalog:",
+        "temporal-polyfill": "catalog:",
+        "uuid": "catalog:",
+      },
+      "devDependencies": {
+        "@babel/plugin-proposal-class-static-block": "catalog:build",
+        "@babel/plugin-proposal-decorators": "catalog:build",
+        "@babel/plugin-transform-class-static-block": "catalog:build",
+        "@babel/plugin-transform-typescript": "catalog:build",
+        "@babel/preset-typescript": "catalog:build",
+        "@biomejs/biome": "catalog:build",
+        "@types/bun": "catalog:types",
+        "@types/node": "catalog:types",
+        "fake-indexeddb": "catalog:test",
+        "fast-check": "catalog:test",
+        "jsdom": "catalog:test",
+        "mitata": "catalog:test",
+        "pino-pretty": "catalog:dev",
+        "typescript": "catalog:build",
+      },
+    },
     "destack-ts-system": {
       "name": "destack-ts-system",
       "dependencies": {
@@ -221,7 +257,6 @@
       "@codemirror/search": "^6.5.11",
       "@codemirror/state": "^6.5.2",
       "@codemirror/view": "^6.38.1",
-      "@preact/signals": "^2.2.1",
       "buffer": "^6.0.3",
       "idb": "^8.0.3",
       "motion": "^12.23.6",
@@ -648,6 +683,8 @@
     "decimal.js": ["decimal.js@10.6.0", "", {}, "sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg=="],
 
     "destack": ["destack@workspace:destack-ts"],
+
+    "destack-ts-server": ["destack-ts-server@workspace:destack-ts-server"],
 
     "destack-ts-system": ["destack-ts-system@workspace:destack-ts-system"],
 
@@ -1110,6 +1147,8 @@
     "cliui/strip-ansi": ["strip-ansi@6.0.1", "", { "dependencies": { "ansi-regex": "^5.0.1" } }, "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A=="],
 
     "cliui/wrap-ansi": ["wrap-ansi@7.0.0", "", { "dependencies": { "ansi-styles": "^4.0.0", "string-width": "^4.1.0", "strip-ansi": "^6.0.0" } }, "sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q=="],
+
+    "destack-ts-server/destack": ["destack@link:destack-ts", {}],
 
     "destack-ts-system/destack": ["destack@link:destack-ts", {}],
 

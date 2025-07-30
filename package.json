@@ -1,6 +1,6 @@
 {
   "name": "destack-monorepo",
-  "version": "2025.07.30.0",
+  "version": "2025.07.30.1",
   "private": true,
   "type": "module",
   "workspaces": {
@@ -8,7 +8,8 @@
       "destack-ts",
       "destack-ts-web",
       "destack-ts-system",
-      "destack-ts-test"
+      "destack-ts-test",
+      "destack-ts-server"
     ],
     "catalog": {
       "pino": "^9.7.0",
