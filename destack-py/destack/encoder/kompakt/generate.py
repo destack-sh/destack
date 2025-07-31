@@ -147,40 +147,37 @@ class {encoder_name}(KompaktObjectEncoder):
                 # dynamic entity with a dynamic set of properties
                 #  count set properties and null flags
                 body_lines.append(f"_is_partial = _object.materialization < {Materialization.FULL}")
-                num_identity_properties = sum(1 for p in properties if p.is_identity)
-                body_lines.append(
-                    f"_num_set_properties = {num_identity_properties} if _is_partial else {len(properties)}"
-                )
-                body_lines.append("_null_flags = 0")
-                for i, prop in enumerate(properties):
-                    prop_name = self.get_source_property_name(prop)
-                    if not prop.is_identity:
-                        if not prop.type.is_required:
-                            body_lines.append(f"""\
-if not _is_partial or _object.is_set("{prop.name}"):
-    _num_set_properties += 1
-    if _object.{prop_name} is None:
-        _null_flags |= 1 << {i}""")
-                        else:
-                            body_lines.append(f"""\
-if _object.{prop_name} is None:
-    _null_flags |= 1 << {i}""")
+                body_lines.append("_num_set_properties = 0")
             else:
                 # dynamic event or struct with a fixed set of properties
                 body_lines.append(f"_num_set_properties = {len(properties)}")
-                body_lines.append("_null_flags = 0")
-                for i, prop in enumerate(properties):
-                    prop_name = self.get_source_property_name(prop)
+
+            body_lines.append("_null_flags = 0")
+            for i, prop in enumerate(properties):
+                prop_name = self.get_source_property_name(prop)
+                body_lines.append(f"# {prop.component.__name__}.{prop.name} ({i}->{prop.id})")
+                if is_entity:
+                    if not prop.type.is_required:
+                        body_lines.append(f"""\
+if not _is_partial or _object.is_set("{prop.name}"):
+    _num_set_properties += 1
+    if _object.{prop_name} is None:
+        _null_flags |= {1 << i} # 1 << {i}""")
+                    else:
+                        body_lines.append(f"""\
+if not _is_partial or _object.is_set("{prop.name}"):
+    _num_set_properties += 1""")
+                else:
                     if not prop.type.is_required:
                         body_lines.append(f"""\
 if _object.{prop_name} is None:
-    _null_flags |= 1 << {i}""")
+    _null_flags |= {1 << i} # 1 << {i}""")
 
             # prefix with number of set properties and their null flags
             if is_entity:
                 body_lines.append("_writer.write_uint8(_object.materialization.value)")
             body_lines.append("_writer.write_uint8(_num_set_properties)")
-            body_lines.append("_writer.write_uint64(_null_flags)")
+            body_lines.append("_writer.write_uint128(_null_flags)")
         elif stability == ObjectStability.STATIC:
             # properties can't change
             assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
@@ -195,50 +192,29 @@ if _object.{prop_name} is None:
                     if not prop.type.is_required:
                         body_lines.append(f"""\
 if _object.{prop_name} is None:
-    _null_flags |= 1 << {i}""")
+    _null_flags |= {1 << i} # 1 << {i}""")
         else:
             assert_never(stability)
 
-        # pack always set properties
+        # pack properties
         body_lines.append("\n# properties")
-        for prop in properties:
-            if is_entity and not prop.is_identity:
-                continue  # maybe set
-            if is_entity and prop.name == "materialization":
-                continue  # already packed above
-            body_lines.append(f"# {prop.component.__name__}.{prop.name}")
-            if stability == ObjectStability.DYNAMIC:
-                # if the property order may change, prefix with property id
-                body_lines.append(f"_writer.write_uint8({prop.id})")
+        for i, prop in enumerate(properties):
+            body_lines.append(f"# {prop.component.__name__}.{prop.name} ({i}->{prop.id})")
             prop_name = self.get_source_property_name(prop)
             pack_code = self.generate_pack_value(
                 prop.type,
                 key=f"_{prop.name}",
                 source_expr=f"_object.{prop_name}",
-                is_not_null_expr=f"_object.{prop_name} is not None"
-                if not prop.type.is_required
-                else None,
             )
+            # if it may be null, wrap in an if statement
+            if not prop.type.is_required:
+                pack_code = self._wrap_pack_maybe(pack_code, f"_object.{prop_name} is not None")
+            # if the property order may change, prefix with property id
+            # (always write property id so we know which properties are null)
+            body_lines.append(f"print('WRITE PROPERTY: {prop.id}')")
+            if stability == ObjectStability.DYNAMIC:
+                body_lines.append(f"_writer.write_uint8({prop.id})")
             body_lines.append(pack_code)
-
-        # pack properties
-        if is_entity:
-            for prop in properties:
-                if prop.is_identity:
-                    continue  # always set
-                if is_entity and prop.name == "materialization":
-                    continue  # already packed above
-                prop_name = self.get_source_property_name(prop)
-                pack_code = self.generate_pack_value(
-                    prop.type,
-                    key=f"_{prop.name}",
-                    source_expr=f"_object.{prop_name}",
-                    is_not_null_expr=f"_object.{prop_name} is not None"
-                    if not prop.type.is_required
-                    else None,
-                )
-                body_lines.append(f"# {prop.component.__name__}.{prop.name}")
-                body_lines.append(pack_code)
 
         return "\n".join(body_lines), "\n".join(extra_lines)
 
@@ -264,7 +240,7 @@ if _object.{prop_name} is None:
             if is_entity:
                 body_lines.append("_materialization = Materialization(_reader.read_uint8())")
             body_lines.append("_num_set_properties = _reader.read_uint8()")
-            body_lines.append("_null_flags = _reader.read_uint64()")
+            body_lines.append("_null_flags = _reader.read_uint128()")
         elif stability == ObjectStability.STATIC:
             # properties can't change
             assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
@@ -273,7 +249,7 @@ if _object.{prop_name} is None:
                 pass
             else:
                 # some properties may be null
-                body_lines.append("_null_flags = _reader.read_uint64()")
+                body_lines.append("_null_flags = _reader.read_uint128()")
         else:
             assert_never(stability)
 
@@ -283,8 +259,6 @@ if _object.{prop_name} is None:
             # dynamic set of properties, map them dynamically
             for prop in properties:
                 # init to None outside the loop
-                if is_entity and prop.name == "materialization":
-                    continue  # already set above
                 body_lines.append(f"_{self.get_source_property_name(prop)} = None")
             # main loop to map them
             prop_map_lines: list[str] = []
@@ -294,17 +268,18 @@ if _object.{prop_name} is None:
                     prop.type,
                     key=f"_{prop_name}",
                     target_expr=f"_{prop_name}",
-                    is_not_null_expr=f"_null_flags & {1 << i}"
+                    is_not_null_expr="_null_flags & (1 << _i)"
                     if not prop.type.is_required
                     else None,
                 )
                 prop_map_lines.append(f"""\
-# {prop.component.__name__}.{prop.name}
+# {prop.component.__name__}.{prop.name} ({i}->{prop.id})
 {"if" if i == 0 else "elif"} _prop_id == {prop.id}:
 {textwrap.indent(prop_unpacked, " " * 4)}""")
             body_lines.append(f"""\
 for _i in range(_num_set_properties):
     _prop_id = _reader.read_uint8()
+    print(f"READ PROPERTY: {{_i}}->{{_prop_id}}")
     # _prop_bytes = _reader.read_uint32()
 {textwrap.indent("\n".join(prop_map_lines), " " * 4)}
     else:
@@ -318,11 +293,13 @@ for _i in range(_num_set_properties):
                     prop.type,
                     key=f"_{prop_name}",
                     target_expr=f"_{prop_name}",
-                    is_not_null_expr=f"_null_flags & {1 << i}"
+                    is_not_null_expr="_null_flags & (1 << _i)"
                     if not prop.type.is_required
                     else None,
                 )
-                body_lines.append(prop_unpacked)
+                body_lines.append(f"""\
+# {prop.component.__name__}.{prop.name} ({i}->{prop.id})
+{prop_unpacked}""")
         else:
             assert_never(stability)
 
@@ -353,15 +330,13 @@ if {is_not_null_expr}:
 if not {is_not_null_expr}:
 {textwrap.indent(code, " " * 4)}"""
 
-    def generate_pack_value(
-        self, type: TypeDeclaration, key: str, source_expr: str, is_not_null_expr: str | None
-    ) -> str:
+    def generate_pack_value(self, type: TypeDeclaration, key: str, source_expr: str) -> str:
         """Generate code to pack a property to the Kompakt encoding."""
 
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             scalar_packed = self.generate_pack_scalar_value(type, source_expr)
-            return self._wrap_pack_maybe(scalar_packed, is_not_null_expr)
+            return scalar_packed
 
         # list
         elif type.cardinality == TypeCardinality.LIST:
@@ -372,7 +347,7 @@ if not {is_not_null_expr}:
 _writer.write_uint32(len({source_expr}))
 for {item_source_expr} in {source_expr}:
 {textwrap.indent(item_packed, " " * 4)}"""
-            return self._wrap_pack_maybe(list_packed, is_not_null_expr)
+            return list_packed
 
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
@@ -391,7 +366,7 @@ _writer.write_uint32(len({source_expr}))
 for {key_source_expr}, {value_source_expr} in {source_expr}.items():
 {textwrap.indent(key_packed, " " * 4)}
 {textwrap.indent(value_packed, " " * 4)}"""
-            return self._wrap_pack_maybe(map_packed, is_not_null_expr)
+            return map_packed
 
         else:
             assert_never(type.cardinality)

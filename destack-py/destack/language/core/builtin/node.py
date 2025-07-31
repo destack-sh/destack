@@ -167,6 +167,9 @@ def _process_node_cls(
         assert len(nullable_properties) <= 64, (
             f"Node {cls.__name__} has too many nullable properties"
         )
+        # check for too many properties (for :Encoding)
+        wired_properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
+        assert len(wired_properties) <= 128, f"Node {cls.__name__} has too many wired properties"
         # non-abstract nodes must have properties
         if not is_abstract and not any(
             not prop.is_runtime_only for prop in cls.__declaration__.properties
