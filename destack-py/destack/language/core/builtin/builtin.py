@@ -286,10 +286,10 @@ class StructType(Enum):
     # access
     PERMISSION_DEFINITION = 50_000
 
-    # CONTEXT = 1_300, "Context", "Context of a Node", "fas fa-dot"
-    # nocheckin: Context (as local partial instances set on some Entities?)
+    # CONTEXT = 1_300, "Context", "Context", "fas fa-dot"
+    # nocheckin: Context to replace Oracle and Session.actor_ptr/.../epoch? as a Struct/Node/...?
+    #  (as local partial instances set on some Entities? or as Structs? or something even more implicit?)
     #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
-
     #   merge Oracle/Session.actor_ptr/.../epoch into Context?)
     # universe [100_000-200_000]
     # ...

@@ -31,12 +31,9 @@
     "@opentelemetry/sdk-trace-node": "catalog:telemetry",
     "@opentelemetry/semantic-conventions": "catalog:telemetry",
     "destack": "link:destack-ts",
-    "ink": "catalog:",
-    "meow": "catalog:",
     "pino": "catalog:",
     "pyodide": "catalog:",
-    "temporal-polyfill": "catalog:",
-    "uuid": "catalog:"
+    "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
     "@babel/plugin-proposal-class-static-block": "catalog:build",

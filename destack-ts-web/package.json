@@ -40,8 +40,7 @@
     "pino": "catalog:",
     "pyodide": "catalog:",
     "preact": "catalog:web",
-    "temporal-polyfill": "catalog:",
-    "uuid": "catalog:"
+    "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
     "@babel/plugin-proposal-class-properties": "catalog:build",

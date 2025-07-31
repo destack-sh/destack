@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "dev": "bun --env-file ../.env.dev --env-file ../.env.dev.local run src/cli/index.tsx",
+    "dev": "bun --env-file ../.env.dev --env-file ../.env.dev.local run src/cli/index.ts",
     "build": "tsc",
     "test": "bun --env-file ../.env.test --env-file ../.env.test.local test",
     "check": "tsc --noEmit && biome check --write --unsafe src/",
@@ -33,12 +33,9 @@
     "@opentelemetry/sdk-trace-node": "catalog:telemetry",
     "@opentelemetry/semantic-conventions": "catalog:telemetry",
     "destack": "link:destack-ts",
-    "ink": "catalog:",
-    "meow": "catalog:",
     "pino": "catalog:",
     "pyodide": "catalog:",
-    "temporal-polyfill": "catalog:",
-    "uuid": "catalog:"
+    "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
     "@babel/plugin-proposal-class-static-block": "catalog:build",
