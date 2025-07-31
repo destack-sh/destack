@@ -1450,9 +1450,7 @@ class Object:
         options = options or EncoderOptions.DEFAULT
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
-        unpacked_object = encoder.unpack_object(
-            (cls.metakind, cls.metatype), value, session, options
-        )
+        unpacked_object = encoder.unpack_object(cls.metakind, cls.metatype, value, session, options)
         return cast(Self, unpacked_object)
 
     @builtin_method(33)
@@ -1470,7 +1468,7 @@ class Object:
         encoder = ENCODERS.get(encoding)
         assert encoder is not None, f"no Encoder defined for {encoding}"
         unpacked_object = encoder.unpack_object_binary(
-            (cls.metakind, cls.metatype), reader, session, options
+            cls.metakind, cls.metatype, reader, session, options
         )
         return cast(Self, unpacked_object)
 

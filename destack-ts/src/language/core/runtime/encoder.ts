@@ -9,6 +9,7 @@ import type {
   Type,
 } from "@destack/language";
 
+/** Encoder for packing/unpacking Objects. */
 export interface Encoder<T> {
   /** Pack a BuiltinObject into some encoded format. */
   packObject(kind: ObjectKind, metatype: NodeType | StructType, object: BuiltinObject): T;
