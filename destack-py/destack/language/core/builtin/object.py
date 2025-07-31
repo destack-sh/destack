@@ -106,7 +106,7 @@ def _generate_init[ObjectT: Object](
 
     # header properties
     header_properties = {
-        prop.name: prop for prop in cls.__properties__.values() if not prop.is_computed
+        prop.name: prop for prop in cls.__properties__.values() if not prop.is_static
     }
     if declaration.kind == ObjectKind.NODE:
         header_properties.pop("_ref")
@@ -116,7 +116,7 @@ def _generate_init[ObjectT: Object](
     required_properties = [
         p
         for p in properties_in_order
-        if not p.is_computed
+        if not p.is_static
         and p.default_value is UNSET
         and p.default_factory is None
         and not p.is_internal
@@ -126,33 +126,36 @@ def _generate_init[ObjectT: Object](
     ]
 
     # header
-    method_header_lines = ["def __init__(self, *"]
-    # first add properties without defaults that are not managed
-    for prop in required_properties:
-        method_header_lines.append(prop.name)
-    # then add properties with defaults or that are managed
-    for prop in properties_in_order:
-        if prop in required_properties:
-            continue
-        elif prop.default_value is UNSET:
-            default_str = "None"
-        elif isinstance(prop.default_value, Enum):
-            default_str = f"{prop.default_value.__class__.__name__}.{prop.default_value.name}"
-            extra_glbls[prop.default_value.__class__.__name__] = prop.default_value.__class__
-        elif prop.default_value is None or isinstance(
-            prop.default_value, (bool, int, float, str, bytes, UUID)
-        ):
-            default_str = repr(prop.default_value)
-        else:
-            default_name = f"_default_{prop.name}"
-            extra_glbls[default_name] = prop.default_value
-            default_str = default_name
-        method_header_lines.append(f"{prop.name}={default_str}")
-        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
-            method_header_lines.append(f"{prop.name}_ptr=None")
+    if properties_in_order:
+        method_header_lines = ["def __init__(self, *"]
+        # first add properties without defaults that are not managed
+        for prop in required_properties:
+            method_header_lines.append(prop.name)
+        # then add properties with defaults or that are managed
+        for prop in properties_in_order:
+            if prop in required_properties:
+                continue
+            elif prop.default_value is UNSET:
+                default_str = "None"
+            elif isinstance(prop.default_value, Enum):
+                default_str = f"{prop.default_value.__class__.__name__}.{prop.default_value.name}"
+                extra_glbls[prop.default_value.__class__.__name__] = prop.default_value.__class__
+            elif prop.default_value is None or isinstance(
+                prop.default_value, (bool, int, float, str, bytes, UUID)
+            ):
+                default_str = repr(prop.default_value)
+            else:
+                default_name = f"_default_{prop.name}"
+                extra_glbls[default_name] = prop.default_value
+                default_str = default_name
+            method_header_lines.append(f"{prop.name}={default_str}")
+            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+                method_header_lines.append(f"{prop.name}_ptr=None")
 
-    method_header_lines.append(")")
-    method_header = ", ".join(method_header_lines)
+        method_header_lines.append(")")
+        method_header = ", ".join(method_header_lines)
+    else:
+        method_header = "def __init__(self)"
 
     # body
     # NOTE: frozen objects can use direct assignment, mutable objects can't
@@ -216,23 +219,23 @@ if id is None:
         if NodeType.ENTITY in declaration.inherits:
             method_body_lines.append("""\
     id = uuid4()
-    _now = self._session.oracle.now()
+    _now = self._session.context.now()
     created_at = _now
     created_epoch = self._session.remote_epoch
-    created_by_ptr = self._session.actor_ptr
+    created_by_ptr = self._session.context.actor_ptr
     updated_at = _now
     updated_epoch = self._session.remote_epoch
-    updated_by_ptr = self._session.actor_ptr
+    updated_by_ptr = self._session.context.actor_ptr
 """)
         elif NodeType.EVENT in declaration.inherits:
             method_body_lines.append("""\
     id = uuid7()
-    _now = self._session.oracle.now()
+    _now = self._session.context.now()
     created_epoch = self._session.remote_epoch
     created_at = _now
-    created_by_ptr = self._session.actor_ptr
-    client_ptr = self._session.client_ptr
-    client_nonce = self._session.client_nonce
+    created_by_ptr = self._session.context.actor_ptr
+    client_ptr = self._session.context.client_ptr
+    client_nonce = self._session.context.client_nonce
     client_remote_epoch = self._session.remote_epoch
     client_local_epoch = self._session.local_epoch
     client_created_at = _now
@@ -278,7 +281,7 @@ else:
     body_properties_in_order = list(body_properties.values())
     body_properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
     for prop in body_properties_in_order:
-        if prop.is_computed:
+        if prop.is_static:
             # computed, can't assign
             continue
 
@@ -308,14 +311,14 @@ if {arg_name} is None:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     assert self._session is not None, "no session for {cls.__name__}"
-    {arg_name} = self._session.oracle.now()""")
+    {arg_name} = self._session.context.now()""")
                 else:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     session = ACTIVE_SESSION.get()
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
-    {arg_name} = session.oracle.now()""")
+    {arg_name} = session.context.now()""")
             elif prop.default_factory == ValueFactory.REMOTE_EPOCH:
                 assert declaration.kind is not None, f"unexpected declaration: {declaration!r}"
                 if declaration.kind == ObjectKind.NODE:
@@ -353,15 +356,15 @@ if {arg_name} is None:
             elif prop.default_factory == ValueFactory.ACTOR:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name}_ptr = self._session.actor_ptr""")
+    {arg_name}_ptr = self._session.context.actor_ptr""")
             elif prop.default_factory == ValueFactory.CLIENT:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name}_ptr = self._session.client_ptr""")
+    {arg_name}_ptr = self._session.context.client_ptr""")
             elif prop.default_factory == ValueFactory.CLIENT_NONCE:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name} = self._session.client_nonce""")
+    {arg_name} = self._session.context.client_nonce""")
             elif prop.default_factory == ValueFactory.REGION:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
@@ -432,7 +435,7 @@ if {arg_name} is None:
 
     method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
-    init_str = f"{method_header}:\n{method_body}"
+    init_str = f"{method_header}:\n{method_body or 'pass'}"
     return init_str, extra_glbls
 
 
@@ -468,6 +471,8 @@ def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
             return f"{value_expr}.isoformat()"
         else:
             return f"{value_expr}!r"
+    elif prop.scalar_type == ScalarType.HANDLE:
+        return f"{value_expr}!r"
     else:
         assert_never(prop.scalar_type)
 
@@ -804,6 +809,8 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration) -> tuple[str, bool]:
         return "{self_val}.id == {other_val}.id", False
     elif prop.scalar_type == ScalarType.STRUCT:
         return "{self_val}.equals({other_val})", False
+    elif prop.scalar_type == ScalarType.HANDLE:
+        return "{self_val} is {other_val}", False
     else:
         assert_never(prop.scalar_type)
 
@@ -951,9 +958,11 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration, value_expr: str) -> str:
     elif prop.scalar_type == ScalarType.STRUCT:
         return f"{value_expr}.hash()"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
-        raise NotImplementedError(f"cannot hash node value: {prop!r}")
+        return f"{value_expr}._hash"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"{value_expr}.id.int"
+    elif prop.scalar_type == ScalarType.HANDLE:
+        raise NotImplementedError(f"cannot hash Handle: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 
@@ -1106,7 +1115,7 @@ def _process_object_cls[ObjectT: Object](
         py_type=Any,
         type=_METAKIND_TYPE,
         is_runtime_only=True,
-        is_computed=True,  # is set statically by class decorator
+        is_static=True,
         is_identity=True,
         component=cls,
     )
@@ -1115,7 +1124,7 @@ def _process_object_cls[ObjectT: Object](
         name="metatype",
         py_type=Any,
         is_runtime_only=True,
-        is_computed=True,  # is set statically by class decorator
+        is_static=True,
         is_identity=True,
         type=_METATYPE_TYPE,
         component=cls,
@@ -1298,7 +1307,7 @@ def _process_object_cls[ObjectT: Object](
         cls_dict["__slots__"] = tuple(
             p.name if p.type.scalar_type != ScalarType.NODE_REFERENCE else f"{p.name}_ptr"
             for p in properties.values()
-            if not p.is_computed
+            if not p.is_static
         )
     else:
         cls_dict["__slots__"] = ()
@@ -1377,7 +1386,7 @@ class Object:
     __slots__: ClassVar[tuple[str, ...]] = ()
 
     """The Session this Object is in."""
-    _session: "Session | None" = builtin_property_runtime()
+    _session: "Session | None" = builtin_property_runtime(400)
 
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:

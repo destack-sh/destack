@@ -3,35 +3,22 @@ from typing import TYPE_CHECKING
 
 from destack.utils.uuid import UUID
 
-from .session import Session
+from ..builtin import Handle, HandleType, NodeReference, builtin_handle, builtin_property_runtime
 
 if TYPE_CHECKING:
-    from destack.language import Event, Graph, Node, NodeReference
+    from destack.language import Event
 
 
-class GraphConnection[NodeT: "Node" = Node]:
+@builtin_handle(HandleType.SPACE_CONNECTION)
+class SpaceConnection(Handle):
     """
-    A connection between a local and a remote Graph.
+    A connection between a local and a remote Space.
     """
 
-    __slots__ = ("graph", "session", "space_ptr")
-
-    def __init__(
-        self,
-        *,
-        space_ptr: "NodeReference",
-        graph: "Graph",
-        session: "Session",
-    ):
-        self.space_ptr = space_ptr
-        self.session = session
-        self.graph = graph
-
-    def __repr__(self) -> str:
-        return f"<GraphConnection space={self.space_ptr!r}>"
+    space_ptr: "NodeReference" = builtin_property_runtime(500, is_repr=True)
 
     async def open(self) -> None:
-        """Open the GraphConnection."""
+        """Open the SpaceConnection."""
         raise NotImplementedError
 
     async def pull(

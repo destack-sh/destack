@@ -11,46 +11,40 @@ _setup_test_env()
 
 
 from destack.graph import MemoryGraph
-from destack.language import REGION, Session, Space, Universe
+from destack.language import REGION, Context, Session, Space, Universe
 from destack.test.conftest import _setup_test_env
 from destack.utils.uuid import uuid4
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
-    session = Session(
-        graph=MemoryGraph(),
+    root_context = Context(
         actor_ptr=Universe.ACTOR,
         client_ptr=Universe.CLIENT,
         client_nonce=uuid4(),
-        remote_epoch=0,
-        local_epoch=0,
     )
-    await session.open()
-    yield session
-    await session.close()
-
-
-@pytest_asyncio.fixture(loop_scope="session", scope="function")
-async def session():
-    """Default Session is in-memory."""
     session = Session(
+        root_context=root_context,
         graph=MemoryGraph(),
-        actor_ptr=Universe.ACTOR,
-        client_ptr=Universe.CLIENT,
-        client_nonce=uuid4(),
         remote_epoch=0,
         local_epoch=0,
     )
-    await session.open()
-    yield session
-    await session.close()
+    root_context._session = session
+    async with session.active():
+        yield session
+
+
+session = memory_session
 
 
 @pytest.fixture
 def space(session: Session):
     result = Space.create_space(
-        session, name="Test", slug="test", owned_by=Universe.ACTOR, region=REGION
+        session,
+        name="Test",
+        slug="test",
+        owned_by=Universe.ACTOR,
+        region=REGION,
     )
     with (
         result.space.active(),

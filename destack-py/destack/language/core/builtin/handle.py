@@ -82,6 +82,11 @@ def _process_handle_cls(
 
     # sanity check
     if IS_DEV or IS_TEST:
+        if any(not prop.is_runtime_only for prop in cls.__properties__.values()):
+            non_runtime_properties = [
+                prop for prop in cls.__properties__.values() if not prop.is_runtime_only
+            ]
+            raise ValueError(f"{cls.__name__} has non-runtime properties: {non_runtime_properties}")
         # abstract objects cannot extend non-abstract objects
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
             raise ValueError(

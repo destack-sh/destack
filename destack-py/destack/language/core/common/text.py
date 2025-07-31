@@ -15,7 +15,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Aliasing, NodeReference
+    from destack.language import NodeReference
 
 
 @builtin_enum(EnumType.TEXT_SPAN_TYPE)
@@ -208,7 +208,6 @@ def _parse_inline_raw(
     pos: int = 0,
     end_marker: str | None = None,
     base: dict[str, Any] | None = None,
-    aliasing: "Aliasing | None" = None,
 ) -> tuple[list[TextSpan], int]:
     """
     Parse a string of text into a list of TextSpans, with optional end marker.
@@ -248,9 +247,7 @@ def _parse_inline_raw(
             continue
         # inline equation marker: $$...$$
         if marker == "$$":
-            inner, pos = _parse_inline_raw(
-                text, pos, end_marker="$$", base=base.copy(), aliasing=aliasing
-            )
+            inner, pos = _parse_inline_raw(text, pos, end_marker="$$", base=base.copy())
             merged = _merge_spans(inner)
             content = "".join(sp.content or "" for sp in merged)
             spans.append(TextSpan(type=TextSpanType.EQUATION, content=content, **base))
@@ -260,12 +257,6 @@ def _parse_inline_raw(
             identifier = marker[2:-1]
             node: Node | None = None
             node_ptr: NodeReference | None = None
-            if aliasing is not None:
-                resolved = aliasing.resolve(identifier)
-                if isinstance(resolved, Node):
-                    node = resolved
-                else:
-                    node_ptr = resolved
             mention_span = TextSpan(
                 type=TextSpanType.MENTION, content=identifier, node=node, node_ptr=node_ptr, **base
             )
@@ -330,9 +321,7 @@ def _parse_inline_raw(
                 spans.append(TextSpan(content=marker, **base))
                 continue
 
-            inner, pos = _parse_inline_raw(
-                text, pos, end_marker=marker, base=base.copy(), aliasing=aliasing
-            )
+            inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
             for sp in inner:
                 setattr(sp, flag, True)
             spans.extend(inner)
@@ -342,11 +331,11 @@ def _parse_inline_raw(
     return spans, pos
 
 
-def _parse_inline(text: str, aliasing: "Aliasing | None" = None) -> list[TextSpan]:
+def _parse_inline(text: str) -> list[TextSpan]:
     """
     Parse a string of text into a list of TextSpans.
     """
-    spans, _ = _parse_inline_raw(text, 0, None, {}, aliasing)
+    spans, _ = _parse_inline_raw(text, 0, None, {})
     return _merge_spans(spans)
 
 
@@ -392,26 +381,20 @@ def _span_format_key(span: TextSpan) -> tuple:
     )
 
 
-def markdown_to_text(markdown: str, aliasing: "Aliasing | None" = None) -> Text:
+def markdown_to_text(markdown: str) -> Text:
     """
     Parse markdown as a single paragraph Text.
     """
-    from destack.language import get_active_aliasing
-
     # bail if nothing to parse
     if not markdown:
         return Text.empty()
-
-    # aliasing
-    if aliasing is None:
-        aliasing = get_active_aliasing()
 
     # parse as single line, ignoring line prefixes and multi-line constructs
     markdown = textwrap.dedent(markdown).strip()
     # Remove line breaks to treat as single paragraph
     markdown = " ".join(line.strip() for line in markdown.splitlines() if line.strip())
 
-    spans = _parse_inline(markdown, aliasing)
+    spans = _parse_inline(markdown)
     return Text(spans=spans)
 
 
@@ -450,7 +433,7 @@ def _get_span_options(span: TextSpan) -> Sequence[str]:
     return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
 
 
-def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None) -> str:
+def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
     """
     Render a list of TextSpan objects with inline markdown formatting.
     This function computes formatting state transitions between spans so that
@@ -487,9 +470,7 @@ def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = 
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             if (node := span.node) is not None:
-                assert aliasing is not None, f"no aliasing for {node!r} in {spans!r}"
-                alias = aliasing.get_or_add(node)
-                result.append(f"[@{alias}]")
+                result.append(f"[@{node.id}]")
             elif span.content:
                 result.append(f"[@{span.content}]")
             else:
@@ -513,26 +494,20 @@ def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = 
     return "".join(result)
 
 
-def text_to_markdown(text: Text, aliasing: "Aliasing | None" = None) -> str:
+def text_to_markdown(text: Text) -> str:
     """
     Render a Text object as markdown.
     """
-    from destack.language import get_active_aliasing
-
-    # aliasing
-    if aliasing is None:
-        aliasing = get_active_aliasing()
-
-    return _render_inline_raw(text.spans, aliasing)
+    return _render_inline_raw(text.spans)
 
 
 TextIn = Text | str
 
 
-def text(text_input: TextIn, aliasing: "Aliasing | None" = None) -> Text:
+def text(text_input: TextIn) -> Text:
     """Parse markdown as Text."""
     if isinstance(text_input, str):
-        return markdown_to_text(text_input, aliasing=aliasing)
+        return markdown_to_text(text_input)
     else:
         assert isinstance(text_input, Text), f"expected Text, got {text_input!r}"
         return text_input

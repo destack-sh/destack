@@ -1,22 +1,17 @@
 from .binary import BinaryReader, BinaryWriter
-from .connection import GraphConnection
-from .context import WORLD_ORACLE, Oracle, WorldOracle
+from .connection import SpaceConnection
+from .context import Context
 from .encoder import Encoder, EncoderOptions
 from .graph import Graph
-from .render import Aliasing, get_active_aliasing
 from .session import Session
 
 __all__ = [
-    "WORLD_ORACLE",
-    "Aliasing",
     "BinaryReader",
     "BinaryWriter",
+    "Context",
     "Encoder",
     "EncoderOptions",
     "Graph",
-    "GraphConnection",
-    "Oracle",
     "Session",
-    "WorldOracle",
-    "get_active_aliasing",
+    "SpaceConnection",
 ]

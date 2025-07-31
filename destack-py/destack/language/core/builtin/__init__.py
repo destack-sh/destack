@@ -132,7 +132,7 @@ from .property import (
     builtin_property,
     builtin_property_parent,
     builtin_property_runtime,
-    parse_type_annotation,
+    parse_type_declaration,
 )
 from .relation import (
     NodeReference,
@@ -329,5 +329,5 @@ __all__ = [
     "get_active_snapshot",
     "get_active_space",
     "get_active_space_ptr",
-    "parse_type_annotation",
+    "parse_type_declaration",
 ]

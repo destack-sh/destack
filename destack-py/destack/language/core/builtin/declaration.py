@@ -225,7 +225,7 @@ def builtin_method(
     """Declare a builtin Method."""
 
     def decorate(func):
-        # nocheckin: register the functions (methods, actions/messages) on the Object
+        # nocheckin(py, language): register the functions (methods, actions/messages) on the Object
         return func
 
     return decorate

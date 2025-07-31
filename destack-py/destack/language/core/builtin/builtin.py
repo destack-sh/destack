@@ -378,7 +378,7 @@ class NodeType(Enum):
         "fas fa-database",
     )
 
-    # nocheckin: *_definition/custom_*_definition inconsistency and organization
+    # nocheckin(language): *_definition/custom_*_definition inconsistency and organization
     #  (Index, Event, Method/Action, Permission, ...)
     #  why is Space, Branch/Snapshot, Permission, Tag/Tagging, Entity2D/3D, ... in core?
 
@@ -904,9 +904,10 @@ class HandleType(Enum):
 
     SESSION = 10, "Session"
     GRAPH = 11, "Graph"
+    SPACE_CONNECTION = 12, "Graph Connection"
 
     LOGGER = 20
-    # CONTEXT?
+    CONTEXT = 21
 
 
 @builtin_enum(EnumType.UNIVERSE_CATEGORY)

@@ -245,6 +245,6 @@ export class Session {
     this._onFlush();
     const events = this.pendingEvents;
     this.pendingEvents = [];
-    // nocheckin: Session.flush/commit
+    // nocheckin(all): Session.flush/commit
   }
 }

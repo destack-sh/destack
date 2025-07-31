@@ -145,6 +145,10 @@ def _generate_value_scalar(type: Type | TypeDeclaration, value: Any) -> str:
     elif type.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
 
+    # handle
+    elif type.scalar_type == ScalarType.HANDLE:
+        raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
+
     #
     else:
         assert_never(type.scalar_type)

@@ -347,6 +347,9 @@ class JsonEncoder(Encoder[Json]):
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return self.pack_object(value, options & ~EncoderOptions.OMIT_METATYPE)
+        # handle
+        elif type.scalar_type == ScalarType.HANDLE:
+            raise NotImplementedError(f"cannot pack Handle: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -431,6 +434,9 @@ class JsonEncoder(Encoder[Json]):
                 return self.unpack_object(
                     None, value, session, options & ~EncoderOptions.OMIT_METATYPE
                 )
+        # handle
+        elif type.scalar_type == ScalarType.HANDLE:
+            raise NotImplementedError(f"cannot unpack Handle: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
