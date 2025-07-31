@@ -11,7 +11,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Handle, NodeReference, Space
+    from destack.language import Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,10 +31,6 @@ class User(Entity):
     last_logged_in_at: Optional[datetime] = builtin_property(111)
     # last_active_at, seen_at, ...
     is_staff: bool = builtin_property(112, default=False)
-
-    handle: Optional["Handle"] = builtin_property(121)
-    if TYPE_CHECKING:
-        handle_ptr: Optional[NodeReference] = None
 
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client

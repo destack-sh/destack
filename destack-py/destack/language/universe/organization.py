@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional, final
 
 from destack.language.core import (
     Entity,
-    NodeReference,
     NodeType,
     TraitType,
     builtin_entity,
@@ -11,7 +10,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Handle, Space
+    from destack.language import Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -29,6 +28,3 @@ class Organization(Entity):
 
     parent: Optional["Space"] = builtin_property_parent()
     slug: str = builtin_property(101, is_repr=True)
-    handle: Optional["Handle"] = builtin_property(111)
-    if TYPE_CHECKING:
-        handle_ptr: Optional[NodeReference] = None

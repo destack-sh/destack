@@ -20,14 +20,7 @@ from destack.language.core.common.universe import Universe
 from destack.utils.uuid import UUID, uuid4
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Branch,
-        Event,
-        Handle,
-        NodeReference,
-        Session,
-        Snapshot,
-    )
+    from destack.language import Branch, Event, NodeReference, Session, Snapshot
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -65,7 +58,6 @@ class Space(Entity):
 
     slug: str = builtin_property(102, is_repr=True)
 
-    handle: Optional["Handle"] = builtin_property(111)
     # system_folder, home_folder, ...
 
     # infra

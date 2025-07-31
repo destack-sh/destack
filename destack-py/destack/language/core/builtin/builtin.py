@@ -18,11 +18,9 @@ class EnumType(Enum):
     NODE_TYPE = 3
     STRUCT_TYPE = 4
     TRAIT_TYPE = 5
+    HANDLE_TYPE = 6
     OBJECT_STABILITY = 8
     UNIVERSE_CATEGORY = 9
-    NODE_DEFINITION_TYPE = 10
-    OBJECT_DEFINITION_TYPE = 11
-    STRUCT_DEFINITION_TYPE = 12
     PROPERTY_REFERENCE_TYPE = 13
     MATERIALIZATION = 14
     GRAPH_KEY = 20
@@ -208,205 +206,17 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 
 @builtin_enum(EnumType.OBJECT_KIND)
 class ObjectKind(Enum):
-    NODE = 1
-    STRUCT = 2
+    NODE = 1, "Node", "Object with data, logic and universally addressable identity"
+    STRUCT = 2, "Struct", "Object with data and logic (embedded elsewhere)"
+    HANDLE = 3, "Handle", "Object with special data and logic (runtime only)"
 
 
 @builtin_enum(EnumType.OBJECT_STABILITY)
 class ObjectStability(Enum):
     DYNAMIC = 1, "Definition may change in every compatible way"
     # GROWABLE = 2, "Definition may change with new properties at the end (only)"
+    # NOTE :Performance: ObjectStability.GROWABLE is annoying to implement but probably worth it
     STATIC = 7, "Definition may never change"
-
-
-@builtin_enum(EnumType.STRUCT_TYPE)
-class StructType(Enum):
-    # core [1-100_000]
-    # root
-    STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
-    MESSAGE = 2, "Message", "Message", "fas fa-envelope"
-
-    OBJECT_DEFINITION = 10
-    OBJECT_DEFINITION_REFERENCE = 11
-    NODE_DEFINITION = 12
-    NODE_DEFINITION_REFERENCE = 13
-    STRUCT_DEFINITION = 15
-    STRUCT_DEFINITION_REFERENCE = 16
-    ENUM_DEFINITION = 17
-    PROPERTY_DEFINITION = 18
-    CONSTANT_DEFINITION = 19
-    OPTION_DEFINITION = 20
-    TAG_DEFINITION = 21
-    # ALIAS_DEFINITION, UNION_DEFINITION, ...
-
-    # type/value
-    VALUE = 100
-    TYPE = 101
-    NUMBER_CONSTRAINT = 110
-    STRING_CONSTRAINT = 111
-    COLLECTION_CONSTRAINT = 112
-
-    # expressions
-    EXPRESSION = 200
-    JOIN = 202
-    AGGREGATION = 203
-    CONDITION = 204
-    SORT = 205
-    SELECT = 206
-
-    # query
-    QUERY = 300
-
-    # references
-    NODE_REFERENCE = 400
-    PROPERTY_REFERENCE = 41
-
-    # universe
-    UNIVERSE_SIGNUP_REQUEST = 1_000
-    UNIVERSE_SIGNUP_RESPONSE = 1_001
-    UNIVERSE_SPAWN_REQUEST = 1_002
-    UNIVERSE_SPAWN_RESPONSE = 1_003
-
-    # custom
-    CUSTOM_STRUCT = 20_200, "Custom Struct", "Custom Struct Instance", "fas fa-shapes"
-    CUSTOM_MESSAGE = 20_300, "Custom Message", "Custom Message Instance", "fas fa-envelope"
-
-    # integrity
-    INDEX_DEFINITION = 30_100
-    CONSTRAINT_DEFINITION = 30_200
-    # EXPECTATION_DEFINITION = 30_300
-    MIGRATION_DEFINITION = 31_000
-    MIGRATION_OPERATION_DEFINITION = 31_100
-
-    # logic
-    FUNCTION_DEFINITION = 40_000
-    METHOD_DEFINITION = 40_100
-    ACTION_DEFINITION = 40_200
-
-    # access
-    PERMISSION_DEFINITION = 50_000
-
-    # CONTEXT = 1_300, "Context", "Context", "fas fa-dot"
-    # nocheckin: Context to replace Oracle and Session.actor_ptr/.../epoch? as a Struct/Node/...?
-    #  (as local partial instances set on some Entities? or as Structs? or something even more implicit?)
-    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
-    #   merge Oracle/Session.actor_ptr/.../epoch into Context?)
-    # universe [100_000-200_000]
-    # ...
-
-    # space [200_000-300_000]
-    # ...
-
-    # access [300_000-400_000]
-    # ...
-
-    # data [400_000-500_000]
-    TEXT = 400_020, None, None, "fas fa-text"
-    TEXT_SPAN = 400_021, None, None, "fas fa-text"
-    ICON = 400_031
-    # ...
-
-    # media [500_000-600_000]
-    # ...
-
-    # localization [600_000-700_000]
-    # ...
-
-    # logic [700_000-800_000]
-    SCHEDULE = 700_001
-    # ...
-
-    # quality [800_000-900_000]
-    # ...
-
-    # intelligence [900_000-1_000_000]
-    # ...
-
-    # infrastructure [1_000_000-1_100_000]
-    # ...
-
-    # deployment [1_100_000-1_200_000]
-    # ...
-
-    # observability [1_200_000-1_300_000]
-    # ...
-
-    # experience [1_300_000-1_400_000]
-    # ...
-
-    # social [1_400_000-1_500_000]
-    # ...
-
-    # finance [1_500_000-1_600_000]
-    # ...
-
-    # scene [1_700_000-1_800_000]
-    # ...
-
-    # view [1_800_000-1_900_000]
-    # ...
-
-    # paint [1_900_000-2_000_000]
-    # ...
-
-    # interaction [2_000_000-2_100_000]
-    # ...
-
-    # style [2_100_000-2_200_000]
-    COLOR = 2_100_300, "Color", None, "fas fa-palette"
-    FILL = 2_100_400, "Fill", None, "fas fa-fill"
-    FONT = 2_100_500, "Font", None, "fas fa-text"
-    BORDER = 2_100_600, "Border", None, "fas fa-border-outer"
-    SHADOW = 2_100_700, "Shadow", None, "fas fa-eclipse"
-    GRADIENT = 2_100_800, "Gradient", None, "fas fa-gradient"
-    GRADIENT_STOP = 2_100_801, "Gradient Stop", None, "fas fa-gradient"
-    STROKE = 2_101_100, "Stroke", None, "fas fa-stroke"
-    STROKE_CAP = 2_101_101, "Stroke Cap", None, "fas fa-stroke"
-    STROKE_PATH = 2_101_102, "Stroke Path", None, "fas fa-stroke"
-    STROKE_POINT = 2_101_103, "Stroke Point", None, "fas fa-stroke"
-
-    # animation [2_200_000-2_300_000]
-    TRANSITION = 2_200_000, "Transition", None, "fas fa-bezier-curve"
-    EFFECT = 2_200_100, "Effect", None, "fas fa-sparkle"
-
-    # audio [2_300_000-2_400_000]
-    # ...
-
-    # geometry [2_400_000-2_500_000]
-    VECTOR2 = 2_400_000, None, None, "fas fa-vector-square"
-    VECTOR2I = 2_400_001, None, None, "fas fa-vector-square"
-    VECTOR3 = 2_400_002, None, None, "fas fa-vector-square"
-    VECTOR3I = 2_400_003, None, None, "fas fa-vector-square"
-    VECTOR4 = 2_400_004, None, None, "fas fa-vector-square"
-    VECTOR4I = 2_400_005, None, None, "fas fa-vector-square"
-    QUATERNION = 2_400_010, None, None, "fas fa-vector-square"
-    LENGTH = 2_400_020, "Length", None, "fas fa-ruler"
-    OFFSET2 = 2_400_021, "Position", None, "fas fa-location-crosshair"
-    GRID2 = 2_400_022, "Grid", None, "fas fa-grid-2"
-    GRID_SPAN2 = 2_400_023, "Grid Span", None, "fas fa-grid-2"
-    INSET2 = 2_400_024, "Insets", None, "fas fa-corner"
-    CORNER2 = 2_400_025, "Corners", None, "fas fa-corner"
-    AXIS2 = 2_400_026, "Axis2", None, "fas fa-vector-square"
-    AXIS3 = 2_400_027, "Axis3", None, "fas fa-vector-square"
-    FORM2D = 2_410_000, "Form2D", None, "fas fa-vector-square"
-    LINE2D = 2_410_100, "Line", None, "fas fa-line"
-    ARROW2D = 2_410_200, "Arrow", None, "fas fa-arrow-right"
-    RECTANGLE2D = 2_410_300, "Rectangle", None, "fas fa-rectangle"
-    ELLIPSE2D = 2_410_400, "Ellipse", None, "fas fa-ellipse"
-    CAPSULE2D = 2_410_500, "Capsule", None, "fas fa-capsule"
-    STAR2D = 2_410_600, "Star", None, "fas fa-star"
-    POLYGON2D = 2_411_000, "Polygon", None, "fas fa-polygon"
-    PATH2D = 2_411_100, "Path", None, "fas fa-path"
-    FORM3D = 2_420_000, "Form3D", None, "fas fa-vector-square"
-
-    # physics [2_500_000-2_600_000]
-    # ...
-
-    # lighting [2_600_000-2_700_000]
-    # ...
-
-    # editor [3_000_000-3_100_000]
-    # ...
 
 
 @builtin_enum(EnumType.TRAIT_TYPE)
@@ -588,7 +398,7 @@ class NodeType(Enum):
 
     # universe [100_000-200_000]
     # UNIVERSE, ...
-    HANDLE = 100_200, "Handle", "Unique @handle", "fas fa-at"
+    # HANDLE?, ...
     # user
     USER = 121_000, "User", None, "fas fa-user"
     # FRIENDSHIP, FRIENDSHIP_INVITE, ...
@@ -902,6 +712,201 @@ class NodeType(Enum):
     # editor [3_000_000-3_100_000]
     # INSPECTOR_VIEW, ...
     # ...
+
+
+@builtin_enum(EnumType.STRUCT_TYPE)
+class StructType(Enum):
+    # core [1-100_000]
+    # root
+    STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
+    MESSAGE = 2, "Message", "Message", "fas fa-envelope"
+
+    OBJECT_DEFINITION = 10
+    OBJECT_DEFINITION_REFERENCE = 11
+    NODE_DEFINITION = 12
+    STRUCT_DEFINITION = 15
+    HANDLE_DEFINITION = 17
+    ENUM_DEFINITION = 19
+    PROPERTY_DEFINITION = 20
+    CONSTANT_DEFINITION = 21
+    OPTION_DEFINITION = 22
+    TAG_DEFINITION = 23
+    # ALIAS_DEFINITION, UNION_DEFINITION, ...
+
+    # type/value
+    VALUE = 100
+    TYPE = 101
+    NUMBER_CONSTRAINT = 110
+    STRING_CONSTRAINT = 111
+    COLLECTION_CONSTRAINT = 112
+
+    # expressions
+    EXPRESSION = 200
+    JOIN = 202
+    AGGREGATION = 203
+    CONDITION = 204
+    SORT = 205
+    SELECT = 206
+
+    # query
+    QUERY = 300
+
+    # references
+    NODE_REFERENCE = 400
+    PROPERTY_REFERENCE = 41
+
+    # universe
+    UNIVERSE_SIGNUP_REQUEST = 1_000
+    UNIVERSE_SIGNUP_RESPONSE = 1_001
+    UNIVERSE_SPAWN_REQUEST = 1_002
+    UNIVERSE_SPAWN_RESPONSE = 1_003
+
+    # custom
+    CUSTOM_STRUCT = 20_200, "Custom Struct", "Custom Struct Instance", "fas fa-shapes"
+    CUSTOM_MESSAGE = 20_300, "Custom Message", "Custom Message Instance", "fas fa-envelope"
+
+    # integrity
+    INDEX_DEFINITION = 30_100
+    CONSTRAINT_DEFINITION = 30_200
+    # EXPECTATION_DEFINITION = 30_300
+    MIGRATION_DEFINITION = 31_000
+    MIGRATION_OPERATION_DEFINITION = 31_100
+
+    # logic
+    FUNCTION_DEFINITION = 40_000
+    METHOD_DEFINITION = 40_100
+    ACTION_DEFINITION = 40_200
+
+    # access
+    PERMISSION_DEFINITION = 50_000
+
+    # universe [100_000-200_000]
+    # ...
+
+    # space [200_000-300_000]
+    # ...
+
+    # access [300_000-400_000]
+    # ...
+
+    # data [400_000-500_000]
+    TEXT = 400_020, None, None, "fas fa-text"
+    TEXT_SPAN = 400_021, None, None, "fas fa-text"
+    ICON = 400_031
+    # ...
+
+    # media [500_000-600_000]
+    # ...
+
+    # localization [600_000-700_000]
+    # ...
+
+    # logic [700_000-800_000]
+    SCHEDULE = 700_001
+    # ...
+
+    # quality [800_000-900_000]
+    # ...
+
+    # intelligence [900_000-1_000_000]
+    # ...
+
+    # infrastructure [1_000_000-1_100_000]
+    # ...
+
+    # deployment [1_100_000-1_200_000]
+    # ...
+
+    # observability [1_200_000-1_300_000]
+    # ...
+
+    # experience [1_300_000-1_400_000]
+    # ...
+
+    # social [1_400_000-1_500_000]
+    # ...
+
+    # finance [1_500_000-1_600_000]
+    # ...
+
+    # scene [1_700_000-1_800_000]
+    # ...
+
+    # view [1_800_000-1_900_000]
+    # ...
+
+    # paint [1_900_000-2_000_000]
+    # ...
+
+    # interaction [2_000_000-2_100_000]
+    # ...
+
+    # style [2_100_000-2_200_000]
+    COLOR = 2_100_300, "Color", None, "fas fa-palette"
+    FILL = 2_100_400, "Fill", None, "fas fa-fill"
+    FONT = 2_100_500, "Font", None, "fas fa-text"
+    BORDER = 2_100_600, "Border", None, "fas fa-border-outer"
+    SHADOW = 2_100_700, "Shadow", None, "fas fa-eclipse"
+    GRADIENT = 2_100_800, "Gradient", None, "fas fa-gradient"
+    GRADIENT_STOP = 2_100_801, "Gradient Stop", None, "fas fa-gradient"
+    STROKE = 2_101_100, "Stroke", None, "fas fa-stroke"
+    STROKE_CAP = 2_101_101, "Stroke Cap", None, "fas fa-stroke"
+    STROKE_PATH = 2_101_102, "Stroke Path", None, "fas fa-stroke"
+    STROKE_POINT = 2_101_103, "Stroke Point", None, "fas fa-stroke"
+
+    # animation [2_200_000-2_300_000]
+    TRANSITION = 2_200_000, "Transition", None, "fas fa-bezier-curve"
+    EFFECT = 2_200_100, "Effect", None, "fas fa-sparkle"
+
+    # audio [2_300_000-2_400_000]
+    # ...
+
+    # geometry [2_400_000-2_500_000]
+    VECTOR2 = 2_400_000, None, None, "fas fa-vector-square"
+    VECTOR2I = 2_400_001, None, None, "fas fa-vector-square"
+    VECTOR3 = 2_400_002, None, None, "fas fa-vector-square"
+    VECTOR3I = 2_400_003, None, None, "fas fa-vector-square"
+    VECTOR4 = 2_400_004, None, None, "fas fa-vector-square"
+    VECTOR4I = 2_400_005, None, None, "fas fa-vector-square"
+    QUATERNION = 2_400_010, None, None, "fas fa-vector-square"
+    LENGTH = 2_400_020, "Length", None, "fas fa-ruler"
+    OFFSET2 = 2_400_021, "Position", None, "fas fa-location-crosshair"
+    GRID2 = 2_400_022, "Grid", None, "fas fa-grid-2"
+    GRID_SPAN2 = 2_400_023, "Grid Span", None, "fas fa-grid-2"
+    INSET2 = 2_400_024, "Insets", None, "fas fa-corner"
+    CORNER2 = 2_400_025, "Corners", None, "fas fa-corner"
+    AXIS2 = 2_400_026, "Axis2", None, "fas fa-vector-square"
+    AXIS3 = 2_400_027, "Axis3", None, "fas fa-vector-square"
+    FORM2D = 2_410_000, "Form2D", None, "fas fa-vector-square"
+    LINE2D = 2_410_100, "Line", None, "fas fa-line"
+    ARROW2D = 2_410_200, "Arrow", None, "fas fa-arrow-right"
+    RECTANGLE2D = 2_410_300, "Rectangle", None, "fas fa-rectangle"
+    ELLIPSE2D = 2_410_400, "Ellipse", None, "fas fa-ellipse"
+    CAPSULE2D = 2_410_500, "Capsule", None, "fas fa-capsule"
+    STAR2D = 2_410_600, "Star", None, "fas fa-star"
+    POLYGON2D = 2_411_000, "Polygon", None, "fas fa-polygon"
+    PATH2D = 2_411_100, "Path", None, "fas fa-path"
+    FORM3D = 2_420_000, "Form3D", None, "fas fa-vector-square"
+
+    # physics [2_500_000-2_600_000]
+    # ...
+
+    # lighting [2_600_000-2_700_000]
+    # ...
+
+    # editor [3_000_000-3_100_000]
+    # ...
+
+
+@builtin_enum(EnumType.HANDLE_TYPE)
+class HandleType(Enum):
+    HANDLE = 1, "Handle"
+
+    SESSION = 10, "Session"
+    GRAPH = 11, "Graph"
+
+    LOGGER = 20
+    # CONTEXT?
 
 
 @builtin_enum(EnumType.UNIVERSE_CATEGORY)

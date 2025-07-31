@@ -1,1 +1,2 @@
-export * from "@destack/cli/lib";
+export * from "@destack/cli/console";
+export * from "@destack/cli/parser";

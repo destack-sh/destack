@@ -1,8 +1,8 @@
 from .binary import BinaryReader, BinaryWriter
 from .connection import GraphConnection
+from .context import WORLD_ORACLE, Oracle, WorldOracle
 from .encoder import Encoder, EncoderOptions
 from .graph import Graph
-from .oracle import WORLD_ORACLE, Oracle, WorldOracle
 from .render import Aliasing, get_active_aliasing
 from .session import Session
 

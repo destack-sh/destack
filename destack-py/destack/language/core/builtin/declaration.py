@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
 from .builtin import (
     EnumType,
+    HandleType,
     NodeType,
     ObjectKind,
     ObjectStability,
@@ -20,6 +21,7 @@ from .common import (
 )
 
 if TYPE_CHECKING:
+    from .handle import Handle
     from .node import Node
     from .object import Object
     from .property import PropertyDeclaration
@@ -122,6 +124,26 @@ class NodeDeclaration(ObjectDeclaration):
 
 
 @dataclass(slots=True)
+class HandleDeclaration(ObjectDeclaration):
+    # meta
+    cls: type_["Handle"]
+    kind: Literal[ObjectKind.HANDLE]
+    type: HandleType
+
+    # inheritance
+    base_type: HandleType | None
+    inherits: list[HandleType]
+    inherited_by: list[HandleType]
+    extended_by: list[HandleType]
+
+    # content
+    properties: list["PropertyDeclaration"]
+    methods: list["MethodDeclaration"]
+    constants: list["ConstantDeclaration"]
+    tags: list["TagDeclaration"]
+
+
+@dataclass(slots=True)
 class IndexDeclaration:
     """Declaration of an IndexDefinition (internal use only)."""
 
@@ -166,6 +188,7 @@ class FunctionDeclaration:
     func: Callable
     is_async: bool
     is_abstract: bool
+    is_internal: bool
 
     # content
     tags: tuple[str, ...]
@@ -197,6 +220,7 @@ def builtin_method(
     operator: FunctionOperator | None = None,
     languages: tuple[RuntimeLanguage, ...] | None = None,
     platforms: tuple[PlatformType, ...] | None = None,
+    is_internal: bool = False,
 ):
     """Declare a builtin Method."""
 
@@ -222,6 +246,7 @@ def builtin_action(
     type: ActionType = ActionType.UNARY_IN_UNARY_OUT,
     languages: tuple[RuntimeLanguage, ...] | None = None,
     platforms: tuple[PlatformType, ...] | None = None,
+    is_internal: bool = False,
 ):
     """Declare a builtin Action."""
 

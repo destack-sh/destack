@@ -20,6 +20,7 @@ from destack.language.core import (
 )
 from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
+    HANDLE_DEFINITION_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
 )
@@ -102,8 +103,13 @@ class Universe(Entity):
         value=lambda: list(STRUCT_DEFINITION_BY_TYPE.values()),
         description="All Struct definitions.",
     )
-    ENUMS = builtin_constant(
+    HANDLES = builtin_constant(
         13,
+        value=lambda: list(HANDLE_DEFINITION_BY_TYPE.values()),
+        description="All Handle definitions.",
+    )
+    ENUMS = builtin_constant(
+        14,
         value=lambda: list(ENUM_DEFINITION_BY_TYPE.values()),
         description="All Enum definitions.",
     )

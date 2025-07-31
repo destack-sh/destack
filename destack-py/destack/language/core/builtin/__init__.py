@@ -5,6 +5,7 @@ from .builtin import (
     STRUCT_TYPES,
     TRAIT_TYPES,
     EnumType,
+    HandleType,
     NodeType,
     ObjectKind,
     ObjectStability,
@@ -82,6 +83,7 @@ from .declaration import (
     ActionDeclaration,
     ConstantDeclaration,
     ConstraintDeclaration,
+    HandleDeclaration,
     IndexDeclaration,
     MethodDeclaration,
     NodeDeclaration,
@@ -99,6 +101,7 @@ from .definition import (
     ConstraintDefinition,
     EnumDefinition,
     FunctionDefinition,
+    HandleDefinition,
     IndexDefinition,
     MethodDefinition,
     NodeDefinition,
@@ -108,11 +111,7 @@ from .definition import (
     StructDefinition,
     TagDefinition,
 )
-from .edit import (
-    EditEvent,
-    EditOperation,
-    EditType,
-)
+from .edit import EditEvent, EditOperation, EditType
 from .entity import (
     ENTITY_MATERIALIZATION_ID,
     ENTITY_MATERIALIZATION_KEY,
@@ -123,6 +122,7 @@ from .entity import (
 )
 from .enum import Enum, builtin_enum
 from .event import Event, EventStatus, builtin_event
+from .handle import Handle, builtin_handle
 from .message import Message, builtin_message
 from .node import Node, expand_node_inheritance, expand_node_types
 from .object import Object, _is_finalized
@@ -135,15 +135,10 @@ from .property import (
     parse_type_annotation,
 )
 from .relation import (
-    NodeDefinitionReference,
-    NodeDefinitionType,
     NodeReference,
     ObjectDefinitionReference,
-    ObjectDefinitionType,
     PropertyReference,
     PropertyReferenceType,
-    StructDefinitionReference,
-    StructDefinitionType,
 )
 from .struct import Struct, StructFrozen, builtin_struct
 from .type import (
@@ -236,6 +231,10 @@ __all__ = [
     "FunctionDefinition",
     "FunctionOperator",
     "GraphKey",
+    "Handle",
+    "HandleDeclaration",
+    "HandleDefinition",
+    "HandleType",
     "IndexDeclaration",
     "IndexDefinition",
     "IndexType",
@@ -253,15 +252,12 @@ __all__ = [
     "Node",
     "NodeDeclaration",
     "NodeDefinition",
-    "NodeDefinitionReference",
-    "NodeDefinitionType",
     "NodeReference",
     "NodeType",
     "NumberConstraint",
     "Object",
     "ObjectDeclaration",
     "ObjectDefinitionReference",
-    "ObjectDefinitionType",
     "ObjectKind",
     "ObjectStability",
     "OperatingSystem",
@@ -286,8 +282,6 @@ __all__ = [
     "Struct",
     "StructDeclaration",
     "StructDefinition",
-    "StructDefinitionReference",
-    "StructDefinitionType",
     "StructFrozen",
     "StructType",
     "Tag",
@@ -319,6 +313,7 @@ __all__ = [
     "builtin_entity",
     "builtin_enum",
     "builtin_event",
+    "builtin_handle",
     "builtin_message",
     "builtin_method",
     "builtin_property",

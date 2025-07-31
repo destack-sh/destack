@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Self, assert_never, cast, final
 
 from destack.language.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
 
-from .builtin import NodeType, ObjectStability, StructType, TraitType
+from .builtin import HandleType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 from .common import (
     ActionType,
     CascadeAction,
@@ -20,6 +20,7 @@ from .common import (
 from .declaration import (
     ActionDeclaration,
     ConstraintDeclaration,
+    HandleDeclaration,
     IndexDeclaration,
     MethodDeclaration,
     NodeDeclaration,
@@ -30,12 +31,7 @@ from .declaration import (
 )
 from .object import Object
 from .property import PropertyDeclaration, builtin_property, builtin_property_runtime
-from .relation import (
-    ObjectDefinitionReference,
-    ObjectDefinitionType,
-    PropertyReference,
-    PropertyReferenceType,
-)
+from .relation import PropertyReference, PropertyReferenceType
 from .struct import Struct, StructFrozen, builtin_struct
 from .type import Type
 from .value import Value
@@ -46,6 +42,7 @@ if TYPE_CHECKING:
         ConditionalType,
         ConstantDeclaration,
         ConstraintType,
+        Handle,
         Icon,
         IndexType,
         Node,
@@ -132,6 +129,9 @@ class ObjectDefinition(StructFrozen):
         is_repr=True,
         tags=("meta",),
     )
+
+    def to_ref(self) -> "ObjectDefinitionReference":
+        raise NotImplementedError
 
 
 @builtin_struct(
@@ -531,6 +531,121 @@ class StructDefinition(ObjectDefinition):
 
 
 @builtin_struct(
+    StructType.HANDLE_DEFINITION,
+    frozen=True,
+    is_final=True,
+)
+@final
+class HandleDefinition(ObjectDefinition):
+    """Definition of a builtin Handle."""
+
+    # meta
+    type: HandleType = builtin_property(
+        100,
+        is_repr=True,
+        tags=("meta",),
+    )
+    stability: ObjectStability = builtin_property(
+        105,
+        description="The stability of this Handle (how its definition is expected to change).",
+        tags=("meta",),
+    )
+    taggings: list[UInt8] = builtin_property(
+        109,
+        tags=("meta",),
+    )
+    is_frozen: bool = builtin_property(
+        110,
+        description="Whether this Handle is read-only (cannot be modified).",
+        tags=("meta",),
+    )
+    is_abstract: bool = builtin_property(
+        111,
+        description="Whether this Handle is abstract (cannot be instantiated directly).",
+        tags=("meta",),
+    )
+
+    # content
+    properties: list["PropertyDefinition"] = builtin_property(
+        120,
+        description="All properties of this Handle.",
+        tags=("content",),
+    )
+    methods: list["MethodDefinition"] = builtin_property(
+        125,
+        description="All methods of this Handle (excluding actions).",
+        tags=("content",),
+    )
+    constants: list["ConstantDefinition"] = builtin_property(
+        128,
+        tags=("content",),
+    )
+    tags: list["TagDefinition"] = builtin_property(
+        129,
+        tags=("content",),
+    )
+
+    # inheritance
+    base_type: HandleType | None = builtin_property(
+        130,
+        description="The base type this Handle extends (directly).",
+        tags=("inheritance",),
+    )
+    extended_by: list[HandleType] = builtin_property(
+        131,
+        description="Handles that extend this Handle type (directly).",
+        tags=("inheritance",),
+    )
+    inherits: list[HandleType] = builtin_property(
+        132,
+        description="Handles that this Handle inherits.",
+        tags=("inheritance",),
+    )
+    inherited_by: list[HandleType] = builtin_property(
+        133,
+        description="Handles that inherit this Handle type.",
+        tags=("inheritance",),
+    )
+
+    @classmethod
+    def from_declaration(
+        cls, handle_cls: type_["Handle"], declaration: HandleDeclaration
+    ) -> "HandleDefinition":
+        """Create HandleDefinition from a Handle class."""
+        from ..common import to_icon
+
+        return cls(
+            id=handle_cls.metatype.value,
+            type=handle_cls.metatype,
+            name=handle_cls.__name__,
+            icon=to_icon(handle_cls.metatype.icon) if handle_cls.metatype.icon else None,
+            description=handle_cls.__doc__,
+            stability=declaration.stability,
+            is_frozen=declaration.is_frozen,
+            is_abstract=declaration.is_abstract,
+            # content
+            properties=[
+                prop.definition
+                for prop in handle_cls.__properties__.values()
+                if not prop.is_runtime_only
+            ],
+            methods=[
+                MethodDefinition.from_declaration(handle_cls, method)
+                for method in declaration.methods
+            ],
+            constants=[
+                ConstantDefinition.from_declaration(constant) for constant in declaration.constants
+            ],
+            tags=[TagDefinition.from_declaration(tag) for tag in declaration.tags],
+            # inheritance
+            base_type=declaration.base_type,
+            extended_by=list(declaration.extended_by),
+            inherits=list(declaration.inherits),
+            inherited_by=list(declaration.inherited_by),
+        )
+
+
+@builtin_struct(
     StructType.ENUM_DEFINITION,
     frozen=True,
     is_final=True,
@@ -667,25 +782,24 @@ Whether this Property is part of the object's identity.
     @builtin_method(102)
     def to_ref(self) -> PropertyReference:
         """Convert to a PropertyReference."""
-        if self.object.type == ObjectDefinitionType.BUILTIN_NODE:
+        if self.object.kind == ObjectKind.NODE:
             return PropertyReference(
                 type=PropertyReferenceType.BUILTIN,
                 node_type=self.object.node_type,
                 id=self.id,
             )
-        elif self.object.type == ObjectDefinitionType.BUILTIN_STRUCT:
+        elif self.object.kind == ObjectKind.STRUCT:
             return PropertyReference(
                 type=PropertyReferenceType.BUILTIN,
                 struct_type=self.object.struct_type,
                 id=self.id,
             )
-        elif (
-            self.object.type == ObjectDefinitionType.CUSTOM_NODE
-            or self.object.type == ObjectDefinitionType.CUSTOM_STRUCT
-        ):
-            raise RuntimeError(f"{self!r} cannot be associated with a custom object")
+        elif self.object.kind == ObjectKind.HANDLE:
+            return PropertyReference(
+                type=PropertyReferenceType.BUILTIN, handle_type=self.object.handle_type, id=self.id
+            )
         else:
-            assert_never(self.object.type)
+            assert_never(self.object.kind)
 
     @builtin_method(110)
     def eq(self, value: Any) -> "Condition":

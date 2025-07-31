@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
+    CustomEventDefinition,
     Entity,
     Enum,
     EnumType,
     Event,
-    NodeDefinitionReference,
     NodeType,
     Value,
     builtin_entity,
@@ -40,7 +40,7 @@ class Trigger(Entity):
     icon: "Icon | None" = builtin_property(102)
 
     # when
-    event: Optional[NodeDefinitionReference] = builtin_property(110)
+    event: Optional[CustomEventDefinition] = builtin_property(110)
     where: Optional["Condition"] = builtin_property(111)
     # sampling?
     # is_passive/scope/process_mode/liveness?

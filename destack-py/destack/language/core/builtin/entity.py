@@ -331,6 +331,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The custom Values of this Entity, keyed by custom Property name.",
         tags=("entity",),
     )
+    # context/context_values, ...?
     script: Optional["Script"] = builtin_property(
         46,
         description="The Script of this Entity.",

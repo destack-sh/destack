@@ -1,4 +1,3 @@
-import abc
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -77,11 +76,10 @@ def _process_struct_cls(
 
     # process object class
     cls, _ = _process_object_cls(cast(type["Struct"], cls), declaration)
-    if struct_type is not None:
-        cls.metatype = struct_type
+    cls.metatype = struct_type
 
     # register struct
-    if struct_type is not None and cls.__name__ != "StructFrozen":
+    if cls.__name__ != "StructFrozen":
         assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
             f"struct class {cls} is not a Struct"
         )
@@ -155,7 +153,7 @@ def builtin_struct(
 
 
 @builtin_struct(StructType.STRUCT, is_abstract=True)
-class Struct(Object, abc.ABC):
+class Struct(Object):
     """A Struct is an ordered collection of Properties."""
 
     # meta

@@ -7,10 +7,10 @@ from typing import (
     final,
 )
 
-from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from destack.language.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, NodeType, StructType
+from .builtin import EnumType, HandleType, NodeType, ObjectKind, StructType
 from .common import UInt8
 from .enum import Enum, builtin_enum
 from .object import Object
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         CustomPropertyDefinition,
         CustomStructDefinition,
         Entity,
+        Handle,
         Node,
         PropertyDefinition,
         Type,
@@ -33,126 +34,32 @@ if TYPE_CHECKING:
 type_ = type
 
 
-@builtin_enum(EnumType.NODE_DEFINITION_TYPE)
-class NodeDefinitionType(Enum):
-    BUILTIN = 1
-    CUSTOM = 2
-
-
-@builtin_struct(StructType.NODE_DEFINITION_REFERENCE, frozen=True, is_final=True)
-@final
-class NodeDefinitionReference(StructFrozen):
-    """Reference to a Node definition."""
-
-    type: NodeDefinitionType = builtin_property(100, is_repr=True)
-    node_type: NodeType = builtin_property(101, is_repr=True)
-    definition: Optional["Entity"] = builtin_property(105, is_repr=True)
-    if TYPE_CHECKING:
-        definition_ptr: Optional["NodeReference"] = None
-
-    @property
-    def is_multi(self) -> bool:
-        """Whether this definition references multiple Node definitions"""
-        if self.type == NodeDefinitionType.BUILTIN:
-            assert self.node_type is not None, f"no node_type for {self!r}"
-            node_cls = NODE_CLASS_BY_TYPE[self.node_type]
-            return bool(node_cls.__definition__.inherited_by)
-        elif self.type == NodeDefinitionType.CUSTOM:
-            raise NotImplementedError(f"unexpected node definition reference: {self!r}")
-        else:
-            assert_never(self.type)
-
-    @property
-    def object_cls(self) -> type_[Object] | None:
-        return NODE_CLASS_BY_TYPE.get(self.node_type)
-
-    def resolve_property_maybe(self, key: str | int) -> "PropertyDeclaration | None":
-        """Resolve a Property in this definition."""
-        object_cls = self.object_cls
-        if object_cls is None:
-            raise ValueError(f"could not resolve {self!r}")
-        if isinstance(key, str):
-            return object_cls.__properties_by_alias__.get(key)
-        elif isinstance(key, int):
-            return object_cls.__properties_by_id__.get(key)
-        else:
-            assert_never(key)
-
-    def resolve_property(self, name: str) -> "PropertyDeclaration":
-        """Resolve a Property in this definition (error if not found)."""
-        resolved = self.resolve_property_maybe(name)
-        if resolved is None:
-            raise LookupError(f"could not find property {name!r} in {self!r}")
-        return resolved
-
-    @classmethod
-    def of(cls, base: "NodeType | type[Node] | NodeReference") -> "NodeDefinitionReference":
-        if isinstance(base, NodeType):
-            return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN, node_type=base)
-        elif isinstance(base, type):
-            return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN, node_type=base.metatype)
-        elif isinstance(base, NodeReference):
-            if base.definition_id is not None:
-                node_cls = NODE_CLASS_BY_TYPE[base.type]
-                if NodeType.ENTITY in node_cls.__definition__.inherits:
-                    definition_node_type = base.type  # same as instance
-                elif NodeType.EVENT in node_cls.__definition__.inherits:
-                    definition_node_type = NodeType.CUSTOM_EVENT_DEFINITION
-                else:
-                    raise ValueError(f"unexpected node reference: {base!r}")
-                definition_ptr = NodeReference(
-                    type=definition_node_type, id=base.definition_id, space_id=base.space_id
-                )
-                return NodeDefinitionReference(
-                    type=NodeDefinitionType.CUSTOM,
-                    node_type=base.type,
-                    definition_ptr=definition_ptr,
-                )
-            else:
-                return NodeDefinitionReference(type=NodeDefinitionType.BUILTIN, node_type=base.type)
-        else:
-            assert_never(base)
-
-
-@builtin_enum(EnumType.OBJECT_DEFINITION_TYPE)
-class ObjectDefinitionType(Enum):
-    BUILTIN_NODE = 1
-    CUSTOM_NODE = 2
-    BUILTIN_STRUCT = 5
-    CUSTOM_STRUCT = 6
-    # BUILTIN_ENUM, CUSTOM_ENUM?
-
-
 @builtin_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True, is_final=True)
 @final
 class ObjectDefinitionReference(StructFrozen):
     """Reference to an object "type" (builtin, custom or trait)."""
 
-    type: ObjectDefinitionType = builtin_property(100, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(101, is_repr=True)
+    kind: ObjectKind = builtin_property(101, is_repr=True)
+    node_type: Optional[NodeType] = builtin_property(102, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(103, is_repr=True)
-    custom_definition: Optional["Entity"] = builtin_property(105, is_repr=True)
+    handle_type: Optional[HandleType] = builtin_property(104, is_repr=True)
+    definition: "Entity | None" = builtin_property(106, is_repr=True)
     if TYPE_CHECKING:
-        custom_definition_ptr: Optional["NodeReference"] = None
-
-    def to_ref(self) -> "ObjectDefinitionReference":
-        """Get this ObjectDefinitionReference (for convenience)."""
-        return self
+        definition_ptr: Optional["NodeReference"] = None
 
     @property
     def object_cls(self) -> type_[Object] | None:
-        if self.type == ObjectDefinitionType.BUILTIN_NODE:
+        if self.kind == ObjectKind.NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"
             return NODE_CLASS_BY_TYPE.get(self.node_type)
-        elif self.type == ObjectDefinitionType.CUSTOM_NODE:
-            raise NotImplementedError(f"unexpected object definition reference: {self!r}")
-        elif self.type == ObjectDefinitionType.BUILTIN_STRUCT:
+        elif self.kind == ObjectKind.STRUCT:
             assert self.struct_type is not None, f"no struct_type for {self!r}"
             return STRUCT_CLASS_BY_TYPE.get(self.struct_type)
-        elif self.type == ObjectDefinitionType.CUSTOM_STRUCT:
-            raise NotImplementedError(f"unexpected object definition reference: {self!r}")
+        elif self.kind == ObjectKind.HANDLE:
+            assert self.handle_type is not None, f"no handle_type for {self!r}"
+            return HANDLE_CLASS_BY_TYPE.get(self.handle_type)
         else:
-            assert_never(self.type)
+            assert_never(self.kind)
 
     def resolve_property_maybe(self, name: str | int) -> "PropertyDeclaration | None":
         """Resolve a Property in this definition."""
@@ -180,31 +87,31 @@ class ObjectDefinitionReference(StructFrozen):
             "NodeType",
             "type[Node]",
             "type[Struct]",
+            "type[Handle]",
             "CustomEventDefinition",
             "CustomStructDefinition",
         ],
     ) -> "ObjectDefinitionReference":
         from ..common.custom import CustomEventDefinition, CustomStructDefinition
+        from .handle import Handle
         from .node import Node
 
         if isinstance(definition, NodeType):
-            return ObjectDefinitionReference(
-                type=ObjectDefinitionType.BUILTIN_NODE, node_type=definition
-            )
+            return ObjectDefinitionReference(kind=ObjectKind.NODE, node_type=definition)
         elif isinstance(definition, StructType):
-            return ObjectDefinitionReference(
-                type=ObjectDefinitionType.BUILTIN_STRUCT, struct_type=definition
-            )
+            return ObjectDefinitionReference(kind=ObjectKind.STRUCT, struct_type=definition)
         elif isinstance(definition, type):
             if issubclass(definition, Node):
                 return ObjectDefinitionReference(
-                    type=ObjectDefinitionType.BUILTIN_NODE,
-                    node_type=cast(NodeType, definition.metatype),
+                    kind=ObjectKind.NODE, node_type=cast(NodeType, definition.metatype)
                 )
             elif issubclass(definition, Struct):
                 return ObjectDefinitionReference(
-                    type=ObjectDefinitionType.BUILTIN_STRUCT,
-                    struct_type=definition.metatype,
+                    kind=ObjectKind.STRUCT, struct_type=definition.metatype
+                )
+            elif issubclass(definition, Handle):
+                return ObjectDefinitionReference(
+                    kind=ObjectKind.HANDLE, handle_type=cast(HandleType, definition.metatype)
                 )
             else:
                 assert_never(definition)
@@ -212,34 +119,6 @@ class ObjectDefinitionReference(StructFrozen):
             raise NotImplementedError(f"unexpected object definition reference: {definition!r}")
         else:
             assert_never(definition)
-
-
-@builtin_enum(EnumType.STRUCT_DEFINITION_TYPE)
-class StructDefinitionType(Enum):
-    BUILTIN_STRUCT = 1
-    CUSTOM_STRUCT = 2
-    BUILTIN_ENUM = 3
-    CUSTOM_ENUM = 4
-
-
-@builtin_struct(
-    StructType.STRUCT_DEFINITION_REFERENCE,
-    frozen=True,
-    is_final=True,
-)
-@final
-class StructDefinitionReference(StructFrozen):
-    """Reference to a Struct definition (builtin, custom or by trait)."""
-
-    type: StructDefinitionType = builtin_property(100, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(101, is_repr=True)
-    definition: "CustomStructDefinition" = builtin_property(105, is_repr=True)
-    if TYPE_CHECKING:
-        definition_ptr: Optional["NodeReference"] = None
-
-    def to_ref(self) -> "StructDefinitionReference":
-        """Get this StructDefinitionReference (for convenience)."""
-        return self
 
 
 @builtin_enum(EnumType.PROPERTY_REFERENCE_TYPE)
@@ -264,6 +143,7 @@ class PropertyReference(StructFrozen):
     type: PropertyReferenceType = builtin_property(100, is_repr=True)
     node_type: NodeType | None = builtin_property(101, is_repr=True)
     struct_type: StructType | None = builtin_property(103, is_repr=True)
+    handle_type: HandleType | None = builtin_property(104, is_repr=True)
     id: UInt8 | None = builtin_property(
         105,
         is_repr=True,
@@ -291,6 +171,8 @@ class PropertyReference(StructFrozen):
                 object_cls = NODE_CLASS_BY_TYPE[node_type]
             elif (struct_type := self.struct_type) is not None:
                 object_cls = STRUCT_CLASS_BY_TYPE[struct_type]
+            elif (handle_type := self.handle_type) is not None:
+                object_cls = HANDLE_CLASS_BY_TYPE[handle_type]
             else:
                 object_cls = Node
             assert self.id is not None, f"no id for {self!r}"

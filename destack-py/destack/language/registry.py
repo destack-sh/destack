@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, assert_never
 
 from .core.builtin.builtin import (
     EnumType,
+    HandleType,
     NodeType,
     StructType,
     TraitType,
@@ -12,9 +13,10 @@ if TYPE_CHECKING:
     from destack.language import (
         Enum,
         EnumDefinition,
+        Handle,
+        HandleDefinition,
         Node,
         NodeDefinition,
-        NodeDefinitionReference,
         Object,
         ObjectDefinitionReference,
         Struct,
@@ -31,10 +33,13 @@ NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["Struct"], StructType] = {}
 
-NODE_DEFINITION_REFERENCE_BY_CLASS: dict[type["Node"], "NodeDefinitionReference"] = {}
+HANDLE_CLASS_BY_TYPE: dict[HandleType, type["Handle"]] = {}
+HANDLE_TYPE_BY_CLASS: dict[type["Handle"], HandleType] = {}
+
 OBJECT_DEFINITION_REFERENCE_BY_CLASS: dict[type["Object"], "ObjectDefinitionReference"] = {}
 ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
+HANDLE_DEFINITION_BY_TYPE: dict[HandleType, "HandleDefinition"] = {}
 NODE_DEFINITION_BY_TYPE: dict[NodeType, "NodeDefinition"] = {}
 
 NODE_TYPE_SCALAR_BY_TYPE: dict[NodeType, "Type"] = {}
