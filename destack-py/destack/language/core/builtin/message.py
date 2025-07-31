@@ -76,7 +76,7 @@ def builtin_message(
 class Message(StructFrozen):
     """
     A Message contains data for communicating with Nodes via Actions.
-    
+
     Because Message are as-is provided by Clients, they only contain client-authority data.
     """
 
@@ -94,7 +94,7 @@ class Message(StructFrozen):
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
-        description="The Client that created this Message (client).",
+        description="The Client that created this Message (client, but verified).",
         tags=("tracking",),
     )
     client_nonce: UUID = builtin_property(

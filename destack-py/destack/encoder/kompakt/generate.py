@@ -211,7 +211,6 @@ if _object.{prop_name} is None:
                 pack_code = self._wrap_pack_maybe(pack_code, f"_object.{prop_name} is not None")
             # if the property order may change, prefix with property id
             # (always write property id so we know which properties are null)
-            body_lines.append(f"print('WRITE PROPERTY: {prop.id}')")
             if stability == ObjectStability.DYNAMIC:
                 body_lines.append(f"_writer.write_uint8({prop.id})")
             body_lines.append(pack_code)
@@ -279,7 +278,6 @@ if _object.{prop_name} is None:
             body_lines.append(f"""\
 for _i in range(_num_set_properties):
     _prop_id = _reader.read_uint8()
-    print(f"READ PROPERTY: {{_i}}->{{_prop_id}}")
     # _prop_bytes = _reader.read_uint32()
 {textwrap.indent("\n".join(prop_map_lines), " " * 4)}
     else:
@@ -600,7 +598,6 @@ for _ in range({key}_length):
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},
                 locals_,
                 encoder_name,
-                log=True,  # nocheckin
             )
             encoder_cls = locals_[encoder_name]
             encoders[node_cls.metakind, node_cls.metatype] = encoder_cls()
