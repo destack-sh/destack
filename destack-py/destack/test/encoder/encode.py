@@ -63,7 +63,7 @@ def _do_test_roundtrip_object(
         print("-" * 80)
 
     reader = _BinaryReader(packed_obj_bytes)
-    unpacked_obj = encoder.unpack_object_binary(None, reader, session)
+    unpacked_obj = encoder.unpack_object_binary(None, None, reader, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
     return packed_obj_bytes

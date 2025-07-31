@@ -67,13 +67,14 @@ class KompaktEncoder(Encoder[bytes]):
     @override
     def unpack_object(
         self,
-        type: tuple[ObjectKind, int] | None,
+        kind: ObjectKind | None,
+        type: int | None,
         value: bytes,
         session: Session | None,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         reader = BinaryReader(value)
-        object = self.unpack_object_binary(type, reader, session, options)
+        object = self.unpack_object_binary(kind, type, reader, session, options)
         return object
 
     @override
@@ -96,19 +97,22 @@ class KompaktEncoder(Encoder[bytes]):
     @override
     def unpack_object_binary(
         self,
-        type: tuple[ObjectKind, int] | None,
+        kind: ObjectKind | None,
+        type: int | None,
         reader: BinaryReader,
         session: Session | None,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         # metatype
-        if type is None:
+        if kind is None or type is None:
             metakind = ObjectKind(reader.read_uint8())
             metatype = reader.read_uint32()
-            type = (metakind, metatype)
+            key = (metakind, metatype)
+        else:
+            key = (kind, type)
         # object
-        encoder = self.encoders.get(type)
-        assert encoder is not None, f"no KompaktObjectEncoder for {type!r}"
+        encoder = self.encoders.get(key)
+        assert encoder is not None, f"no KompaktObjectEncoder for {key!r}"
         return encoder.unpack_object(self, reader, session, options)
 
     @override
@@ -523,13 +527,15 @@ class KompaktEncoder(Encoder[bytes]):
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
             if struct_cls.__declaration__.is_final:
                 return self.unpack_object_binary(
-                    (ObjectKind.STRUCT, type.struct_type),
+                    ObjectKind.STRUCT,
+                    type.struct_type,
                     reader,
                     session,
                     options | EncoderOptions.OMIT_METATYPE,
                 )
             else:
                 return self.unpack_object_binary(
+                    None,
                     None,
                     reader,
                     session,
@@ -538,7 +544,8 @@ class KompaktEncoder(Encoder[bytes]):
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return self.unpack_object_binary(
-                (ObjectKind.STRUCT, StructType.NODE_REFERENCE),
+                ObjectKind.STRUCT,
+                StructType.NODE_REFERENCE,
                 reader,
                 session,
                 options | EncoderOptions.OMIT_METATYPE,
@@ -546,6 +553,7 @@ class KompaktEncoder(Encoder[bytes]):
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return self.unpack_object_binary(
+                None,
                 None,
                 reader,
                 session,

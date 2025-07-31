@@ -48,7 +48,8 @@ class Encoder[T: Any = Any]:
     @abstractmethod
     def unpack_object(
         self,
-        type: tuple[ObjectKind, int] | None,
+        kind: ObjectKind | None,
+        type: int | None,
         value: T,
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
@@ -72,7 +73,8 @@ class Encoder[T: Any = Any]:
     @abstractmethod
     def unpack_object_binary(
         self,
-        type: tuple[ObjectKind, int] | None,
+        kind: ObjectKind | None,
+        type: int | None,
         reader: "BinaryReader",
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,

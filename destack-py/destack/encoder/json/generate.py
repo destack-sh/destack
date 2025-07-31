@@ -651,18 +651,18 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
             if struct_cls.__declaration__.is_final:
                 return f"""\
-_encoder.unpack_object(({ObjectKind.STRUCT}, {type.struct_type}), {source_expr}, _session, _options)"""
+_encoder.unpack_object({ObjectKind.STRUCT}, {type.struct_type}, {source_expr}, _session, _options)"""
             else:
                 return f"""\
-_encoder.unpack_object(None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
+_encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"""\
-_encoder.unpack_object(({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}), {source_expr}, _session, _options)"""
+_encoder.unpack_object({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, {source_expr}, _session, _options)"""
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return f"""\
-_encoder.unpack_object(None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
+_encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack Handle: {type!r}")

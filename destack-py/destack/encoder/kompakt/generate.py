@@ -568,15 +568,15 @@ for _ in range({key}_length):
             assert type.struct_type is not None, f"no struct type for {type!r}"
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
             if struct_cls.__declaration__.is_final:
-                return f"_encoder.unpack_object_binary(({ObjectKind.STRUCT}, {type.struct_type}), _reader, _session, _options)"
+                return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, _reader, _session, _options)"
             else:
-                return "_encoder.unpack_object_binary(None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
+                return "_encoder.unpack_object_binary(None, None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"_encoder.unpack_object_binary(({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}), _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            return "_encoder.unpack_object_binary(None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack Handle: {type!r}")

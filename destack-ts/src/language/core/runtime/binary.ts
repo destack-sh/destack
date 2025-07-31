@@ -37,7 +37,7 @@ export class BinaryWriter {
     return new Uint8Array(this.buffer, 0, this.pos);
   }
 
-  private ensureCapacity(additional: number): void {
+  private _ensureCapacity(additional: number): void {
     const needed = this.pos + additional;
     if (needed > this.buffer.byteLength) {
       // grow buffer by at least 50% or to needed size
@@ -58,7 +58,7 @@ export class BinaryWriter {
    * Size: 1 byte.
    */
   writeBool(value: boolean): void {
-    this.ensureCapacity(1);
+    this._ensureCapacity(1);
     this.view.setUint8(this.pos++, value ? 1 : 0);
   }
 
@@ -68,7 +68,7 @@ export class BinaryWriter {
    * Size: 1 byte.
    */
   writeInt8(value: number): void {
-    this.ensureCapacity(1);
+    this._ensureCapacity(1);
     this.view.setInt8(this.pos++, value);
   }
 
@@ -114,7 +114,7 @@ export class BinaryWriter {
    * Size: 1 byte.
    */
   writeUint8(value: number): void {
-    this.ensureCapacity(1);
+    this._ensureCapacity(1);
     this.view.setUint8(this.pos++, value);
   }
 
@@ -160,7 +160,7 @@ export class BinaryWriter {
    * Size: 2 bytes.
    */
   writeFloat16(value: number): void {
-    this.ensureCapacity(2);
+    this._ensureCapacity(2);
     const float16Bytes = this.encodeFloat16(value);
     this.view.setUint8(this.pos++, float16Bytes[0]);
     this.view.setUint8(this.pos++, float16Bytes[1]);
@@ -172,7 +172,7 @@ export class BinaryWriter {
    * Size: 4 bytes.
    */
   writeFloat32(value: number): void {
-    this.ensureCapacity(4);
+    this._ensureCapacity(4);
     this.view.setFloat32(this.pos, value, true); // little-endian
     this.pos += 4;
   }
@@ -183,7 +183,7 @@ export class BinaryWriter {
    * Size: 8 bytes.
    */
   writeFloat64(value: number): void {
-    this.ensureCapacity(8);
+    this._ensureCapacity(8);
     this.view.setFloat64(this.pos, value, true); // little-endian
     this.pos += 8;
   }
@@ -257,7 +257,7 @@ export class BinaryWriter {
     if (hex.length !== 32) {
       throw new BinaryError("UUID must be a valid 32-character hex string");
     }
-    this.ensureCapacity(16);
+    this._ensureCapacity(16);
     for (let i = 0; i < 16; i++) {
       this.view.setUint8(this.pos++, parseInt(hex.slice(i * 2, i * 2 + 2), 16));
     }
@@ -270,7 +270,7 @@ export class BinaryWriter {
    */
   writeBytes(value: Uint8Array): void {
     this.writeVarintNUmber(value.length);
-    this.ensureCapacity(value.length);
+    this._ensureCapacity(value.length);
     new Uint8Array(this.buffer, this.pos, value.length).set(value);
     this.pos += value.length;
   }
@@ -288,7 +288,7 @@ export class BinaryWriter {
    * - 7: object (length + key-value pairs)
    */
   writeJson(value: any): void {
-    this.ensureCapacity(1);
+    this._ensureCapacity(1);
     if (value === null) {
       this.view.setUint8(this.pos++, 0);
     } else if (value === false) {
@@ -333,7 +333,7 @@ export class BinaryWriter {
   }
 
   private writeVarintNUmber(value: number): void {
-    this.ensureCapacity(5); // max 5 bytes for 32-bit
+    this._ensureCapacity(5); // max 5 bytes for 32-bit
     // convert to unsigned 32-bit
     value = value >>> 0;
     while (value >= 0x80) {
@@ -344,7 +344,7 @@ export class BinaryWriter {
   }
 
   private writeVarintBigint(value: bigint): void {
-    this.ensureCapacity(19); // max 19 bytes for 128-bit
+    this._ensureCapacity(19); // max 19 bytes for 128-bit
     while (value >= 0x80n) {
       this.view.setUint8(this.pos++, Number(value & 0x7fn) | 0x80);
       value = value >> 7n;
