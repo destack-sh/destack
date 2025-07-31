@@ -26,13 +26,13 @@ if TYPE_CHECKING:
 class Rectangle2D(Form2D):
     """A Rectangle is a rectangle."""
 
-    width: Float32 = builtin_property(210)
-    height: Float32 = builtin_property(220)
+    width: Float32 = builtin_property(210, is_repr=True)
+    height: Float32 = builtin_property(220, is_repr=True)
 
 
 @builtin_entity(NodeType.RECTANGLE_SHAPE2D)
 class RectangleShape2D(Shape2D):
     """A RectangleShape is a shape that represents a rectangle."""
 
-    width: Float32 = builtin_property(210)
-    height: Float32 = builtin_property(220)
+    width: Float32 = builtin_property(210, is_repr=True)
+    height: Float32 = builtin_property(220, is_repr=True)

@@ -13,9 +13,9 @@ def exec_(code: str, globals: dict, locals: dict, filename: str, log: bool = Fal
     if log:
         print("=" * 80)  # noqa: T201
         print(filename)  # noqa: T201
-        print("=" * 80)  # noqa: T201
+        print("-" * 80)  # noqa: T201
         print(code)  # noqa: T201
-        print("=" * 80)  # noqa: T201
+        print("-" * 80)  # noqa: T201
     assert filename not in linecache.cache, f"filename {filename} already in cache"
     linecache.cache[filename] = (
         len(code),  # size (ignored)

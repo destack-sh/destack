@@ -305,8 +305,8 @@ test("float16", () => {
     Number.POSITIVE_INFINITY,
     Number.NEGATIVE_INFINITY,
     Number.NaN,
-    3.14159,
-    -3.14159,
+    Math.PI,
+    -Math.PI,
     65504.0, // max normal float16
   ];
 
@@ -345,8 +345,8 @@ test("float32", () => {
     Number.POSITIVE_INFINITY,
     Number.NEGATIVE_INFINITY,
     Number.NaN,
-    3.14159,
-    -3.14159,
+    Math.PI,
+    -Math.PI,
   ];
 
   const writer2 = new BinaryWriter();
@@ -384,8 +384,8 @@ test("float64", () => {
     Number.POSITIVE_INFINITY,
     Number.NEGATIVE_INFINITY,
     Number.NaN,
-    3.14159,
-    -3.14159,
+    Math.PI,
+    -Math.PI,
     1e100,
     -1e100,
   ];
@@ -733,7 +733,11 @@ test("json", () => {
     },
     // complex boolean and null patterns
     {
-      matrix: [[true, false, null], [null, true, false], [false, null, true]],
+      matrix: [
+        [true, false, null],
+        [null, true, false],
+        [false, null, true],
+      ],
       flags: {
         enabled: true,
         disabled: false,

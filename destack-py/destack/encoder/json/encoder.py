@@ -26,6 +26,7 @@ from destack.language.core import (
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.log import get_logger
+from destack.utils.string import Casing, to_casing
 from destack.utils.telemetry import get_tracer
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
@@ -67,6 +68,7 @@ class JsonEncoder(Encoder[Json]):
         object: Object,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> dict[str, Any]:
+        # object
         type = (object.metakind, object.metatype)
         encoder = self.encoders.get(type)
         assert encoder is not None, f"no JsonObjectEncoder for {type!r}"
@@ -89,7 +91,7 @@ class JsonEncoder(Encoder[Json]):
         session: Session | None,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        # infer metatype from value
+        # metatype
         if type is None:
             metakind_key = self.get_target_property_key(METAKIND_PROPERTY)
             metakind = self.unpack_scalar_enum(ObjectKind, value[metakind_key])
@@ -103,6 +105,7 @@ class JsonEncoder(Encoder[Json]):
                 type = (metakind, metatype)
             else:
                 assert_never(metakind)
+        # object
         encoder = self.encoders.get(type)
         assert encoder is not None, f"no JsonObjectEncoder for {type!r}"
         return encoder.unpack_object(self, value, session, options)
@@ -114,10 +117,7 @@ class JsonEncoder(Encoder[Json]):
         writer: BinaryWriter,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
-        type = (object.metakind, object.metatype)
-        encoder = self.encoders.get(type)
-        assert encoder is not None, f"no JsonObjectEncoder for {type!r}"
-        object_packed = encoder.pack_object(self, object, options)
+        object_packed = self.pack_object(object, options)
         writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
 
     @override
@@ -172,7 +172,7 @@ class JsonEncoder(Encoder[Json]):
         return unpacked_type
 
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
-        return str(prop.id)
+        return to_casing(prop.name, Casing.LOWER_CAMEL)
 
     @override
     def pack_value(

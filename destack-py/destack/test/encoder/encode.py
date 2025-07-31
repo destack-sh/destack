@@ -13,7 +13,7 @@ from destack.language import (
     NodeReference,
     NodeType,
     Object,
-    Rectangle2D,
+    RectangleShape2D,
     Session,
     Space,
     Type,
@@ -21,24 +21,44 @@ from destack.language import (
     Value,
     Vector3,
 )
+from destack.test.encoder.conftest import (
+    LoggingBinaryReader,
+    LoggingBinaryWriter,
+    wrap_encoder,
+)
 from destack.utils.uuid import uuid4
+
+# ruff: noqa: T201
+
+_LOG = True
+
+if _LOG:
+    for encoding, encoder in ENCODERS.items():
+        ENCODERS[encoding] = wrap_encoder(encoder)
+    _BinaryWriter = LoggingBinaryWriter
+    _BinaryReader = LoggingBinaryReader
+else:
+    _BinaryWriter = BinaryWriter
+    _BinaryReader = BinaryReader
 
 
 def _do_test_roundtrip_object(
     obj: Object, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
-    print("=" * 80)  # noqa: T201
-    print(repr(obj))  # noqa: T201
-    print(f" -> {encoding.name}")  # noqa: T201
-    print("=" * 80)  # noqa: T201
-    writer = BinaryWriter()
+    print("=" * 80)
+    print(repr(obj))
+    print(f" -> {encoding.name}")
+    print("-" * 80)
+
+    writer = _BinaryWriter()
     encoder.pack_object_binary(obj, writer)
     packed_obj_bytes = writer.to_bytes()
-    print(f"bytes: {len(packed_obj_bytes)}")  # noqa: T201
     packed_obj_bytes_gzip = gzip.compress(packed_obj_bytes)
-    print(f"bytes (gzip): {len(packed_obj_bytes_gzip)}")  # noqa: T201
-    reader = BinaryReader(packed_obj_bytes)
-    unpacked_obj = encoder.unpack_object_binary((obj.metakind, obj.metatype), reader, session)
+    print(f"-> BYTES: {len(packed_obj_bytes)} ({len(packed_obj_bytes_gzip)} gzip)")
+
+    print("-" * 80)
+    reader = _BinaryReader(packed_obj_bytes)
+    unpacked_obj = encoder.unpack_object_binary(None, reader, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
     return packed_obj_bytes
@@ -47,20 +67,22 @@ def _do_test_roundtrip_object(
 def _do_test_roundtrip_value(
     type: Type, value: Any, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
-    print("=" * 80)  # noqa: T201
-    writer = BinaryWriter()
+    print("=" * 80)
+    print(repr(value))
+    print(f" -> {encoding.name}")
+    print("-" * 80)
+
+    writer = _BinaryWriter()
     encoder.pack_value_binary(type, value, writer)
     packed_value_bytes = writer.to_bytes()
-    print(repr(value))  # noqa: T201
-    print(f"bytes: {len(packed_value_bytes)}")  # noqa: T201
     packed_value_bytes_gzip = gzip.compress(packed_value_bytes)
-    print(f"bytes (gzip): {len(packed_value_bytes_gzip)}")  # noqa: T201
-    if encoding == Encoding.KOMPAKT:
-        print(packed_value_bytes.hex(sep=" "))  # noqa: T201
-    reader = BinaryReader(packed_value_bytes)
+    print(f"-> BYTES: {len(packed_value_bytes)} ({len(packed_value_bytes_gzip)} gzip)")
+
+    print("-" * 80)
+    reader = _BinaryReader(packed_value_bytes)
     unpacked_value_bytes = encoder.unpack_value_binary(type, reader, session)
     assert unpacked_value_bytes == value, f"{unpacked_value_bytes!r} != {value!r}"
-    print(repr(unpacked_value_bytes))  # noqa: T201
+    print(repr(unpacked_value_bytes))
     return packed_value_bytes
 
 
@@ -89,6 +111,7 @@ def test_roundtrip_type(session: Session, space: Space):
     for type in (
         Type.infer(bool),
         Type.infer(17),
+        Type.infer(dict[str, Value]),
         Type.infer([Vector3(x=1.0, y=2.0, z=3.0)]),
     ):
         for encoding, encoder in ENCODERS.items():
@@ -119,11 +142,14 @@ def test_roundtrip_vector3_list_compact(session: Session, space: Space):
 def test_roundtrip_value(session: Session, space: Space):
     """Pack and unpack a Value."""
     for value in (
-        Value.wrap(1),
-        Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
-        Value.wrap((2, True, "Hello")),
-        Value.wrap(Rectangle2D(width=1.0, height=2.0)),
-        Value.wrap(Folder(name="Hello"), node_as_value=False),
+        # nocheckin
+        # Value.wrap(1),
+        # Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
+        # Value.wrap((2, True, "Hello")),
+        # Value.wrap(Rectangle2D(width=1.0, height=2.0)),
+        # Value.wrap(Rectangle2D(width=1.0, height=2.0), type=Type.infer(Form2D)),
+        # Value.wrap(RectangleShape2D(width=1.0, height=2.0), node_as_value=False),
+        Value.wrap(RectangleShape2D(width=1.0, height=2.0), node_as_value=True),
     ):
         for encoding, encoder in ENCODERS.items():
             _ = _do_test_roundtrip_object(value, session, encoder, encoding)

@@ -1,11 +1,7 @@
 import abc
 from collections.abc import Collection, Sequence
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Optional,
-    final,
-)
+from typing import TYPE_CHECKING, Optional, final
 
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
@@ -21,7 +17,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-class Graph(abc.ABC):
+class Graph:
     """
     A Graph is a collection of Nodes from one or multiple Spaces (across time).
     """
