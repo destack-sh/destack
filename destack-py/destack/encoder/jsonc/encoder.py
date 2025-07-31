@@ -1,11 +1,7 @@
 from enum import Enum
 from typing import Any, ClassVar, cast, override
 
-from destack.language.core import (
-    Encoding,
-    ObjectKind,
-    StructType,
-)
+from destack.language.core import Encoding, ObjectKind, PropertyDeclaration, StructType
 
 from ..json.encoder import JsonEncoder, JsonObjectEncoder, JsonValueEncoder
 
@@ -24,6 +20,10 @@ class JsoncEncoder(JsonEncoder):
         encoders[ObjectKind.STRUCT, StructType.VALUE] = cast(JsonObjectEncoder, JsonValueEncoder())
         encoders.update(generator.generate(omit=list(encoders.keys())))
         return cls(encoders)
+
+    @override
+    def get_target_property_key(self, prop: PropertyDeclaration) -> str:
+        return str(prop.id)
 
     @override
     def pack_scalar_enum(self, enum_cls: type[Enum], value: Any) -> Any:

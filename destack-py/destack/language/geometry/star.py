@@ -27,15 +27,15 @@ if TYPE_CHECKING:
 class Star2D(Form2D):
     """A Star2D is a star with a radius and height."""
 
-    center: "Vector2" = builtin_property(210)
-    radius: Float32 = builtin_property(211)
-    points: Int8 = builtin_property(212)
+    center: "Vector2" = builtin_property(210, is_repr=True)
+    radius: Float32 = builtin_property(211, is_repr=True)
+    points: Int8 = builtin_property(212, is_repr=True)
 
 
 @builtin_entity(NodeType.STAR_SHAPE2D)
 class StarShape2D(Shape2D):
     """A StarShape is a shape that represents a star."""
 
-    center: "Vector2" = builtin_property(210)
-    radius: Float32 = builtin_property(211)
-    points: Int8 = builtin_property(212)
+    center: "Vector2" = builtin_property(210, is_repr=True)
+    radius: Float32 = builtin_property(211, is_repr=True)
+    points: Int8 = builtin_property(212, is_repr=True)

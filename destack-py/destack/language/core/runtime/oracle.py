@@ -8,7 +8,7 @@ from random import Random
 from typing import Callable, final, override
 
 
-class Oracle(abc.ABC):
+class Oracle:
     """
     The oracle for all our entropy (e.g., time, randomness).
     """

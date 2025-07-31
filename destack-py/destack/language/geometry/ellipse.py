@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
+    Float32,
     NodeType,
     StructType,
     builtin_entity,
@@ -11,7 +12,7 @@ from destack.language.core import (
 from .shape import Form2D, Shape2D
 
 if TYPE_CHECKING:
-    from destack.language import Stroke
+    from destack.language import Vector2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -20,11 +21,13 @@ if TYPE_CHECKING:
 class Ellipse2D(Form2D):
     """A Ellipse is a circle."""
 
-    stroke: Optional["Stroke"] = builtin_property(200, is_repr=True)
+    center: "Vector2" = builtin_property(200, is_repr=True)
+    radius: Float32 = builtin_property(201, is_repr=True)
 
 
 @builtin_entity(NodeType.ELLIPSE_SHAPE2D)
 class EllipseShape2D(Shape2D):
     """A EllipseShape is a shape that represents a ellipse."""
 
-    pass
+    center: "Vector2" = builtin_property(200, is_repr=True)
+    radius: Float32 = builtin_property(201, is_repr=True)

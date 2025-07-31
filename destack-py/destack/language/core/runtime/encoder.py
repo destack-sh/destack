@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from enum import IntFlag
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -7,8 +7,6 @@ from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
     from destack.language.core import Session, Type
-
-# nocheckin: pack partial Nodes properly (.materialization<FULL)
 
 
 class EncoderOptions(IntFlag):
@@ -27,7 +25,7 @@ class EncoderOptions(IntFlag):
     UNWRAP_VALUE = 1 << 4
 
 
-class Encoder[T: Any = Any](ABC):
+class Encoder[T: Any = Any]:
     """Encoder for packing/unpacking Objects."""
 
     encoding: ClassVar[Encoding]
