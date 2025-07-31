@@ -32,9 +32,10 @@ from destack.utils.uuid import uuid4
 
 # ruff: noqa: T201
 
-_LOG = True
+_LOG_ENCODE = False
+_LOG_RESULT = False
 
-if _LOG:
+if _LOG_ENCODE:
     for encoding, encoder in ENCODERS.items():
         ENCODERS[encoding] = wrap_encoder(encoder)
     _BinaryWriter = LoggingBinaryWriter
@@ -47,18 +48,20 @@ else:
 def _do_test_roundtrip_object(
     obj: Object, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
-    print("=" * 80)
-    print(repr(obj))
-    print(f" -> {encoding.name}")
-    print("-" * 80)
+    if _LOG_RESULT:
+        print("=" * 80)
+        print(repr(obj))
+        print(f" -> {encoding.name}")
+        print("-" * 80)
 
     writer = _BinaryWriter()
     encoder.pack_object_binary(obj, writer)
     packed_obj_bytes = writer.to_bytes()
     packed_obj_bytes_gzip = gzip.compress(packed_obj_bytes)
-    print(f"-> BYTES: {len(packed_obj_bytes)} ({len(packed_obj_bytes_gzip)} gzip)")
+    if _LOG_RESULT:
+        print(f"-> BYTES: {len(packed_obj_bytes)} ({len(packed_obj_bytes_gzip)} gzip)")
+        print("-" * 80)
 
-    print("-" * 80)
     reader = _BinaryReader(packed_obj_bytes)
     unpacked_obj = encoder.unpack_object_binary(None, reader, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
@@ -69,22 +72,25 @@ def _do_test_roundtrip_object(
 def _do_test_roundtrip_value(
     type: Type, value: Any, session: Session, encoder: Encoder, encoding: Encoding
 ) -> bytes:
-    print("=" * 80)
-    print(repr(value))
-    print(f" -> {encoding.name}")
-    print("-" * 80)
+    if _LOG_RESULT:
+        print("=" * 80)
+        print(repr(value))
+        print(f" -> {encoding.name}")
+        print("-" * 80)
 
     writer = _BinaryWriter()
     encoder.pack_value_binary(type, value, writer)
     packed_value_bytes = writer.to_bytes()
     packed_value_bytes_gzip = gzip.compress(packed_value_bytes)
-    print(f"-> BYTES: {len(packed_value_bytes)} ({len(packed_value_bytes_gzip)} gzip)")
+    if _LOG_RESULT:
+        print(f"-> BYTES: {len(packed_value_bytes)} ({len(packed_value_bytes_gzip)} gzip)")
+        print("-" * 80)
 
-    print("-" * 80)
     reader = _BinaryReader(packed_value_bytes)
     unpacked_value_bytes = encoder.unpack_value_binary(type, reader, session)
     assert unpacked_value_bytes == value, f"{unpacked_value_bytes!r} != {value!r}"
-    print(repr(unpacked_value_bytes))
+    if _LOG_RESULT:
+        print(repr(unpacked_value_bytes))
     return packed_value_bytes
 
 

@@ -36,11 +36,12 @@ class EventStatus(Enum):
     PENDING = 1, "Pending", "Pending application on client"
     STAGED = 2, "Staged", "Optimistically staged on client"
     # PREDICTED, SUPERSEDED, ...
-    # system
+    # system hot
     APPROVED = 10, "Completed", "Successfully applied in system"
     SKIPPED = 11, "Skipped", "Skipped and ignored in system"
     FAILED = 12, "Failed", "Could not apply in system"
     REJECTED = 13, "Rejected", "Denied by the system"
+    # system cold
     # COMPACTED, ...
 
 
@@ -109,9 +110,11 @@ class Event[N: Node = Node](Node):
     """
     An Event is an immutable datum of something happening to an Entity.
 
-    Events are proposed by Clients as pending Events, then approved or rejected by the system.
+    Events are proposed by Clients, then approved or discarded by the system.
+    All Events are stored, even rejected ones.
+    The system Event log is append-only and immutable.
 
-    The client_* data is as-is provided by Clients, and is not verified by the system.
+    The client_* data is as-is provided by Clients, and can not be verified by the system.
     """
 
     # 10-20: Event identity
@@ -192,7 +195,7 @@ class Event[N: Node = Node](Node):
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
-        description="The Client that created this Event (client).",
+        description="The Client that created this Event (client, but verified).",
         tags=("tracking", "client"),
     )
     client_nonce: UUID = builtin_property(

@@ -286,6 +286,11 @@ class StructType(Enum):
     # access
     PERMISSION_DEFINITION = 50_000
 
+    # CONTEXT = 1_300, "Context", "Context of a Node", "fas fa-dot"
+    # nocheckin: Context (as local partial instances set on some Entities?)
+    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
+
+    #   merge Oracle/Session.actor_ptr/.../epoch into Context?)
     # universe [100_000-200_000]
     # ...
 
@@ -410,8 +415,6 @@ class TraitType(Enum):
     # LOCAL?
     # storage
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
-
-    # common
     ORDERED = 10_000, "Ordered", "Is ordered", "fas fa-sort"
     # PAUSABLE?
 
@@ -515,9 +518,7 @@ class NodeType(Enum):
     # space
     UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"
     SPACE = 1_100, "Space", "Universal Space", "fas fa-galaxy"
-    # nocheckin: CONTEXT (as local partial instances attached to some Nodes?)
-    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
-    #   merge Oracle/Session.actor_ptr/.../epoch into Context?)
+    # GALAXY = 1_200, "Galaxy", "Galaxy of Spaces", "fas fa-galaxy"
 
     # time
     BRANCH = 2_000, "Branch", None, "fas fa-code-branch"
@@ -567,7 +568,9 @@ class NodeType(Enum):
         "fas fa-database",
     )
 
-    # nocheckin: *_definition/custom_*_definition inconsistency (Index, Event, Method/Action, Permission, ...)
+    # nocheckin: *_definition/custom_*_definition inconsistency and organization
+    #  (Index, Event, Method/Action, Permission, ...)
+    #  why is Space, Branch/Snapshot, Permission, Tag/Tagging, Entity2D/3D, ... in core?
 
     # logic
     FUNCTION = 40_000, "Function", None, "fas fa-code"

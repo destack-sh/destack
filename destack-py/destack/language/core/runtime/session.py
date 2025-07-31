@@ -24,7 +24,7 @@ from .graph import Graph
 from .oracle import WORLD_ORACLE, Oracle
 
 if TYPE_CHECKING:
-    from destack.language import Client, GraphConnection
+    from destack.language import GraphConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -58,16 +58,16 @@ class Session:
         graph: "Graph",
         remote_epoch: int,
         local_epoch: int,
-        actor: "Entity | NodeReference",
-        client: "Client | NodeReference",
+        actor_ptr: "NodeReference",
+        client_ptr: "NodeReference",
         client_nonce: UUID,
         oracle: Oracle = WORLD_ORACLE,
     ):
         self.remote_epoch: int = remote_epoch
         self.local_epoch: int = local_epoch
         self.graph: Graph = graph
-        self.actor_ptr: NodeReference = actor.to_ref() if isinstance(actor, Entity) else actor
-        self.client_ptr: NodeReference = client.to_ref() if isinstance(client, Entity) else client
+        self.actor_ptr: NodeReference = actor_ptr
+        self.client_ptr: NodeReference = client_ptr
         self.client_nonce: UUID = client_nonce
         self.oracle: Oracle = oracle
 

@@ -326,7 +326,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     #     description="The key to uniquely identify this Entity in reconciliation. If not set, name is used.",
     #     tags=("source",),
     # )
-    custom_values: dict[str, "Value"] = builtin_property(
+    custom_values: dict[str, "Value"] | None = builtin_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property name.",
         tags=("entity",),

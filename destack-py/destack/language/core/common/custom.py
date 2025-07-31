@@ -80,16 +80,20 @@ class CustomStruct(Struct):
     """A CustomStruct is a generic instance of a custom Struct with custom Values."""
 
     definition: "CustomStructDefinition" = builtin_property(11, is_repr=True)
-    custom_values: dict[str, "Value"] = builtin_property(
+    custom_values: dict[str, "Value"] | None = builtin_property(
         45,
         description="The custom Values of this Struct, keyed by custom Property name.",
     )
 
     def __getitem__(self, key: str) -> "Value":
-        return self.custom_values[key]
+        val = None if self.custom_values is None else self.custom_values.get(key)
+        if val is None:
+            raise LookupError(f"{self!r} has no value for {key}")
+        return val
 
     def __getattr__(self, name: str) -> "Value | None":
-        return self.custom_values.get(name)
+        val = None if self.custom_values is None else self.custom_values.get(name)
+        return val
 
 
 @builtin_message(StructType.CUSTOM_MESSAGE, is_final=True)
@@ -98,16 +102,20 @@ class CustomMessage(Message):
     """A CustomMessage is an instance of a custom Message with custom Values."""
 
     definition: "CustomMessageDefinition" = builtin_property(11, is_repr=True)
-    custom_values: dict[str, "Value"] = builtin_property(
+    custom_values: dict[str, "Value"] | None = builtin_property(
         45,
         description="The custom Values of this Message, keyed by custom Property name.",
     )
 
     def __getitem__(self, key: str) -> "Value":
-        return self.custom_values[key]
+        val = None if self.custom_values is None else self.custom_values.get(key)
+        if val is None:
+            raise LookupError(f"{self!r} has no value for {key}")
+        return val
 
     def __getattr__(self, name: str) -> "Value | None":
-        return self.custom_values.get(name)
+        val = None if self.custom_values is None else self.custom_values.get(name)
+        return val
 
 
 @builtin_entity(NodeType.CUSTOM_ENUM_DEFINITION)
