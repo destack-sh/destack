@@ -17,9 +17,10 @@ from .registry import (
     BUILTIN_CLASS_BY_NAME,
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
+    HANDLE_CLASS_BY_TYPE,
+    HANDLE_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
-    NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPE_SCALAR_BY_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
@@ -174,17 +175,19 @@ def finalize():
     assert len(ENCODERS) == len(Encoding), f"missing {len(Encoding) - len(ENCODERS)} encoders"
 
     # generate definition refs
-    from destack.language.core import NodeDefinitionReference, ObjectDefinitionReference
+    from destack.language.core import ObjectDefinitionReference
 
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls] = NodeDefinitionReference.of(node_cls)
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
-    for node_cls in STRUCT_CLASS_BY_TYPE.values():
-        OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
+    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[struct_cls] = ObjectDefinitionReference.of(struct_cls)
+    for handle_cls in HANDLE_CLASS_BY_TYPE.values():
+        OBJECT_DEFINITION_REFERENCE_BY_CLASS[handle_cls] = ObjectDefinitionReference.of(handle_cls)
 
     # generate meta info
     from destack.language.core import (
         EnumDefinition,
+        HandleDefinition,
         NodeDefinition,
         ScalarType,
         StructDefinition,
@@ -196,13 +199,18 @@ def finalize():
         node_definition = NodeDefinition.from_declaration(node_cls, node_cls.__declaration__)
         NODE_DEFINITION_BY_TYPE[node_cls.metatype] = node_definition
         node_cls.__definition__ = node_definition
-        node_cls.__definition_reference__ = NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls]
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
         struct_definition = StructDefinition.from_declaration(
             struct_cls, struct_cls.__declaration__
         )
         STRUCT_DEFINITION_BY_TYPE[struct_cls.metatype] = struct_definition
         struct_cls.__definition__ = struct_definition
+    for handle_cls in HANDLE_CLASS_BY_TYPE.values():
+        handle_definition = HandleDefinition.from_declaration(
+            handle_cls, handle_cls.__declaration__
+        )
+        HANDLE_DEFINITION_BY_TYPE[handle_cls.metatype] = handle_definition
+        handle_cls.__definition__ = handle_definition
     for enum_type in ENUM_TYPES:
         enum_definition = EnumDefinition.from_declaration(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
         ENUM_DEFINITION_BY_TYPE[enum_type] = enum_definition

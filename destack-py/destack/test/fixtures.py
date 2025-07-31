@@ -20,8 +20,8 @@ from destack.utils.uuid import uuid4
 async def memory_session() -> AsyncGenerator[Session, None]:
     session = Session(
         graph=MemoryGraph(),
-        actor=Universe.ACTOR,
-        client=Universe.CLIENT,
+        actor_ptr=Universe.ACTOR,
+        client_ptr=Universe.CLIENT,
         client_nonce=uuid4(),
         remote_epoch=0,
         local_epoch=0,
@@ -36,8 +36,8 @@ async def session():
     """Default Session is in-memory."""
     session = Session(
         graph=MemoryGraph(),
-        actor=Universe.ACTOR,
-        client=Universe.CLIENT,
+        actor_ptr=Universe.ACTOR,
+        client_ptr=Universe.CLIENT,
         client_nonce=uuid4(),
         remote_epoch=0,
         local_epoch=0,

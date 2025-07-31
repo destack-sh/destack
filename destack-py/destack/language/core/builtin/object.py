@@ -327,6 +327,10 @@ if {arg_name} is None:
 if {arg_name} is None:
     assert self._session is not None, "no session for {cls.__name__}"
     {arg_name} = self._session.remote_epoch""")
+                elif declaration.kind == ObjectKind.HANDLE:
+                    raise NotImplementedError(
+                        f"cannot use {prop.default_factory} for {cls.__name__}"
+                    )
                 else:
                     assert_never(declaration.kind)
             elif prop.default_factory == ValueFactory.LOCAL_EPOCH:
@@ -340,6 +344,10 @@ if {arg_name} is None:
 if {arg_name} is None:
     assert self._session is not None, "no session for {cls.__name__}"
     {arg_name} = self._session.local_epoch""")
+                elif declaration.kind == ObjectKind.HANDLE:
+                    raise NotImplementedError(
+                        f"cannot use {prop.default_factory} for {cls.__name__}"
+                    )
                 else:
                     assert_never(declaration.kind)
             elif prop.default_factory == ValueFactory.ACTOR:
@@ -1130,8 +1138,6 @@ def _process_object_cls[ObjectT: Object](
     components: list[type[Object]] = []
     for base_cls in get_superclasses(cls):
         base_cls = _processed_classes.get(base_cls, base_cls)
-        if base_cls.__name__ == "ABC":
-            continue
         if hasattr(base_cls, "__properties__"):
             components.append(base_cls)
 
@@ -1319,7 +1325,7 @@ def _process_object_cls[ObjectT: Object](
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def _object[ObjectT: Object](
+def _builtin_object[ObjectT: Object](
     object_type: NodeType | StructType | None = None,
     frozen: bool = False,
 ):
@@ -1353,9 +1359,9 @@ def _object[ObjectT: Object](
     return decorate
 
 
-@_object()
+@_builtin_object()
 class Object:
-    """The base for all intrinsic objects like Structs and Nodes."""
+    """The base for all intrinsic Objects."""
 
     # Object.metakind: 0
     metakind: ClassVar[ObjectKind] = UNSET

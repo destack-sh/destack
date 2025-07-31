@@ -11,7 +11,6 @@ from typing import (
 
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
-    NODE_DEFINITION_REFERENCE_BY_CLASS,
     NODE_TYPE_BY_CLASS,
 )
 from destack.utils.env import IS_DEV, IS_TEST
@@ -36,7 +35,6 @@ if TYPE_CHECKING:
         JoinIn,
         Node,
         NodeDefinition,
-        NodeDefinitionReference,
         NodeReference,
         PermissionDeclaration,
         Query,
@@ -275,7 +273,6 @@ class Node(Object):
     metatype: ClassVar[NodeType]
     __declaration__: ClassVar["NodeDeclaration"]
     __definition__: ClassVar["NodeDefinition"]
-    __definition_reference__: ClassVar["NodeDefinitionReference"]
 
     # 1-20: node identity
     # Object.metatype: 1
@@ -350,7 +347,7 @@ class Node(Object):
 
         query = Query(
             type=QueryType.NODE,
-            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            definition=cls.__definition__.to_ref(),
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -378,7 +375,7 @@ class Node(Object):
 
         query = Query(
             type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
-            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            definition=cls.__definition__.to_ref(),
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -411,7 +408,7 @@ class Node(Object):
 
         query = Query(
             type=QueryType.SCALAR,
-            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            definition=cls.__definition__.to_ref(),
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -436,7 +433,7 @@ class Node(Object):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            definition=cls.__definition__.to_ref(),
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -464,7 +461,7 @@ class Node(Object):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            definition=cls.__definition__.to_ref(),
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -493,7 +490,7 @@ class Node(Object):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            definition=cls.__definition__.to_ref(),
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,
@@ -522,7 +519,7 @@ class Node(Object):
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
+            definition=cls.__definition__.to_ref(),
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
             where=where,

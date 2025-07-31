@@ -20,13 +20,7 @@ from ..builtin import (
 from .query import Condition, ConditionalType, Sort, SortType
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Condition,
-        Icon,
-        NodeDefinitionReference,
-        NodeReference,
-        Value,
-    )
+    from destack.language import Condition, Icon, NodeReference, Value
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -39,8 +33,6 @@ class CustomEventDefinition(
 
     icon: "Icon | None" = builtin_property(102)
 
-    base_type: Optional["NodeDefinitionReference"] = builtin_property(110)
-    self_traits: list["NodeDefinitionReference"] = builtin_property(111)
     is_abstract: bool = builtin_property(112, default=False)
 
 

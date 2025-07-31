@@ -6,7 +6,7 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
-    NodeDefinitionReference,
+    ObjectDefinitionReference,
     PropertyDeclaration,
     PropertyReference,
     StructFrozen,
@@ -355,7 +355,7 @@ class Query(StructFrozen):
         description="Name for this subquery. Should be unique within the parent Query.",
         is_repr=True,
     )
-    definition: NodeDefinitionReference = builtin_property(
+    definition: ObjectDefinitionReference = builtin_property(
         106,
         is_repr=True,
         description="The Node definition this Query is about.",

@@ -1,10 +1,12 @@
 from collections.abc import Sequence
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
 )
 
+from destack.language.core.builtin.property import builtin_property_runtime
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
@@ -16,15 +18,19 @@ from ..builtin import (
     EditType,
     Entity,
     Event,
+    Handle,
+    HandleType,
+    Int128,
     NodeReference,
     PropertyDeclaration,
     Value,
+    builtin_handle,
+    builtin_property,
 )
 from .graph import Graph
-from .oracle import WORLD_ORACLE, Oracle
 
 if TYPE_CHECKING:
-    from destack.language import GraphConnection
+    from destack.language import Client, GraphConnection, Oracle
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,63 +38,26 @@ logger = get_logger(__name__)
 tracer = get_tracer(__name__)
 
 
-class Session:
+@builtin_handle(HandleType.SESSION)
+class Session(Handle):
     """
     A managed Session for interacting with Spaces.
     """
 
-    __slots__ = (
-        "_token",
-        "actor_ptr",
-        "client_nonce",
-        "client_ptr",
-        "closed_at",
-        "connections",
-        "graph",
-        "local_epoch",
-        "oracle",
-        "pending_events",
-        "remote_epoch",
-        "runtime",
-    )
+    remote_epoch: Int128 = builtin_property(101, is_repr=True)
+    local_epoch: Int128 = builtin_property(102, is_repr=True)
+    actor: "Entity" = builtin_property(103, is_repr=True)
+    client: "Client" = builtin_property(104, is_repr=True)
+    client_nonce: UUID = builtin_property(105, is_repr=True)
+    if TYPE_CHECKING:
+        actor_ptr: "NodeReference"
+        client_ptr: "NodeReference"
 
-    def __init__(
-        self,
-        *,
-        graph: "Graph",
-        remote_epoch: int,
-        local_epoch: int,
-        actor_ptr: "NodeReference",
-        client_ptr: "NodeReference",
-        client_nonce: UUID,
-        oracle: Oracle = WORLD_ORACLE,
-    ):
-        self.remote_epoch: int = remote_epoch
-        self.local_epoch: int = local_epoch
-        self.graph: Graph = graph
-        self.actor_ptr: NodeReference = actor_ptr
-        self.client_ptr: NodeReference = client_ptr
-        self.client_nonce: UUID = client_nonce
-        self.oracle: Oracle = oracle
-
-        self.pending_events: list[Event] = []
-        self.connections: list[GraphConnection] = []
-        self.closed_at: datetime | None = None
-        self._token: Any | None = None
-
-    def __str__(self) -> str:
-        content_parts: list[str] = []
-        if self.actor_ptr is not None:
-            content_parts.append(f"actor={self.actor_ptr!r}")
-        if self.graph is not None:
-            content_parts.append(f"graph={self.graph!r}")
-        if self.remote_epoch is not None:
-            content_parts.append(f"remote_epoch={self.remote_epoch}")
-        if self.local_epoch is not None:
-            content_parts.append(f"local_epoch={self.local_epoch}")
-        if self.closed_at is not None:
-            content_parts.append(f"closed_at={self.closed_at.isoformat()}")
-        return ", ".join(content_parts)
+    graph: "Graph" = builtin_property_runtime()
+    oracle: "Oracle" = builtin_property_runtime()
+    pending_events: list["Event"] = builtin_property_runtime()
+    connections: list["GraphConnection"] = builtin_property_runtime()
+    closed_at: datetime | None = builtin_property_runtime()
 
     def __repr__(self) -> str:
         return f"<Session {self!s}>"
@@ -96,18 +65,10 @@ class Session:
     async def open(self):
         """Opens the Session."""
         assert self.closed_at is None, f"{self!r} is already closed"
-        assert self._token is None, f"{self!r} is already open"
-        self._token = ACTIVE_SESSION.set(self)
 
     async def close(self):
         """Closes the Session."""
         assert self.closed_at is None, f"{self!r} is already closed"
-        if self._token is not None:
-            try:  # noqa: SIM105
-                ACTIVE_SESSION.reset(self._token)
-            except ValueError:
-                pass  # token was created in a different context (during testing usually)
-            self._token = None
         self.closed_at = self.oracle.now()
 
     def append(self, event: Event):
@@ -247,9 +208,15 @@ class Session:
         #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
         raise NotImplementedError
 
-    async def __aenter__(self):
+    @asynccontextmanager
+    async def active(self):
+        """Context manager for the Session."""
         await self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        await self.close()
+        token = ACTIVE_SESSION.set(self)
+        try:
+            try:
+                yield self
+            finally:
+                await self.close()
+        finally:
+            ACTIVE_SESSION.reset(token)

@@ -7,7 +7,7 @@ from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
 
-from ..builtin import NodeType
+from ..builtin import Handle, HandleType, NodeType, builtin_handle
 
 if TYPE_CHECKING:
     from destack.language import Entity, Event, Snapshot
@@ -17,7 +17,8 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-class Graph:
+@builtin_handle(HandleType.GRAPH, is_abstract=True)
+class Graph(Handle):
     """
     A Graph is a collection of Nodes from one or multiple Spaces (across time).
     """
