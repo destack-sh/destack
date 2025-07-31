@@ -8,11 +8,13 @@ from destack.language import (
     Encoder,
     Encoding,
     Folder,
+    Form2D,
     Join,
     JoinType,
     NodeReference,
     NodeType,
     Object,
+    Rectangle2D,
     RectangleShape2D,
     Session,
     Space,
@@ -142,13 +144,12 @@ def test_roundtrip_vector3_list_compact(session: Session, space: Space):
 def test_roundtrip_value(session: Session, space: Space):
     """Pack and unpack a Value."""
     for value in (
-        # nocheckin
-        # Value.wrap(1),
-        # Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
-        # Value.wrap((2, True, "Hello")),
-        # Value.wrap(Rectangle2D(width=1.0, height=2.0)),
-        # Value.wrap(Rectangle2D(width=1.0, height=2.0), type=Type.infer(Form2D)),
-        # Value.wrap(RectangleShape2D(width=1.0, height=2.0), node_as_value=False),
+        Value.wrap(1),
+        Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
+        Value.wrap((2, True, "Hello")),
+        Value.wrap(Rectangle2D(width=1.0, height=2.0)),
+        Value.wrap(Rectangle2D(width=1.0, height=2.0), type=Type.infer(Form2D)),
+        Value.wrap(RectangleShape2D(width=1.0, height=2.0), node_as_value=False),
         Value.wrap(RectangleShape2D(width=1.0, height=2.0), node_as_value=True),
     ):
         for encoding, encoder in ENCODERS.items():
