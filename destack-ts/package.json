@@ -1,6 +1,6 @@
 {
   "name": "destack",
-  "version": "2025.07.30.4",
+  "version": "2025.07.31.0",
   "private": false,
   "type": "module",
   "main": "./src/index.ts",

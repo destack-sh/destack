@@ -23,7 +23,7 @@ from .relative import (
     Offset2,
     Overflow,
 )
-from .shape import Shape2D, Shape3D
+from .shape import Form2D, Form3D, Shape2D, Shape3D
 from .star import Star2D, StarShape2D
 from .vector import (
     Vector2,
@@ -49,6 +49,8 @@ __all__ = [
     "Distribute",
     "Ellipse2D",
     "EllipseShape2D",
+    "Form2D",
+    "Form3D",
     "Grid2",
     "GridSpan2",
     "Inset2",

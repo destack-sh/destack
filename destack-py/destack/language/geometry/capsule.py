@@ -3,14 +3,13 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Float32,
     NodeType,
-    StructFrozen,
     StructType,
     builtin_entity,
     builtin_property,
     builtin_struct,
 )
 
-from .shape import Shape2D
+from .shape import Form2D, Shape2D
 
 if TYPE_CHECKING:
     from destack.language import Vector2
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @builtin_struct(StructType.CAPSULE2D, frozen=True)
-class Capsule2D(StructFrozen):
+class Capsule2D(Form2D):
     """A Capsule2D is a cylinder with a radius and height."""
 
     center_a: "Vector2" = builtin_property(210)

@@ -93,9 +93,14 @@ class Condition(StructFrozen):
         type: ConditionalType = ConditionalType.EQUALS,
         value: Any = None,
     ) -> "Condition":
+        from ..builtin import PropertyDeclaration
+
         left = Expression.of(attribute)
         if value is not None:
-            value_type = attribute.to_type()
+            if isinstance(attribute, PropertyDeclaration):
+                value_type = attribute.type.to_type()
+            else:
+                value_type = attribute.type
             if type in (ConditionalType.IN, ConditionalType.NOT_IN):
                 value_type = value_type.clone(cardinality=TypeCardinality.LIST)
             right = Expression.of(Value.wrap(value, value_type))

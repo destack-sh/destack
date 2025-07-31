@@ -9,6 +9,7 @@ from ..builtin import (
     NodeType,
     Struct,
     StructType,
+    Type,
     builtin_entity,
     builtin_event,
     builtin_message,
@@ -20,7 +21,6 @@ from .query import Condition, ConditionalType, Sort, SortType
 
 if TYPE_CHECKING:
     from destack.language import (
-        CheckedType,
         Condition,
         Icon,
         NodeDefinitionReference,
@@ -132,7 +132,7 @@ class CustomPropertyDefinition(Entity):
     A CustomProperty is a custom attribute of an Entity.
     """
 
-    type: "CheckedType" = builtin_property(
+    type: "Type" = builtin_property(
         100,
         description="The actual Type of this custom Property.",
     )
@@ -151,9 +151,6 @@ class CustomPropertyDefinition(Entity):
         202,
         description="Whether this property is read-only.",
     )
-
-    def to_type(self) -> "CheckedType":
-        return self.type
 
     def eq(self, value: Any) -> Condition:
         if value is None:

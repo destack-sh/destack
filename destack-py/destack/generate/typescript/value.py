@@ -7,7 +7,6 @@ from destack.language import (
     Encoding,
     NodeReference,
     PrimitiveType,
-    PropertyDeclaration,
     ScalarType,
     Struct,
     TypeCardinality,
@@ -29,7 +28,7 @@ tracer = get_tracer(__name__)
 type_ = type
 
 
-def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def generate_value(type: Type | TypeDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
 
     # scalar
@@ -63,7 +62,7 @@ def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: An
         assert_never(type.cardinality)
 
 
-def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+def _generate_value_scalar(type: Type | TypeDeclaration, value: Any) -> str:
     """Generate a Typescript scalar value literal."""
 
     assert type.cardinality == TypeCardinality.SCALAR, (

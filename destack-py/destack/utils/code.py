@@ -25,20 +25,3 @@ def exec_(code: str, globals: dict, locals: dict, filename: str, log: bool = Fal
     )
     exec(code, globals, locals)
     _time_spent_in_exec += time.time() - start
-
-
-def format_code(code: str, suppress_error: bool = False, line_length: int = 100) -> str:
-    """
-    Formats the code string with our standard black settings.
-    TODO :Performance!: replace black with ruff in format_code
-     (unfortunately ruff doesn't have a nice API for this yet, so we would need to use a subprocess?)
-    """
-    try:
-        import black
-
-        return black.format_str(code, mode=black.FileMode(line_length=line_length))
-    except Exception as e:
-        if suppress_error:
-            return code
-        else:
-            raise SyntaxError(code) from e

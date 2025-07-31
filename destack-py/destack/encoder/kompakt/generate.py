@@ -54,7 +54,7 @@ class KompaktEncoderGenerator:
     def get_source_property_name(self, prop: PropertyDeclaration) -> str:
         """Get the name of a property."""
         source_name = prop.name
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             source_name += "_ptr"
         return source_name
 
@@ -155,7 +155,7 @@ class {encoder_name}(KompaktObjectEncoder):
                 for i, prop in enumerate(properties):
                     prop_name = self.get_source_property_name(prop)
                     if not prop.is_identity:
-                        if not prop.is_required:
+                        if not prop.type.is_required:
                             body_lines.append(f"""\
 if not _is_partial or _object.is_set("{prop.name}"):
     _num_set_properties += 1
@@ -171,7 +171,7 @@ if _object.{prop_name} is None:
                 body_lines.append("_null_flags = 0")
                 for i, prop in enumerate(properties):
                     prop_name = self.get_source_property_name(prop)
-                    if not prop.is_required:
+                    if not prop.type.is_required:
                         body_lines.append(f"""\
 if _object.{prop_name} is None:
     _null_flags |= 1 << {i}""")
@@ -184,7 +184,7 @@ if _object.{prop_name} is None:
         elif stability == ObjectStability.STATIC:
             # properties can't change
             assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
-            if all(p.is_required for p in properties):
+            if all(p.type.is_required for p in properties):
                 # nothing to do, all properties are always set in same order
                 pass
             else:
@@ -192,7 +192,7 @@ if _object.{prop_name} is None:
                 body_lines.append("_null_flags = 0")
                 for i, prop in enumerate(properties):
                     prop_name = self.get_source_property_name(prop)
-                    if not prop.is_required:
+                    if not prop.type.is_required:
                         body_lines.append(f"""\
 if _object.{prop_name} is None:
     _null_flags |= 1 << {i}""")
@@ -212,11 +212,11 @@ if _object.{prop_name} is None:
                 body_lines.append(f"_writer.write_uint8({prop.id})")
             prop_name = self.get_source_property_name(prop)
             pack_code = self.generate_pack_value(
-                prop,
+                prop.type,
                 key=f"_{prop.name}",
                 source_expr=f"_object.{prop_name}",
                 is_not_null_expr=f"_object.{prop_name} is not None"
-                if not prop.is_required
+                if not prop.type.is_required
                 else None,
             )
             body_lines.append(pack_code)
@@ -230,11 +230,11 @@ if _object.{prop_name} is None:
                     continue  # already packed above
                 prop_name = self.get_source_property_name(prop)
                 pack_code = self.generate_pack_value(
-                    prop,
+                    prop.type,
                     key=f"_{prop.name}",
                     source_expr=f"_object.{prop_name}",
                     is_not_null_expr=f"_object.{prop_name} is not None"
-                    if not prop.is_required
+                    if not prop.type.is_required
                     else None,
                 )
                 body_lines.append(f"# {prop.component.__name__}.{prop.name}")
@@ -268,7 +268,7 @@ if _object.{prop_name} is None:
         elif stability == ObjectStability.STATIC:
             # properties can't change
             assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
-            if all(p.is_required for p in properties):
+            if all(p.type.is_required for p in properties):
                 # nothing to do, all properties are always set in same order
                 pass
             else:
@@ -291,10 +291,12 @@ if _object.{prop_name} is None:
             for i, prop in enumerate(properties):
                 prop_name = self.get_source_property_name(prop)
                 prop_unpacked = self.generate_unpack_value(
-                    prop,
+                    prop.type,
                     key=f"_{prop_name}",
                     target_expr=f"_{prop_name}",
-                    is_not_null_expr=f"_null_flags & {1 << i}" if not prop.is_required else None,
+                    is_not_null_expr=f"_null_flags & {1 << i}"
+                    if not prop.type.is_required
+                    else None,
                 )
                 prop_map_lines.append(f"""\
 # {prop.component.__name__}.{prop.name}
@@ -313,10 +315,12 @@ for _i in range(_num_set_properties):
             for i, prop in enumerate(properties):
                 prop_name = self.get_source_property_name(prop)
                 prop_unpacked = self.generate_unpack_value(
-                    prop,
+                    prop.type,
                     key=f"_{prop_name}",
                     target_expr=f"_{prop_name}",
-                    is_not_null_expr=f"_null_flags & {1 << i}" if not prop.is_required else None,
+                    is_not_null_expr=f"_null_flags & {1 << i}"
+                    if not prop.type.is_required
+                    else None,
                 )
                 body_lines.append(prop_unpacked)
         else:

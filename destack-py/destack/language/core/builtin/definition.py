@@ -15,6 +15,7 @@ from .common import (
     UInt8,
     UInt16,
     UInt32,
+    ValueFactory,
 )
 from .declaration import (
     ActionDeclaration,
@@ -36,12 +37,11 @@ from .relation import (
     PropertyReferenceType,
 )
 from .struct import Struct, StructFrozen, builtin_struct
-from .type import CheckedType
+from .type import Type
 from .value import Value
 
 if TYPE_CHECKING:
     from destack.language import (
-        CheckedType,
         Condition,
         ConditionalType,
         ConstantDeclaration,
@@ -573,10 +573,11 @@ class EnumDefinition(StructFrozen):
     is_final=True,
 )
 @final
-class PropertyDefinition(CheckedType):
+class PropertyDefinition(StructFrozen):
     """Definition of a builtin Property."""
 
     id: UInt8 = builtin_property(2, is_repr=True)
+    type: Type = builtin_property(100)
     name: str | None = builtin_property(
         101, is_repr=True, description="The name of this Type when it was used."
     )
@@ -589,13 +590,17 @@ class PropertyDefinition(CheckedType):
     )
     taggings: list[UInt8] = builtin_property(109)
 
-    # relationship
-    edge_type: EdgeType | None = builtin_property(190)
-    cascade: CascadeAction | None = builtin_property(191)
+    # defaults
+    default_value: Value | None = builtin_property(120)
+    default_factory: ValueFactory | None = builtin_property(121)
+
+    # relationships
+    edge_type: EdgeType | None = builtin_property(130)
+    cascade: CascadeAction | None = builtin_property(131)
 
     # property flags
     is_identity: bool = builtin_property(
-        200,
+        140,
         is_repr=True,
         description="""\
 Whether this Property is part of the object's identity.
@@ -603,21 +608,19 @@ Whether this Property is part of the object's identity.
 """,
     )
     is_unique: bool = builtin_property(
-        201,
+        141,
         is_repr=True,
         description="Whether this Property must have a unique value.",
     )
     is_readonly: bool = builtin_property(
-        202,
+        142,
         is_repr=True,
         description="Whether this Property is read-only.",
     )
-
-    # internal flags
-    is_repr: bool = builtin_property(212)
-    is_hash: bool = builtin_property(213)
-    is_eq: bool = builtin_property(214)
-    is_internal: bool = builtin_property(215)
+    is_repr: bool = builtin_property(143)
+    is_hash: bool = builtin_property(144)
+    is_eq: bool = builtin_property(145)
+    is_internal: bool = builtin_property(146)
 
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -626,7 +629,7 @@ Whether this Property is part of the object's identity.
         from .struct import Struct
 
         assert prop.id is not None, f"{prop!r} has no id"
-        type = prop.to_type()
+        type = prop.type.to_type()
         object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
         original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(
             prop.original_component, object_ref
@@ -645,22 +648,13 @@ Whether this Property is part of the object's identity.
             object=object_ref,
             original_object=original_object_ref,
             # type
-            cardinality=type.cardinality,
-            scalar_type=type.scalar_type,
-            primitive_type=type.primitive_type,
-            enum_type=type.enum_type,
-            struct_type=type.struct_type,
-            key_type=type.key_type,
-            default_value=type.default_value,
-            default_factory=type.default_factory,
-            collection_constraint=type.collection_constraint,
-            string_constraint=type.string_constraint,
-            number_constraint=type.number_constraint,
+            type=type,
+            default_value=prop.default_value,
+            default_factory=prop.default_factory,
             # node
             edge_type=prop.edge_type,
             cascade=prop.cascade,
             # flags
-            is_required=prop.is_required,
             is_identity=prop.is_identity,
             is_unique=prop.is_unique,
             is_readonly=prop.is_readonly,
@@ -669,11 +663,6 @@ Whether this Property is part of the object's identity.
             is_eq=prop.is_eq,
             is_internal=prop.is_internal,
         )
-
-    @builtin_method(101)
-    def to_type(self) -> "CheckedType":
-        """Convert to a Type (returns self for convenience)."""
-        return self
 
     @builtin_method(102)
     def to_ref(self) -> PropertyReference:

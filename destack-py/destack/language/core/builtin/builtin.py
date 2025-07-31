@@ -242,7 +242,6 @@ class StructType(Enum):
     # type/value
     VALUE = 100
     TYPE = 101
-    CHECKED_TYPE = 102
     NUMBER_CONSTRAINT = 110
     STRING_CONSTRAINT = 111
     COLLECTION_CONSTRAINT = 112
@@ -384,6 +383,7 @@ class StructType(Enum):
     CORNER2 = 2_400_025, "Corners", None, "fas fa-corner"
     AXIS2 = 2_400_026, "Axis2", None, "fas fa-vector-square"
     AXIS3 = 2_400_027, "Axis3", None, "fas fa-vector-square"
+    FORM2D = 2_410_000, "Form2D", None, "fas fa-vector-square"
     LINE2D = 2_410_100, "Line", None, "fas fa-line"
     ARROW2D = 2_410_200, "Arrow", None, "fas fa-arrow-right"
     RECTANGLE2D = 2_410_300, "Rectangle", None, "fas fa-rectangle"
@@ -392,6 +392,7 @@ class StructType(Enum):
     STAR2D = 2_410_600, "Star", None, "fas fa-star"
     POLYGON2D = 2_411_000, "Polygon", None, "fas fa-polygon"
     PATH2D = 2_411_100, "Path", None, "fas fa-path"
+    FORM3D = 2_420_000, "Form3D", None, "fas fa-vector-square"
 
     # physics [2_500_000-2_600_000]
     # ...
@@ -879,7 +880,7 @@ class NodeType(Enum):
     STAR_SHAPE2D = 2_410_600, "Star Shape2D", None, "fas fa-star"
     POLYGON_SHAPE2D = 2_411_000, "Polygon Shape2D", None, "fas fa-polygon"
     PATH_SHAPE2D = 2_411_100, "Path Shape2D", None, "fas fa-path"
-    SHAPE3D = 2_415_000, "Shape3D", None, "fas fa-shapes"
+    SHAPE3D = 2_420_000, "Shape3D", None, "fas fa-shapes"
 
     # physics [2_500_000-2_600_000]
     # BODY, BODY2D, ...

@@ -2,14 +2,13 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     NodeType,
-    StructFrozen,
     StructType,
     builtin_entity,
     builtin_property,
     builtin_struct,
 )
 
-from .shape import Shape2D
+from .shape import Form2D, Shape2D
 
 if TYPE_CHECKING:
     from destack.language import Stroke
@@ -18,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @builtin_struct(StructType.ELLIPSE2D, frozen=True)
-class Ellipse2D(StructFrozen):
+class Ellipse2D(Form2D):
     """A Ellipse is a circle."""
 
     stroke: Optional["Stroke"] = builtin_property(200, is_repr=True)

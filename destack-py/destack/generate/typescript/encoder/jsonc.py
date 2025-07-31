@@ -169,7 +169,7 @@ def _generate_from_jsonc(cls: type["Object"]) -> str:
         unpack_code = _generate_unpack_jsonc_property(prop)
         ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
         self_name = ts_name
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             ts_name = ts_name + "Ptr"
         if len(unpack_code) == 1:
             assignment = unpack_code[0].split(" = ", 1)[1]
@@ -205,7 +205,7 @@ def _generate_pack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
 
     lines: list[str] = []
     prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
-    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+    if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         prop_ts_name = prop_ts_name + "Ptr"
     obj_jsonc = (
         f"object._{prop_ts_name}" if _is_property_tracked(prop) else f"object.{prop_ts_name}"
@@ -213,21 +213,21 @@ def _generate_pack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
     packed_name = f"packed{_upper_first(prop_ts_name)}"
 
     # scalar
-    if prop.cardinality == TypeCardinality.SCALAR:
-        if prop.is_required:
-            value_expr = _generate_pack_jsonc_scalar(prop, obj_jsonc)
+    if prop.type.cardinality == TypeCardinality.SCALAR:
+        if prop.type.is_required:
+            value_expr = _generate_pack_jsonc_scalar(prop.type, obj_jsonc)
             lines.append(f'objectJsonc["{prop.id}"] = {value_expr};')
         else:
             lines.append(f"if ({obj_jsonc} != null) {{")
-            value_expr = _generate_pack_jsonc_scalar(prop, obj_jsonc)
+            value_expr = _generate_pack_jsonc_scalar(prop.type, obj_jsonc)
             lines.append(f'  objectJsonc["{prop.id}"] = {value_expr};')
             lines.append("}")
 
     # list
-    elif prop.cardinality == TypeCardinality.LIST:
-        assert prop.value_type is not None, f"no value type for {prop!r}"
-        item_expr = _generate_pack_jsonc_scalar(prop.value_type, "item")
-        if prop.is_required:
+    elif prop.type.cardinality == TypeCardinality.LIST:
+        assert prop.type.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_pack_jsonc_scalar(prop.type.value_type, "item")
+        if prop.type.is_required:
             lines.append(f"const {packed_name}: any[] = [];")
             lines.append(f"for (const item of {obj_jsonc}) {{")
             lines.append(f"  {packed_name}.push({item_expr});")
@@ -243,16 +243,16 @@ def _generate_pack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append("}")
 
     # tuple
-    elif prop.cardinality == TypeCardinality.TUPLE:
+    elif prop.type.cardinality == TypeCardinality.TUPLE:
         raise NotImplementedError(f"cannot pack tuple: {prop!r}")
 
     # map
-    elif prop.cardinality == TypeCardinality.MAP:
-        assert prop.key_type is not None, f"no key type for {prop!r}"
-        assert prop.value_type is not None, f"no value type for {prop!r}"
-        key_expr = _generate_pack_jsonc_scalar(prop.key_type, "key")
-        value_expr = _generate_pack_jsonc_scalar(prop.value_type, "value")
-        if prop.is_required:
+    elif prop.type.cardinality == TypeCardinality.MAP:
+        assert prop.type.key_type is not None, f"no key type for {prop!r}"
+        assert prop.type.value_type is not None, f"no value type for {prop!r}"
+        key_expr = _generate_pack_jsonc_scalar(prop.type.key_type, "key")
+        value_expr = _generate_pack_jsonc_scalar(prop.type.value_type, "value")
+        if prop.type.is_required:
             lines.append(f"const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
             lines.append(f"for (const [key, value] of Object.entries({obj_jsonc})) {{")
             lines.append(f"  {packed_name}[String({key_expr})] = {value_expr};")
@@ -269,7 +269,7 @@ def _generate_pack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
 
     #
     else:
-        assert_never(prop.cardinality)
+        assert_never(prop.type.cardinality)
 
     return lines
 
@@ -278,29 +278,29 @@ def _generate_unpack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
-    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+    if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         ts_name = ts_name + "Ptr"
     json_key = str(prop.id)
     data_jsonc = f'objectJsonc["{json_key}"]'
     var_name = f"unpacked{_upper_first(ts_name)}"
 
     # scalar
-    if prop.cardinality == TypeCardinality.SCALAR:
-        if prop.is_required:
-            value_expr = _generate_unpack_jsonc_scalar(prop, data_jsonc)
+    if prop.type.cardinality == TypeCardinality.SCALAR:
+        if prop.type.is_required:
+            value_expr = _generate_unpack_jsonc_scalar(prop.type, data_jsonc)
             lines.append(f"const {var_name} = {value_expr};")
         else:
-            value_expr = _generate_unpack_jsonc_scalar(prop, f"{ts_name}Value")
+            value_expr = _generate_unpack_jsonc_scalar(prop.type, f"{ts_name}Value")
             lines.append(f"const {ts_name}Value = {data_jsonc};")
             lines.append(
                 f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : undefined;"
             )
 
     # list
-    elif prop.cardinality == TypeCardinality.LIST:
-        assert prop.value_type is not None, f"no value type for {prop!r}"
-        item_expr = _generate_unpack_jsonc_scalar(prop.value_type, "item")
-        if prop.is_required:
+    elif prop.type.cardinality == TypeCardinality.LIST:
+        assert prop.type.value_type is not None, f"no value type for {prop!r}"
+        item_expr = _generate_unpack_jsonc_scalar(prop.type.value_type, "item")
+        if prop.type.is_required:
             lines.append(f"const {var_name}: any[] = [];")
             lines.append(f"for (const item of {data_jsonc}) {{")
             lines.append(f"  {var_name}.push({item_expr})")
@@ -317,16 +317,16 @@ def _generate_unpack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append("}")
 
     # tuple
-    elif prop.cardinality == TypeCardinality.TUPLE:
+    elif prop.type.cardinality == TypeCardinality.TUPLE:
         raise NotImplementedError(f"cannot unpack tuple: {prop!r}")
 
     # map
-    elif prop.cardinality == TypeCardinality.MAP:
-        assert prop.key_type is not None, f"no key type for {prop!r}"
-        assert prop.value_type is not None, f"no value type for {prop!r}"
-        key_expr = _generate_unpack_jsonc_scalar(prop.key_type, "key")
-        value_expr = _generate_unpack_jsonc_scalar(prop.value_type, "value as any")
-        if prop.is_required:
+    elif prop.type.cardinality == TypeCardinality.MAP:
+        assert prop.type.key_type is not None, f"no key type for {prop!r}"
+        assert prop.type.value_type is not None, f"no value type for {prop!r}"
+        key_expr = _generate_unpack_jsonc_scalar(prop.type.key_type, "key")
+        value_expr = _generate_unpack_jsonc_scalar(prop.type.value_type, "value as any")
+        if prop.type.is_required:
             lines.append(f"const {var_name} = {{}} as any;")
             lines.append(f"for (const [key, value] of Object.entries({data_jsonc})) {{")
             lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
@@ -344,27 +344,25 @@ def _generate_unpack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
 
     #
     else:
-        assert_never(prop.cardinality)
+        assert_never(prop.type.cardinality)
 
     return lines
 
 
-def _generate_pack_jsonc_scalar(
-    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
-) -> str:
+def _generate_pack_jsonc_scalar(type: "TypeDeclaration", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
 
-    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot pack non-scalar: {prop!r}"
-    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
+    assert type.cardinality == TypeCardinality.SCALAR, f"cannot pack non-scalar: {type!r}"
+    assert type.scalar_type is not None, f"no scalar type for {type!r}"
 
     # primitive
-    if prop.scalar_type == ScalarType.PRIMITIVE:
-        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.NONE:
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        assert type.primitive_type is not None, f"no primitive type for {type!r}"
+        if type.primitive_type == PrimitiveType.NONE:
             return "null"
-        elif prop.primitive_type == PrimitiveType.BOOLEAN:
+        elif type.primitive_type == PrimitiveType.BOOLEAN:
             return value_expr
-        elif prop.primitive_type in (
+        elif type.primitive_type in (
             PrimitiveType.INT8,
             PrimitiveType.INT16,
             PrimitiveType.INT32,
@@ -372,7 +370,7 @@ def _generate_pack_jsonc_scalar(
             PrimitiveType.INT128,
         ):
             return value_expr
-        elif prop.primitive_type in (
+        elif type.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
@@ -380,37 +378,37 @@ def _generate_pack_jsonc_scalar(
             PrimitiveType.UINT128,
         ):
             return value_expr
-        elif prop.primitive_type in (
+        elif type.primitive_type in (
             PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return value_expr
-        elif prop.primitive_type == PrimitiveType.DATETIME:
+        elif type.primitive_type == PrimitiveType.DATETIME:
             return f"{value_expr}.toString({{ timeZoneName: 'never' }})"
-        elif prop.primitive_type == PrimitiveType.DATE:
+        elif type.primitive_type == PrimitiveType.DATE:
             return f"{value_expr}.toString()"
-        elif prop.primitive_type == PrimitiveType.TIME:
+        elif type.primitive_type == PrimitiveType.TIME:
             return f"{value_expr}.toString()"
-        elif prop.primitive_type == PrimitiveType.DURATION:
+        elif type.primitive_type == PrimitiveType.DURATION:
             return f"timedeltaToISOFormat({value_expr})"
-        elif prop.primitive_type == PrimitiveType.STRING:
+        elif type.primitive_type == PrimitiveType.STRING:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.UUID:
+        elif type.primitive_type == PrimitiveType.UUID:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.BYTES:
+        elif type.primitive_type == PrimitiveType.BYTES:
             return f"base64Encode({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON:
+        elif type.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
-            assert_never(prop.primitive_type)
+            assert_never(type.primitive_type)
 
     # enum
-    elif prop.scalar_type == ScalarType.ENUM:
+    elif type.scalar_type == ScalarType.ENUM:
         return value_expr
 
     # struct
-    elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
+    elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
         return f"{value_expr}.pack({Encoding.JSONC.value})"
 
     #
@@ -418,22 +416,20 @@ def _generate_pack_jsonc_scalar(
         return value_expr
 
 
-def _generate_unpack_jsonc_scalar(
-    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
-) -> str:
+def _generate_unpack_jsonc_scalar(type: "TypeDeclaration", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
 
-    assert prop.cardinality == TypeCardinality.SCALAR, f"cannot unpack non-scalar: {prop!r}"
-    assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
+    assert type.cardinality == TypeCardinality.SCALAR, f"cannot unpack non-scalar: {type!r}"
+    assert type.scalar_type is not None, f"no scalar type for {type!r}"
 
     # primitive
-    if prop.scalar_type == ScalarType.PRIMITIVE:
-        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        if prop.primitive_type == PrimitiveType.NONE:
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        assert type.primitive_type is not None, f"no primitive type for {type!r}"
+        if type.primitive_type == PrimitiveType.NONE:
             return "null"
-        elif prop.primitive_type == PrimitiveType.BOOLEAN:
+        elif type.primitive_type == PrimitiveType.BOOLEAN:
             return f"Boolean({value_expr})"
-        elif prop.primitive_type in (
+        elif type.primitive_type in (
             PrimitiveType.INT8,
             PrimitiveType.INT16,
             PrimitiveType.INT32,
@@ -441,7 +437,7 @@ def _generate_unpack_jsonc_scalar(
             PrimitiveType.INT128,
         ):
             return f"Number({value_expr})"
-        elif prop.primitive_type in (
+        elif type.primitive_type in (
             PrimitiveType.UINT8,
             PrimitiveType.UINT16,
             PrimitiveType.UINT32,
@@ -449,47 +445,47 @@ def _generate_unpack_jsonc_scalar(
             PrimitiveType.UINT128,
         ):
             return f"Number({value_expr})"
-        elif prop.primitive_type in (
+        elif type.primitive_type in (
             PrimitiveType.FLOAT16,
             PrimitiveType.FLOAT32,
             PrimitiveType.FLOAT64,
         ):
             return f"Number({value_expr})"
-        elif prop.primitive_type == PrimitiveType.DATETIME:
+        elif type.primitive_type == PrimitiveType.DATETIME:
             return f"Temporal.Instant.from({value_expr}).toZonedDateTimeISO('UTC')"
-        elif prop.primitive_type == PrimitiveType.DATE:
+        elif type.primitive_type == PrimitiveType.DATE:
             return f"Temporal.PlainDate.from({value_expr})"
-        elif prop.primitive_type == PrimitiveType.TIME:
+        elif type.primitive_type == PrimitiveType.TIME:
             return f"Temporal.PlainTime.from({value_expr})"
-        elif prop.primitive_type == PrimitiveType.DURATION:
+        elif type.primitive_type == PrimitiveType.DURATION:
             return f"timedeltaFromISOFormat({value_expr})"
-        elif prop.primitive_type == PrimitiveType.STRING:
+        elif type.primitive_type == PrimitiveType.STRING:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.UUID:
+        elif type.primitive_type == PrimitiveType.UUID:
             return value_expr
-        elif prop.primitive_type == PrimitiveType.BYTES:
+        elif type.primitive_type == PrimitiveType.BYTES:
             return f"base64Decode({value_expr})"
-        elif prop.primitive_type == PrimitiveType.JSON:
+        elif type.primitive_type == PrimitiveType.JSON:
             return value_expr
         else:
-            assert_never(prop.primitive_type)
+            assert_never(type.primitive_type)
 
     # enum
-    elif prop.scalar_type == ScalarType.ENUM:
+    elif type.scalar_type == ScalarType.ENUM:
         return f"Number({value_expr})"
 
     # struct
-    elif prop.scalar_type == ScalarType.STRUCT:
-        assert prop.struct_type is not None, f"no struct type for {prop!r}"
-        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+    elif type.scalar_type == ScalarType.STRUCT:
+        assert type.struct_type is not None, f"no struct type for {type!r}"
+        struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
         return f"_{struct_cls.__name__}.unpack({Encoding.JSONC.value}, {value_expr}, _session) as {struct_cls.__name__}"
 
     # node reference
-    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
+    elif type.scalar_type == ScalarType.NODE_REFERENCE:
         return f"_NodeReference.unpack({Encoding.JSONC.value}, {value_expr}, _session) as NodeReference"
 
     # node value
-    elif prop.scalar_type == ScalarType.NODE_VALUE:
+    elif type.scalar_type == ScalarType.NODE_VALUE:
         return f"Node.unpack({Encoding.JSONC.value}, {value_expr}, _session) as Node"
 
     #
