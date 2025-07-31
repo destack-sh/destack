@@ -30,8 +30,7 @@
     "@opentelemetry/semantic-conventions": "catalog:telemetry",
     "js-xxhash": "catalog:",
     "pino": "catalog:",
-    "temporal-polyfill": "catalog:",
-    "uuid": "catalog:"
+    "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
     "@babel/plugin-proposal-class-static-block": "catalog:build",
@@ -41,7 +40,6 @@
     "@babel/preset-typescript": "catalog:build",
     "@biomejs/biome": "catalog:build",
     "@types/bun": "catalog:types",
-    "@types/uuid": "catalog:types",
     "fast-check": "catalog:test",
     "mitata": "catalog:test",
     "pino-pretty": "catalog:dev",
