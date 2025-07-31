@@ -94,7 +94,7 @@ def _get_properties(cls: type[Object]) -> list[PropertyDeclaration]:
     """Get the properties of a class."""
     properties: list[PropertyDeclaration] = []
     for prop in cls.__properties__.values():
-        if not prop.is_computed:
+        if not prop.is_static:
             properties.append(prop)
     properties.sort(key=lambda prop: prop.id or 0)
     return properties
@@ -163,6 +163,10 @@ def _generate_type_scalar(type: TypeDeclaration | Type, as_ptr: bool = True) -> 
 
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
+        return "Node"
+
+    # handle
+    elif type.scalar_type == ScalarType.HANDLE:
         raise ValueError(f"unsupported scalar_type: {type!r}")
 
     #
@@ -783,7 +787,11 @@ repr(): string {{
             return f"{value_expr}?.repr()"
 
         # node value
-        elif prop.scalar_type == ScalarType.NODE_VALUE:
+        elif prop.scalar_type == ScalarType.NODE_VALUE:  # noqa: SIM114
+            return f"{value_expr}.repr()"
+
+        # handle
+        elif prop.scalar_type == ScalarType.HANDLE:
             return f"{value_expr}.repr()"
 
         #
@@ -1161,6 +1169,10 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration) -> tuple[str, bool]:
     elif prop.scalar_type == ScalarType.STRUCT:
         return "{self_val}.equals({other_val})", False
 
+    # handle
+    elif prop.scalar_type == ScalarType.HANDLE:
+        return "{self_val} === {other_val}", True
+
     #
     else:
         assert_never(prop.scalar_type)
@@ -1322,6 +1334,10 @@ def _generate_scalar_hash_impl(type: TypeDeclaration, value_expr: str) -> str:
     # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
         return f"hashString({value_expr}.id)"
+
+    # handle
+    elif type.scalar_type == ScalarType.HANDLE:
+        raise NotImplementedError(f"cannot hash Handle: {type!r}")
 
     #
     else:
@@ -1623,6 +1639,10 @@ def _get_type_dependencies(
             dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
             if is_value:
                 value_dependencies.add(struct_cls.__name__)
+
+        # handle
+        elif type.scalar_type == ScalarType.HANDLE:
+            pass
 
         #
         else:

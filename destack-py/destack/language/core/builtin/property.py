@@ -16,6 +16,7 @@ from destack.utils.string import Casing, to_casing
 
 from .builtin import (
     NODE_TYPES,
+    HandleType,
     NodeType,
     ObjectKind,
     StructType,
@@ -59,12 +60,23 @@ def resolve_enum_type(class_name: str) -> EnumType | None:
 
 def resolve_struct_type(class_name: str) -> StructType | None:
     """Get the StructType for the given struct name."""
-    enum_name = to_casing(class_name, Casing.ALL_CAPS)
-    if struct_type := StructType.__members__.get(enum_name):
+    struct_name = to_casing(class_name, Casing.ALL_CAPS)
+    if struct_type := StructType.__members__.get(struct_name):
         return struct_type
-    enum_name = class_name.upper()
-    if struct_type := StructType.__members__.get(enum_name):
+    struct_name = class_name.upper()
+    if struct_type := StructType.__members__.get(struct_name):
         return struct_type
+    return None
+
+
+def resolve_handle_type(class_name: str) -> HandleType | None:
+    """Get the HandleType for the given handle name."""
+    handle_name = to_casing(class_name, Casing.ALL_CAPS)
+    if handle_type := HandleType.__members__.get(handle_name):
+        return handle_type
+    handle_name = class_name.upper()
+    if handle_type := HandleType.__members__.get(handle_name):
+        return handle_type
     return None
 
 
@@ -93,8 +105,9 @@ class TypeDeclaration:
     # scalar
     scalar_type: ScalarType | None = None
     primitive_type: PrimitiveType | None = None
-    enum_type: EnumType | None = None
     struct_type: StructType | None = None
+    handle_type: HandleType | None = None
+    enum_type: EnumType | None = None
     node_types: Sequence[NodeType] | None = None  # for node scalar nodes
 
     # flags
@@ -150,7 +163,7 @@ class PropertyDeclaration:
 
     # meta
     zone: PropertyZone = PropertyZone.MEMBER
-    id: int | None = None
+    id: int = UNSET
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
@@ -177,7 +190,7 @@ class PropertyDeclaration:
     is_hash: bool = True  # included in Object.__hash__
     is_eq: bool = True  # included in Object.equals check
     is_internal: bool = False  # managed internally by the system
-    is_computed: bool = False  # set automatically at runtime
+    is_static: bool = False  # set automatically at runtime
     is_runtime_only: bool = False  # only set at runtime
     is_readonly: bool = False  # can only be set once (at init time)
 
@@ -253,12 +266,10 @@ class PropertyDeclaration:
     def determine(self, object_type: int | None, is_root_node: bool) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
         assert self.py_type is not None, f"no py_type for {self!r}"
-        if self.is_runtime_only:
-            return  # runtime only, nothing to do
 
         # parse annotation
         try:
-            self.type = parse_type_annotation(self.py_type, is_builtin_member=True)
+            self.type = parse_type_declaration(self.py_type, is_builtin=True)
         except Exception as e:
             raise ValueError(
                 f"invalid type: {self.component.__name__}.{self.name} ({self.py_type})"
@@ -274,7 +285,7 @@ class PropertyDeclaration:
                 raise ValueError(f"invalid object type: {object_type!r}")
 
         # check any type
-        if self.type.is_any and object_type != StructType.VALUE:
+        if self.type.is_any and object_type != StructType.VALUE and not self.is_runtime_only:
             raise ValueError(f"Any is only allowed in Value: {self!r}")
 
         # parent must be optional
@@ -393,18 +404,22 @@ class PropertyDeclaration:
         return Sort.of(self, SortType.DESCENDING)
 
 
-def parse_type_annotation(
-    py_type: type | str | typing.ForwardRef, *, is_builtin_member: bool = False
+def parse_type_declaration(
+    py_type: type | str | typing.ForwardRef,
+    *,
+    is_builtin: bool = False,
 ) -> TypeDeclaration:
     """
     Parses the TypeDeclaration from a given py type.
     NOTE: builtin members have some additional limitations (no unions, flat types, etc.).
     """
+
     is_required: bool = True
     scalar_type: ScalarType | None = None
     primitive_type: PrimitiveType | None = None
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
+    handle_type: HandleType | None = None
     node_types: list[NodeType] | None = None
 
     # try to resolve
@@ -425,9 +440,7 @@ def parse_type_annotation(
     # unwrap list
     if origin is list:
         element_type_arg = typing.get_args(py_type)[0]
-        element_annotation = parse_type_annotation(
-            element_type_arg, is_builtin_member=is_builtin_member
-        )
+        element_annotation = parse_type_declaration(element_type_arg, is_builtin=is_builtin)
         return TypeDeclaration(
             cardinality=TypeCardinality.LIST,
             value_type=element_annotation,
@@ -443,9 +456,7 @@ def parse_type_annotation(
         if len(type_args) == 2 and type_args[1] is ...:
             raise ValueError(f"cannot infer type of tuple: {py_type!r}")
         # heterogeneous tuple
-        element_types = [
-            parse_type_annotation(arg, is_builtin_member=is_builtin_member) for arg in type_args
-        ]
+        element_types = [parse_type_declaration(arg, is_builtin=is_builtin) for arg in type_args]
         return TypeDeclaration(
             cardinality=TypeCardinality.TUPLE,
             element_types=element_types,
@@ -461,7 +472,7 @@ def parse_type_annotation(
 
         if len(non_none_types) == 1:
             # it's just an optional of that type
-            result = parse_type_annotation(non_none_types[0], is_builtin_member=is_builtin_member)
+            result = parse_type_declaration(non_none_types[0], is_builtin=is_builtin)
             result.is_required = is_required
             return result
         else:
@@ -491,11 +502,9 @@ def parse_type_annotation(
     # unwrap map (dict)
     if origin is dict:
         key_type_arg, value_type_arg = typing.get_args(py_type)
-        key_annotation = parse_type_annotation(key_type_arg, is_builtin_member=is_builtin_member)
-        value_annotation = parse_type_annotation(
-            value_type_arg, is_builtin_member=is_builtin_member
-        )
-        if is_builtin_member:
+        key_annotation = parse_type_declaration(key_type_arg, is_builtin=is_builtin)
+        value_annotation = parse_type_declaration(value_type_arg, is_builtin=is_builtin)
+        if is_builtin:
             assert key_annotation.cardinality == TypeCardinality.SCALAR, (
                 f"builtin Types don't support map keys: {py_type!r}"
             )
@@ -517,7 +526,7 @@ def parse_type_annotation(
     if isinstance(py_type, (type, TypeAliasType)) and (
         primitive_t := PRIMITIVE_TYPE_BY_ANNOTATION.get(py_type)
     ):
-        if is_builtin_member and py_type in (float, int):
+        if is_builtin and py_type in (float, int):
             # shouldn't use float/int directly, use a specific precision/size
             raise ValueError(f"unspecific primitive type: {py_type!r}")
         scalar_type = ScalarType.PRIMITIVE
@@ -538,6 +547,9 @@ def parse_type_annotation(
     elif node_t := resolve_node_types(class_name):
         scalar_type = ScalarType.NODE_REFERENCE
         node_types = list(node_t)
+    elif handle_t := resolve_handle_type(class_name):
+        scalar_type = ScalarType.HANDLE
+        handle_type = handle_t
     else:
         raise ValueError(f"undetermined scalar type: {py_type!r}")
 
@@ -548,6 +560,7 @@ def parse_type_annotation(
         primitive_type=primitive_type,
         enum_type=enum_type,
         struct_type=struct_type,
+        handle_type=handle_type,
         node_types=node_types,
         is_any=is_any,
         is_self=is_self,
@@ -560,9 +573,7 @@ def get_class_name(
 ) -> str | None:
     if isinstance(py_type, str):
         return py_type
-    elif isinstance(py_type, type):  # noqa: SIM114
-        return py_type.__name__
-    elif isinstance(py_type, typing.TypeAliasType):
+    elif isinstance(py_type, (type, typing.TypeAliasType)):
         return py_type.__name__
     elif isinstance(py_type, typing.ForwardRef):
         return py_type.__forward_arg__
@@ -622,14 +633,14 @@ def builtin_property_parent(*, is_readonly: bool = False, description: str | Non
     )
 
 
-def builtin_property_runtime(*, default: Any = None) -> Any:
+def builtin_property_runtime(id: int, *, is_repr: bool = False, default: Any = None) -> Any:
     """A property that is only used at runtime."""
+    assert 400 <= id <= 500, f"runtime property must be between 400 and 500: {id}"
     return PropertyDeclaration(
-        id=None,
+        id=id,
         is_internal=True,
-        is_computed=False,
         is_runtime_only=True,
-        is_repr=False,
+        is_repr=is_repr,
         is_hash=False,
         is_eq=False,
         default_value=default,

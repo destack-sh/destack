@@ -10,7 +10,7 @@ from destack.language.registry import ENUM_TYPE_BY_CLASS
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from .builtin import EnumType, NodeType, StructType
+from .builtin import EnumType, HandleType, NodeType, StructType
 from .common import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_ANNOTATION,
@@ -101,13 +101,18 @@ class Type(StructFrozen):
         is_repr=True,
         description="Struct type of this Type (if it's a struct scalar).",
     )
+    handle_type: Optional[HandleType] = builtin_property(
+        125,
+        is_repr=True,
+        description="Handle type of this Type (if it's a handle scalar).",
+    )
     # literal_value: Optional["Value"] = builtin_property(
-    #     125,
+    #     126,
     #     is_repr=True,
     #     description="Literal value of this Type (if it's a literal scalar).",
     # )
     # union_types: list["Type"] | None = builtin_property(
-    #     126,
+    #     127,
     #     is_repr=True,
     #     description="Union types of this Type (if it's a union scalar).",
     # )
@@ -120,7 +125,7 @@ class Type(StructFrozen):
         For values, we try to infer the most specific Type that can represent the value.
         For annotations, we defer to parse_type_annotation.
         """
-        from ..builtin import Node, NodeReference, parse_type_annotation
+        from ..builtin import Handle, Node, NodeReference, parse_type_declaration
 
         #
         # Values
@@ -150,6 +155,12 @@ class Type(StructFrozen):
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.STRUCT,
                 struct_type=value_or_type.metatype,
+            )
+        elif isinstance(value_or_type, Handle):
+            return Type(
+                cardinality=TypeCardinality.SCALAR,
+                scalar_type=ScalarType.HANDLE,
+                handle_type=value_or_type.metatype,
             )
         elif isinstance(value_or_type, Enum):
             return Type(
@@ -199,7 +210,7 @@ class Type(StructFrozen):
         #
 
         # parse as annotation
-        type_decl = parse_type_annotation(value_or_type, is_builtin_member=False)
+        type_decl = parse_type_declaration(value_or_type, is_builtin=False)
         return type_decl.to_type()
 
 

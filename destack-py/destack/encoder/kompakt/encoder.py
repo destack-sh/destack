@@ -160,6 +160,8 @@ class KompaktEncoder(Encoder[bytes]):
             elif type.scalar_type == ScalarType.STRUCT:
                 assert type.struct_type is not None, f"no struct type for {type!r}"
                 writer.write_uint32(type.struct_type)
+            elif type.scalar_type == ScalarType.HANDLE:
+                raise NotImplementedError(f"cannot pack handle: {type!r}")
             else:
                 assert_never(type.scalar_type)
         # list
@@ -211,6 +213,8 @@ class KompaktEncoder(Encoder[bytes]):
                 node_types = [NodeType(reader.read_uint32()) for _ in range(reader.read_uint32())]
             elif scalar_type == ScalarType.STRUCT:
                 struct_type = StructType(reader.read_uint32())
+            elif scalar_type == ScalarType.HANDLE:
+                raise NotImplementedError(f"cannot unpack handle: {scalar_type!r}")
             else:
                 assert_never(scalar_type)
         # list
@@ -439,6 +443,9 @@ class KompaktEncoder(Encoder[bytes]):
                 self.pack_object_binary(value, writer, options | EncoderOptions.OMIT_METATYPE)
             else:
                 self.pack_object_binary(value, writer, options & ~EncoderOptions.OMIT_METATYPE)
+        # handle
+        elif type.scalar_type == ScalarType.HANDLE:
+            raise NotImplementedError(f"cannot pack Handle: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -544,6 +551,9 @@ class KompaktEncoder(Encoder[bytes]):
                 session,
                 options | EncoderOptions.OMIT_METATYPE,
             )
+        # handle
+        elif type.scalar_type == ScalarType.HANDLE:
+            raise NotImplementedError(f"cannot pack Handle: {type!r}")
         #
         else:
             assert_never(type.scalar_type)

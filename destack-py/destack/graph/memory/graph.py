@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 type_ = type
 
 
+# nocheckin(py): implement MemoryGraph
+
+
 class MemoryGraph(Graph):
     """A Graph that stores Nodes in memory."""
 
@@ -28,11 +31,11 @@ class MemoryGraph(Graph):
 
     @override
     async def open(self) -> None:
-        pass
+        pass  # nothing to do
 
     @override
     async def close(self) -> None:
-        pass
+        pass  # nothing to do
 
     #
     # Write

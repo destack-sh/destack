@@ -17,7 +17,6 @@ from destack.language.core import (
     builtin_enum,
     builtin_property,
     builtin_property_parent,
-    builtin_property_runtime,
 )
 from destack.utils.env import get_from_env
 from destack.utils.func import group_by
@@ -453,25 +452,3 @@ class File(Resource):
     thumbnail_width: UInt32 | None = builtin_property(134)
     thumbnail_height: UInt32 | None = builtin_property(135)
     content: bytes | None = builtin_property(136)
-
-    # cached content
-    _original: Optional["File"] = builtin_property_runtime(default=None)  # if converted
-    _cached_get_url: Optional[str] = builtin_property_runtime(default=None)
-    _cached_tmp_path: Optional[str] = builtin_property_runtime(default=None)
-    _cached_content: Optional[bytes] = builtin_property_runtime(default=None)
-
-    def get_original(self) -> "File | None":
-        """The original file (if converted or self)."""
-        if self._original is not None:
-            return self._original
-        elif isinstance(self, File):
-            return self
-        else:
-            return None
-
-    @property
-    def original(self) -> "File":
-        """The original file (if converted or self)."""
-        original = self.get_original()
-        assert original is not None, f"no original for {self!r}"
-        return original

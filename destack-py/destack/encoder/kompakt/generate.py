@@ -494,6 +494,9 @@ for _ in range({key}_length):
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
+        # handle
+        elif type.scalar_type == ScalarType.HANDLE:
+            raise NotImplementedError(f"cannot pack Handle: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -574,6 +577,9 @@ for _ in range({key}_length):
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return "_encoder.unpack_object_binary(None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        # handle
+        elif type.scalar_type == ScalarType.HANDLE:
+            raise NotImplementedError(f"cannot unpack Handle: {type!r}")
         #
         else:
             assert_never(type.scalar_type)

@@ -1,23 +1,44 @@
 import abc
 import asyncio
-import random
 import time
 from datetime import UTC, datetime
 from random import Random
-from typing import final, override
+from typing import TYPE_CHECKING, final
 
-# CONTEXT = 1_300, "Context", "Context", "fas fa-dot"
-# nocheckin: Context to replace Oracle and Session.actor_ptr/space_ptr.../epoch? as a Struct/Node/...?
-#  (as local partial instances set on some Entities? or as Structs? or something even more implicit?)
-#  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?,
-#   merge Oracle/Session.actor_ptr/.../epoch into Context?)
-# also with active snapshot_ptr, branch_ptr, ...?
+from destack.utils.uuid import UUID
+
+from ..builtin import (
+    Entity,
+    Handle,
+    HandleType,
+    NodeReference,
+    builtin_handle,
+    builtin_property_runtime,
+)
+
+if TYPE_CHECKING:
+    from destack.language import Client
 
 
-class Oracle:
+@builtin_handle(HandleType.CONTEXT)
+class Context(Handle):
     """
-    The oracle for all our entropy (e.g., time, randomness).
+    The runtime Context encapsulates most general world state (like time, entropy/RNG, etc.).
+
+    It accumulates down the Entity tree.
+    Custom values may be added / updated in the Entity tree.
     """
+
+    # TODO :Incomplete: Context to replace Oracle and Session.actor/space/branch/snapshot/...?
+    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?)
+    #  (also with active snapshot_ptr, branch_ptr, ...?)
+
+    actor: "Entity" = builtin_property_runtime(401, is_repr=True)
+    client: "Client" = builtin_property_runtime(402, is_repr=True)
+    client_nonce: UUID = builtin_property_runtime(403, is_repr=True)
+    if TYPE_CHECKING:
+        actor_ptr: "NodeReference"
+        client_ptr: "NodeReference"
 
     def __str__(self) -> str:
         return ""
@@ -38,46 +59,16 @@ class Oracle:
     @abc.abstractmethod
     def time(self) -> float:
         """Current time in seconds since the epoch."""
-        ...
+        return time.time()
 
     @abc.abstractmethod
     def now(self) -> datetime:
         """Current datetime in UTC with microsecond precision."""
-        ...
+        return datetime.now(UTC)
 
     @abc.abstractmethod
     async def sleep(self, duration: float) -> None:
         """Sleep for a duration in seconds. Like asyncio.sleep. Timing is relative to oracle."""
-        ...
-
-    # call_later, call_at
-
-
-class WorldOracle(Oracle):
-    """The real world oracle."""
-
-    def __init__(self, *, seed: int | None = None):
-        self._random = random.Random()
-        if seed is not None:
-            self._random.seed(seed)
-        self._time = time
-
-    @property
-    @override
-    def random(self) -> Random:
-        return self._random
-
-    @override
-    def time(self) -> float:
-        return self._time.time()
-
-    @override
-    def now(self) -> datetime:
-        return datetime.fromtimestamp(self._time.time_ns() / 1e9, tz=UTC)
-
-    @override
-    async def sleep(self, duration: float) -> None:
         await asyncio.sleep(duration)
 
-
-WORLD_ORACLE = WorldOracle()
+    # call_later, call_at

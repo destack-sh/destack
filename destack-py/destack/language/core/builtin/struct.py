@@ -16,6 +16,7 @@ from .builtin import EnumType, ObjectKind, ObjectStability, StructType
 from .declaration import StructDeclaration, TagDeclaration, builtin_method
 from .object import Object, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
+from .types import Int32
 
 if TYPE_CHECKING:
     from destack.language import StructDefinition
@@ -176,9 +177,9 @@ class StructFrozen(Struct):
     """An immutable Struct."""
 
     """Cached hash of the Struct."""
-    _hash: "int | None" = builtin_property_runtime()
+    _hash: Int32 | None = builtin_property_runtime(410)
     """Cached repr of the Struct."""
-    _repr: "str | None" = builtin_property_runtime()
+    _repr: str | None = builtin_property_runtime(411)
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that

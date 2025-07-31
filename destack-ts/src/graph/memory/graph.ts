@@ -1,6 +1,8 @@
 import type { Entity, Event, NodeType } from "@destack/language/core/builtin";
 import { Graph } from "@destack/language/core/runtime/graph";
 
+// nocheckin(ts): implement MemoryGraph
+
 /** A Graph that stores Nodes in memory. */
 export class MemoryGraph extends Graph {
   private nodesById: Map<string, Entity>;

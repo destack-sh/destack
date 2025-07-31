@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Self, assert_never, cast, final
+import abc
+from typing import TYPE_CHECKING, Any, Self, assert_never, cast, final, override
 
 from destack.language.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
 
@@ -31,7 +32,7 @@ from .declaration import (
 )
 from .object import Object
 from .property import PropertyDeclaration, builtin_property, builtin_property_runtime
-from .relation import PropertyReference, PropertyReferenceType
+from .relation import ObjectDefinitionReference, PropertyReference, PropertyReferenceType
 from .struct import Struct, StructFrozen, builtin_struct
 from .type import Type
 from .value import Value
@@ -130,6 +131,7 @@ class ObjectDefinition(StructFrozen):
         tags=("meta",),
     )
 
+    @abc.abstractmethod
     def to_ref(self) -> "ObjectDefinitionReference":
         raise NotImplementedError
 
@@ -329,6 +331,10 @@ class NodeDefinition(ObjectDefinition):
         tags=("associations",),
     )
 
+    @override
+    def to_ref(self) -> "ObjectDefinitionReference":
+        return ObjectDefinitionReference(kind=ObjectKind.NODE, node_type=self.type)
+
     @classmethod
     def from_declaration(
         cls, node_cls: type_["Node"], declaration: NodeDeclaration
@@ -351,7 +357,6 @@ class NodeDefinition(ObjectDefinition):
             properties=[
                 PropertyDefinition.from_declaration(prop)
                 for prop in node_cls.__properties__.values()
-                if not prop.is_runtime_only
             ],
             indexes=[
                 IndexDefinition.from_declaration(node_cls, index) for index in declaration.indexes
@@ -489,6 +494,10 @@ class StructDefinition(ObjectDefinition):
         tags=("associations",),
     )
 
+    @override
+    def to_ref(self) -> "ObjectDefinitionReference":
+        return ObjectDefinitionReference(kind=ObjectKind.STRUCT, struct_type=self.type)
+
     @classmethod
     def from_declaration(
         cls, struct_cls: type_[Struct], declaration: StructDeclaration
@@ -506,11 +515,7 @@ class StructDefinition(ObjectDefinition):
             is_frozen=declaration.is_frozen,
             is_abstract=declaration.is_abstract,
             # content
-            properties=[
-                prop.definition
-                for prop in struct_cls.__properties__.values()
-                if not prop.is_runtime_only
-            ],
+            properties=[prop.definition for prop in struct_cls.__properties__.values()],
             methods=[
                 MethodDefinition.from_declaration(struct_cls, method)
                 for method in declaration.methods
@@ -607,6 +612,10 @@ class HandleDefinition(ObjectDefinition):
         tags=("inheritance",),
     )
 
+    @override
+    def to_ref(self) -> "ObjectDefinitionReference":
+        return ObjectDefinitionReference(kind=ObjectKind.HANDLE, handle_type=self.type)
+
     @classmethod
     def from_declaration(
         cls, handle_cls: type_["Handle"], declaration: HandleDeclaration
@@ -624,11 +633,7 @@ class HandleDefinition(ObjectDefinition):
             is_frozen=declaration.is_frozen,
             is_abstract=declaration.is_abstract,
             # content
-            properties=[
-                prop.definition
-                for prop in handle_cls.__properties__.values()
-                if not prop.is_runtime_only
-            ],
+            properties=[prop.definition for prop in handle_cls.__properties__.values()],
             methods=[
                 MethodDefinition.from_declaration(handle_cls, method)
                 for method in declaration.methods
@@ -743,7 +748,6 @@ Whether this Property is part of the object's identity.
         from .node import Node
         from .struct import Struct
 
-        assert prop.id is not None, f"{prop!r} has no id"
         type = prop.type.to_type()
         object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
         original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(
@@ -965,7 +969,7 @@ class ConstantDefinition(StructFrozen):
     # content
     value: "Value" = builtin_property(120)
 
-    _is_deferred: bool = builtin_property_runtime()
+    _is_deferred: bool = builtin_property_runtime(401)
 
     @classmethod
     def from_declaration(cls, declaration: "ConstantDeclaration") -> "ConstantDefinition":

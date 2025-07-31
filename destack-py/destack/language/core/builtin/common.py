@@ -337,12 +337,18 @@ class ScalarType(Enum):
         "Struct value (structured data)",
         "fas fa-shapes",
     )
-    # LITERAL = 6, "Literal", "Literal value (constant value)"
-    # UNION = 7, "Union", "Tagged union of heterogeneous values"
+    HANDLE = (
+        6,
+        "Handle",
+        "Handle (runtime-only)",
+        "fas fa-link",
+    )
+    # LITERAL = 7, "Literal", "Literal value (constant value)"
+    # UNION = 8, "Union", "Tagged union of heterogeneous values"
     # NOTE :Incomplete: unions are annoying to handle in encoders/decoders
 
 
-assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding
+assert max(ScalarType) <= 8, "ScalarType must be less than 8"  # for :Encoding
 
 
 @builtin_enum(EnumType.PRIMITIVE_TYPE)

@@ -9,7 +9,6 @@ from typing import (
 from destack.language.core.builtin.property import builtin_property_runtime
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
-from destack.utils.uuid import UUID
 
 from ..builtin import (
     ACTIVE_SESSION,
@@ -21,16 +20,14 @@ from ..builtin import (
     Handle,
     HandleType,
     Int128,
-    NodeReference,
     PropertyDeclaration,
     Value,
     builtin_handle,
-    builtin_property,
 )
 from .graph import Graph
 
 if TYPE_CHECKING:
-    from destack.language import Client, GraphConnection, Oracle
+    from destack.language import Context, SpaceConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -44,23 +41,20 @@ class Session(Handle):
     A managed Session for interacting with Spaces.
     """
 
-    remote_epoch: Int128 = builtin_property(101, is_repr=True)
-    local_epoch: Int128 = builtin_property(102, is_repr=True)
-    actor: "Entity" = builtin_property(103, is_repr=True)
-    client: "Client" = builtin_property(104, is_repr=True)
-    client_nonce: UUID = builtin_property(105, is_repr=True)
-    if TYPE_CHECKING:
-        actor_ptr: "NodeReference"
-        client_ptr: "NodeReference"
-
-    graph: "Graph" = builtin_property_runtime()
-    oracle: "Oracle" = builtin_property_runtime()
-    pending_events: list["Event"] = builtin_property_runtime()
-    connections: list["GraphConnection"] = builtin_property_runtime()
-    closed_at: datetime | None = builtin_property_runtime()
+    remote_epoch: Int128 = builtin_property_runtime(401, is_repr=True)
+    local_epoch: Int128 = builtin_property_runtime(402, is_repr=True)
+    root_context: "Context" = builtin_property_runtime(403, is_repr=True)
+    graph: "Graph" = builtin_property_runtime(404)
+    pending_events: list["Event"] = builtin_property_runtime(406)
+    connections: list["SpaceConnection"] = builtin_property_runtime(407)
+    closed_at: datetime | None = builtin_property_runtime(408)
 
     def __repr__(self) -> str:
         return f"<Session {self!s}>"
+
+    @property
+    def context(self) -> "Context":
+        return self.root_context
 
     async def open(self):
         """Opens the Session."""
@@ -69,7 +63,7 @@ class Session(Handle):
     async def close(self):
         """Closes the Session."""
         assert self.closed_at is None, f"{self!r} is already closed"
-        self.closed_at = self.oracle.now()
+        self.closed_at = self.context.now()
 
     def append(self, event: Event):
         """Appends an Event."""
@@ -86,7 +80,7 @@ class Session(Handle):
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
-            created_by_ptr=self.actor_ptr,
+            created_by_ptr=self.context.actor_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -101,7 +95,7 @@ class Session(Handle):
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
-            created_by_ptr=self.actor_ptr,
+            created_by_ptr=self.context.actor_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -122,7 +116,7 @@ class Session(Handle):
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
-            created_by_ptr=self.actor_ptr,
+            created_by_ptr=self.context.actor_ptr,
             node=node,
             property_id=prop.id,
             operation=operation,
@@ -146,7 +140,7 @@ class Session(Handle):
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
-            created_by_ptr=self.actor_ptr,
+            created_by_ptr=self.context.actor_ptr,
             node=node,
             value=Value.wrap(parent),
             reverse_value=Value.wrap(old_parent),
@@ -163,7 +157,7 @@ class Session(Handle):
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
-            created_by_ptr=self.actor_ptr,
+            created_by_ptr=self.context.actor_ptr,
             node=node,
         )
         self.pending_events.append(edit)
@@ -176,7 +170,7 @@ class Session(Handle):
             space_ptr=node.space_ptr,
             branch_ptr=node.branch_ptr,
             snapshot_ptr=node.snapshot_ptr,
-            created_by_ptr=self.actor_ptr,
+            created_by_ptr=self.context.actor_ptr,
             node=node,
         )
         self.pending_events.append(edit)
@@ -201,7 +195,7 @@ class Session(Handle):
         self.flush()
         # events = list(self.pending_events)
         # self.pending_events = []
-        # nocheckin: 'process' Events (.status, time/epoch, in Space? who has authority?)
+        # nocheckin(all): 'process' Events (.status, time/epoch, in Space? who has authority?)
         #  -> general concept of 'authority' over certain Nodes and their processing?
         #   (like "who runs the timer"? "who runs physics"?)
         #  1) update Event status and 2) do something on failure :RejectedEvents

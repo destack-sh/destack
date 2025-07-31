@@ -301,11 +301,11 @@ class Node(Object):
     # ...
 
     """The Session this Node is in."""
-    _session: "Session" = builtin_property_runtime()
+    _session: "Session" = builtin_property_runtime(400)
     """The cached reference to this Node instance."""
-    _ref: "Optional[NodeReference]" = builtin_property_runtime(default=None)
+    _ref: Optional["NodeReference"] = builtin_property_runtime(401, default=None)
     """Whether this Node is new."""
-    _is_new: bool = builtin_property_runtime(default=False)
+    _is_new: bool = builtin_property_runtime(402, default=False)
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""

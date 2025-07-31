@@ -1,4 +1,4 @@
 [project]
 name = "destack-py-runtime"
-version = "2025.07.31.1"
+version = "2025.07.31.3"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]

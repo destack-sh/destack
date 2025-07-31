@@ -125,7 +125,7 @@ class Space(Entity):
 
         space_id = id or uuid4()
         epoch = session.remote_epoch
-        now = session.oracle.now()
+        now = session.context.now()
         space_ptr = NodeReference(
             type=NodeType.SPACE,
             id=space_id,
