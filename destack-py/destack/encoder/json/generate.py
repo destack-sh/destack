@@ -138,7 +138,7 @@ class {encoder_name}(JsonObjectEncoder):
         for prop in set_properties:
             prop_name = self.get_source_property_name(prop)
             pack_code = self.generate_pack_value(
-                prop,
+                prop.type,
                 key=f"_{prop_name}",
                 source_expr=f"_object.{prop_name}",
                 target_expr=f"_object_json['{self.get_target_property_key(prop)}']",
@@ -153,7 +153,7 @@ class {encoder_name}(JsonObjectEncoder):
             for prop in maybe_set_properties:
                 prop_name = self.get_source_property_name(prop)
                 pack_code = self.generate_pack_value(
-                    prop,
+                    prop.type,
                     key=f"_{prop_name}",
                     source_expr=f"_object.{prop_name}",
                     target_expr=f"_object_json['{self.get_target_property_key(prop)}']",
@@ -202,7 +202,7 @@ else:
         for prop in set_properties:
             prop_name = self.get_source_property_name(prop)
             unpack_code = self.generate_unpack_value(
-                prop,
+                prop.type,
                 key=f"_{prop_name}",
                 source_expr=f'_object_json.get("{self.get_target_property_key(prop)}")',
                 target_expr=f"_unpacked_{prop_name}",
@@ -217,7 +217,7 @@ else:
             for prop in maybe_set_properties:
                 prop_name = self.get_source_property_name(prop)
                 unpack_code = self.generate_unpack_value(
-                    prop,
+                    prop.type,
                     key=f"_{prop_name}",
                     source_expr=f'_object_json.get("{self.get_target_property_key(prop)}")',
                     target_expr=f"_unpacked_{prop_name}",
@@ -251,14 +251,14 @@ else:
     def get_source_property_name(self, prop: PropertyDeclaration) -> str:
         """Get the name of a property."""
         source_name = prop.name
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             source_name += "_ptr"
         return source_name
 
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
         """Get the target property key for JSON."""
         target_key = to_casing(prop.name, Casing.LOWER_CAMEL)
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             target_key += "Ptr"
         return target_key
 
@@ -505,9 +505,7 @@ else:
         else:
             assert_never(type.cardinality)
 
-    def generate_pack_scalar_value(
-        self, type: "PropertyDeclaration | TypeDeclaration", source_expr: str
-    ) -> str:
+    def generate_pack_scalar_value(self, type: "TypeDeclaration", source_expr: str) -> str:
         """Generate the packing code for a scalar value in the JSON encoding."""
 
         assert type.cardinality == TypeCardinality.SCALAR, f"cannot pack non-scalar: {type!r}"

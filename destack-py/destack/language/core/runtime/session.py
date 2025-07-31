@@ -150,7 +150,7 @@ class Session:
         assert self.closed_at is None, f"{self!r} is closed"
         assert prop.id is not None, f"no id for {prop!r}"
         old_value = getattr(node, prop.name)
-        prop_type = prop.to_type()
+        prop_type = prop.type.to_type()
 
         undo_operation = EditOperation.SET
         old_value = Value.wrap(old_value, prop_type)

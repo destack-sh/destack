@@ -9,7 +9,6 @@ from typing import (
     Callable,
     Optional,
     TypeAliasType,
-    assert_never,
 )
 
 from destack.utils.func import hash_stable
@@ -36,14 +35,12 @@ from .const import UNSET
 
 if TYPE_CHECKING:
     from destack.language import (
-        CheckedType,
         Condition,
         Object,
         PropertyDefinition,
         PropertyReference,
         Sort,
         Type,
-        TypeConstraint,
     )
 
 type_ = type
@@ -88,7 +85,7 @@ class TypeDeclaration:
     """Type annotation to be turned into a Property/Type."""
 
     # cardinality
-    cardinality: TypeCardinality = UNSET
+    cardinality: TypeCardinality
     key_type: "TypeDeclaration | None" = None
     value_type: "TypeDeclaration | None" = None
     element_types: Sequence["TypeDeclaration"] | None = None
@@ -105,12 +102,12 @@ class TypeDeclaration:
     is_self: bool = False
     is_any: bool = False
 
-    _basic_type: Optional["Type"] = None  # cached
+    _type: Optional["Type"] = None  # cached
 
     def to_type(self) -> "Type":
         """Map this TypeDeclaration to a Type."""
-        if self._basic_type is not None:
-            return self._basic_type
+        if self._type is not None:
+            return self._type
 
         from .type import Type
 
@@ -131,100 +128,25 @@ class TypeDeclaration:
             is_required=self.is_required,
         )
 
-        self._basic_type = type
-        return type
-
-
-@dataclass(slots=True)
-class CheckedTypeDeclaration(TypeDeclaration):
-    """A CheckedTypeDeclaration is a CheckedType with constraints and flags."""
-
-    # flags
-    is_required: bool = True
-    is_identity: bool = False
-    is_self: bool = False
-
-    # constraints
-    constraint: "TypeConstraint | None" = None
-
-    # defaults
-    default_value: Any | None = None
-    default_factory: ValueFactory | None = None
-
-    # cached
-    _type: Optional["CheckedType"] = None  # cached
-
-    constraint: "TypeConstraint | None" = None
-
-    _type: Optional["CheckedType"] = None  # cached
-
-    def to_type(self) -> "CheckedType":
-        """Map this TypeDeclaration to a Type."""
-        if self._type is not None:
-            return self._type
-
-        from .type import CheckedType, CollectionConstraint, NumberConstraint, StringConstraint
-        from .value import Value
-
-        # type
-        default_value = (
-            Value.wrap(self.default_value)
-            if self.default_value is not UNSET and self.default_value is not None
-            else None
-        )
-
-        # build constraints first since they're frozen
-        string_constraint = None
-        number_constraint = None
-        collection_constraint = None
-
-        # constraints
-        if self.constraint is not None:
-            if isinstance(self.constraint, StringConstraint):
-                string_constraint = self.constraint
-            elif isinstance(self.constraint, NumberConstraint):
-                number_constraint = self.constraint
-            elif isinstance(self.constraint, CollectionConstraint):
-                collection_constraint = self.constraint
-            else:
-                assert_never(self.constraint)
-
-        # type
-        type = CheckedType(
-            # cardinality
-            cardinality=self.cardinality,
-            key_type=self.key_type.to_type() if self.key_type else None,
-            value_type=self.value_type.to_type() if self.value_type else None,
-            element_types=[t.to_type() for t in self.element_types] if self.element_types else None,
-            # scalar
-            scalar_type=self.scalar_type,
-            primitive_type=self.primitive_type,
-            enum_type=self.enum_type,
-            node_types=list(self.node_types) if self.node_types else None,
-            struct_type=self.struct_type,
-            is_required=self.is_required,
-            # default
-            default_value=default_value,
-            default_factory=self.default_factory,
-            # constraints
-            string_constraint=string_constraint,
-            number_constraint=number_constraint,
-            collection_constraint=collection_constraint,
-        )
-
         self._type = type
         return type
 
 
+_NONE_TYPE = TypeDeclaration(
+    cardinality=TypeCardinality.SCALAR,
+    scalar_type=ScalarType.PRIMITIVE,
+    primitive_type=PrimitiveType.NONE,
+    is_required=False,
+)
+
+
 @dataclass(eq=False, slots=True)
-class PropertyDeclaration(CheckedTypeDeclaration):
+class PropertyDeclaration:
     """
     A system-defined attribute of an Object (Struct or Node).
     PropertyDeclarations are turned into PropertyDefinitions during construction,
      PropertyDeclarations (like their *Declaration brethren) are only for internal use.
     """
-
-    py_type: Any = None
 
     # meta
     zone: PropertyZone = PropertyZone.MEMBER
@@ -236,11 +158,20 @@ class PropertyDeclaration(CheckedTypeDeclaration):
     original_component: type_["Object"] = UNSET  # original component (first in chain)
     tags: tuple[str, ...] = ()
 
+    # type
+    py_type: Any = type_(None)  # noqa: RUF009
+    type: TypeDeclaration = dataclasses.field(default_factory=lambda: _NONE_TYPE)
+
+    # defaults
+    default_value: Any | None = None
+    default_factory: ValueFactory | None = None
+
     # relationships
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
     # flags
+    is_identity: bool = False
     is_unique: bool = False  # unique in DB
     is_repr: bool = False  # included in Object.__repr__
     is_hash: bool = True  # included in Object.__hash__
@@ -278,7 +209,6 @@ class PropertyDeclaration(CheckedTypeDeclaration):
             component=None,
             original_component=self.original_component,
             _ref=None,
-            _type=None,
             _definition=None,
         )
 
@@ -313,10 +243,6 @@ class PropertyDeclaration(CheckedTypeDeclaration):
         return self.id is not None and self.id is not UNSET
 
     @property
-    def is_optional(self) -> bool:
-        return not self.is_required
-
-    @property
     def definition(self) -> "PropertyDefinition":
         if self._definition is None:
             from .definition import PropertyDefinition
@@ -326,54 +252,55 @@ class PropertyDeclaration(CheckedTypeDeclaration):
 
     def determine(self, object_type: int | None, is_root_node: bool) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
+        assert self.py_type is not None, f"no py_type for {self!r}"
         if self.is_runtime_only:
             return  # runtime only, nothing to do
 
         # parse annotation
         try:
-            annotation = parse_type_annotation(self.py_type, is_builtin_member=True)
+            self.type = parse_type_annotation(self.py_type, is_builtin_member=True)
         except Exception as e:
             raise ValueError(
                 f"invalid type: {self.component.__name__}.{self.name} ({self.py_type})"
             ) from e
-        # copy over all the annotation info
-        for f in dataclasses.fields(annotation):
-            setattr(self, f.name, getattr(annotation, f.name))
 
         # resolve self type
-        if annotation.is_self and object_type is not None:
+        if self.type.is_self and object_type is not None:
             if isinstance(object_type, NodeType):
-                self.node_types = (object_type,)
+                self.type.node_types = (object_type,)
             elif isinstance(object_type, StructType):
-                self.struct_type = object_type
+                self.type.struct_type = object_type
             else:
                 raise ValueError(f"invalid object type: {object_type!r}")
 
         # check any type
-        if annotation.is_any and object_type != StructType.VALUE:
+        if self.type.is_any and object_type != StructType.VALUE:
             raise ValueError(f"Any is only allowed in Value: {self!r}")
 
         # parent must be optional
-        if self.name == "parent" and self.is_required:
+        if self.name == "parent" and self.type.is_required:
             raise ValueError(f"Entity.parent must be optional: {self!r}")
         # root nodes don't have a parent
         if self.name == "parent" and is_root_node:
-            self.node_types = ()
+            self.type.node_types = ()
         # 'type' must be 30
         if (self.name == "type") != (self.id == 100):
             raise ValueError(f"'type' must be 100: {self!r}")
 
         # default to None if not required and no default
-        if not self.is_required and self.default_value is UNSET:
+        if not self.type.is_required and self.default_value is UNSET:
             self.default_value = None
         # default to regular node references
-        if self.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
+        if self.type.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
             self.edge_type = EdgeType.REGULAR
         # references get a _ptr property (which is wired/stored)
-        if self.value_type is not None and self.value_type.scalar_type == ScalarType.NODE_REFERENCE:
+        if (
+            self.type.value_type is not None
+            and self.type.value_type.scalar_type == ScalarType.NODE_REFERENCE
+        ):
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert (
-                self.cardinality == TypeCardinality.SCALAR
+                self.type.cardinality == TypeCardinality.SCALAR
                 or self.component.__declaration__.kind != ObjectKind.NODE
             ), f"cannot have a list of Node references: {self!r}"
 
@@ -651,8 +578,6 @@ def builtin_property(
     description: str | None = None,
     default: Any = UNSET,
     default_factory: ValueFactory | None = None,
-    primitive_type: PrimitiveType | None = UNSET,
-    constraint: "TypeConstraint | None" = None,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_internal: bool = False,
@@ -670,8 +595,6 @@ def builtin_property(
         description=description,
         default_value=default,
         default_factory=default_factory,
-        primitive_type=primitive_type,
-        constraint=constraint,
         edge_type=edge_type,
         cascade=cascade,
         is_internal=is_internal,
@@ -691,7 +614,6 @@ def builtin_property_parent(*, is_readonly: bool = False, description: str | Non
         id=3,  # NOTE: never change this id! :Encoding
         edge_type=EdgeType.PARENT,
         default_value=None,
-        is_required=False,
         is_internal=True,
         is_eq=False,
         is_readonly=is_readonly,
@@ -700,7 +622,7 @@ def builtin_property_parent(*, is_readonly: bool = False, description: str | Non
     )
 
 
-def builtin_property_runtime(*, default: Any = UNSET) -> Any:
+def builtin_property_runtime(*, default: Any = None) -> Any:
     """A property that is only used at runtime."""
     return PropertyDeclaration(
         id=None,

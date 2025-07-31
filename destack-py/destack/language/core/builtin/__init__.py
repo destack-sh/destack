@@ -147,7 +147,6 @@ from .relation import (
 )
 from .struct import Struct, StructFrozen, builtin_struct
 from .type import (
-    CheckedType,
     CollectionConstraint,
     NumberConstraint,
     StringConstraint,
@@ -206,7 +205,6 @@ __all__ = [
     "ActionDefinition",
     "ActionType",
     "CascadeAction",
-    "CheckedType",
     "ClientType",
     "Cloud",
     "CollectionConstraint",

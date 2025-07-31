@@ -109,9 +109,9 @@ def finalize():
             continue
         elif node_cls.metatype == NodeType.SPACE:
             node_cls.__declaration__.parent_types = []
-            node_cls.__declaration__.parent_property.node_types = ()
+            node_cls.__declaration__.parent_property.type.node_types = ()
         else:
-            parent_types = node_cls.__declaration__.parent_property.node_types or ()
+            parent_types = node_cls.__declaration__.parent_property.type.node_types or ()
             assert len(parent_types) < len(NodeType), f"generic parent for '{node_cls.__name__}'"
             node_cls.__declaration__.parent_types = list(parent_types)
 
@@ -260,13 +260,13 @@ def finalize():
             if node_cls.__declaration__.parent_property is None:
                 continue
             # check if parent is compatible with bases
-            parent_node_types = node_cls.__declaration__.parent_property.node_types or ()
+            parent_node_types = node_cls.__declaration__.parent_property.type.node_types or ()
             for base_cls in node_cls.__bases__:
                 if isinstance(
                     base_parent_property := getattr(base_cls, "__parent_property__", None),
                     PropertyDeclaration,
                 ):
-                    base_parent_node_types = base_parent_property.node_types or ()
+                    base_parent_node_types = base_parent_property.type.node_types or ()
                     if (
                         NodeType.NODE in base_parent_node_types
                         or NodeType.ENTITY in base_parent_node_types

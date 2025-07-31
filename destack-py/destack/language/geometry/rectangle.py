@@ -3,14 +3,13 @@ from typing import TYPE_CHECKING, final
 from destack.language.core import (
     Float32,
     NodeType,
-    StructFrozen,
     StructType,
     builtin_entity,
     builtin_property,
     builtin_struct,
 )
 
-from .shape import Shape2D
+from .shape import Form2D, Shape2D
 
 if TYPE_CHECKING:
     pass
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
     is_final=True,
 )
 @final
-class Rectangle2D(StructFrozen):
+class Rectangle2D(Form2D):
     """A Rectangle is a rectangle."""
 
     width: Float32 = builtin_property(210)

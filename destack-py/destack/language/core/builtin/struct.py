@@ -9,7 +9,7 @@ from typing import (
 )
 
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
-from destack.utils.env import IS_DEV
+from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
@@ -29,7 +29,7 @@ type_ = type
 
 
 def _process_struct_cls(
-    cls: type,
+    cls: type["Struct"],
     struct_type: StructType,
     stability: ObjectStability,
     is_frozen: bool,
@@ -75,7 +75,30 @@ def _process_struct_cls(
         self_enum_types=list(all_enum_types),
     )
 
-    if IS_DEV:
+    # process object class
+    cls, _ = _process_object_cls(cast(type["Struct"], cls), declaration)
+    if struct_type is not None:
+        cls.metatype = struct_type
+
+    # register struct
+    if struct_type is not None and cls.__name__ != "StructFrozen":
+        assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
+            f"struct class {cls} is not a Struct"
+        )
+        if struct_type in STRUCT_CLASS_BY_TYPE:
+            raise ValueError(
+                f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
+            )
+        STRUCT_CLASS_BY_TYPE[struct_type] = cls
+        STRUCT_TYPE_BY_CLASS[cls] = struct_type
+
+    # sanity check
+    if IS_DEV or IS_TEST:
+        # non-abstract structs must have properties
+        if not is_abstract and not any(
+            not prop.is_runtime_only for prop in cls.__declaration__.properties
+        ):
+            raise ValueError(f"{cls.__name__} is not abstract but has no properties")
         # abstract objects cannot extend non-abstract objects
         if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
             raise ValueError(
@@ -100,23 +123,6 @@ def _process_struct_cls(
                 if hasattr(base, "__declaration__") and base.__declaration__.is_final
             )
             raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
-
-    # process object class
-    cls, _ = _process_object_cls(cast(type["Struct"], cls), declaration)
-    if struct_type is not None:
-        cls.metatype = struct_type
-
-    # register struct
-    if struct_type is not None and cls.__name__ != "StructFrozen":
-        assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
-            f"struct class {cls} is not a Struct"
-        )
-        if struct_type in STRUCT_CLASS_BY_TYPE:
-            raise ValueError(
-                f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
-            )
-        STRUCT_CLASS_BY_TYPE[struct_type] = cls
-        STRUCT_TYPE_BY_CLASS[cls] = struct_type
 
     return cast(type["Struct"], cls)
 

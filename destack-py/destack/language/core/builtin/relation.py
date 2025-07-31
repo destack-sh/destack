@@ -278,7 +278,7 @@ class PropertyReference(StructFrozen):
     def to_type(self) -> "Type":
         """Convert to a Type."""
         prop = self.resolve()
-        return prop.to_type()
+        return prop.type
 
     def to_ref(self) -> "PropertyReference":
         """Get this PropertyReference (for convenience)."""

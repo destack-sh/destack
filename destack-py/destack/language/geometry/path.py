@@ -2,14 +2,13 @@ from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
     NodeType,
-    StructFrozen,
     StructType,
     builtin_entity,
     builtin_property,
     builtin_struct,
 )
 
-from .shape import Shape2D
+from .shape import Form2D, Shape2D
 
 if TYPE_CHECKING:
     from destack.language import Vector2
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
     is_final=True,
 )
 @final
-class Path2D(StructFrozen):
+class Path2D(Form2D):
     """A Path is a path of multiple points."""
 
     points: list["Vector2"] = builtin_property(210)

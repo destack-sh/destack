@@ -12,7 +12,6 @@ from destack.language.core import (
     EncoderOptions,
     Encoding,
     Json,
-    Node,
     NodeType,
     Object,
     ObjectKind,
@@ -36,6 +35,12 @@ from .core import JsonObjectEncoder
 logger = get_logger(__name__)
 tracer = get_tracer(__name__)
 type_ = type
+
+METAKIND_PROPERTY = Object.__properties__["metakind"]
+METATYPE_PROPERTY = Object.__properties__["metatype"]
+
+VALUE_TYPE_PROPERTY = Value.__properties__["type"]
+VALUE_VALUE_PROPERTY = Value.__properties__["value"]
 
 
 class JsonEncoder(Encoder[Json]):
@@ -68,8 +73,8 @@ class JsonEncoder(Encoder[Json]):
         packed_object = encoder.pack_object(self, object, options)
         # metatype
         if not options & EncoderOptions.OMIT_METATYPE:
-            metakind_key = self.get_target_property_key(Object.__properties__["metakind"])
-            metatype_key = self.get_target_property_key(Object.__properties__["metatype"])
+            metakind_key = self.get_target_property_key(METAKIND_PROPERTY)
+            metatype_key = self.get_target_property_key(METATYPE_PROPERTY)
             packed_object[metakind_key] = self.pack_scalar_enum(ObjectKind, object.metakind)
             packed_object[metatype_key] = self.pack_scalar_enum(
                 type_(object.metatype), object.metatype
@@ -86,14 +91,14 @@ class JsonEncoder(Encoder[Json]):
     ) -> Object:
         # infer metatype from value
         if type is None:
-            metakind_key = self.get_target_property_key(Object.__properties__["metakind"])
+            metakind_key = self.get_target_property_key(METAKIND_PROPERTY)
             metakind = self.unpack_scalar_enum(ObjectKind, value[metakind_key])
             if metakind == ObjectKind.NODE:
-                metatype_key = self.get_target_property_key(Node.__properties__["metatype"])
+                metatype_key = self.get_target_property_key(METATYPE_PROPERTY)
                 metatype = self.unpack_scalar_enum(NodeType, value[metatype_key])
                 type = (metakind, metatype)
             elif metakind == ObjectKind.STRUCT:
-                metatype_key = self.get_target_property_key(Object.__properties__["metatype"])
+                metatype_key = self.get_target_property_key(METATYPE_PROPERTY)
                 metatype = self.unpack_scalar_enum(StructType, value[metatype_key])
                 type = (metakind, metatype)
             else:
@@ -470,8 +475,8 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         _object: Value,
         _options: EncoderOptions,
     ) -> dict[str, Any]:
-        type_key = _encoder.get_target_property_key(Value.__properties__["type"])
-        value_key = _encoder.get_target_property_key(Value.__properties__["value"])
+        type_key = _encoder.get_target_property_key(VALUE_TYPE_PROPERTY)
+        value_key = _encoder.get_target_property_key(VALUE_VALUE_PROPERTY)
         return {
             type_key: _encoder.pack_object(_object.type, _options),
             value_key: _encoder.pack_value(_object.type, _object.value, _options),
@@ -485,8 +490,8 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         _session: Session | None,
         _options: EncoderOptions,
     ) -> Value:
-        type_key = _encoder.get_target_property_key(Value.__properties__["type"])
-        value_key = _encoder.get_target_property_key(Value.__properties__["value"])
+        type_key = _encoder.get_target_property_key(VALUE_TYPE_PROPERTY)
+        value_key = _encoder.get_target_property_key(VALUE_VALUE_PROPERTY)
         unpacked_type = _encoder.unpack_object(
             (ObjectKind.STRUCT, StructType.TYPE), _object_json[type_key], _session, _options
         )

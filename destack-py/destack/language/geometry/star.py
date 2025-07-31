@@ -4,14 +4,13 @@ from destack.language.core import (
     Float32,
     Int8,
     NodeType,
-    StructFrozen,
     StructType,
     builtin_entity,
     builtin_property,
     builtin_struct,
 )
 
-from .shape import Shape2D
+from .shape import Form2D, Shape2D
 
 if TYPE_CHECKING:
     from destack.language import Vector2
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
     is_final=True,
 )
 @final
-class Star2D(StructFrozen):
+class Star2D(Form2D):
     """A Star2D is a star with a radius and height."""
 
     center: "Vector2" = builtin_property(210)

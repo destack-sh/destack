@@ -20,14 +20,13 @@ from .common import (
     ScalarType,
     TypeCardinality,
     UInt32,
-    ValueFactory,
 )
 from .declaration import builtin_method
 from .property import builtin_property
 from .struct import Struct, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
-    from destack.language import Value
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -35,7 +34,8 @@ logger = get_logger(__name__)
 tracer = get_tracer(__name__)
 
 
-@builtin_struct(StructType.TYPE, frozen=True)
+@builtin_struct(StructType.TYPE, frozen=True, is_final=True)
+@final
 class Type(StructFrozen):
     """
     A basic Type in the type system. Types compose like a tree (with scalars at the leaves):
@@ -168,7 +168,7 @@ class Type(StructFrozen):
         if isinstance(value_or_type, tuple):
             # tuples are heterogeneous
             element_types = [
-                CheckedType.infer(elem, node_as_value=node_as_value) for elem in value_or_type
+                Type.infer(elem, node_as_value=node_as_value) for elem in value_or_type
             ]
             return Type(
                 cardinality=TypeCardinality.TUPLE,
@@ -177,7 +177,7 @@ class Type(StructFrozen):
         elif isinstance(value_or_type, list):
             assert value_or_type, f"cannot infer type of empty list: {value_or_type!r}"
             # lists are homogeneous - infer from first element
-            element_type = CheckedType.infer(value_or_type[0], node_as_value=node_as_value)
+            element_type = Type.infer(value_or_type[0], node_as_value=node_as_value)
             return Type(
                 cardinality=TypeCardinality.LIST,
                 value_type=element_type,
@@ -186,8 +186,8 @@ class Type(StructFrozen):
             assert value_or_type, f"cannot infer type of empty dict: {value_or_type!r}"
             sample_key = next(iter(value_or_type))
             sample_value = value_or_type[sample_key]
-            key_type = CheckedType.infer(sample_key, node_as_value=node_as_value)
-            value_type = CheckedType.infer(sample_value, node_as_value=node_as_value)
+            key_type = Type.infer(sample_key, node_as_value=node_as_value)
+            value_type = Type.infer(sample_value, node_as_value=node_as_value)
             return Type(
                 cardinality=TypeCardinality.MAP,
                 key_type=key_type,
@@ -247,23 +247,3 @@ class CollectionConstraint(StructFrozen):
 
 
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
-
-
-@builtin_struct(StructType.CHECKED_TYPE, frozen=True)
-class CheckedType(Type):
-    """
-    A full Type in the type system.
-    Extends Type with defaults, constraints, and supporting flags.
-    """
-
-    # default
-    default_value: Optional["Value"] = builtin_property(150)
-    default_factory: Optional[ValueFactory] = builtin_property(151)
-
-    # constraints
-    collection_constraint: Optional["CollectionConstraint"] = builtin_property(160)
-    string_constraint: Optional["StringConstraint"] = builtin_property(161)
-    number_constraint: Optional["NumberConstraint"] = builtin_property(162)
-
-    # flags
-    # ...

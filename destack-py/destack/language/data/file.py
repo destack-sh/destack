@@ -10,7 +10,6 @@ from destack.language.core import (
     EnumType,
     Float32,
     NodeType,
-    PrimitiveType,
     Resource,
     UInt32,
     UInt64,
@@ -438,7 +437,7 @@ class File(Resource):
     # meta
     mime_type: str | None = builtin_property(120, is_repr=True)
     format: FileFormat | None = builtin_property(121, is_repr=True)
-    size: UInt64 | None = builtin_property(122, primitive_type=PrimitiveType.INT64, is_repr=True)
+    size: UInt64 | None = builtin_property(122, is_repr=True)
     sha256: str | None = builtin_property(123)
     width: UInt32 | None = builtin_property(124)
     height: UInt32 | None = builtin_property(125)

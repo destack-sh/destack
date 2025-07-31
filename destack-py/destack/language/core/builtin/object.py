@@ -16,7 +16,7 @@ from typing import (
     dataclass_transform,
 )
 
-from destack.utils.code import exec_, format_code
+from destack.utils.code import exec_
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
@@ -70,7 +70,7 @@ from .property import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import BinaryReader, BinaryWriter, EncoderOptions, Graph, Node, Session
+    from destack.language import BinaryReader, BinaryWriter, EncoderOptions, Node, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -120,8 +120,8 @@ def _generate_init[ObjectT: Object](
         and p.default_value is UNSET
         and p.default_factory is None
         and not p.is_internal
-        and p.cardinality == TypeCardinality.SCALAR
-        and p.scalar_type
+        and p.type.cardinality == TypeCardinality.SCALAR
+        and p.type.scalar_type
         != ScalarType.NODE_REFERENCE  # passed either as node or node_ptr, defer check
     ]
 
@@ -148,7 +148,7 @@ def _generate_init[ObjectT: Object](
             extra_glbls[default_name] = prop.default_value
             default_str = default_name
         method_header_lines.append(f"{prop.name}={default_str}")
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             method_header_lines.append(f"{prop.name}_ptr=None")
 
     method_header_lines.append(")")
@@ -284,11 +284,11 @@ else:
 
         arg_name = prop.name
         self_name = (
-            prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
+            prop.name if prop.type.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
         )
 
         # cast node to node_ptr
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             method_body_lines.append(f"""\
 if {arg_name} is not None:
     {self_name} = {arg_name}.to_ref()""")
@@ -400,18 +400,18 @@ if {self_name} is None:
                 assert_never(prop.default_factory)
 
         # check if node is passed if required and scalar
-        if prop.is_required and prop.cardinality == TypeCardinality.SCALAR:
+        if prop.type.is_required and prop.type.cardinality == TypeCardinality.SCALAR:
             method_body_lines.append(f"""\
 if {self_name} is None:
     raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
 
         # init list/map if unset and required
-        if prop.is_required:
-            if prop.cardinality == TypeCardinality.LIST:
+        if prop.type.is_required:
+            if prop.type.cardinality == TypeCardinality.LIST:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = {"[]" if not declaration.is_frozen else "EMPTY_LIST"}""")
-            elif prop.cardinality == TypeCardinality.MAP:
+            elif prop.type.cardinality == TypeCardinality.MAP:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = {"{}" if not declaration.is_frozen else "EMPTY_DICT"}""")
@@ -422,21 +422,9 @@ if {arg_name} is None:
         else:
             method_body_lines.append(f"self.{self_name} = {self_name}")
 
-    if declaration.kind == ObjectKind.NODE:
-        assert isinstance(declaration, NodeDeclaration), f"unexpected declaration: {declaration!r}"
-        if NodeType.ENTITY in declaration.inherits or NodeType.EVENT in declaration.inherits:
-            method_body_lines.append(f"""\
-# graph
-{set_template_str.format("_graph", "_graph")}
-""")
-        else:
-            raise NotImplementedError(f"unexpected node {cls.__name__}")
-
     method_body = "\n".join(method_body_lines) or "pass"
     method_body = textwrap.indent(method_body, "    ")
     init_str = f"{method_header}:\n{method_body}"
-    if IS_DEV:
-        init_str = format_code(init_str)
     return init_str, extra_glbls
 
 
@@ -505,13 +493,13 @@ __str__ = __repr__
         prop_name = prop.name
 
         # scalar
-        if prop.cardinality == TypeCardinality.SCALAR:
-            if prop.is_required:
-                scalar_expr = _get_scalar_repr(prop, f"self.{prop_name}")
+        if prop.type.cardinality == TypeCardinality.SCALAR:
+            if prop.type.is_required:
+                scalar_expr = _get_scalar_repr(prop.type, f"self.{prop_name}")
                 repr_parts_lines.append(f"property_reprs.append(f'{prop_name}={{{scalar_expr}}}')")
                 has_required_repr_props = True
             else:
-                scalar_expr = _get_scalar_repr(prop, f"{prop_name}")
+                scalar_expr = _get_scalar_repr(prop.type, f"{prop_name}")
                 repr_parts_lines.extend(
                     f"""\
 if ({prop_name} := self.{prop_name}) is not None:
@@ -519,8 +507,8 @@ if ({prop_name} := self.{prop_name}) is not None:
                 )
 
         # list
-        elif prop.cardinality == TypeCardinality.LIST:
-            if prop.scalar_type == ScalarType.ENUM:
+        elif prop.type.cardinality == TypeCardinality.LIST:
+            if prop.type.scalar_type == ScalarType.ENUM:
                 list_expr = f"'[' + ', '.join(x.name for x in self.{prop_name}) + ']'"
             else:
                 list_expr = f"self.{prop_name}!r"
@@ -531,15 +519,15 @@ if self.{prop_name}:
             )
 
         # tuple
-        elif prop.cardinality == TypeCardinality.TUPLE:
+        elif prop.type.cardinality == TypeCardinality.TUPLE:
             raise NotImplementedError(f"cannot repr tuple: {prop!r}")
 
         # map
-        elif prop.cardinality == TypeCardinality.MAP:
-            assert prop.key_type is not None, f"{prop!r} has no key type"
-            if prop.key_type.scalar_type == ScalarType.ENUM:
-                key_repr = _get_scalar_repr(prop.key_type, "k")
-                value_repr = _get_scalar_repr(prop, "v")
+        elif prop.type.cardinality == TypeCardinality.MAP:
+            assert prop.type.key_type is not None, f"{prop!r} has no key type"
+            if prop.type.key_type.scalar_type == ScalarType.ENUM:
+                key_repr = _get_scalar_repr(prop.type.key_type, "k")
+                value_repr = _get_scalar_repr(prop.type, "v")
                 map_expr = f"'{{' + ', '.join(f'{{{key_repr}}}: {{{value_repr}}}' for k, v in self.{prop_name}.items()) + '}}'"
             else:
                 map_expr = f"self.{prop_name}!r"
@@ -550,7 +538,7 @@ if self.{prop_name}:
             )
 
         else:
-            assert_never(prop.cardinality)
+            assert_never(prop.type.cardinality)
 
     # wrap in repr
     repr_parts_str = "\n".join(repr_parts_lines)
@@ -700,13 +688,13 @@ __eq__ = equals
 def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate equality check code for a single property."""
     prop_name = prop.name
-    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+    if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}_ptr"
 
     # scalar
-    if prop.cardinality == TypeCardinality.SCALAR:
-        scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop)
-        if prop.is_required or is_simple:
+    if prop.type.cardinality == TypeCardinality.SCALAR:
+        scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop.type)
+        if prop.type.is_required or is_simple:
             # required scalar
             return f"""\
 if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.{prop_name}")}):
@@ -718,15 +706,15 @@ if (self.{prop_name} is None) != (other.{prop_name} is None) or (self.{prop_name
     return False"""
 
     # list
-    elif prop.cardinality == TypeCardinality.LIST:
-        assert prop.value_type is not None, f"{prop!r} has no value type"
-        value_cmp_str, is_simple = _generate_scalar_cmp_impl(prop.value_type)
+    elif prop.type.cardinality == TypeCardinality.LIST:
+        assert prop.type.value_type is not None, f"{prop!r} has no value type"
+        value_cmp_str, is_simple = _generate_scalar_cmp_impl(prop.type.value_type)
         main_cmp = f"""\
 for i in range(len(self.{prop_name})):
     if not ({value_cmp_str.format(self_val=f"self.{prop_name}[i]", other_val=f"other.{prop_name}[i]")}):
         return False
 """
-        if prop.is_required:
+        if prop.type.is_required:
             return f"""\
 if len(self.{prop_name}) != len(other.{prop_name}):
     return False
@@ -743,15 +731,15 @@ if self.{prop_name} is not None:
 """
 
     # tuple
-    elif prop.cardinality == TypeCardinality.TUPLE:
+    elif prop.type.cardinality == TypeCardinality.TUPLE:
         raise NotImplementedError(f"cannot compare tuple: {prop!r}")
 
     # map
-    elif prop.cardinality == TypeCardinality.MAP:
-        assert prop.key_type is not None, f"{prop!r} has no key type"
-        assert prop.value_type is not None, f"{prop!r} has no value type"
-        value_cmp_str, is_simple = _generate_scalar_cmp_impl(prop.value_type)
-        if prop.scalar_type in (
+    elif prop.type.cardinality == TypeCardinality.MAP:
+        assert prop.type.key_type is not None, f"{prop!r} has no key type"
+        assert prop.type.value_type is not None, f"{prop!r} has no value type"
+        value_cmp_str, is_simple = _generate_scalar_cmp_impl(prop.type.value_type)
+        if prop.type.scalar_type in (
             ScalarType.STRUCT,
             ScalarType.NODE_REFERENCE,
             ScalarType.NODE_VALUE,
@@ -764,7 +752,7 @@ for key in self.{prop_name}:
     if not ({value_cmp_str.format(self_val=f"self.{prop_name}[key]", other_val=f"other.{prop_name}[key]")}):
         return False
 """
-            if prop.is_required:
+            if prop.type.is_required:
                 return f"""\
 if len(self.{prop_name}) != len(other.{prop_name}):
     return False
@@ -785,10 +773,10 @@ if self.{prop_name} is not None:
 if self.{prop_name} != other.{prop_name}:
     return False"""
     else:
-        assert_never(prop.cardinality)
+        assert_never(prop.type.cardinality)
 
 
-def _generate_scalar_cmp_impl(prop: TypeDeclaration | PropertyDeclaration) -> tuple[str, bool]:
+def _generate_scalar_cmp_impl(prop: TypeDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
     if prop.scalar_type == ScalarType.PRIMITIVE:
@@ -861,39 +849,39 @@ _SCALAR_HASH_TEMPLATE = "h = ((h * 31) + {value_expr}) & 0xFFFFFFFF"
 def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
     """Generate a hash method for a single property."""
     prop_name = prop.name
-    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+    if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}_ptr"
 
     # scalar
-    if prop.cardinality == TypeCardinality.SCALAR:
-        if prop.is_required:
-            scalar_hash_str = _generate_scalar_hash_impl(prop, f"self.{prop_name}")
+    if prop.type.cardinality == TypeCardinality.SCALAR:
+        if prop.type.is_required:
+            scalar_hash_str = _generate_scalar_hash_impl(prop.type, f"self.{prop_name}")
             return _SCALAR_HASH_TEMPLATE.format(value_expr=scalar_hash_str)
         else:
-            scalar_hash_str = _generate_scalar_hash_impl(prop, prop_name)
+            scalar_hash_str = _generate_scalar_hash_impl(prop.type, prop_name)
             return f"""\
 if ({prop_name} := self.{prop_name}) is not None:
     {_SCALAR_HASH_TEMPLATE.format(value_expr=scalar_hash_str)}"""
 
     # list
-    elif prop.cardinality == TypeCardinality.LIST:
-        assert prop.value_type is not None, f"{prop!r} has no value type"
-        value_hash_str = _generate_scalar_hash_impl(prop.value_type, "_item")
+    elif prop.type.cardinality == TypeCardinality.LIST:
+        assert prop.type.value_type is not None, f"{prop!r} has no value type"
+        value_hash_str = _generate_scalar_hash_impl(prop.type.value_type, "_item")
         return f"""\
 if ({prop_name} := self.{prop_name}):
     for _item in {prop_name}:
         {_SCALAR_HASH_TEMPLATE.format(value_expr=value_hash_str)}"""
 
     # tuple
-    elif prop.cardinality == TypeCardinality.TUPLE:
+    elif prop.type.cardinality == TypeCardinality.TUPLE:
         raise NotImplementedError(f"cannot hash tuple: {prop!r}")
 
     # map
-    elif prop.cardinality == TypeCardinality.MAP:
-        assert prop.key_type is not None, f"{prop.name} has no key type"
-        assert prop.value_type is not None, f"{prop.name} has no value type"
-        key_hash_str = _generate_scalar_hash_impl(prop.key_type, "_key")
-        value_hash_str = _generate_scalar_hash_impl(prop.value_type, "_value")
+    elif prop.type.cardinality == TypeCardinality.MAP:
+        assert prop.type.key_type is not None, f"{prop.name} has no key type"
+        assert prop.type.value_type is not None, f"{prop.name} has no value type"
+        key_hash_str = _generate_scalar_hash_impl(prop.type.key_type, "_key")
+        value_hash_str = _generate_scalar_hash_impl(prop.type.value_type, "_value")
         return f"""\
 if ({prop_name} := self.{prop_name}):
     for _key, _value in {prop_name}.items():
@@ -901,10 +889,10 @@ if ({prop_name} := self.{prop_name}):
         {_SCALAR_HASH_TEMPLATE.format(value_expr=value_hash_str)}"""
 
     else:
-        assert_never(prop.cardinality)
+        assert_never(prop.type.cardinality)
 
 
-def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, value_expr: str) -> str:
+def _generate_scalar_hash_impl(prop: TypeDeclaration, value_expr: str) -> str:
     """Generate a hash method for a single scalar property."""
     assert prop.scalar_type is not None, f"no scalar type for {prop!r}"
     if prop.scalar_type == ScalarType.PRIMITIVE:
@@ -1027,7 +1015,9 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
     # NOTE :Performance: we could inline Supergraph.get into node property getters
 
-    assert prop.cardinality == TypeCardinality.SCALAR, f"node properties must be scalar: {prop!r}"
+    assert prop.type.cardinality == TypeCardinality.SCALAR, (
+        f"node properties must be scalar: {prop!r}"
+    )
     is_node = prop.component.__declaration__.kind == ObjectKind.NODE
 
     if is_node:
@@ -1077,6 +1067,18 @@ def {prop.name}(self: "Object", value: "Node | None"):
 
 _time_spent_in_process_object_cls = 0
 
+_METAKIND_TYPE = TypeDeclaration(
+    cardinality=TypeCardinality.SCALAR,
+    primitive_type=PrimitiveType.INT32,
+    enum_type=EnumType.OBJECT_KIND,
+    is_required=True,
+)
+_METATYPE_TYPE = TypeDeclaration(
+    cardinality=TypeCardinality.SCALAR,
+    primitive_type=PrimitiveType.INT32,
+    is_required=True,
+)
+
 
 def _process_object_cls[ObjectT: Object](
     cls: type[ObjectT], declaration: ObjectDeclaration
@@ -1094,28 +1096,20 @@ def _process_object_cls[ObjectT: Object](
         id=METAKIND_PROPERTY_ID,
         name="metakind",
         py_type=Any,
-        cardinality=TypeCardinality.SCALAR,
-        is_required=True,
+        type=_METAKIND_TYPE,
         is_runtime_only=True,
         is_computed=True,  # is set statically by class decorator
         is_identity=True,
-        primitive_type=PrimitiveType.INT32,
-        enum_type=EnumType.OBJECT_KIND,
         component=cls,
     )
     metatype_property = PropertyDeclaration(
         id=METATYPE_PROPERTY_ID,
         name="metatype",
         py_type=Any,
-        cardinality=TypeCardinality.SCALAR,
-        is_required=True,
         is_runtime_only=True,
         is_computed=True,  # is set statically by class decorator
         is_identity=True,
-        primitive_type=PrimitiveType.INT32,
-        enum_type=EnumType.NODE_TYPE
-        if declaration.kind == ObjectKind.NODE
-        else EnumType.STRUCT_TYPE,
+        type=_METATYPE_TYPE,
         component=cls,
     )
 
@@ -1189,7 +1183,6 @@ def _process_object_cls[ObjectT: Object](
                     "metakind",
                     "parent",
                     "definition",
-                    "_graph",
                 ):
                     continue  # may be narrowed/duplicated
                 elif component.__declaration__.is_abstract and existing.id == prop.id:
@@ -1207,7 +1200,7 @@ def _process_object_cls[ObjectT: Object](
             properties[prop.name] = prop
 
     # determine property types
-    for prop in tuple(properties.values()):
+    for prop in properties.values():
         prop.determine(declaration.type, is_root_node=declaration.type == NodeType.SPACE)
 
     # index properties
@@ -1227,7 +1220,7 @@ def _process_object_cls[ObjectT: Object](
         if not prop.is_runtime_only:
             lower_camel_name = to_casing(prop.name, Casing.LOWER_CAMEL)
             upper_camel_name = to_casing(prop.name, Casing.CAMEL)
-            if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
                 aliases = (
                     prop.name,
                     prop.name + "_ptr",
@@ -1297,7 +1290,7 @@ def _process_object_cls[ObjectT: Object](
             if isinstance(cls_dict.get(prop.name), PropertyDeclaration):
                 cls_dict.pop(prop.name, None)
         cls_dict["__slots__"] = tuple(
-            p.name if p.scalar_type != ScalarType.NODE_REFERENCE else f"{p.name}_ptr"
+            p.name if p.type.scalar_type != ScalarType.NODE_REFERENCE else f"{p.name}_ptr"
             for p in properties.values()
             if not p.is_computed
         )
@@ -1379,8 +1372,6 @@ class Object:
 
     """The Session this Object is in."""
     _session: "Session | None" = builtin_property_runtime()
-    """The Graph this Object is in."""
-    _graph: "Graph | None" = builtin_property_runtime()
 
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:
