@@ -328,9 +328,7 @@ class Node(Object):
     @builtin_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        if self._ref is None:
-            self._ref = self.__to_ref__()
-        return self._ref
+        raise NotImplementedError
 
     @classmethod
     @builtin_method(60)

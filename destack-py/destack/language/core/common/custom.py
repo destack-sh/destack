@@ -6,6 +6,7 @@ from ..builtin import (
     Entity,
     Event,
     Message,
+    NodeReference,
     NodeType,
     Struct,
     StructType,
@@ -13,6 +14,7 @@ from ..builtin import (
     builtin_entity,
     builtin_event,
     builtin_message,
+    builtin_method,
     builtin_property,
     builtin_property_parent,
     builtin_struct,
@@ -20,7 +22,7 @@ from ..builtin import (
 from .query import Condition, ConditionalType, Sort, SortType
 
 if TYPE_CHECKING:
-    from destack.language import Condition, Icon, NodeReference, Value
+    from destack.language import Condition, Icon, Value
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -50,6 +52,20 @@ class CustomEvent(Event):
     )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
+
+    @builtin_method(2)
+    def to_ref(self) -> "NodeReference":
+        """Gets a reference to this Node."""
+        if self._ref is None:
+            self._ref = NodeReference(
+                type=self.metatype,
+                id=self.id,
+                space_id=self.space_ptr.id,
+                branch_id=self.branch_ptr.id,
+                snapshot_id=self.snapshot_ptr.id,
+                definition_id=self.definition_ptr.id if self.definition_ptr is not None else None,
+            )
+        return self._ref
 
 
 @builtin_entity(NodeType.CUSTOM_STRUCT_DEFINITION)

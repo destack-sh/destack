@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+# nocheckin(py): replace structlog with logging
+
 
 class Logger:
     __slots__ = ("name",)

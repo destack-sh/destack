@@ -32,11 +32,11 @@ from .property import (
     builtin_property,
     builtin_property_parent,
 )
+from .relation import NodeReference
 
 if TYPE_CHECKING:
     from destack.language import (
         Branch,
-        NodeReference,
         Script,
         Session,
         Snapshot,
@@ -289,8 +289,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         is_internal=True,
         is_eq=False,
         description="""\
-The time this Entity was deleted (system time).
-Only set if the Entity is currently 'deleted'.
+The time this Entity was last deleted (system time, if it's is currently deleted).
 Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
 """,
         tags=("tracking",),
@@ -300,7 +299,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         is_repr=True,
         tags=("tracking",),
     )
-    # controlled_by, ...
+    # managed_by: Optional["Entity"] (authority?)
+    # controlled_by, possessed_by, ...
     if TYPE_CHECKING:
         created_by_ptr: NodeReference = UNSET
         updated_by_ptr: NodeReference = UNSET
@@ -368,6 +368,20 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 
     if not TYPE_CHECKING:
         __setattr__ = set
+
+    @builtin_method(2)
+    def to_ref(self) -> "NodeReference":
+        """Gets a reference to this Node."""
+        if self._ref is None:
+            self._ref = NodeReference(
+                type=self.metatype,
+                id=self.id,
+                space_id=self.space_ptr.id,
+                branch_id=self.branch_ptr.id,
+                snapshot_id=self.snapshot_ptr.id,
+                definition_id=self.definition_ptr.id if self.definition_ptr is not None else None,
+            )
+        return self._ref
 
     @builtin_method(10)
     @property
