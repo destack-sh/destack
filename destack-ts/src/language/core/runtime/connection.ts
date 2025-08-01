@@ -3,8 +3,8 @@ import type { Event, Graph, NodeReference, Session } from "@destack/language";
 /**
  * A connection between a local and a remote Graph.
  */
-export class GraphConnection {
-  /** The Session this GraphConnection is in. */
+export class Connection {
+  /** The Session this Connection is in. */
   readonly session: Session;
 
   /** The local Graph. */
@@ -20,7 +20,7 @@ export class GraphConnection {
   }
 
   repr(): string {
-    return `<GraphConnection remote=${this.remoteSpacePtr.id}>`;
+    return `<Connection remote=${this.remoteSpacePtr.id}>`;
   }
 
   async open(): Promise<void> {

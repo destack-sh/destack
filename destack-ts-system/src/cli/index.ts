@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 import { serve } from "@destack-system/cli/serve";
-import { setupLogging } from "@destack-system/utils/log";
-import { setupTelemetry } from "@destack-system/utils/telemetry";
 import { parseArgs } from "destack";
 
 const cli = parseArgs({
@@ -25,9 +23,6 @@ const cli = parseArgs({
 
 async function main() {
   const command = cli.input[0];
-
-  setupTelemetry();
-  setupLogging();
 
   switch (command) {
     case "serve":
