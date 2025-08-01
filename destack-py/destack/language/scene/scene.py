@@ -19,10 +19,10 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.SCENE_EVENT, is_abstract=True)
-class SceneEvent(Event["Scene"]):
+class SceneEvent(Event):
     """A Event regarding a Scene."""
 
-    node: "Scene" = builtin_property(101)
+    scene: "Scene" = builtin_property(101)
 
 
 @builtin_entity(

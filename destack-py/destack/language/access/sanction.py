@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.SANCTION_EVENT, is_abstract=True)
-class SanctionEvent(Event["Sanction"]):
-    node: "Sanction" = builtin_property(101)
+class SanctionEvent(Event):
+    sanction: "Sanction" = builtin_property(101)
     target: "Entity" = builtin_property(110)
 
 

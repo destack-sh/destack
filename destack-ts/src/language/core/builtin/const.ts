@@ -4,7 +4,7 @@ import { uuid4 } from "@destack/utils";
 import { ContextVar } from "@destack/utils/context";
 
 // forever constants
-export const VERSION = "2025.08.01.1";
+export const VERSION = "2025.08.01.2";
 export const EPSILON = 1e-6;
 export const EPSILON_EXPONENT = 6;
 

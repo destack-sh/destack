@@ -24,10 +24,10 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.VIEW_EVENT, is_abstract=True)
-class ViewEvent(Event["View"]):
+class ViewEvent(Event):
     """A Event regarding a View."""
 
-    node: "View" = builtin_property(101)
+    view: "View" = builtin_property(101)
 
 
 @builtin_entity(

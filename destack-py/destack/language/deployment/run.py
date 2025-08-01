@@ -62,10 +62,10 @@ class RunStatus(Enum):
 
 
 @builtin_event(NodeType.RUN_EVENT, is_abstract=True)
-class RunEvent(Event["Run"]):
+class RunEvent(Event):
     """An Event regarding a Run."""
 
-    node: "Run" = builtin_property(101)
+    run: "Run" = builtin_property(101)
     target: Optional["Entity"] = builtin_property(110)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None

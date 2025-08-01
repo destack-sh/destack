@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.ENTITLEMENT_EVENT, is_abstract=True)
-class EntitlementEvent(Event["Entitlement"]):
-    node: "Entitlement" = builtin_property(101)
+class EntitlementEvent(Event):
+    entitlement: "Entitlement" = builtin_property(101)
     target: "Entity" = builtin_property(110)
 
 

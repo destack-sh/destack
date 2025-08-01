@@ -18,10 +18,10 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.ROLE_EVENT, is_abstract=True)
-class RoleEvent(Event["Role"]):
+class RoleEvent(Event):
     """A Event regarding a Role."""
 
-    node: "Role" = builtin_property(101)
+    role: "Role" = builtin_property(101)
     actor: "Entity" = builtin_property(110)
 
 

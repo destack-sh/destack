@@ -34,8 +34,8 @@ class Star(Entity):
 
 
 @builtin_event(NodeType.STAR_EVENT)
-class StarEvent(Event["Star"]):
-    node: "Star" = builtin_property(101)
+class StarEvent(Event):
+    star: "Star" = builtin_property(101)
 
 
 @builtin_event(NodeType.STAR_ADDED_EVENT)

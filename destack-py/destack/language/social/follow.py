@@ -36,8 +36,8 @@ class Follow(Entity):
 
 
 @builtin_event(NodeType.FOLLOW_EVENT)
-class FollowEvent(Event["Follow"]):
-    node: "Follow" = builtin_property(101)
+class FollowEvent(Event):
+    follow: "Follow" = builtin_property(101)
 
 
 @builtin_event(NodeType.FOLLOW_ADDED_EVENT)
