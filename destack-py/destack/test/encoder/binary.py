@@ -541,6 +541,19 @@ def test_datetime():
         datetime(2100, 1, 1, tzinfo=UTC),
         # with microseconds
         datetime(2000, 6, 15, 12, 0, 0, 999999, tzinfo=UTC),
+        # very early dates
+        datetime(1, 1, 1, tzinfo=UTC),  # year 1 AD
+        datetime(100, 3, 15, 12, 30, 45, tzinfo=UTC),  # ancient rome era
+        datetime(1066, 10, 14, 9, 0, 0, tzinfo=UTC),  # battle of hastings
+        datetime(1582, 10, 15, tzinfo=UTC),  # gregorian calendar adoption
+        # very far future
+        datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=UTC),  # max datetime
+        datetime(5000, 7, 4, 16, 20, 30, tzinfo=UTC),  # distant future
+        datetime(3024, 2, 29, 12, 0, 0, tzinfo=UTC),  # leap year in future
+        # weird edge cases
+        datetime(4, 2, 29, tzinfo=UTC),  # early leap year
+        datetime(1900, 1, 1, tzinfo=UTC),  # not a leap year (divisible by 100)
+        datetime(2000, 2, 29, tzinfo=UTC),  # leap year (divisible by 400)
     ]
 
     writer = BinaryWriter()
@@ -579,6 +592,23 @@ def test_date():
         date(1969, 12, 31),  # before epoch
         date(2100, 12, 31),  # far future
         date(1900, 1, 1),  # old date
+        # very early dates
+        date(1, 1, 1),  # year 1 AD
+        date(44, 3, 15),  # ides of march, assassination of caesar
+        date(476, 9, 4),  # fall of western roman empire
+        date(793, 6, 8),  # viking raid on lindisfarne
+        date(1215, 6, 15),  # magna carta
+        # very far future
+        date(9999, 12, 31),  # max date
+        date(8888, 8, 8),  # lucky eights
+        date(7777, 7, 7),  # lucky sevens
+        date(6666, 6, 6),  # ominous sixes
+        # weird edge cases
+        date(4, 2, 29),  # early leap year
+        date(1582, 10, 4),  # last day of julian calendar
+        date(1582, 10, 15),  # first day of gregorian calendar
+        date(2000, 2, 29),  # y2k leap year
+        date(1900, 2, 28),  # not a leap year
     ]
 
     writer = BinaryWriter()
@@ -625,6 +655,22 @@ def test_duration():
         timedelta(days=-1),  # negative
         timedelta(weeks=52),  # 1 year
         timedelta(days=365, hours=5, minutes=48, seconds=46),  # approx 1 year
+        # extremely long durations
+        timedelta(days=999999999),  # max days
+        timedelta(days=-999999999),  # min days
+        timedelta(days=365250),  # 1000 years
+        timedelta(days=36525000),  # 100,000 years
+        # weird combinations
+        timedelta(days=1, microseconds=999999),  # almost 2 days
+        timedelta(seconds=-1),  # negative second
+        timedelta(days=1, seconds=-1),  # 1 day minus 1 second
+        timedelta(weeks=1000000),  # million weeks
+        timedelta(hours=87600),  # 10 years in hours
+        timedelta(minutes=525600000),  # 1000 years in minutes
+        # edge cases with microseconds
+        timedelta(microseconds=-1),  # negative microsecond
+        timedelta(days=1, microseconds=-1),  # 1 day minus 1 microsecond
+        timedelta(seconds=1, microseconds=-1),  # 999999 microseconds
     ]
 
     writer = BinaryWriter()

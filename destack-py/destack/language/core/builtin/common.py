@@ -454,25 +454,25 @@ class PrimitiveType(Enum):
     DATETIME = (
         40,
         "Datetime",
-        "Datetime (microsecond precision, with timezone)",
+        "Datetime (microsecond precision, UTC, 0001-01-01 to 9999-12-31)",
         "fas fa-calendar-days",
     )
     DATE = (
         41,
         "Date",
-        "Date (day precision, no timezone)",
+        "Date (day precision, 0001-01-01 to 9999-12-31)",
         "fas fa-calendar-days",
     )
     TIME = (
         42,
         "Time",
-        "Time (microsecond precision, no timezone)",
+        "Time (microsecond precision, 00:00:00.000000 to 23:59:59.999999)",
         "fas fa-clock",
     )
     DURATION = (
         43,
         "Duration",
-        "Duration (microsecond precision)",
+        "Duration (microsecond precision, 00:00:00.000000 to 9999-12-31 23:59:59.999999)",
         "fas fa-stopwatch",
     )
     # string

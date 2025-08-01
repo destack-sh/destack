@@ -2,13 +2,11 @@ import type { Branch, Encoding, Session, Snapshot, Space } from "@destack/langua
 import type { Encoder } from "@destack/language/core/runtime/encoder";
 import { uuid4 } from "@destack/utils";
 import { ContextVar } from "@destack/utils/context";
-import { Temporal } from "temporal-polyfill";
 
 // forever constants
 export const VERSION = "2025.08.01.1";
 export const EPSILON = 1e-6;
 export const EPSILON_EXPONENT = 6;
-export const BEGINNING_OF_TIME = Temporal.ZonedDateTime.from("1970-01-01T00:00:00+00:00[UTC]");
 
 // runtime constants
 export const NONCE = uuid4();
