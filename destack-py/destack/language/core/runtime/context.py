@@ -31,7 +31,7 @@ class Context(Handle):
 
     # TODO :Incomplete: Context to replace Oracle and Session.actor/space/branch/snapshot/...?
     #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?)
-    #  (also with active snapshot_ptr, branch_ptr, ...?)
+    #  (also with active snapshot_ptr, branch_ptr, region, ...?)
 
     actor: "Entity" = builtin_property_runtime(401, is_repr=True)
     client: "Client" = builtin_property_runtime(402, is_repr=True)

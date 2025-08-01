@@ -1,7 +1,8 @@
 import time
 from collections import defaultdict
+from collections.abc import Mapping
 from itertools import chain
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.log import get_logger
@@ -28,7 +29,7 @@ from .registry import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from destack.language.core import Object
 
 logger = get_logger(__name__)
 tracer = get_tracer(__name__)
@@ -36,16 +37,61 @@ tracer = get_tracer(__name__)
 _finalize_start: float | None = None
 
 
+def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
+    # index Object extended_by (direct) / inherited_by (direct and indirect)
+    object_type_extended_by: dict[int, list[int]] = defaultdict(list)
+    for object_cls in cls_by_type.values():
+        if object_cls.__declaration__.base_type is not None:
+            object_type_extended_by[object_cls.__declaration__.base_type].append(
+                object_cls.metatype
+            )
+    for object_cls in cls_by_type.values():
+        object_cls.__declaration__.extended_by = list(object_type_extended_by[object_cls.metatype])
+
+    # index Object inherited_by (recursive)
+    for object_cls in cls_by_type.values():
+        # collect all types that inherit from this object recursively
+        inherited_by_objects: list[int] = []
+        to_visit = list(reversed(object_cls.__declaration__.extended_by))
+        while to_visit:
+            inheriting_type = to_visit.pop()
+            if inheriting_type not in inherited_by_objects:
+                inherited_by_objects.append(inheriting_type)
+                inheriting_cls = cls_by_type[inheriting_type]
+                to_visit.extend(reversed(inheriting_cls.__declaration__.extended_by))
+        object_cls.__declaration__.inherited_by = list(inherited_by_objects)
+
+
 def finalize():
     """Finalize the Destack language SDK."""
     global _finalize_start
 
-    from destack.language.core.builtin.object import _is_finalized, _set_finalized
+    from .core.builtin.object import _is_finalized, _set_finalized
 
     if _is_finalized():
         return
 
     _finalize_start = time.time()
+
+    from destack.encoder import JsoncEncoder, JsonEncoder, KompaktEncoder
+    from destack.language.core import (
+        ENCODERS,
+        ConstantDeclaration,
+        ConstantDefinition,
+        Encoding,
+        EnumDefinition,
+        Event,
+        HandleDefinition,
+        Node,
+        NodeDefinition,
+        ObjectDefinitionReference,
+        PropertyDeclaration,
+        ScalarType,
+        Struct,
+        StructDefinition,
+        Type,
+        TypeCardinality,
+    )
 
     BUILTIN_CLASS_BY_NAME.update(
         {
@@ -54,55 +100,14 @@ def finalize():
                 NODE_CLASS_BY_TYPE.values(),
                 STRUCT_CLASS_BY_TYPE.values(),
                 ENUM_CLASS_BY_TYPE.values(),
+                HANDLE_CLASS_BY_TYPE.values(),
             )
         }
     )
 
-    # index Node extended_by (direct) / inherited_by (direct and indirect)
-    node_type_extended_by: dict[NodeType, list[NodeType]] = defaultdict(list)
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        if node_cls.__declaration__.base_type is not None:
-            node_type_extended_by[node_cls.__declaration__.base_type].append(node_cls.metatype)
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        node_cls.__declaration__.extended_by = list(node_type_extended_by[node_cls.metatype])
-
-    # index Node inherited_by (recursive)
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        # collect all types that inherit from this node recursively
-        inherited_by_nodes: list[NodeType] = []
-        to_visit = list(reversed(node_cls.__declaration__.extended_by))
-        while to_visit:
-            inheriting_type = to_visit.pop()
-            if inheriting_type not in inherited_by_nodes:
-                inherited_by_nodes.append(inheriting_type)
-                inheriting_cls = NODE_CLASS_BY_TYPE[inheriting_type]
-                to_visit.extend(reversed(inheriting_cls.__declaration__.extended_by))
-        node_cls.__declaration__.inherited_by = list(inherited_by_nodes)
-
-    # index Struct extended_by (direct) / inherited_by (direct and indirect)
-    struct_type_extended_by: dict[StructType, list[StructType]] = defaultdict(list)
-    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        if struct_cls.__declaration__.base_type is not None:
-            struct_type_extended_by[struct_cls.__declaration__.base_type].append(
-                struct_cls.metatype
-            )
-    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        struct_cls.__declaration__.extended_by = list(struct_type_extended_by[struct_cls.metatype])
-
-    # index Struct inherited_by (recursive)
-    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        # collect all types that inherit from this struct recursively
-        inherited_by_structs: list[StructType] = []
-        to_visit = list(reversed(struct_cls.__declaration__.extended_by))
-        while to_visit:
-            inheriting_type = to_visit.pop()
-            if inheriting_type not in inherited_by_structs:
-                inherited_by_structs.append(inheriting_type)
-                inheriting_cls = STRUCT_CLASS_BY_TYPE[inheriting_type]
-                to_visit.extend(reversed(inheriting_cls.__declaration__.extended_by))
-        struct_cls.__declaration__.inherited_by = list(inherited_by_structs)
-
-    from destack.language.core import Node
+    _index_inheritance(NODE_CLASS_BY_TYPE)
+    _index_inheritance(STRUCT_CLASS_BY_TYPE)
+    _index_inheritance(HANDLE_CLASS_BY_TYPE)
 
     # index Node parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -163,20 +168,23 @@ def finalize():
         for base in node_cls.__bases__:
             if issubclass(base, Node) and base.__declaration__.self_enum_types:
                 all_enum_types.update(base.__declaration__.self_enum_types)
-        node_cls.__declaration__.enum_types = list(all_enum_types)
+        node_cls.__declaration__.enum_types = list(all_enum_types)  # index Node enum types
+
+    # index Struct enum types
+    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
+        all_enum_types: set[EnumType] = set()
+        for base in struct_cls.__bases__:
+            if issubclass(base, Struct) and base.__declaration__.self_enum_types:
+                all_enum_types.update(base.__declaration__.self_enum_types)
+        struct_cls.__declaration__.enum_types = list(all_enum_types)
 
     # finalize encoders
-    from destack.encoder import JsoncEncoder, JsonEncoder, KompaktEncoder
-    from destack.language.core import ENCODERS, Encoding
-
     ENCODERS[Encoding.JSON] = JsonEncoder.generate()
     ENCODERS[Encoding.JSONC] = JsoncEncoder.generate()
     ENCODERS[Encoding.KOMPAKT] = KompaktEncoder.generate()
     assert len(ENCODERS) == len(Encoding), f"missing {len(Encoding) - len(ENCODERS)} encoders"
 
     # generate definition refs
-    from destack.language.core import ObjectDefinitionReference
-
     for node_cls in NODE_CLASS_BY_TYPE.values():
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
@@ -185,16 +193,6 @@ def finalize():
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[handle_cls] = ObjectDefinitionReference.of(handle_cls)
 
     # generate meta info
-    from destack.language.core import (
-        EnumDefinition,
-        HandleDefinition,
-        NodeDefinition,
-        ScalarType,
-        StructDefinition,
-        Type,
-        TypeCardinality,
-    )
-
     for node_cls in NODE_CLASS_BY_TYPE.values():
         node_definition = NodeDefinition.from_declaration(node_cls, node_cls.__declaration__)
         NODE_DEFINITION_BY_TYPE[node_cls.metatype] = node_definition
@@ -225,7 +223,6 @@ def finalize():
         NODE_TYPE_SCALAR_BY_TYPE[node_type] = scalar_type
 
     # finalize constants
-    from destack.language.core import ConstantDeclaration, ConstantDefinition
 
     for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         constants: list[ConstantDefinition] = []
@@ -241,8 +238,6 @@ def finalize():
 
     # sanity check stuff
     if IS_DEV or IS_TEST:
-        from destack.language.core import Event, PropertyDeclaration
-
         # check we have all the declared builtin objects
         if len(StructType) != len(STRUCT_CLASS_BY_TYPE):
             missing_struct_types = set(StructType) - set(STRUCT_CLASS_BY_TYPE.keys())

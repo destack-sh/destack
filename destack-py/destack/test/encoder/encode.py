@@ -33,7 +33,7 @@ from destack.utils.uuid import uuid4
 # ruff: noqa: T201
 
 _LOG_ENCODE = False
-_LOG_RESULT = False
+_LOG_RESULT = True
 
 if _LOG_ENCODE:
     for encoding, encoder in ENCODERS.items():

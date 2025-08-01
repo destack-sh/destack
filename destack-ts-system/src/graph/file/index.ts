@@ -1,7 +1,7 @@
 import type { Entity, Event, NodeType } from "@destack/language/core/builtin";
 import { Graph } from "@destack/language/core/runtime/graph";
 
-// nocheckin(ts): implement FileGraph
+// nocheckin(ts): implement FileGraph (and give it a cooler name)
 
 /** A Graph that stores Nodes in files. */
 export class FileGraph extends Graph {

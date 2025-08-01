@@ -7,23 +7,16 @@ from destack.utils.uuid import UUID
 
 from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT, UNSET
-from .declaration import (
-    TagDeclaration,
-)
+from .declaration import TagDeclaration, builtin_method
 from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, builtin_property
+from .relation import NodeReference
 from .types import UInt128
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Branch,
-        Client,
-        NodeReference,
-        Snapshot,
-        Space,
-    )
+    from destack.language import Branch, Client, Snapshot, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -260,6 +253,19 @@ class Event[N: Node = Node](Node):
     def parent_ptr(self) -> "NodeReference":
         """The NodeReference to the parent of this Event."""
         return self.space_ptr
+
+    @builtin_method(2)
+    def to_ref(self) -> "NodeReference":
+        """Gets a reference to this Node."""
+        if self._ref is None:
+            self._ref = NodeReference(
+                type=self.metatype,
+                id=self.id,
+                space_id=self.space_ptr.id,
+                branch_id=self.branch_ptr.id,
+                snapshot_id=self.snapshot_ptr.id,
+            )
+        return self._ref
 
     @contextmanager
     def active(self: "Event[Node]") -> Generator["Event[Node]", None, None]:

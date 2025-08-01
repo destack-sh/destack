@@ -344,7 +344,9 @@ class NodeType(Enum):
     TAG = 12_000, "Tag", None, "fas fa-tag"
     TAGGING = 12_100, "Tagging", None, "fas fa-tag"
     # TRAIT?
-    # SLOT, LINK, ...
+    # FRAGMENT (multiple disjoint trees)
+    # SLOT (inside tree)
+    # LINK (to another subtree)
     # TIMELINE, TRACK, (KEY)FRAME, ...
 
     # custom
