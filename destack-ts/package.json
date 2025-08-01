@@ -23,13 +23,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@opentelemetry/api": "catalog:telemetry",
-    "@opentelemetry/exporter-trace-otlp-http": "catalog:telemetry",
-    "@opentelemetry/instrumentation": "catalog:telemetry",
-    "@opentelemetry/resources": "catalog:telemetry",
-    "@opentelemetry/semantic-conventions": "catalog:telemetry",
     "js-xxhash": "catalog:",
-    "pino": "catalog:",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
@@ -42,7 +36,6 @@
     "@types/bun": "catalog:types",
     "fast-check": "catalog:test",
     "mitata": "catalog:test",
-    "pino-pretty": "catalog:dev",
     "typescript": "catalog:build",
     "vite-plugin-babel": "catalog:build",
     "vite-tsconfig-paths": "catalog:build"

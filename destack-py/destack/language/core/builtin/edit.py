@@ -59,6 +59,8 @@ class EditOperation(Enum):
 class EditEvent(Event):
     """A recorded Edit of an Entity."""
 
+    # NOTE :Incomplete: would be cool to support custom EditTypes/Operations/Events somehow...
+
     # change: Optional[ChangeEvent]? (bigger ChangeEvent this is a part of)
 
     # forward
