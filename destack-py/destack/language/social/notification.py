@@ -31,10 +31,10 @@ class NotificationStatus(Enum):
 
 
 @builtin_event(NodeType.NOTIFICATION_EVENT, is_abstract=True)
-class NotificationEvent(Event["Notification"]):
+class NotificationEvent(Event):
     """A Event regarding a Notification."""
 
-    node: "Notification" = builtin_property(101)
+    notification: "Notification" = builtin_property(101)
 
 
 @builtin_event(NodeType.NOTIFICATION_SENT_EVENT)

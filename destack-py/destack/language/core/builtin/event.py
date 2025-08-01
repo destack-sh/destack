@@ -99,7 +99,7 @@ def builtin_event(
         TagDeclaration(id=21, name="client", description="Client authority"),
     ),
 )  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine here)
-class Event[N: Node = Node](Node):
+class Event(Node):
     """
     An Event is an immutable datum of something happening to an Entity.
 
@@ -262,11 +262,6 @@ class Event[N: Node = Node](Node):
         client_ptr: NodeReference = UNSET
 
     # 100+: content
-    if TYPE_CHECKING:
-        node: Optional[N] = None
-        node_ptr: Optional[NodeReference] = None
-    else:
-        node: Optional["Node"] = builtin_property(101, description="The Node this Event is about.")
 
     @property
     def parent(self) -> "Space":
@@ -292,7 +287,7 @@ class Event[N: Node = Node](Node):
         return self._ref
 
     @contextmanager
-    def active(self: "Event[Node]") -> Generator["Event[Node]", None, None]:
+    def active(self) -> Generator["Event", None, None]:
         """Set this Event as the active Event."""
         token = ACTIVE_EVENT.set(self)
         try:

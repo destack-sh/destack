@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.MEMBERSHIP_EVENT, is_abstract=True)
-class MembershipEvent(Event["Membership"]):
+class MembershipEvent(Event):
     """A Event regarding a Membership."""
 
-    node: "Membership" = builtin_property(101)
+    membership: "Membership" = builtin_property(101)
     joinable: "Entity" = builtin_property(102)
     member: "Entity" = builtin_property(103)
 

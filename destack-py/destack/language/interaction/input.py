@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Entity,
     Event,
     NodeType,
     builtin_event,
@@ -15,8 +14,8 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.INPUT_EVENT, is_abstract=True)
-class InputEvent[NodeT: View = View](Event[NodeT]):
+class InputEvent(Event):
     """An InputEvent is an Event that corresponds to some direct user input."""
 
-    node: Optional["Entity"] = builtin_property(101)
+    view: Optional["View"] = builtin_property(101)
     # is_handled?

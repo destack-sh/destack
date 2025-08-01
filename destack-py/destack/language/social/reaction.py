@@ -36,8 +36,8 @@ class Reaction(Entity):
 
 
 @builtin_event(NodeType.REACTION_EVENT)
-class ReactionEvent(Event["Reaction"]):
-    node: "Reaction" = builtin_property(101)
+class ReactionEvent(Event):
+    reaction: "Reaction" = builtin_property(101)
     content: str = builtin_property(102)
 
 

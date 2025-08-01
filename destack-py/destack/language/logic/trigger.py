@@ -22,10 +22,10 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.TRIGGER_EVENT, is_abstract=True)
-class TriggerEvent(Event["Trigger"]):
+class TriggerEvent(Event):
     """A TriggerEvent is an Event that corresponds to a Trigger."""
 
-    node: "Trigger" = builtin_property(101)
+    trigger: "Trigger" = builtin_property(101)
 
 
 @builtin_enum(EnumType.TRIGGER_TYPE)

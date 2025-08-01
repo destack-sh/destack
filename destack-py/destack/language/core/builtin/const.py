@@ -17,7 +17,6 @@ if TYPE_CHECKING:
         Branch,
         Encoder,
         Event,
-        Node,
         NodeReference,
         Session,
         Snapshot,
@@ -34,7 +33,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.08.01.1"
+VERSION = "2025.08.01.2"
 EPSILON = 1e-6
 EPSILON_EXPONENT = 6
 METAKIND_PROPERTY_ID = 0
@@ -63,7 +62,7 @@ ACTIVE_BRANCH: contextvars.ContextVar[Optional["Branch"]] = contextvars.ContextV
 ACTIVE_SNAPSHOT: contextvars.ContextVar[Optional["Snapshot"]] = contextvars.ContextVar(
     "active_snapshot", default=None
 )
-ACTIVE_EVENT: contextvars.ContextVar[Optional["Event[Node]"]] = contextvars.ContextVar(
+ACTIVE_EVENT: contextvars.ContextVar[Optional["Event"]] = contextvars.ContextVar(
     "active_event", default=None
 )
 

@@ -17,10 +17,10 @@ if TYPE_CHECKING:
 
 
 @builtin_event(NodeType.INVITE_EVENT, is_abstract=True)
-class InviteEvent(Event["Invite"]):
+class InviteEvent(Event):
     """A Event regarding an Invite."""
 
-    node: "Invite" = builtin_property(101)
+    invite: "Invite" = builtin_property(101)
     joinable: "Entity" = builtin_property(102)
     member: "Entity" = builtin_property(103)
 
