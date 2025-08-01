@@ -15,7 +15,7 @@ from .scaffold import *  # noqa: F403
 
 
 # ===============================================
-# tetris/Game [Entity]
+# tetris/Game
 # ===============================================
 
 
@@ -25,3 +25,45 @@ class TetrisGame(Entity):
 
 
 # ===============================================
+# tetris/Board
+# ===============================================
+
+
+@entity
+class TetrisBoard(Entity):
+    pass
+
+
+# ===============================================
+# tetris/Piece
+# ===============================================
+
+
+@enum
+class TetrisShape(Enum):
+    I = 1
+    J = 2
+    L = 3
+    O = 4
+    S = 5
+    T = 6
+    Z = 7
+
+
+@entity
+class TetrisPiece(Entity):
+    shape: TetrisShape
+    rotation: Int8
+    x: Int8
+    y: Int8
+
+
+# ===============================================
+# tetris/Cell
+# ===============================================
+
+
+@entity
+class TetrisCell(Entity):
+    occupied: bool
+    piece: TetrisPiece | None

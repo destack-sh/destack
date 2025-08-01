@@ -15,17 +15,19 @@ from .scaffold import *  # noqa: F403
 
 
 # ===============================================
-# breakout/Game [Entity]
+# breakout/Game
 # ===============================================
 
 
 @entity
-class BreakoutGame(IsStarable, Record):
-    pass
+class BreakoutGame(Entity):
+    def tick(self):
+        for ball in self.get_descendants(BreakoutBall):
+            ...
 
 
 # ===============================================
-# breakout/Player [Entity]
+# breakout/Player
 # ===============================================
 
 
@@ -35,7 +37,7 @@ class BreakoutPlayer(Entity2D):
 
 
 # ===============================================
-# breakout/Paddle [Entity]
+# breakout/Paddle
 # ===============================================
 
 
@@ -45,7 +47,7 @@ class BreakoutPaddle(Entity2D):
 
 
 # ===============================================
-# breakout/Brick [Entity]
+# breakout/Brick
 # ===============================================
 
 
@@ -55,7 +57,7 @@ class BreakoutBrick(Entity2D):
 
 
 # ===============================================
-# breakout/Ball [Entity]
+# breakout/Ball
 # ===============================================
 
 
@@ -65,7 +67,7 @@ class BreakoutBall(Entity2D):
 
 
 # ===============================================
-# breakout/Wall [Entity]
+# breakout/Wall
 # ===============================================
 
 
@@ -73,3 +75,7 @@ class BreakoutBall(Entity2D):
 class BreakoutWall(Entity2D):
     width: Int8
     height: Int8
+
+    # computed effect:
+    # BreakoutWall:
+    #  -> <RectangleCollider2D :width=width :height=height>

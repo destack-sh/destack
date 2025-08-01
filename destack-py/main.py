@@ -10,13 +10,7 @@ from destack.utils.env import setup_env
 
 setup_env()
 
-from destack.cli import console  # noqa: E402
-from destack.cli.parser import create_cli  # noqa: E402
-from destack.utils.log import setup_logging  # noqa: E402
-from destack.utils.telemetry import setup_telemetry  # noqa: E402
-
-setup_logging()
-setup_telemetry()
+from destack.cli import console, create_cli  # noqa: E402
 
 # create main CLI app
 cli = create_cli(help="Destack CLI")

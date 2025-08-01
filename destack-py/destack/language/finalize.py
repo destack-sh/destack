@@ -1,12 +1,9 @@
-import time
 from collections import defaultdict
 from collections.abc import Mapping
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Callable
 
 from destack.utils.env import IS_DEV, IS_TEST
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 
 from .core.builtin.builtin import (
     ENUM_TYPES,
@@ -31,11 +28,6 @@ from .registry import (
 
 if TYPE_CHECKING:
     from destack.language.core import Object
-
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
-
-_finalize_start: float | None = None
 
 
 def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
@@ -65,21 +57,14 @@ def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
 
 def finalize():
     """Finalize the Destack language SDK."""
-    global _finalize_start
-
     from .core.builtin.object import _is_finalized, _set_finalized
 
     if _is_finalized():
         return
 
-    _finalize_start = time.time()
-
-    from destack.encoder import JsoncEncoder, JsonEncoder, KompaktEncoder
     from destack.language.core import (
-        ENCODERS,
         ConstantDeclaration,
         ConstantDefinition,
-        Encoding,
         EnumDefinition,
         Event,
         HandleDefinition,
@@ -158,18 +143,13 @@ def finalize():
     # index Node event types
     for node_cls in NODE_CLASS_BY_TYPE.values():
         all_event_types: set[NodeType] = set()
+        all_enum_types: set[EnumType] = set()
         for base in node_cls.__bases__:
             if issubclass(base, Node) and base.__declaration__.self_event_types:
                 all_event_types.update(base.__declaration__.self_event_types)
-        node_cls.__declaration__.event_types = list(all_event_types)
-
-    # index Node enum types
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        all_enum_types: set[EnumType] = set()
-        for base in node_cls.__bases__:
-            if issubclass(base, Node) and base.__declaration__.self_enum_types:
                 all_enum_types.update(base.__declaration__.self_enum_types)
-        node_cls.__declaration__.enum_types = list(all_enum_types)  # index Node enum types
+        node_cls.__declaration__.event_types = list(all_event_types)
+        node_cls.__declaration__.enum_types = list(all_enum_types)
 
     # index Struct enum types
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
@@ -178,12 +158,6 @@ def finalize():
             if issubclass(base, Struct) and base.__declaration__.self_enum_types:
                 all_enum_types.update(base.__declaration__.self_enum_types)
         struct_cls.__declaration__.enum_types = list(all_enum_types)
-
-    # finalize encoders
-    ENCODERS[Encoding.JSON] = JsonEncoder.generate()
-    ENCODERS[Encoding.JSONC] = JsoncEncoder.generate()
-    ENCODERS[Encoding.KOMPAKT] = KompaktEncoder.generate()
-    assert len(ENCODERS) == len(Encoding), f"missing {len(Encoding) - len(ENCODERS)} encoders"
 
     # generate definition refs
     for node_cls in NODE_CLASS_BY_TYPE.values():

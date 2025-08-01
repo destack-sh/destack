@@ -14,8 +14,6 @@ from destack.language import (
 )
 from destack.language.core.builtin.type import Type
 from destack.language.registry import ENUM_CLASS_BY_TYPE
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 
 if TYPE_CHECKING:
     pass
@@ -23,8 +21,6 @@ if TYPE_CHECKING:
 # ruff: noqa: SIM114
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

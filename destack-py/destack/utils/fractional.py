@@ -3,9 +3,7 @@
 # sync with fractional.ts in frontend
 
 import string
-from typing import Any, Optional, Protocol, cast
-
-from destack.utils.func import nextn
+from typing import Optional, cast
 
 # base digits in lexicographical order
 BASE_10_DIGITS = string.digits
@@ -228,28 +226,3 @@ def get_order_keys(
 
 
 INTEGER_MINUS_ONE = get_order_key(None, INTEGER_ZERO)
-
-
-class HasOrderKey(Protocol):
-    order_key: str
-
-
-# NOTE :Cleanup: not sure how to structure type ElementT to have .order_key: str
-ElementT = Any  # TypeVar("ElementT", bound=HasOrderKey)
-
-
-def get_key_bounds(
-    elements: list[ElementT] | tuple[ElementT, ...],
-    after: ElementT | None = None,
-    before: ElementT | None = None,
-) -> tuple[Optional[str], Optional[str]]:
-    """Gets the order key bounds after the given (default to last)."""
-    if after is not None:
-        next_ok = nextn(e.order_key for e in elements if e.order_key > after.order_key)
-        return after.order_key, next_ok
-    elif before is not None:
-        last_ok = nextn(e.order_key for e in reversed(elements) if e.order_key < before.order_key)
-        return last_ok, before.order_key
-    else:
-        last_ok = nextn(e.order_key for e in reversed(elements))
-        return last_ok, None

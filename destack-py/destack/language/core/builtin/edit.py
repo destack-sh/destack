@@ -1,8 +1,5 @@
 from typing import TYPE_CHECKING
 
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
-
 from .builtin import EnumType, NodeType
 from .common import UInt8
 from .const import UNSET
@@ -13,9 +10,6 @@ from .property import builtin_property
 
 if TYPE_CHECKING:
     from destack.language import NodeReference, Value
-
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 
 
 @builtin_enum(EnumType.EDIT_TYPE)

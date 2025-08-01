@@ -25,16 +25,12 @@ from destack.language.core import (
     Value,
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
-from destack.utils.log import get_logger
 from destack.utils.string import Casing, to_casing
-from destack.utils.telemetry import get_tracer
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
 from .core import JsonObjectEncoder
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 METAKIND_PROPERTY = Object.__properties__["metakind"]

@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import BinaryReader, BinaryWriter, EncoderOptions, Object, Session
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 
 if TYPE_CHECKING:
     from .encoder import KompaktEncoder
@@ -11,8 +9,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

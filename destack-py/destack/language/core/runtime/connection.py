@@ -9,16 +9,15 @@ if TYPE_CHECKING:
     from destack.language import Event
 
 
-@builtin_handle(HandleType.SPACE_CONNECTION)
-class SpaceConnection(Handle):
+@builtin_handle(HandleType.CONNECTION)
+class Connection(Handle):
     """
-    A connection between a local and a remote Space.
+    A connection between a local and a remote Graph.
     """
 
     space_ptr: "NodeReference" = builtin_property_runtime(500, is_repr=True)
 
     async def open(self) -> None:
-        """Open the SpaceConnection."""
         raise NotImplementedError
 
     async def pull(
@@ -35,5 +34,4 @@ class SpaceConnection(Handle):
         raise NotImplementedError
 
     async def close(self) -> None:
-        """Close the GraphConnection."""
         raise NotImplementedError

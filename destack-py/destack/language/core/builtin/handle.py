@@ -8,8 +8,6 @@ from typing import (
 
 from destack.language.registry import HANDLE_CLASS_BY_TYPE, HANDLE_TYPE_BY_CLASS
 from destack.utils.env import IS_DEV, IS_TEST
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 
 from .builtin import EnumType, HandleType, NodeType, ObjectKind, ObjectStability
 from .declaration import HandleDeclaration, TagDeclaration
@@ -21,8 +19,6 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

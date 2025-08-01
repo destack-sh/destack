@@ -11,7 +11,6 @@ from typing import (
     TypeAliasType,
 )
 
-from destack.utils.func import hash_stable
 from destack.utils.string import Casing, to_casing
 
 from .builtin import (
@@ -209,12 +208,6 @@ class PropertyDeclaration:
         if not isinstance(other, PropertyDeclaration):
             return False
         return self.component == other.component and self.id == other.id
-
-    def hash(self):
-        """Hash the Property identity."""
-        return hash_stable((self.component.__name__, self.id))
-
-    __hash__ = hash  # type: ignore
 
     def clone(self):
         return dataclasses.replace(

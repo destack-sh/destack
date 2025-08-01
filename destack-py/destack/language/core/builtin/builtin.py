@@ -91,7 +91,6 @@ class EnumType(Enum):
     # data [400_000-500_000]
     FILE_RETENTION_MODE = 400_000
     FILE_TYPE = 400_002
-    FILE_FORMAT = 400_003
     TEXT_SPAN_TYPE = 400_004
     ICON_TYPE = 400_005
 
@@ -906,7 +905,8 @@ class HandleType(Enum):
 
     SESSION = 10, "Session"
     GRAPH = 11, "Graph"
-    SPACE_CONNECTION = 12, "Graph Connection"
+    CONNECTION = 12, "Connection"
+    STREAM = 13, "Stream"
 
     CONTEXT = 20
     LOGGER = 21

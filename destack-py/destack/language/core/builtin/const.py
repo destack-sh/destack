@@ -10,12 +10,11 @@ from destack.utils.env import get_from_env
 from destack.utils.frozen import frozendict
 from destack.utils.uuid import uuid4
 
-from .common import Cloud, Encoding, Region
+from .common import Cloud, Region
 
 if TYPE_CHECKING:
     from destack.language import (
         Branch,
-        Encoder,
         Event,
         NodeReference,
         Session,
@@ -33,7 +32,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.08.01.2"
+VERSION = "2025.08.01.22"
 EPSILON = 1e-6
 EPSILON_EXPONENT = 6
 METAKIND_PROPERTY_ID = 0
@@ -49,7 +48,6 @@ EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
 
 # runtime context
-ENCODERS: dict["Encoding", "Encoder"] = {}
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )

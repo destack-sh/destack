@@ -14,7 +14,7 @@ from .scaffold import *  # noqa: F403
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 # ===============================================
-# cal/Common [Service]
+# cal/Common
 # ===============================================
 
 

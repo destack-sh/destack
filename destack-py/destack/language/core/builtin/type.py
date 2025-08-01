@@ -1,14 +1,6 @@
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Optional,
-    Union,
-    final,
-)
+from typing import TYPE_CHECKING, Any, Optional, Union, final
 
 from destack.language.registry import ENUM_TYPE_BY_CLASS
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 
 from .builtin import EnumType, HandleType, NodeType, StructType
 from .common import (
@@ -29,9 +21,6 @@ if TYPE_CHECKING:
     pass
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
-
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 
 
 @builtin_struct(StructType.TYPE, frozen=True, is_final=True)

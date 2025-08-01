@@ -30,8 +30,6 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
 )
 from destack.utils.code import exec_code
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -43,8 +41,6 @@ from .core import KompaktObjectEncoder
 # pyright: reportIncompatibleVariableOverride=false
 
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

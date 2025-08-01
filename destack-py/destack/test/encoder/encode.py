@@ -1,8 +1,8 @@
 import gzip
 from typing import Any
 
+from destack.encoder.registry import get_encoder
 from destack.language import (
-    ENCODERS,
     BinaryReader,
     BinaryWriter,
     Encoder,
@@ -35,9 +35,9 @@ from destack.utils.uuid import uuid4
 _LOG_ENCODE = False
 _LOG_RESULT = True
 
+ENCODERS = {encoding: get_encoder(encoding) for encoding in Encoding}
 if _LOG_ENCODE:
-    for encoding, encoder in ENCODERS.items():
-        ENCODERS[encoding] = wrap_encoder(encoder)
+    ENCODERS = {encoding: wrap_encoder(encoder) for encoding, encoder in ENCODERS.items()}
     _BinaryWriter = LoggingBinaryWriter
     _BinaryReader = LoggingBinaryReader
 else:

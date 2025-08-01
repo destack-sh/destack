@@ -5,8 +5,6 @@ from typing import (
     dataclass_transform,
 )
 
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
 
 from .builtin import EnumType, ObjectStability, StructType
@@ -22,8 +20,6 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 _ALLOWED_POSTFIXES = ("MESSAGE", "REQUEST", "RESPONSE")

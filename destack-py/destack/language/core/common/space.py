@@ -221,21 +221,22 @@ class Space(Entity):
         )
 
         # Space lives in the root Branch at head Snapshot
+        # NOTE :Cleanup: I have no idea why pyright hates this specific Space init
         space = Space(
             id=space_id,
             space_ptr=space_ptr,
-            branch_ptr=root_branch_ptr,
-            snapshot_ptr=head_snapshot_ptr,
-            name=name,
+            branch_ptr=root_branch_ptr,  # type: ignore
+            snapshot_ptr=head_snapshot_ptr,  # type: ignore
+            name=name,  # type: ignore
             slug=slug,
             region=region,
-            created_epoch=epoch,
-            created_at=now,
-            created_by_ptr=owned_by,
-            updated_epoch=epoch,
-            updated_at=now,
-            updated_by_ptr=owned_by,
-            owned_by_ptr=owned_by,
+            created_epoch=epoch,  # type: ignore
+            created_at=now,  # type: ignore
+            created_by_ptr=owned_by,  # type: ignore
+            updated_epoch=epoch,  # type: ignore
+            updated_at=now,  # type: ignore
+            updated_by_ptr=owned_by,  # type: ignore
+            owned_by_ptr=owned_by,  # type: ignore
         )
         session.create(space)
         session.create(meta_branch)
