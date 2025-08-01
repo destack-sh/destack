@@ -24,16 +24,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@opentelemetry/api": "catalog:telemetry",
-    "@opentelemetry/exporter-trace-otlp-http": "catalog:telemetry",
-    "@opentelemetry/instrumentation": "catalog:telemetry",
-    "@opentelemetry/resources": "catalog:telemetry",
-    "@opentelemetry/sdk-metrics": "catalog:telemetry",
-    "@opentelemetry/sdk-node": "catalog:telemetry",
-    "@opentelemetry/sdk-trace-node": "catalog:telemetry",
-    "@opentelemetry/semantic-conventions": "catalog:telemetry",
     "destack": "link:destack-ts",
-    "pino": "catalog:",
     "pyodide": "catalog:",
     "temporal-polyfill": "catalog:"
   },
@@ -50,7 +41,6 @@
     "fast-check": "catalog:test",
     "jsdom": "catalog:test",
     "mitata": "catalog:test",
-    "pino-pretty": "catalog:dev",
     "typescript": "catalog:build"
   }
 }
