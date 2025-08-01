@@ -2,7 +2,6 @@ import base64
 import inspect
 import json
 import textwrap
-import time
 from collections.abc import Mapping
 from enum import Enum
 from sys import intern
@@ -19,11 +18,9 @@ from typing import (
 from destack.utils.code import exec_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
-from destack.utils.func import dualmethod, get_superclasses
+from destack.utils.func import get_superclasses
 from destack.utils.hash import hash_bool, hash_bytes, hash_float, hash_int, hash_string
-from destack.utils.log import get_logger
 from destack.utils.string import Casing, to_casing
-from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 
 from .builtin import NodeType, ObjectKind, ObjectStability, StructType
@@ -43,7 +40,6 @@ from .const import (
     ACTIVE_SNAPSHOT,
     ACTIVE_SPACE,
     EMPTY_DICT,
-    ENCODERS,
     EPSILON,
     EPSILON_EXPONENT,
     METAKIND_PROPERTY_ID,
@@ -69,9 +65,6 @@ if TYPE_CHECKING:
 
 # ruff: noqa: SIM114, FURB113
 # pyright: reportIncompatibleVariableOverride=false
-
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 
 __is_finalized__ = False
 
@@ -1265,8 +1258,6 @@ def {prop.name}(self: "Object", value: "Node | None"):
         return getter + "\n\n" + setter
 
 
-_time_spent_in_process_object_cls = 0
-
 _METAKIND_TYPE = TypeDeclaration(
     cardinality=TypeCardinality.SCALAR,
     primitive_type=PrimitiveType.INT32,
@@ -1286,7 +1277,6 @@ def _process_object_cls[ObjectT: Object](
 ) -> tuple[type[ObjectT], ObjectDeclaration]:
     """Process an Object base class and return the processed class and its properties."""
     global _time_spent_in_process_object_cls
-    start = time.time()
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
@@ -1345,7 +1335,7 @@ def _process_object_cls[ObjectT: Object](
             or type(attribute).__name__.startswith("_")
             or inspect.ismethod(attribute)
             or inspect.isfunction(attribute)
-            or isinstance(attribute, (property, classmethod, staticmethod, dualmethod))
+            or isinstance(attribute, (property, classmethod, staticmethod))
             or name in ("metakind", "metatype")
         ):
             continue  # ignore reserved names and non-fields
@@ -1385,7 +1375,7 @@ def _process_object_cls[ObjectT: Object](
                 ):
                     continue  # may be narrowed/duplicated
                 elif component.__declaration__.is_abstract and existing.id == prop.id:
-                    continue  # may be overridden by the trait
+                    continue  # may be overridden
                 else:
                     # error: property conflicts with ancestor component
                     raise RuntimeError(
@@ -1509,8 +1499,6 @@ def _process_object_cls[ObjectT: Object](
                 prop.original_component, prop.original_component
             )
 
-    _time_spent_in_process_object_cls += time.time() - start
-
     return cls, properties  # type: ignore
 
 
@@ -1603,10 +1591,10 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Any:
         """Pack this Object into some encoded format."""
+        from destack.encoder.registry import get_encoder
 
         options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = ENCODERS.get(encoding)
-        assert encoder is not None, f"no Encoder defined for {encoding}"
+        encoder = get_encoder(encoding)
         packed_object = encoder.pack_object(self, options)
         return packed_object
 
@@ -1618,10 +1606,10 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> None:
         """Pack this Object into the byte representation of its encoded format."""
+        from destack.encoder.registry import get_encoder
 
         options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = ENCODERS.get(encoding)
-        assert encoder is not None, f"no Encoder defined for {encoding}"
+        encoder = get_encoder(encoding)
         encoder.pack_object_binary(self, writer, options)
 
     @builtin_method(32)
@@ -1634,10 +1622,10 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack an Object from some encoded format."""
+        from destack.encoder.registry import get_encoder
 
         options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = ENCODERS.get(encoding)
-        assert encoder is not None, f"no Encoder defined for {encoding}"
+        encoder = get_encoder(encoding)
         unpacked_object = encoder.unpack_object(cls.metakind, cls.metatype, value, session, options)
         return cast(Self, unpacked_object)
 
@@ -1651,10 +1639,10 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack an Object from the byte representation of its encoded format."""
+        from destack.encoder.registry import get_encoder
 
         options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = ENCODERS.get(encoding)
-        assert encoder is not None, f"no Encoder defined for {encoding}"
+        encoder = get_encoder(encoding)
         unpacked_object = encoder.unpack_object_binary(
             cls.metakind, cls.metatype, reader, session, options
         )
@@ -1669,6 +1657,7 @@ class Object:
         session: "Session | None",
         options: "EncoderOptions | None" = None,
     ) -> Self:
+        """Unpack an Object from a base64 encoded string."""
         options = options if options is not None else EncoderOptions.DEFAULT
         reader = BinaryReader(base64.b64decode(value))
         return cls.unpack_binary(encoding, reader, session, options)

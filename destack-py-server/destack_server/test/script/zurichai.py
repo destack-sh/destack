@@ -149,6 +149,11 @@ class EmailSender(Service):
             await email.send()
             self.log("email.sent", membership=membership, email=email)
 
+    # computed effect would be cool:
+    # Meetup:
+    #  -> <Timer name="AnnouncementTimer" on="meetup.starts_at - timedelta(days=14)">
+    #  -> <Timer name="ReminderTimer" on="meetup.starts_at - timedelta(days=7)">
+
 
 # ===============================================
 # ZurichAI/MeetupResponse [Entity]

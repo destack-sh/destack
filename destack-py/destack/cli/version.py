@@ -1,12 +1,11 @@
 from datetime import datetime
 from pathlib import Path
 
+from destack.cli import console
 from destack.cli.parser import create_cli
 from destack.language.core import VERSION
-from destack.utils.log import get_logger
 
 cli = create_cli(help="Destack Version management.")
-logger = get_logger(__name__)
 
 
 @cli.command()
@@ -23,7 +22,7 @@ def bump(revision: int | None = None):
         revision = current_version_revision + 1 if current_version_date == today else 0
 
     new_version = today.strftime("%Y.%m.%d") + "." + str(revision)
-    logger.info("version.bump", current_version=current_version, new_version=new_version)
+    console.print(f"Version: {current_version} -> {new_version}", "bright_yellow")
 
     # check that version is in all files first
     files_to_update = (

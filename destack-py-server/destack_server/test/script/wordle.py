@@ -12,7 +12,7 @@ from .scaffold import *  # noqa: F403
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 # ===============================================
-# wordle/Common [Service]
+# wordle/Common
 # ===============================================
 
 

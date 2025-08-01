@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
+    Action,
     Entity,
     Enum,
     EnumType,
@@ -15,7 +16,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import NodeReference, Space
+    from destack.language import NodeReference
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -136,11 +137,11 @@ class RunCompletedEvent(RunEvent):
 )
 class Run(Entity):
     """
-    Run of a Runnable.
+    Run of an Action.
     """
 
-    parent: Union["Space", "Run", None] = builtin_property_parent()
-    target: Optional["Entity"] = builtin_property(111)
+    parent: Union["Action", "Run", None] = builtin_property_parent()
+    action: "Action" = builtin_property(111)
     status: RunStatus = builtin_property(112, is_repr=True)
     duration: Optional[timedelta] = builtin_property(
         113,

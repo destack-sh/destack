@@ -3,8 +3,6 @@ from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, final
 
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
 
 from ..builtin import Handle, HandleType, NodeType, builtin_handle
@@ -12,8 +10,6 @@ from ..builtin import Handle, HandleType, NodeType, builtin_handle
 if TYPE_CHECKING:
     from destack.language import Entity, Event, Snapshot
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

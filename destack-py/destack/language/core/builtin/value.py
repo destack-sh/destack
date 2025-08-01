@@ -1,8 +1,5 @@
 from typing import TYPE_CHECKING, Any, final
 
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
-
 from .builtin import ObjectStability
 from .property import builtin_property
 from .struct import Struct, StructType, builtin_struct
@@ -14,8 +11,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

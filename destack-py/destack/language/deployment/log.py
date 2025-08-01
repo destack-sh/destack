@@ -4,8 +4,8 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    Json,
     NodeType,
+    Value,
     builtin_enum,
     builtin_event,
     builtin_property,
@@ -31,6 +31,10 @@ class LogLevel(Enum):
 class LogEvent(Event):
     """A Log message."""
 
-    content: str = builtin_property(110)
-    attributes: dict[str, Json] = builtin_property(111)
-    level: LogLevel = builtin_property(112)
+    custom_values: dict[str, "Value"] | None = builtin_property(
+        45,
+        description="The custom Values of this Entity, keyed by custom Property name.",
+    )
+
+    name: str = builtin_property(101)
+    level: LogLevel = builtin_property(110)

@@ -27,6 +27,8 @@ class Context(Handle):
 
     It accumulates down the Entity tree.
     Custom values may be added / updated in the Entity tree.
+
+    Context propagates across the call stack (because it propagates through Runs).
     """
 
     # TODO :Incomplete: Context to replace Oracle and Session.actor/space/branch/snapshot/...?

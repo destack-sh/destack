@@ -1,14 +1,13 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Event,
     NodeType,
     builtin_event,
-    builtin_property,
 )
 
 if TYPE_CHECKING:
-    from destack.language import View
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -17,5 +16,4 @@ if TYPE_CHECKING:
 class InputEvent(Event):
     """An InputEvent is an Event that corresponds to some direct user input."""
 
-    view: Optional["View"] = builtin_property(101)
     # is_handled?

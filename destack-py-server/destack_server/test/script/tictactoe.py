@@ -15,7 +15,7 @@ from .scaffold import *  # noqa: F403
 
 
 # ===============================================
-# tictactoe/Game [Entity]
+# tictactoe/Game
 # ===============================================
 
 
@@ -25,7 +25,7 @@ class TicTacToeGame(Entity):
 
 
 # ===============================================
-# TicTacToePlayer [Entity]
+# TicTacToePlayer
 # ===============================================
 
 
@@ -39,7 +39,7 @@ class TicTacToeBoard(Entity):
 
 
 # ===============================================
-# TicTacToeCell [Entity]
+# TicTacToeCell
 # ===============================================
 
 

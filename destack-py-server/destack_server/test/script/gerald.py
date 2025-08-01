@@ -8,7 +8,7 @@ if not TYPE_CHECKING:
     pytest.skip(allow_module_level=True)
 
 # ===============================================
-# Gerald/DataAnalyzer [Service]
+# Gerald/DataAnalyzer
 # ===============================================
 """
 Zertifikate Data Analyzer V12 - Modul 2
@@ -239,7 +239,7 @@ class DataAnalyzer(Service):
 
 
 # ===============================================
-# Gerald/DataFetcher [Service]
+# Gerald/DataFetcher
 # ===============================================
 # !/usr/bin/env python3
 """
@@ -259,6 +259,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
+@service
 class DataFetcher(Service):
     user_agent: str = script.field("user_agent", 1, str)
 

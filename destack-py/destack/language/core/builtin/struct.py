@@ -9,8 +9,6 @@ from typing import (
 
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from destack.utils.env import IS_DEV, IS_TEST
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 
 from .builtin import EnumType, ObjectKind, ObjectStability, StructType
 from .declaration import StructDeclaration, TagDeclaration, builtin_method
@@ -23,8 +21,6 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

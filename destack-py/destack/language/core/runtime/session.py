@@ -6,9 +6,7 @@ from typing import (
     Any,
 )
 
-from destack.language.core.builtin.property import builtin_property_runtime
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
+from destack.language.core import builtin_property_runtime
 
 from ..builtin import (
     ACTIVE_SESSION,
@@ -27,12 +25,9 @@ from ..builtin import (
 from .graph import Graph
 
 if TYPE_CHECKING:
-    from destack.language import Context, SpaceConnection
+    from destack.language import Connection, Context
 
 # pyright: reportIncompatibleVariableOverride=false
-
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 
 
 @builtin_handle(HandleType.SESSION)
@@ -46,7 +41,7 @@ class Session(Handle):
     root_context: "Context" = builtin_property_runtime(403, is_repr=True)
     graph: "Graph" = builtin_property_runtime(404)
     pending_events: list["Event"] = builtin_property_runtime(406)
-    connections: list["SpaceConnection"] = builtin_property_runtime(407)
+    connections: list["Connection"] = builtin_property_runtime(407)
     closed_at: datetime | None = builtin_property_runtime(408)
 
     def __repr__(self) -> str:

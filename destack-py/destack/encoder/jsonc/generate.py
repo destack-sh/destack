@@ -5,8 +5,6 @@ from destack.language.core import (
     Object,
     PropertyDeclaration,
 )
-from destack.utils.log import get_logger
-from destack.utils.telemetry import get_tracer
 
 from ..json.generate import JsonEncoderGenerator
 
@@ -16,8 +14,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-logger = get_logger(__name__)
-tracer = get_tracer(__name__)
 type_ = type
 
 

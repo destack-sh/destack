@@ -26,12 +26,6 @@ def _setup_test_env():
 
     setup_env()
 
-    from destack.utils.log import setup_logging
-    from destack.utils.telemetry import setup_telemetry
-
-    setup_logging()
-    setup_telemetry()
-
     from destack.language import finalize
 
     finalize()

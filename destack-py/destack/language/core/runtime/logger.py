@@ -5,11 +5,12 @@ from destack.language.core import (
     HandleType,
     NodeType,
     builtin_handle,
+    builtin_method,
     builtin_property_runtime,
 )
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import LogEvent
 
 # nocheckin(py): replace structlog with logging
 
@@ -24,20 +25,32 @@ class Logger(Handle):
 
     name: str = builtin_property_runtime(401)
 
-    def trace(self, msg: str, **kwargs):
-        pass
+    @builtin_method(101)
+    def trace(self, name: str, **kwargs) -> "LogEvent":
+        """Log a trace event with additional custom Values."""
+        ...
 
-    def debug(self, msg: str, **kwargs):
-        pass
+    @builtin_method(102)
+    def debug(self, name: str, **kwargs) -> "LogEvent":
+        """Log a debug event with additional custom Values."""
+        ...
 
-    def info(self, msg: str, **kwargs):
-        pass
+    @builtin_method(103)
+    def info(self, name: str, **kwargs) -> "LogEvent":
+        """Log an info event with additional custom Values."""
+        ...
 
-    def warning(self, msg: str, **kwargs):
-        pass
+    @builtin_method(104)
+    def warning(self, name: str, **kwargs) -> "LogEvent":
+        """Log a warning event with additional custom Values."""
+        ...
 
-    def error(self, msg: str, **kwargs):
-        pass
+    @builtin_method(105)
+    def error(self, name: str, **kwargs) -> "LogEvent":
+        """Log an error event with additional custom Values."""
+        ...
 
-    def critical(self, msg: str, **kwargs):
-        pass
+    @builtin_method(106)
+    def critical(self, name: str, **kwargs) -> "LogEvent":
+        """Log a critical event with additional custom Values."""
+        ...
