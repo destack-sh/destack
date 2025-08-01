@@ -908,8 +908,9 @@ class HandleType(Enum):
     GRAPH = 11, "Graph"
     SPACE_CONNECTION = 12, "Graph Connection"
 
-    LOGGER = 20
-    CONTEXT = 21
+    CONTEXT = 20
+    LOGGER = 21
+    TRACER = 22
 
 
 @builtin_enum(EnumType.UNIVERSE_CATEGORY)
@@ -928,7 +929,7 @@ class UniverseCategory(Enum):
     INTELLIGENCE = 900_000, "Intelligence", "Artificial intelligence"
     INFRASTRUCTURE = 1_000_000, "Infrastructure", "Devices, hardware and plumbing"
     DEPLOYMENT = 1_100_000, "Deployment", "Deployment and runtime"
-    OBSERVABILITY = 1_200_000, "Observability", "Analytics about everything"
+    OBSERVABILITY = 1_200_000, "Observability", "Telemetry on everything"
     EXPERIENCE = 1_300_000, "Experience", "User experience"
     SOCIAL = 1_400_000, "Social", "Social interactions"
     FINANCE = 1_500_000, "Finance", "Financial operations"

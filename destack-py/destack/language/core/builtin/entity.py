@@ -299,7 +299,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         is_repr=True,
         tags=("tracking",),
     )
-    # managed_by: Optional["Entity"] (authority?)
+    # managed_by: Optional["Entity"]
+    # nocheckin(language): authority (how do authority and runtime choice relate? Action RPC?)
     # controlled_by, possessed_by, ...
     if TYPE_CHECKING:
         created_by_ptr: NodeReference = UNSET

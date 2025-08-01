@@ -16,7 +16,7 @@ from typing import (
     dataclass_transform,
 )
 
-from destack.utils.code import exec_
+from destack.utils.code import exec_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
@@ -1453,28 +1453,30 @@ def _process_object_cls[ObjectT: Object](
             "uuid4": uuid4,
         }
         init_str, init_glbls = _generator.generate_init(cls, declaration)
-        exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
+        exec_code(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
         # __repr__
         repr_str, repr_glbls = _generator.generate_repr(cls)
-        exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
+        exec_code(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
         # equals
         equals_str, equals_glbls = _generator.generate_equals(
             cls, is_node=declaration.kind == ObjectKind.NODE
         )
-        exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
+        exec_code(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
         # hash
         hash_str, hash_glbls = _generator.generate_hash(cls)
-        exec_(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
+        exec_code(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
         if declaration.kind == ObjectKind.NODE:
             assert isinstance(declaration.type, NodeType), f"unexpected type: {declaration.type!r}"
             # path
             path_str, path_glbls = _generator.generate_path(cast(type["Node"], cls))
-            exec_(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
+            exec_code(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
         # add computed properties to concrete classes
         for prop in properties.values():
             if prop.edge_type in (EdgeType.PARENT, EdgeType.REGULAR):
                 node_property_str = _generator.generate_node_property(prop)
-                exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
+                exec_code(
+                    node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}"
+                )
 
     # slots
     cls_dict.pop("__dict__", None)

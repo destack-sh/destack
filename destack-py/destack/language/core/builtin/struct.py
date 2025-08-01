@@ -36,8 +36,9 @@ def _process_struct_cls(
     is_abstract: bool,
     is_final: bool,
     tags: tuple["TagDeclaration", ...],
+    enum_types: tuple[EnumType, ...],
 ) -> type["Struct"]:
-    # bases
+    # inheritance
     inherits: list[StructType] = []
     all_enum_types: list[EnumType] = []
     if cls.__name__ != "Struct" and cls.__name__ != "StructFrozen":
@@ -72,7 +73,7 @@ def _process_struct_cls(
         tags=list(tags),
         # associations
         enum_types=list(all_enum_types),
-        self_enum_types=list(all_enum_types),
+        self_enum_types=list(enum_types),
     )
 
     # process object class
@@ -135,6 +136,7 @@ def builtin_struct(
     is_final: bool = False,
     stability: ObjectStability = ObjectStability.DYNAMIC,
     tags: tuple["TagDeclaration", ...] = (),
+    enum_types: tuple[EnumType, ...] = (),
 ):
     """Register a class as a concrete struct for the given struct type."""
 
@@ -147,6 +149,7 @@ def builtin_struct(
             is_abstract=is_abstract,
             is_final=is_final,
             tags=tags,
+            enum_types=enum_types,
         )
         return cls
 
@@ -158,8 +161,8 @@ class Struct(Object):
     """A Struct is an ordered collection of Properties."""
 
     # meta
-    metatype: ClassVar[StructType]
     metakind: ClassVar[ObjectKind] = ObjectKind.STRUCT
+    metatype: ClassVar[StructType]
     __declaration__: ClassVar["StructDeclaration"]
     __definition__: ClassVar["StructDefinition"]
 

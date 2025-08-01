@@ -11,7 +11,7 @@ from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 
-from .builtin import HandleType, ObjectKind, ObjectStability
+from .builtin import EnumType, HandleType, NodeType, ObjectKind, ObjectStability
 from .declaration import HandleDeclaration, TagDeclaration
 from .object import Object, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS
@@ -33,14 +33,24 @@ def _process_handle_cls(
     is_abstract: bool,
     is_final: bool,
     tags: tuple["TagDeclaration", ...],
+    enum_types: tuple[EnumType, ...],
+    event_types: tuple[NodeType, ...],
 ) -> type["Handle"]:
-    # bases
+    # inheritance
     inherits: list[HandleType] = []
-    if cls.__name__ != "Handle" and cls.__name__ != "HandleFrozen":
+    all_enum_types: list[EnumType] = []
+    all_event_types: list[NodeType] = []
+    if cls.__name__ != "Handle":
         for base in cls.__mro__:
             if issubclass(base, Handle):
                 if base.metatype not in inherits:
                     inherits.append(base.metatype)
+                for enum_type in base.__declaration__.enum_types:
+                    if enum_type not in all_enum_types:
+                        all_enum_types.append(enum_type)
+                for event_type in base.__declaration__.event_types:
+                    if event_type not in all_event_types:
+                        all_event_types.append(event_type)
 
     # declaration
     declaration = HandleDeclaration(
@@ -63,6 +73,11 @@ def _process_handle_cls(
         methods=[],
         constants=[],
         tags=list(tags),
+        # associations
+        enum_types=list(enum_types),
+        self_enum_types=list(all_enum_types),
+        event_types=list(event_types),
+        self_event_types=list(all_event_types),
     )
 
     # process object class
@@ -123,6 +138,8 @@ def builtin_handle(
     is_final: bool = False,
     stability: ObjectStability = ObjectStability.DYNAMIC,
     tags: tuple["TagDeclaration", ...] = (),
+    enum_types: tuple[EnumType, ...] = (),
+    event_types: tuple[NodeType, ...] = (),
 ):
     """Register a class as a concrete handle for the given handle type."""
 
@@ -134,6 +151,8 @@ def builtin_handle(
             is_abstract=is_abstract,
             is_final=is_final,
             tags=tags,
+            enum_types=enum_types,
+            event_types=event_types,
         )
         return cls
 
@@ -142,11 +161,11 @@ def builtin_handle(
 
 @builtin_handle(HandleType.HANDLE, is_abstract=True)
 class Handle(Object):
-    """A Handle is an ordered collection of Properties."""
+    """A Handle is a (runtime-only) Object for interacting with the runtime."""
 
     # meta
-    metatype: ClassVar[HandleType]
     metakind: ClassVar[ObjectKind] = ObjectKind.HANDLE
+    metatype: ClassVar[HandleType]
     __declaration__: ClassVar["HandleDeclaration"]
     __definition__: ClassVar["HandleDefinition"]
 

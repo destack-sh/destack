@@ -107,9 +107,7 @@ shellingham==1.5.4
 structlog==24.2.0
     # via -r destack-py-server/destack_server/requirements/requirements.in
 typer==0.15.1
-    # via
-    #   -r destack-py/destack/requirements/dev.in
-    #   -r destack-py-server/destack_server/requirements/requirements.in
+    # via -r destack-py/destack/requirements/dev.in
 typing-extensions==4.14.0
     # via
     #   opentelemetry-sdk

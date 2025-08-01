@@ -4,13 +4,19 @@ import time
 _time_spent_in_exec = 0
 
 
-def exec_(code: str, globals: dict, locals: dict, filename: str, log: bool = False) -> None:
+def exec_code(
+    code: str,
+    globals: dict,
+    locals: dict,
+    filename: str,
+    _debug_log: bool = False,
+) -> None:
     """
     Executes the code, but with a name and in the cache.
     """
     global _time_spent_in_exec
     start = time.time()
-    if log:
+    if _debug_log:
         print("=" * 80)  # noqa: T201
         print(filename)  # noqa: T201
         print("-" * 80)  # noqa: T201

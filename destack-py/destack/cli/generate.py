@@ -1,15 +1,13 @@
 import time
 
-import typer
-
+from destack.cli.parser import create_cli
 from destack.utils.log import get_logger
 
 logger = get_logger(__name__)
-app = typer.Typer()
+cli = create_cli(help="Destack code / SDK generation.")
 
 
-@app.callback(invoke_without_command=True)
-@app.command()
+@cli.command()
 def generate():
     """Generate all the derived things."""
     started_at = time.time()

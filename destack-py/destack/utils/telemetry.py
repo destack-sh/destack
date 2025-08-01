@@ -30,7 +30,9 @@ try:
     logger = get_logger(__name__)
 
     IS_DEBUG: bool = hasattr(sys, "gettrace") and sys.gettrace() is not None
-    VERSION = Path("version").read_text().strip()
+    # look for version file in parent directory
+    version_file = Path(__file__).parent.parent.parent.parent / "version"
+    VERSION = version_file.read_text().strip() if version_file.exists() else "unknown"
     OTLP_ENDPOINT = get_from_env_maybe(
         "OTLP_ENDPOINT", description="Full URL to send OTLP traces to"
     )
