@@ -1,32 +1,19 @@
 from datetime import datetime
 from pathlib import Path
 
-import typer
-
+from destack.cli.parser import create_cli
+from destack.language.core import VERSION
 from destack.utils.log import get_logger
 
-app = typer.Typer(short_help="version management")
+cli = create_cli(help="Destack Version management.")
 logger = get_logger(__name__)
 
 
-@app.callback(invoke_without_command=True)
-@app.command()
-def show():
+@cli.command()
+def bump(revision: int | None = None):
     """
-    Show the current version.
+    Bump the CalVer. Increment revision if needed (format: YYYY.MM.DD.R).
     """
-    from destack.language.core import VERSION
-
-    print(VERSION)  # noqa: T201
-
-
-@app.command()
-def bump(revision: int | None = typer.Option(None)):
-    """
-    Bump the CalVer to the current date. Increment revision if the date is the same.
-    Format: YYYY.MM.DD.R
-    """
-    from destack.language.core import VERSION
 
     current_version = VERSION
     current_version_date = datetime.strptime(current_version[:10], "%Y.%m.%d").date()  # noqa: DTZ007

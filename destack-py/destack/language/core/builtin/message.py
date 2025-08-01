@@ -9,7 +9,7 @@ from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
 
-from .builtin import ObjectStability, StructType
+from .builtin import EnumType, ObjectStability, StructType
 from .common import ValueFactory
 from .declaration import TagDeclaration
 from .property import _PROPERTY_SPECIFIERS, builtin_property
@@ -41,6 +41,7 @@ def builtin_message(
     is_final: bool = False,
     stability: ObjectStability = ObjectStability.DYNAMIC,
     tags: tuple["TagDeclaration", ...] = (),
+    enum_types: tuple[EnumType, ...] = (),
 ):
     """Register a class as a concrete Message for the given Message type."""
 
@@ -53,6 +54,7 @@ def builtin_message(
             is_abstract=is_abstract,
             is_final=is_final,
             tags=tags,
+            enum_types=enum_types,
         )
         assert (
             message_type == StructType.MESSAGE or StructType.MESSAGE in cls.__declaration__.inherits

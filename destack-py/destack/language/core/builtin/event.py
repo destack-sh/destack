@@ -139,6 +139,8 @@ class Event[N: Node = Node](Node):
     )
     preceded_by: Optional["Event"] = builtin_property(
         14,
+        is_eq=False,
+        is_hash=False,
         is_readonly=True,
         is_internal=True,
         is_identity=True,
@@ -147,6 +149,8 @@ class Event[N: Node = Node](Node):
     )
     caused_by: Optional["Event"] = builtin_property(
         15,
+        is_eq=False,
+        is_hash=False,
         is_readonly=True,
         is_internal=True,
         is_identity=True,
@@ -158,6 +162,7 @@ class Event[N: Node = Node](Node):
         20,
         is_internal=True,
         is_eq=False,
+        is_hash=False,
         is_readonly=True,
         default_factory=ValueFactory.NOW,
         description="The time this Event was created (system).",
@@ -178,6 +183,8 @@ class Event[N: Node = Node](Node):
         22,
         is_internal=True,
         is_eq=False,
+        is_hash=False,
+        is_repr=False,
         is_readonly=True,
         default_factory=ValueFactory.ACTOR,
         description="The Actor that created this Event.",
@@ -186,6 +193,9 @@ class Event[N: Node = Node](Node):
     client: "Client" = builtin_property(
         23,
         is_internal=True,
+        is_eq=False,
+        is_hash=False,
+        is_repr=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
         description="The Client that created this Event (client, but verified).",
@@ -193,6 +203,9 @@ class Event[N: Node = Node](Node):
     )
     client_nonce: UUID = builtin_property(
         24,
+        is_eq=False,
+        is_hash=False,
+        is_repr=False,
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT_NONCE,
@@ -201,6 +214,9 @@ class Event[N: Node = Node](Node):
     )
     client_created_at: datetime = builtin_property(
         25,
+        is_eq=False,
+        is_hash=False,
+        is_repr=False,
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.NOW,
@@ -209,6 +225,9 @@ class Event[N: Node = Node](Node):
     )
     client_remote_epoch: UInt128 = builtin_property(
         26,
+        is_eq=False,
+        is_hash=False,
+        is_repr=True,
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.REMOTE_EPOCH,
@@ -217,6 +236,9 @@ class Event[N: Node = Node](Node):
     )
     client_local_epoch: UInt128 = builtin_property(
         27,
+        is_eq=False,
+        is_hash=False,
+        is_repr=True,
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.LOCAL_EPOCH,
@@ -225,6 +247,8 @@ class Event[N: Node = Node](Node):
     )
     status: "EventStatus" = builtin_property(
         30,
+        is_eq=False,
+        is_hash=False,
         is_repr=True,
         default=EventStatus.PENDING,
         description="The status of the Event (system).",

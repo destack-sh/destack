@@ -142,6 +142,12 @@ class HandleDeclaration(ObjectDeclaration):
     constants: list["ConstantDeclaration"]
     tags: list["TagDeclaration"]
 
+    # associations
+    enum_types: list[EnumType]
+    self_enum_types: list[EnumType]
+    event_types: list[NodeType]
+    self_event_types: list[NodeType]
+
 
 @dataclass(slots=True)
 class IndexDeclaration:

@@ -29,7 +29,7 @@ from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
-from destack.utils.code import exec_
+from destack.utils.code import exec_code
 from destack.utils.log import get_logger
 from destack.utils.telemetry import get_tracer
 from destack.utils.uuid import UUID
@@ -599,7 +599,7 @@ for _ in range({key}_length):
                 continue
             encoder_name, impl, extra_glbls = self.generate_object_encoder(node_cls)
             locals_ = {}
-            exec_(
+            exec_code(
                 impl,
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},
                 locals_,

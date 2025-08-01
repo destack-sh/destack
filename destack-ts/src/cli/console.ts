@@ -87,16 +87,16 @@ export function box(content: string, padding: number = 1): string {
   const result: string[] = [];
   
   // top border
-  result.push("┌" + "─".repeat(width) + "┐");
+  result.push(`┌${"─".repeat(width)}┐`);
   
   // content with padding
   for (const line of lines) {
     const paddedLine = line.padEnd(maxLength);
-    result.push("│" + " ".repeat(padding) + paddedLine + " ".repeat(padding) + "│");
+    result.push(`│${" ".repeat(padding)}${paddedLine}${" ".repeat(padding)}│`);
   }
   
   // bottom border
-  result.push("└" + "─".repeat(width) + "┘");
+  result.push(`└${"─".repeat(width)}┘`);
   
   return result.join("\n");
 }

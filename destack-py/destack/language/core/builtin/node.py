@@ -76,7 +76,7 @@ def _process_node_cls(
 ) -> type["Node"]:
     assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
 
-    # bases
+    # inheritance
     inherits: list[NodeType] = []
     all_traits: list[TraitType] = list(traits)
     all_message_types: list[StructType] = []
@@ -270,6 +270,7 @@ class Node(Object):
     """
 
     # meta
+    metakind: ClassVar[ObjectKind] = ObjectKind.NODE
     metatype: ClassVar[NodeType]
     __declaration__: ClassVar["NodeDeclaration"]
     __definition__: ClassVar["NodeDefinition"]
@@ -288,6 +289,8 @@ class Node(Object):
     space: "Space" = builtin_property(
         5,
         is_internal=True,
+        is_eq=False,
+        is_hash=False,
         is_readonly=True,
         is_identity=True,
         default_factory=ValueFactory.SPACE,

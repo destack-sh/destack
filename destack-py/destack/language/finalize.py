@@ -11,6 +11,7 @@ from destack.utils.telemetry import get_tracer
 from .core.builtin.builtin import (
     ENUM_TYPES,
     EnumType,
+    HandleType,
     NodeType,
     StructType,
 )
@@ -223,8 +224,11 @@ def finalize():
         NODE_TYPE_SCALAR_BY_TYPE[node_type] = scalar_type
 
     # finalize constants
-
-    for object_cls in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
+    for object_cls in chain(
+        NODE_CLASS_BY_TYPE.values(),
+        STRUCT_CLASS_BY_TYPE.values(),
+        HANDLE_CLASS_BY_TYPE.values(),
+    ):
         constants: list[ConstantDefinition] = []
         for name, attribute in object_cls.__dict__.items():
             if isinstance(attribute, ConstantDeclaration):
@@ -239,6 +243,9 @@ def finalize():
     # sanity check stuff
     if IS_DEV or IS_TEST:
         # check we have all the declared builtin objects
+        if len(EnumType) != len(ENUM_CLASS_BY_TYPE):
+            missing_enum_types = set(EnumType) - set(ENUM_CLASS_BY_TYPE.keys())
+            raise ValueError(f"missing {len(missing_enum_types)} Enums: {list(missing_enum_types)}")
         if len(StructType) != len(STRUCT_CLASS_BY_TYPE):
             missing_struct_types = set(StructType) - set(STRUCT_CLASS_BY_TYPE.keys())
             raise ValueError(
@@ -247,9 +254,11 @@ def finalize():
         if len(NodeType) != len(NODE_CLASS_BY_TYPE):
             missing_node_types = set(NodeType) - set(NODE_CLASS_BY_TYPE.keys())
             raise ValueError(f"missing {len(missing_node_types)} Nodes: {list(missing_node_types)}")
-        if len(EnumType) != len(ENUM_CLASS_BY_TYPE):
-            missing_enum_types = set(EnumType) - set(ENUM_CLASS_BY_TYPE.keys())
-            raise ValueError(f"missing {len(missing_enum_types)} Enums: {list(missing_enum_types)}")
+        if len(HandleType) != len(HANDLE_CLASS_BY_TYPE):
+            missing_handle_types = set(HandleType) - set(HANDLE_CLASS_BY_TYPE.keys())
+            raise ValueError(
+                f"missing {len(missing_handle_types)} Handles: {list(missing_handle_types)}"
+            )
 
         # check event types
         for node_cls in NODE_CLASS_BY_TYPE.values():

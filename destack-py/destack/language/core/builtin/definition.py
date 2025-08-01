@@ -612,6 +612,28 @@ class HandleDefinition(ObjectDefinition):
         tags=("inheritance",),
     )
 
+    # associations
+    enum_types: list[EnumType] = builtin_property(
+        210,
+        description="The enum types related to this Handle.",
+        tags=("associations",),
+    )
+    self_enum_types: list[EnumType] = builtin_property(
+        211,
+        description="The enum types declared by this Handle (directly).",
+        tags=("associations",),
+    )
+    event_types: list[NodeType] = builtin_property(
+        212,
+        description="The event types related to this Handle.",
+        tags=("associations",),
+    )
+    self_event_types: list[NodeType] = builtin_property(
+        213,
+        description="The event types declared by this Handle (directly).",
+        tags=("associations",),
+    )
+
     @override
     def to_ref(self) -> "ObjectDefinitionReference":
         return ObjectDefinitionReference(kind=ObjectKind.HANDLE, handle_type=self.type)
@@ -647,6 +669,11 @@ class HandleDefinition(ObjectDefinition):
             extended_by=list(declaration.extended_by),
             inherits=list(declaration.inherits),
             inherited_by=list(declaration.inherited_by),
+            # associations
+            enum_types=list(declaration.enum_types),
+            self_enum_types=list(declaration.self_enum_types),
+            event_types=list(declaration.event_types),
+            self_event_types=list(declaration.self_event_types),
         )
 
 

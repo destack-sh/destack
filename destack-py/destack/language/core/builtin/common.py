@@ -429,20 +429,21 @@ class PrimitiveType(Enum):
     )
     # UINT256, ...
     # float
+    # FLOAT4, FLOAT8, ...
     FLOAT16 = (
-        21,
+        22,
         "Float16",
         "16-bit half-precision float (±2^14)",
         "fas fa-hashtag",
     )
     FLOAT32 = (
-        22,
+        23,
         "Float32",
         "32-bit single-precision float (±2^127)",
         "fas fa-hashtag",
     )
     FLOAT64 = (
-        23,
+        24,
         "Float64",
         "64-bit double-precision float (±2^1023)",
         "fas fa-hashtag",
