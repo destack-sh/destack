@@ -7,7 +7,7 @@ export class BinaryError extends Error {
   }
 }
 
-const _EPOCH_DATE = new Temporal.PlainDate(1970, 1, 1);
+const _EPOCH_DATE = new Temporal.PlainDate(1, 1, 1); // year 1 AD as epoch for wider date range support
 
 /**
  * Write binary data in our custom encoding. Little-endian, varint, zigzag, etc.
@@ -65,6 +65,7 @@ export class BinaryWriter {
   // PrimitiveType.INT8
   /**
    * Write a signed 8-bit integer as raw byte.
+   * Range: -2^7 to 2^7-1.
    * Size: 1 byte.
    */
   writeInt8(value: number): void {
@@ -75,6 +76,7 @@ export class BinaryWriter {
   // PrimitiveType.INT16
   /**
    * Write a signed 16-bit integer using zigzag encoding then varint.
+   * Range: -2^15 to 2^15-1.
    * Size: 1-3 bytes.
    */
   writeInt16(value: number): void {
@@ -84,6 +86,7 @@ export class BinaryWriter {
   // PrimitiveType.INT32
   /**
    * Write a signed 32-bit integer using zigzag encoding then varint.
+   * Range: -2^31 to 2^31-1.
    * Size: 1-5 bytes.
    */
   writeInt32(value: number): void {
@@ -93,6 +96,7 @@ export class BinaryWriter {
   // PrimitiveType.INT64
   /**
    * Write a signed 64-bit integer using zigzag encoding then varint.
+   * Range: -2^63 to 2^63-1.
    * Size: 1-10 bytes.
    */
   writeInt64(value: bigint): void {
@@ -102,6 +106,7 @@ export class BinaryWriter {
   // PrimitiveType.INT128
   /**
    * Write a signed 128-bit integer using zigzag encoding then varint.
+   * Range: -2^127 to 2^127-1.
    * Size: 1-19 bytes.
    */
   writeInt128(value: bigint): void {
@@ -111,6 +116,7 @@ export class BinaryWriter {
   // PrimitiveType.UINT8
   /**
    * Write an unsigned 8-bit integer as raw byte.
+   * Range: 0 to 2^8-1.
    * Size: 1 byte.
    */
   writeUint8(value: number): void {
@@ -121,6 +127,7 @@ export class BinaryWriter {
   // PrimitiveType.UINT16
   /**
    * Write an unsigned 16-bit integer using varint encoding.
+   * Range: 0 to 2^16-1.
    * Size: 1-3 bytes.
    */
   writeUint16(value: number): void {
@@ -130,6 +137,7 @@ export class BinaryWriter {
   // PrimitiveType.UINT32
   /**
    * Write an unsigned 32-bit integer using varint encoding.
+   * Range: 0 to 2^32-1.
    * Size: 1-5 bytes.
    */
   writeUint32(value: number): void {
@@ -139,6 +147,7 @@ export class BinaryWriter {
   // PrimitiveType.UINT64
   /**
    * Write an unsigned 64-bit integer using varint encoding.
+   * Range: 0 to 2^64-1.
    * Size: 1-10 bytes.
    */
   writeUint64(value: bigint): void {
@@ -148,6 +157,7 @@ export class BinaryWriter {
   // PrimitiveType.UINT128
   /**
    * Write an unsigned 128-bit integer using varint encoding.
+   * Range: 0 to 2^128-1.
    * Size: 1-19 bytes.
    */
   writeUint128(value: bigint): void {
@@ -157,6 +167,7 @@ export class BinaryWriter {
   // PrimitiveType.FLOAT16
   /**
    * Write a fixed-length 16-bit float.
+   * Range: ±6.55e4 (half precision IEEE 754).
    * Size: 2 bytes.
    */
   writeFloat16(value: number): void {
@@ -169,6 +180,7 @@ export class BinaryWriter {
   // PrimitiveType.FLOAT32
   /**
    * Write a fixed-length 32-bit float.
+   * Range: ±3.4e38 (single precision IEEE 754).
    * Size: 4 bytes.
    */
   writeFloat32(value: number): void {
@@ -180,6 +192,7 @@ export class BinaryWriter {
   // PrimitiveType.FLOAT64
   /**
    * Write a fixed-length 64-bit float.
+   * Range: ±1.8e308 (double precision IEEE 754).
    * Size: 8 bytes.
    */
   writeFloat64(value: number): void {
@@ -191,17 +204,29 @@ export class BinaryWriter {
   // PrimitiveType.DATETIME
   /**
    * Write a datetime as zigzag-encoded varint of microseconds since epoch.
+   * Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC.
    * Size: 1-10 bytes.
    */
   writeDateTime(value: Temporal.ZonedDateTime): void {
-    // convert to microseconds since epoch (64-bit)
-    const micros = BigInt(value.epochMilliseconds) * 1000n + BigInt(value.nanosecond / 1000);
+    // ensure UTC timezone
+    const utcValue = value.withTimeZone("UTC");
+    // calculate microseconds manually to support full date range
+    const date = utcValue.toPlainDate();
+    const days = _EPOCH_DATE.until(date, { largestUnit: "days" }).days;
+    const timeMicros =
+      BigInt(utcValue.hour) * 3_600_000_000n +
+      BigInt(utcValue.minute) * 60_000_000n +
+      BigInt(utcValue.second) * 1_000_000n +
+      BigInt(utcValue.millisecond) * 1_000n +
+      BigInt(utcValue.microsecond);
+    const micros = BigInt(days) * 86_400_000_000n + timeMicros;
     this.writeVarintBigint(this.zigzagEncode64(micros));
   }
 
   // PrimitiveType.DATE
   /**
-   * Write a date as zigzag-encoded varint of days since epoch (1970-01-01).
+   * Write a date as zigzag-encoded varint of days since epoch (0001-01-01).
+   * Range: 0001-01-01 to 9999-12-31.
    * Size: 1-5 bytes.
    */
   writeDate(value: Temporal.PlainDate): void {
@@ -213,6 +238,7 @@ export class BinaryWriter {
   // PrimitiveType.TIME
   /**
    * Write a time as varint of microseconds since midnight.
+   * Range: 00:00:00 to 23:59:59.999999.
    * Size: 1-6 bytes.
    */
   writeTime(value: Temporal.PlainTime): void {
@@ -228,6 +254,7 @@ export class BinaryWriter {
   // PrimitiveType.DURATION
   /**
    * Write a duration as zigzag-encoded varint of microseconds.
+   * Range: -999,999,999 days to 999,999,999 days.
    * Size: 1-10 bytes.
    */
   writeDuration(value: Temporal.Duration): void {
@@ -238,7 +265,8 @@ export class BinaryWriter {
 
   // PrimitiveType.STRING
   /**
-   * Write a UTF-8 string with varint length prefix.
+   * Write a UTF-8 string with varint length prefix followed by UTF-8 bytes.
+   * Range: 0 to 2^32-1 bytes (UTF-8 encoded).
    * Size: 1-5 bytes (length) + string length in bytes.
    */
   writeString(value: string): void {
@@ -265,7 +293,8 @@ export class BinaryWriter {
 
   // PrimitiveType.BYTES
   /**
-   * Write raw bytes with varint length prefix.
+   * Write raw bytes with varint length prefix followed by the bytes.
+   * Range: 0 to 2^32-1 bytes.
    * Size: 1-5 bytes (length) + data length.
    */
   writeBytes(value: Uint8Array): void {
@@ -449,7 +478,6 @@ export class BinaryReader {
   // PrimitiveType.UINT8
   /**
    * Peek at the next unsigned 8-bit integer without advancing the position.
-   * Size: 1 byte.
    */
   peekUint8(): number {
     if (this.pos >= this.buffer.length) {
@@ -461,7 +489,6 @@ export class BinaryReader {
   // PrimitiveType.UINT16
   /**
    * Peek at the next unsigned 16-bit integer without advancing the position.
-   * Size: 2 bytes.
    */
   peekUint16(): number {
     if (this.pos + 2 > this.buffer.length) {
@@ -473,7 +500,6 @@ export class BinaryReader {
   // PrimitiveType.UINT32
   /**
    * Peek at the next unsigned 32-bit integer without advancing the position.
-   * Size: 4 bytes.
    */
   peekUint32(): number {
     if (this.pos + 4 > this.buffer.length) {
@@ -485,7 +511,6 @@ export class BinaryReader {
   // PrimitiveType.UINT64
   /**
    * Peek at the next unsigned 64-bit integer without advancing the position.
-   * Size: 8 bytes.
    */
   peekUint64(): bigint {
     if (this.pos + 8 > this.buffer.length) {
@@ -508,7 +533,8 @@ export class BinaryReader {
 
   // PrimitiveType.INT8
   /**
-   * Read a signed 8-bit integer from raw byte.
+   * Read a signed 8-bit integer from raw byte with sign extension.
+   * Range: -128 to 127
    * Size: 1 byte.
    */
   readInt8(): number {
@@ -521,6 +547,7 @@ export class BinaryReader {
   // PrimitiveType.INT16
   /**
    * Read a signed 16-bit integer from zigzag-decoded varint.
+   * Range: -32,768 to 32,767
    * Size: 1-3 bytes.
    */
   readInt16(): number {
@@ -530,6 +557,7 @@ export class BinaryReader {
   // PrimitiveType.INT32
   /**
    * Read a signed 32-bit integer from zigzag-decoded varint.
+   * Range: -2,147,483,648 to 2,147,483,647
    * Size: 1-5 bytes.
    */
   readInt32(): number {
@@ -539,6 +567,7 @@ export class BinaryReader {
   // PrimitiveType.INT64
   /**
    * Read a signed 64-bit integer from zigzag-decoded varint.
+   * Range: -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
    * Size: 1-10 bytes.
    */
   readInt64(): bigint {
@@ -548,6 +577,7 @@ export class BinaryReader {
   // PrimitiveType.INT128
   /**
    * Read a signed 128-bit integer from zigzag-decoded varint.
+   * Range: -170,141,183,460,469,231,731,687,303,715,884,105,728 to 170,141,183,460,469,231,731,687,303,715,884,105,727
    * Size: 1-19 bytes.
    */
   readInt128(): bigint {
@@ -557,6 +587,7 @@ export class BinaryReader {
   // PrimitiveType.UINT8
   /**
    * Read an unsigned 8-bit integer from raw byte.
+   * Range: 0 to 255
    * Size: 1 byte.
    */
   readUint8(): number {
@@ -569,6 +600,7 @@ export class BinaryReader {
   // PrimitiveType.UINT16
   /**
    * Read an unsigned 16-bit integer from varint.
+   * Range: 0 to 65,535
    * Size: 1-3 bytes.
    */
   readUint16(): number {
@@ -578,6 +610,7 @@ export class BinaryReader {
   // PrimitiveType.UINT32
   /**
    * Read an unsigned 32-bit integer from varint.
+   * Range: 0 to 4,294,967,295
    * Size: 1-5 bytes.
    */
   readUint32(): number {
@@ -587,6 +620,7 @@ export class BinaryReader {
   // PrimitiveType.UINT64
   /**
    * Read an unsigned 64-bit integer from varint.
+   * Range: 0 to 18,446,744,073,709,551,615
    * Size: 1-10 bytes.
    */
   readUint64(): bigint {
@@ -596,6 +630,7 @@ export class BinaryReader {
   // PrimitiveType.UINT128
   /**
    * Read an unsigned 128-bit integer from varint.
+   * Range: 0 to 340,282,366,920,938,463,463,374,607,431,768,211,455
    * Size: 1-19 bytes.
    */
   readUint128(): bigint {
@@ -605,6 +640,7 @@ export class BinaryReader {
   // PrimitiveType.FLOAT16
   /**
    * Read a fixed-length 16-bit float.
+   * Range: ±6.55e4 (half precision IEEE 754)
    * Size: 2 bytes.
    */
   readFloat16(): number {
@@ -619,6 +655,7 @@ export class BinaryReader {
   // PrimitiveType.FLOAT32
   /**
    * Read a fixed-length 32-bit float.
+   * Range: ±3.4e38 (single precision IEEE 754)
    * Size: 4 bytes.
    */
   readFloat32(): number {
@@ -633,6 +670,7 @@ export class BinaryReader {
   // PrimitiveType.FLOAT64
   /**
    * Read a fixed-length 64-bit float.
+   * Range: ±1.8e308 (double precision IEEE 754)
    * Size: 8 bytes.
    */
   readFloat64(): number {
@@ -647,16 +685,43 @@ export class BinaryReader {
   // PrimitiveType.DATETIME
   /**
    * Read a datetime from zigzag-decoded varint of microseconds since epoch.
+   * Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC
    * Size: 1-10 bytes.
    */
   readDateTime(): Temporal.ZonedDateTime {
     const micros = this.zigzagDecode64(this.readVarintBigint());
-    return Temporal.Instant.fromEpochNanoseconds(micros * 1000n).toZonedDateTimeISO("UTC");
+    // calculate datetime manually to support full date range
+    const days = Number(micros / 86_400_000_000n);
+    const timeMicros = Number(micros % 86_400_000_000n);
+    
+    const datePart = _EPOCH_DATE.add({ days });
+    const hours = Math.floor(timeMicros / 3_600_000_000);
+    const remaining1 = timeMicros % 3_600_000_000;
+    const minutes = Math.floor(remaining1 / 60_000_000);
+    const remaining2 = remaining1 % 60_000_000;
+    const seconds = Math.floor(remaining2 / 1_000_000);
+    const remaining3 = remaining2 % 1_000_000;
+    const milliseconds = Math.floor(remaining3 / 1_000);
+    const microseconds = remaining3 % 1_000;
+    
+    const plainDateTime = Temporal.PlainDateTime.from({
+      year: datePart.year,
+      month: datePart.month,
+      day: datePart.day,
+      hour: hours,
+      minute: minutes,
+      second: seconds,
+      millisecond: milliseconds,
+      microsecond: microseconds,
+    });
+    
+    return plainDateTime.toZonedDateTime("UTC");
   }
 
   // PrimitiveType.DATE
   /**
-   * Read a date from zigzag-decoded varint of days since epoch (1970-01-01).
+   * Read a date from zigzag-decoded varint of days since epoch (0001-01-01).
+   * Range: 0001-01-01 to 9999-12-31
    * Size: 1-5 bytes.
    */
   readDate(): Temporal.PlainDate {
@@ -667,6 +732,7 @@ export class BinaryReader {
   // PrimitiveType.TIME
   /**
    * Read a time from varint of microseconds since midnight.
+   * Range: 00:00:00 to 23:59:59.999999
    * Size: 1-6 bytes.
    */
   readTime(): Temporal.PlainTime {
@@ -685,6 +751,7 @@ export class BinaryReader {
   // PrimitiveType.DURATION
   /**
    * Read a duration from zigzag-decoded varint of microseconds.
+   * Range: -999,999,999 days to 999,999,999 days
    * Size: 1-10 bytes.
    */
   readDuration(): Temporal.Duration {
@@ -695,6 +762,7 @@ export class BinaryReader {
   // PrimitiveType.STRING
   /**
    * Read a UTF-8 string from varint length prefix + UTF-8 bytes.
+   * Range: 0 to 2^32-1 bytes (UTF-8 encoded)
    * Size: 1-5 bytes (length) + string length in bytes.
    */
   readString(): string {
@@ -727,6 +795,7 @@ export class BinaryReader {
   // PrimitiveType.BYTES
   /**
    * Read raw bytes from varint length prefix + data bytes.
+   * Range: 0 to 2^32-1 bytes
    * Size: 1-5 bytes (length) + data length.
    */
   readBytes(): Uint8Array {

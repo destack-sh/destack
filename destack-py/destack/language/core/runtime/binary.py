@@ -12,7 +12,7 @@ class BinaryError(ValueError):
     """Base class for binary encoding/decoding errors."""
 
 
-_EPOCH_DATE = date(1970, 1, 1)
+_EPOCH_DATE = date(1, 1, 1)  # year 1 AD as epoch for wider date range support
 
 
 class BinaryWriter:
@@ -48,6 +48,7 @@ class BinaryWriter:
     def write_int8(self, value: int) -> None:
         """
         Write a signed 8-bit integer as raw byte.
+        Range: -2^7 to 2^7-1.
         Size: 1 byte.
         """
         self.buffer.append(value & 0xFF)
@@ -56,6 +57,7 @@ class BinaryWriter:
     def write_int16(self, value: int) -> None:
         """
         Write a signed 16-bit integer using zigzag encoding then varint.
+        Range: -2^15 to 2^15-1.
         Size: 1-3 bytes.
         """
         self._write_varint(self._write_zigzag(value))
@@ -64,6 +66,7 @@ class BinaryWriter:
     def write_int32(self, value: int) -> None:
         """
         Write a signed 32-bit integer using zigzag encoding then varint.
+        Range: -2^31 to 2^31-1.
         Size: 1-5 bytes.
         """
         self._write_varint(self._write_zigzag(value))
@@ -72,6 +75,7 @@ class BinaryWriter:
     def write_int64(self, value: int) -> None:
         """
         Write a signed 64-bit integer using zigzag encoding then varint.
+        Range: -2^63 to 2^63-1.
         Size: 1-10 bytes.
         """
         self._write_varint(self._write_zigzag(value))
@@ -80,6 +84,7 @@ class BinaryWriter:
     def write_int128(self, value: int) -> None:
         """
         Write a signed 128-bit integer using zigzag encoding then varint.
+        Range: -2^127 to 2^127-1.
         Size: 1-19 bytes.
         """
         self._write_varint(self._write_zigzag(value))
@@ -88,6 +93,7 @@ class BinaryWriter:
     def write_uint8(self, value: int) -> None:
         """
         Write an unsigned 8-bit integer as raw byte.
+        Range: 0 to 2^8-1.
         Size: 1 byte.
         """
         self.buffer.append(value & 0xFF)
@@ -96,6 +102,7 @@ class BinaryWriter:
     def write_uint16(self, value: int) -> None:
         """
         Write an unsigned 16-bit integer using varint encoding.
+        Range: 0 to 2^16-1.
         Size: 1-3 bytes.
         """
         self._write_varint(value)
@@ -104,6 +111,7 @@ class BinaryWriter:
     def write_uint32(self, value: int) -> None:
         """
         Write an unsigned 32-bit integer using varint encoding.
+        Range: 0 to 2^32-1.
         Size: 1-5 bytes.
         """
         self._write_varint(value)
@@ -112,6 +120,7 @@ class BinaryWriter:
     def write_uint64(self, value: int) -> None:
         """
         Write an unsigned 64-bit integer using varint encoding.
+        Range: 0 to 2^64-1.
         Size: 1-10 bytes.
         """
         self._write_varint(value)
@@ -120,6 +129,7 @@ class BinaryWriter:
     def write_uint128(self, value: int) -> None:
         """
         Write an unsigned 128-bit integer using varint encoding.
+        Range: 0 to 2^128-1.
         Size: 1-19 bytes.
         """
         self._write_varint(value)
@@ -128,6 +138,8 @@ class BinaryWriter:
     def write_float16(self, value: float) -> None:
         """
         Write a fixed-length 16-bit float.
+        Range: ±6.55e4 (half precision IEEE 754).
+        Size: 2 bytes.
         """
         self.buffer.extend(struct.pack("<e", value))
 
@@ -135,6 +147,8 @@ class BinaryWriter:
     def write_float32(self, value: float) -> None:
         """
         Write a fixed-length 32-bit float.
+        Range: ±3.4e38 (single precision IEEE 754).
+        Size: 4 bytes.
         """
         self.buffer.extend(struct.pack("<f", value))
 
@@ -142,6 +156,8 @@ class BinaryWriter:
     def write_float64(self, value: float) -> None:
         """
         Write a fixed-length 64-bit float.
+        Range: ±1.8e308 (double precision IEEE 754).
+        Size: 8 bytes.
         """
         self.buffer.extend(struct.pack("<d", value))
 
@@ -149,18 +165,28 @@ class BinaryWriter:
     def write_datetime(self, value: "datetime") -> None:
         """
         Write a datetime as zigzag-encoded varint of microseconds since epoch.
+        Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC.
         Size: 1-10 bytes.
         """
         # ensure UTC timezone
         if value.tzinfo is None:
             value = value.replace(tzinfo=UTC)
-        micros = int(value.timestamp() * 1_000_000)
+        # calculate microseconds manually to support full date range
+        days = (value.date() - _EPOCH_DATE).days
+        time_micros = (
+            value.hour * 3_600_000_000
+            + value.minute * 60_000_000
+            + value.second * 1_000_000
+            + value.microsecond
+        )
+        micros = days * 86_400_000_000 + time_micros
         self._write_varint(self._write_zigzag(micros))
 
     # PrimitiveType.DATE
     def write_date(self, value: "date") -> None:
         """
-        Write a date as zigzag-encoded varint of days since epoch (1970-01-01).
+        Write a date as zigzag-encoded varint of days since epoch (0001-01-01).
+        Range: 0001-01-01 to 9999-12-31.
         Size: 1-5 bytes.
         """
         days = (value - _EPOCH_DATE).days
@@ -170,6 +196,7 @@ class BinaryWriter:
     def write_time(self, value: "time") -> None:
         """
         Write a time as varint of microseconds since midnight.
+        Range: 00:00:00 to 23:59:59.999999.
         Size: 1-6 bytes.
         """
         micros = (
@@ -184,15 +211,18 @@ class BinaryWriter:
     def write_duration(self, value: "timedelta") -> None:
         """
         Write a duration as zigzag-encoded varint of microseconds.
+        Range: -999,999,999 days to 999,999,999 days.
         Size: 1-10 bytes.
         """
-        micros = round(value.total_seconds() * 1_000_000)
+        # use integer math to avoid precision issues with large durations
+        micros = value.days * 86_400_000_000 + value.seconds * 1_000_000 + value.microseconds
         self._write_varint(self._write_zigzag(micros))
 
     # PrimitiveType.STRING
     def write_string(self, value: str) -> None:
         """
         Write a UTF-8 string with varint length prefix followed by UTF-8 bytes.
+        Range: 0 to 2^32-1 bytes (UTF-8 encoded).
         Size: 1-5 bytes (length) + string length in bytes.
         """
         encoded = value.encode("utf-8")
@@ -210,6 +240,7 @@ class BinaryWriter:
     def write_bytes(self, value: bytes) -> None:
         """
         Write raw bytes with varint length prefix followed by the bytes.
+        Range: 0 to 2^32-1 bytes.
         Size: 1-5 bytes (length) + data length.
         """
         self._write_varint(len(value))
@@ -340,6 +371,7 @@ class BinaryReader:
     def read_int8(self) -> int:
         """
         Read a signed 8-bit integer from raw byte with sign extension.
+        Range: -128 to 127
         Size: 1 byte.
         """
         if self.pos >= len(self.buffer):
@@ -355,6 +387,7 @@ class BinaryReader:
     def read_int16(self) -> int:
         """
         Read a signed 16-bit integer from zigzag-decoded varint.
+        Range: -32,768 to 32,767
         Size: 1-3 bytes.
         """
         return self._zigzag_decode(self._read_varint())
@@ -363,6 +396,7 @@ class BinaryReader:
     def read_int32(self) -> int:
         """
         Read a signed 32-bit integer from zigzag-decoded varint.
+        Range: -2,147,483,648 to 2,147,483,647
         Size: 1-5 bytes.
         """
         return self._zigzag_decode(self._read_varint())
@@ -371,6 +405,7 @@ class BinaryReader:
     def read_int64(self) -> int:
         """
         Read a signed 64-bit integer from zigzag-decoded varint.
+        Range: -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
         Size: 1-10 bytes.
         """
         return self._zigzag_decode(self._read_varint())
@@ -379,6 +414,7 @@ class BinaryReader:
     def read_int128(self) -> int:
         """
         Read a signed 128-bit integer from zigzag-decoded varint.
+        Range: -170,141,183,460,469,231,731,687,303,715,884,105,728 to 170,141,183,460,469,231,731,687,303,715,884,105,727
         Size: 1-19 bytes.
         """
         return self._zigzag_decode(self._read_varint())
@@ -387,6 +423,7 @@ class BinaryReader:
     def read_uint8(self) -> int:
         """
         Read an unsigned 8-bit integer from raw byte.
+        Range: 0 to 255
         Size: 1 byte.
         """
         if self.pos >= len(self.buffer):
@@ -399,6 +436,7 @@ class BinaryReader:
     def read_uint16(self) -> int:
         """
         Read an unsigned 16-bit integer from varint.
+        Range: 0 to 65,535
         Size: 1-3 bytes.
         """
         return self._read_varint()
@@ -407,6 +445,7 @@ class BinaryReader:
     def read_uint32(self) -> int:
         """
         Read an unsigned 32-bit integer from varint.
+        Range: 0 to 4,294,967,295
         Size: 1-5 bytes.
         """
         return self._read_varint()
@@ -415,6 +454,7 @@ class BinaryReader:
     def read_uint64(self) -> int:
         """
         Read an unsigned 64-bit integer from varint.
+        Range: 0 to 18,446,744,073,709,551,615
         Size: 1-10 bytes.
         """
         return self._read_varint()
@@ -423,6 +463,7 @@ class BinaryReader:
     def read_uint128(self) -> int:
         """
         Read an unsigned 128-bit integer from varint.
+        Range: 0 to 340,282,366,920,938,463,463,374,607,431,768,211,455
         Size: 1-19 bytes.
         """
         return self._read_varint()
@@ -431,6 +472,8 @@ class BinaryReader:
     def read_float16(self) -> float:
         """
         Read a fixed-length 16-bit float.
+        Range: ±6.55e4 (half precision IEEE 754)
+        Size: 2 bytes.
         """
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -445,6 +488,8 @@ class BinaryReader:
     def read_float32(self) -> float:
         """
         Read a fixed-length 32-bit float.
+        Range: ±3.4e38 (single precision IEEE 754)
+        Size: 4 bytes.
         """
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -458,6 +503,8 @@ class BinaryReader:
     def read_float64(self) -> float:
         """
         Read a fixed-length 64-bit float.
+        Range: ±1.8e308 (double precision IEEE 754)
+        Size: 8 bytes.
         """
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
@@ -471,15 +518,38 @@ class BinaryReader:
     def read_datetime(self) -> datetime:
         """
         Read a datetime from zigzag-decoded varint of microseconds since epoch.
+        Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC
         Size: 1-10 bytes.
         """
         micros = self._zigzag_decode(self._read_varint())
-        return datetime.fromtimestamp(micros / 1_000_000, tz=UTC)
+        # calculate datetime manually to support full date range
+        days = micros // 86_400_000_000
+        time_micros = micros % 86_400_000_000
+
+        date_part = _EPOCH_DATE + timedelta(days=days)
+        hours = time_micros // 3_600_000_000
+        time_micros %= 3_600_000_000
+        minutes = time_micros // 60_000_000
+        time_micros %= 60_000_000
+        seconds = time_micros // 1_000_000
+        microseconds = time_micros % 1_000_000
+
+        return datetime(
+            date_part.year,
+            date_part.month,
+            date_part.day,
+            hours,
+            minutes,
+            seconds,
+            microseconds,
+            tzinfo=UTC,
+        )
 
     # PrimitiveType.DATE
     def read_date(self) -> date:
         """
-        Read a date from zigzag-decoded varint of days since epoch (1970-01-01).
+        Read a date from zigzag-decoded varint of days since epoch (0001-01-01).
+        Range: 0001-01-01 to 9999-12-31
         Size: 1-5 bytes.
         """
         days = self._zigzag_decode(self._read_varint())
@@ -489,6 +559,7 @@ class BinaryReader:
     def read_time(self) -> time:
         """
         Read a time from varint of microseconds since midnight.
+        Range: 00:00:00 to 23:59:59.999999
         Size: 1-6 bytes.
         """
         micros = self._read_varint()
@@ -504,6 +575,7 @@ class BinaryReader:
     def read_duration(self) -> timedelta:
         """
         Read a duration from zigzag-decoded varint of microseconds.
+        Range: -999,999,999 days to 999,999,999 days
         Size: 1-10 bytes.
         """
         micros = self._zigzag_decode(self._read_varint())
@@ -513,6 +585,7 @@ class BinaryReader:
     def read_string(self) -> str:
         """
         Read a UTF-8 string from varint length prefix + UTF-8 bytes.
+        Range: 0 to 2^32-1 bytes (UTF-8 encoded)
         Size: 1-5 bytes (length) + string length in bytes.
         """
         return self.read_bytes().decode("utf-8")
@@ -533,6 +606,7 @@ class BinaryReader:
     def read_bytes(self) -> bytes:
         """
         Read raw bytes from varint length prefix + data bytes.
+        Range: 0 to 2^32-1 bytes
         Size: 1-5 bytes (length) + data length.
         """
         length = self._read_varint()

@@ -544,13 +544,26 @@ test("datetime", () => {
     // epoch
     Temporal.Instant.from("1970-01-01T00:00:00.000Z").toZonedDateTimeISO("UTC"),
     // current-ish time
-    Temporal.Instant.from("2024-01-15T14:30:45.123Z").toZonedDateTimeISO("UTC"),
+    Temporal.PlainDateTime.from("2024-01-15T14:30:45.123456").toZonedDateTime("UTC"),
     // negative epoch (before 1970)
     Temporal.Instant.from("1969-12-31T23:59:59.000Z").toZonedDateTimeISO("UTC"),
     // far future
     Temporal.Instant.from("2100-01-01T00:00:00.000Z").toZonedDateTimeISO("UTC"),
-    // with microseconds (rounded to milliseconds in JS)
-    Temporal.Instant.from("2000-06-15T12:00:00.999Z").toZonedDateTimeISO("UTC"),
+    // with microseconds
+    Temporal.PlainDateTime.from("2000-06-15T12:00:00.999999").toZonedDateTime("UTC"),
+    // very early dates
+    Temporal.PlainDateTime.from("0001-01-01T00:00:00").toZonedDateTime("UTC"), // year 1 AD
+    Temporal.PlainDateTime.from("0100-03-15T12:30:45").toZonedDateTime("UTC"), // ancient rome era
+    Temporal.PlainDateTime.from("1066-10-14T09:00:00").toZonedDateTime("UTC"), // battle of hastings
+    Temporal.PlainDateTime.from("1582-10-15T00:00:00").toZonedDateTime("UTC"), // gregorian calendar adoption
+    // very far future
+    Temporal.PlainDateTime.from("9999-12-31T23:59:59.999999").toZonedDateTime("UTC"), // max datetime
+    Temporal.PlainDateTime.from("5000-07-04T16:20:30").toZonedDateTime("UTC"), // distant future
+    Temporal.PlainDateTime.from("3024-02-29T12:00:00").toZonedDateTime("UTC"), // leap year in future
+    // weird edge cases
+    Temporal.PlainDateTime.from("0004-02-29T00:00:00").toZonedDateTime("UTC"), // early leap year
+    Temporal.PlainDateTime.from("1900-01-01T00:00:00").toZonedDateTime("UTC"), // not a leap year (divisible by 100)
+    Temporal.PlainDateTime.from("2000-02-29T00:00:00").toZonedDateTime("UTC"), // leap year (divisible by 400)
   ];
 
   const writer = new BinaryWriter();
@@ -583,6 +596,23 @@ test("date", () => {
     Temporal.PlainDate.from("1969-12-31"), // before epoch
     Temporal.PlainDate.from("2100-12-31"), // far future
     Temporal.PlainDate.from("1900-01-01"), // old date
+    // very early dates
+    Temporal.PlainDate.from("0001-01-01"), // year 1 AD
+    Temporal.PlainDate.from("0044-03-15"), // ides of march, assassination of caesar
+    Temporal.PlainDate.from("0476-09-04"), // fall of western roman empire
+    Temporal.PlainDate.from("0793-06-08"), // viking raid on lindisfarne
+    Temporal.PlainDate.from("1215-06-15"), // magna carta
+    // very far future
+    Temporal.PlainDate.from("9999-12-31"), // max date
+    Temporal.PlainDate.from("8888-08-08"), // lucky eights
+    Temporal.PlainDate.from("7777-07-07"), // lucky sevens
+    Temporal.PlainDate.from("6666-06-06"), // ominous sixes
+    // weird edge cases
+    Temporal.PlainDate.from("0004-02-29"), // early leap year
+    Temporal.PlainDate.from("1582-10-04"), // last day of julian calendar
+    Temporal.PlainDate.from("1582-10-15"), // first day of gregorian calendar
+    Temporal.PlainDate.from("2000-02-29"), // y2k leap year
+    Temporal.PlainDate.from("1900-02-28"), // not a leap year
   ];
 
   const writer = new BinaryWriter();
@@ -635,6 +665,22 @@ test("duration", () => {
     Temporal.Duration.from({
       microseconds: (365 * 24 * 60 * 60 + 5 * 3600 + 48 * 60 + 46) * 1_000_000,
     }), // approx 1 year
+    // extremely long durations
+    Temporal.Duration.from({ microseconds: 999999999 * 24 * 60 * 60 * 1_000_000 }), // max days
+    Temporal.Duration.from({ microseconds: -999999999 * 24 * 60 * 60 * 1_000_000 }), // min days
+    Temporal.Duration.from({ microseconds: 365250 * 24 * 60 * 60 * 1_000_000 }), // 1000 years
+    Temporal.Duration.from({ microseconds: 36525000 * 24 * 60 * 60 * 1_000_000 }), // 100,000 years
+    // weird combinations
+    Temporal.Duration.from({ microseconds: 24 * 60 * 60 * 1_000_000 + 999999 }), // 1 day + 999999 microseconds
+    Temporal.Duration.from({ microseconds: -1_000_000 }), // negative second
+    Temporal.Duration.from({ microseconds: 24 * 60 * 60 * 1_000_000 - 1_000_000 }), // 1 day minus 1 second
+    Temporal.Duration.from({ microseconds: 1000000 * 7 * 24 * 60 * 60 * 1_000_000 }), // million weeks
+    Temporal.Duration.from({ microseconds: 87600 * 60 * 60 * 1_000_000 }), // 10 years in hours
+    Temporal.Duration.from({ microseconds: 525600000 * 60 * 1_000_000 }), // 1000 years in minutes
+    // edge cases with microseconds
+    Temporal.Duration.from({ microseconds: -1 }), // negative microsecond
+    Temporal.Duration.from({ microseconds: 24 * 60 * 60 * 1_000_000 - 1 }), // 1 day minus 1 microsecond
+    Temporal.Duration.from({ microseconds: 1_000_000 - 1 }), // 999999 microseconds
   ];
 
   const writer = new BinaryWriter();

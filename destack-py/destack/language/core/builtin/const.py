@@ -1,5 +1,4 @@
 import contextvars
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -38,7 +37,6 @@ class _Unset:
 VERSION = "2025.08.01.1"
 EPSILON = 1e-6
 EPSILON_EXPONENT = 6
-BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 METAKIND_PROPERTY_ID = 0
 METAKIND_PROPERTY_KEY = str(METAKIND_PROPERTY_ID)
 METATYPE_PROPERTY_ID = 1
