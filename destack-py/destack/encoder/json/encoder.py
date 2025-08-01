@@ -3,14 +3,13 @@ import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
 from enum import Enum
-from typing import Any, ClassVar, assert_never, cast, override
+from typing import Any, assert_never, cast, override
 
 from destack.language.core import (
     BinaryReader,
     BinaryWriter,
     Encoder,
     EncoderOptions,
-    Encoding,
     Json,
     NodeType,
     Object,
@@ -42,8 +41,6 @@ VALUE_VALUE_PROPERTY = Value.__properties__["value"]
 
 class JsonEncoder(Encoder[Json]):
     """Encoder for standard JSON format with proper names."""
-
-    encoding: ClassVar[Encoding] = Encoding.JSON
 
     def __init__(self, encoders: Mapping[tuple[ObjectKind, int], JsonObjectEncoder]):
         self.encoders = encoders

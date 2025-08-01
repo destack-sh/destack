@@ -1,12 +1,11 @@
 from collections.abc import Mapping
-from typing import Any, ClassVar, assert_never, cast, override
+from typing import Any, assert_never, cast, override
 
 from destack.language.core import (
     BinaryReader,
     BinaryWriter,
     Encoder,
     EncoderOptions,
-    Encoding,
     EnumType,
     NodeReference,
     NodeType,
@@ -30,8 +29,6 @@ _UUID_NULL = UUID(int=0)
 
 class KompaktEncoder(Encoder[bytes]):
     """Encoder for our Kompakt format."""
-
-    encoding: ClassVar[Encoding] = Encoding.KOMPAKT
 
     def __init__(self, encoders: Mapping[tuple[ObjectKind, int], KompaktObjectEncoder]):
         self.encoders = encoders

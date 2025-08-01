@@ -1,15 +1,13 @@
 from enum import Enum
-from typing import Any, ClassVar, cast, override
+from typing import Any, cast, override
 
-from destack.language.core import Encoding, ObjectKind, PropertyDeclaration, StructType
+from destack.language.core import ObjectKind, PropertyDeclaration, StructType
 
 from ..json.encoder import JsonEncoder, JsonObjectEncoder, JsonValueEncoder
 
 
 class JsoncEncoder(JsonEncoder):
     """Encoder for our custom constant folded JSON format."""
-
-    encoding: ClassVar[Encoding] = Encoding.JSONC
 
     @classmethod
     def generate(cls) -> "JsoncEncoder":

@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from enum import IntFlag
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
-from ..builtin import Encoding, Object, ObjectKind
+from ..builtin import Object, ObjectKind
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
@@ -27,11 +27,6 @@ class EncoderOptions(IntFlag):
 
 class Encoder[T: Any = Any]:
     """Encoder for packing/unpacking Objects."""
-
-    encoding: ClassVar[Encoding]
-
-    def __str__(self) -> str:
-        return f"{self.encoding.name}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}>"

@@ -2,7 +2,7 @@ import type {
   Client,
   Entity,
   Event,
-  GraphConnection,
+  Connection,
   NodeReference,
   PropertyDefinition,
 } from "@destack/language";
@@ -28,7 +28,7 @@ export class Session {
   oracle: Oracle;
 
   pendingEvents: Event[];
-  connections: GraphConnection[];
+  connections: Connection[];
 
   closedAt: Temporal.ZonedDateTime | null;
   _token: string | null;
