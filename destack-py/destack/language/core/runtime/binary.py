@@ -1,42 +1,59 @@
 import struct
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
+from destack.language.core import (
+    Bytes,
+    Date,
+    Datetime,
+    Duration,
+    Handle,
+    HandleType,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Int128,
+    String,
+    Time,
+    UInt8,
+    UInt16,
+    UInt32,
+    UInt64,
+    UInt128,
+    Universe,
+    builtin_handle,
+    builtin_method,
+    builtin_property_runtime,
+)
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     pass
+
+# pyright: reportIncompatibleVariableOverride=false
 
 
 class BinaryError(ValueError):
     """Base class for binary encoding/decoding errors."""
 
 
-_EPOCH_DATE = date(1, 1, 1)  # year 1 AD as epoch for wider date range support
+@builtin_handle(HandleType.BINARY_WRITER)
+class BinaryWriter(Handle):
+    """Write binary values in our custom encoding. Little-endian, varint, zigzag, etc."""
 
-
-class BinaryWriter:
-    """Write binary data in our custom encoding. Little-endian, varint, zigzag, etc."""
-
-    __slots__ = ("buffer",)
-
-    def __init__(self) -> None:
-        self.buffer = bytearray()
-
-    def __str__(self) -> str:
-        return f"buffer={len(self.buffer)}"
-
-    def __repr__(self) -> str:
-        return f"<BinaryWriter buffer={len(self.buffer)}>"
+    buffer: bytearray = builtin_property_runtime(401, default_factory=bytearray)
 
     def __len__(self) -> int:
         return len(self.buffer)
 
+    @builtin_method(80)
     def to_bytes(self) -> bytes:
         """Get the written bytes."""
         return bytes(self.buffer)
 
     # PrimitiveType.BOOLEAN
+    @builtin_method(102)
     def write_bool(self, value: bool) -> None:
         """
         Write a boolean as 1 byte (0 for false, 1 for true).
@@ -45,7 +62,8 @@ class BinaryWriter:
         self.buffer.append(1 if value else 0)
 
     # PrimitiveType.INT8
-    def write_int8(self, value: int) -> None:
+    @builtin_method(102)
+    def write_int8(self, value: Int8) -> None:
         """
         Write a signed 8-bit integer as raw byte.
         Range: -2^7 to 2^7-1.
@@ -54,7 +72,8 @@ class BinaryWriter:
         self.buffer.append(value & 0xFF)
 
     # PrimitiveType.INT16
-    def write_int16(self, value: int) -> None:
+    @builtin_method(103)
+    def write_int16(self, value: Int16) -> None:
         """
         Write a signed 16-bit integer using zigzag encoding then varint.
         Range: -2^15 to 2^15-1.
@@ -63,7 +82,8 @@ class BinaryWriter:
         self._write_varint(self._write_zigzag(value))
 
     # PrimitiveType.INT32
-    def write_int32(self, value: int) -> None:
+    @builtin_method(104)
+    def write_int32(self, value: Int32) -> None:
         """
         Write a signed 32-bit integer using zigzag encoding then varint.
         Range: -2^31 to 2^31-1.
@@ -72,7 +92,8 @@ class BinaryWriter:
         self._write_varint(self._write_zigzag(value))
 
     # PrimitiveType.INT64
-    def write_int64(self, value: int) -> None:
+    @builtin_method(105)
+    def write_int64(self, value: Int64) -> None:
         """
         Write a signed 64-bit integer using zigzag encoding then varint.
         Range: -2^63 to 2^63-1.
@@ -81,7 +102,8 @@ class BinaryWriter:
         self._write_varint(self._write_zigzag(value))
 
     # PrimitiveType.INT128
-    def write_int128(self, value: int) -> None:
+    @builtin_method(107)
+    def write_int128(self, value: Int128) -> None:
         """
         Write a signed 128-bit integer using zigzag encoding then varint.
         Range: -2^127 to 2^127-1.
@@ -90,7 +112,8 @@ class BinaryWriter:
         self._write_varint(self._write_zigzag(value))
 
     # PrimitiveType.UINT8
-    def write_uint8(self, value: int) -> None:
+    @builtin_method(110)
+    def write_uint8(self, value: UInt8) -> None:
         """
         Write an unsigned 8-bit integer as raw byte.
         Range: 0 to 2^8-1.
@@ -99,7 +122,8 @@ class BinaryWriter:
         self.buffer.append(value & 0xFF)
 
     # PrimitiveType.UINT16
-    def write_uint16(self, value: int) -> None:
+    @builtin_method(111)
+    def write_uint16(self, value: UInt16) -> None:
         """
         Write an unsigned 16-bit integer using varint encoding.
         Range: 0 to 2^16-1.
@@ -108,7 +132,8 @@ class BinaryWriter:
         self._write_varint(value)
 
     # PrimitiveType.UINT32
-    def write_uint32(self, value: int) -> None:
+    @builtin_method(112)
+    def write_uint32(self, value: UInt32) -> None:
         """
         Write an unsigned 32-bit integer using varint encoding.
         Range: 0 to 2^32-1.
@@ -117,7 +142,8 @@ class BinaryWriter:
         self._write_varint(value)
 
     # PrimitiveType.UINT64
-    def write_uint64(self, value: int) -> None:
+    @builtin_method(113)
+    def write_uint64(self, value: UInt64) -> None:
         """
         Write an unsigned 64-bit integer using varint encoding.
         Range: 0 to 2^64-1.
@@ -126,7 +152,8 @@ class BinaryWriter:
         self._write_varint(value)
 
     # PrimitiveType.UINT128
-    def write_uint128(self, value: int) -> None:
+    @builtin_method(114)
+    def write_uint128(self, value: UInt128) -> None:
         """
         Write an unsigned 128-bit integer using varint encoding.
         Range: 0 to 2^128-1.
@@ -135,6 +162,7 @@ class BinaryWriter:
         self._write_varint(value)
 
     # PrimitiveType.FLOAT16
+    @builtin_method(122)
     def write_float16(self, value: float) -> None:
         """
         Write a fixed-length 16-bit float.
@@ -144,6 +172,7 @@ class BinaryWriter:
         self.buffer.extend(struct.pack("<e", value))
 
     # PrimitiveType.FLOAT32
+    @builtin_method(123)
     def write_float32(self, value: float) -> None:
         """
         Write a fixed-length 32-bit float.
@@ -153,6 +182,7 @@ class BinaryWriter:
         self.buffer.extend(struct.pack("<f", value))
 
     # PrimitiveType.FLOAT64
+    @builtin_method(124)
     def write_float64(self, value: float) -> None:
         """
         Write a fixed-length 64-bit float.
@@ -162,7 +192,8 @@ class BinaryWriter:
         self.buffer.extend(struct.pack("<d", value))
 
     # PrimitiveType.DATETIME
-    def write_datetime(self, value: "datetime") -> None:
+    @builtin_method(140)
+    def write_datetime(self, value: Datetime) -> None:
         """
         Write a datetime as zigzag-encoded varint of microseconds since epoch.
         Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC.
@@ -172,7 +203,7 @@ class BinaryWriter:
         if value.tzinfo is None:
             value = value.replace(tzinfo=UTC)
         # calculate microseconds manually to support full date range
-        days = (value.date() - _EPOCH_DATE).days
+        days = (value.date() - Universe.BEGINNING_OF_DATETIME.date()).days
         time_micros = (
             value.hour * 3_600_000_000
             + value.minute * 60_000_000
@@ -183,17 +214,19 @@ class BinaryWriter:
         self._write_varint(self._write_zigzag(micros))
 
     # PrimitiveType.DATE
-    def write_date(self, value: "date") -> None:
+    @builtin_method(141)
+    def write_date(self, value: Date) -> None:
         """
         Write a date as zigzag-encoded varint of days since epoch (0001-01-01).
         Range: 0001-01-01 to 9999-12-31.
         Size: 1-5 bytes.
         """
-        days = (value - _EPOCH_DATE).days
+        days = (value - Universe.BEGINNING_OF_DATETIME.date()).days
         self._write_varint(self._write_zigzag(days))
 
     # PrimitiveType.TIME
-    def write_time(self, value: "time") -> None:
+    @builtin_method(142)
+    def write_time(self, value: Time) -> None:
         """
         Write a time as varint of microseconds since midnight.
         Range: 00:00:00 to 23:59:59.999999.
@@ -208,7 +241,8 @@ class BinaryWriter:
         self._write_varint(micros)
 
     # PrimitiveType.DURATION
-    def write_duration(self, value: "timedelta") -> None:
+    @builtin_method(143)
+    def write_duration(self, value: Duration) -> None:
         """
         Write a duration as zigzag-encoded varint of microseconds.
         Range: -999,999,999 days to 999,999,999 days.
@@ -219,7 +253,8 @@ class BinaryWriter:
         self._write_varint(self._write_zigzag(micros))
 
     # PrimitiveType.STRING
-    def write_string(self, value: str) -> None:
+    @builtin_method(150)
+    def write_string(self, value: String) -> None:
         """
         Write a UTF-8 string with varint length prefix followed by UTF-8 bytes.
         Range: 0 to 2^32-1 bytes (UTF-8 encoded).
@@ -229,7 +264,8 @@ class BinaryWriter:
         self.write_bytes(encoded)
 
     # PrimitiveType.UUID
-    def write_uuid(self, value: "UUID") -> None:
+    @builtin_method(151)
+    def write_uuid(self, value: UUID) -> None:
         """
         Write a UUID as 16 raw bytes.
         Size: 16 bytes.
@@ -237,7 +273,8 @@ class BinaryWriter:
         self.buffer.extend(value.bytes)
 
     # PrimitiveType.BYTES
-    def write_bytes(self, value: bytes) -> None:
+    @builtin_method(152)
+    def write_bytes(self, value: Bytes) -> None:
         """
         Write raw bytes with varint length prefix followed by the bytes.
         Range: 0 to 2^32-1 bytes.
@@ -247,7 +284,8 @@ class BinaryWriter:
         self.buffer.extend(value)
 
     # PrimitiveType.JSON
-    def write_json(self, value: "Any") -> None:
+    @builtin_method(155)
+    def write_json(self, value: Any) -> None:
         """
         Write JSON as compact binary format.
         - 0: null
@@ -307,14 +345,12 @@ class BinaryWriter:
             return ((-value) << 1) - 1
 
 
-class BinaryReader:
-    """Read binary data in our custom encoding. Little-endian, varint, zigzag, etc."""
+@builtin_handle(HandleType.BINARY_READER)
+class BinaryReader(Handle):
+    """Read binary values in our custom encoding. Little-endian, varint, zigzag, etc."""
 
-    __slots__ = ("buffer", "pos")
-
-    def __init__(self, data: bytes) -> None:
-        self.buffer = data
-        self.pos = 0
+    buffer: bytes = builtin_property_runtime(401)
+    pos: UInt32 = builtin_property_runtime(402, default=0)
 
     def __str__(self) -> str:
         return f"pos={self.pos}, remaining={self.remaining}"
@@ -327,35 +363,32 @@ class BinaryReader:
         """Number of bytes remaining."""
         return len(self.buffer) - self.pos
 
-    # PrimitiveType.UINT8
-    def peek_uint8(self) -> int:
+    def peek_uint8(self) -> UInt8:
         """Peek at the next unsigned 8-bit integer without advancing the position."""
         if self.pos >= len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
         return self.buffer[self.pos] & 0xFF
 
-    # PrimitiveType.UINT16
-    def peek_uint16(self) -> int:
+    def peek_uint16(self) -> UInt16:
         """Peek at the next unsigned 16-bit integer without advancing the position."""
         if self.pos + 2 > len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
         return self._peek_varint()
 
-    # PrimitiveType.UINT32
-    def peek_uint32(self) -> int:
+    def peek_uint32(self) -> UInt32:
         """Peek at the next unsigned 32-bit integer without advancing the position."""
         if self.pos + 4 > len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
         return self._peek_varint()
 
-    # PrimitiveType.UINT64
-    def peek_uint64(self) -> int:
+    def peek_uint64(self) -> UInt64:
         """Peek at the next unsigned 64-bit integer without advancing the position."""
         if self.pos + 8 > len(self.buffer):
             raise BinaryError(f"unexpected end of buffer at {self.pos}")
         return self._peek_varint()
 
     # PrimitiveType.BOOLEAN
+    @builtin_method(102)
     def read_bool(self) -> bool:
         """
         Read a boolean from 1 byte (0 for false, non-zero for true).
@@ -368,10 +401,11 @@ class BinaryReader:
         return value != 0
 
     # PrimitiveType.INT8
-    def read_int8(self) -> int:
+    @builtin_method(103)
+    def read_int8(self) -> Int8:
         """
         Read a signed 8-bit integer from raw byte with sign extension.
-        Range: -128 to 127
+        Range: -2^7 to 2^7-1.
         Size: 1 byte.
         """
         if self.pos >= len(self.buffer):
@@ -384,46 +418,51 @@ class BinaryReader:
         return value
 
     # PrimitiveType.INT16
-    def read_int16(self) -> int:
+    @builtin_method(104)
+    def read_int16(self) -> Int16:
         """
         Read a signed 16-bit integer from zigzag-decoded varint.
-        Range: -32,768 to 32,767
+        Range: -2^15 to 2^15-1.
         Size: 1-3 bytes.
         """
         return self._zigzag_decode(self._read_varint())
 
     # PrimitiveType.INT32
-    def read_int32(self) -> int:
+    @builtin_method(105)
+    def read_int32(self) -> Int32:
         """
         Read a signed 32-bit integer from zigzag-decoded varint.
-        Range: -2,147,483,648 to 2,147,483,647
+        Range: -2^31 to 2^31-1.
         Size: 1-5 bytes.
         """
         return self._zigzag_decode(self._read_varint())
 
     # PrimitiveType.INT64
-    def read_int64(self) -> int:
+    @builtin_method(106)
+    def read_int64(self) -> Int64:
         """
         Read a signed 64-bit integer from zigzag-decoded varint.
-        Range: -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+        Range: -2^63 to 2^63-1.
         Size: 1-10 bytes.
         """
         return self._zigzag_decode(self._read_varint())
 
     # PrimitiveType.INT128
-    def read_int128(self) -> int:
+    @builtin_method(107)
+    def read_int128(self) -> Int128:
         """
         Read a signed 128-bit integer from zigzag-decoded varint.
-        Range: -170,141,183,460,469,231,731,687,303,715,884,105,728 to 170,141,183,460,469,231,731,687,303,715,884,105,727
+        Range: -2^127 to 2^127-1.
         Size: 1-19 bytes.
         """
         return self._zigzag_decode(self._read_varint())
 
     # PrimitiveType.UINT8
-    def read_uint8(self) -> int:
+    @builtin_method(110)
+    def read_uint8(self) -> UInt8:
         """
         Read an unsigned 8-bit integer from raw byte.
-        Range: 0 to 255
+        Range: 0 to 2^8-1.
         Size: 1 byte.
         """
         if self.pos >= len(self.buffer):
@@ -433,46 +472,51 @@ class BinaryReader:
         return value
 
     # PrimitiveType.UINT16
-    def read_uint16(self) -> int:
+    @builtin_method(111)
+    def read_uint16(self) -> UInt16:
         """
         Read an unsigned 16-bit integer from varint.
-        Range: 0 to 65,535
+        Range: 0 to 2^16-1.
         Size: 1-3 bytes.
         """
         return self._read_varint()
 
     # PrimitiveType.UINT32
-    def read_uint32(self) -> int:
+    @builtin_method(112)
+    def read_uint32(self) -> UInt32:
         """
         Read an unsigned 32-bit integer from varint.
-        Range: 0 to 4,294,967,295
+        Range: 0 to 2^32-1.
         Size: 1-5 bytes.
         """
         return self._read_varint()
 
     # PrimitiveType.UINT64
-    def read_uint64(self) -> int:
+    @builtin_method(113)
+    def read_uint64(self) -> UInt64:
         """
         Read an unsigned 64-bit integer from varint.
-        Range: 0 to 18,446,744,073,709,551,615
+        Range: 0 to 2^64-1.
         Size: 1-10 bytes.
         """
         return self._read_varint()
 
     # PrimitiveType.UINT128
-    def read_uint128(self) -> int:
+    @builtin_method(114)
+    def read_uint128(self) -> UInt128:
         """
         Read an unsigned 128-bit integer from varint.
-        Range: 0 to 340,282,366,920,938,463,463,374,607,431,768,211,455
+        Range: 0 to 2^128-1.
         Size: 1-19 bytes.
         """
         return self._read_varint()
 
     # PrimitiveType.FLOAT16
+    @builtin_method(122)
     def read_float16(self) -> float:
         """
         Read a fixed-length 16-bit float.
-        Range: ±6.55e4 (half precision IEEE 754)
+        Range: ±6.55e4 (half precision IEEE 754).
         Size: 2 bytes.
         """
         if self.pos >= len(self.buffer):
@@ -485,10 +529,11 @@ class BinaryReader:
         return value
 
     # PrimitiveType.FLOAT32
+    @builtin_method(123)
     def read_float32(self) -> float:
         """
         Read a fixed-length 32-bit float.
-        Range: ±3.4e38 (single precision IEEE 754)
+        Range: ±3.4e38 (single precision IEEE 754).
         Size: 4 bytes.
         """
         if self.pos >= len(self.buffer):
@@ -500,10 +545,11 @@ class BinaryReader:
         return value
 
     # PrimitiveType.FLOAT64
+    @builtin_method(124)
     def read_float64(self) -> float:
         """
         Read a fixed-length 64-bit float.
-        Range: ±1.8e308 (double precision IEEE 754)
+        Range: ±1.8e308 (double precision IEEE 754).
         Size: 8 bytes.
         """
         if self.pos >= len(self.buffer):
@@ -515,10 +561,11 @@ class BinaryReader:
         return value
 
     # PrimitiveType.DATETIME
-    def read_datetime(self) -> datetime:
+    @builtin_method(140)
+    def read_datetime(self) -> Datetime:
         """
         Read a datetime from zigzag-decoded varint of microseconds since epoch.
-        Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC
+        Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC.
         Size: 1-10 bytes.
         """
         micros = self._zigzag_decode(self._read_varint())
@@ -526,7 +573,7 @@ class BinaryReader:
         days = micros // 86_400_000_000
         time_micros = micros % 86_400_000_000
 
-        date_part = _EPOCH_DATE + timedelta(days=days)
+        date_part = Universe.BEGINNING_OF_DATETIME.date() + timedelta(days=days)
         hours = time_micros // 3_600_000_000
         time_micros %= 3_600_000_000
         minutes = time_micros // 60_000_000
@@ -546,20 +593,22 @@ class BinaryReader:
         )
 
     # PrimitiveType.DATE
-    def read_date(self) -> date:
+    @builtin_method(141)
+    def read_date(self) -> Date:
         """
         Read a date from zigzag-decoded varint of days since epoch (0001-01-01).
-        Range: 0001-01-01 to 9999-12-31
+        Range: 0001-01-01 to 9999-12-31.
         Size: 1-5 bytes.
         """
         days = self._zigzag_decode(self._read_varint())
-        return _EPOCH_DATE + timedelta(days=days)
+        return Universe.BEGINNING_OF_DATETIME.date() + timedelta(days=days)
 
     # PrimitiveType.TIME
-    def read_time(self) -> time:
+    @builtin_method(142)
+    def read_time(self) -> Time:
         """
         Read a time from varint of microseconds since midnight.
-        Range: 00:00:00 to 23:59:59.999999
+        Range: 00:00:00 to 23:59:59.999999.
         Size: 1-6 bytes.
         """
         micros = self._read_varint()
@@ -572,26 +621,29 @@ class BinaryReader:
         return time(hours, minutes, seconds, microseconds)
 
     # PrimitiveType.DURATION
-    def read_duration(self) -> timedelta:
+    @builtin_method(143)
+    def read_duration(self) -> Duration:
         """
         Read a duration from zigzag-decoded varint of microseconds.
-        Range: -999,999,999 days to 999,999,999 days
+        Range: -999,999,999 days to 999,999,999 days.
         Size: 1-10 bytes.
         """
         micros = self._zigzag_decode(self._read_varint())
         return timedelta(microseconds=micros)
 
     # PrimitiveType.STRING
-    def read_string(self) -> str:
+    @builtin_method(150)
+    def read_string(self) -> String:
         """
         Read a UTF-8 string from varint length prefix + UTF-8 bytes.
-        Range: 0 to 2^32-1 bytes (UTF-8 encoded)
+        Range: 0 to 2^32-1 bytes (UTF-8 encoded).
         Size: 1-5 bytes (length) + string length in bytes.
         """
         return self.read_bytes().decode("utf-8")
 
     # PrimitiveType.UUID
-    def read_uuid(self) -> "UUID":
+    @builtin_method(151)
+    def read_uuid(self) -> UUID:
         """
         Read a UUID from 16 raw bytes.
         Size: 16 bytes.
@@ -603,10 +655,11 @@ class BinaryReader:
         return UUID(bytes=uuid_bytes)
 
     # PrimitiveType.BYTES
-    def read_bytes(self) -> bytes:
+    @builtin_method(152)
+    def read_bytes(self) -> Bytes:
         """
         Read raw bytes from varint length prefix + data bytes.
-        Range: 0 to 2^32-1 bytes
+        Range: 0 to 2^32-1 bytes.
         Size: 1-5 bytes (length) + data length.
         """
         length = self._read_varint()
@@ -617,6 +670,7 @@ class BinaryReader:
         return value
 
     # PrimitiveType.JSON
+    @builtin_method(155)
     def read_json(self) -> Any:
         """
         Read JSON from compact binary format.

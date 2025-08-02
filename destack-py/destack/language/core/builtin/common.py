@@ -542,6 +542,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     UUID: PrimitiveType.UUID,
     bytes: PrimitiveType.BYTES,
     Bytes: PrimitiveType.BYTES,
+    bytearray: PrimitiveType.BYTES,
     Json: PrimitiveType.JSON,
 }
 PRIMITIVE_PY_TYPES = tuple(t for t in PRIMITIVE_TYPE_BY_ANNOTATION if isinstance(t, type))

@@ -686,8 +686,6 @@ class HandleDefinition(ObjectDefinition):
 class EnumDefinition(StructFrozen):
     """Definition of a builtin Enum."""
 
-    # TODO :Incomplete: flag Enums?
-
     type: EnumType = builtin_property(100, is_repr=True)
     id: UInt32 = builtin_property(2, is_repr=True)
     name: str = builtin_property(101, is_repr=True)

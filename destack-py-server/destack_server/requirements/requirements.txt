@@ -2,5 +2,3 @@
 #    uv pip compile destack-py/destack/requirements/requirements.in destack-py-server/destack_server/requirements/requirements.in --output-file destack-py-server/destack_server/requirements/requirements.txt
 fastuuid==0.12.0
     # via -r destack-py-server/destack_server/requirements/requirements.in
-xxhash==3.5.0
-    # via -r destack-py/destack/requirements/requirements.in

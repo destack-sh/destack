@@ -61,5 +61,3 @@ virtualenv==20.31.2
     # via pre-commit
 wheel==0.45.1
     # via pip-tools
-xxhash==3.5.0
-    # via -r destack-py/destack/requirements/requirements.in

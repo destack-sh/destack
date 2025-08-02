@@ -40,8 +40,8 @@ class LoggingBinaryWriter(BinaryWriter):
 class LoggingBinaryReader(BinaryReader):
     """A BinaryReader that logs all reads to stdout."""
 
-    def __init__(self, data: bytes) -> None:
-        super().__init__(data)
+    def __init__(self, buffer: bytes) -> None:
+        super().__init__(buffer=buffer)
         # dynamically wrap all read_* and peek_* methods
         for attr_name in dir(self):
             if attr_name.startswith(("read_", "peek_")):

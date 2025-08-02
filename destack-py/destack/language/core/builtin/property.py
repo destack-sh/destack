@@ -177,6 +177,7 @@ class PropertyDeclaration:
     # defaults
     default_value: Any | None = None
     default_factory: ValueFactory | None = None
+    default_factory_callable: Callable[[], Any] | None = None  # only for runtime properties
 
     # relationships
     edge_type: EdgeType | None = None
@@ -265,7 +266,7 @@ class PropertyDeclaration:
             self.type = parse_type_declaration(self.py_type, is_builtin=True)
         except Exception as e:
             raise ValueError(
-                f"invalid type: {self.component.__name__}.{self.name} ({self.py_type})"
+                f"unexpected type: {self.component.__name__}.{self.name} ({self.py_type})"
             ) from e
 
         # resolve self type
@@ -275,7 +276,7 @@ class PropertyDeclaration:
             elif isinstance(object_type, StructType):
                 self.type.struct_type = object_type
             else:
-                raise ValueError(f"invalid object type: {object_type!r}")
+                raise ValueError(f"unexpected object type for Self: {object_type!r}")
 
         # check any type
         if self.type.is_any and object_type != StructType.VALUE and not self.is_runtime_only:
@@ -626,7 +627,13 @@ def builtin_property_parent(*, is_readonly: bool = False, description: str | Non
     )
 
 
-def builtin_property_runtime(id: int, *, is_repr: bool = False, default: Any = None) -> Any:
+def builtin_property_runtime(
+    id: int,
+    *,
+    is_repr: bool = False,
+    default: Any = None,
+    default_factory: Callable[[], Any] | None = None,
+) -> Any:
     """A property that is only used at runtime."""
     assert 400 <= id <= 500, f"runtime property must be between 400 and 500: {id}"
     return PropertyDeclaration(
@@ -637,6 +644,7 @@ def builtin_property_runtime(id: int, *, is_repr: bool = False, default: Any = N
         is_hash=False,
         is_eq=False,
         default_value=default,
+        default_factory_callable=default_factory,
     )
 
 

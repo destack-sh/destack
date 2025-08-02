@@ -10,7 +10,7 @@ export class BinaryError extends Error {
 const _EPOCH_DATE = new Temporal.PlainDate(1, 1, 1); // year 1 AD as epoch for wider date range support
 
 /**
- * Write binary data in our custom encoding. Little-endian, varint, zigzag, etc.
+ * Write binary values in our custom encoding. Little-endian, varint, zigzag, etc.
  */
 export class BinaryWriter {
   private buffer: ArrayBuffer;
@@ -448,7 +448,7 @@ export class BinaryWriter {
 }
 
 /**
- * Read binary data in our custom encoding. Little-endian, varint, zigzag, etc.
+ * Read binary values in our custom encoding. Little-endian, varint, zigzag, etc.
  */
 export class BinaryReader {
   private buffer: Uint8Array;
