@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_entity,
     builtin_property,
 )
-from destack.language.core.common.universe import Universe
+from destack.language.universe.universe import Universe
 from destack.utils.uuid import UUID, uuid4
 
 if TYPE_CHECKING:

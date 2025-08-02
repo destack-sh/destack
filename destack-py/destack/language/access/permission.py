@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ..builtin import Entity, NodeType, builtin_entity
+from ..core.builtin import Entity, NodeType, builtin_entity
 
 if TYPE_CHECKING:
     pass

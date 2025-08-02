@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Callable
 from destack.utils.env import IS_DEV, IS_TEST
 
 from .core.builtin.builtin import (
-    ENUM_TYPES,
     EnumType,
     HandleType,
     NodeType,
@@ -184,7 +183,7 @@ def finalize():
         )
         HANDLE_DEFINITION_BY_TYPE[handle_cls.metatype] = handle_definition
         handle_cls.__definition__ = handle_definition
-    for enum_type in ENUM_TYPES:
+    for enum_type in ENUM_CLASS_BY_TYPE.keys():
         enum_definition = EnumDefinition.from_declaration(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
         ENUM_DEFINITION_BY_TYPE[enum_type] = enum_definition
 

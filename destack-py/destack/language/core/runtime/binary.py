@@ -21,7 +21,6 @@ from destack.language.core import (
     UInt32,
     UInt64,
     UInt128,
-    Universe,
     builtin_handle,
     builtin_method,
     builtin_property_runtime,

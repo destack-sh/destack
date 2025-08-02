@@ -14,7 +14,6 @@ from typing import (
 from destack.utils.string import Casing, to_casing
 
 from .builtin import (
-    NODE_TYPES,
     HandleType,
     NodeType,
     ObjectKind,
@@ -87,7 +86,7 @@ def resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     if node_type := NodeType.__members__.get(class_name.upper()):
         return (node_type,)
     if class_name == "Node":
-        return NODE_TYPES
+        return tuple(NodeType)
     return None
 
 

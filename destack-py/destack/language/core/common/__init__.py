@@ -14,7 +14,7 @@ from .definition import (
     StructDefinition,
     TagDefinition,
 )
-from .permission import Permission
+from .icon import Icon, IconIn, IconType, icon, to_icon
 from .query import (
     Aggregation,
     AggregationType,
@@ -39,8 +39,17 @@ from .relation import (
     PropertyReference,
     PropertyReferenceType,
 )
-from .space import Space
-from .tag import Tag, Tagging
+from .text import (
+    Text,
+    TextIn,
+    TextSpan,
+    TextSpanType,
+    markdown_to_text,
+    text,
+    text_to_markdown,
+    title,
+    to_text,
+)
 from .time import Branch, BranchType, Snapshot, SnapshotStatus, SnapshotType
 from .type import (
     CollectionConstraint,
@@ -49,7 +58,6 @@ from .type import (
     Type,
     TypeConstraint,
 )
-from .universe import Universe
 from .value import Value
 
 __all__ = [
@@ -69,6 +77,9 @@ __all__ = [
     "ExpressionType",
     "FunctionDefinition",
     "HandleDefinition",
+    "Icon",
+    "IconIn",
+    "IconType",
     "IndexDefinition",
     "Join",
     "JoinIn",
@@ -79,7 +90,6 @@ __all__ = [
     "NumberConstraint",
     "ObjectDefinitionReference",
     "OptionDefinition",
-    "Permission",
     "PermissionDefinition",
     "PropertyDefinition",
     "PropertyReference",
@@ -93,14 +103,21 @@ __all__ = [
     "Sort",
     "SortMode",
     "SortType",
-    "Space",
     "StringConstraint",
     "StructDefinition",
-    "Tag",
     "TagDefinition",
-    "Tagging",
+    "Text",
+    "TextIn",
+    "TextSpan",
+    "TextSpanType",
     "Type",
     "TypeConstraint",
-    "Universe",
     "Value",
+    "icon",
+    "markdown_to_text",
+    "text",
+    "text_to_markdown",
+    "title",
+    "to_icon",
+    "to_text",
 ]
