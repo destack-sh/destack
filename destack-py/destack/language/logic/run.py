@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    Action,
     Entity,
     Enum,
     EnumType,
@@ -16,7 +15,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import NodeReference
+    from destack.language import Action, NodeReference
 
 
 # pyright: reportIncompatibleVariableOverride=false

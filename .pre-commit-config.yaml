@@ -10,7 +10,6 @@ repos:
         language_version: python3.13
         additional_dependencies:
           - ruff==0.11.12
-        exclude: ^destack-py/destack/proto
         types: [ python ]
         args: [ check, --fix ]
       # format
@@ -35,7 +34,7 @@ repos:
           - --force-scope
           - --verbose
           - --scopes
-          - all,language,test,simulation,py,py-system,py-runtime,py-web,ts,ts-test,ts-simulation,ts-system,ts-runtime,ts-web,infra,proto,scripts
+          - all,language,test,simulation,py,py-test,py-simulation,py-server,py-system,py-web,ts,ts-test,ts-simulation,ts-system,ts-web,infra,proto,scripts
           - feat
           - fix
           - chore

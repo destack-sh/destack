@@ -5,6 +5,7 @@ from typing import (
     dataclass_transform,
 )
 
+from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.uuid import UUID
 
 from .builtin import EnumType, ObjectStability, StructType
@@ -15,7 +16,7 @@ from .struct import StructFrozen, _process_struct_cls
 from .types import UInt128
 
 if TYPE_CHECKING:
-    from destack import Client
+    from destack.language import Client
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -52,12 +53,16 @@ def builtin_message(
             tags=tags,
             enum_types=enum_types,
         )
-        assert (
-            message_type == StructType.MESSAGE or StructType.MESSAGE in cls.__declaration__.inherits
-        ), f"Message {cls.__name__} must inherit from Message"
-        assert any(message_type.name.endswith(suffix) for suffix in _ALLOWED_POSTFIXES), (
-            f"Message {cls.__name__} must end with one of {_ALLOWED_POSTFIXES}"
-        )
+
+        if IS_DEV or IS_TEST:
+            assert (
+                message_type == StructType.MESSAGE
+                or StructType.MESSAGE in cls.__declaration__.inherits
+            ), f"Message {cls.__name__} must inherit from Message"
+            assert any(message_type.name.endswith(suffix) for suffix in _ALLOWED_POSTFIXES), (
+                f"Message {cls.__name__} must end with one of {_ALLOWED_POSTFIXES}"
+            )
+
         return cls
 
     return decorate

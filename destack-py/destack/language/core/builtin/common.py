@@ -40,42 +40,40 @@ class PropertyZone(Enum):
     OUTPUT = 11, "Output", None, None
 
 
-@builtin_enum(EnumType.GRAPH_KEY)
-class GraphKey(Enum):
-    """The role of a Graph (scope + domain + tier)."""
-
-    ENTITY_PRIMARY = 1110
-    # ENTITY_SEARCH, ENTITY_BACKUP, ...
-    EVENT_PRIMARY = 2110
-    # EVENT_SEARCH, EVENT_AGGREGATE, ...
-
-
 @builtin_enum(EnumType.RUNTIME_LANGUAGE)
 class RuntimeLanguage(Enum):
+    """The language of the Runtime."""
+
     PYTHON = 1
     JAVASCRIPT = 2
-    # RUST, JAVA, SWIFT, ...
+    RUST = 3
 
 
-@builtin_enum(EnumType.PLATFORM_TYPE)
-class PlatformType(Enum):
-    SYSTEM = 1, "System", "The Destack system (internal server)"
-    SERVER = 10, "Server", "Server environment"
-    WEB = 20, "Web", "Web browser"
-    # MOBILE, DESKTOP, ...
-    # EMAIL?
+@builtin_enum(EnumType.RUNTIME_PLATFORM)
+class RuntimePlatform(Enum):
+    """The platform of the Runtime."""
+
+    CORE = 100, "Core", "Core platform"
+    SYSTEM = 200, "System", "Destack system (internal)"
+    SERVER = 300, "Server", "Server environment"
+    WEB = 400, "Web", "Web browser"
+    MOBILE = 500, "Mobile", "Mobile device"
+    DESKTOP = 600, "Desktop", "Desktop computer"
+    # EMAIL, AR/VR/XR, ...
 
 
-@builtin_enum(EnumType.OPERATING_SYSTEM)
-class OperatingSystem(Enum):
-    # desktop
-    LINUX = 1, "Linux", "Linux operating system", "fab fa-linux"
-    WINDOWS = 2, "Windows", "Microsoft Windows", "fab fa-windows"
-    MACOS = 3, "macOS", "Apple macOS", "fab fa-apple"
-    # mobile
-    ANDROID = 50, "Android", "Google Android", "fab fa-android"
-    IOS = 51, "iOS", "Apple iOS", "fab fa-apple"
-    # WATCHOS, TVOS, IPADOS, ...
+@builtin_enum(EnumType.RUNTIME_TYPE)
+class RuntimeType(Enum):
+    """The specific Runtime (RuntimeLanguage x RuntimePlatform)."""
+
+    CORE_PYTHON = 101, "destack-py", "Destack Python SDK"
+    CORE_JAVASCRIPT = 102, "destack-ts", "Destack TypeScript SDK"
+    CORE_RUST = 103, "destack-rs", "Destack Rust SDK"
+    SYSTEM_JAVASCRIPT = 202, "destack-ts-system", "Destack TypeScript system Runtime (internal)"
+    SYSTEM_RUST = 203, "destack-rs-system", "Destack Rust system Runtime (internal)"
+    SERVER_PYTHON = 301, "destack-py-server", "Destack Python server Runtime"
+    SERVER_JAVASCRIPT = 302, "destack-ts-server", "Destack TypeScript server Runtime"
+    WEB_JAVASCRIPT = 402, "destack-ts-web", "Destack TypeScript web Runtime"
 
 
 @builtin_enum(EnumType.ENVIRONMENT_TYPE)
@@ -85,24 +83,6 @@ class EnvironmentType(Enum):
     TEST = 5, "Test", "Active in test", "fas fa-flask"
     STAGING = 7, "Staging", "Active in staging", "fas fa-globe"
     PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
-
-
-@builtin_enum(EnumType.CLOUD)
-class Cloud(Enum):
-    """The cloud provider."""
-
-    # own
-    ...
-    PRIVATE = 1
-    # big general
-    AWS = 10
-    AZURE = 11
-    GCP = 12
-    HETZNER = 20
-
-    @property
-    def slug(self) -> str:
-        return self.name.lower().replace("_", "-")
 
 
 @builtin_enum(EnumType.REGION_CONTINENT)
@@ -118,27 +98,6 @@ class RegionContinent(Enum):
     AFRICA = 5_000, "Africa", None, "🇿🇦"
     ASIA = 6_000, "Asia", None, "🇮🇳"
     AUSTRALIA = 7_000, "Australia", None, "🇦🇺"
-    PRIVATE = 9_000
-
-    @property
-    def slug(self) -> str:
-        return REGION_CONTINENT_SLUGS[self]
-
-    @staticmethod
-    def get_by_slug(slug: str) -> "RegionContinent":
-        return REGION_CONTINENT_BY_SLUG[slug]
-
-
-REGION_CONTINENT_SLUGS: dict[RegionContinent, str] = {
-    RegionContinent.EUROPE: "eu",
-    RegionContinent.NORTH_AMERICA: "na",
-    RegionContinent.SOUTH_AMERICA: "sa",
-    RegionContinent.MIDDLE_EAST: "me",
-    RegionContinent.AFRICA: "af",
-    RegionContinent.ASIA: "as",
-    RegionContinent.AUSTRALIA: "au",
-}
-REGION_CONTINENT_BY_SLUG = {v: k for k, v in REGION_CONTINENT_SLUGS.items()}
 
 
 @builtin_enum(EnumType.REGION_AREA)
@@ -162,31 +121,6 @@ class RegionArea(Enum):
     @property
     def continent(self) -> RegionContinent:
         return RegionContinent((self.id // 1_000) * 1_000)
-
-    @property
-    def slug(self) -> str:
-        return REGION_AREA_SLUGS[self]
-
-    @staticmethod
-    def get_by_slug(slug: str) -> "RegionArea":
-        return REGION_AREA_BY_SLUG[slug]
-
-
-REGION_AREA_SLUGS: dict[RegionArea, str] = {
-    RegionArea.EUROPE_CENTRAL: "eu-central",
-    RegionArea.NORTH_AMERICA_EAST: "na-east",
-    RegionArea.NORTH_AMERICA_WEST: "na-west",
-    RegionArea.SOUTH_AMERICA_EAST: "sa-east",
-    RegionArea.MIDDLE_EAST_CENTRAL: "me-central",
-    RegionArea.MIDDLE_EAST_WEST: "me-west",
-    RegionArea.AFRICA_SOUTH: "af-south",
-    RegionArea.ASIA_WEST: "as-west",
-    RegionArea.ASIA_SOUTH: "as-south",
-    RegionArea.ASIA_EAST: "as-east",
-    RegionArea.AUSTRALIA_SOUTH: "au-south",
-}
-REGION_AREA_BY_SLUG = {v: k for k, v in REGION_AREA_SLUGS.items()}
-# register_constant("REGION_AREA_BY_SLUG", REGION_AREA_BY_SLUG)
 
 
 @builtin_enum(EnumType.REGION)
@@ -231,18 +165,6 @@ class Region(Enum):
     @property
     def area(self) -> RegionArea:
         return RegionArea((self.id // 200) * 200)
-
-    @property
-    def slug(self) -> str:
-        continent = self.continent
-        return continent.slug + "-" + self.name.replace("_", "-").lower()
-
-    @staticmethod
-    def get_by_slug(slug: str) -> "Region":
-        return REGION_BY_SLUG[slug]
-
-
-REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
 @builtin_enum(EnumType.EDGE_TYPE)

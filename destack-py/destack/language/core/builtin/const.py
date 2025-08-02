@@ -10,7 +10,7 @@ from destack.utils.env import get_from_env
 from destack.utils.frozen import frozendict
 from destack.utils.uuid import uuid4
 
-from .common import Cloud, Region
+from .common import Region
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -144,9 +144,7 @@ def active_event() -> "Event":
     return event
 
 
-CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")
 REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
-TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
 
 
 class DestackError(Exception):

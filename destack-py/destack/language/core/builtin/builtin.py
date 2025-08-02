@@ -20,13 +20,13 @@ class EnumType(Enum):
     TRAIT_TYPE = 5
     HANDLE_TYPE = 6
     OBJECT_STABILITY = 8
-    UNIVERSE_CATEGORY = 9
+    UNIVERSE_DOMAIN = 9
+    UNIVERSE_CATEGORY = 10
     PROPERTY_REFERENCE_TYPE = 13
     MATERIALIZATION = 14
-    GRAPH_KEY = 20
-    PLATFORM_TYPE = 30
+    RUNTIME_PLATFORM = 30
     RUNTIME_LANGUAGE = 31
-    OPERATING_SYSTEM = 40
+    RUNTIME_TYPE = 32
     EVENT_STATUS = 50
 
     # type/value
@@ -115,7 +115,6 @@ class EnumType(Enum):
     MODEL_PROVIDER = 920_001
 
     # infrastructure [1_000_000-1_100_000]
-    CLOUD = 1_000_000
     REGION = 1_000_001
     REGION_AREA = 1_000_002
     REGION_CONTINENT = 1_000_003
@@ -226,6 +225,8 @@ class TraitType(Enum):
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
     ORDERED = 10_000, "Ordered", "Is ordered", "fas fa-sort"
     # PAUSABLE?
+    RESOURCE = 10_001, "Resource", "Is a Resource", "fas fa-globe"
+    VARIANT = 10_002, "Variant", "Is a Variant", "fas fa-shapes"
 
     # universe [100_000-200_000]
     # ...
@@ -323,81 +324,11 @@ class NodeType(Enum):
     NODE = 1, "Node", "Root of all Nodes", "fas fa-dot"
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
-
-    # space
-    UNIVERSE = 1_000, "Universe", "The Destack computational universe", "fas fa-dot"
-    SPACE = 1_100, "Space", "Universal Space", "fas fa-galaxy"
-    # GALAXY = 1_200, "Galaxy", "Galaxy of Spaces", "fas fa-galaxy"
-
-    # time
-    BRANCH = 2_000, "Branch", None, "fas fa-code-branch"
-    SNAPSHOT = 2_100, "Snapshot", "Point in Space-time", "fas fa-save"
-
-    # base
-    RESOURCE = 10_100, "Resource", "External asset outside of Destack", "fas fa-dot"
-    METRIC = 10_200, "Metric", None, "fas fa-gauge"
-    SERVICE = 10_300, "Service", None, "fas fa-screwdriver-wrench"
-    VARIANT = 10_400, "Variant", "Variant of a Scene", "fas fa-shapes"
-    ENTITY2D = 11_000, "Entity2D", "2D Entity", "fas fa-shapes"
-    ENTITY3D = 11_100, "Entity3D", "3D Entity", "fas fa-shapes"
-    TAG = 12_000, "Tag", None, "fas fa-tag"
-    TAGGING = 12_100, "Tagging", None, "fas fa-tag"
-    # TRAIT?
-    # FRAGMENT (multiple disjoint trees)
-    # SLOT (inside tree)
-    # LINK (to another subtree)
-    # TIMELINE, TRACK, (KEY)FRAME, ...
-
-    # custom
-    CUSTOM_EVENT_DEFINITION = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
-    CUSTOM_STRUCT_DEFINITION = 20_100, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
-    CUSTOM_MESSAGE_DEFINITION = (
-        20_200,
-        "Custom Message",
-        "Custom Message Definition",
-        "fas fa-envelope",
-    )
-    CUSTOM_PROPERTY_DEFINITION = (
-        20_300,
-        "Custom Property",
-        "Custom Property Definition",
-        "fas fa-triangle",
-    )
-    CUSTOM_ENUM_DEFINITION = 20_400, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
-    CUSTOM_OPTION_DEFINITION = 20_500, "Custom Option", "Custom Option Definition", "fas fa-circle"
-    # CUSTOM_ALIAS, CUSTOM_UNION, ...
-
-    # integrity
-    INDEX = 30_100, "Index", "Index of an Entity", "fas fa-database"
-    CONSTRAINT = 30_200, "Constraint", "Constraint of an Entity", "fas fa-database"
-    # EXPECTATION, ...
-    MIGRATION = 31_000, "Migration", "Migration of an Entity", "fas fa-database"
-    MIGRATION_OPERATION = (
-        31_100,
-        "Migration Operation",
-        "Migration Operation of an Entity",
-        "fas fa-database",
-    )
-
-    # nocheckin(language): *_definition/custom_*_definition inconsistency and organization
-    #  (Index, Event, Method/Action, Permission, ...)
-    #  why is Space, Branch/Snapshot, Permission, Tag/Tagging, Entity2D/3D, ... in core?
-
-    # logic
-    FUNCTION = 40_000, "Function", None, "fas fa-code"
-    METHOD = 40_100, "Method", None, "fas fa-code"
-    ACTION = 40_200, "Action", None, "fas fa-code"
-
-    # access
-    PERMISSION = 50_000, "Permission", "Permission for something", "fas fa-user-shield"
-
-    # event
-    CUSTOM_EVENT = 90_000, "Signal", "Custom Event instance", "fas fa-signal"
-    EDIT_EVENT = 90_100, "Edit Event", None, "fas fa-file-lines"
+    EDIT_EVENT = 10, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
-    MEASUREMENT_EVENT = 90_200, "Measurement of a Metric", None, "fas fa-gauge"
 
     # universe [100_000-200_000]
+    UNIVERSE = 100_000, "Universe", "The Destack computational universe", "fas fa-dot"
     # UNIVERSE, ...
     # HANDLE?, ...
     # user
@@ -410,18 +341,27 @@ class NodeType(Enum):
     TEAM = 122_100, "Team", "Team in an Organization", "fas fa-users"
 
     # space [200_000-300_000]
-    # folder
-    FOLDER = 240_000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
+    SPACE = 200_100, "Space", "Universal Space", "fas fa-galaxy"
+    TAG = 200_200, "Tag", None, "fas fa-tag"
+    TAGGING = 200_300, "Tagging", None, "fas fa-tag"
+    # TRAIT?
+    # FRAGMENT (multiple disjoint trees)
+    # SLOT (inside tree)
+    # LINK (to another subtree)
+    # TIMELINE, TRACK, (KEY)FRAME, ...
+    # GALAXY = 1_200, "Galaxy", "Galaxy of Spaces", "fas fa-galaxy"
+    BRANCH = 200_400, "Branch", None, "fas fa-code-branch"
+    SNAPSHOT = 200_500, "Snapshot", "Point in Space-time", "fas fa-save"
+    FOLDER = 200_600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
     # APPLICATION (extends Folder?), ...
     # DEPENDENCY, ...
-    # GROUP, ...
-    # spacetime
     # VERSION, ...
     # HISTORY, REPLAY, ...
     # FORK, ...
     # LINK, PORTAL, ...
 
     # access [300_000-400_000]
+    PERMISSION = 300_000, "Permission", "Permission for something", "fas fa-user-shield"
     MEMBERSHIP = 360_000, "Membership", "Membership to something", "fas fa-user-group"
     MEMBERSHIP_EVENT = 360_001, "Membership Event", None, "fas fa-user-group"
     MEMBERSHIP_JOINED_EVENT = 360_002, "Membership Join Event", None, "fas fa-user-group"
@@ -456,6 +396,34 @@ class NodeType(Enum):
     # INDEX, CONSTRAINT, MIGRATION, ...
     # REMOTE, ...
     # SECRET, ...
+    INDEX = 400_100, "Index", "Index of an Entity", "fas fa-database"
+    CONSTRAINT = 400_200, "Constraint", "Constraint of an Entity", "fas fa-database"
+    # EXPECTATION, ...
+    MIGRATION = 400_300, "Migration", "Migration of an Entity", "fas fa-database"
+    MIGRATION_OPERATION = (
+        400_310,
+        "Migration Operation",
+        "Migration Operation of an Entity",
+        "fas fa-database",
+    )
+    # custom
+    CUSTOM_EVENT_DEFINITION = 400_400, "Custom Event", "Custom Event Definition", "fas fa-signal"
+    CUSTOM_STRUCT_DEFINITION = 400_500, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
+    CUSTOM_MESSAGE_DEFINITION = (
+        400_600,
+        "Custom Message",
+        "Custom Message Definition",
+        "fas fa-envelope",
+    )
+    CUSTOM_PROPERTY_DEFINITION = (
+        400_700,
+        "Custom Property",
+        "Custom Property Definition",
+        "fas fa-triangle",
+    )
+    CUSTOM_ENUM_DEFINITION = 400_800, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
+    CUSTOM_OPTION_DEFINITION = 400_900, "Custom Option", "Custom Option Definition", "fas fa-circle"
+    # CUSTOM_ALIAS_DEFINITION, CUSTOM_UNION_DEFINITION, ...
 
     # media [500_000-600_000]
     # STREAM, ...
@@ -466,7 +434,14 @@ class NodeType(Enum):
     # LOCALIZATION_VARIANT, GEO_VARIANT, ...
 
     # logic [700_000-800_000]
+    ENVIRONMENT = 720_000, "Environment", None, "fas fa-environment"
+    MODE = 720_100, "Mode", None, "fas fa-mode"
     SCRIPT = 700_000, "Script", None, "fas fa-code"
+    CUSTOM_EVENT = 90_000, "Signal", "Custom Event instance", "fas fa-signal"
+    MEASUREMENT_EVENT = 90_200, "Measurement of a Metric", None, "fas fa-gauge"
+    FUNCTION = 40_000, "Function", None, "fas fa-code"
+    METHOD = 40_100, "Method", None, "fas fa-code"
+    ACTION = 40_200, "Action", None, "fas fa-code"
     TRIGGER = 705_000, "Trigger", None, "fas fa-bolt"
     TRIGGER_EVENT = 705_001, "Trigger Event", None, "fas fa-bolt"
     TIMER = 705_100, "Timer", None, "fas fa-clock"
@@ -477,6 +452,7 @@ class NodeType(Enum):
     TIMER_COMPLETED_EVENT = 705_105, "Timer Completed Event", None, "fas fa-clock"
     TIMER_CANCELLED_EVENT = 705_106, "Timer Cancelled Event", None, "fas fa-clock"
     ROUTE = 710_000, "Route", None, "fas fa-route"
+    # EFFECT, ...
     # BREAKPOINT, ...
     # ROOM, TOPIC, CHANNEL, ...
     # QUEUE, TASK, ...
@@ -484,27 +460,6 @@ class NodeType(Enum):
     # RATE_LIMIT, ...
     # STATE_MACHINE, STATE, STATE_TRANSITION, ...
     # PLATFORM_VARIANT, STATE_VARIANT, ...
-
-    # quality [800_000-900_000]
-    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
-    # FIXTURE, MOCK, ...
-    # LINT, WARNING, ERROR, ...
-    # DEPRECATION, ...
-
-    # intelligence [900_000-1_000_000]
-    # MODEL, FINETUNE, ...
-    # PROMPT, INFERENCE/COMPLETION/..., ...
-    # RECOMMENDATION, ...
-
-    # infrastructure [1_000_000-1_100_000]
-    # DATABASE, ...
-    MACHINE = 1_001_000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
-    # SEARCH, VAULT, CACHE, S3, ...
-    # GALAXY, ...
-    # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
-
-    # deployment [1_100_000-1_200_000]
-    ENVIRONMENT = 1_100_000, "Environment", None, "fas fa-environment"
     # RELEASE, DEPLOYMENT, ...
     # PREVIEW, DRAFT, ROLLOUT, ...
     # TASK, TASK_GROUP/TASK_QUEUE, ...
@@ -522,8 +477,29 @@ class NodeType(Enum):
     SPAN_EVENT = 1_110_010, "Span", None, "fas fa-ruler-horizontal"
     LOG_EVENT = 1_110_011, "Log", None, "fas fa-file-lines"
 
+    # quality [800_000-900_000]
+    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
+    # FIXTURE, MOCK, ...
+    # LINT, WARNING, ERROR, ...
+    # DEPRECATION, ...
+
+    # intelligence [900_000-1_000_000]
+    # MODEL, FINETUNE, ...
+    # PROMPT, INFERENCE/COMPLETION/..., ...
+    # RECOMMENDATION, ...
+
+    # infrastructure [1_000_000-1_100_000]
+    # DATABASE, ...
+    MACHINE = 1_001_000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    # SEARCH, VAULT, CACHE, S3, ...
+    # GALAXY, ...
+    # HOST, ENDPOINT, NETWORK, AUTOSCALER, ...
+
+    # deployment [1_100_000-1_200_000]
+
     # observability [1_200_000-1_300_000]
     # metric
+    METRIC = 1_200_000, "Metric", None, "fas fa-gauge"
     GAUGE_METRIC = 1_200_000, "Gauge Metric", None, "fas fa-gauge"
     GAUGE_MEASUREMENT_EVENT = 1_200_001, "Gauge Measurement", None, "fas fa-gauge"
     COUNTER_METRIC = 1_200_100, "Counter Metric", None, "fas fa-gauge"
@@ -678,13 +654,14 @@ class NodeType(Enum):
     # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
     # KEYFRAME_VARIANT, ...
     # RIG, ...
-    # PARTICLE, EMITTER, ...
 
     # audio [2_300_000-2_400_000]
     # SOUND_SOURCE, ...
 
     # geometry [2_400_000-2_500_000]
     # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
+    ENTITY2D = 11_000, "Entity2D", "2D Entity", "fas fa-shapes"
+    ENTITY3D = 11_100, "Entity3D", "3D Entity", "fas fa-shapes"
     SHAPE2D = 2_410_000, "Shape2D", None, "fas fa-shapes"
     LINE_SHAPE2D = 2_410_100, "Line Shape2D", None, "fas fa-line"
     ARROW_SHAPE2D = 2_410_200, "Arrow Shape2D", None, "fas fa-arrow-right"
@@ -703,6 +680,7 @@ class NodeType(Enum):
     # COLLIDER, ...
     # SKELETON, BONE, ...
     # JOINT, FIXED_JOINT, FREE_JOINT, SPHERICAL_JOINT, SPRING, MOTOR, ...
+    # NAVIGATION, ...
 
     # lighting [2_600_000-2_700_000]
     # LIGHT, LIGHT2D, ...
@@ -918,40 +896,79 @@ class HandleType(Enum):
     BINARY_READER = 33
 
 
+@builtin_enum(EnumType.UNIVERSE_DOMAIN)
+class UniverseDomain(Enum):
+    """The Destack Universe is organized into domains."""
+
+    FOUNDATION = 1, "Foundation", "Universal constructs"
+    BASICS = 10_000_000, "Basics", "Building the Universe"
+    SIMULATION = 20_000_000, "Simulation", "Modeling the Universe"
+    MEDIA = 30_000_000, "Media", "Capturing the Universe"
+    PRESENTATION = 40_000_000, "Presentation", "Presenting the Universe"
+    DEPLOYMENT = 50_000_000, "Deployment", "Deploying the Universe"
+    DISTRIBUTION = 60_000_000, "Distribution", "Distributing the Universe"
+    EDITING = 100_000_000, "Editing", "Editing the Universe"
+
+
 @builtin_enum(EnumType.UNIVERSE_CATEGORY)
 class UniverseCategory(Enum):
-    """How the system is organized."""
+    """How the Destack Universe is organized (domains > categories)."""
 
-    CORE = 1, "Core", "Intrinsics"
+    # foundation
+    CORE = 1, "Core", "Primitives and intrinsics"
     UNIVERSE = 100_000, "Universe", "Global computational universe"
     SPACE = 200_000, "Space", "Spacetime organization"
-    ACCESS = 300_000, "Access", "Access control"
-    DATA = 400_000, "Data", "Core data"
-    MEDIA = 500_000, "Media", "Media and streaming"
-    LOCALIZATION = 600_000, "Localization", "Localization and internationalization"
-    LOGIC = 700_000, "Logic", "Core logic"
-    QUALITY = 800_000, "Quality", "Quality management"
-    INTELLIGENCE = 900_000, "Intelligence", "Artificial intelligence"
-    INFRASTRUCTURE = 1_000_000, "Infrastructure", "Devices, hardware and plumbing"
-    DEPLOYMENT = 1_100_000, "Deployment", "Deployment and runtime"
-    OBSERVABILITY = 1_200_000, "Observability", "Telemetry on everything"
-    EXPERIENCE = 1_300_000, "Experience", "User experience"
-    SOCIAL = 1_400_000, "Social", "Social interactions"
-    FINANCE = 1_500_000, "Finance", "Financial operations"
-    SCENE = 1_700_000, "Scene", "Stage building"
-    VIEW = 1_800_000, "View", "View building"
-    PAINT = 1_900_000, "Paint", "Drawing, rendering and painting"
-    INTERACTION = 2_000_000, "Interaction", "Interaction design"
-    STYLE = 2_100_000, "Style", "Appearance and materials"
-    ANIMATION = 2_200_000, "Animation", "Motion design"
-    AUDIO = 2_300_000, "Audio", "Audio management"
-    GEOMETRY = 2_400_000, "Geometry", "Meshes, skeletons and maths"
-    PHYSICS = 2_500_000, "Physics", "Physics simulation"
-    LIGHTING = 2_600_000, "Lighting", "Lighting and shadows"
-    EDITOR = 3_000_000, "Editor", "Editor and studio"
+
+    # basics
+    ACCESS = 10_000_000, "Access", "Access and identity"
+    DATA = 10_100_000, "Data", "Core data"
+    LOGIC = 10_200_000, "Logic", "Core logic"
+    QUALITY = 10_300_000, "Quality", "Quality assurance"
+    INTELLIGENCE = 10_400_000, "Intelligence", "Artificial intelligence"
+    # CRYPTO, STREAMING, ...
+
+    # simulation
+    GEOMETRY = 20_000_000, "Geometry", "Geometric representations"
+    PHYSICS = 20_100_000, "Physics", "Physics simulation"
+    LIGHTING = 20_200_000, "Lighting", "Lighting and shadows"
+    ANIMATION = 20_300_000, "Animation", "Motion design"
+    SENSING = 20_400_000, "Sensing", "Sensing and perception"
+    # PARTICLE, SOUND, GEOGRAPHY, HOME, ...
+
+    # media
+    MODEL = 30_000_000, "Model", "Modeling and sculpting"
+    AUDIO = 30_100_000, "Audio", "Audio and sound design"
+    IMAGE = 30_200_000, "Image", "Image and photo editing"
+    VIDEO = 30_300_000, "Video", "Video creation and editing"
+    PAINT = 30_400_000, "Paint", "Drawing and painting"
+    # FILM, TELEVISION, ...
+
+    # presentation
+    SCENE = 40_000_000, "Scene", "Stage building"
+    VIEW = 40_100_000, "View", "View building"
+    STYLE = 40_200_000, "Style", "Appearance and materials"
+    INTERACTION = 40_300_000, "Interaction", "Interaction design"
+    # SHADERS, RENDERING, XR, PARTICLE, ...
+
+    # deployment
+    INFRASTRUCTURE = 50_000_000, "Infrastructure", "Devices, hardware and plumbing"
+    OBSERVABILITY = 50_100_000, "Observability", "Telemetry on everything"
+    EXPERIENCE = 50_200_000, "Experience", "User experience"
+    # HOME, ROBOTICS, ACTUATION, INTERNET, ...
+
+    # distribution
+    LOCALIZATION = 60_000_000, "Localization", "Localization and internationalization"
+    LEGAL = 60_100_000, "Legal", "Legal, compliance and policy"
+    SOCIAL = 60_200_000, "Social", "Interactions, reputation and trust"
+    FINANCE = 60_300_000, "Finance", "Commerce and monetization"
+    # ACCESSIBILITY, CONTENT, ...
+
+    # editing
+    EDITOR = 100_000_000, "Editor", "Editor and studio"
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)
 NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
 STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
 TRAIT_TYPES: tuple[TraitType, ...] = tuple(TraitType)
+HANDLE_TYPES: tuple[HandleType, ...] = tuple(HandleType)

@@ -2,11 +2,12 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     VERSION,
+    Entity,
     Enum,
     EnumType,
     Float32,
     NodeType,
-    Resource,
+    TraitType,
     UInt32,
     builtin_entity,
     builtin_enum,
@@ -28,8 +29,8 @@ class MachineType(Enum):
     CUSTOM = 9000, "Custom", "A custom Docker image", "fas fa-whale"
 
 
-@builtin_entity(NodeType.MACHINE)
-class Machine(Resource):
+@builtin_entity(NodeType.MACHINE, traits=(TraitType.RESOURCE,))
+class Machine(Entity):
     """
     A Machine provides physical compute.
     NOTE :RichComputing: Machines also need Deployments/Endpoints/...?

@@ -16,8 +16,8 @@ from .common import (
     FunctionOperator,
     IndexType,
     MethodType,
-    PlatformType,
     RuntimeLanguage,
+    RuntimePlatform,
 )
 
 if TYPE_CHECKING:
@@ -200,7 +200,7 @@ class FunctionDeclaration:
     tags: tuple[str, ...]
 
     languages: tuple[RuntimeLanguage, ...] | None
-    platforms: tuple[PlatformType, ...] | None
+    platforms: tuple[RuntimePlatform, ...] | None
 
 
 @dataclass(slots=True)
@@ -221,11 +221,12 @@ def builtin_method(
     *,
     name: str | None = None,
     tags: tuple[str, ...] = (),
-    proxies: str | None = None,
+    proxies_method: str | None = None,
+    proxies_runtime: RuntimeLanguage | None = None,
     type: MethodType = MethodType.INSTANCE,
     operator: FunctionOperator | None = None,
     languages: tuple[RuntimeLanguage, ...] | None = None,
-    platforms: tuple[PlatformType, ...] | None = None,
+    platforms: tuple[RuntimePlatform, ...] | None = None,
     is_internal: bool = False,
 ):
     """Declare a builtin Method."""
@@ -251,7 +252,7 @@ def builtin_action(
     tags: tuple[str, ...] = (),
     type: ActionType = ActionType.UNARY_IN_UNARY_OUT,
     languages: tuple[RuntimeLanguage, ...] | None = None,
-    platforms: tuple[PlatformType, ...] | None = None,
+    platforms: tuple[RuntimePlatform, ...] | None = None,
     is_internal: bool = False,
 ):
     """Declare a builtin Action."""

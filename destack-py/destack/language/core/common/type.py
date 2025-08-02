@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union, final
 
 from destack.language.registry import ENUM_TYPE_BY_CLASS
 
-from .builtin import EnumType, HandleType, NodeType, StructType
-from .common import (
+from ..builtin.builtin import EnumType, HandleType, NodeType, StructType
+from ..builtin.common import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_ANNOTATION,
     Enum,
@@ -13,9 +13,9 @@ from .common import (
     TypeCardinality,
     UInt32,
 )
-from .declaration import builtin_method
-from .property import builtin_property
-from .struct import Struct, StructFrozen, builtin_struct
+from ..builtin.declaration import builtin_method
+from ..builtin.property import builtin_property
+from ..builtin.struct import Struct, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
     pass
@@ -114,7 +114,8 @@ class Type(StructFrozen):
         For values, we try to infer the most specific Type that can represent the value.
         For annotations, we defer to parse_type_annotation.
         """
-        from ..builtin import Handle, Node, NodeReference, parse_type_declaration
+        from ..builtin import Handle, Node, parse_type_declaration
+        from .relation import NodeReference
 
         #
         # Values

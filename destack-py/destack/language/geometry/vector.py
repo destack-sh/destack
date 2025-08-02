@@ -73,7 +73,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         102,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: "Vector2 | float") -> "Vector2":
@@ -91,7 +91,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         104,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: "Vector2 | float") -> "Vector2":
@@ -109,7 +109,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         106,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: "Vector2 | float") -> "Vector2":
@@ -127,7 +127,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         108,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: "Vector2 | float") -> "Vector2":
@@ -142,7 +142,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         110,
         operator=FunctionOperator.ABS,
-        proxies="abs",
+        proxies_method="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector2":
@@ -157,7 +157,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         112,
         operator=FunctionOperator.NEG,
-        proxies="neg",
+        proxies_method="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector2":
@@ -167,7 +167,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         113,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: "Vector2 | float") -> "Vector2":
@@ -177,7 +177,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         114,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: "Vector2 | float") -> "Vector2":
@@ -190,7 +190,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         115,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: "Vector2 | float") -> "Vector2":
@@ -200,7 +200,7 @@ class Vector2(StructFrozen):
     @builtin_method(
         116,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: "Vector2 | float") -> "Vector2":
@@ -364,7 +364,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         102,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: "Vector3 | float") -> "Vector3":
@@ -382,7 +382,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         104,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: "Vector3 | float") -> "Vector3":
@@ -400,7 +400,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         106,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: "Vector3 | float") -> "Vector3":
@@ -418,7 +418,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         108,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: "Vector3 | float") -> "Vector3":
@@ -433,7 +433,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         110,
         operator=FunctionOperator.ABS,
-        proxies="abs",
+        proxies_method="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector3":
@@ -448,7 +448,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         112,
         operator=FunctionOperator.NEG,
-        proxies="neg",
+        proxies_method="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector3":
@@ -458,7 +458,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         113,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: "Vector3 | float") -> "Vector3":
@@ -468,7 +468,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         114,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: "Vector3 | float") -> "Vector3":
@@ -481,7 +481,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         115,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: "Vector3 | float") -> "Vector3":
@@ -491,7 +491,7 @@ class Vector3(StructFrozen):
     @builtin_method(
         116,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: "Vector3 | float") -> "Vector3":
@@ -672,7 +672,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         102,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: "Vector4 | float") -> "Vector4":
@@ -692,7 +692,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         104,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: "Vector4 | float") -> "Vector4":
@@ -712,7 +712,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         106,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: "Vector4 | float") -> "Vector4":
@@ -732,7 +732,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         108,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: "Vector4 | float") -> "Vector4":
@@ -747,7 +747,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         110,
         operator=FunctionOperator.ABS,
-        proxies="abs",
+        proxies_method="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector4":
@@ -762,7 +762,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         112,
         operator=FunctionOperator.NEG,
-        proxies="neg",
+        proxies_method="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector4":
@@ -772,7 +772,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         113,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: "Vector4 | float") -> "Vector4":
@@ -782,7 +782,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         114,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: "Vector4 | float") -> "Vector4":
@@ -797,7 +797,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         115,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: "Vector4 | float") -> "Vector4":
@@ -807,7 +807,7 @@ class Vector4(StructFrozen):
     @builtin_method(
         116,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: "Vector4 | float") -> "Vector4":
@@ -963,7 +963,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         102,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: "Vector2i | int") -> "Vector2i":
@@ -981,7 +981,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         104,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: "Vector2i | int") -> "Vector2i":
@@ -999,7 +999,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         106,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: "Vector2i | int") -> "Vector2i":
@@ -1017,7 +1017,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         108,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: "Vector2i | int") -> "Vector2i":
@@ -1032,7 +1032,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         110,
         operator=FunctionOperator.ABS,
-        proxies="abs",
+        proxies_method="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector2i":
@@ -1047,7 +1047,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         112,
         operator=FunctionOperator.NEG,
-        proxies="neg",
+        proxies_method="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector2i":
@@ -1057,7 +1057,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         113,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: "Vector2i | int") -> "Vector2i":
@@ -1067,7 +1067,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         114,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: "Vector2i | int") -> "Vector2i":
@@ -1080,7 +1080,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         115,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: "Vector2i | int") -> "Vector2i":
@@ -1090,7 +1090,7 @@ class Vector2i(StructFrozen):
     @builtin_method(
         116,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: "Vector2i | int") -> "Vector2i":
@@ -1254,7 +1254,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         102,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1272,7 +1272,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         104,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1290,7 +1290,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         106,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1308,7 +1308,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         108,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1323,7 +1323,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         110,
         operator=FunctionOperator.ABS,
-        proxies="abs",
+        proxies_method="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector3i":
@@ -1338,7 +1338,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         112,
         operator=FunctionOperator.NEG,
-        proxies="neg",
+        proxies_method="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector3i":
@@ -1348,7 +1348,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         113,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1358,7 +1358,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         114,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1371,7 +1371,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         115,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1381,7 +1381,7 @@ class Vector3i(StructFrozen):
     @builtin_method(
         116,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: "Vector3i | int") -> "Vector3i":
@@ -1562,7 +1562,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         102,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: "Vector4i | int") -> "Vector4i":
@@ -1582,7 +1582,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         104,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: "Vector4i | int") -> "Vector4i":
@@ -1602,7 +1602,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         106,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: "Vector4i | int") -> "Vector4i":
@@ -1624,7 +1624,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         108,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: "Vector4i | int") -> "Vector4i":
@@ -1639,7 +1639,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         110,
         operator=FunctionOperator.ABS,
-        proxies="abs",
+        proxies_method="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector4i":
@@ -1654,7 +1654,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         112,
         operator=FunctionOperator.NEG,
-        proxies="neg",
+        proxies_method="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector4i":
@@ -1664,7 +1664,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         113,
         operator=FunctionOperator.ADD,
-        proxies="add",
+        proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: "Vector4i | int") -> "Vector4i":
@@ -1674,7 +1674,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         114,
         operator=FunctionOperator.SUB,
-        proxies="sub",
+        proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: "Vector4i | int") -> "Vector4i":
@@ -1689,7 +1689,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         115,
         operator=FunctionOperator.MUL,
-        proxies="mul",
+        proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: "Vector4i | int") -> "Vector4i":
@@ -1699,7 +1699,7 @@ class Vector4i(StructFrozen):
     @builtin_method(
         116,
         operator=FunctionOperator.TRUEDIV,
-        proxies="truediv",
+        proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: "Vector4i | int") -> "Vector4i":

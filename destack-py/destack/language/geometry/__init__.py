@@ -1,6 +1,7 @@
 from .arrow import Arrow2D, ArrowHeadType, ArrowShape2D
 from .capsule import Capsule2D, CapsuleShape2D
 from .ellipse import Ellipse2D, EllipseShape2D
+from .entity import Entity2D, Entity3D
 from .line import Line2D, LineShape2D
 from .path import Path2D, PathShape2D
 from .polygon import Polygon2D, PolygonShape2D
@@ -49,6 +50,8 @@ __all__ = [
     "Distribute",
     "Ellipse2D",
     "EllipseShape2D",
+    "Entity2D",
+    "Entity3D",
     "Form2D",
     "Form3D",
     "Grid2",

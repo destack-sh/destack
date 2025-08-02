@@ -1,9 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ..builtin.builtin import NodeType
-from ..builtin.declaration import IndexType
-from ..builtin.entity import Entity, builtin_entity
-from ..builtin.property import builtin_property
+from destack.language.core import Entity, IndexType, NodeType, builtin_entity, builtin_property
 
 if TYPE_CHECKING:
     from destack.language import PropertyReference

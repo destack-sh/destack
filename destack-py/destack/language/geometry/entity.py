@@ -1,83 +1,16 @@
-from typing import (
-    TYPE_CHECKING,
-    Optional,
-    final,
-)
+from typing import TYPE_CHECKING, Optional
 
-from .builtin import NodeType, TraitType
-from .const import UNSET
-from .entity import builtin_entity
-from .property import (
+from destack.language.core import (
+    Entity,
+    NodeType,
+    builtin_entity,
     builtin_property,
 )
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Anchor,
-        Icon,
-        NodeReference,
-        Offset2,
-        Quaternion,
-        Region,
-        Vector2,
-        Vector3,
-    )
-
-from .entity import Entity
+    from destack.language import Anchor, Offset2, Quaternion, Vector2, Vector3
 
 # pyright: reportIncompatibleVariableOverride=false
-
-type_ = type
-object_set_ = object.__setattr__
-
-
-@builtin_entity(
-    NodeType.RESOURCE,
-    is_abstract=True,
-    traits=(TraitType.OWNABLE,),
-)
-class Resource(Entity):
-    """
-    A Resource represents an external asset outside of Destack.
-    The lifecycle of a Resource may be managed by some Provisioner (Service).
-    """
-
-    region: Optional["Region"] = builtin_property(111)
-
-
-@builtin_entity(
-    NodeType.VARIANT,
-    is_abstract=True,
-    traits=(TraitType.OWNABLE,),
-)
-class Variant(Entity):
-    """A Variant is an alternative version of an Entity."""
-
-    icon: "Icon | None" = builtin_property(102)
-
-
-@builtin_entity(
-    NodeType.TAG,
-    traits=(TraitType.ORDERED,),
-)
-class Tag(Entity):
-    """A Tag to tag an Entity with (in a Tagging)."""
-
-    icon: "Icon | None" = builtin_property(102)
-
-
-@builtin_entity(
-    NodeType.TAGGING,
-    traits=(TraitType.ORDERED,),
-    is_final=True,
-)
-@final
-class Tagging(Entity):
-    """A Tagging of a Node by a Tag."""
-
-    tag: Tag = builtin_property(110)
-    if TYPE_CHECKING:
-        tag_ptr: NodeReference = UNSET
 
 
 @builtin_entity(

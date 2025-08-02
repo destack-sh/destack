@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Optional
 
-from ..builtin import (
+from destack.language.core import (
     Entity,
     MethodType,
     NodeType,
-    PlatformType,
     RuntimeLanguage,
+    RuntimePlatform,
     builtin_entity,
     builtin_property,
 )
@@ -22,7 +22,7 @@ class Function(Entity):
     type: MethodType = builtin_property(100)
     text: Optional["Text"] = builtin_property(104)
 
-    platforms: list[PlatformType] | None = builtin_property(
+    platforms: list[RuntimePlatform] | None = builtin_property(
         130,
         description="The platforms this Function is available on (all if empty).",
     )

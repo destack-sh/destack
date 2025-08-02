@@ -17,17 +17,17 @@ from .scaffold import *  # noqa: F403
 SECRET = script.field("secret_key", 1, str)
 
 # ===============================================
-# ZurichAI/MeetupMembership [Entity]
+# ZurichAI/MeetupMembership
 # ===============================================
 
 
 @entity
-class MeetupMembership(Membership):
+class MeetupMembership(Entity):
     pass
 
 
 # ===============================================
-# ZurichAI/MeetupSeries [Entity]
+# ZurichAI/MeetupSeries
 # ===============================================
 
 
@@ -37,7 +37,7 @@ class MeetupSeries(Entity):
 
 
 # ===============================================
-# ZurichAI/Meetup [Record]
+# ZurichAI/Meetup
 # ===============================================
 
 
@@ -89,12 +89,12 @@ class MeetupEnded(Event):
 
 
 # ===============================================
-# ZurichAI/EmailSender [Service]
+# ZurichAI/EmailSender
 # ===============================================
 
 
 @entity
-class EmailSender(Service):
+class EmailSender(Entity):
     announcement_template: EmailTemplate
     reminder_template: EmailTemplate
 
@@ -156,7 +156,7 @@ class EmailSender(Service):
 
 
 # ===============================================
-# ZurichAI/MeetupResponse [Entity]
+# ZurichAI/MeetupResponse
 # ===============================================
 
 

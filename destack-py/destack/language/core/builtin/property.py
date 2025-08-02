@@ -121,7 +121,7 @@ class TypeDeclaration:
         if self._type is not None:
             return self._type
 
-        from .type import Type
+        from ..common.type import Type
 
         # type
         type = Type(
@@ -223,7 +223,7 @@ class PropertyDeclaration:
         """A pointer to this Property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            from .relation import PropertyReference, PropertyReferenceType
+            from ..common.relation import PropertyReference, PropertyReferenceType
 
             assert self.component is not None, f"{self!r} has no component"
             assert self.id is not None, f"{self!r} has no id"
@@ -252,7 +252,7 @@ class PropertyDeclaration:
     @property
     def definition(self) -> "PropertyDefinition":
         if self._definition is None:
-            from .definition import PropertyDefinition
+            from ..common.definition import PropertyDefinition
 
             self._definition = PropertyDefinition.from_declaration(self)
         return self._definition

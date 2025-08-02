@@ -9,8 +9,8 @@ from destack.language.core import (
     Message,
     NodeReference,
     NodeType,
-    PlatformType,
     Region,
+    RuntimePlatform,
     StructType,
     builtin_action,
     builtin_constant,
@@ -179,12 +179,12 @@ class Universe(Entity):
         ),
     )
 
-    @builtin_action(100, platforms=(PlatformType.SYSTEM,))
+    @builtin_action(100, platforms=(RuntimePlatform.SYSTEM,))
     async def signup(self, request: "UniverseSignupRequest") -> "UniverseSignupResponse":
         """Sign up a new user."""
         ...
 
-    @builtin_action(101, platforms=(PlatformType.SYSTEM,))
+    @builtin_action(101, platforms=(RuntimePlatform.SYSTEM,))
     async def spawn(self, request: "UniverseSpawnRequest") -> "UniverseSpawnResponse":
         """Create a new Space with a root Branch, meta Snapshot and head Snapshot."""
         ...

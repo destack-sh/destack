@@ -19,9 +19,9 @@ from ..builtin import (
     HandleType,
     Int128,
     PropertyDeclaration,
-    Value,
     builtin_handle,
 )
+from ..common.value import Value
 from .graph import Graph
 
 if TYPE_CHECKING:

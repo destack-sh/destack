@@ -5,11 +5,12 @@ from typing import (
 )
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     Float32,
     NodeType,
-    Resource,
+    TraitType,
     UInt32,
     UInt64,
     builtin_entity,
@@ -53,8 +54,8 @@ class FileType(Enum):
     GENERIC = 99, None, None, "fas fa-file"
 
 
-@builtin_entity(NodeType.FILE)
-class File(Resource):
+@builtin_entity(NodeType.FILE, traits=(TraitType.RESOURCE,))
+class File(Entity):
     """
     A File stored somewhere.
     """
