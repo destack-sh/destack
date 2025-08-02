@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from destack.language.core import (
+from ..builtin import (
     Enum,
     EnumType,
     StructFrozen,

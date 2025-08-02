@@ -3,7 +3,7 @@ import textwrap
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Optional, assert_never
 
-from destack.language.core import (
+from ..builtin import (
     Enum,
     EnumType,
     Node,

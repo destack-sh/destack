@@ -37,6 +37,7 @@ class Context(Handle):
     #   - custom stuff
     #   - randomness, time, region/geolocation, ...
     #   - mode
+    #   - theme
 
     actor: "Entity" = builtin_property_runtime(401, is_repr=True)
     client: "Client" = builtin_property_runtime(402, is_repr=True)

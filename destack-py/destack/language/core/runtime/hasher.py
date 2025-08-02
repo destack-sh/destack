@@ -21,7 +21,6 @@ from destack.language.core import (
     UInt32,
     UInt64,
     UInt128,
-    Universe,
     builtin_handle,
     builtin_method,
     builtin_property_runtime,
@@ -240,10 +239,8 @@ class Hasher(Handle):
         Hash a datetime as zigzag-encoded varint of microseconds since epoch.
         Range: 0001-01-01 00:00:00 to 9999-12-31 23:59:59.999999 UTC.
         """
-        # ensure UTC timezone
         if value.tzinfo is None:
             value = value.replace(tzinfo=UTC)
-        # calculate microseconds manually to support full date range
         days = (value.date() - Universe.BEGINNING_OF_DATETIME.date()).days
         time_micros = (
             value.hour * 3_600_000_000

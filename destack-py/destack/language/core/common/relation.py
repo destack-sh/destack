@@ -92,7 +92,7 @@ class ObjectDefinitionReference(StructFrozen):
             "CustomStructDefinition",
         ],
     ) -> "ObjectDefinitionReference":
-        from ...data.custom import CustomEventDefinition, CustomStructDefinition
+        from ...entity.custom import CustomEventDefinition, CustomStructDefinition
         from ..builtin.handle import Handle
         from ..builtin.node import Node
 

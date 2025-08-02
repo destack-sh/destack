@@ -45,7 +45,7 @@ class RuntimeLanguage(Enum):
     """The language of the Runtime."""
 
     PYTHON = 1
-    JAVASCRIPT = 2
+    TYPESCRIPT = 2
     RUST = 3
 
 
@@ -67,13 +67,13 @@ class RuntimeType(Enum):
     """The specific Runtime (RuntimeLanguage x RuntimePlatform)."""
 
     CORE_PYTHON = 101, "destack-py", "Destack Python SDK"
-    CORE_JAVASCRIPT = 102, "destack-ts", "Destack TypeScript SDK"
+    CORE_TYPESCRIPT = 102, "destack-ts", "Destack TypeScript SDK"
     CORE_RUST = 103, "destack-rs", "Destack Rust SDK"
-    SYSTEM_JAVASCRIPT = 202, "destack-ts-system", "Destack TypeScript system Runtime (internal)"
+    SYSTEM_TYPESCRIPT = 202, "destack-ts-system", "Destack TypeScript system Runtime (internal)"
     SYSTEM_RUST = 203, "destack-rs-system", "Destack Rust system Runtime (internal)"
     SERVER_PYTHON = 301, "destack-py-server", "Destack Python server Runtime"
-    SERVER_JAVASCRIPT = 302, "destack-ts-server", "Destack TypeScript server Runtime"
-    WEB_JAVASCRIPT = 402, "destack-ts-web", "Destack TypeScript web Runtime"
+    SERVER_TYPESCRIPT = 302, "destack-ts-server", "Destack TypeScript server Runtime"
+    WEB_TYPESCRIPT = 402, "destack-ts-web", "Destack TypeScript web Runtime"
 
 
 @builtin_enum(EnumType.ENVIRONMENT_TYPE)
@@ -217,7 +217,7 @@ class TypeCardinality(Enum):
     SCALAR = 1, "Scalar", "Single value"
     LIST = 2, "List", "Dynamic sequence of homogeneous values"
     TUPLE = 3, "Tuple", "Fixed sequence of heterogeneous values"
-    # ARRAY/MATRIX/NDARRAY?
+    # ARRAY/NDARRAY, "Array", "Dense multi-dimensional array of homogeneous values"
     # SET? = 5, "Set", "Set of unique values (dynamic length)"
     MAP = 7, "Map", "Mapping of homogenous keys to homogeneous values"
 
