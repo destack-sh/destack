@@ -8,8 +8,8 @@ from destack.language.core import (
     Entity,
     NodeReference,
     NodeType,
-    PlatformType,
     Region,
+    RuntimePlatform,
     TraitType,
     ValueFactory,
     builtin_action,
@@ -66,7 +66,7 @@ class Space(Entity):
     @builtin_action(
         101,
         type=ActionType.UNARY_IN_UNARY_OUT,
-        platforms=(PlatformType.SYSTEM,),
+        platforms=(RuntimePlatform.SYSTEM,),
     )
     async def append(
         self,
@@ -78,7 +78,7 @@ class Space(Entity):
     @builtin_action(
         102,
         type=ActionType.UNARY_IN_STREAM_OUT,
-        platforms=(PlatformType.SYSTEM,),
+        platforms=(RuntimePlatform.SYSTEM,),
     )
     async def watch(
         self,

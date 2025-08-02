@@ -18,9 +18,7 @@ if TYPE_CHECKING:
 
 @builtin_entity(NodeType.CLIENT, is_final=True)
 @final
-class Client(
-    Entity,
-):
+class Client(Entity):
     """A Client to connect with the system."""
 
     # meta

@@ -1,9 +1,14 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from destack.language.core import (
+    Handle,
+    HandleType,
+    NodeReference,
+    builtin_handle,
+    builtin_property_runtime,
+)
 from destack.utils.uuid import UUID
-
-from ..builtin import Handle, HandleType, NodeReference, builtin_handle, builtin_property_runtime
 
 if TYPE_CHECKING:
     from destack.language import Event

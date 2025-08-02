@@ -1,6 +1,12 @@
 from typing import TYPE_CHECKING
 
-from ..builtin import Handle, HandleType, NodeReference, builtin_handle, builtin_property_runtime
+from destack.language.core import (
+    Handle,
+    HandleType,
+    NodeReference,
+    builtin_handle,
+    builtin_property_runtime,
+)
 
 if TYPE_CHECKING:
     pass

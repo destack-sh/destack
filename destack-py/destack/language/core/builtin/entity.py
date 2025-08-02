@@ -14,6 +14,7 @@ from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import INTEGER_ZERO, get_order_key
 from destack.utils.uuid import UUID
 
+from ..common.relation import NodeReference
 from .builtin import EnumType, NodeType, ObjectKind, StructType, TraitType
 from .common import UInt128, ValueFactory
 from .const import UNSET
@@ -32,7 +33,6 @@ from .property import (
     builtin_property,
     builtin_property_parent,
 )
-from .relation import NodeReference
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -355,6 +355,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # is_trait? is_abstract?
     # is_locked/is_final?
     # is_singleton?
+    # is_sleeping? (like in physics engines but more general)
 
     # 80-100: provenance
     source: Optional["Script"] = builtin_property(

@@ -12,7 +12,7 @@ from destack.language import (
     TypeCardinality,
     TypeDeclaration,
 )
-from destack.language.core.builtin.type import Type
+from destack.language.core.common.type import Type
 from destack.language.registry import ENUM_CLASS_BY_TYPE
 
 if TYPE_CHECKING:

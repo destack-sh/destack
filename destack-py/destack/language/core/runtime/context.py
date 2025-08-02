@@ -5,9 +5,7 @@ from datetime import UTC, datetime
 from random import Random
 from typing import TYPE_CHECKING, final
 
-from destack.utils.uuid import UUID
-
-from ..builtin import (
+from destack.language.core import (
     Entity,
     Handle,
     HandleType,
@@ -15,6 +13,7 @@ from ..builtin import (
     builtin_handle,
     builtin_property_runtime,
 )
+from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Client
@@ -36,7 +35,7 @@ class Context(Handle):
     #   - actor/client/client_nonce
     #   - snapshot_ptr/branch_ptr
     #   - custom stuff
-    #   - randomness, time, region
+    #   - randomness, time, region/geolocation, ...
     #   - mode
 
     actor: "Entity" = builtin_property_runtime(401, is_repr=True)

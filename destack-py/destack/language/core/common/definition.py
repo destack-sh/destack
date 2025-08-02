@@ -3,22 +3,29 @@ from typing import TYPE_CHECKING, Any, Self, assert_never, cast, final, override
 
 from destack.language.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
 
-from .builtin import HandleType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
-from .common import (
+from ..builtin.builtin import (
+    HandleType,
+    NodeType,
+    ObjectKind,
+    ObjectStability,
+    StructType,
+    TraitType,
+)
+from ..builtin.common import (
     ActionType,
     CascadeAction,
     EdgeType,
     Enum,
     EnumType,
     MethodType,
-    PlatformType,
     RuntimeLanguage,
+    RuntimePlatform,
     UInt8,
     UInt16,
     UInt32,
     ValueFactory,
 )
-from .declaration import (
+from ..builtin.declaration import (
     ActionDeclaration,
     ConstraintDeclaration,
     HandleDeclaration,
@@ -30,10 +37,10 @@ from .declaration import (
     TagDeclaration,
     builtin_method,
 )
-from .object import Object
-from .property import PropertyDeclaration, builtin_property, builtin_property_runtime
+from ..builtin.object import Object
+from ..builtin.property import PropertyDeclaration, builtin_property, builtin_property_runtime
+from ..builtin.struct import Struct, StructFrozen, builtin_struct
 from .relation import ObjectDefinitionReference, PropertyReference, PropertyReferenceType
-from .struct import Struct, StructFrozen, builtin_struct
 from .type import Type
 from .value import Value
 
@@ -61,8 +68,8 @@ def resolve_tagging(
     object_cls: type_["Node | Struct"], tagging: str
 ) -> "TagDefinition | TagDeclaration":
     """Resolve a tagging to a definition."""
-    from .node import Node
-    from .struct import Struct
+    from ..builtin.node import Node
+    from ..builtin.struct import Struct
 
     for tag in object_cls.__declaration__.tags:
         if tag.name == tagging:
@@ -340,7 +347,7 @@ class NodeDefinition(ObjectDefinition):
         cls, node_cls: type_["Node"], declaration: NodeDeclaration
     ) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
-        from ..common import to_icon
+        from destack.language import to_icon
 
         return cls(
             id=node_cls.metatype.value,
@@ -503,7 +510,7 @@ class StructDefinition(ObjectDefinition):
         cls, struct_cls: type_[Struct], declaration: StructDeclaration
     ) -> "StructDefinition":
         """Create StructDefinition from a Struct class."""
-        from ..common import to_icon
+        from destack.language import to_icon
 
         return cls(
             id=struct_cls.metatype.value,
@@ -643,7 +650,7 @@ class HandleDefinition(ObjectDefinition):
         cls, handle_cls: type_["Handle"], declaration: HandleDeclaration
     ) -> "HandleDefinition":
         """Create HandleDefinition from a Handle class."""
-        from ..common import to_icon
+        from destack.language import to_icon
 
         return cls(
             id=handle_cls.metatype.value,
@@ -699,7 +706,7 @@ class EnumDefinition(StructFrozen):
     @classmethod
     def from_declaration(cls, enum_type: EnumType, enum_cls: type_[Enum]) -> "EnumDefinition":
         """Create EnumDefinition from an Enum class."""
-        from ..common import to_icon
+        from destack.language import to_icon
 
         return cls(
             id=enum_type.value,
@@ -772,8 +779,8 @@ Whether this Property is part of the object's identity.
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
-        from .node import Node
-        from .struct import Struct
+        from ..builtin.node import Node
+        from ..builtin.struct import Struct
 
         type = prop.type.to_type()
         object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
@@ -835,7 +842,7 @@ Whether this Property is part of the object's identity.
     @builtin_method(110)
     def eq(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is equal to a value."""
-        from ..common import Condition
+        from . import Condition
 
         if value is None:
             return self.not_exists()
@@ -844,7 +851,7 @@ Whether this Property is part of the object's identity.
     @builtin_method(111)
     def neq(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is not equal to a value."""
-        from ..common import Condition
+        from . import Condition
 
         if value is None:
             return self.exists()
@@ -853,98 +860,98 @@ Whether this Property is part of the object's identity.
     @builtin_method(112)
     def gt(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is greater than a value."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
 
     @builtin_method(113)
     def gte(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is greater than or equal to a value."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
     @builtin_method(114)
     def lt(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is less than a value."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN, value=value)
 
     @builtin_method(115)
     def lte(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is less than or equal to a value."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
     @builtin_method(116)
     def starts_with(self, value: str) -> "Condition":
         """Create a Condition that checks if this Property starts with a value."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
 
     @builtin_method(117)
     def ends_with(self, value: str) -> "Condition":
         """Create a Condition that checks if this Property ends with a value."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
 
     @builtin_method(118)
     def in_(self, *values: Any) -> "Condition":
         """Create a Condition that checks if this Property is in a list of values."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.IN, value=values)
 
     @builtin_method(119)
     def not_in(self, *values: Any) -> "Condition":
         """Create a Condition that checks if this Property is not in a list of values."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.NOT_IN, value=values)
 
     @builtin_method(120)
     def exists(self) -> "Condition":
         """Create a Condition that checks if this Property exists."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
     @builtin_method(121)
     def is_not_none(self) -> "Condition":
         """Create a Condition that checks if this Property is not None."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
     @builtin_method(122)
     def not_exists(self) -> "Condition":
         """Create a Condition that checks if this Property does not exist."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     @builtin_method(123)
     def is_none(self) -> "Condition":
         """Create a Condition that checks if this Property is None."""
-        from ..common import Condition
+        from . import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     @builtin_method(124)
     def asc(self) -> "Sort":
         """Create a Sort that sorts this Property in ascending order."""
-        from ..common import Sort
+        from . import Sort
 
         return Sort.of(self, SortType.ASCENDING)
 
     @builtin_method(125)
     def desc(self) -> "Sort":
         """Create a Sort that sorts this Property in descending order."""
-        from ..common import Sort
+        from . import Sort
 
         return Sort.of(self, SortType.DESCENDING)
 
@@ -968,7 +975,7 @@ class OptionDefinition(StructFrozen):
     @classmethod
     def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
         """Create OptionDefinition from an Enum option."""
-        from ..common import to_icon
+        from destack.language import to_icon
 
         return cls(
             id=option.value,
@@ -1132,7 +1139,7 @@ class FunctionDefinition(StructFrozen):
     is_abstract: bool = builtin_property(111)
 
     # availability
-    platforms: list[PlatformType] | None = builtin_property(
+    platforms: list[RuntimePlatform] | None = builtin_property(
         130,
         description="The platforms this Method is available on (all if empty).",
     )

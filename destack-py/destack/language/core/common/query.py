@@ -6,14 +6,11 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
-    ObjectDefinitionReference,
     PropertyDeclaration,
-    PropertyReference,
     StructFrozen,
     StructType,
     TypeCardinality,
     UInt32,
-    Value,
     ValueFactory,
     builtin_enum,
     builtin_property,
@@ -23,7 +20,10 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack.language import (
         CustomPropertyDefinition,
+        ObjectDefinitionReference,
         PropertyDefinition,
+        PropertyReference,
+        Value,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -94,6 +94,7 @@ class Condition(StructFrozen):
         value: Any = None,
     ) -> "Condition":
         from ..builtin import PropertyDeclaration
+        from .value import Value
 
         left = Expression.of(attribute)
         if value is not None:
@@ -175,6 +176,8 @@ class Expression(StructFrozen):
     @classmethod
     def of(cls, thing: "ExpressionIn") -> "Expression":
         from destack.language.core import PropertyDeclaration, PropertyDefinition
+
+        from .value import Value
 
         if isinstance(thing, Value):
             return Expression(type=ExpressionType.LITERAL, literal=thing)

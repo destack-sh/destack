@@ -1,6 +1,7 @@
 from typing import final
 
-from ..builtin import NodeType, builtin_entity
+from destack.language.core import NodeType, builtin_entity
+
 from .function import Function
 
 # pyright: reportIncompatibleVariableOverride=false

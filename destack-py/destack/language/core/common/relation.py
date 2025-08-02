@@ -10,12 +10,12 @@ from typing import (
 from destack.language.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.uuid import UUID
 
-from .builtin import EnumType, HandleType, NodeType, ObjectKind, StructType
-from .common import UInt8
-from .enum import Enum, builtin_enum
-from .object import Object
-from .property import PropertyDeclaration, builtin_property
-from .struct import Struct, StructFrozen, builtin_struct
+from ..builtin.builtin import EnumType, HandleType, NodeType, ObjectKind, StructType
+from ..builtin.common import UInt8
+from ..builtin.enum import Enum, builtin_enum
+from ..builtin.object import Object
+from ..builtin.property import PropertyDeclaration, builtin_property
+from ..builtin.struct import Struct, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -92,9 +92,9 @@ class ObjectDefinitionReference(StructFrozen):
             "CustomStructDefinition",
         ],
     ) -> "ObjectDefinitionReference":
-        from ..common.custom import CustomEventDefinition, CustomStructDefinition
-        from .handle import Handle
-        from .node import Node
+        from ...data.custom import CustomEventDefinition, CustomStructDefinition
+        from ..builtin.handle import Handle
+        from ..builtin.node import Node
 
         if isinstance(definition, NodeType):
             return ObjectDefinitionReference(kind=ObjectKind.NODE, node_type=definition)
@@ -195,7 +195,7 @@ class PropertyReference(StructFrozen):
     def of(
         base: "PropertyDeclaration | PropertyDefinition | CustomPropertyDefinition",
     ) -> "PropertyReference":
-        from destack.language.core import CustomPropertyDefinition
+        from destack.language import CustomPropertyDefinition
 
         if isinstance(base, PropertyDeclaration):
             return base.to_ref()

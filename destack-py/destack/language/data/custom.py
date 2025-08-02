@@ -1,13 +1,17 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, final
 
-from ..builtin import (
+from destack.language.core import (
     CascadeAction,
+    Condition,
+    ConditionalType,
     EdgeType,
     Entity,
     Event,
     Message,
     NodeReference,
     NodeType,
+    Sort,
+    SortType,
     Struct,
     StructType,
     Type,
@@ -19,7 +23,6 @@ from ..builtin import (
     builtin_property_parent,
     builtin_struct,
 )
-from .query import Condition, ConditionalType, Sort, SortType
 
 if TYPE_CHECKING:
     from destack.language import Condition, Icon, Value

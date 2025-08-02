@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Entity2D,
     Event,
     Float32,
     NodeType,
@@ -9,6 +8,7 @@ from destack.language.core import (
     builtin_event,
     builtin_property,
 )
+from destack.language.geometry import Entity2D
 
 if TYPE_CHECKING:
     from destack.language import (

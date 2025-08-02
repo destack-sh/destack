@@ -3,8 +3,10 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, dataclass_transform
 
+from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.uuid import UUID
 
+from ..common.relation import NodeReference
 from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT, UNSET
 from .declaration import TagDeclaration, builtin_method
@@ -12,7 +14,6 @@ from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, builtin_property
-from .relation import NodeReference
 from .types import UInt128
 
 if TYPE_CHECKING:
@@ -82,10 +83,11 @@ def builtin_event(
             enum_types=enum_types,
             message_types=message_types,
         )
-        assert event_type.name.endswith("EVENT"), f"Event {cls.__name__} must end with 'EVENT'"
-        assert event_type == NodeType.EVENT or NodeType.EVENT in cls.__declaration__.inherits, (
-            f"Event {cls.__name__} must inherit from Event"
-        )
+        if IS_DEV or IS_TEST:
+            assert event_type.name.endswith("EVENT"), f"Event {cls.__name__} must end with 'EVENT'"
+            assert event_type == NodeType.EVENT or NodeType.EVENT in cls.__declaration__.inherits, (
+                f"Event {cls.__name__} must inherit from Event"
+            )
         return cls
 
     return decorate

@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    CustomEventDefinition,
     Entity,
     Enum,
     EnumType,
@@ -16,7 +15,7 @@ from destack.language.core import (
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
-    from destack.language import Action, Condition, Icon, Service
+    from destack.language import Condition, Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,12 +39,12 @@ class Trigger(Entity):
     icon: "Icon | None" = builtin_property(102)
 
     # when
-    event: Optional[CustomEventDefinition] = builtin_property(110)
+    event: Optional[NodeType] = builtin_property(110)
     where: Optional["Condition"] = builtin_property(111)
     # sampling?
     # is_passive/scope/process_mode/liveness?
     #  (only trigger if containing View? is active, no backfill)
 
     # what
-    target: Union["Action", "Service", None] = builtin_property(120)
+    target: Union["Entity", None] = builtin_property(120)
     arguments: dict[UUID, Value] = builtin_property(121)

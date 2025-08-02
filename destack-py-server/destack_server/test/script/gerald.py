@@ -44,8 +44,8 @@ def normalize_column_name(col: str) -> str:
     return col.strip("_")
 
 
-@service
-class DataAnalyzer(Service):
+@entity
+class DataAnalyzer(Entity):
     pass
 
     @action
@@ -259,8 +259,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
-@service
-class DataFetcher(Service):
+@entity
+class DataFetcher(Entity):
     user_agent: str = script.field("user_agent", 1, str)
 
     def create_optimized_session(self) -> requests.Session:
@@ -438,8 +438,8 @@ class Config:
     WATCHLIST_SIZE = 5
 
 
-@service
-class ReportGenerator(Service):
+@entity
+class ReportGenerator(Entity):
     """Hauptklasse für die Report-Generierung"""
 
     def find_latest_excel_file(self) -> Optional[Path]:

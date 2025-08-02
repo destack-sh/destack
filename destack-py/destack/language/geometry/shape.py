@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Entity2D,
-    Entity3D,
     NodeType,
     StructFrozen,
     StructType,
@@ -10,6 +8,8 @@ from destack.language.core import (
     builtin_property,
     builtin_struct,
 )
+
+from .entity import Entity2D, Entity3D
 
 if TYPE_CHECKING:
     from destack.language import Stroke
