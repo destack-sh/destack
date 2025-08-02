@@ -1,6 +1,5 @@
 import base64
 import inspect
-import json
 import textwrap
 from collections.abc import Mapping
 from enum import Enum
@@ -19,13 +18,11 @@ from destack.utils.code import exec_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import get_superclasses
-from destack.utils.hash import hash_bool, hash_bytes, hash_float, hash_int, hash_string
 from destack.utils.string import Casing, to_casing
 from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 
 from .builtin import NodeType, ObjectKind, ObjectStability, StructType
 from .common import (
-    EdgeType,
     Encoding,
     EnumType,
     PrimitiveType,
@@ -59,9 +56,10 @@ from .property import (
     TypeDeclaration,
     builtin_property_runtime,
 )
+from .types import Int64
 
 if TYPE_CHECKING:
-    from destack.language import BinaryReader, BinaryWriter, EncoderOptions, Node, Session
+    from destack.language import BinaryReader, BinaryWriter, EncoderOptions, Hasher, Node, Session
 
 # ruff: noqa: SIM114, FURB113
 # pyright: reportIncompatibleVariableOverride=false
@@ -83,6 +81,11 @@ _processed_classes: dict[type["Object"], type["Object"]] = {}
 
 class ObjectGenerator:
     """Generate code for an Object class."""
+
+    __slots__ = ("check_required",)
+
+    def __init__(self, *, check_required: bool) -> None:
+        self.check_required = check_required
 
     #
     # Init
@@ -110,6 +113,7 @@ class ObjectGenerator:
             if not p.is_static
             and p.default_value is UNSET
             and p.default_factory is None
+            and p.default_factory_callable is None
             and not p.is_internal
             and p.type.cardinality == TypeCardinality.SCALAR
             and p.type.scalar_type
@@ -296,8 +300,13 @@ if {arg_name} is not None:
     {self_name} = {arg_name}.to_ref()""")
 
             # init default factory
-            if prop.default_factory is not None:
-                default_factory_str = self.generate_prop_default_factory(
+            if prop.default_factory_callable is not None:
+                extra_glbls[f"_{prop.name}_default"] = prop.default_factory_callable
+                method_body_lines.append(f"""\
+if {self_name} is None:
+    {self_name} = _{prop.name}_default()""")
+            elif prop.default_factory is not None:
+                default_factory_str = self.generate_prop_default(
                     cls, declaration, prop, target_expr=self_name
                 )
                 method_body_lines.append(f"""\
@@ -305,15 +314,14 @@ if {self_name} is None:
 {textwrap.indent(default_factory_str, " " * 4)}
 """)
 
-            # check if node is passed if required and scalar
-            if prop.type.is_required and prop.type.cardinality == TypeCardinality.SCALAR:
-                method_body_lines.append(f"""\
+            # check/init required properties
+            if prop.type.is_required:
+                if prop.type.cardinality == TypeCardinality.SCALAR:
+                    if self.check_required:
+                        method_body_lines.append(f"""\
 if {self_name} is None:
     raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
-
-            # init list/map if unset and required
-            if prop.type.is_required:
-                if prop.type.cardinality == TypeCardinality.LIST:
+                elif prop.type.cardinality == TypeCardinality.LIST:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = {"[]" if not declaration.is_frozen else "EMPTY_LIST"}""")
@@ -333,7 +341,7 @@ if {arg_name} is None:
         init_str = f"{method_header}:\n{method_body or 'pass'}"
         return init_str, extra_glbls
 
-    def generate_prop_default_factory(
+    def generate_prop_default(
         self,
         cls: type["Object"],
         object: ObjectDeclaration,
@@ -947,66 +955,65 @@ if {self_source_expr} != {other_source_expr}:
             for prop in cls.__properties__.values()
             if prop.is_hash and not prop.is_runtime_only
         ]
-        hash_parts: list[str] = ["h = 1"]
-        for i, prop in enumerate(hash_properties):
+        hash_parts: list[str] = []
+        for prop in hash_properties:
             prop_name = prop.name
             if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
                 prop_name = f"{prop_name}_ptr"
             source_expr = f"self.{prop_name}"
-            prop_hash_impl = self.generate_hash_value(prop.type, f"_{i}", source_expr, "h")
+            prop_hash_impl = self.generate_hash_value(
+                prop.type, f"_{prop_name}", source_expr, "_hasher"
+            )
             hash_parts.append(prop_hash_impl)
         hash_parts_str = "\n".join(hash_parts)
 
-        if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
+        if cls.__declaration__.is_frozen and cls.__declaration__.kind == ObjectKind.STRUCT:
             hash_impl = f"""\
-def hash(self) -> int:
-    if self._hash is not None:
+def hash(self, _hasher: "Hasher | None" = None) -> Int64:
+    if self._hash is not None and _hasher is None:
         return self._hash
+    if _hasher is None:
+        from destack.language.core.runtime import Hasher
+        _hasher = Hasher()
 {textwrap.indent(hash_parts_str, " " * 4)}
-    self._hash = h
-    return h
+    self._hash = _hasher.digest()
+    return self._hash
 """
         else:
             hash_impl = f"""\
-def hash(self) -> int:
+def hash(self, _hasher: "Hasher | None" = None) -> Int64:
+    if _hasher is None:
+        from destack.language.core.runtime import Hasher
+        _hasher = Hasher()
 {textwrap.indent(hash_parts_str, " " * 4)}
-    return h
+    return _hasher.digest()
 """
-        return hash_impl, {
-            "hash_string": hash_string,
-            "hash_bytes": hash_bytes,
-            "hash_int": hash_int,
-            "hash_float": hash_float,
-            "hash_bool": hash_bool,
-            "json": json,
-        }
+        return hash_impl, {"Int64": Int64}
 
     def generate_hash_value(
-        self, type: TypeDeclaration, key: str, source_expr: str, target_expr: str
+        self, type: TypeDeclaration, key: str, source_expr: str, hasher_expr: str
     ) -> str:
         """Generate hash code for a value of the given type."""
-        scalar_hash_template = (
-            f"{target_expr} = (({target_expr} * 31) + {{value_expr}}) & 0xFFFFFFFF"
-        )
-
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             if type.is_required:
-                scalar_hash_str = self.generate_hash_scalar_value(type, source_expr)
-                return scalar_hash_template.format(value_expr=scalar_hash_str)
+                scalar_hash_str = self.generate_hash_scalar_value(type, source_expr, hasher_expr)
+                return scalar_hash_str
             else:
                 scalar_source_expr = f"{key}_value"
-                scalar_hash_str = self.generate_hash_scalar_value(type, scalar_source_expr)
+                scalar_hash_str = self.generate_hash_scalar_value(
+                    type, scalar_source_expr, hasher_expr
+                )
                 return f"""\
 if ({scalar_source_expr} := {source_expr}) is not None:
-    {scalar_hash_template.format(value_expr=scalar_hash_str)}"""
+    {scalar_hash_str}"""
 
         # list
         elif type.cardinality == TypeCardinality.LIST:
             assert type.value_type is not None, f"no value type for {type!r}"
             item_source_expr = f"{key}_item"
             value_hash_str = self.generate_hash_value(
-                type.value_type, f"{key}_value", item_source_expr, target_expr
+                type.value_type, f"{key}_value", item_source_expr, hasher_expr
             )
             if type.is_required:
                 return f"""\
@@ -1025,7 +1032,7 @@ if ({list_source_expr} := {source_expr}):
             tuple_parts: list[str] = []
             for i, element_type in enumerate(type.element_types):
                 element_hash = self.generate_hash_value(
-                    element_type, f"{key}_element_{i}", f"{source_expr}[{i}]", target_expr
+                    element_type, f"{key}_element_{i}", f"{source_expr}[{i}]", hasher_expr
                 )
                 tuple_parts.append(element_hash)
             return "\n".join(tuple_parts)
@@ -1037,10 +1044,10 @@ if ({list_source_expr} := {source_expr}):
             key_source_expr = f"{key}_key"
             value_source_expr = f"{key}_value"
             key_hash_str = self.generate_hash_value(
-                type.key_type, f"{key}_key", key_source_expr, target_expr
+                type.key_type, f"{key}_key", key_source_expr, hasher_expr
             )
             value_hash_str = self.generate_hash_value(
-                type.value_type, f"{key}_value", value_source_expr, target_expr
+                type.value_type, f"{key}_value", value_source_expr, hasher_expr
             )
             if type.is_required:
                 return f"""\
@@ -1058,65 +1065,74 @@ if ({map_source_expr} := {source_expr}):
         else:
             assert_never(type.cardinality)
 
-    def generate_hash_scalar_value(self, type: TypeDeclaration, source_expr: str) -> str:
+    def generate_hash_scalar_value(
+        self, type: TypeDeclaration, source_expr: str, hasher_expr: str
+    ) -> str:
         """Generate hash expression for a scalar value."""
         assert type.scalar_type is not None, f"no scalar type for {type!r}"
         # primitive
         if type.scalar_type == ScalarType.PRIMITIVE:
             assert type.primitive_type is not None, f"no primitive type for {type!r}"
             if type.primitive_type == PrimitiveType.NONE:
-                return "1"
+                return f"{hasher_expr}.hash_none()"
             elif type.primitive_type == PrimitiveType.BOOLEAN:
-                return f"hash_bool({source_expr})"
-            elif type.primitive_type in (
-                PrimitiveType.INT8,
-                PrimitiveType.INT16,
-                PrimitiveType.INT32,
-                PrimitiveType.INT64,
-                PrimitiveType.INT128,
-                PrimitiveType.UINT8,
-                PrimitiveType.UINT16,
-                PrimitiveType.UINT32,
-                PrimitiveType.UINT64,
-                PrimitiveType.UINT128,
-            ):
-                return f"hash_int({source_expr})"
-            elif type.primitive_type in (
-                PrimitiveType.FLOAT16,
-                PrimitiveType.FLOAT32,
-                PrimitiveType.FLOAT64,
-            ):
-                return f"hash_float({source_expr})"
-            elif type.primitive_type in (
-                PrimitiveType.DATETIME,
-                PrimitiveType.DATE,
-                PrimitiveType.TIME,
-            ):
-                return f"hash_string({source_expr}.isoformat())"
+                return f"{hasher_expr}.hash_bool({source_expr})"
+            elif type.primitive_type == PrimitiveType.INT8:
+                return f"{hasher_expr}.hash_int8({source_expr})"
+            elif type.primitive_type == PrimitiveType.INT16:
+                return f"{hasher_expr}.hash_int16({source_expr})"
+            elif type.primitive_type == PrimitiveType.INT32:
+                return f"{hasher_expr}.hash_int32({source_expr})"
+            elif type.primitive_type == PrimitiveType.INT64:
+                return f"{hasher_expr}.hash_int64({source_expr})"
+            elif type.primitive_type == PrimitiveType.INT128:
+                return f"{hasher_expr}.hash_int128({source_expr})"
+            elif type.primitive_type == PrimitiveType.UINT8:
+                return f"{hasher_expr}.hash_uint8({source_expr})"
+            elif type.primitive_type == PrimitiveType.UINT16:
+                return f"{hasher_expr}.hash_uint16({source_expr})"
+            elif type.primitive_type == PrimitiveType.UINT32:
+                return f"{hasher_expr}.hash_uint32({source_expr})"
+            elif type.primitive_type == PrimitiveType.UINT64:
+                return f"{hasher_expr}.hash_uint64({source_expr})"
+            elif type.primitive_type == PrimitiveType.UINT128:
+                return f"{hasher_expr}.hash_uint128({source_expr})"
+            elif type.primitive_type == PrimitiveType.FLOAT16:
+                return f"{hasher_expr}.hash_float16({source_expr})"
+            elif type.primitive_type == PrimitiveType.FLOAT32:
+                return f"{hasher_expr}.hash_float32({source_expr})"
+            elif type.primitive_type == PrimitiveType.FLOAT64:
+                return f"{hasher_expr}.hash_float64({source_expr})"
+            elif type.primitive_type == PrimitiveType.DATETIME:
+                return f"{hasher_expr}.hash_datetime({source_expr})"
+            elif type.primitive_type == PrimitiveType.DATE:
+                return f"{hasher_expr}.hash_date({source_expr})"
+            elif type.primitive_type == PrimitiveType.TIME:
+                return f"{hasher_expr}.hash_time({source_expr})"
             elif type.primitive_type == PrimitiveType.DURATION:
-                return f"hash_float({source_expr}.total_seconds())"
+                return f"{hasher_expr}.hash_duration({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
-                return f"hash_string({source_expr})"
+                return f"{hasher_expr}.hash_string({source_expr})"
             elif type.primitive_type == PrimitiveType.UUID:
-                return f"{source_expr}.int"
+                return f"{hasher_expr}.hash_uuid({source_expr})"
             elif type.primitive_type == PrimitiveType.BYTES:
-                return f"hash_bytes({source_expr})"
+                return f"{hasher_expr}.hash_bytes({source_expr})"
             elif type.primitive_type == PrimitiveType.JSON:
-                return f"hash_string(json.dumps({source_expr}))"
+                return f"{hasher_expr}.hash_json({source_expr})"
             else:
                 assert_never(type.primitive_type)
         # enum
         elif type.scalar_type == ScalarType.ENUM:
-            return f"hash_int({source_expr})"
+            return f"{hasher_expr}.hash_uint32({source_expr})"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
-            return f"{source_expr}.hash()"
+            return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            return f"{source_expr}._hash"
+            return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"{source_expr}.id.int"
+            return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot hash Handle: {type!r}")
@@ -1269,7 +1285,7 @@ _METATYPE_TYPE = TypeDeclaration(
     primitive_type=PrimitiveType.INT32,
     is_required=True,
 )
-_generator = ObjectGenerator()
+_generator = ObjectGenerator(check_required=IS_DEV or IS_TEST)
 
 
 def _process_object_cls[ObjectT: Object](
@@ -1432,41 +1448,45 @@ def _process_object_cls[ObjectT: Object](
     cls_dict = dict(cls.__dict__)
 
     # define final methods in leaf classes
-    if not declaration.is_abstract:
-        assert declaration.type is not None, f"concrete objects need a type: {cls.__name__}"
-
+    glbls = {
+        "ACTIVE_SESSION": ACTIVE_SESSION,
+        "EMPTY_LIST": frozenlist(),
+        "EMPTY_DICT": frozendict(),
+        "uuid4": uuid4,
+    }
+    if declaration.is_abstract:
+        init_str = f"""\
+def __init__(self):
+    raise NotImplementedError(f"abstract {cls.__name__} cannot be instantiated")
+"""
+        exec_code(init_str, glbls, cls_dict, f"{cls.__name__}.__init__")
+    else:
         # __init__
-        glbls = {
-            "ACTIVE_SESSION": ACTIVE_SESSION,
-            "EMPTY_LIST": frozenlist(),
-            "EMPTY_DICT": frozendict(),
-            "uuid4": uuid4,
-        }
         init_str, init_glbls = _generator.generate_init(cls, declaration)
-        exec_code(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
+        exec_code(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}.__init__")
         # __repr__
         repr_str, repr_glbls = _generator.generate_repr(cls)
-        exec_code(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
+        exec_code(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}.__repr__")
         # equals
         equals_str, equals_glbls = _generator.generate_equals(
             cls, is_node=declaration.kind == ObjectKind.NODE
         )
-        exec_code(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
+        exec_code(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}.equals")
         # hash
         hash_str, hash_glbls = _generator.generate_hash(cls)
-        exec_code(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
+        exec_code(
+            hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}.hash", _debug_log=True
+        )
         if declaration.kind == ObjectKind.NODE:
             assert isinstance(declaration.type, NodeType), f"unexpected type: {declaration.type!r}"
             # path
             path_str, path_glbls = _generator.generate_path(cast(type["Node"], cls))
-            exec_code(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
-        # add computed properties to concrete classes
+            exec_code(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}.path")
+        # computed Node properties
         for prop in properties.values():
-            if prop.edge_type in (EdgeType.PARENT, EdgeType.REGULAR):
+            if prop.edge_type is not None:
                 node_property_str = _generator.generate_node_property(prop)
-                exec_code(
-                    node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}"
-                )
+                exec_code(node_property_str, {}, cls_dict, f"{cls.__name__}.{prop.name}")
 
     # slots
     cls_dict.pop("__dict__", None)
@@ -1573,7 +1593,7 @@ class Object:
         """Checks if the content of the two objects is equal (recursively)."""
         raise NotImplementedError  # generated
 
-    def hash(self) -> int:
+    def hash(self, _hasher: "Hasher | None" = None) -> Int64:
         """Hash of content properties."""
         raise NotImplementedError  # generated
 
@@ -1659,5 +1679,5 @@ class Object:
     ) -> Self:
         """Unpack an Object from a base64 encoded string."""
         options = options if options is not None else EncoderOptions.DEFAULT
-        reader = BinaryReader(base64.b64decode(value))
+        reader = BinaryReader(buffer=base64.b64decode(value))
         return cls.unpack_binary(encoding, reader, session, options)

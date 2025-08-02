@@ -13,8 +13,7 @@
     ],
     "catalog": {
       "temporal-polyfill": "^0.3.0",
-      "pyodide": "^0.28.0",
-      "js-xxhash": "^4.0.0"
+      "pyodide": "^0.28.0"
     },
     "catalogs": {
       "build": {

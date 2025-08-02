@@ -70,7 +70,7 @@ class KompaktEncoder(Encoder[bytes]):
         session: Session | None,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
-        reader = BinaryReader(value)
+        reader = BinaryReader(buffer=value)
         object = self.unpack_object_binary(kind, type, reader, session, options)
         return object
 
@@ -129,7 +129,7 @@ class KompaktEncoder(Encoder[bytes]):
         value: bytes,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Type:
-        reader = BinaryReader(value)
+        reader = BinaryReader(buffer=value)
         type = self.unpack_type_binary(reader, options)
         return type
 
@@ -268,7 +268,7 @@ class KompaktEncoder(Encoder[bytes]):
         session: Session | None,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
-        reader = BinaryReader(value)
+        reader = BinaryReader(buffer=value)
         return self.unpack_value_binary(type, reader, session, options)
 
     @override

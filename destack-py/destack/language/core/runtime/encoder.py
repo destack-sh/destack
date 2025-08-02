@@ -2,13 +2,14 @@ from abc import abstractmethod
 from enum import IntFlag
 from typing import TYPE_CHECKING, Any
 
-from ..builtin import Object, ObjectKind
+from ..builtin import Handle, HandleType, Object, ObjectKind, builtin_handle
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
     from destack.language.core import Session, Type
 
 
+# nocheckin: support enum flags?
 class EncoderOptions(IntFlag):
     """Options for encoding."""
 
@@ -25,11 +26,9 @@ class EncoderOptions(IntFlag):
     UNWRAP_VALUE = 1 << 4
 
 
-class Encoder[T: Any = Any]:
+@builtin_handle(HandleType.ENCODER, is_abstract=True)
+class Encoder[T: Any = Any](Handle):
     """Encoder for packing/unpacking Objects."""
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}>"
 
     @abstractmethod
     def pack_object(

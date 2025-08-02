@@ -31,9 +31,13 @@ class Context(Handle):
     Context propagates across the call stack (because it propagates through Runs).
     """
 
-    # TODO :Incomplete: Context to replace Oracle and Session.actor/space/branch/snapshot/...?
-    #  (stacked local Context with mode/time/logging/tracing/baggage/custom stuff, tree down?)
-    #  (also with active snapshot_ptr, branch_ptr, region, ...?)
+    # NOTE :Incomplete: Context to replace Oracle and Session globals
+    #   - logging/tracing/baggage
+    #   - actor/client/client_nonce
+    #   - snapshot_ptr/branch_ptr
+    #   - custom stuff
+    #   - randomness, time, region
+    #   - mode
 
     actor: "Entity" = builtin_property_runtime(401, is_repr=True)
     client: "Client" = builtin_property_runtime(402, is_repr=True)

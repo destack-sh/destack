@@ -13,9 +13,6 @@ if TYPE_CHECKING:
 type_ = type
 
 
-# nocheckin(py): implement MemoryGraph
-
-
 class MemoryGraph(Graph):
     """A Graph that stores Nodes in memory."""
 

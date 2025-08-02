@@ -12,8 +12,6 @@ from destack.language.core import (
 if TYPE_CHECKING:
     from destack.language import LogEvent
 
-# nocheckin(py): replace structlog with logging
-
 
 @builtin_handle(
     HandleType.LOGGER,

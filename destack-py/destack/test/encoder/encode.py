@@ -60,9 +60,10 @@ def _do_test_roundtrip_object(
     packed_obj_bytes_gzip = gzip.compress(packed_obj_bytes)
     if _LOG_RESULT:
         print(f"-> BYTES: {len(packed_obj_bytes)} ({len(packed_obj_bytes_gzip)} gzip)")
+        print(f"-> HASH: {obj.hash()}")
         print("-" * 80)
 
-    reader = _BinaryReader(packed_obj_bytes)
+    reader = _BinaryReader(buffer=packed_obj_bytes)
     unpacked_obj = encoder.unpack_object_binary(None, None, reader, session)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
@@ -86,7 +87,7 @@ def _do_test_roundtrip_value(
         print(f"-> BYTES: {len(packed_value_bytes)} ({len(packed_value_bytes_gzip)} gzip)")
         print("-" * 80)
 
-    reader = _BinaryReader(packed_value_bytes)
+    reader = _BinaryReader(buffer=packed_value_bytes)
     unpacked_value_bytes = encoder.unpack_value_binary(type, reader, session)
     assert unpacked_value_bytes == value, f"{unpacked_value_bytes!r} != {value!r}"
     if _LOG_RESULT:

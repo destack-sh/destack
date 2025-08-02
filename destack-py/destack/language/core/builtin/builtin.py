@@ -901,16 +901,21 @@ class StructType(Enum):
 
 @builtin_enum(EnumType.HANDLE_TYPE)
 class HandleType(Enum):
-    HANDLE = 1, "Handle"
+    HANDLE = 1
 
-    SESSION = 10, "Session"
-    GRAPH = 11, "Graph"
-    CONNECTION = 12, "Connection"
-    STREAM = 13, "Stream"
+    SESSION = 10
+    GRAPH = 11
+    CONNECTION = 12
+    STREAM = 13
 
     CONTEXT = 20
     LOGGER = 21
     TRACER = 22
+
+    HASHER = 30
+    ENCODER = 31
+    BINARY_WRITER = 32
+    BINARY_READER = 33
 
 
 @builtin_enum(EnumType.UNIVERSE_CATEGORY)

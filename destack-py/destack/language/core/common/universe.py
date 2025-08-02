@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 
 from destack.language.core import (
@@ -85,6 +86,11 @@ class Universe(Entity):
         3,
         value=EPSILON_EXPONENT,
         description="The exponent of the epsilon used for floating point comparisons.",
+    )
+    BEGINNING_OF_DATETIME = builtin_constant(
+        4,
+        value=datetime(1, 1, 1, tzinfo=UTC),
+        description="The beginning of time (1 AD, 00:00:00 UTC).",
     )
 
     NODES = builtin_constant(

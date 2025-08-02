@@ -235,6 +235,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     created_at: datetime = builtin_property(
         20,
         is_internal=True,
+        is_hash=False,
         is_eq=False,
         is_readonly=True,
         default_factory=ValueFactory.NOW,
@@ -244,8 +245,8 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     created_epoch: UInt128 = builtin_property(
         21,
         is_internal=True,
-        is_eq=False,
         is_hash=False,
+        is_eq=False,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time this Entity was created (system time).",
         tags=("tracking",),
@@ -253,6 +254,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     created_by: "Entity" = builtin_property(
         22,
         is_internal=True,
+        is_hash=False,
         is_eq=False,
         is_readonly=True,
         default_factory=ValueFactory.ACTOR,
@@ -262,6 +264,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     updated_at: datetime = builtin_property(
         23,
         is_internal=True,
+        is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.NOW,
         description="The time this Entity was last updated (system time).",
@@ -270,8 +273,8 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     updated_epoch: UInt128 = builtin_property(
         24,
         is_internal=True,
-        is_eq=False,
         is_hash=False,
+        is_eq=False,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time this Entity was last updated (system time).",
         tags=("tracking",),
@@ -279,6 +282,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     updated_by: "Entity" = builtin_property(
         25,
         is_internal=True,
+        is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.ACTOR,
         description="The Actor that last updated this Entity.",
@@ -287,6 +291,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
     deleted_at: Optional[datetime] = builtin_property(
         26,
         is_internal=True,
+        is_hash=False,
         is_eq=False,
         description="""\
 The time this Entity was last deleted (system time, if it's is currently deleted).
