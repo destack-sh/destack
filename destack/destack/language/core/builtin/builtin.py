@@ -121,8 +121,8 @@ class EnumType(Enum):
     # physics [20_100_000]
     # ...
 
-    # lighting [20_200_000]
-    # ...
+    # perception [20_200_000]
+    MOUSE_BUTTON = 20_200_000
 
     # animation [20_300_000]
     TRANSITION_TYPE = 20_300_000
@@ -144,10 +144,16 @@ class EnumType(Enum):
     # video [30_200_000]
     # ...
 
-    # paint [30_300_000]
+    # model [30_300_000]
     # ...
 
-    # model [30_400_000]
+    # paint [30_400_000]
+    # ...
+
+    # style [30_500_000]
+    # ...
+
+    # material [30_600_000]
     # ...
 
     #
@@ -182,8 +188,14 @@ class EnumType(Enum):
     TEXT_SPLIT_TYPE = 40_200_901
     OFFSCREEN_BEHAVIOR = 40_200_902
 
-    # interaction [40_300_000]
-    MOUSE_BUTTON = 40_300_000
+    # rendering [40_200_000]
+    # ...
+
+    # shaders [40_300_000]
+    # ...
+
+    # lighting [40_400_000]
+    # ...
 
     #
     # DEPLOYMENT
@@ -297,7 +309,10 @@ class TraitType(Enum):
     # physics [20_100_000]
     # ...
 
-    # lighting [20_200_000]
+    # perception [20_200_000]
+    INTERACTIVE = 20_200_000, "Interactive", "Can be interacted with", "fas fa-mouse-pointer"
+    DRAGGABLE = 20_200_001, "Draggable", "Can be dragged", "fas fa-mouse-pointer"
+    SELECTABLE = 20_200_002, "Selectable", "Can be selected", "fas fa-mouse-pointer"
     # ...
 
     # animation [20_300_000]
@@ -316,10 +331,16 @@ class TraitType(Enum):
     # video [30_200_000]
     # ...
 
-    # paint [30_300_000]
+    # model [30_300_000]
     # ...
 
-    # model [30_400_000]
+    # paint [30_400_000]
+    # ...
+
+    # style [30_500_000]
+    # ...
+
+    # material [30_600_000]
     # ...
 
     #
@@ -332,13 +353,13 @@ class TraitType(Enum):
     # view [40_100_000]
     # ANIMATABLE/TWEENABLE, ...
 
-    # style [40_200_000]
+    # rendering [40_200_000]
     # ...
 
-    # interaction [40_300_000]
-    INTERACTIVE = 40_300_000, "Interactive", "Can be interacted with", "fas fa-mouse-pointer"
-    DRAGGABLE = 40_300_001, "Draggable", "Can be dragged", "fas fa-mouse-pointer"
-    SELECTABLE = 40_300_002, "Selectable", "Can be selected", "fas fa-mouse-pointer"
+    # shaders [40_300_000]
+    # ...
+
+    # lighting [40_400_000]
     # ...
 
     #
@@ -590,16 +611,59 @@ class NodeType(Enum):
     # BODY, BODY2D, ...
     # BODY_EVENT, CONTACT_EVENT, COLLISION_EVENT, ...
     # RIGID_BODY, SOFT_BODY, ...
+    # CLOTH, ...
+    # LIQUID, ...
     # COLLIDER, ...
     # SKELETON, BONE, ...
     # JOINT, FIXED_JOINT, FREE_JOINT, SPHERICAL_JOINT, SPRING, MOTOR, ...
     # NAVIGATION, ...
 
-    # lighting [20_200_000]
-    # LIGHT, LIGHT2D, ...
-    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
-    # OCCLUDER, ...
-    # ...
+    # perception [20_200_000]
+    INPUT_EVENT = 20_200_000, "Input Event", None, "fas fa-mouse-pointer"
+    # pointer events
+    POINTER_EVENT = 20_200_100, "Pointer Event", None, "fas fa-mouse-pointer"
+    POINTER_DOWN_EVENT = 20_200_101, "Pointer Down Event", None, "fas fa-mouse-pointer"
+    POINTER_UP_EVENT = 20_200_102, "Pointer Up Event", None, "fas fa-mouse-pointer"
+    POINTER_MOVE_EVENT = 20_200_103, "Pointer Move Event", None, "fas fa-mouse-pointer"
+    POINTER_ENTER_EVENT = 20_200_104, "Pointer Enter Event", None, "fas fa-mouse-pointer"
+    POINTER_OVER_EVENT = 20_200_105, "Pointer Over Event", None, "fas fa-mouse-pointer"
+    POINTER_LEAVE_EVENT = 20_200_106, "Pointer Leave Event", None, "fas fa-mouse-pointer"
+    POINTER_LONG_PRESS_EVENT = 20_200_107, "Long Press Event", None, "fas fa-mouse-pointer"
+    # mouse events
+    MOUSE_EVENT = 20_200_200, "Mouse Event", None, "fas fa-mouse-pointer"
+    CLICK_EVENT = 20_200_201, "Click Event", None, "fas fa-mouse-pointer"
+    SINGLE_CLICK_EVENT = 20_200_202, "Single Click Event", None, "fas fa-mouse-pointer"
+    DOUBLE_CLICK_EVENT = 20_200_203, "Double Click Event", None, "fas fa-mouse-pointer"
+    TRIPLE_CLICK_EVENT = 20_200_204, "Triple Click Event", None, "fas fa-mouse-pointer"
+    WHEEL_EVENT = 20_200_210, "Wheel Event", None, "fas fa-mouse-pointer"
+    # key events
+    KEY_EVENT = 20_200_300, "Key Event", None, "fas fa-keyboard"
+    KEY_DOWN_EVENT = 20_200_301, "Key Down Event", None, "fas fa-keyboard"
+    KEY_UP_EVENT = 20_200_302, "Key Up Event", None, "fas fa-keyboard"
+    KEY_PRESS_EVENT = 20_200_303, "Key Press Event", None, "fas fa-keyboard"
+    # drag events
+    DRAG_EVENT = 20_200_400, "Drag Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_START_EVENT = 20_200_401, "Drag Start Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_END_EVENT = 20_200_402, "Drag End Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_OVER_EVENT = 20_200_403, "Drag Over Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_ENTER_EVENT = 20_200_404, "Drag Enter Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_LEAVE_EVENT = 20_200_405, "Drag Leave Event", None, "fas fa-arrows-up-down-left-right"
+    DROP_EVENT = 20_200_406, "Drop Event", None, "fas fa-arrows-up-down-left-right"
+    # clipboard events
+    CLIPBOARD_EVENT = 20_200_500, "Clipboard Event", None, "fas fa-clipboard"
+    COPY_EVENT = 20_200_501, "Copy Event", None, "fas fa-clipboard"
+    CUT_EVENT = 20_200_502, "Cut Event", None, "fas fa-clipboard"
+    PASTE_EVENT = 20_200_503, "Paste Event", None, "fas fa-clipboard"
+    # focus events
+    FOCUS_EVENT = 20_200_600, "Focus Event", None, "fas fa-keyboard"
+    FOCUS_IN_EVENT = 20_200_601, "Focus In Event", None, "fas fa-keyboard"
+    FOCUS_OUT_EVENT = 20_200_602, "Focus Out Event", None, "fas fa-keyboard"
+    # command
+    # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
+    # GESTURE, ...
+    # CLIPBOARD, ...
+    # CAMERA, SPEAKER, MICROPHONE, ...
+    # AUDIO, AUDIO_PLAYER, VIDEO, VIDEO_PLAYER, ...
 
     # animation [20_300_000]
     TRANSITION_STYLE = 20_300_000, "Transition Style", None, "fas fa-bezier-curve"
@@ -622,13 +686,29 @@ class NodeType(Enum):
     # STREAM, ...
     # ENCODING, ...
 
-    # paint [30_300_000]
+    # model [30_300_000]
+    # ...
+
+    # paint [30_400_000]
     # RASTER/BITMAP, ...
     # DAB, PAINT, BRUSH, ...
     # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
     # TEXTURE, ...
 
-    # model [30_400_000]
+    # style [30_500_000]
+    THEME = 30_500_000, "Theme", None, "fas fa-palette"
+    PALETTE = 30_500_100, "Palette", None, "fas fa-palette"
+    STYLE = 30_500_200, "Style", None, "fas fa-palette"
+    COLOR_STYLE = 30_500_300, "Color Style", None, "fas fa-palette"
+    FILL_STYLE = 30_500_400, "Fill Style", None, "fas fa-fill"
+    FONT_STYLE = 30_500_500, "Font Style", None, "fas fa-text"
+    BORDER_STYLE = 30_500_600, "Border Style", None, "fas fa-border-outer"
+    SHADOW_STYLE = 30_500_700, "Shadow Style", None, "fas fa-eclipse"
+    GRADIENT_STYLE = 30_500_800, "Gradient Style", None, "fas fa-gradient"
+    STROKE_STYLE = 30_500_900, "Stroke Style", None, "fas fa-stroke"
+    # BRUSH_STYLE, ...
+
+    # material [30_600_000]
     # ...
 
     #
@@ -670,66 +750,17 @@ class NodeType(Enum):
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
-    # style [40_200_000]
-    THEME = 40_200_000, "Theme", None, "fas fa-palette"
-    PALETTE = 40_200_100, "Palette", None, "fas fa-palette"
-    STYLE = 40_200_200, "Style", None, "fas fa-palette"
-    COLOR_STYLE = 40_200_300, "Color Style", None, "fas fa-palette"
-    FILL_STYLE = 40_200_400, "Fill Style", None, "fas fa-fill"
-    FONT_STYLE = 40_200_500, "Font Style", None, "fas fa-text"
-    BORDER_STYLE = 40_200_600, "Border Style", None, "fas fa-border-outer"
-    SHADOW_STYLE = 40_200_700, "Shadow Style", None, "fas fa-eclipse"
-    GRADIENT_STYLE = 40_200_800, "Gradient Style", None, "fas fa-gradient"
-    STROKE_STYLE = 40_200_900, "Stroke Style", None, "fas fa-stroke"
-    # BRUSH_STYLE, ...
-    # SHADER, MATERIAL, ...
+    # rendering [40_200_000]
+    # ...
 
-    # interaction [40_300_000]
-    INPUT_EVENT = 40_300_000, "Input Event", None, "fas fa-mouse-pointer"
-    # pointer events
-    POINTER_EVENT = 40_300_100, "Pointer Event", None, "fas fa-mouse-pointer"
-    POINTER_DOWN_EVENT = 40_300_101, "Pointer Down Event", None, "fas fa-mouse-pointer"
-    POINTER_UP_EVENT = 40_300_102, "Pointer Up Event", None, "fas fa-mouse-pointer"
-    POINTER_MOVE_EVENT = 40_300_103, "Pointer Move Event", None, "fas fa-mouse-pointer"
-    POINTER_ENTER_EVENT = 40_300_104, "Pointer Enter Event", None, "fas fa-mouse-pointer"
-    POINTER_OVER_EVENT = 40_300_105, "Pointer Over Event", None, "fas fa-mouse-pointer"
-    POINTER_LEAVE_EVENT = 40_300_106, "Pointer Leave Event", None, "fas fa-mouse-pointer"
-    POINTER_LONG_PRESS_EVENT = 40_300_107, "Long Press Event", None, "fas fa-mouse-pointer"
-    # mouse events
-    MOUSE_EVENT = 40_300_200, "Mouse Event", None, "fas fa-mouse-pointer"
-    CLICK_EVENT = 40_300_201, "Click Event", None, "fas fa-mouse-pointer"
-    SINGLE_CLICK_EVENT = 40_300_202, "Single Click Event", None, "fas fa-mouse-pointer"
-    DOUBLE_CLICK_EVENT = 40_300_203, "Double Click Event", None, "fas fa-mouse-pointer"
-    TRIPLE_CLICK_EVENT = 40_300_204, "Triple Click Event", None, "fas fa-mouse-pointer"
-    WHEEL_EVENT = 40_300_210, "Wheel Event", None, "fas fa-mouse-pointer"
-    # key events
-    KEY_EVENT = 40_300_300, "Key Event", None, "fas fa-keyboard"
-    KEY_DOWN_EVENT = 40_300_301, "Key Down Event", None, "fas fa-keyboard"
-    KEY_UP_EVENT = 40_300_302, "Key Up Event", None, "fas fa-keyboard"
-    KEY_PRESS_EVENT = 40_300_303, "Key Press Event", None, "fas fa-keyboard"
-    # drag events
-    DRAG_EVENT = 40_300_400, "Drag Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_START_EVENT = 40_300_401, "Drag Start Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_END_EVENT = 40_300_402, "Drag End Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_OVER_EVENT = 40_300_403, "Drag Over Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_ENTER_EVENT = 40_300_404, "Drag Enter Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_LEAVE_EVENT = 40_300_405, "Drag Leave Event", None, "fas fa-arrows-up-down-left-right"
-    DROP_EVENT = 40_300_406, "Drop Event", None, "fas fa-arrows-up-down-left-right"
-    # clipboard events
-    CLIPBOARD_EVENT = 40_300_500, "Clipboard Event", None, "fas fa-clipboard"
-    COPY_EVENT = 40_300_501, "Copy Event", None, "fas fa-clipboard"
-    CUT_EVENT = 40_300_502, "Cut Event", None, "fas fa-clipboard"
-    PASTE_EVENT = 40_300_503, "Paste Event", None, "fas fa-clipboard"
-    # focus events
-    FOCUS_EVENT = 40_300_600, "Focus Event", None, "fas fa-keyboard"
-    FOCUS_IN_EVENT = 40_300_601, "Focus In Event", None, "fas fa-keyboard"
-    FOCUS_OUT_EVENT = 40_300_602, "Focus Out Event", None, "fas fa-keyboard"
-    # command
-    # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
-    # GESTURE, ...
-    # CLIPBOARD, ...
-    # CAMERA, SPEAKER, MICROPHONE, ...
-    # AUDIO, AUDIO_PLAYER, VIDEO, VIDEO_PLAYER, ...
+    # shaders [40_300_000]
+    # ...
+
+    # lighting [40_400_000]
+    # LIGHT, LIGHT2D, ...
+    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
+    # OCCLUDER, ...
+    # ...
 
     #
     # DEPLOYMENT
@@ -738,18 +769,17 @@ class NodeType(Enum):
     # cloud [50_000_000]
     MACHINE = 50_000_000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # DATABASE, SEARCH, VAULT, CACHE, S3, ...
-    # GALAXY, ...
     # HOST, ENDPOINT, NETWORK, AUTOSCALER, ...
 
     # observability [50_100_000]
     # metric
     METRIC = 50_100_000, "Metric", None, "fas fa-gauge"
-    GAUGE_METRIC = 50_100_000, "Gauge Metric", None, "fas fa-gauge"
-    GAUGE_MEASUREMENT_EVENT = 50_100_001, "Gauge Measurement", None, "fas fa-gauge"
-    COUNTER_METRIC = 50_100_100, "Counter Metric", None, "fas fa-gauge"
-    COUNTER_MEASUREMENT_EVENT = 50_100_101, "Counter Measurement", None, "fas fa-gauge"
-    HISTOGRAM_METRIC = 50_100_200, "Histogram Metric", None, "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT_EVENT = 50_100_201, "Histogram Measurement", None, "fas fa-gauge"
+    GAUGE_METRIC = 50_100_100, "Gauge Metric", None, "fas fa-gauge"
+    GAUGE_MEASUREMENT_EVENT = 50_100_101, "Gauge Measurement", None, "fas fa-gauge"
+    COUNTER_METRIC = 50_100_200, "Counter Metric", None, "fas fa-gauge"
+    COUNTER_MEASUREMENT_EVENT = 50_100_201, "Counter Measurement", None, "fas fa-gauge"
+    HISTOGRAM_METRIC = 50_100_300, "Histogram Metric", None, "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT_EVENT = 50_100_301, "Histogram Measurement", None, "fas fa-gauge"
     # INCIDENT, ESCALATION, ...
 
     # experience [50_200_000]
@@ -933,7 +963,7 @@ class StructType(Enum):
     # physics [20_100_000]
     # ...
 
-    # lighting [20_200_000]
+    # perception [20_200_000]
     # ...
 
     # animation [20_300_000]
@@ -953,10 +983,26 @@ class StructType(Enum):
     # video [30_200_000]
     # ...
 
-    # paint [30_300_000]
+    # model [30_300_000]
     # ...
 
-    # model [30_400_000]
+    # paint [30_400_000]
+    # ...
+
+    # style [30_500_000]
+    COLOR = 30_500_000, "Color", None, "fas fa-palette"
+    FILL = 30_500_100, "Fill", None, "fas fa-fill"
+    FONT = 30_500_200, "Font", None, "fas fa-text"
+    BORDER = 30_500_300, "Border", None, "fas fa-border-outer"
+    SHADOW = 30_500_400, "Shadow", None, "fas fa-eclipse"
+    GRADIENT = 30_500_500, "Gradient", None, "fas fa-gradient"
+    GRADIENT_STOP = 30_500_501, "Gradient Stop", None, "fas fa-gradient"
+    STROKE = 30_500_600, "Stroke", None, "fas fa-stroke"
+    STROKE_CAP = 30_500_601, "Stroke Cap", None, "fas fa-stroke"
+    STROKE_PATH = 30_500_602, "Stroke Path", None, "fas fa-stroke"
+    STROKE_POINT = 30_500_603, "Stroke Point", None, "fas fa-stroke"
+
+    # material [30_600_000]
     # ...
 
     #
@@ -969,20 +1015,13 @@ class StructType(Enum):
     # view [40_100_000]
     # ...
 
-    # style [40_200_000]
-    COLOR = 40_200_300, "Color", None, "fas fa-palette"
-    FILL = 40_200_400, "Fill", None, "fas fa-fill"
-    FONT = 40_200_500, "Font", None, "fas fa-text"
-    BORDER = 40_200_600, "Border", None, "fas fa-border-outer"
-    SHADOW = 40_200_700, "Shadow", None, "fas fa-eclipse"
-    GRADIENT = 40_200_800, "Gradient", None, "fas fa-gradient"
-    GRADIENT_STOP = 40_200_801, "Gradient Stop", None, "fas fa-gradient"
-    STROKE = 40_200_900, "Stroke", None, "fas fa-stroke"
-    STROKE_CAP = 40_200_901, "Stroke Cap", None, "fas fa-stroke"
-    STROKE_PATH = 40_200_902, "Stroke Path", None, "fas fa-stroke"
-    STROKE_POINT = 40_200_903, "Stroke Point", None, "fas fa-stroke"
+    # rendering [40_200_000]
+    # ...
 
-    # interaction [40_300_000]
+    # shaders [40_300_000]
+    # ...
+
+    # lighting [40_400_000]
     # ...
 
     #
@@ -1049,7 +1088,7 @@ class UniverseDomain(Enum):
     BASICS = 10_000_000, "Basics", "Scaffolding the Universe"
     SIMULATION = 20_000_000, "Simulation", "Modeling the Universe"
     CANVAS = 30_000_000, "Canvas", "Capturing the Universe"
-    STAGE = 40_000_000, "Stage", " the Universe"
+    STAGE = 40_000_000, "Stage", "Presenting the Universe"
     DEPLOYMENT = 50_000_000, "Deployment", "Deploying the Universe"
     DISTRIBUTION = 60_000_000, "Distribution", "Distributing the Universe"
     EDITING = 100_000_000, "Editing", "Editing the Universe"
@@ -1075,24 +1114,27 @@ class UniverseCategory(Enum):
     # simulation
     GEOMETRY = 20_000_000, "Geometry", "Geometric representations"
     PHYSICS = 20_100_000, "Physics", "Physics simulation"
-    LIGHTING = 20_200_000, "Lighting", "Lighting and shadows"
-    ANIMATION = 20_300_000, "Animation", "Motion design"
-    # SENSING?, CHEMISTRY, PARTICLE, SOUND, GEOGRAPHY, ...
+    PERCEPTION = 20_200_000, "Perception", "Sensing and interaction"
+    ANIMATION = 20_300_000, "Animation", "Motion choreography"
+    # CHARACTER/HUMAN?, GEOGRAPHY/LOCATION?, GEOLOGY, CHEMISTRY, ...
 
     # canvas
     AUDIO = 30_000_000, "Audio", "Audio and sound design"
     IMAGE = 30_100_000, "Image", "Image and photo editing"
     VIDEO = 30_200_000, "Video", "Video creation and editing"
-    PAINT = 30_300_000, "Paint", "Drawing and painting"
-    MODEL = 30_400_000, "Model", "Modeling and sculpting"
-    # MATERIALS, ...
+    MODEL = 30_300_000, "Model", "Modeling and sculpting"
+    PAINT = 30_400_000, "Paint", "Drawing and painting"
+    STYLE = 30_500_000, "Style", "Appearance and theming"
+    MATERIAL = 30_600_000, "Material", "Material design"
+    # ...
 
     # stage
     SCENE = 40_000_000, "Scene", "Stage building"
     VIEW = 40_100_000, "View", "View building"
-    STYLE = 40_200_000, "Style", "Appearance and materials"
-    INTERACTION = 40_300_000, "Interaction", "Interaction design"
-    # SHADERS, RENDERING, XR, PARTICLE, ...
+    RENDERING = 40_200_000, "Rendering", "Rendering and shading"
+    SHADERS = 40_300_000, "Shaders", "Shader programming"
+    LIGHTING = 40_400_000, "Lighting", "Lighting and shadows"
+    # CAMERA/VIEWPORT, XR, PARTICLE, ...
 
     # deployment
     CLOUD = 50_000_000, "Cloud", "Cloud computing infrastructure"
