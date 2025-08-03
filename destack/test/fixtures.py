@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator
+
 import pytest
 import pytest_asyncio
 
@@ -7,27 +9,32 @@ from destack.test.conftest import _setup_test_env
 # NOTE: must run setup before importing from destack
 _setup_test_env()
 
-from destack import REGION, Session, Space, Universe
-from destack.graph import MemoryGraph
-from destack.utils.uuid import uuid4
 
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+from destack import REGION, Context, Session, Space, Universe
+from destack.graph import MemoryGraph
+from destack.test.conftest import _setup_test_env
+from destack.utils.uuid import uuid4
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
-async def session():
-    """Default Session is in-memory."""
-    session = Session(
-        graph=MemoryGraph(),
-        actor=Universe.ACTOR,
-        client=Universe.CLIENT,
+async def memory_session() -> AsyncGenerator[Session, None]:
+    root_context = Context(
+        actor_ptr=Universe.ACTOR,
+        client_ptr=Universe.CLIENT,
         client_nonce=uuid4(),
+    )
+    session = Session(
+        root_context=root_context,
+        graph=MemoryGraph(),
         remote_epoch=0,
         local_epoch=0,
     )
-    await session.open()
-    yield session
-    await session.close()
+    root_context._session = session
+    async with session.active():
+        yield session
+
+
+session = memory_session
 
 
 @pytest.fixture

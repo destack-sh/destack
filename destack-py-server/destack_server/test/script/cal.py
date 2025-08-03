@@ -5,7 +5,7 @@ import pytest
 if not TYPE_CHECKING:
     pytest.skip(allow_module_level=True)
 
-from destack.language import *  # noqa: F403
+from destack import *  # noqa: F403
 
 from .scaffold import *  # noqa: F403
 
