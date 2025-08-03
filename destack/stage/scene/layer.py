@@ -8,9 +8,9 @@ from destack.core import (
     Icon,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
+    declare_entity,
+    declare_enum,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.LAYER_TYPE)
+@declare_enum(EnumType.LAYER_TYPE)
 class LayerType(Enum):
     """Built-in layer types."""
 
@@ -28,7 +28,7 @@ class LayerType(Enum):
     # RASTER, ...
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.LAYER,
     traits=(TraitType.OWNABLE, TraitType.ORDERED),
     expected_ancestor_types=(NodeType.SCENE,),
@@ -37,10 +37,10 @@ class LayerType(Enum):
 class Layer(Entity):
     """A Layer is a container for Views."""
 
-    type: LayerType = builtin_property(100, default=LayerType.GENERAL)
-    icon: "Icon | None" = builtin_property(102)
+    type: LayerType = declare_property(100, default=LayerType.GENERAL)
+    icon: "Icon | None" = declare_property(102)
 
     # style
-    is_visible: Optional[bool] = builtin_property(140)
-    opacity: Optional[Float32] = builtin_property(141)
+    is_visible: Optional[bool] = declare_property(140)
+    opacity: Optional[Float32] = declare_property(141)
     # parallax?

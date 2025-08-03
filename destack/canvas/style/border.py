@@ -6,10 +6,10 @@ from destack.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 from .color import Color
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.BORDER_TYPE)
+@declare_enum(EnumType.BORDER_TYPE)
 class BorderType(Enum):
     """Built-in border types."""
 
@@ -33,7 +33,7 @@ class BorderType(Enum):
     DOUBLE = 13
 
 
-@builtin_struct(
+@declare_struct(
     StructType.BORDER,
     frozen=True,
     is_final=True,
@@ -42,17 +42,17 @@ class BorderType(Enum):
 class Border(StructFrozen):
     """A border value."""
 
-    type: BorderType = builtin_property(100, default=BorderType.SOLID, is_repr=True)
-    color: Optional["Color"] = builtin_property(101, is_repr=True)
-    width: Optional["Inset2"] = builtin_property(102, is_repr=True)
-    style: Optional["BorderStyle"] = builtin_property(103, is_repr=True)
+    type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)
+    color: Optional["Color"] = declare_property(101, is_repr=True)
+    width: Optional["Inset2"] = declare_property(102, is_repr=True)
+    style: Optional["BorderStyle"] = declare_property(103, is_repr=True)
 
 
-@builtin_entity(NodeType.BORDER_STYLE)
+@declare_entity(NodeType.BORDER_STYLE)
 class BorderStyle(Style):
     """A border style."""
 
-    type: BorderType = builtin_property(100, default=BorderType.SOLID, is_repr=True)
-    color: Optional["Color"] = builtin_property(200, is_repr=True)
-    width: Optional["Inset2"] = builtin_property(201, is_repr=True)
-    style: Optional["BorderStyle"] = builtin_property(202, is_repr=True)
+    type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)
+    color: Optional["Color"] = declare_property(200, is_repr=True)
+    width: Optional["Inset2"] = declare_property(201, is_repr=True)
+    style: Optional["BorderStyle"] = declare_property(202, is_repr=True)

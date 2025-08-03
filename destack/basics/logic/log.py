@@ -6,9 +6,9 @@ from destack.core import (
     Event,
     NodeType,
     Value,
-    builtin_enum,
-    builtin_event,
-    builtin_property,
+    declare_enum,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.LOG_LEVEL)
+@declare_enum(EnumType.LOG_LEVEL)
 class LogLevel(Enum):
     TRACE = 1
     DEBUG = 2
@@ -27,14 +27,14 @@ class LogLevel(Enum):
     PANIC = 6
 
 
-@builtin_event(NodeType.LOG_EVENT)
+@declare_event(NodeType.LOG_EVENT)
 class LogEvent(Event):
     """A Log message."""
 
-    custom_values: dict[str, "Value"] | None = builtin_property(
+    custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property name.",
     )
 
-    name: str = builtin_property(101)
-    level: LogLevel = builtin_property(110)
+    name: str = declare_property(101)
+    level: LogLevel = declare_property(110)

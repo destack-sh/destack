@@ -47,13 +47,13 @@ from .declaration import (
     ConstantDeclaration,
     NodeDeclaration,
     ObjectDeclaration,
-    builtin_method,
+    declare_method,
 )
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
     TypeDeclaration,
-    builtin_property_runtime,
+    declare_property_runtime,
 )
 from .types import Int64
 
@@ -1532,7 +1532,7 @@ def __init__(self):
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def _builtin_object[ObjectT: Object](
+def _declare_object[ObjectT: Object](
     object_type: NodeType | StructType | None = None,
     frozen: bool = False,
 ):
@@ -1566,7 +1566,7 @@ def _builtin_object[ObjectT: Object](
     return decorate
 
 
-@_builtin_object()
+@_declare_object()
 class Object:
     """The base for all intrinsic Objects."""
 
@@ -1584,7 +1584,7 @@ class Object:
     __slots__: ClassVar[tuple[str, ...]] = ()
 
     """The Session this Object is in."""
-    _session: "Session | None" = builtin_property_runtime(400)
+    _session: "Session | None" = declare_property_runtime(400)
 
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:
@@ -1613,7 +1613,7 @@ class Object:
     # Encoding
     #
 
-    @builtin_method(30)
+    @declare_method(30)
     def pack(
         self,
         encoding: Encoding,
@@ -1627,7 +1627,7 @@ class Object:
         packed_object = encoder.pack_object(self, options)
         return packed_object
 
-    @builtin_method(31)
+    @declare_method(31)
     def pack_binary(
         self,
         encoding: Encoding,
@@ -1641,7 +1641,7 @@ class Object:
         encoder = get_encoder(encoding)
         encoder.pack_object_binary(self, writer, options)
 
-    @builtin_method(32)
+    @declare_method(32)
     @classmethod
     def unpack(
         cls,
@@ -1658,7 +1658,7 @@ class Object:
         unpacked_object = encoder.unpack_object(cls.metakind, cls.metatype, value, session, options)
         return cast(Self, unpacked_object)
 
-    @builtin_method(33)
+    @declare_method(33)
     @classmethod
     def unpack_binary(
         cls,
@@ -1677,7 +1677,7 @@ class Object:
         )
         return cast(Self, unpacked_object)
 
-    @builtin_method(34)
+    @declare_method(34)
     @classmethod
     def unpack_binary_base64(
         cls,

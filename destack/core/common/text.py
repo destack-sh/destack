@@ -9,16 +9,16 @@ from ..builtin import (
     Node,
     StructFrozen,
     StructType,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 if TYPE_CHECKING:
     from destack import NodeReference
 
 
-@builtin_enum(EnumType.TEXT_SPAN_TYPE)
+@declare_enum(EnumType.TEXT_SPAN_TYPE)
 class TextSpanType(Enum):
     TEXT = 1, "Formatted text"
     HARD_BREAK = 2, "Hard break"
@@ -28,22 +28,22 @@ class TextSpanType(Enum):
     EQUATION = 20, "TeX equation"
 
 
-@builtin_struct(StructType.TEXT_SPAN, frozen=True)
+@declare_struct(StructType.TEXT_SPAN, frozen=True)
 class TextSpan(StructFrozen):
     """A span of text with optional formatting"""
 
-    type: TextSpanType = builtin_property(100, default=TextSpanType.TEXT)
-    content: Optional[str] = builtin_property(101)
-    node: Optional[Node] = builtin_property(102)
+    type: TextSpanType = declare_property(100, default=TextSpanType.TEXT)
+    content: Optional[str] = declare_property(101)
+    node: Optional[Node] = declare_property(102)
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
-    url: Optional[str] = builtin_property(105)
+    url: Optional[str] = declare_property(105)
 
-    is_bold: Optional[bool] = builtin_property(150)
-    is_italic: Optional[bool] = builtin_property(151)
-    is_strikethrough: Optional[bool] = builtin_property(152)
-    is_underline: Optional[bool] = builtin_property(153)
-    is_code: Optional[bool] = builtin_property(154)
+    is_bold: Optional[bool] = declare_property(150)
+    is_italic: Optional[bool] = declare_property(151)
+    is_strikethrough: Optional[bool] = declare_property(152)
+    is_underline: Optional[bool] = declare_property(153)
+    is_code: Optional[bool] = declare_property(154)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -58,19 +58,19 @@ class TextSpan(StructFrozen):
         return TextSpan(type=TextSpanType.HARD_BREAK)
 
 
-@builtin_struct(StructType.TEXT, frozen=True)
+@declare_struct(StructType.TEXT, frozen=True)
 class Text(StructFrozen):
     """
     Rich Text; a single paragraph composed of TextSpans with inline formatting.
     """
 
-    spans: list[TextSpan] = builtin_property(103)
+    spans: list[TextSpan] = declare_property(103)
 
-    is_bold: Optional[bool] = builtin_property(150)
-    is_italic: Optional[bool] = builtin_property(151)
-    is_strikethrough: Optional[bool] = builtin_property(152)
-    is_underline: Optional[bool] = builtin_property(153)
-    is_code: Optional[bool] = builtin_property(154)
+    is_bold: Optional[bool] = declare_property(150)
+    is_italic: Optional[bool] = declare_property(151)
+    is_strikethrough: Optional[bool] = declare_property(152)
+    is_underline: Optional[bool] = declare_property(153)
+    is_code: Optional[bool] = declare_property(154)
 
     def _to_option_kwargs(self):
         kwargs = {}

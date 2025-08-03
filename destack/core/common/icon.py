@@ -5,9 +5,9 @@ from ..builtin import (
     EnumType,
     StructFrozen,
     StructType,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 #
 
 
-@builtin_enum(EnumType.ICON_TYPE)
+@declare_enum(EnumType.ICON_TYPE)
 class IconType(Enum):
     EMOJI = 1
     FONT_AWESOME = 3
@@ -30,16 +30,16 @@ class IconType(Enum):
     FILE_URL = 11
 
 
-@builtin_struct(StructType.ICON, frozen=True)
+@declare_struct(StructType.ICON, frozen=True)
 class Icon(StructFrozen):
     """An icon to be displayed in some view."""
 
-    type: IconType = builtin_property(100)
+    type: IconType = declare_property(100)
     # content
-    emoji: str | None = builtin_property(101)
-    fa_name: str | None = builtin_property(102)
-    vsc_name: str | None = builtin_property(103)
-    file: Optional["File"] = builtin_property(104)
-    file_url: str | None = builtin_property(105)
+    emoji: str | None = declare_property(101)
+    fa_name: str | None = declare_property(102)
+    vsc_name: str | None = declare_property(103)
+    file: Optional["File"] = declare_property(104)
+    file_url: str | None = declare_property(105)
     # style
-    color: Optional["Color"] = builtin_property(110)
+    color: Optional["Color"] = declare_property(110)

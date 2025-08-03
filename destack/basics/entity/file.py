@@ -13,10 +13,10 @@ from destack.core import (
     TraitType,
     UInt32,
     UInt64,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_property_parent,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_property_parent,
 )
 from destack.utils.env import get_from_env
 
@@ -33,14 +33,14 @@ MAX_FILE_SIZE = get_from_env(
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.FILE_RETENTION_MODE)
+@declare_enum(EnumType.FILE_RETENTION_MODE)
 class FileRetentionMode(Enum):
     AUTOMATIC = 1  # garbage collected if no references
     MANUAL = 2  # never garbage collected
     TIMED = 3  # delete after a certain time
 
 
-@builtin_enum(EnumType.FILE_TYPE)
+@declare_enum(EnumType.FILE_TYPE)
 class FileType(Enum):
     TEXT = 1, None, None, "fas fa-file-lines"
     CODE = 2, None, None, "fas fa-file-code"
@@ -54,31 +54,31 @@ class FileType(Enum):
     GENERIC = 99, None, None, "fas fa-file"
 
 
-@builtin_entity(NodeType.FILE, traits=(TraitType.RESOURCE,))
+@declare_entity(NodeType.FILE, traits=(TraitType.RESOURCE,))
 class File(Entity):
     """
     A File stored somewhere.
     """
 
-    parent: Optional["Space"] = builtin_property_parent()
-    type: FileType = builtin_property(100, is_repr=True)
+    parent: Optional["Space"] = declare_property_parent()
+    type: FileType = declare_property(100, is_repr=True)
 
     # meta
-    mime_type: str | None = builtin_property(120, is_repr=True)
-    format: FileType | None = builtin_property(121, is_repr=True)
-    size: UInt64 | None = builtin_property(122, is_repr=True)
-    sha256: str | None = builtin_property(123)
-    width: UInt32 | None = builtin_property(124)
-    height: UInt32 | None = builtin_property(125)
-    aspect_ratio: Float32 | None = builtin_property(126)
-    codec: str | None = builtin_property(127)
-    duration: Optional[timedelta] = builtin_property(128)
+    mime_type: str | None = declare_property(120, is_repr=True)
+    format: FileType | None = declare_property(121, is_repr=True)
+    size: UInt64 | None = declare_property(122, is_repr=True)
+    sha256: str | None = declare_property(123)
+    width: UInt32 | None = declare_property(124)
+    height: UInt32 | None = declare_property(125)
+    aspect_ratio: Float32 | None = declare_property(126)
+    codec: str | None = declare_property(127)
+    duration: Optional[timedelta] = declare_property(128)
 
     # content
-    url: str | None = builtin_property(130, is_repr=True)  # if external
-    content_url: str | None = builtin_property(131)  # if external
-    thumbnail_url: str | None = builtin_property(132)  # if external
-    favicon_url: str | None = builtin_property(133)
-    thumbnail_width: UInt32 | None = builtin_property(134)
-    thumbnail_height: UInt32 | None = builtin_property(135)
-    content: bytes | None = builtin_property(136)
+    url: str | None = declare_property(130, is_repr=True)  # if external
+    content_url: str | None = declare_property(131)  # if external
+    thumbnail_url: str | None = declare_property(132)  # if external
+    favicon_url: str | None = declare_property(133)
+    thumbnail_width: UInt32 | None = declare_property(134)
+    thumbnail_height: UInt32 | None = declare_property(135)
+    content: bytes | None = declare_property(136)

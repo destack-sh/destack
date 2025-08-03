@@ -216,7 +216,7 @@ class MethodDeclaration(FunctionDeclaration):
     output_is_scalar: bool
 
 
-def builtin_method(
+def declare_method(
     id: int,
     *,
     name: str | None = None,
@@ -245,7 +245,7 @@ class ActionDeclaration(FunctionDeclaration):
     type: ActionType
 
 
-def builtin_action(
+def declare_action(
     id: int,
     *,
     name: str | None = None,
@@ -295,7 +295,7 @@ class ConstantDeclaration:
     original_component: type_["Object"] | None
 
 
-def builtin_constant[T](
+def declare_constant[T](
     id: int,
     value: T | Callable[[], T],
     *,

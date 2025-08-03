@@ -9,8 +9,8 @@ from ..builtin import (
     Entity,
     Handle,
     HandleType,
-    builtin_handle,
-    builtin_property_runtime,
+    declare_handle,
+    declare_property_runtime,
 )
 from ..utils.uuid import UUID
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from destack import Client
 
 
-@builtin_handle(HandleType.CONTEXT)
+@declare_handle(HandleType.CONTEXT)
 class Context(Handle):
     """
     The runtime Context encapsulates most general world state (like time, entropy/RNG, etc.).
@@ -38,9 +38,9 @@ class Context(Handle):
     #   - mode
     #   - theme
 
-    actor: "Entity" = builtin_property_runtime(401, is_repr=True)
-    client: "Client" = builtin_property_runtime(402, is_repr=True)
-    client_nonce: UUID = builtin_property_runtime(403, is_repr=True)
+    actor: "Entity" = declare_property_runtime(401, is_repr=True)
+    client: "Client" = declare_property_runtime(402, is_repr=True)
+    client_nonce: UUID = declare_property_runtime(403, is_repr=True)
 
     def __str__(self) -> str:
         return ""

@@ -15,13 +15,13 @@ from destack.core import (
     Struct,
     StructType,
     Type,
-    builtin_entity,
-    builtin_event,
-    builtin_message,
-    builtin_method,
-    builtin_property,
-    builtin_property_parent,
-    builtin_struct,
+    declare_entity,
+    declare_event,
+    declare_message,
+    declare_method,
+    declare_property,
+    declare_property_parent,
+    declare_struct,
 )
 
 if TYPE_CHECKING:
@@ -30,24 +30,24 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(NodeType.CUSTOM_EVENT_DEFINITION)
+@declare_entity(NodeType.CUSTOM_EVENT_DEFINITION)
 class CustomEventDefinition(
     Entity,
 ):
     """A CustomEvent defines a custom Event with custom Properties."""
 
-    icon: "Icon | None" = builtin_property(102)
+    icon: "Icon | None" = declare_property(102)
 
-    is_abstract: bool = builtin_property(112, default=False)
+    is_abstract: bool = declare_property(112, default=False)
 
 
-@builtin_event(NodeType.CUSTOM_EVENT, is_abstract=True)
+@declare_event(NodeType.CUSTOM_EVENT, is_abstract=True)
 class CustomEvent(Event):
     """
     A CustomEvent is an instance of a CustomEventDefinition.
     """
 
-    definition: "CustomEventDefinition" = builtin_property(
+    definition: "CustomEventDefinition" = declare_property(
         11,
         is_internal=True,
         is_readonly=True,
@@ -56,7 +56,7 @@ class CustomEvent(Event):
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
 
-    @builtin_method(2)
+    @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
         if self._ref is None:
@@ -71,27 +71,27 @@ class CustomEvent(Event):
         return self._ref
 
 
-@builtin_entity(NodeType.CUSTOM_STRUCT_DEFINITION)
+@declare_entity(NodeType.CUSTOM_STRUCT_DEFINITION)
 class CustomStructDefinition(Entity):
     """A CustomStruct describes a custom Struct with custom Properties."""
 
     pass
 
 
-@builtin_entity(NodeType.CUSTOM_MESSAGE_DEFINITION)
+@declare_entity(NodeType.CUSTOM_MESSAGE_DEFINITION)
 class CustomMessageDefinition(CustomStructDefinition):
     """A CustomMessage describes a custom Message with custom Properties."""
 
     pass
 
 
-@builtin_struct(StructType.CUSTOM_STRUCT, is_final=True)
+@declare_struct(StructType.CUSTOM_STRUCT, is_final=True)
 @final
 class CustomStruct(Struct):
     """A CustomStruct is a generic instance of a custom Struct with custom Values."""
 
-    definition: "CustomStructDefinition" = builtin_property(11, is_repr=True)
-    custom_values: dict[str, "Value"] | None = builtin_property(
+    definition: "CustomStructDefinition" = declare_property(11, is_repr=True)
+    custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Struct, keyed by custom Property name.",
     )
@@ -107,13 +107,13 @@ class CustomStruct(Struct):
         return val
 
 
-@builtin_message(StructType.CUSTOM_MESSAGE, is_final=True)
+@declare_message(StructType.CUSTOM_MESSAGE, is_final=True)
 @final
 class CustomMessage(Message):
     """A CustomMessage is an instance of a custom Message with custom Values."""
 
-    definition: "CustomMessageDefinition" = builtin_property(11, is_repr=True)
-    custom_values: dict[str, "Value"] | None = builtin_property(
+    definition: "CustomMessageDefinition" = declare_property(11, is_repr=True)
+    custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Message, keyed by custom Property name.",
     )
@@ -129,44 +129,44 @@ class CustomMessage(Message):
         return val
 
 
-@builtin_entity(NodeType.CUSTOM_ENUM_DEFINITION)
+@declare_entity(NodeType.CUSTOM_ENUM_DEFINITION)
 class CustomEnumDefinition(Entity):
     """A CustomEnum describes a custom Enum with custom Options."""
 
-    icon: "Icon | None" = builtin_property(102)
+    icon: "Icon | None" = declare_property(102)
 
 
-@builtin_entity(NodeType.CUSTOM_OPTION_DEFINITION)
+@declare_entity(NodeType.CUSTOM_OPTION_DEFINITION)
 class CustomOptionDefinition(Entity):
-    parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
+    parent: Union["CustomEnumDefinition", None] = declare_property_parent()
 
-    icon: "Icon | None" = builtin_property(102)
+    icon: "Icon | None" = declare_property(102)
 
-    value: "Value" = builtin_property(110)
+    value: "Value" = declare_property(110)
 
 
-@builtin_entity(NodeType.CUSTOM_PROPERTY_DEFINITION)
+@declare_entity(NodeType.CUSTOM_PROPERTY_DEFINITION)
 class CustomPropertyDefinition(Entity):
     """
     A CustomProperty is a custom attribute of an Entity.
     """
 
-    type: "Type" = builtin_property(
+    type: "Type" = declare_property(
         100,
         description="The actual Type of this custom Property.",
     )
-    icon: "Icon | None" = builtin_property(102)
+    icon: "Icon | None" = declare_property(102)
 
     # relationship
-    edge_type: Optional[EdgeType] = builtin_property(140)
-    cascade: Optional[CascadeAction] = builtin_property(141)
+    edge_type: Optional[EdgeType] = declare_property(140)
+    cascade: Optional[CascadeAction] = declare_property(141)
 
     # property flags
-    is_unique: bool | None = builtin_property(
+    is_unique: bool | None = declare_property(
         201,
         description="Whether this property must have a unique value.",
     )
-    is_readonly: bool | None = builtin_property(
+    is_readonly: bool | None = declare_property(
         202,
         description="Whether this property is read-only.",
     )

@@ -6,10 +6,10 @@ from destack.core import (
     EnumType,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_property_parent,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.FOLDER_TYPE)
+@declare_enum(EnumType.FOLDER_TYPE)
 class FolderType(Enum):
     SYSTEM = 1, "Root", "The root folder of a Space", "fas fa-home"
     HOME = 2, "Home", "The home folder of a Space", "fas fa-home"
@@ -28,7 +28,7 @@ class FolderType(Enum):
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.FOLDER,
     traits=(
         TraitType.OWNABLE,
@@ -42,9 +42,9 @@ class FolderType(Enum):
 class Folder(Entity):
     """A Folder is a sub-space of a Space."""
 
-    parent: Union["Space", "Folder", None] = builtin_property_parent()
-    type: FolderType = builtin_property(100, is_repr=True, default=FolderType.GENERAL)
-    icon: "Icon | None" = builtin_property(102)
-    slug: str | None = builtin_property(103, is_repr=True)
+    parent: Union["Space", "Folder", None] = declare_property_parent()
+    type: FolderType = declare_property(100, is_repr=True, default=FolderType.GENERAL)
+    icon: "Icon | None" = declare_property(102)
+    slug: str | None = declare_property(103, is_repr=True)
 
-    main_scene: Optional["Scene"] = builtin_property(110)
+    main_scene: Optional["Scene"] = declare_property(110)

@@ -6,8 +6,10 @@ from enum import Enum
 from typing import Any, assert_never, cast, override
 
 from destack.core import (
+    UUID,
     BinaryReader,
     BinaryWriter,
+    Casing,
     Encoder,
     EncoderOptions,
     Json,
@@ -22,12 +24,11 @@ from destack.core import (
     Type,
     TypeCardinality,
     Value,
+    to_casing,
 )
 from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
-from destack.utils.string import Casing, to_casing
-from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
-from destack.utils.uuid import UUID
 
+from ...utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from .core import JsonObjectEncoder
 
 type_ = type

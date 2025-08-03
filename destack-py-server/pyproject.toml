@@ -1,4 +1,9 @@
 [project]
-name = "destack-py-runtime"
+name = "destack-server"
 version = "2025.08.01.22"
+description = "Destack Python Server"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
+requires-python = ">=3.10"
+
+[tool.uv_build.targets.wheel]
+packages = ["destack-server"]

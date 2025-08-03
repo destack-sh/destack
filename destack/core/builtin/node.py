@@ -15,12 +15,12 @@ from ..utils.env import IS_DEV, IS_TEST
 from ..utils.uuid import UUID
 from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 from .const import UNSET
-from .declaration import NodeDeclaration, TagDeclaration, builtin_method
+from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
-    builtin_property,
-    builtin_property_runtime,
+    declare_property,
+    declare_property_runtime,
 )
 
 if TYPE_CHECKING:
@@ -194,7 +194,7 @@ def _process_node_cls(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def _builtin_node(
+def _declare_node(
     # meta
     node_type: NodeType,
     *,
@@ -252,7 +252,7 @@ def _builtin_node(
     return decorate
 
 
-@_builtin_node(
+@_declare_node(
     node_type=NodeType.NODE,
     is_abstract=True,
     tags=(
@@ -274,7 +274,7 @@ class Node(Object):
 
     # 1-20: node identity
     # Object.metatype: 1
-    id: UUID = builtin_property(
+    id: UUID = declare_property(
         2,
         is_internal=True,
         is_eq=False,
@@ -283,7 +283,7 @@ class Node(Object):
         description="The universally unique identifier of this Node.",
         tags=("identity",),
     )
-    space: "Space" = builtin_property(
+    space: "Space" = declare_property(
         5,
         is_internal=True,
         is_eq=False,
@@ -301,11 +301,11 @@ class Node(Object):
     # ...
 
     """The Session this Node is in."""
-    _session: "Session" = builtin_property_runtime(400)
+    _session: "Session" = declare_property_runtime(400)
     """The cached reference to this Node instance."""
-    _ref: Optional["NodeReference"] = builtin_property_runtime(401, default=None)
+    _ref: Optional["NodeReference"] = declare_property_runtime(401, default=None)
     """Whether this Node is new."""
-    _is_new: bool = builtin_property_runtime(402, default=False)
+    _is_new: bool = declare_property_runtime(402, default=False)
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""
@@ -316,7 +316,7 @@ class Node(Object):
         return self.id.int
 
     @property
-    @builtin_method(1)
+    @declare_method(1)
     def path(self) -> str:
         """The human readable path of this Node."""
         raise NotImplementedError  # generated
@@ -325,13 +325,13 @@ class Node(Object):
         """Gets a reference to this Node."""
         raise NotImplementedError  # generated
 
-    @builtin_method(2)
+    @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
         raise NotImplementedError
 
     @classmethod
-    @builtin_method(60)
+    @declare_method(60)
     def get(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -354,7 +354,7 @@ class Node(Object):
         return query  # type: ignore
 
     @classmethod
-    @builtin_method(61)
+    @declare_method(61)
     def search(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -387,7 +387,7 @@ class Node(Object):
         return query  # type: ignore
 
     @classmethod
-    @builtin_method(62)
+    @declare_method(62)
     def exists(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -415,7 +415,7 @@ class Node(Object):
         return query  # type: ignore
 
     @classmethod
-    @builtin_method(63)
+    @declare_method(63)
     def count(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -443,7 +443,7 @@ class Node(Object):
         return query  # type: ignore
 
     @classmethod
-    @builtin_method(64)
+    @declare_method(64)
     def min(
         cls: type["Self"],
         expression: "ExpressionIn",
@@ -471,7 +471,7 @@ class Node(Object):
         return query  # type: ignore
 
     @classmethod
-    @builtin_method(65)
+    @declare_method(65)
     def max(
         cls: type["Self"],
         expression: "ExpressionIn",
@@ -500,7 +500,7 @@ class Node(Object):
         return query  # type: ignore
 
     @classmethod
-    @builtin_method(66)
+    @declare_method(66)
     def sum(
         cls: type["Self"],
         expression: "ExpressionIn",

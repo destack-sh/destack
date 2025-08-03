@@ -7,9 +7,9 @@ from destack.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.STAR,
     traits=(TraitType.OWNED,),
     constraints=(
@@ -33,16 +33,16 @@ class Star(Entity):
     """A Star is a relationship between a Actor and a Starred Node."""
 
 
-@builtin_event(NodeType.STAR_EVENT)
+@declare_event(NodeType.STAR_EVENT)
 class StarEvent(Event):
-    star: "Star" = builtin_property(101)
+    star: "Star" = declare_property(101)
 
 
-@builtin_event(NodeType.STAR_ADDED_EVENT)
+@declare_event(NodeType.STAR_ADDED_EVENT)
 class StarAddedEvent(StarEvent):
     pass
 
 
-@builtin_event(NodeType.STAR_REMOVED_EVENT)
+@declare_event(NodeType.STAR_REMOVED_EVENT)
 class StarRemovedEvent(StarEvent):
     pass

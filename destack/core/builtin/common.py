@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, TypeAliasType
 
 from ..utils.uuid import UUID
 from .builtin import EnumType
-from .enum import Enum, builtin_enum
+from .enum import Enum, declare_enum
 from .types import (
     Boolean,
     Bytes,
@@ -32,14 +32,14 @@ if TYPE_CHECKING:
     pass
 
 
-@builtin_enum(EnumType.PROPERTY_ZONE)
+@declare_enum(EnumType.PROPERTY_ZONE)
 class PropertyZone(Enum):
     MEMBER = 1, "Member", None, None
     INPUT = 10, "Input", None, None
     OUTPUT = 11, "Output", None, None
 
 
-@builtin_enum(EnumType.RUNTIME_LANGUAGE)
+@declare_enum(EnumType.RUNTIME_LANGUAGE)
 class RuntimeLanguage(Enum):
     """The language of the Runtime."""
 
@@ -48,7 +48,7 @@ class RuntimeLanguage(Enum):
     RUST = 3
 
 
-@builtin_enum(EnumType.RUNTIME_PLATFORM)
+@declare_enum(EnumType.RUNTIME_PLATFORM)
 class RuntimePlatform(Enum):
     """The platform of the Runtime."""
 
@@ -61,7 +61,7 @@ class RuntimePlatform(Enum):
     # EMAIL, AR/VR/XR, ...
 
 
-@builtin_enum(EnumType.RUNTIME_TYPE)
+@declare_enum(EnumType.RUNTIME_TYPE)
 class RuntimeType(Enum):
     """The specific Runtime (RuntimeLanguage x RuntimePlatform)."""
 
@@ -75,7 +75,7 @@ class RuntimeType(Enum):
     WEB_TYPESCRIPT = 402, "destack-ts-web", "Destack TypeScript web Runtime"
 
 
-@builtin_enum(EnumType.ENVIRONMENT_TYPE)
+@declare_enum(EnumType.ENVIRONMENT_TYPE)
 class EnvironmentType(Enum):
     SYSTEM = 1, "System", "Managed by the system", "fas fa-cog"
     DEVELOPMENT = 3, "Development", "Active in development", "fas fa-flask"
@@ -84,7 +84,7 @@ class EnvironmentType(Enum):
     PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
 
 
-@builtin_enum(EnumType.REGION_CONTINENT)
+@declare_enum(EnumType.REGION_CONTINENT)
 class RegionContinent(Enum):
     """
     'Continents' of Regions.
@@ -99,7 +99,7 @@ class RegionContinent(Enum):
     AUSTRALIA = 7_000, "Australia", None, "🇦🇺"
 
 
-@builtin_enum(EnumType.REGION_AREA)
+@declare_enum(EnumType.REGION_AREA)
 class RegionArea(Enum):
     """
     A larger Area of Regions within a Continent.
@@ -122,7 +122,7 @@ class RegionArea(Enum):
         return RegionContinent((self.id // 1_000) * 1_000)
 
 
-@builtin_enum(EnumType.REGION)
+@declare_enum(EnumType.REGION)
 class Region(Enum):
     """Regions in an Area on a Continent."""
 
@@ -166,7 +166,7 @@ class Region(Enum):
         return RegionArea((self.id // 200) * 200)
 
 
-@builtin_enum(EnumType.EDGE_TYPE)
+@declare_enum(EnumType.EDGE_TYPE)
 class EdgeType(Enum):
     PARENT = 1
     REGULAR = 5
@@ -180,7 +180,7 @@ class EdgeType(Enum):
         return self.id < 10
 
 
-@builtin_enum(EnumType.CASCADE_ACTION)
+@declare_enum(EnumType.CASCADE_ACTION)
 class CascadeAction(Enum):
     RESTRICT = 1
     CASCADE = 2
@@ -188,7 +188,7 @@ class CascadeAction(Enum):
     # SET_DEFAULT, NONE, ...
 
 
-@builtin_enum(EnumType.EDGE_DIRECTION)
+@declare_enum(EnumType.EDGE_DIRECTION)
 class EdgeDirection(Enum):
     PARENT = 1
     CHILD = 2
@@ -197,7 +197,7 @@ class EdgeDirection(Enum):
     SIDE = 20
 
 
-@builtin_enum(EnumType.ENCODING)
+@declare_enum(EnumType.ENCODING)
 class Encoding(Enum):
     """Encoding scheme."""
 
@@ -209,7 +209,7 @@ class Encoding(Enum):
 assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 
 
-@builtin_enum(EnumType.TYPE_CARDINALITY)
+@declare_enum(EnumType.TYPE_CARDINALITY)
 class TypeCardinality(Enum):
     """The order of a Type (scalar, list, map, etc.)."""
 
@@ -217,14 +217,15 @@ class TypeCardinality(Enum):
     LIST = 2, "List", "Dynamic sequence of homogeneous values"
     TUPLE = 3, "Tuple", "Fixed sequence of heterogeneous values"
     # ARRAY/NDARRAY, "Array", "Dense multi-dimensional array of homogeneous values"
-    # SET? = 5, "Set", "Set of unique values (dynamic length)"
-    MAP = 7, "Map", "Mapping of homogenous keys to homogeneous values"
+    # SPARSE_ARRAY?, "Sparse Array", "Sparse multi-dimensional array of homogeneous values"
+    # SET?, "Set", "Set of unique values (dynamic length)"
+    MAP = 10, "Map", "Mapping of homogenous keys to homogeneous values"
 
 
-assert max(TypeCardinality) < 8, "TypeCardinality must be less than 8"  # for :Encoding
+assert max(TypeCardinality) < 16, "TypeCardinality must be less than 8"  # for :Encoding
 
 
-@builtin_enum(EnumType.SCALAR_TYPE)
+@declare_enum(EnumType.SCALAR_TYPE)
 class ScalarType(Enum):
     """The type of a scalar (single value like primitive, enum, struct, etc.)."""
 
@@ -272,7 +273,7 @@ class ScalarType(Enum):
 assert max(ScalarType) <= 8, "ScalarType must be less than 8"  # for :Encoding
 
 
-@builtin_enum(EnumType.PRIMITIVE_TYPE)
+@declare_enum(EnumType.PRIMITIVE_TYPE)
 class PrimitiveType(Enum):
     """
     A fundamental scalar data type.
@@ -469,7 +470,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
 PRIMITIVE_PY_TYPES = tuple(t for t in PRIMITIVE_TYPE_BY_ANNOTATION if isinstance(t, type))
 
 
-@builtin_enum(EnumType.VALUE_FACTORY)
+@declare_enum(EnumType.VALUE_FACTORY)
 class ValueFactory(Enum):
     """The factory to use for generating values."""
 
@@ -489,7 +490,7 @@ class ValueFactory(Enum):
     NAME = 50, "Name", "Generate a relevant name"
 
 
-@builtin_enum(EnumType.ROLE_TYPE)
+@declare_enum(EnumType.ROLE_TYPE)
 class RoleType(Enum):
     SYSTEM = 1
     OWNER = 2
@@ -499,7 +500,7 @@ class RoleType(Enum):
     SPECTATOR = 10
 
 
-@builtin_enum(EnumType.CLIENT_TYPE)
+@declare_enum(EnumType.CLIENT_TYPE)
 class ClientType(Enum):
     # user
     WEB = 1
@@ -510,13 +511,13 @@ class ClientType(Enum):
     MACHINE = 10
 
 
-@builtin_enum(EnumType.TENANCY)
+@declare_enum(EnumType.TENANCY)
 class Tenancy(Enum):
     DEDICATED = 1
     SHARED = 2
 
 
-@builtin_enum(EnumType.CONSTRAINT_TYPE)
+@declare_enum(EnumType.CONSTRAINT_TYPE)
 class ConstraintType(Enum):
     """Type of a Constraint."""
 
@@ -524,7 +525,7 @@ class ConstraintType(Enum):
     # CHECK, ...
 
 
-@builtin_enum(EnumType.INDEX_TYPE)
+@declare_enum(EnumType.INDEX_TYPE)
 class IndexType(Enum):
     """Type of an Index."""
 
@@ -532,14 +533,14 @@ class IndexType(Enum):
     # HASH, ...
 
 
-@builtin_enum(EnumType.METHOD_TYPE)
+@declare_enum(EnumType.METHOD_TYPE)
 class MethodType(Enum):
     PROPERTY = 1, "Property", "Computed property"
     INSTANCE = 2, "Instance", "Instance method"
     STATIC = 3, "Static", "Static method"
 
 
-@builtin_enum(EnumType.ACTION_TYPE)
+@declare_enum(EnumType.ACTION_TYPE)
 class ActionType(Enum):
     UNARY_IN_UNARY_OUT = 1, "Unary In, Unary Out", "Single in, single out"
     UNARY_IN_STREAM_OUT = 2, "Unary In, Stream Out", "Single in, stream out"
@@ -547,7 +548,7 @@ class ActionType(Enum):
     STREAM_IN_STREAM_OUT = 4, "Stream In, Stream Out", "Stream in, stream out"
 
 
-@builtin_enum(EnumType.FUNCTION_OPERATOR)
+@declare_enum(EnumType.FUNCTION_OPERATOR)
 class FunctionOperator(Enum):
     """The overridable builtin operators for Functions (depends on runtime language)."""
 

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from .enum import Enum, builtin_enum
+from .enum import Enum, declare_enum
 
 if TYPE_CHECKING:
     pass
@@ -160,9 +160,6 @@ class EnumType(Enum):
     # style [30_500_000]
     # ...
 
-    # material [30_600_000]
-    # ...
-
     #
     # STAGE
     #
@@ -245,17 +242,17 @@ class EnumType(Enum):
     # ...
 
 
-builtin_enum(EnumType.ENUM_TYPE)(EnumType)
+declare_enum(EnumType.ENUM_TYPE)(EnumType)
 
 
-@builtin_enum(EnumType.OBJECT_KIND)
+@declare_enum(EnumType.OBJECT_KIND)
 class ObjectKind(Enum):
     NODE = 1, "Node", "Object with data, logic and universally addressable identity"
     STRUCT = 2, "Struct", "Object with data and logic (embedded elsewhere)"
     HANDLE = 3, "Handle", "Object with special data and logic (runtime only)"
 
 
-@builtin_enum(EnumType.OBJECT_STABILITY)
+@declare_enum(EnumType.OBJECT_STABILITY)
 class ObjectStability(Enum):
     DYNAMIC = 1, "Definition may change in every compatible way"
     # GROWABLE = 2, "Definition may change with new properties at the end (only)"
@@ -263,7 +260,7 @@ class ObjectStability(Enum):
     STATIC = 7, "Definition may never change"
 
 
-@builtin_enum(EnumType.TRAIT_TYPE)
+@declare_enum(EnumType.TRAIT_TYPE)
 class TraitType(Enum):
     #
     # CORE
@@ -356,9 +353,6 @@ class TraitType(Enum):
     # style [30_500_000]
     # ...
 
-    # material [30_600_000]
-    # ...
-
     #
     # STAGE
     #
@@ -419,7 +413,7 @@ class TraitType(Enum):
     # ...
 
 
-@builtin_enum(EnumType.NODE_TYPE)
+@declare_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
     #
     # CORE
@@ -733,9 +727,6 @@ class NodeType(Enum):
     STROKE_STYLE = 30_500_900, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
 
-    # material [30_600_000]
-    # ...
-
     #
     # STAGE
     #
@@ -865,7 +856,7 @@ class NodeType(Enum):
     # ...
 
 
-@builtin_enum(EnumType.STRUCT_TYPE)
+@declare_enum(EnumType.STRUCT_TYPE)
 class StructType(Enum):
     #
     # CORE
@@ -1036,9 +1027,6 @@ class StructType(Enum):
     STROKE_PATH = 30_500_602, "Stroke Path", None, "fas fa-stroke"
     STROKE_POINT = 30_500_603, "Stroke Point", None, "fas fa-stroke"
 
-    # material [30_600_000]
-    # ...
-
     #
     # STAGE
     #
@@ -1095,7 +1083,7 @@ class StructType(Enum):
     # ...
 
 
-@builtin_enum(EnumType.HANDLE_TYPE)
+@declare_enum(EnumType.HANDLE_TYPE)
 class HandleType(Enum):
     HANDLE = 1
 
@@ -1114,21 +1102,20 @@ class HandleType(Enum):
     BINARY_READER = 33
 
 
-@builtin_enum(EnumType.UNIVERSE_DOMAIN)
+@declare_enum(EnumType.UNIVERSE_DOMAIN)
 class UniverseDomain(Enum):
     """The Destack Universe is organized into domains."""
 
     CORE = 1, "Core", "Universe intrinsics"
     BASICS = 10_000_000, "Basics", "Scaffolding the Universe"
     SIMULATION = 20_000_000, "Simulation", "Modeling the Universe"
-    CANVAS = 30_000_000, "Canvas", "Capturing the Universe"
+    CANVAS = 30_000_000, "Crafting", "Imagining the Universe"
     STAGE = 40_000_000, "Stage", "Presenting the Universe"
-    DEPLOYMENT = 50_000_000, "Deployment", "Deploying the Universe"
+    DEPLOYMENT = 50_000_000, "Deployment", "Operating the Universe"
     DISTRIBUTION = 60_000_000, "Distribution", "Distributing the Universe"
-    STUDIO = 100_000_000, "Studio", "Editing the Universe"
 
 
-@builtin_enum(EnumType.UNIVERSE_CATEGORY)
+@declare_enum(EnumType.UNIVERSE_CATEGORY)
 class UniverseCategory(Enum):
     """How the Destack Universe is organized (domains > categories)."""
 
@@ -1147,14 +1134,18 @@ class UniverseCategory(Enum):
     INTELLIGENCE = 10_200_000, "Intelligence", "Artificial intelligence"  # AI
     ACCESS = 10_300_000, "Access", "Access and identity"
     QUALITY = 10_400_000, "Quality", "Quality assurance"
-    # STREAMING, ...
+    STUDIO = 10_500_000, "Studio", "Editing the Universe"
+    # STREAMING, INTERNET, ...
 
     # simulation
     GEOMETRY = 20_000_000, "Geometry", "Geometric representations"
     PHYSICS = 20_100_000, "Physics", "Physics simulation"
     PERCEPTION = 20_200_000, "Perception", "Sensing and interaction"
-    ANIMATION = 20_300_000, "Animation", "Motion choreography"
-    # CHARACTER/HUMAN?, GEOGRAPHY/LOCATION?, GEOLOGY, CHEMISTRY, ...
+    ANIMATION = 20_300_000, "Animation", "Motion and time choreography"
+    # CHARACTER/HUMAN?,
+    # GEOGRAPHY/LOCATION?, ...
+    # MATERIAL?, MECHANICAL, ELECTRICAL, THERMODYNAMICS, INTERSTELLAR, ...
+    # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
 
     # canvas
     AUDIO = 30_000_000, "Audio", "Audio and sound production"
@@ -1163,8 +1154,7 @@ class UniverseCategory(Enum):
     MODEL = 30_300_000, "Model", "Modeling and sculpting"
     PAINT = 30_400_000, "Paint", "Drawing and painting"
     STYLE = 30_500_000, "Style", "Appearance and theming"
-    MATERIAL = 30_600_000, "Material", "Material design"
-    # ...
+    # MATERIAL?, NARRATIVE, ...
 
     # stage
     SCENE = 40_000_000, "Scene", "Stage building"
@@ -1178,14 +1168,14 @@ class UniverseCategory(Enum):
     CLOUD = 50_000_000, "Cloud", "Cloud computing infrastructure"
     OBSERVABILITY = 50_100_000, "Observability", "Telemetry on everything"
     EXPERIENCE = 50_200_000, "Experience", "User experience"
-    # CONSUMER/HOME, ROBOTICS, ACTUATION, INTERNET, ...
+    # ACTUATION, ROBOTICS, ...
+    # TRANSPORTATION, ENERGY, DEFENSE, ...
+    # CONSUMER/HOME, PHARMACEUTICAL, ...
 
     # distribution
     LOCALIZATION = 60_000_000, "Localization", "Localization and internationalization"
     LEGAL = 60_100_000, "Legal", "Legal, compliance and policy"
     SOCIAL = 60_200_000, "Social", "Interactions, reputation and trust"
-    COMMERCE = 60_300_000, "Finance", "Commerce and monetization"
-    # ACCESSIBILITY, CONTENT, CRYPTO, ...
-
-    # studio
-    EDITOR = 100_000_000, "Editor", "Editor and studio"
+    COMMERCE = 60_300_000, "Commerce", "Finance and monetization"
+    # ACCESSIBILITY, GOVERNANCE, ...
+    # CONTENT, COST, CRYPTO, ...

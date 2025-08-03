@@ -127,7 +127,7 @@ def _process_handle_cls(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def builtin_handle(
+def declare_handle(
     handle_type: HandleType,
     *,
     is_abstract: bool = False,
@@ -155,7 +155,7 @@ def builtin_handle(
     return decorate
 
 
-@builtin_handle(HandleType.HANDLE, is_abstract=True)
+@declare_handle(HandleType.HANDLE, is_abstract=True)
 class Handle(Object):
     """A Handle is a (runtime-only) Object for interacting with the runtime."""
 

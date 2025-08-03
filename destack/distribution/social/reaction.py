@@ -7,9 +7,9 @@ from destack.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.REACTION,
     traits=(TraitType.OWNED,),
     constraints=(
@@ -32,20 +32,20 @@ if TYPE_CHECKING:
 class Reaction(Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""
 
-    content: str = builtin_property(101, is_repr=True)
+    content: str = declare_property(101, is_repr=True)
 
 
-@builtin_event(NodeType.REACTION_EVENT)
+@declare_event(NodeType.REACTION_EVENT)
 class ReactionEvent(Event):
-    reaction: "Reaction" = builtin_property(101)
-    content: str = builtin_property(102)
+    reaction: "Reaction" = declare_property(101)
+    content: str = declare_property(102)
 
 
-@builtin_event(NodeType.REACTION_ADDED_EVENT)
+@declare_event(NodeType.REACTION_ADDED_EVENT)
 class ReactionAddedEvent(ReactionEvent):
     pass
 
 
-@builtin_event(NodeType.REACTION_REMOVED_EVENT)
+@declare_event(NodeType.REACTION_REMOVED_EVENT)
 class ReactionRemovedEvent(ReactionEvent):
     pass

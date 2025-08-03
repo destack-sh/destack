@@ -9,10 +9,10 @@ from destack.core import (
     Event,
     NodeReference,
     NodeType,
-    builtin_entity,
-    builtin_enum,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_enum,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -21,33 +21,33 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_event(NodeType.SANCTION_EVENT, is_abstract=True)
+@declare_event(NodeType.SANCTION_EVENT, is_abstract=True)
 class SanctionEvent(Event):
-    sanction: "Sanction" = builtin_property(101)
-    target: "Entity" = builtin_property(110)
+    sanction: "Sanction" = declare_property(101)
+    target: "Entity" = declare_property(110)
 
 
-@builtin_event(NodeType.SANCTION_REQUESTED_EVENT)
+@declare_event(NodeType.SANCTION_REQUESTED_EVENT)
 class SanctionRequestedEvent(SanctionEvent):
     pass
 
 
-@builtin_event(NodeType.SANCTION_GRANTED_EVENT)
+@declare_event(NodeType.SANCTION_GRANTED_EVENT)
 class SanctionGrantedEvent(SanctionEvent):
     pass
 
 
-@builtin_event(NodeType.SANCTION_REVOKED_EVENT)
+@declare_event(NodeType.SANCTION_REVOKED_EVENT)
 class SanctionRevokedEvent(SanctionEvent):
     pass
 
 
-@builtin_event(NodeType.SANCTION_EXPIRED_EVENT)
+@declare_event(NodeType.SANCTION_EXPIRED_EVENT)
 class SanctionExpiredEvent(SanctionEvent):
     pass
 
 
-@builtin_enum(EnumType.SANCTION_TYPE)
+@declare_enum(EnumType.SANCTION_TYPE)
 class SanctionType(Enum):
     """A Type of Sanction."""
 
@@ -55,7 +55,7 @@ class SanctionType(Enum):
     MUTE = 2
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.SANCTION,
     event_types=(NodeType.SANCTION_EVENT,),
 )
@@ -64,8 +64,8 @@ class Sanction(
 ):
     """A Sanction on some Actor."""
 
-    type: SanctionType = builtin_property(100)
-    expires_at: Optional[datetime] = builtin_property(110)
-    target: "Entity" = builtin_property(111)
+    type: SanctionType = declare_property(100)
+    expires_at: Optional[datetime] = declare_property(110)
+    target: "Entity" = declare_property(111)
     if TYPE_CHECKING:
         target_ptr: NodeReference = UNSET

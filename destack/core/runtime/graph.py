@@ -3,9 +3,8 @@ from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, final
 
-from destack.utils.uuid import UUID
-
-from ..builtin import Handle, HandleType, NodeType, builtin_handle
+from ..builtin import Handle, HandleType, NodeType, declare_handle
+from ..utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.core import Entity, Event, Snapshot
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
 type_ = type
 
 
-@builtin_handle(HandleType.GRAPH, is_abstract=True)
+@declare_handle(HandleType.GRAPH, is_abstract=True)
 class Graph(Handle):
     """
     A Graph is a collection of Nodes from one or multiple Spaces (across time).

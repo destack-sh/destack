@@ -4,7 +4,7 @@ from destack.core import (
     Entity,
     NodeType,
     TraitType,
-    builtin_entity,
+    declare_entity,
 )
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.STAGE,
     traits=(TraitType.OWNABLE, TraitType.ORDERED, TraitType.JOINABLE),
 )

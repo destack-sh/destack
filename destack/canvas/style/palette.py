@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 from destack.core import (
     Entity,
     NodeType,
-    builtin_entity,
-    builtin_property,
+    declare_entity,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(NodeType.PALETTE)
+@declare_entity(NodeType.PALETTE)
 class Palette(
     Entity,
 ):
     """A Palette of Colors."""
 
-    icon: "Icon | None" = builtin_property(102)
+    icon: "Icon | None" = declare_property(102)

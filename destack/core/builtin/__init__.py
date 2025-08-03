@@ -78,9 +78,9 @@ from .declaration import (
     PermissionDeclaration,
     StructDeclaration,
     TagDeclaration,
-    builtin_action,
-    builtin_constant,
-    builtin_method,
+    declare_action,
+    declare_constant,
+    declare_method,
 )
 from .edit import EditEvent, EditOperation, EditType
 from .entity import (
@@ -89,23 +89,23 @@ from .entity import (
     Entity,
     EntityPartial,
     Materialization,
-    builtin_entity,
+    declare_entity,
 )
-from .enum import Enum, builtin_enum
-from .event import Event, EventStatus, builtin_event
-from .handle import Handle, builtin_handle
-from .message import Message, builtin_message
+from .enum import Enum, declare_enum
+from .event import Event, EventStatus, declare_event
+from .handle import Handle, declare_handle
+from .message import Message, declare_message
 from .node import Node, expand_node_inheritance, expand_node_types
 from .object import Object, _is_finalized
 from .property import (
     PropertyDeclaration,
     TypeDeclaration,
-    builtin_property,
-    builtin_property_parent,
-    builtin_property_runtime,
+    declare_property,
+    declare_property_parent,
+    declare_property_runtime,
     parse_type_declaration,
 )
-from .struct import Struct, StructFrozen, builtin_struct
+from .struct import Struct, StructFrozen, declare_struct
 from .types import (
     Bytes,
     Date,
@@ -236,18 +236,18 @@ __all__ = [
     "active_snapshot",
     "active_space",
     "active_space_ptr",
-    "builtin_action",
-    "builtin_constant",
-    "builtin_entity",
-    "builtin_enum",
-    "builtin_event",
-    "builtin_handle",
-    "builtin_message",
-    "builtin_method",
-    "builtin_property",
-    "builtin_property_parent",
-    "builtin_property_runtime",
-    "builtin_struct",
+    "declare_action",
+    "declare_constant",
+    "declare_entity",
+    "declare_enum",
+    "declare_event",
+    "declare_handle",
+    "declare_message",
+    "declare_method",
+    "declare_property",
+    "declare_property_parent",
+    "declare_property_runtime",
+    "declare_struct",
     "expand_node_inheritance",
     "expand_node_types",
     "get_active_branch",

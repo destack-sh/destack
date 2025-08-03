@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.core import Entity, IndexType, NodeType, builtin_entity, builtin_property
+from destack.core import Entity, IndexType, NodeType, declare_entity, declare_property
 
 if TYPE_CHECKING:
     from destack import PropertyReference
@@ -8,9 +8,9 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@builtin_entity(NodeType.INDEX)
+@declare_entity(NodeType.INDEX)
 class Index(Entity):
     """Index of an Entity for faster querying."""
 
-    type: IndexType = builtin_property(100, is_repr=True)
-    properties: list["PropertyReference"] = builtin_property(105)
+    type: IndexType = declare_property(100, is_repr=True)
+    properties: list["PropertyReference"] = declare_property(105)

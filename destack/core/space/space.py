@@ -11,9 +11,9 @@ from ..builtin import (
     RuntimePlatform,
     TraitType,
     ValueFactory,
-    builtin_action,
-    builtin_entity,
-    builtin_property,
+    declare_action,
+    declare_entity,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ class CreateSpaceResult(NamedTuple):
     head_snapshot: "Snapshot"
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.SPACE,
     is_final=True,
     traits=(TraitType.FOLLOWABLE, TraitType.JOINABLE, TraitType.OWNABLE, TraitType.STARABLE),
@@ -43,7 +43,7 @@ class Space(Entity):
     A Space is the root of a Destack workspace.
     """
 
-    space: "Space" = builtin_property(
+    space: "Space" = declare_property(
         5,
         is_internal=True,
         is_readonly=True,
@@ -51,14 +51,14 @@ class Space(Entity):
         description="The Space this Node is in.",
     )
 
-    slug: str = builtin_property(102, is_repr=True)
+    slug: str = declare_property(102, is_repr=True)
 
     # system_folder, home_folder, ...
 
     # infra
-    region: Region = builtin_property(120)
+    region: Region = declare_property(120)
 
-    @builtin_action(
+    @declare_action(
         101,
         type=ActionType.UNARY_IN_UNARY_OUT,
         platforms=(RuntimePlatform.SYSTEM,),
@@ -70,7 +70,7 @@ class Space(Entity):
         """Append Events to the Space."""
         ...
 
-    @builtin_action(
+    @declare_action(
         102,
         type=ActionType.UNARY_IN_STREAM_OUT,
         platforms=(RuntimePlatform.SYSTEM,),

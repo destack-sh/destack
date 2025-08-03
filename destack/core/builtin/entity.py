@@ -23,15 +23,15 @@ from .declaration import (
     IndexDeclaration,
     PermissionDeclaration,
     TagDeclaration,
-    builtin_method,
+    declare_method,
 )
-from .enum import Enum, builtin_enum
+from .enum import Enum, declare_enum
 from .node import Node, _process_node_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
-    builtin_property,
-    builtin_property_parent,
+    declare_property,
+    declare_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -51,7 +51,7 @@ type_ = type
 object_set_ = object.__setattr__
 
 
-@builtin_enum(EnumType.MATERIALIZATION)
+@declare_enum(EnumType.MATERIALIZATION)
 class Materialization(Enum):
     """
     The materialization level of an Entity.
@@ -64,7 +64,7 @@ class Materialization(Enum):
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def builtin_entity(
+def declare_entity(
     # meta
     entity_type: NodeType,
     *,
@@ -124,7 +124,7 @@ def builtin_entity(
     return decorate
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.ENTITY,
     is_abstract=True,
     event_types=(NodeType.EDIT_EVENT,),
@@ -155,14 +155,14 @@ class Entity(Node):
     metakind = ObjectKind.NODE
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
-    parent: Optional["Entity"] = builtin_property_parent(
+    parent: Optional["Entity"] = declare_property_parent(
         description="The parent of this Entity. Most Entities can be attached to any other Entity."
     )
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 
     # 1-20: identity
-    materialization: Materialization = builtin_property(
+    materialization: Materialization = declare_property(
         10,
         is_internal=True,
         is_eq=False,
@@ -171,7 +171,7 @@ class Entity(Node):
         default=Materialization.ROOT,
         tags=("identity",),
     )
-    definition: Optional["Entity"] = builtin_property(
+    definition: Optional["Entity"] = declare_property(
         11,
         is_internal=True,
         is_readonly=True,
@@ -179,7 +179,7 @@ class Entity(Node):
         description="The definition this Entity is an instance of.",
         tags=("identity",),
     )
-    branch: "Branch" = builtin_property(
+    branch: "Branch" = declare_property(
         12,
         is_readonly=True,
         is_internal=True,
@@ -190,7 +190,7 @@ class Entity(Node):
         description="The Branch this Entity is part of.",
         tags=("identity",),
     )
-    snapshot: "Snapshot" = builtin_property(
+    snapshot: "Snapshot" = declare_property(
         13,
         is_readonly=True,
         is_internal=True,
@@ -201,7 +201,7 @@ class Entity(Node):
         description="The Snapshot this Entity is part of.",
         tags=("identity",),
     )
-    preceded_by: Optional[Self] = builtin_property(
+    preceded_by: Optional[Self] = declare_property(
         14,
         is_readonly=True,
         is_internal=True,
@@ -214,7 +214,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
 """,
         tags=("identity",),
     )
-    instance: Optional["Entity"] = builtin_property(
+    instance: Optional["Entity"] = declare_property(
         15,
         is_readonly=True,
         is_internal=True,
@@ -232,7 +232,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         instance_ptr: Optional[NodeReference] = None
 
     # 20-40: Entity tracking
-    created_at: datetime = builtin_property(
+    created_at: datetime = declare_property(
         20,
         is_internal=True,
         is_hash=False,
@@ -242,7 +242,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The time this Entity was created (system time).",
         tags=("tracking",),
     )
-    created_epoch: UInt128 = builtin_property(
+    created_epoch: UInt128 = declare_property(
         21,
         is_internal=True,
         is_hash=False,
@@ -251,7 +251,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The logical time this Entity was created (system time).",
         tags=("tracking",),
     )
-    created_by: "Entity" = builtin_property(
+    created_by: "Entity" = declare_property(
         22,
         is_internal=True,
         is_hash=False,
@@ -261,7 +261,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The Actor that created this Entity.",
         tags=("tracking",),
     )
-    updated_at: datetime = builtin_property(
+    updated_at: datetime = declare_property(
         23,
         is_internal=True,
         is_hash=False,
@@ -270,7 +270,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The time this Entity was last updated (system time).",
         tags=("tracking",),
     )
-    updated_epoch: UInt128 = builtin_property(
+    updated_epoch: UInt128 = declare_property(
         24,
         is_internal=True,
         is_hash=False,
@@ -279,7 +279,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The logical time this Entity was last updated (system time).",
         tags=("tracking",),
     )
-    updated_by: "Entity" = builtin_property(
+    updated_by: "Entity" = declare_property(
         25,
         is_internal=True,
         is_hash=False,
@@ -288,7 +288,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The Actor that last updated this Entity.",
         tags=("tracking",),
     )
-    deleted_at: Optional[datetime] = builtin_property(
+    deleted_at: Optional[datetime] = declare_property(
         26,
         is_internal=True,
         is_hash=False,
@@ -299,7 +299,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 """,
         tags=("tracking",),
     )
-    owned_by: Optional["Entity"] = builtin_property(
+    owned_by: Optional["Entity"] = declare_property(
         30,
         is_repr=True,
         tags=("tracking",),
@@ -313,13 +313,13 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         owned_by_ptr: Optional[NodeReference] = None
 
     # 40-60: Entity basics
-    name: str = builtin_property(
+    name: str = declare_property(
         40,
         is_repr=True,
         default_factory=ValueFactory.NAME,
         tags=("entity",),
     )
-    order_key: str = builtin_property(
+    order_key: str = declare_property(
         41,
         is_eq=False,
         is_internal=True,
@@ -327,23 +327,23 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The absolute order key of this Entity in its parent.",
         tags=("entity",),
     )
-    # key: str | None = builtin_property(
+    # key: str | None = declare_property(
     #     42,
     #     description="The key to uniquely identify this Entity in reconciliation. If not set, name is used.",
     #     tags=("source",),
     # )
-    custom_values: dict[str, "Value"] | None = builtin_property(
+    custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property name.",
         tags=("entity",),
     )
     # context/context_values, ...?
-    script: Optional["Script"] = builtin_property(
+    script: Optional["Script"] = declare_property(
         46,
         description="The Script of this Entity.",
         tags=("entity",),
     )
-    is_extensible: bool | None = builtin_property(
+    is_extensible: bool | None = declare_property(
         50,
         is_internal=True,
         is_readonly=True,
@@ -358,7 +358,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # is_sleeping? (like in physics engines but more general)
 
     # 80-100: provenance
-    source: Optional["Script"] = builtin_property(
+    source: Optional["Script"] = declare_property(
         80,
         is_internal=True,
         description="The Script that defines this Node.",
@@ -376,7 +376,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     if not TYPE_CHECKING:
         __setattr__ = set
 
-    @builtin_method(2)
+    @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
         if self._ref is None:
@@ -390,31 +390,31 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             )
         return self._ref
 
-    @builtin_method(10)
+    @declare_method(10)
     @property
     def is_custom(self) -> bool:
         """Whether this Node is a custom Node."""
         return self.definition is not None
 
-    @builtin_method(11)
+    @declare_method(11)
     @property
     def is_partial(self) -> bool:
         """Whether this Entity is a partial Entity."""
         return False  # only set in EntityPartial
 
-    @builtin_method(20)
+    @declare_method(20)
     def delete(self):
         """Delete this Entity."""
         assert not self.deleted_at, f"{self!r} is already deleted"
         self._session.delete(self)
 
-    @builtin_method(21)
+    @declare_method(21)
     def restore(self):
         """Restore this deleted Entity from the trash."""
         assert self.deleted_at, f"{self!r} is not deleted"
         self._session.restore(self)
 
-    @builtin_method(30)
+    @declare_method(30)
     def get_children[N: Entity = Entity](
         self,
         type: NodeType | type[N] | None = None,
@@ -433,7 +433,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         )
         return cast(Sequence[N], children)
 
-    @builtin_method(31)
+    @declare_method(31)
     def get_child[N: Entity = Entity](
         self,
         type: NodeType | type[N],
@@ -455,7 +455,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
                 return cast(N, child)
         return None
 
-    @builtin_method(32)
+    @declare_method(32)
     def child[N: Entity = Entity](
         self,
         type: NodeType | type[N],
@@ -468,7 +468,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             raise LookupError(f"no child {name} of {self!r}")
         return cast(N, child)
 
-    @builtin_method(33)
+    @declare_method(33)
     def get_ancestors[N: Entity = Entity](
         self,
         type: NodeType | type[N] | None = None,
@@ -487,7 +487,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         )
         return cast(Sequence[N], ancestors)
 
-    @builtin_method(34)
+    @declare_method(34)
     def get_descendants[N: Entity = Entity](
         self,
         type: NodeType | type[N] | None = None,
@@ -546,7 +546,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             order_key = get_order_key(after_order_key, before_order_key)
             child.set("order_key", order_key)
 
-    @builtin_method(40)
+    @declare_method(40)
     def detach(self):
         """
         Detach this Entity from its parent.
@@ -557,7 +557,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             raise ValueError(f"{self!r} has no parent to detach from")
         self.move_to(parent=None)
 
-    @builtin_method(41)
+    @declare_method(41)
     def move_to(
         self,
         parent: "Entity | None",
@@ -593,7 +593,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
                 assert isinstance(node, Entity), f"{node!r} of {parent!r} is not an Entity"
                 session.create(node)
 
-    @builtin_method(42)
+    @declare_method(42)
     def add_sibling(
         self,
         sibling: "Entity",
@@ -610,7 +610,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         sibling.move_to(self.parent, after=after, before=before)
         return self
 
-    @builtin_method(43)
+    @declare_method(43)
     def add_siblings(
         self,
         *siblings: "Entity",
@@ -622,7 +622,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             sibling.move_to(self.parent, after=after, before=before)
         return self
 
-    @builtin_method(44)
+    @declare_method(44)
     def add_child(
         self,
         child: "Entity",
@@ -639,7 +639,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         child.move_to(self, after=after, before=before)
         return self
 
-    @builtin_method(45)
+    @declare_method(45)
     def add_children(
         self,
         *children: "Entity",
@@ -653,7 +653,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             child.move_to(self, after=after, before=before)
         return self
 
-    @builtin_method(46)
+    @declare_method(46)
     def remove_child(self, child: "Entity") -> Self:
         """
         Remove a child Entity from this Entity.
@@ -662,7 +662,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         child.detach()
         return self
 
-    @builtin_method(50)
+    @declare_method(50)
     def add_tag(self, tag: "Tag") -> "Tagging":
         """Add or get a Tagging for a Tag on this Entity."""
         for tagging in self.get_children(Tagging):
@@ -674,7 +674,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             self.add_child(tagging)
             return tagging
 
-    @builtin_method(51)
+    @declare_method(51)
     def remove_tag(self, tag: "Tag") -> "Tagging | None":
         """Remove a Tag from this Entity."""
         for tagging in self.get_children(Tagging):
@@ -684,14 +684,14 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         else:
             return None
 
-    @builtin_method(60)
+    @declare_method(60)
     def into(self, branch: "Branch") -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Branch.
         """
         raise NotImplementedError
 
-    @builtin_method(61)
+    @declare_method(61)
     def instantiate(self, *, partial: bool = True, attach: bool = False, **override: Any) -> "Self":
         """
         Instantiate this Entity into a new (partial or full) Entity.

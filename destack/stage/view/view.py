@@ -4,9 +4,9 @@ from destack.core import (
     Event,
     Float32,
     NodeType,
-    builtin_entity,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_event,
+    declare_property,
 )
 from destack.language.geometry import Entity2D
 
@@ -23,14 +23,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_event(NodeType.VIEW_EVENT, is_abstract=True)
+@declare_event(NodeType.VIEW_EVENT, is_abstract=True)
 class ViewEvent(Event):
     """A Event regarding a View."""
 
-    view: "View" = builtin_property(101)
+    view: "View" = declare_property(101)
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.VIEW,
     is_abstract=True,
     event_types=(
@@ -51,31 +51,31 @@ class View(Entity2D):
     """A View is a 2D user interface element."""
 
     # size
-    width: Optional["Length"] = builtin_property(120, tags=("size",))
-    height: Optional["Length"] = builtin_property(121, tags=("size",))
-    min_width: Optional["Length"] = builtin_property(122, tags=("size",))
-    min_height: Optional["Length"] = builtin_property(123, tags=("size",))
-    max_width: Optional["Length"] = builtin_property(124, tags=("size",))
-    max_height: Optional["Length"] = builtin_property(125, tags=("size",))
+    width: Optional["Length"] = declare_property(120, tags=("size",))
+    height: Optional["Length"] = declare_property(121, tags=("size",))
+    min_width: Optional["Length"] = declare_property(122, tags=("size",))
+    min_height: Optional["Length"] = declare_property(123, tags=("size",))
+    max_width: Optional["Length"] = declare_property(124, tags=("size",))
+    max_height: Optional["Length"] = declare_property(125, tags=("size",))
 
     # visibility
-    is_visible: Optional[bool] = builtin_property(130, tags=("visibility",))
-    opacity: Optional[Float32] = builtin_property(131, tags=("visibility",))
+    is_visible: Optional[bool] = declare_property(130, tags=("visibility",))
+    opacity: Optional[Float32] = declare_property(131, tags=("visibility",))
 
     # style
-    fill: Optional["Fill"] = builtin_property(
+    fill: Optional["Fill"] = declare_property(
         140,
         tags=("style",),
     )
-    shadow: Optional["Shadow"] = builtin_property(
+    shadow: Optional["Shadow"] = declare_property(
         141,
         tags=("style",),
     )
-    border: Optional["Border"] = builtin_property(
+    border: Optional["Border"] = declare_property(
         142,
         tags=("style",),
     )
-    radius: Optional["Corner2"] = builtin_property(
+    radius: Optional["Corner2"] = declare_property(
         143,
         tags=("style",),
     )

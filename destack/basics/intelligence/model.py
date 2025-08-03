@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.core import Enum, EnumType, builtin_enum
+from destack.core import Enum, EnumType, declare_enum
 
 if TYPE_CHECKING:
     pass
@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 # NOTE: Architecture: Model should maybe just be a Node instead of builtin enums?
 
 
-@builtin_enum(EnumType.MODEL_DEVELOPER)
+@declare_enum(EnumType.MODEL_DEVELOPER)
 class ModelDeveloper(Enum):
     # internal
     # ...
@@ -22,7 +22,7 @@ class ModelDeveloper(Enum):
     XAI = 1060, "xAI", "xAI", "https://x.com/favicon.ico"
 
 
-@builtin_enum(EnumType.MODEL_PROVIDER)
+@declare_enum(EnumType.MODEL_PROVIDER)
 class ModelProvider(Enum):
     # internal
     # ...

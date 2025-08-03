@@ -7,9 +7,9 @@ from destack.core import (
     StructFrozen,
     StructType,
     UInt16,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.LAYOUT)
+@declare_enum(EnumType.LAYOUT)
 class Layout(Enum):
     """The layout of elements."""
 
@@ -26,7 +26,7 @@ class Layout(Enum):
     GRID = 2, "Grid", "Grid", "fas fa-grid-2"
 
 
-@builtin_enum(EnumType.OVERFLOW)
+@declare_enum(EnumType.OVERFLOW)
 class Overflow(Enum):
     """The overflow behavior of elements."""
 
@@ -35,7 +35,7 @@ class Overflow(Enum):
     SCROLL = 4, "Scroll", "Scroll", "fas fa-machine-mouse-scrollwheel"
 
 
-@builtin_enum(EnumType.DIRECTION)
+@declare_enum(EnumType.DIRECTION)
 class Direction(Enum):
     """The direction of elements."""
 
@@ -43,7 +43,7 @@ class Direction(Enum):
     VERTICAL = 2, "Vertical", "Vertical", "fas fa-up-down"
 
 
-@builtin_enum(EnumType.DISTRIBUTE)
+@declare_enum(EnumType.DISTRIBUTE)
 class Distribute(Enum):
     """The distribution of elements."""
 
@@ -55,7 +55,7 @@ class Distribute(Enum):
     SPACE_EVENLY = 6, "Viewport Evenly", "Viewport Evenly"
 
 
-@builtin_enum(EnumType.ALIGN)
+@declare_enum(EnumType.ALIGN)
 class Align(Enum):
     """The alignment of elements."""
 
@@ -64,7 +64,7 @@ class Align(Enum):
     END = 3, "End", "End", "fas fa-align-right"
 
 
-@builtin_enum(EnumType.ANCHOR)
+@declare_enum(EnumType.ANCHOR)
 class Anchor(Enum):
     """The position of elements."""
 
@@ -74,7 +74,7 @@ class Anchor(Enum):
     STICKY = 4, "Sticky", "Sticky to parent"
 
 
-@builtin_enum(EnumType.LENGTH_TYPE)
+@declare_enum(EnumType.LENGTH_TYPE)
 class LengthType(Enum):
     """The unit of a length value."""
 
@@ -86,7 +86,7 @@ class LengthType(Enum):
     FILL = 11, "Fill", "fill"
 
 
-@builtin_struct(
+@declare_struct(
     StructType.LENGTH,
     frozen=True,
     is_final=True,
@@ -95,11 +95,11 @@ class LengthType(Enum):
 class Length(StructFrozen):
     """An absolute or relative length value."""
 
-    unit: LengthType = builtin_property(101, is_repr=True)
-    value: Float32 = builtin_property(102, is_repr=True)
+    unit: LengthType = declare_property(101, is_repr=True)
+    value: Float32 = declare_property(102, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.OFFSET2,
     frozen=True,
     is_final=True,
@@ -108,14 +108,14 @@ class Length(StructFrozen):
 class Offset2(StructFrozen):
     """A 2-dimensional position value (relative or absolute)."""
 
-    type: Anchor = builtin_property(100, is_repr=True)
-    top: Length | None = builtin_property(101, is_repr=True)
-    left: Length | None = builtin_property(102, is_repr=True)
-    width: Length | None = builtin_property(103, is_repr=True)
-    height: Length | None = builtin_property(104, is_repr=True)
+    type: Anchor = declare_property(100, is_repr=True)
+    top: Length | None = declare_property(101, is_repr=True)
+    left: Length | None = declare_property(102, is_repr=True)
+    width: Length | None = declare_property(103, is_repr=True)
+    height: Length | None = declare_property(104, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.INSET2,
     frozen=True,
     is_final=True,
@@ -124,14 +124,14 @@ class Offset2(StructFrozen):
 class Inset2(StructFrozen):
     """A 2-dimensional insets value (base + side overrides)."""
 
-    base: UInt16 = builtin_property(101, is_repr=True, default=0)
-    top: UInt16 | None = builtin_property(102, is_repr=True)
-    left: UInt16 | None = builtin_property(103, is_repr=True)
-    right: UInt16 | None = builtin_property(104, is_repr=True)
-    bottom: UInt16 | None = builtin_property(105, is_repr=True)
+    base: UInt16 = declare_property(101, is_repr=True, default=0)
+    top: UInt16 | None = declare_property(102, is_repr=True)
+    left: UInt16 | None = declare_property(103, is_repr=True)
+    right: UInt16 | None = declare_property(104, is_repr=True)
+    bottom: UInt16 | None = declare_property(105, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.CORNER2,
     frozen=True,
     is_final=True,
@@ -140,14 +140,14 @@ class Inset2(StructFrozen):
 class Corner2(StructFrozen):
     """A 2-dimensional corners value (base + corner overrides)."""
 
-    base: UInt16 = builtin_property(101, is_repr=True, default=0)
-    top_left: UInt16 | None = builtin_property(102, is_repr=True)
-    top_right: UInt16 | None = builtin_property(103, is_repr=True)
-    bottom_left: UInt16 | None = builtin_property(104, is_repr=True)
-    bottom_right: UInt16 | None = builtin_property(105, is_repr=True)
+    base: UInt16 = declare_property(101, is_repr=True, default=0)
+    top_left: UInt16 | None = declare_property(102, is_repr=True)
+    top_right: UInt16 | None = declare_property(103, is_repr=True)
+    bottom_left: UInt16 | None = declare_property(104, is_repr=True)
+    bottom_right: UInt16 | None = declare_property(105, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.AXIS2,
     frozen=True,
     is_final=True,
@@ -156,12 +156,12 @@ class Corner2(StructFrozen):
 class Axis2(StructFrozen):
     """A 2-dimensional axis value (base + x/y overrides)."""
 
-    base: Float32 = builtin_property(101, is_repr=True, default=0)
-    x: Float32 | None = builtin_property(102, is_repr=True)
-    y: Float32 | None = builtin_property(103, is_repr=True)
+    base: Float32 = declare_property(101, is_repr=True, default=0)
+    x: Float32 | None = declare_property(102, is_repr=True)
+    y: Float32 | None = declare_property(103, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.AXIS3,
     frozen=True,
     is_final=True,
@@ -170,13 +170,13 @@ class Axis2(StructFrozen):
 class Axis3(StructFrozen):
     """A 3-dimensional axis value (base + x/y/z overrides)."""
 
-    base: Float32 = builtin_property(101, is_repr=True, default=0)
-    x: Float32 | None = builtin_property(102, is_repr=True)
-    y: Float32 | None = builtin_property(103, is_repr=True)
-    z: Float32 | None = builtin_property(104, is_repr=True)
+    base: Float32 = declare_property(101, is_repr=True, default=0)
+    x: Float32 | None = declare_property(102, is_repr=True)
+    y: Float32 | None = declare_property(103, is_repr=True)
+    z: Float32 | None = declare_property(104, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.GRID2,
     frozen=True,
     is_final=True,
@@ -185,14 +185,14 @@ class Axis3(StructFrozen):
 class Grid2(StructFrozen):
     """A 2-dimensional grid configuration value."""
 
-    columns: UInt16 = builtin_property(101, is_repr=True)
-    rows: UInt16 = builtin_property(102, is_repr=True)
-    column_width: Length | None = builtin_property(103, is_repr=True)
-    column_min_width: Length | None = builtin_property(104, is_repr=True)
-    row_height: Length | None = builtin_property(105, is_repr=True)
+    columns: UInt16 = declare_property(101, is_repr=True)
+    rows: UInt16 = declare_property(102, is_repr=True)
+    column_width: Length | None = declare_property(103, is_repr=True)
+    column_min_width: Length | None = declare_property(104, is_repr=True)
+    row_height: Length | None = declare_property(105, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.GRID_SPAN2,
     frozen=True,
     is_final=True,
@@ -201,5 +201,5 @@ class Grid2(StructFrozen):
 class GridSpan2(StructFrozen):
     """A 2-dimensional grid span value."""
 
-    columns: UInt16 = builtin_property(101, is_repr=True)
-    rows: UInt16 = builtin_property(102, is_repr=True)
+    columns: UInt16 = declare_property(101, is_repr=True)
+    rows: UInt16 = declare_property(102, is_repr=True)

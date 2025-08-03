@@ -5,8 +5,8 @@ from destack.core import (
     Event,
     NodeType,
     Value,
-    builtin_event,
-    builtin_property,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -16,21 +16,21 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_event(NodeType.SPAN_EVENT)
+@declare_event(NodeType.SPAN_EVENT)
 class SpanEvent(Event):
     """
     A Span is a trace inside a Run.
     """
 
-    custom_values: dict[str, "Value"] | None = builtin_property(
+    custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property name.",
     )
 
-    name: str = builtin_property(101)
-    start_time: datetime = builtin_property(102)
-    end_time: datetime = builtin_property(103)
-    duration: timedelta = builtin_property(104)
+    name: str = declare_property(101)
+    start_time: datetime = declare_property(102)
+    end_time: datetime = declare_property(103)
+    duration: timedelta = declare_property(104)
 
-    parent_span: "SpanEvent | None" = builtin_property(110)
-    action: "Action | None" = builtin_property(111)
+    parent_span: "SpanEvent | None" = declare_property(110)
+    action: "Action | None" = declare_property(111)

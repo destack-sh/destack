@@ -35,10 +35,10 @@ from ..builtin import (
     UInt16,
     UInt32,
     ValueFactory,
-    builtin_method,
-    builtin_property,
-    builtin_property_runtime,
-    builtin_struct,
+    declare_method,
+    declare_property,
+    declare_property_runtime,
+    declare_struct,
 )
 from .relation import ObjectDefinitionReference, PropertyReference, PropertyReferenceType
 from .type import Type
@@ -82,7 +82,7 @@ def resolve_tagging(
     raise ValueError(f"tagging '{tagging}' not found for {object_cls.__name__}")
 
 
-@builtin_struct(
+@declare_struct(
     StructType.OBJECT_DEFINITION,
     frozen=True,
     is_abstract=True,
@@ -117,17 +117,17 @@ def resolve_tagging(
 class ObjectDefinition(StructFrozen):
     """Definition of a builtin Trait, Node or Struct."""
 
-    id: UInt32 = builtin_property(
+    id: UInt32 = declare_property(
         2,
         is_repr=True,
         tags=("meta",),
     )
-    name: str = builtin_property(
+    name: str = declare_property(
         101,
         is_repr=True,
         tags=("meta",),
     )
-    description: str | None = builtin_property(
+    description: str | None = declare_property(
         103,
         is_repr=True,
         tags=("meta",),
@@ -138,7 +138,7 @@ class ObjectDefinition(StructFrozen):
         raise NotImplementedError
 
 
-@builtin_struct(
+@declare_struct(
     StructType.NODE_DEFINITION,
     frozen=True,
     is_final=True,
@@ -148,186 +148,186 @@ class NodeDefinition(ObjectDefinition):
     """Definition of a builtin Node."""
 
     # meta
-    type: NodeType = builtin_property(
+    type: NodeType = declare_property(
         100,
         is_repr=True,
         tags=("meta",),
     )
-    stability: ObjectStability = builtin_property(
+    stability: ObjectStability = declare_property(
         105,
         description="The stability of this Node (how its definition is expected to change).",
         tags=("meta",),
     )
-    is_abstract: bool = builtin_property(
+    is_abstract: bool = declare_property(
         110,
         is_repr=True,
         description="Whether this Node cannot be instantiated directly.",
         tags=("meta",),
     )
-    is_final: bool = builtin_property(
+    is_final: bool = declare_property(
         111,
         is_repr=True,
         description="Whether this Node cannot be extended by custom Nodes.",
         tags=("meta",),
     )
-    is_frozen: bool = builtin_property(
+    is_frozen: bool = declare_property(
         112,
         is_repr=True,
         description="Whether this Node cannot be modified.",
         tags=("meta",),
     )
-    is_singleton: bool = builtin_property(
+    is_singleton: bool = declare_property(
         113,
         description="Whether this Node is a singleton (only one instance can exist).",
         tags=("meta",),
     )
 
     # content
-    properties: list["PropertyDefinition"] = builtin_property(
+    properties: list["PropertyDefinition"] = declare_property(
         120,
         description="All properties of this Node (including inherited).",
         tags=("content",),
     )
-    indexes: list["IndexDefinition"] = builtin_property(
+    indexes: list["IndexDefinition"] = declare_property(
         121,
         description="All indexes of this Node (including inherited).",
         tags=("content",),
     )
-    constraints: list["ConstraintDefinition"] = builtin_property(
+    constraints: list["ConstraintDefinition"] = declare_property(
         122,
         description="All constraints of this Node (including inherited).",
         tags=("content",),
     )
-    permissions: list["PermissionDefinition"] = builtin_property(
+    permissions: list["PermissionDefinition"] = declare_property(
         123,
         description="All permissions of this Node (including inherited).",
         tags=("content",),
     )
-    methods: list["MethodDefinition"] = builtin_property(
+    methods: list["MethodDefinition"] = declare_property(
         125,
         description="All methods of this Node (including inherited).",
         tags=("content",),
     )
-    actions: list["ActionDefinition"] = builtin_property(
+    actions: list["ActionDefinition"] = declare_property(
         126,
         description="All actions of this Node (including inherited).",
         tags=("content",),
     )
-    constants: list["ConstantDefinition"] = builtin_property(
+    constants: list["ConstantDefinition"] = declare_property(
         128,
         description="All constants of this Node (including inherited).",
         tags=("content",),
     )
-    tags: list["TagDefinition"] = builtin_property(
+    tags: list["TagDefinition"] = declare_property(
         129,
         description="All tags of this Node.",
         tags=("content",),
     )
 
     # inheritance
-    base_type: NodeType | None = builtin_property(
+    base_type: NodeType | None = declare_property(
         130,
         is_repr=True,
         description="The base type this Node extends (directly).",
         tags=("inheritance",),
     )
-    extended_by: list[NodeType] = builtin_property(
+    extended_by: list[NodeType] = declare_property(
         131,
         description="Nodes that extend this Node type (directly).",
         tags=("inheritance",),
     )
-    inherits: list[NodeType] = builtin_property(
+    inherits: list[NodeType] = declare_property(
         132,
         description="Nodes that this Node inherits.",
         tags=("inheritance",),
     )
-    inherited_by: list[NodeType] = builtin_property(
+    inherited_by: list[NodeType] = declare_property(
         133,
         description="Nodes that inherit this Node type.",
         tags=("inheritance",),
     )
-    traits: list[TraitType] = builtin_property(
+    traits: list[TraitType] = declare_property(
         134,
         description="Traits implemented by this Node.",
         tags=("inheritance",),
     )
-    self_traits: list[TraitType] = builtin_property(
+    self_traits: list[TraitType] = declare_property(
         135,
         description="Traits declared by this Node (directly).",
         tags=("inheritance",),
     )
 
     # graph
-    parent_types: list[NodeType] = builtin_property(
+    parent_types: list[NodeType] = declare_property(
         160,
         is_repr=True,
         description="The parent types of this Node type (directly).",
         tags=("graph",),
     )
-    child_types: list[NodeType] = builtin_property(
+    child_types: list[NodeType] = declare_property(
         161,
         is_repr=True,
         description="The child types of this Node type (directly).",
         tags=("graph",),
     )
-    ancestor_types: list[NodeType] = builtin_property(
+    ancestor_types: list[NodeType] = declare_property(
         162,
         description="The ancestor types of this Node type.",
         tags=("graph",),
     )
-    descendant_types: list[NodeType] = builtin_property(
+    descendant_types: list[NodeType] = declare_property(
         163,
         description="The descendant types of this Node type.",
         tags=("graph",),
     )
-    expected_parent_types: list[NodeType] = builtin_property(
+    expected_parent_types: list[NodeType] = declare_property(
         170,
         description="The parent types expected for this Node type (any of).",
         tags=("graph",),
     )
-    expected_child_types: list[NodeType] = builtin_property(
+    expected_child_types: list[NodeType] = declare_property(
         171,
         description="The child types expected for this Node type (any of).",
         tags=("graph",),
     )
-    expected_ancestor_types: list[NodeType] = builtin_property(
+    expected_ancestor_types: list[NodeType] = declare_property(
         172,
         description="The ancestor types expected for this Node type (any of).",
         tags=("graph",),
     )
-    expected_descendant_types: list[NodeType] = builtin_property(
+    expected_descendant_types: list[NodeType] = declare_property(
         173,
         description="The descendant types expected for this Node type (any of).",
         tags=("graph",),
     )
 
     # associations
-    event_types: list[NodeType] = builtin_property(
+    event_types: list[NodeType] = declare_property(
         200,
         description="The event types related to this Node.",
         tags=("associations",),
     )
-    self_event_types: list[NodeType] = builtin_property(
+    self_event_types: list[NodeType] = declare_property(
         201,
         description="The event types declared by this Node (directly).",
         tags=("associations",),
     )
-    enum_types: list[EnumType] = builtin_property(
+    enum_types: list[EnumType] = declare_property(
         210,
         description="The enum types related to this Node.",
         tags=("associations",),
     )
-    self_enum_types: list[EnumType] = builtin_property(
+    self_enum_types: list[EnumType] = declare_property(
         211,
         description="The enum types declared by this Node (directly).",
         tags=("associations",),
     )
-    message_types: list[StructType] = builtin_property(
+    message_types: list[StructType] = declare_property(
         212,
         description="The message types related to this Node.",
         tags=("associations",),
     )
-    self_message_types: list[StructType] = builtin_property(
+    self_message_types: list[StructType] = declare_property(
         213,
         description="The message types declared by this Node (directly).",
         tags=("associations",),
@@ -405,7 +405,7 @@ class NodeDefinition(ObjectDefinition):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.STRUCT_DEFINITION,
     frozen=True,
     is_final=True,
@@ -415,80 +415,80 @@ class StructDefinition(ObjectDefinition):
     """Definition of a builtin Struct."""
 
     # meta
-    type: StructType = builtin_property(
+    type: StructType = declare_property(
         100,
         is_repr=True,
         tags=("meta",),
     )
-    stability: ObjectStability = builtin_property(
+    stability: ObjectStability = declare_property(
         105,
         description="The stability of this Struct (how its definition is expected to change).",
         tags=("meta",),
     )
-    taggings: list[UInt8] = builtin_property(
+    taggings: list[UInt8] = declare_property(
         109,
         tags=("meta",),
     )
-    is_frozen: bool = builtin_property(
+    is_frozen: bool = declare_property(
         110,
         description="Whether this Struct is read-only (cannot be modified).",
         tags=("meta",),
     )
-    is_abstract: bool = builtin_property(
+    is_abstract: bool = declare_property(
         111,
         description="Whether this Struct is abstract (cannot be instantiated directly).",
         tags=("meta",),
     )
 
     # content
-    properties: list["PropertyDefinition"] = builtin_property(
+    properties: list["PropertyDefinition"] = declare_property(
         120,
         description="All properties of this Struct.",
         tags=("content",),
     )
-    methods: list["MethodDefinition"] = builtin_property(
+    methods: list["MethodDefinition"] = declare_property(
         125,
         description="All methods of this Struct (excluding actions).",
         tags=("content",),
     )
-    constants: list["ConstantDefinition"] = builtin_property(
+    constants: list["ConstantDefinition"] = declare_property(
         128,
         tags=("content",),
     )
-    tags: list["TagDefinition"] = builtin_property(
+    tags: list["TagDefinition"] = declare_property(
         129,
         tags=("content",),
     )
 
     # inheritance
-    base_type: StructType | None = builtin_property(
+    base_type: StructType | None = declare_property(
         130,
         description="The base type this Struct extends (directly).",
         tags=("inheritance",),
     )
-    extended_by: list[StructType] = builtin_property(
+    extended_by: list[StructType] = declare_property(
         131,
         description="Structs that extend this Struct type (directly).",
         tags=("inheritance",),
     )
-    inherits: list[StructType] = builtin_property(
+    inherits: list[StructType] = declare_property(
         132,
         description="Structs that this Struct inherits.",
         tags=("inheritance",),
     )
-    inherited_by: list[StructType] = builtin_property(
+    inherited_by: list[StructType] = declare_property(
         133,
         description="Structs that inherit this Struct type.",
         tags=("inheritance",),
     )
 
     # associations
-    enum_types: list[EnumType] = builtin_property(
+    enum_types: list[EnumType] = declare_property(
         210,
         description="The enum types related to this Node.",
         tags=("associations",),
     )
-    self_enum_types: list[EnumType] = builtin_property(
+    self_enum_types: list[EnumType] = declare_property(
         211,
         description="The base enum types related to this Node (directly).",
         tags=("associations",),
@@ -533,7 +533,7 @@ class StructDefinition(ObjectDefinition):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.HANDLE_DEFINITION,
     frozen=True,
     is_final=True,
@@ -543,90 +543,90 @@ class HandleDefinition(ObjectDefinition):
     """Definition of a builtin Handle."""
 
     # meta
-    type: HandleType = builtin_property(
+    type: HandleType = declare_property(
         100,
         is_repr=True,
         tags=("meta",),
     )
-    stability: ObjectStability = builtin_property(
+    stability: ObjectStability = declare_property(
         105,
         description="The stability of this Handle (how its definition is expected to change).",
         tags=("meta",),
     )
-    taggings: list[UInt8] = builtin_property(
+    taggings: list[UInt8] = declare_property(
         109,
         tags=("meta",),
     )
-    is_frozen: bool = builtin_property(
+    is_frozen: bool = declare_property(
         110,
         description="Whether this Handle is read-only (cannot be modified).",
         tags=("meta",),
     )
-    is_abstract: bool = builtin_property(
+    is_abstract: bool = declare_property(
         111,
         description="Whether this Handle is abstract (cannot be instantiated directly).",
         tags=("meta",),
     )
 
     # content
-    properties: list["PropertyDefinition"] = builtin_property(
+    properties: list["PropertyDefinition"] = declare_property(
         120,
         description="All properties of this Handle.",
         tags=("content",),
     )
-    methods: list["MethodDefinition"] = builtin_property(
+    methods: list["MethodDefinition"] = declare_property(
         125,
         description="All methods of this Handle (excluding actions).",
         tags=("content",),
     )
-    constants: list["ConstantDefinition"] = builtin_property(
+    constants: list["ConstantDefinition"] = declare_property(
         128,
         tags=("content",),
     )
-    tags: list["TagDefinition"] = builtin_property(
+    tags: list["TagDefinition"] = declare_property(
         129,
         tags=("content",),
     )
 
     # inheritance
-    base_type: HandleType | None = builtin_property(
+    base_type: HandleType | None = declare_property(
         130,
         description="The base type this Handle extends (directly).",
         tags=("inheritance",),
     )
-    extended_by: list[HandleType] = builtin_property(
+    extended_by: list[HandleType] = declare_property(
         131,
         description="Handles that extend this Handle type (directly).",
         tags=("inheritance",),
     )
-    inherits: list[HandleType] = builtin_property(
+    inherits: list[HandleType] = declare_property(
         132,
         description="Handles that this Handle inherits.",
         tags=("inheritance",),
     )
-    inherited_by: list[HandleType] = builtin_property(
+    inherited_by: list[HandleType] = declare_property(
         133,
         description="Handles that inherit this Handle type.",
         tags=("inheritance",),
     )
 
     # associations
-    enum_types: list[EnumType] = builtin_property(
+    enum_types: list[EnumType] = declare_property(
         210,
         description="The enum types related to this Handle.",
         tags=("associations",),
     )
-    self_enum_types: list[EnumType] = builtin_property(
+    self_enum_types: list[EnumType] = declare_property(
         211,
         description="The enum types declared by this Handle (directly).",
         tags=("associations",),
     )
-    event_types: list[NodeType] = builtin_property(
+    event_types: list[NodeType] = declare_property(
         212,
         description="The event types related to this Handle.",
         tags=("associations",),
     )
-    self_event_types: list[NodeType] = builtin_property(
+    self_event_types: list[NodeType] = declare_property(
         213,
         description="The event types declared by this Handle (directly).",
         tags=("associations",),
@@ -672,7 +672,7 @@ class HandleDefinition(ObjectDefinition):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.ENUM_DEFINITION,
     frozen=True,
     is_final=True,
@@ -681,14 +681,14 @@ class HandleDefinition(ObjectDefinition):
 class EnumDefinition(StructFrozen):
     """Definition of a builtin Enum."""
 
-    type: EnumType = builtin_property(100, is_repr=True)
-    id: UInt32 = builtin_property(2, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[UInt8] = builtin_property(109)
+    type: EnumType = declare_property(100, is_repr=True)
+    id: UInt32 = declare_property(2, is_repr=True)
+    name: str = declare_property(101, is_repr=True)
+    description: str | None = declare_property(103, is_repr=True)
+    taggings: list[UInt8] = declare_property(109)
 
     # content
-    options: list["OptionDefinition"] = builtin_property(120)
+    options: list["OptionDefinition"] = declare_property(120)
 
     @classmethod
     def from_declaration(cls, enum_type: EnumType, enum_cls: type_[Enum]) -> "EnumDefinition":
@@ -706,7 +706,7 @@ class EnumDefinition(StructFrozen):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.PROPERTY_DEFINITION,
     frozen=True,
     is_final=True,
@@ -715,30 +715,30 @@ class EnumDefinition(StructFrozen):
 class PropertyDefinition(StructFrozen):
     """Definition of a builtin Property."""
 
-    id: UInt8 = builtin_property(2, is_repr=True)
-    type: Type = builtin_property(100)
-    name: str | None = builtin_property(
+    id: UInt8 = declare_property(2, is_repr=True)
+    type: Type = declare_property(100)
+    name: str | None = declare_property(
         101, is_repr=True, description="The name of this Type when it was used."
     )
-    description: str | None = builtin_property(103, is_repr=True)
-    object: "ObjectDefinitionReference" = builtin_property(
+    description: str | None = declare_property(103, is_repr=True)
+    object: "ObjectDefinitionReference" = declare_property(
         104, description="The object that this property is defined on."
     )
-    original_object: "ObjectDefinitionReference" = builtin_property(
+    original_object: "ObjectDefinitionReference" = declare_property(
         105, description="The original object that this property was defined on."
     )
-    taggings: list[UInt8] = builtin_property(109)
+    taggings: list[UInt8] = declare_property(109)
 
     # defaults
-    default_value: Value | None = builtin_property(120)
-    default_factory: ValueFactory | None = builtin_property(121)
+    default_value: Value | None = declare_property(120)
+    default_factory: ValueFactory | None = declare_property(121)
 
     # relationships
-    edge_type: EdgeType | None = builtin_property(130)
-    cascade: CascadeAction | None = builtin_property(131)
+    edge_type: EdgeType | None = declare_property(130)
+    cascade: CascadeAction | None = declare_property(131)
 
     # property flags
-    is_identity: bool = builtin_property(
+    is_identity: bool = declare_property(
         140,
         is_repr=True,
         description="""\
@@ -746,20 +746,20 @@ Whether this Property is part of the object's identity.
  (And thus is always required, in every instance including partials; only for Nodes.)
 """,
     )
-    is_unique: bool = builtin_property(
+    is_unique: bool = declare_property(
         141,
         is_repr=True,
         description="Whether this Property must have a unique value.",
     )
-    is_readonly: bool = builtin_property(
+    is_readonly: bool = declare_property(
         142,
         is_repr=True,
         description="Whether this Property is read-only.",
     )
-    is_repr: bool = builtin_property(143)
-    is_hash: bool = builtin_property(144)
-    is_eq: bool = builtin_property(145)
-    is_internal: bool = builtin_property(146)
+    is_repr: bool = declare_property(143)
+    is_hash: bool = declare_property(144)
+    is_eq: bool = declare_property(145)
+    is_internal: bool = declare_property(146)
 
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -802,7 +802,7 @@ Whether this Property is part of the object's identity.
             is_internal=prop.is_internal,
         )
 
-    @builtin_method(102)
+    @declare_method(102)
     def to_ref(self) -> PropertyReference:
         """Convert to a PropertyReference."""
         if self.object.kind == ObjectKind.NODE:
@@ -824,7 +824,7 @@ Whether this Property is part of the object's identity.
         else:
             assert_never(self.object.kind)
 
-    @builtin_method(110)
+    @declare_method(110)
     def eq(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is equal to a value."""
         from . import Condition
@@ -833,7 +833,7 @@ Whether this Property is part of the object's identity.
             return self.not_exists()
         return Condition.of(self, ConditionalType.EQUALS, value=value)
 
-    @builtin_method(111)
+    @declare_method(111)
     def neq(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is not equal to a value."""
         from . import Condition
@@ -842,98 +842,98 @@ Whether this Property is part of the object's identity.
             return self.exists()
         return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
 
-    @builtin_method(112)
+    @declare_method(112)
     def gt(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is greater than a value."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
 
-    @builtin_method(113)
+    @declare_method(113)
     def gte(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is greater than or equal to a value."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
-    @builtin_method(114)
+    @declare_method(114)
     def lt(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is less than a value."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN, value=value)
 
-    @builtin_method(115)
+    @declare_method(115)
     def lte(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is less than or equal to a value."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
-    @builtin_method(116)
+    @declare_method(116)
     def starts_with(self, value: str) -> "Condition":
         """Create a Condition that checks if this Property starts with a value."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
 
-    @builtin_method(117)
+    @declare_method(117)
     def ends_with(self, value: str) -> "Condition":
         """Create a Condition that checks if this Property ends with a value."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
 
-    @builtin_method(118)
+    @declare_method(118)
     def in_(self, *values: Any) -> "Condition":
         """Create a Condition that checks if this Property is in a list of values."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.IN, value=values)
 
-    @builtin_method(119)
+    @declare_method(119)
     def not_in(self, *values: Any) -> "Condition":
         """Create a Condition that checks if this Property is not in a list of values."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.NOT_IN, value=values)
 
-    @builtin_method(120)
+    @declare_method(120)
     def exists(self) -> "Condition":
         """Create a Condition that checks if this Property exists."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
-    @builtin_method(121)
+    @declare_method(121)
     def is_not_none(self) -> "Condition":
         """Create a Condition that checks if this Property is not None."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.EXISTS)
 
-    @builtin_method(122)
+    @declare_method(122)
     def not_exists(self) -> "Condition":
         """Create a Condition that checks if this Property does not exist."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
-    @builtin_method(123)
+    @declare_method(123)
     def is_none(self) -> "Condition":
         """Create a Condition that checks if this Property is None."""
         from . import Condition
 
         return Condition.of(self, ConditionalType.NOT_EXISTS)
 
-    @builtin_method(124)
+    @declare_method(124)
     def asc(self) -> "Sort":
         """Create a Sort that sorts this Property in ascending order."""
         from . import Sort
 
         return Sort.of(self, SortType.ASCENDING)
 
-    @builtin_method(125)
+    @declare_method(125)
     def desc(self) -> "Sort":
         """Create a Sort that sorts this Property in descending order."""
         from . import Sort
@@ -941,7 +941,7 @@ Whether this Property is part of the object's identity.
         return Sort.of(self, SortType.DESCENDING)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.OPTION_DEFINITION,
     frozen=True,
     is_final=True,
@@ -950,11 +950,11 @@ Whether this Property is part of the object's identity.
 class OptionDefinition(StructFrozen):
     """Definition of a builtin Enum Option."""
 
-    id: UInt8 = builtin_property(2, is_repr=True)
-    type: EnumType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[UInt8] = builtin_property(109)
+    id: UInt8 = declare_property(2, is_repr=True)
+    type: EnumType = declare_property(100, is_repr=True)
+    name: str = declare_property(101, is_repr=True)
+    description: str | None = declare_property(103, is_repr=True)
+    taggings: list[UInt8] = declare_property(109)
 
     @classmethod
     def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -967,7 +967,7 @@ class OptionDefinition(StructFrozen):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.CONSTANT_DEFINITION,
     frozen=True,
     is_final=True,
@@ -976,15 +976,15 @@ class OptionDefinition(StructFrozen):
 class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
 
-    id: UInt8 = builtin_property(2, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
-    taggings: list[UInt8] = builtin_property(109)
+    id: UInt8 = declare_property(2, is_repr=True)
+    name: str = declare_property(101, is_repr=True)
+    description: str | None = declare_property(103, is_repr=True)
+    taggings: list[UInt8] = declare_property(109)
 
     # content
-    value: "Value" = builtin_property(120)
+    value: "Value" = declare_property(120)
 
-    _is_deferred: bool = builtin_property_runtime(401)
+    _is_deferred: bool = declare_property_runtime(401)
 
     @classmethod
     def from_declaration(cls, declaration: "ConstantDeclaration") -> "ConstantDefinition":
@@ -999,7 +999,7 @@ class ConstantDefinition(StructFrozen):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.TAG_DEFINITION,
     frozen=True,
     is_final=True,
@@ -1008,9 +1008,9 @@ class ConstantDefinition(StructFrozen):
 class TagDefinition(StructFrozen):
     """Definition of a builtin Tag to associate builtin definitions to."""
 
-    id: UInt8 = builtin_property(2, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
+    id: UInt8 = declare_property(2, is_repr=True)
+    name: str = declare_property(101, is_repr=True)
+    description: str | None = declare_property(103, is_repr=True)
 
     @classmethod
     def from_declaration(cls, declaration: TagDeclaration) -> "TagDefinition":
@@ -1022,7 +1022,7 @@ class TagDefinition(StructFrozen):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.INDEX_DEFINITION,
     frozen=True,
     is_final=True,
@@ -1031,14 +1031,14 @@ class TagDefinition(StructFrozen):
 class IndexDefinition(StructFrozen):
     """Definition of a builtin Index."""
 
-    id: UInt8 = builtin_property(2, is_repr=True)
-    type: "IndexType" = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
+    id: UInt8 = declare_property(2, is_repr=True)
+    type: "IndexType" = declare_property(100, is_repr=True)
+    name: str = declare_property(101, is_repr=True)
+    description: str | None = declare_property(103, is_repr=True)
 
     # content
-    properties: list["PropertyReference"] = builtin_property(120)
-    cover: list["PropertyReference"] = builtin_property(121)
+    properties: list["PropertyReference"] = declare_property(120)
+    cover: list["PropertyReference"] = declare_property(121)
 
     @classmethod
     def from_declaration(
@@ -1053,7 +1053,7 @@ class IndexDefinition(StructFrozen):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.CONSTRAINT_DEFINITION,
     frozen=True,
     is_final=True,
@@ -1062,13 +1062,13 @@ class IndexDefinition(StructFrozen):
 class ConstraintDefinition(StructFrozen):
     """Definition of a builtin Constraint."""
 
-    id: UInt8 = builtin_property(2, is_repr=True)
-    type: "ConstraintType" = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
+    id: UInt8 = declare_property(2, is_repr=True)
+    type: "ConstraintType" = declare_property(100, is_repr=True)
+    name: str = declare_property(101, is_repr=True)
+    description: str | None = declare_property(103, is_repr=True)
 
     # content
-    properties: list["PropertyReference"] = builtin_property(120)
+    properties: list["PropertyReference"] = declare_property(120)
 
     @classmethod
     def from_declaration(
@@ -1082,7 +1082,7 @@ class ConstraintDefinition(StructFrozen):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.PERMISSION_DEFINITION,
     frozen=True,
     is_final=True,
@@ -1091,9 +1091,9 @@ class ConstraintDefinition(StructFrozen):
 class PermissionDefinition(StructFrozen):
     """Definition of a builtin Permission for a builtin Node."""
 
-    id: UInt8 = builtin_property(2, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
-    description: str | None = builtin_property(103, is_repr=True)
+    id: UInt8 = declare_property(2, is_repr=True)
+    name: str = declare_property(101, is_repr=True)
+    description: str | None = declare_property(103, is_repr=True)
 
     @classmethod
     def from_declaration(cls, declaration: "PermissionDeclaration") -> "Self":
@@ -1104,7 +1104,7 @@ class PermissionDefinition(StructFrozen):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.FUNCTION_DEFINITION,
     frozen=True,
     is_abstract=True,
@@ -1113,24 +1113,24 @@ class FunctionDefinition(StructFrozen):
     """Definition of a builtin Function."""
 
     # meta
-    id: UInt16 = builtin_property(2, is_repr=True)
-    name: str = builtin_property(101)
-    description: str | None = builtin_property(103, is_repr=True)
-    is_async: bool = builtin_property(110)
-    is_abstract: bool = builtin_property(111)
+    id: UInt16 = declare_property(2, is_repr=True)
+    name: str = declare_property(101)
+    description: str | None = declare_property(103, is_repr=True)
+    is_async: bool = declare_property(110)
+    is_abstract: bool = declare_property(111)
 
     # availability
-    platforms: list[RuntimePlatform] | None = builtin_property(
+    platforms: list[RuntimePlatform] | None = declare_property(
         130,
         description="The platforms this Method is available on (all if empty).",
     )
-    languages: list[RuntimeLanguage] | None = builtin_property(
+    languages: list[RuntimeLanguage] | None = declare_property(
         131,
         description="The languages this Method is available in (all if empty).",
     )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.METHOD_DEFINITION,
     frozen=True,
     is_final=True,
@@ -1139,12 +1139,12 @@ class FunctionDefinition(StructFrozen):
 class MethodDefinition(FunctionDefinition):
     """Definition of a builtin Method."""
 
-    type: MethodType = builtin_property(100)
+    type: MethodType = declare_property(100)
 
     # content
-    input_properties: list["PropertyDefinition"] = builtin_property(121)
-    output_properties: list["PropertyDefinition"] | None = builtin_property(122)
-    output_is_scalar: bool = builtin_property(
+    input_properties: list["PropertyDefinition"] = declare_property(121)
+    output_properties: list["PropertyDefinition"] | None = declare_property(122)
+    output_is_scalar: bool = declare_property(
         123, description="Whether the output is just the first output property."
     )
 
@@ -1160,7 +1160,7 @@ class MethodDefinition(FunctionDefinition):
         )
 
 
-@builtin_struct(
+@declare_struct(
     StructType.ACTION_DEFINITION,
     frozen=True,
     is_final=True,
@@ -1169,9 +1169,9 @@ class MethodDefinition(FunctionDefinition):
 class ActionDefinition(FunctionDefinition):
     """Definition of a builtin Action."""
 
-    type: ActionType = builtin_property(100)
-    request_message: "StructDefinition" = builtin_property(120)
-    response_message: "StructDefinition" = builtin_property(121)
+    type: ActionType = declare_property(100)
+    request_message: "StructDefinition" = declare_property(120)
+    response_message: "StructDefinition" = declare_property(121)
 
     @classmethod
     def from_declaration(

@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING
 
-from destack.core import Handle, HandleType, builtin_handle, builtin_property_runtime
+from destack.core import Handle, HandleType, declare_handle, declare_property_runtime
 
 if TYPE_CHECKING:
     pass
 
 
-@builtin_handle(HandleType.TRACER)
+@declare_handle(HandleType.TRACER)
 class Tracer(Handle):
     """A Tracer instruments SpanEvents."""
 
-    name: str = builtin_property_runtime(401)
+    name: str = declare_property_runtime(401)

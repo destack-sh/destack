@@ -4,9 +4,9 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
-    builtin_entity,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -15,18 +15,18 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(NodeType.METRIC, is_abstract=True)
+@declare_entity(NodeType.METRIC, is_abstract=True)
 class Metric(Entity):
     """An Entity that represents a Metric."""
 
-    icon: "Icon | None" = builtin_property(102)
+    icon: "Icon | None" = declare_property(102)
 
 
-@builtin_event(NodeType.MEASUREMENT_EVENT, is_abstract=True)
+@declare_event(NodeType.MEASUREMENT_EVENT, is_abstract=True)
 class MeasurementEvent(Event):
     """An Event that represents a Measurement."""
 
-    definition: "Metric" = builtin_property(
+    definition: "Metric" = declare_property(
         6,
         is_internal=True,
         is_readonly=True,

@@ -10,9 +10,9 @@ from ..builtin import (
     TypeCardinality,
     UInt32,
     ValueFactory,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 from ..utils.uuid import UUID
 
@@ -35,7 +35,7 @@ type_ = type
 #
 
 
-@builtin_enum(EnumType.CONDITIONAL_TYPE)
+@declare_enum(EnumType.CONDITIONAL_TYPE)
 class ConditionalType(Enum):
     # logical
     NOT = 1
@@ -60,7 +60,7 @@ class ConditionalType(Enum):
     NOT_EXISTS = 41
 
 
-@builtin_struct(
+@declare_struct(
     StructType.CONDITION,
     frozen=True,
     is_final=True,
@@ -69,9 +69,9 @@ class ConditionalType(Enum):
 class Condition(StructFrozen):
     """Boolean predicate (AND, =, <, etc.)."""
 
-    type: ConditionalType = builtin_property(100, is_repr=True)
-    left: "Expression" = builtin_property(101, is_repr=True)
-    right: Optional["Expression"] = builtin_property(102, is_repr=True)
+    type: ConditionalType = declare_property(100, is_repr=True)
+    left: "Expression" = declare_property(101, is_repr=True)
+    right: Optional["Expression"] = declare_property(102, is_repr=True)
 
     def __or__(self, right: "Condition") -> "Condition":
         """OR two Conditions."""
@@ -114,7 +114,7 @@ class Condition(StructFrozen):
 #
 
 
-@builtin_enum(EnumType.AGGREGATION_TYPE)
+@declare_enum(EnumType.AGGREGATION_TYPE)
 class AggregationType(Enum):
     EXISTS = 1
     COUNT = 2
@@ -124,12 +124,12 @@ class AggregationType(Enum):
     AVERAGE = 6
 
 
-@builtin_struct(StructType.AGGREGATION, frozen=True)
+@declare_struct(StructType.AGGREGATION, frozen=True)
 class Aggregation(StructFrozen):
     """Aggregation."""
 
-    type: AggregationType = builtin_property(100, is_repr=True)
-    expression: Optional["Expression"] = builtin_property(101, is_repr=True)
+    type: AggregationType = declare_property(100, is_repr=True)
+    expression: Optional["Expression"] = declare_property(101, is_repr=True)
     # distinct, over, ...
 
     @classmethod
@@ -146,7 +146,7 @@ class Aggregation(StructFrozen):
 #
 
 
-@builtin_enum(EnumType.EXPRESSION_TYPE)
+@declare_enum(EnumType.EXPRESSION_TYPE)
 class ExpressionType(Enum):
     LITERAL = 1
     ATTRIBUTE = 2
@@ -156,7 +156,7 @@ class ExpressionType(Enum):
     # SUBQUERY?
 
 
-@builtin_struct(
+@declare_struct(
     StructType.EXPRESSION,
     frozen=True,
     is_final=True,
@@ -165,11 +165,11 @@ class ExpressionType(Enum):
 class Expression(StructFrozen):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
-    type: ExpressionType = builtin_property(100, is_repr=True)
-    literal: Optional[Value] = builtin_property(101, is_repr=True)
-    attribute: Optional[PropertyReference] = builtin_property(102, is_repr=True)
-    condition: Optional[Condition] = builtin_property(103, is_repr=True)
-    aggregation: Optional[Aggregation] = builtin_property(105, is_repr=True)
+    type: ExpressionType = declare_property(100, is_repr=True)
+    literal: Optional[Value] = declare_property(101, is_repr=True)
+    attribute: Optional[PropertyReference] = declare_property(102, is_repr=True)
+    condition: Optional[Condition] = declare_property(103, is_repr=True)
+    aggregation: Optional[Aggregation] = declare_property(105, is_repr=True)
     # subquery?
 
     @classmethod
@@ -211,13 +211,13 @@ ExpressionIn = Union[
 #
 
 
-@builtin_enum(EnumType.SORT_TYPE)
+@declare_enum(EnumType.SORT_TYPE)
 class SortType(Enum):
     ASCENDING = 1
     DESCENDING = 2
 
 
-@builtin_enum(EnumType.SORT_MODE)
+@declare_enum(EnumType.SORT_MODE)
 class SortMode(Enum):
     MAX = 1
     MIN = 2
@@ -235,7 +235,7 @@ SortIn = Union[
 ]
 
 
-@builtin_struct(
+@declare_struct(
     StructType.SORT,
     frozen=True,
     is_final=True,
@@ -244,9 +244,9 @@ SortIn = Union[
 class Sort(StructFrozen):
     """ORDER BY specification."""
 
-    type: SortType = builtin_property(100, is_repr=True)
-    by: Expression = builtin_property(101, is_repr=True)
-    mode: Optional[SortMode] = builtin_property(102, is_repr=True)
+    type: SortType = declare_property(100, is_repr=True)
+    by: Expression = declare_property(101, is_repr=True)
+    mode: Optional[SortMode] = declare_property(102, is_repr=True)
 
     @classmethod
     def of(
@@ -265,7 +265,7 @@ class Sort(StructFrozen):
 #
 
 
-@builtin_struct(
+@declare_struct(
     StructType.SELECT,
     frozen=True,
     is_final=True,
@@ -274,7 +274,7 @@ class Sort(StructFrozen):
 class Select(StructFrozen):
     """Select specific Attributes."""
 
-    attributes: list[PropertyReference] = builtin_property(101, is_repr=True)
+    attributes: list[PropertyReference] = declare_property(101, is_repr=True)
 
     @classmethod
     def of(cls, *attributes: "PropertyDeclaration | CustomPropertyDefinition") -> "Select":
@@ -286,7 +286,7 @@ class Select(StructFrozen):
 #
 
 
-@builtin_enum(EnumType.JOIN_TYPE)
+@declare_enum(EnumType.JOIN_TYPE)
 class JoinType(Enum):
     LEFT = 1
     # RIGHT, INNER, OUTER, CROSS?
@@ -294,7 +294,7 @@ class JoinType(Enum):
     CHILD = 11
 
 
-@builtin_struct(
+@declare_struct(
     StructType.JOIN,
     frozen=True,
     is_final=True,
@@ -303,10 +303,10 @@ class JoinType(Enum):
 class Join(StructFrozen):
     """Join a Query with another Query."""
 
-    type: JoinType = builtin_property(100, is_repr=True)
+    type: JoinType = declare_property(100, is_repr=True)
     # query_name?
-    recursive: bool = builtin_property(102, default=False, is_repr=True)  # for tree joins
-    on: Optional[Condition] = builtin_property(103, is_repr=True)
+    recursive: bool = declare_property(102, default=False, is_repr=True)  # for tree joins
+    on: Optional[Condition] = declare_property(103, is_repr=True)
 
     @classmethod
     def of(
@@ -329,7 +329,7 @@ JoinIn = Union[Join, "JoinType"]
 #
 
 
-@builtin_enum(EnumType.QUERY_TYPE)
+@declare_enum(EnumType.QUERY_TYPE)
 class QueryType(Enum):
     NODE = 1, "Node", "Flat list of Nodes"
     SCALAR = 5, "Scalar", "Single scalar Value"
@@ -337,7 +337,7 @@ class QueryType(Enum):
     GROUPED_SCALAR = 15, "Grouped Scalar", "Grouped list of scalar Values"
 
 
-@builtin_struct(
+@declare_struct(
     StructType.QUERY,
     frozen=True,
     is_final=True,
@@ -350,60 +350,60 @@ class Query(StructFrozen):
     """
 
     # meta
-    id: UUID = builtin_property(2, default_factory=ValueFactory.UUID4)
-    type: QueryType = builtin_property(100, is_repr=True, description="The type of Query.")
-    name: str = builtin_property(
+    id: UUID = declare_property(2, default_factory=ValueFactory.UUID4)
+    type: QueryType = declare_property(100, is_repr=True, description="The type of Query.")
+    name: str = declare_property(
         105,
         description="Name for this subquery. Should be unique within the parent Query.",
         is_repr=True,
     )
-    definition: ObjectDefinitionReference = builtin_property(
+    definition: ObjectDefinitionReference = declare_property(
         106,
         is_repr=True,
         description="The Node definition this Query is about.",
     )
-    subqueries: list["Query"] = builtin_property(
+    subqueries: list["Query"] = declare_property(
         109,
         is_repr=True,
         description="Subqueries of this Query (if any).",
     )
 
     # content
-    join: Optional[Join] = builtin_property(
+    join: Optional[Join] = declare_property(
         110,
         is_repr=True,
         description="How to join this Query to the parent Query (if any).",
     )
-    select: Optional[Select] = builtin_property(
+    select: Optional[Select] = declare_property(
         111,
         is_repr=True,
         description="What to select from the Query.",
     )
-    where: Optional[Condition] = builtin_property(
+    where: Optional[Condition] = declare_property(
         112, is_repr=True, description="Filter the Query."
     )
-    having: Optional[Condition] = builtin_property(
+    having: Optional[Condition] = declare_property(
         113, is_repr=True, description="Filter the Query groups (for grouped Queries)."
     )
-    group_by: list[Expression] | None = builtin_property(
+    group_by: list[Expression] | None = declare_property(
         114, is_repr=True, description="Discriminator for grouped Queries."
     )
-    aggregation: Optional[Aggregation] = builtin_property(
+    aggregation: Optional[Aggregation] = declare_property(
         115, is_repr=True, description="Aggregate the Query."
     )
-    sort: list[Sort] | None = builtin_property(
+    sort: list[Sort] | None = declare_property(
         116,
         is_repr=True,
         description="How to sort the Query results.",
     )
 
     # pagination
-    limit: Optional[UInt32] = builtin_property(
+    limit: Optional[UInt32] = declare_property(
         120,
         is_repr=True,
         description="Limit the number of results.",
     )
-    offset: Optional[UInt32] = builtin_property(
+    offset: Optional[UInt32] = declare_property(
         121,
         is_repr=True,
         description="Offset the results.",

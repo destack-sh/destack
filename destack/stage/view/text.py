@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     NodeType,
     Text,
-    builtin_entity,
-    builtin_property,
+    declare_entity,
+    declare_property,
 )
 
 from .content import ContentView
@@ -15,12 +15,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.TEXT_VIEW,
 )
 class TextView(ContentView):
     """A (rich) text view."""
 
-    text: Optional[Text] = builtin_property(250)
-    font: Optional["Font"] = builtin_property(201)
-    color: Optional["Fill"] = builtin_property(202)
+    text: Optional[Text] = declare_property(250)
+    font: Optional["Font"] = declare_property(201)
+    color: Optional["Fill"] = declare_property(202)
