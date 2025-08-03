@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.core import (
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.RUN_STATUS)
-class RunStatus(Enum):
+class RunStatus(EnumDeclaration):
     # pre
     SCHEDULED = 2, "Scheduled", "Scheduled for sometime", "fas fa-clock"
     # active

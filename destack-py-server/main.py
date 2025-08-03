@@ -6,17 +6,10 @@ from pathlib import Path
 if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is None:
     os.environ["ENVIRONMENT"] = "dev"
 
-from destack.utils.env import setup_env
+from destack.core.cli import console, create_cli
 
-setup_env()
-
-from destack.cli import console  # noqa: E402
-from destack.cli.parser import create_cli  # noqa: E402
-from destack.utils.log import setup_logging  # noqa: E402
-from destack.utils.telemetry import setup_telemetry  # noqa: E402
-
-setup_logging()
-setup_telemetry()
+# create main CLI app
+cli = create_cli(help="Destack CLI")
 
 # create main CLI app
 cli = create_cli(help="Destack Server CLI")

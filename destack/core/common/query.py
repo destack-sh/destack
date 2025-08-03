@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, final
 
 from ..builtin import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Node,
     PropertyDeclaration,
@@ -36,7 +36,7 @@ type_ = type
 
 
 @declare_enum(EnumType.CONDITIONAL_TYPE)
-class ConditionalType(Enum):
+class ConditionalType(EnumDeclaration):
     # logical
     NOT = 1
     AND = 2
@@ -115,7 +115,7 @@ class Condition(StructFrozen):
 
 
 @declare_enum(EnumType.AGGREGATION_TYPE)
-class AggregationType(Enum):
+class AggregationType(EnumDeclaration):
     EXISTS = 1
     COUNT = 2
     SUM = 3
@@ -147,7 +147,7 @@ class Aggregation(StructFrozen):
 
 
 @declare_enum(EnumType.EXPRESSION_TYPE)
-class ExpressionType(Enum):
+class ExpressionType(EnumDeclaration):
     LITERAL = 1
     ATTRIBUTE = 2
     CONDITION = 3
@@ -212,13 +212,13 @@ ExpressionIn = Union[
 
 
 @declare_enum(EnumType.SORT_TYPE)
-class SortType(Enum):
+class SortType(EnumDeclaration):
     ASCENDING = 1
     DESCENDING = 2
 
 
 @declare_enum(EnumType.SORT_MODE)
-class SortMode(Enum):
+class SortMode(EnumDeclaration):
     MAX = 1
     MIN = 2
     AVERAGE = 3
@@ -287,7 +287,7 @@ class Select(StructFrozen):
 
 
 @declare_enum(EnumType.JOIN_TYPE)
-class JoinType(Enum):
+class JoinType(EnumDeclaration):
     LEFT = 1
     # RIGHT, INNER, OUTER, CROSS?
     PARENT = 10
@@ -330,7 +330,7 @@ JoinIn = Union[Join, "JoinType"]
 
 
 @declare_enum(EnumType.QUERY_TYPE)
-class QueryType(Enum):
+class QueryType(EnumDeclaration):
     NODE = 1, "Node", "Flat list of Nodes"
     SCALAR = 5, "Scalar", "Single scalar Value"
     GROUPED_NODE = 10, "Grouped Node", "Grouped list of Nodes"

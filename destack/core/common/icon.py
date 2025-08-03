@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     StructFrozen,
     StructType,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.ICON_TYPE)
-class IconType(Enum):
+class IconType(EnumDeclaration):
     EMOJI = 1
     FONT_AWESOME = 3
     VS_CODE = 4

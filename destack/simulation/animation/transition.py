@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
@@ -13,8 +13,6 @@ from destack.core import (
     declare_struct,
 )
 
-from ..style.style import Style
-
 if TYPE_CHECKING:
     pass
 
@@ -23,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.TRANSITION_TYPE)
-class TransitionType(Enum):
+class TransitionType(EnumDeclaration):
     """Built-in transition types."""
 
     TWEEN = 10
@@ -31,7 +29,7 @@ class TransitionType(Enum):
 
 
 @declare_enum(EnumType.SPRING_TYPE)
-class SpringType(Enum):
+class SpringType(EnumDeclaration):
     """Built-in spring types."""
 
     TIME = 1

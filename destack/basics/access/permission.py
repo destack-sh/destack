@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ..core.builtin import Entity, NodeType, declare_entity
+from destack.core import Entity, NodeType, declare_entity
 
 if TYPE_CHECKING:
     pass
@@ -9,7 +9,5 @@ if TYPE_CHECKING:
 
 
 @declare_entity(NodeType.PERMISSION)
-class Permission(
-    Entity,
-):
+class Permission(Entity):
     """A Permission for something."""

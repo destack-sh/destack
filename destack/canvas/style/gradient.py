@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.GRADIENT_TYPE)
-class GradientType(Enum):
+class GradientType(EnumDeclaration):
     """Built-in gradient types."""
 
     LINEAR = 10

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     NodeType,
     StructFrozen,
@@ -23,14 +23,14 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.FILL_TYPE)
-class FillType(Enum):
+class FillType(EnumDeclaration):
     SOLID = 10
     GRADIENT = 11
     IMAGE = 12
 
 
 @declare_enum(EnumType.FILL_POSITION)
-class FillPosition(Enum):
+class FillPosition(EnumDeclaration):
     TOP_LEFT = 1
     TOP_CENTER = 2
     TOP_RIGHT = 3
@@ -43,7 +43,7 @@ class FillPosition(Enum):
 
 
 @declare_enum(EnumType.FILL_SIZE)
-class FillSize(Enum):
+class FillSize(EnumDeclaration):
     FILL = 1
     STRETCH = 2
     FIT = 3

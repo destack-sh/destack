@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Struct,
     StructType,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.DAY_OF_WEEK)
-class DayOfWeek(Enum):
+class DayOfWeek(EnumDeclaration):
     MONDAY = 1
     TUESDAY = 2
     WEDNESDAY = 3
@@ -32,7 +32,7 @@ class DayOfWeek(Enum):
 
 
 @declare_enum(EnumType.MONTH)
-class Month(Enum):
+class Month(EnumDeclaration):
     JANUARY = 1
     FEBRUARY = 2
     MARCH = 3
@@ -48,7 +48,7 @@ class Month(Enum):
 
 
 @declare_enum(EnumType.SCHEDULE_FREQUENCY)
-class ScheduleFrequency(Enum):
+class ScheduleFrequency(EnumDeclaration):
     YEAR = 1
     MONTH = 2
     WEEK = 3

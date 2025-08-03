@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
@@ -63,7 +63,7 @@ class TimerCancelledEvent(TimerEvent):
 
 
 @declare_enum(EnumType.TIMER_TYPE)
-class TimerType(Enum):
+class TimerType(EnumDeclaration):
     ONCE = 1
     RECURRING = 2
 

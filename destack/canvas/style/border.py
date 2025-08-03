@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     NodeType,
     StructFrozen,
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.BORDER_TYPE)
-class BorderType(Enum):
+class BorderType(EnumDeclaration):
     """Built-in border types."""
 
     STYLE = 2

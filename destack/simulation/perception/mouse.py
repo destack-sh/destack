@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     NodeType,
     declare_enum,
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.MOUSE_BUTTON)
-class MouseButton(Enum):
+class MouseButton(EnumDeclaration):
     """A MouseButton is a button on a mouse."""
 
     LEFT = 1

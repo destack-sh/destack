@@ -4,7 +4,7 @@ from .core.builtin.enum import _ENUM_CLASS_BY_TYPE, _ENUM_TYPE_BY_CLASS
 
 if TYPE_CHECKING:
     from destack.core import (
-        Enum,
+        EnumDeclaration,
         EnumDefinition,
         EnumType,
         Handle,
@@ -42,7 +42,9 @@ NODE_DEFINITION_BY_TYPE: dict["NodeType", "NodeDefinition"] = {}
 
 NODE_TYPE_SCALAR_BY_TYPE: dict["NodeType", "Type"] = {}
 
-BUILTIN_CLASS_BY_NAME: dict[str, type["Node"] | type["Struct"] | type["Enum"] | type["Handle"]] = {}
+BUILTIN_CLASS_BY_NAME: dict[
+    str, type["Node"] | type["Struct"] | type["EnumDeclaration"] | type["Handle"]
+] = {}
 
 
 def get_object_cls(
@@ -58,7 +60,7 @@ def get_object_cls(
 
 def get_builtin_class(
     destack_tgype: "NodeType | StructType | EnumType",
-) -> type["Object"] | type["Enum"]:
+) -> type["Object"] | type["EnumDeclaration"]:
     if isinstance(destack_tgype, NodeType):
         return NODE_CLASS_BY_TYPE[destack_tgype]
     elif isinstance(destack_tgype, StructType):
@@ -70,13 +72,13 @@ def get_builtin_class(
 
 
 def get_builtin_type(
-    cls: type["Object"] | type["Enum"],
+    cls: type["Object"] | type["EnumDeclaration"],
 ) -> "NodeType | StructType | TraitType | EnumType":
-    from .core import Enum, Node, Struct
+    from .core import EnumDeclaration, Node, Struct
 
     if issubclass(cls, (Node, Struct)):
         return cls.metatype
-    elif issubclass(cls, Enum):
+    elif issubclass(cls, EnumDeclaration):
         return ENUM_TYPE_BY_CLASS[cls]
     else:
         raise ValueError(f"invalid destack type: {cls!r}")

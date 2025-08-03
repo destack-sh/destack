@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Optional, assert_never
 
 from ..builtin import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Node,
     StructFrozen,
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.TEXT_SPAN_TYPE)
-class TextSpanType(Enum):
+class TextSpanType(EnumDeclaration):
     TEXT = 1, "Formatted text"
     HARD_BREAK = 2, "Hard break"
     MENTION = 10, "Reference to a Node"

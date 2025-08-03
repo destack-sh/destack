@@ -2,7 +2,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.EFFECT_TYPE)
-class EffectType(Enum):
+class EffectType(EnumDeclaration):
     """When the effect fires."""
 
     APPEAR = 10, "Appear", "Initial render in"
@@ -39,21 +39,21 @@ class EffectType(Enum):
 
 
 @declare_enum(EnumType.REPEAT_TYPE)
-class RepeatType(Enum):
+class RepeatType(EnumDeclaration):
     LOOP = 1, "Loop", "Restart from beginning"
     REVERSE = 2, "Reverse", "Yoyo back and forth"
     MIRROR = 3, "Mirror", "Mirror keyframes"
 
 
 @declare_enum(EnumType.TEXT_SPLIT_TYPE)
-class TextSplitType(Enum):
+class TextSplitType(EnumDeclaration):
     CHAR = 1, "Char", "Split by character"
     WORD = 2, "Word", "Split by word"
     LINE = 3, "Line", "Split by line"
 
 
 @declare_enum(EnumType.OFFSCREEN_BEHAVIOR)
-class OffscreenBehavior(Enum):
+class OffscreenBehavior(EnumDeclaration):
     """What happens when the element is offscreen."""
 
     PLAY = 1, "Play", "Play the animation"

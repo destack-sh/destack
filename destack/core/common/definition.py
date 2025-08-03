@@ -9,7 +9,7 @@ from ..builtin import (
     CascadeAction,
     ConstraintDeclaration,
     EdgeType,
-    Enum,
+    EnumDeclaration,
     EnumType,
     HandleDeclaration,
     HandleType,
@@ -686,12 +686,15 @@ class EnumDefinition(StructFrozen):
     name: str = declare_property(101, is_repr=True)
     description: str | None = declare_property(103, is_repr=True)
     taggings: list[UInt8] = declare_property(109)
+    is_flag: bool = declare_property(110)
 
     # content
     options: list["OptionDefinition"] = declare_property(120)
 
     @classmethod
-    def from_declaration(cls, enum_type: EnumType, enum_cls: type_[Enum]) -> "EnumDefinition":
+    def from_declaration(
+        cls, enum_type: EnumType, enum_cls: type_[EnumDeclaration]
+    ) -> "EnumDefinition":
         """Create EnumDefinition from an Enum class."""
 
         return cls(
@@ -699,6 +702,7 @@ class EnumDefinition(StructFrozen):
             type=enum_type,
             name=enum_type.camel_name,
             description=enum_type.__doc__,
+            is_flag=enum_type.is_flag,
             options=[
                 OptionDefinition.from_declaration(enum_type, option)
                 for option in enum_cls.__members__.values()
@@ -957,7 +961,7 @@ class OptionDefinition(StructFrozen):
     taggings: list[UInt8] = declare_property(109)
 
     @classmethod
-    def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
+    def from_declaration(cls, enum_type: EnumType, option: EnumDeclaration) -> "OptionDefinition":
         """Create OptionDefinition from an Enum option."""
         return cls(
             id=option.value,

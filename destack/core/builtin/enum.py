@@ -14,19 +14,17 @@ _MIN_ID_BY_ENUM: dict[type, int] = {}
 _MAX_ID_BY_ENUM: dict[type, int] = {}
 
 
-class Enum(enum.IntEnum):
+class EnumDeclaration(enum.IntEnum):
     ord: int
     id: int
     title: str | None
     text: str | None
-    icon: str | None
 
     def __new__(
         cls,
         id: int,
         title: str | None = None,
         text: str | None = None,
-        icon: str | None = None,
     ):
         obj = int.__new__(cls, id)
         obj._value_ = id
@@ -34,7 +32,6 @@ class Enum(enum.IntEnum):
         obj.id = id
         obj.text = text
         obj.title = title
-        obj.icon = icon
         obj.__doc__ = text
 
         # check id
@@ -66,10 +63,10 @@ class Enum(enum.IntEnum):
 
 
 # NOTE: we have the enum registry here to avoid circular imports
-_ENUM_CLASS_BY_TYPE: dict["EnumType", type[Enum]] = {}
-_ENUM_TYPE_BY_CLASS: dict[type[Enum], "EnumType"] = {}
+_ENUM_CLASS_BY_TYPE: dict["EnumType", type[EnumDeclaration]] = {}
+_ENUM_TYPE_BY_CLASS: dict[type[EnumDeclaration], "EnumType"] = {}
 
-BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=Enum)
+BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=EnumDeclaration)
 
 
 def declare_enum(enum_type: "EnumType"):

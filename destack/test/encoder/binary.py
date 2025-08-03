@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from destack.core.runtime.binary import BinaryReader, BinaryWriter
+from destack import UUID, BinaryReader, BinaryWriter
 
 
 def test_bool():
@@ -685,7 +685,6 @@ def test_duration():
 
 def test_uuid():
     """Test UUID encoding and decoding."""
-    from destack.utils.uuid import UUID
 
     test_cases = [
         UUID("00000000-0000-0000-0000-000000000000"),  # nil UUID

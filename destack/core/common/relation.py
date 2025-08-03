@@ -10,7 +10,7 @@ from typing import (
 from destack.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ..builtin import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     HandleType,
     NodeType,
@@ -130,7 +130,7 @@ class ObjectDefinitionReference(StructFrozen):
 
 
 @declare_enum(EnumType.PROPERTY_REFERENCE_TYPE)
-class PropertyReferenceType(Enum):
+class PropertyReferenceType(EnumDeclaration):
     """The type of a property reference."""
 
     BUILTIN = 1

@@ -59,16 +59,7 @@ class CustomEvent(Event):
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        if self._ref is None:
-            self._ref = NodeReference(
-                type=self.metatype,
-                id=self.id,
-                space_id=self.space_ptr.id,
-                branch_id=self.branch_ptr.id,
-                snapshot_id=self.snapshot_ptr.id,
-                definition_id=self.definition_ptr.id if self.definition_ptr is not None else None,
-            )
-        return self._ref
+        ...
 
 
 @declare_entity(NodeType.CUSTOM_STRUCT_DEFINITION)

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.SHADOW_TYPE)
-class ShadowType(Enum):
+class ShadowType(EnumDeclaration):
     """Built-in shadow types."""
 
     BOX = 10
@@ -31,7 +31,7 @@ class ShadowType(Enum):
 
 
 @declare_enum(EnumType.SHADOW_POSITION)
-class ShadowPosition(Enum):
+class ShadowPosition(EnumDeclaration):
     """Built-in shadow positions."""
 
     OUTSIDE = 1

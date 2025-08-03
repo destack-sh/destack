@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     UNSET,
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Event,
     NodeReference,
@@ -48,7 +48,7 @@ class EntitlementExpiredEvent(EntitlementEvent):
 
 
 @declare_enum(EnumType.ENTITLEMENT_TYPE)
-class EntitlementType(Enum):
+class EntitlementType(EnumDeclaration):
     """A Type of Entitlement."""
 
     PERMISSION = 1

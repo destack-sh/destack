@@ -3,17 +3,10 @@ from typing import (
     final,
 )
 
-from ..core.builtin.builtin import NodeType, TraitType
-from ..core.builtin.const import UNSET
-from ..core.builtin.entity import declare_entity
-from ..core.builtin.property import (
-    declare_property,
-)
+from destack.core import UNSET, Entity, NodeType, TraitType, declare_entity, declare_property
 
 if TYPE_CHECKING:
     from destack import Icon, NodeReference
-
-from ..core.builtin.entity import Entity
 
 # pyright: reportIncompatibleVariableOverride=false
 

@@ -2,14 +2,14 @@ from abc import abstractmethod
 from enum import IntFlag
 from typing import TYPE_CHECKING, Any
 
-from ..builtin import Handle, HandleType, Object, ObjectKind, declare_handle
+from ..builtin import EnumType, Handle, HandleType, Object, ObjectKind, declare_enum, declare_handle
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
     from destack import Session, Type
 
 
-# nocheckin: support flag enums (FlagEnum)
+@declare_enum(EnumType.ENCODER_OPTIONS)
 class EncoderOptions(IntFlag):
     """Options for encoding."""
 
