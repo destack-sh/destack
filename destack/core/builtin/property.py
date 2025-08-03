@@ -575,7 +575,7 @@ def get_class_name(
         raise ValueError(f"unexpected type: {py_type!r}")
 
 
-def builtin_property(
+def declare_property(
     id: int,
     *,
     description: str | None = None,
@@ -611,7 +611,7 @@ def builtin_property(
     )
 
 
-def builtin_property_parent(*, is_readonly: bool = False, description: str | None = None) -> Any:
+def declare_property_parent(*, is_readonly: bool = False, description: str | None = None) -> Any:
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
         id=3,  # NOTE: never change this id! :Encoding
@@ -625,7 +625,7 @@ def builtin_property_parent(*, is_readonly: bool = False, description: str | Non
     )
 
 
-def builtin_property_runtime(
+def declare_property_runtime(
     id: int,
     *,
     is_repr: bool = False,
@@ -647,7 +647,7 @@ def builtin_property_runtime(
 
 
 _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
-    builtin_property,
-    builtin_property_parent,
-    builtin_property_runtime,
+    declare_property,
+    declare_property_parent,
+    declare_property_runtime,
 )

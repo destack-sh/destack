@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.core import (
     UNSET,
+    UUID,
+    Casing,
     EncoderOptions,
     Entity,
     Materialization,
@@ -18,6 +20,8 @@ from destack.core import (
     StructType,
     TypeCardinality,
     TypeDeclaration,
+    execute_arbitrary_code,
+    to_casing,
 )
 from destack.registry import (
     BUILTIN_CLASS_BY_NAME,
@@ -25,10 +29,8 @@ from destack.registry import (
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
-from destack.utils.code import execute_arbitrary_code
-from destack.utils.string import Casing, to_casing
-from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
-from destack.utils.uuid import UUID
+
+from ...utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
 if TYPE_CHECKING:
     pass

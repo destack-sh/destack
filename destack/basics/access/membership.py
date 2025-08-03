@@ -5,9 +5,9 @@ from destack.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -16,31 +16,31 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_event(NodeType.MEMBERSHIP_EVENT, is_abstract=True)
+@declare_event(NodeType.MEMBERSHIP_EVENT, is_abstract=True)
 class MembershipEvent(Event):
     """A Event regarding a Membership."""
 
-    membership: "Membership" = builtin_property(101)
-    joinable: "Entity" = builtin_property(102)
-    member: "Entity" = builtin_property(103)
+    membership: "Membership" = declare_property(101)
+    joinable: "Entity" = declare_property(102)
+    member: "Entity" = declare_property(103)
 
 
-@builtin_event(NodeType.MEMBERSHIP_JOINED_EVENT)
+@declare_event(NodeType.MEMBERSHIP_JOINED_EVENT)
 class MembershipJoinedEvent(MembershipEvent):
     """A Event regarding a Membership Join."""
 
-    role: "Role" = builtin_property(110)
-    role_type: "RoleType" = builtin_property(111)
+    role: "Role" = declare_property(110)
+    role_type: "RoleType" = declare_property(111)
 
 
-@builtin_event(NodeType.MEMBERSHIP_LEFT_EVENT)
+@declare_event(NodeType.MEMBERSHIP_LEFT_EVENT)
 class MembershipLeftEvent(MembershipEvent):
     """A Event regarding a Membership Leave."""
 
     pass
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.MEMBERSHIP,
     event_types=(NodeType.MEMBERSHIP_EVENT,),
     traits=(TraitType.OWNABLE,),
@@ -48,6 +48,6 @@ class MembershipLeftEvent(MembershipEvent):
 class Membership(Entity):
     """A Membership of a Actor in a Joinable."""
 
-    member: "Entity" = builtin_property(110)
-    role: Optional["Role"] = builtin_property(111)
-    role_type: Optional["RoleType"] = builtin_property(112)
+    member: "Entity" = declare_property(110)
+    role: Optional["Role"] = declare_property(111)
+    role_type: Optional["RoleType"] = declare_property(112)

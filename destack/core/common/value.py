@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, final
 
-from ..builtin import ObjectStability, Struct, StructType, builtin_property, builtin_struct
+from ..builtin import ObjectStability, Struct, StructType, declare_property, declare_struct
 from .type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 type_ = type
 
 
-@builtin_struct(
+@declare_struct(
     StructType.VALUE,
     stability=ObjectStability.STATIC,
     is_final=True,
@@ -24,12 +24,12 @@ class Value(Struct):
     Values are used to represent any generic data.
     """
 
-    type: Type = builtin_property(
+    type: Type = declare_property(
         100,
         is_repr=True,
         description="The Type of the Value.",
     )
-    value: Any | None = builtin_property(
+    value: Any | None = declare_property(
         200,
         is_repr=True,
         description="The generic Value.",

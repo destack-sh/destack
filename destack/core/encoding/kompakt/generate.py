@@ -5,6 +5,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.core import (
+    UUID,
     BinaryReader,
     BinaryWriter,
     EncoderOptions,
@@ -22,6 +23,7 @@ from destack.core import (
     StructType,
     TypeCardinality,
     TypeDeclaration,
+    execute_arbitrary_code,
 )
 from destack.registry import (
     BUILTIN_CLASS_BY_NAME,
@@ -29,8 +31,6 @@ from destack.registry import (
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
 )
-from destack.utils.code import execute_arbitrary_code
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     pass

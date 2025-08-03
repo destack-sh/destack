@@ -5,8 +5,8 @@ from ..builtin import (
     ClientType,
     Entity,
     NodeType,
-    builtin_entity,
-    builtin_property,
+    declare_entity,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -15,22 +15,22 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(NodeType.CLIENT, is_final=True)
+@declare_entity(NodeType.CLIENT, is_final=True)
 @final
 class Client(Entity):
     """A Client to connect with the system."""
 
     # meta
-    type: ClientType = builtin_property(100, is_repr=True)
+    type: ClientType = declare_property(100, is_repr=True)
 
     # status
-    access_token: Optional[str] = builtin_property(120, is_unique=True)
-    seen_at: Optional[datetime] = builtin_property(121)
-    logged_in_at: Optional[datetime] = builtin_property(122)
+    access_token: Optional[str] = declare_property(120, is_unique=True)
+    seen_at: Optional[datetime] = declare_property(121)
+    logged_in_at: Optional[datetime] = declare_property(122)
 
     # details
-    device_type: Optional[str] = builtin_property(130)
-    device_name: Optional[str] = builtin_property(131)
-    operating_system: Optional[str] = builtin_property(132)
-    browser_name: Optional[str] = builtin_property(133)
-    browser_version: Optional[str] = builtin_property(44)
+    device_type: Optional[str] = declare_property(130)
+    device_name: Optional[str] = declare_property(131)
+    operating_system: Optional[str] = declare_property(132)
+    browser_name: Optional[str] = declare_property(133)
+    browser_version: Optional[str] = declare_property(44)

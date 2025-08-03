@@ -7,11 +7,11 @@ from destack.core import (
     EnumType,
     Event,
     NodeType,
-    builtin_entity,
-    builtin_enum,
-    builtin_event,
-    builtin_property,
-    builtin_property_parent,
+    declare_entity,
+    declare_enum,
+    declare_event,
+    declare_property,
+    declare_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.RUN_STATUS)
+@declare_enum(EnumType.RUN_STATUS)
 class RunStatus(Enum):
     # pre
     SCHEDULED = 2, "Scheduled", "Scheduled for sometime", "fas fa-clock"
@@ -61,17 +61,17 @@ class RunStatus(Enum):
         return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
-@builtin_event(NodeType.RUN_EVENT, is_abstract=True)
+@declare_event(NodeType.RUN_EVENT, is_abstract=True)
 class RunEvent(Event):
     """An Event regarding a Run."""
 
-    run: "Run" = builtin_property(101)
-    target: Optional["Entity"] = builtin_property(110)
+    run: "Run" = declare_property(101)
+    target: Optional["Entity"] = declare_property(110)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
 
 
-@builtin_event(NodeType.RUN_STARTED_EVENT)
+@declare_event(NodeType.RUN_STARTED_EVENT)
 class RunStartedEvent(
     RunEvent,
 ):
@@ -80,56 +80,56 @@ class RunStartedEvent(
     pass
 
 
-@builtin_event(NodeType.RUN_PAUSE_REQUESTED_EVENT)
+@declare_event(NodeType.RUN_PAUSE_REQUESTED_EVENT)
 class RunPauseRequestedEvent(RunEvent):
     """A Run was paused."""
 
     pass
 
 
-@builtin_event(NodeType.RUN_PAUSED_EVENT)
+@declare_event(NodeType.RUN_PAUSED_EVENT)
 class RunPausedEvent(RunEvent):
     """A Run was paused."""
 
     pass
 
 
-@builtin_event(NodeType.RUN_RESUME_REQUESTED_EVENT)
+@declare_event(NodeType.RUN_RESUME_REQUESTED_EVENT)
 class RunResumeRequestedEvent(RunEvent):
     """A Run was resumed."""
 
     pass
 
 
-@builtin_event(NodeType.RUN_RESUMED_EVENT)
+@declare_event(NodeType.RUN_RESUMED_EVENT)
 class RunResumedEvent(RunEvent):
     """A Run was resumed."""
 
     pass
 
 
-@builtin_event(NodeType.RUN_STOP_REQUESTED_EVENT)
+@declare_event(NodeType.RUN_STOP_REQUESTED_EVENT)
 class RunStopRequestedEvent(RunEvent):
     """A Run was stopped."""
 
     pass
 
 
-@builtin_event(NodeType.RUN_FAILED_EVENT)
+@declare_event(NodeType.RUN_FAILED_EVENT)
 class RunFailedEvent(RunEvent):
     """A Run failed."""
 
     pass
 
 
-@builtin_event(NodeType.RUN_COMPLETED_EVENT)
+@declare_event(NodeType.RUN_COMPLETED_EVENT)
 class RunCompletedEvent(RunEvent):
     """A Run completed."""
 
     pass
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.RUN,
     event_types=(NodeType.RUN_EVENT,),
     is_abstract=True,
@@ -139,26 +139,26 @@ class Run(Entity):
     Run of an Action.
     """
 
-    parent: Union["Action", "Run", None] = builtin_property_parent()
-    action: "Action" = builtin_property(111)
-    status: RunStatus = builtin_property(112, is_repr=True)
-    duration: Optional[timedelta] = builtin_property(
+    parent: Union["Action", "Run", None] = declare_property_parent()
+    action: "Action" = declare_property(111)
+    status: RunStatus = declare_property(112, is_repr=True)
+    duration: Optional[timedelta] = declare_property(
         113,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
         is_repr=True,
     )
-    scheduled_at: Optional[datetime] = builtin_property(
+    scheduled_at: Optional[datetime] = declare_property(
         116, description="When the Run is scheduled to start."
     )
-    started_at: Optional[datetime] = builtin_property(
+    started_at: Optional[datetime] = declare_property(
         117, description="When the Run first started.", is_repr=True
     )
-    seen_at: Optional[datetime] = builtin_property(118, description="When the Run was last active.")
-    interrupted_at: Optional[datetime] = builtin_property(
+    seen_at: Optional[datetime] = declare_property(118, description="When the Run was last active.")
+    interrupted_at: Optional[datetime] = declare_property(
         119, description="When the Run was interrupted."
     )
-    terminated_at: Optional[datetime] = builtin_property(
+    terminated_at: Optional[datetime] = declare_property(
         120, description="When the Run was last terminated."
     )
     if TYPE_CHECKING:

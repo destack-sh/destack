@@ -6,7 +6,7 @@ from ..utils.uuid import UUID
 from .builtin import EnumType, ObjectStability, StructType
 from .common import ValueFactory
 from .declaration import TagDeclaration
-from .property import _PROPERTY_SPECIFIERS, builtin_property
+from .property import _PROPERTY_SPECIFIERS, declare_property
 from .struct import StructFrozen, _process_struct_cls
 from .types import UInt128
 
@@ -26,7 +26,7 @@ _ALLOWED_POSTFIXES = ("MESSAGE", "REQUEST", "RESPONSE")
     field_specifiers=_PROPERTY_SPECIFIERS,
     frozen_default=True,
 )
-def builtin_message(
+def declare_message(
     message_type: StructType,
     *,
     is_abstract: bool = False,
@@ -63,7 +63,7 @@ def builtin_message(
     return decorate
 
 
-@builtin_message(
+@declare_message(
     StructType.MESSAGE,
     is_abstract=True,
     tags=(
@@ -79,7 +79,7 @@ class Message(StructFrozen):
     """
 
     # 1-20: Message identity
-    id: UUID = builtin_property(
+    id: UUID = declare_property(
         2,
         default_factory=ValueFactory.UUID7,
         description="The universally unique identifier of this Message.",
@@ -87,7 +87,7 @@ class Message(StructFrozen):
     )
 
     # 20-40: Message tracking
-    client: "Client" = builtin_property(
+    client: "Client" = declare_property(
         23,
         is_internal=True,
         is_readonly=True,
@@ -95,7 +95,7 @@ class Message(StructFrozen):
         description="The Client that created this Message (client, but verified).",
         tags=("tracking",),
     )
-    client_nonce: UUID = builtin_property(
+    client_nonce: UUID = declare_property(
         24,
         is_internal=True,
         is_readonly=True,
@@ -103,7 +103,7 @@ class Message(StructFrozen):
         description="The nonce of the Client that created this Message (client).",
         tags=("tracking",),
     )
-    client_created_at: datetime = builtin_property(
+    client_created_at: datetime = declare_property(
         25,
         is_internal=True,
         is_readonly=True,
@@ -111,7 +111,7 @@ class Message(StructFrozen):
         description="The time in the Client when it created this Message (client).",
         tags=("tracking",),
     )
-    client_remote_epoch: UInt128 = builtin_property(
+    client_remote_epoch: UInt128 = declare_property(
         26,
         is_internal=True,
         is_readonly=True,
@@ -119,7 +119,7 @@ class Message(StructFrozen):
         description="The logical time last seen from the system in the Client for this space (client).",
         tags=("tracking",),
     )
-    client_local_epoch: UInt128 = builtin_property(
+    client_local_epoch: UInt128 = declare_property(
         27,
         is_internal=True,
         is_readonly=True,

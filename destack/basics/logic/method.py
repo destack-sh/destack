@@ -1,13 +1,13 @@
 from typing import final
 
-from destack.core import NodeType, builtin_entity
+from destack.core import NodeType, declare_entity
 
 from .function import Function
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(NodeType.METHOD, is_final=True)
+@declare_entity(NodeType.METHOD, is_final=True)
 @final
 class Method(Function):
     """

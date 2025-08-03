@@ -8,10 +8,10 @@ from destack.core import (
     StructFrozen,
     StructType,
     UInt8,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 from .style import Style
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.STROKE_TYPE)
+@declare_enum(EnumType.STROKE_TYPE)
 class StrokeType(Enum):
     SOLID = 1
     DASHED = 2
@@ -30,7 +30,7 @@ class StrokeType(Enum):
     FREEHAND = 4
 
 
-@builtin_struct(
+@declare_struct(
     StructType.STROKE,
     frozen=True,
     is_final=True,
@@ -39,77 +39,77 @@ class StrokeType(Enum):
 class Stroke(StructFrozen):
     """A Stroke."""
 
-    type: StrokeType = builtin_property(100)
-    size: UInt8 = builtin_property(101, description="The stroke size/width.")
-    thinning: Float32 = builtin_property(
+    type: StrokeType = declare_property(100)
+    size: UInt8 = declare_property(101, description="The stroke size/width.")
+    thinning: Float32 = declare_property(
         102, description="The amount of pressure-based thinning (0-1)."
     )
-    smoothing: Float32 = builtin_property(103, description="The amount of path smoothing (0-1).")
-    streamline: Float32 = builtin_property(
+    smoothing: Float32 = declare_property(103, description="The amount of path smoothing (0-1).")
+    streamline: Float32 = declare_property(
         104, description="The amount of streamlining applied to path (0-1)."
     )
-    easing: "Easing" = builtin_property(
+    easing: "Easing" = declare_property(
         105, description="The easing function for pressure mapping."
     )
-    color: Optional["Color"] = builtin_property(106, description="The stroke color.")
-    start: Optional["StrokeCap"] = builtin_property(110, description="The start cap configuration.")
-    end: Optional["StrokeCap"] = builtin_property(111, description="The end cap configuration.")
+    color: Optional["Color"] = declare_property(106, description="The stroke color.")
+    start: Optional["StrokeCap"] = declare_property(110, description="The start cap configuration.")
+    end: Optional["StrokeCap"] = declare_property(111, description="The end cap configuration.")
 
 
-@builtin_struct(StructType.STROKE_CAP, frozen=True, is_final=True)
+@declare_struct(StructType.STROKE_CAP, frozen=True, is_final=True)
 @final
 class StrokeCap(StructFrozen):
     """A stroke cap."""
 
-    cap: bool = builtin_property(101, description="Whether to cap the stroke.")
-    taper: bool = builtin_property(102, description="Whether to taper the stroke.")
-    easing: "Easing" = builtin_property(103, description="The easing function for taper.")
+    cap: bool = declare_property(101, description="Whether to cap the stroke.")
+    taper: bool = declare_property(102, description="Whether to taper the stroke.")
+    easing: "Easing" = declare_property(103, description="The easing function for taper.")
 
 
-@builtin_entity(NodeType.STROKE_STYLE, is_final=True)
+@declare_entity(NodeType.STROKE_STYLE, is_final=True)
 @final
 class StrokeStyle(Style):
     """A StrokeStyle."""
 
-    type: StrokeType = builtin_property(100)
-    size: UInt8 = builtin_property(200, description="The stroke size/width.")
-    thinning: Float32 = builtin_property(
+    type: StrokeType = declare_property(100)
+    size: UInt8 = declare_property(200, description="The stroke size/width.")
+    thinning: Float32 = declare_property(
         201, description="The amount of pressure-based thinning (0-1)."
     )
-    smoothing: Float32 = builtin_property(202, description="The amount of path smoothing (0-1).")
-    streamline: Float32 = builtin_property(
+    smoothing: Float32 = declare_property(202, description="The amount of path smoothing (0-1).")
+    streamline: Float32 = declare_property(
         203, description="The amount of streamlining applied to path (0-1)."
     )
-    easing: "Easing" = builtin_property(
+    easing: "Easing" = declare_property(
         204, description="The easing function for pressure mapping."
     )
-    start: Optional["StrokeCap"] = builtin_property(205, description="The start cap configuration.")
-    end: Optional["StrokeCap"] = builtin_property(206, description="The end cap configuration.")
+    start: Optional["StrokeCap"] = declare_property(205, description="The start cap configuration.")
+    end: Optional["StrokeCap"] = declare_property(206, description="The end cap configuration.")
 
 
-@builtin_struct(StructType.STROKE_POINT, frozen=True, is_final=True)
+@declare_struct(StructType.STROKE_POINT, frozen=True, is_final=True)
 @final
 class StrokePoint(StructFrozen):
     """A computed point in a stroke."""
 
-    point: "Vector2" = builtin_property(
+    point: "Vector2" = declare_property(
         101, is_repr=True, description="The adjusted point position."
     )
-    original_point: "Vector2" = builtin_property(
+    original_point: "Vector2" = declare_property(
         102, is_repr=True, description="The original input point."
     )
-    pressure: Float32 = builtin_property(103, description="The pressure value at this point (0-1).")
-    direction: "Vector2" = builtin_property(
+    pressure: Float32 = declare_property(103, description="The pressure value at this point (0-1).")
+    direction: "Vector2" = declare_property(
         104, description="The normalized direction vector from previous point."
     )
-    distance: Float32 = builtin_property(105, description="Distance from the previous point.")
-    running_length: Float32 = builtin_property(106, description="Total distance from stroke start.")
-    radius: Float32 = builtin_property(107, description="The computed radius at this point.")
+    distance: Float32 = declare_property(105, description="Distance from the previous point.")
+    running_length: Float32 = declare_property(106, description="Total distance from stroke start.")
+    radius: Float32 = declare_property(107, description="The computed radius at this point.")
 
 
-@builtin_struct(StructType.STROKE_PATH, frozen=True, is_final=True)
+@declare_struct(StructType.STROKE_PATH, frozen=True, is_final=True)
 @final
 class StrokePath(StructFrozen):
     """A stroke path."""
 
-    points: list[StrokePoint] = builtin_property(101, is_repr=True)
+    points: list[StrokePoint] = declare_property(101, is_repr=True)

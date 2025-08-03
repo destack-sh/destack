@@ -4,9 +4,9 @@ from ..builtin import (
     Entity,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_property,
-    builtin_property_parent,
+    declare_entity,
+    declare_property,
+    declare_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.TEAM,
     traits=(TraitType.ACTOR, TraitType.JOINABLE),
 )
@@ -24,5 +24,5 @@ class Team(Entity):
     An Team with Users and Teams.
     """
 
-    parent: Optional["Organization"] = builtin_property_parent()
-    slug: str = builtin_property(102, is_repr=True)
+    parent: Optional["Organization"] = declare_property_parent()
+    slug: str = declare_property(102, is_repr=True)

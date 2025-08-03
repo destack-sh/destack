@@ -6,10 +6,10 @@ from destack.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 from .color import Color
@@ -22,14 +22,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.FILL_TYPE)
+@declare_enum(EnumType.FILL_TYPE)
 class FillType(Enum):
     SOLID = 10
     GRADIENT = 11
     IMAGE = 12
 
 
-@builtin_enum(EnumType.FILL_POSITION)
+@declare_enum(EnumType.FILL_POSITION)
 class FillPosition(Enum):
     TOP_LEFT = 1
     TOP_CENTER = 2
@@ -42,7 +42,7 @@ class FillPosition(Enum):
     BOTTOM_RIGHT = 22
 
 
-@builtin_enum(EnumType.FILL_SIZE)
+@declare_enum(EnumType.FILL_SIZE)
 class FillSize(Enum):
     FILL = 1
     STRETCH = 2
@@ -50,7 +50,7 @@ class FillSize(Enum):
     TILE = 4
 
 
-@builtin_struct(
+@declare_struct(
     StructType.FILL,
     frozen=True,
     is_final=True,
@@ -59,13 +59,13 @@ class FillSize(Enum):
 class Fill(StructFrozen):
     """A fill value."""
 
-    type: FillType = builtin_property(100, is_repr=True)
-    style: Optional["FillStyle"] = builtin_property(101, is_repr=True)
-    color: Color | None = builtin_property(102, is_repr=True)
-    gradient: Optional[Gradient] = builtin_property(103, is_repr=True)
-    image: "File | None" = builtin_property(104, is_repr=True)
-    position: FillPosition | None = builtin_property(105, is_repr=True)
-    size: FillSize | None = builtin_property(106, is_repr=True)
+    type: FillType = declare_property(100, is_repr=True)
+    style: Optional["FillStyle"] = declare_property(101, is_repr=True)
+    color: Color | None = declare_property(102, is_repr=True)
+    gradient: Optional[Gradient] = declare_property(103, is_repr=True)
+    image: "File | None" = declare_property(104, is_repr=True)
+    position: FillPosition | None = declare_property(105, is_repr=True)
+    size: FillSize | None = declare_property(106, is_repr=True)
 
     @staticmethod
     def from_color(color: Color) -> "Fill":
@@ -76,16 +76,16 @@ class Fill(StructFrozen):
         return Fill(type=FillType.GRADIENT, gradient=gradient)
 
 
-@builtin_entity(NodeType.FILL_STYLE)
+@declare_entity(NodeType.FILL_STYLE)
 class FillStyle(Style):
     """A fill style."""
 
-    type: FillType = builtin_property(100, is_repr=True)
-    color: Color | None = builtin_property(200, is_repr=True)
-    gradient: Optional[Gradient] = builtin_property(201, is_repr=True)
-    image: "File | None" = builtin_property(202, is_repr=True)
-    position: FillPosition | None = builtin_property(203, is_repr=True)
-    size: FillSize | None = builtin_property(204, is_repr=True)
+    type: FillType = declare_property(100, is_repr=True)
+    color: Color | None = declare_property(200, is_repr=True)
+    gradient: Optional[Gradient] = declare_property(201, is_repr=True)
+    image: "File | None" = declare_property(202, is_repr=True)
+    position: FillPosition | None = declare_property(203, is_repr=True)
+    size: FillSize | None = declare_property(204, is_repr=True)
 
     @staticmethod
     def from_fill(fill: Fill) -> "FillStyle":

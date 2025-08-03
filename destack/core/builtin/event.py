@@ -7,11 +7,11 @@ from ..utils.env import IS_DEV, IS_TEST
 from ..utils.uuid import UUID
 from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT
-from .declaration import TagDeclaration, builtin_method
+from .declaration import TagDeclaration, declare_method
 from .entity import Entity
-from .enum import Enum, builtin_enum
+from .enum import Enum, declare_enum
 from .node import Node, _process_node_cls
-from .property import _PROPERTY_SPECIFIERS, ValueFactory, builtin_property
+from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
 from .types import UInt128
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.EVENT_STATUS)
+@declare_enum(EnumType.EVENT_STATUS)
 class EventStatus(Enum):
     """The (forever) status of an Event."""
 
@@ -40,7 +40,7 @@ class EventStatus(Enum):
 @dataclass_transform(
     kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS, frozen_default=True
 )
-def builtin_event(
+def declare_event(
     # meta
     event_type: NodeType,
     *,
@@ -91,7 +91,7 @@ def builtin_event(
     return decorate
 
 
-@builtin_event(
+@declare_event(
     NodeType.EVENT,
     is_abstract=True,
     tags=(
@@ -111,7 +111,7 @@ class Event(Node):
     """
 
     # 10-20: Event identity
-    definition: Union["Entity", None] = builtin_property(
+    definition: Union["Entity", None] = declare_property(
         11,
         is_internal=True,
         is_readonly=True,
@@ -119,7 +119,7 @@ class Event(Node):
         description="The definition this Event is an instance of.",
         tags=("identity",),
     )
-    branch: "Branch" = builtin_property(
+    branch: "Branch" = declare_property(
         12,
         is_readonly=True,
         is_internal=True,
@@ -128,7 +128,7 @@ class Event(Node):
         description="The Branch this Event originated from.",
         tags=("identity",),
     )
-    snapshot: "Snapshot" = builtin_property(
+    snapshot: "Snapshot" = declare_property(
         13,
         is_readonly=True,
         is_internal=True,
@@ -137,7 +137,7 @@ class Event(Node):
         description="The Snapshot this Event originated from.",
         tags=("identity",),
     )
-    preceded_by: Optional["Event"] = builtin_property(
+    preceded_by: Optional["Event"] = declare_property(
         14,
         is_eq=False,
         is_hash=False,
@@ -147,7 +147,7 @@ class Event(Node):
         description="The previous Event that this Event follows.",
         tags=("identity",),
     )
-    caused_by: Optional["Event"] = builtin_property(
+    caused_by: Optional["Event"] = declare_property(
         15,
         is_eq=False,
         is_hash=False,
@@ -158,7 +158,7 @@ class Event(Node):
         tags=("identity",),
     )
     # 20-40: Event tracking
-    created_at: datetime = builtin_property(
+    created_at: datetime = declare_property(
         20,
         is_internal=True,
         is_eq=False,
@@ -168,7 +168,7 @@ class Event(Node):
         description="The time this Event was created (system).",
         tags=("tracking", "system"),
     )
-    created_epoch: UInt128 = builtin_property(
+    created_epoch: UInt128 = declare_property(
         21,
         is_internal=True,
         is_eq=False,
@@ -179,7 +179,7 @@ class Event(Node):
         description="The logical time this Event was created (system).",
         tags=("tracking", "system"),
     )
-    created_by: "Entity" = builtin_property(
+    created_by: "Entity" = declare_property(
         22,
         is_internal=True,
         is_eq=False,
@@ -190,7 +190,7 @@ class Event(Node):
         description="The Actor that created this Event.",
         tags=("tracking",),
     )
-    client: "Client" = builtin_property(
+    client: "Client" = declare_property(
         23,
         is_internal=True,
         is_eq=False,
@@ -201,7 +201,7 @@ class Event(Node):
         description="The Client that created this Event (client, but verified).",
         tags=("tracking", "client"),
     )
-    client_nonce: UUID = builtin_property(
+    client_nonce: UUID = declare_property(
         24,
         is_eq=False,
         is_hash=False,
@@ -212,7 +212,7 @@ class Event(Node):
         description="The nonce of the Client that created this Event (client).",
         tags=("tracking", "client"),
     )
-    client_created_at: datetime = builtin_property(
+    client_created_at: datetime = declare_property(
         25,
         is_eq=False,
         is_hash=False,
@@ -223,7 +223,7 @@ class Event(Node):
         description="The time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )
-    client_remote_epoch: UInt128 = builtin_property(
+    client_remote_epoch: UInt128 = declare_property(
         26,
         is_eq=False,
         is_hash=False,
@@ -234,7 +234,7 @@ class Event(Node):
         description="The logical time last seen from the system in the Client for this space (client).",
         tags=("tracking", "client"),
     )
-    client_local_epoch: UInt128 = builtin_property(
+    client_local_epoch: UInt128 = declare_property(
         27,
         is_eq=False,
         is_hash=False,
@@ -245,7 +245,7 @@ class Event(Node):
         description="The logical time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )
-    status: "EventStatus" = builtin_property(
+    status: "EventStatus" = declare_property(
         30,
         is_eq=False,
         is_hash=False,
@@ -267,7 +267,7 @@ class Event(Node):
         """The NodeReference to the parent of this Event."""
         return self.space_ptr
 
-    @builtin_method(2)
+    @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
         ...

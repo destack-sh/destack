@@ -1,14 +1,14 @@
 [project]
 name = "destack"
 version = "2025.08.01.22"
-description = "Destack Python"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 
 [tool.uv]
 workspace = { members = [
+	"destack",
 	"destack-py",
 	"destack-py-system",
-	"destack-py-runtime",
+	"destack-py-server",
 	"destack-py-web",
 ] }
 
@@ -69,10 +69,10 @@ ignore = [
 known-first-party = ["destack-py", "destack", "desys", "derun", "deweb"]
 
 [tool.pyright]
-include = ["destack-py/destack", "destack-py-system/desys"]
-ignore = ["^destack-py/venv*"]
+include = ["destack", "destack-py", "destack-py-server"]
+ignore = ["*/venv*"]
 venv = "destack-py/venv"
-extraPaths = ["destack-py", "destack-py-system"]
+extraPaths = ["destack", "destack-py", "destack-py-server", "destack-py-web"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true

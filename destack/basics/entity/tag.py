@@ -5,9 +5,9 @@ from typing import (
 
 from ..core.builtin.builtin import NodeType, TraitType
 from ..core.builtin.const import UNSET
-from ..core.builtin.entity import builtin_entity
+from ..core.builtin.entity import declare_entity
 from ..core.builtin.property import (
-    builtin_property,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -18,17 +18,17 @@ from ..core.builtin.entity import Entity
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.TAG,
     traits=(TraitType.ORDERED,),
 )
 class Tag(Entity):
     """A Tag to tag an Entity with (in a Tagging)."""
 
-    icon: "Icon | None" = builtin_property(102)
+    icon: "Icon | None" = declare_property(102)
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.TAGGING,
     traits=(TraitType.ORDERED,),
     is_final=True,
@@ -37,6 +37,6 @@ class Tag(Entity):
 class Tagging(Entity):
     """A Tagging of a Node by a Tag."""
 
-    tag: Tag = builtin_property(110)
+    tag: Tag = declare_property(110)
     if TYPE_CHECKING:
         tag_ptr: NodeReference = UNSET

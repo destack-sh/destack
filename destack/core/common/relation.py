@@ -21,9 +21,9 @@ from ..builtin import (
     StructFrozen,
     StructType,
     UInt8,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 from ..utils.uuid import UUID
 
@@ -44,16 +44,16 @@ if TYPE_CHECKING:
 type_ = type
 
 
-@builtin_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True, is_final=True)
+@declare_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True, is_final=True)
 @final
 class ObjectDefinitionReference(StructFrozen):
     """Reference to an object "type" (builtin, custom or trait)."""
 
-    kind: ObjectKind = builtin_property(101, is_repr=True)
-    node_type: Optional[NodeType] = builtin_property(102, is_repr=True)
-    struct_type: Optional[StructType] = builtin_property(103, is_repr=True)
-    handle_type: Optional[HandleType] = builtin_property(104, is_repr=True)
-    definition: "Entity | None" = builtin_property(106, is_repr=True)
+    kind: ObjectKind = declare_property(101, is_repr=True)
+    node_type: Optional[NodeType] = declare_property(102, is_repr=True)
+    struct_type: Optional[StructType] = declare_property(103, is_repr=True)
+    handle_type: Optional[HandleType] = declare_property(104, is_repr=True)
+    definition: "Entity | None" = declare_property(106, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 
@@ -129,7 +129,7 @@ class ObjectDefinitionReference(StructFrozen):
             assert_never(definition)
 
 
-@builtin_enum(EnumType.PROPERTY_REFERENCE_TYPE)
+@declare_enum(EnumType.PROPERTY_REFERENCE_TYPE)
 class PropertyReferenceType(Enum):
     """The type of a property reference."""
 
@@ -137,7 +137,7 @@ class PropertyReferenceType(Enum):
     CUSTOM = 2
 
 
-@builtin_struct(
+@declare_struct(
     StructType.PROPERTY_REFERENCE,
     frozen=True,
     is_final=True,
@@ -148,16 +148,16 @@ class PropertyReference(StructFrozen):
     A reference to a builtin object's Property.
     """
 
-    type: PropertyReferenceType = builtin_property(100, is_repr=True)
-    node_type: NodeType | None = builtin_property(101, is_repr=True)
-    struct_type: StructType | None = builtin_property(103, is_repr=True)
-    handle_type: HandleType | None = builtin_property(104, is_repr=True)
-    id: UInt8 | None = builtin_property(
+    type: PropertyReferenceType = declare_property(100, is_repr=True)
+    node_type: NodeType | None = declare_property(101, is_repr=True)
+    struct_type: StructType | None = declare_property(103, is_repr=True)
+    handle_type: HandleType | None = declare_property(104, is_repr=True)
+    id: UInt8 | None = declare_property(
         105,
         is_repr=True,
         description="id of the builtin Property",
     )
-    custom_property: "CustomPropertyDefinition | None" = builtin_property(
+    custom_property: "CustomPropertyDefinition | None" = declare_property(
         106,
         is_repr=True,
         description="custom Property of a custom Node or Struct",
@@ -220,7 +220,7 @@ class PropertyReference(StructFrozen):
             assert_never(base)
 
 
-@builtin_struct(StructType.NODE_REFERENCE, frozen=True, is_final=True)
+@declare_struct(StructType.NODE_REFERENCE, frozen=True, is_final=True)
 @final
 class NodeReference(StructFrozen):
     """
@@ -228,32 +228,32 @@ class NodeReference(StructFrozen):
     """
 
     # identity
-    type: NodeType = builtin_property(
+    type: NodeType = declare_property(
         100,
         is_repr=True,
         description="The type of the Node.",
     )
-    id: UUID = builtin_property(
+    id: UUID = declare_property(
         101,
         is_repr=True,
         description="The unique id of the Node.",
     )
-    space_id: UUID = builtin_property(
+    space_id: UUID = declare_property(
         102,
         is_repr=True,
         description="The id of the Space the Node belonged to.",
     )
-    definition_id: Optional[UUID] = builtin_property(
+    definition_id: Optional[UUID] = declare_property(
         103,
         is_repr=True,
         description="The id of the Node definition.",
     )
-    branch_id: UUID = builtin_property(
+    branch_id: UUID = declare_property(
         104,
         is_repr=True,
         description="The id of the Branch the Node belonged to (when it was referenced).",
     )
-    snapshot_id: UUID = builtin_property(
+    snapshot_id: UUID = declare_property(
         105,
         is_repr=True,
         description="The id of the Snapshot the Node belonged to (when it was referenced).",

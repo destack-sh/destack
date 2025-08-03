@@ -3,8 +3,6 @@ from collections.abc import Mapping
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Callable
 
-from destack.utils.env import IS_DEV, IS_TEST
-
 from .core.builtin import (
     EnumType,
     HandleType,
@@ -12,6 +10,7 @@ from .core.builtin import (
     Object,
     StructType,
 )
+from .core.utils.env import IS_DEV, IS_TEST
 from .registry import (
     BUILTIN_CLASS_BY_NAME,
     ENUM_CLASS_BY_TYPE,

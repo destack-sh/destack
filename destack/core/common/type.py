@@ -17,9 +17,9 @@ from ..builtin import (
     StructType,
     TypeCardinality,
     UInt32,
-    builtin_method,
-    builtin_property,
-    builtin_struct,
+    declare_method,
+    declare_property,
+    declare_struct,
 )
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@builtin_struct(StructType.TYPE, frozen=True, is_final=True)
+@declare_struct(StructType.TYPE, frozen=True, is_final=True)
 @final
 class Type(StructFrozen):
     """
@@ -42,77 +42,77 @@ class Type(StructFrozen):
     """
 
     # cardinality
-    cardinality: TypeCardinality = builtin_property(
+    cardinality: TypeCardinality = declare_property(
         110,
         is_repr=True,
         description="Cardinality of this Type.",
     )
-    key_type: Optional["Type"] = builtin_property(
+    key_type: Optional["Type"] = declare_property(
         111,
         is_repr=True,
         description="Key type of this Type (if it's a map).",
     )
-    value_type: Optional["Type"] = builtin_property(
+    value_type: Optional["Type"] = declare_property(
         112,
         is_repr=True,
         description="Value type of this Type (list, map).",
     )
-    element_types: list["Type"] | None = builtin_property(
+    element_types: list["Type"] | None = declare_property(
         113,
         is_repr=True,
         description="Element types of this Type (tuple).",
     )
-    # dimensions: list[UInt32] | None = builtin_property(
+    # dimensions: list[UInt32] | None = declare_property(
     #     114,
     #     is_repr=True,
     #     description="Dimensions of this Type (ndarray).",
     # )
-    is_required: bool = builtin_property(119, default=True)
+    is_required: bool = declare_property(119, default=True)
 
     # scalar
-    scalar_type: Optional[ScalarType] = builtin_property(
+    scalar_type: Optional[ScalarType] = declare_property(
         120,
         is_repr=True,
         description="Scalar value type of this Type (primitive, enum, node, struct, etc..).",
     )
-    primitive_type: Optional[PrimitiveType] = builtin_property(
+    primitive_type: Optional[PrimitiveType] = declare_property(
         121,
         is_repr=True,
         description="Primitive type of this Type (if it's a primitive scalar).",
     )
-    enum_type: Optional[EnumType] = builtin_property(
+    enum_type: Optional[EnumType] = declare_property(
         122,
         is_repr=True,
         description="Enum type of this Type (if it's an enum scalar).",
     )
-    node_types: list[NodeType] | None = builtin_property(
+    node_types: list[NodeType] | None = declare_property(
         123,
         is_repr=True,
         description="Node types of this Type (if it's a node reference or node value scalar).",
     )
-    struct_type: Optional[StructType] = builtin_property(
+    struct_type: Optional[StructType] = declare_property(
         124,
         is_repr=True,
         description="Struct type of this Type (if it's a struct scalar).",
     )
-    handle_type: Optional[HandleType] = builtin_property(
+    handle_type: Optional[HandleType] = declare_property(
         125,
         is_repr=True,
         description="Handle type of this Type (if it's a handle scalar).",
     )
-    # literal_value: Optional["Value"] = builtin_property(
+    # literal_value: Optional["Value"] = declare_property(
     #     126,
     #     is_repr=True,
     #     description="Literal value of this Type (if it's a literal scalar).",
     # )
-    # union_types: list["Type"] | None = builtin_property(
+    # union_types: list["Type"] | None = declare_property(
     #     127,
     #     is_repr=True,
     #     description="Union types of this Type (if it's a union scalar).",
     # )
 
     @classmethod
-    @builtin_method(130)
+    @declare_method(130)
     def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
         """
         Infer the Type of a value or class.
@@ -209,13 +209,13 @@ class Type(StructFrozen):
         return type_decl.to_type()
 
 
-@builtin_struct(StructType.STRING_CONSTRAINT, frozen=True)
+@declare_struct(StructType.STRING_CONSTRAINT, frozen=True)
 class StringConstraint(StructFrozen):
     """The constraint of a string."""
 
-    regex: Optional[str] = builtin_property(41)
-    starts_with: Optional[str] = builtin_property(42)
-    ends_with: Optional[str] = builtin_property(43)
+    regex: Optional[str] = declare_property(41)
+    starts_with: Optional[str] = declare_property(42)
+    ends_with: Optional[str] = declare_property(43)
 
 
 SLUG_REGEX_CHAR = r"a-z0-9-"
@@ -225,7 +225,7 @@ URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
 
 
-@builtin_struct(
+@declare_struct(
     StructType.NUMBER_CONSTRAINT,
     frozen=True,
     is_final=True,
@@ -234,12 +234,12 @@ PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]
 class NumberConstraint(StructFrozen):
     """The constraint of a number."""
 
-    min_value: Optional[Float32] = builtin_property(41)
-    max_value: Optional[Float32] = builtin_property(42)
-    step_value: Optional[Float32] = builtin_property(43)
+    min_value: Optional[Float32] = declare_property(41)
+    max_value: Optional[Float32] = declare_property(42)
+    step_value: Optional[Float32] = declare_property(43)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.COLLECTION_CONSTRAINT,
     frozen=True,
     is_final=True,
@@ -248,8 +248,8 @@ class NumberConstraint(StructFrozen):
 class CollectionConstraint(StructFrozen):
     """The constraint of a collection."""
 
-    min_length: Optional[UInt32] = builtin_property(41)
-    max_length: Optional[UInt32] = builtin_property(42)
+    min_length: Optional[UInt32] = declare_property(41)
+    max_length: Optional[UInt32] = declare_property(42)
 
 
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]

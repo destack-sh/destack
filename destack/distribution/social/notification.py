@@ -7,10 +7,10 @@ from destack.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_enum,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_enum,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.NOTIFICATION_STATUS)
+@declare_enum(EnumType.NOTIFICATION_STATUS)
 class NotificationStatus(Enum):
     """A Status of a Notification."""
 
@@ -30,49 +30,49 @@ class NotificationStatus(Enum):
     RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
 
 
-@builtin_event(NodeType.NOTIFICATION_EVENT, is_abstract=True)
+@declare_event(NodeType.NOTIFICATION_EVENT, is_abstract=True)
 class NotificationEvent(Event):
     """A Event regarding a Notification."""
 
-    notification: "Notification" = builtin_property(101)
+    notification: "Notification" = declare_property(101)
 
 
-@builtin_event(NodeType.NOTIFICATION_SENT_EVENT)
+@declare_event(NodeType.NOTIFICATION_SENT_EVENT)
 class NotificationSentEvent(NotificationEvent):
     """A Notification was sent."""
 
     pass
 
 
-@builtin_event(NodeType.NOTIFICATION_RESCINDED_EVENT)
+@declare_event(NodeType.NOTIFICATION_RESCINDED_EVENT)
 class NotificationRescindedEvent(NotificationEvent):
     """A Notification was rescinded."""
 
     pass
 
 
-@builtin_event(NodeType.NOTIFICATION_READ_EVENT)
+@declare_event(NodeType.NOTIFICATION_READ_EVENT)
 class NotificationReadEvent(NotificationEvent):
     """A Notification was read."""
 
     pass
 
 
-@builtin_event(NodeType.NOTIFICATION_DISMISSED_EVENT)
+@declare_event(NodeType.NOTIFICATION_DISMISSED_EVENT)
 class NotificationDismissedEvent(NotificationEvent):
     """A Notification was dismissed."""
 
     pass
 
 
-@builtin_event(NodeType.NOTIFICATION_EXPIRED_EVENT)
+@declare_event(NodeType.NOTIFICATION_EXPIRED_EVENT)
 class NotificationExpiredEvent(NotificationEvent):
     """A Notification was expired."""
 
     pass
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.NOTIFICATION,
     traits=(TraitType.OWNABLE,),
     event_types=(NodeType.NOTIFICATION_EVENT,),
@@ -80,8 +80,8 @@ class NotificationExpiredEvent(NotificationEvent):
 class Notification(Entity):
     """A Notification is a message about something."""
 
-    title: str = builtin_property(101)
+    title: str = declare_property(101)
 
-    status: NotificationStatus = builtin_property(110)
+    status: NotificationStatus = declare_property(110)
 
-    text: "Text | None" = builtin_property(120)
+    text: "Text | None" = declare_property(120)

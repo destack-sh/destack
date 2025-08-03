@@ -2,8 +2,6 @@ import struct
 from datetime import UTC
 from typing import Any
 
-from destack.utils.uuid import UUID
-
 from ..builtin import (
     Bytes,
     Date,
@@ -23,26 +21,27 @@ from ..builtin import (
     UInt32,
     UInt64,
     UInt128,
-    builtin_handle,
-    builtin_method,
-    builtin_property_runtime,
+    declare_handle,
+    declare_method,
+    declare_property_runtime,
 )
 from ..universe import Universe
+from ..utils.uuid import UUID
 
 
-@builtin_handle(HandleType.HASHER)
+@declare_handle(HandleType.HASHER)
 class Hasher(Handle):
     """Hash primitive values efficiently with a 32-bit integer."""
 
     # use fnv-1a 32-bit offset basis for consistent initialization
-    buffer: Int32 = builtin_property_runtime(401, default=0x811C9DC5)
+    buffer: Int32 = declare_property_runtime(401, default=0x811C9DC5)
 
-    @builtin_method(80)
+    @declare_method(80)
     def digest(self) -> Int32:
         """Get the hash as a 32-bit integer."""
         return self.buffer
 
-    @builtin_method(81)
+    @declare_method(81)
     def reset(self) -> None:
         """Reset the hasher."""
         self.buffer = 0x811C9DC5
@@ -74,7 +73,7 @@ class Hasher(Handle):
             return ((-value) << 1) - 1
 
     # PrimitiveType.NONE
-    @builtin_method(101)
+    @declare_method(101)
     def hash_none(self) -> None:
         """
         Hash a None value.
@@ -82,7 +81,7 @@ class Hasher(Handle):
         self._mix_byte(0)
 
     # PrimitiveType.BOOLEAN
-    @builtin_method(102)
+    @declare_method(102)
     def hash_bool(self, value: bool) -> None:
         """
         Hash a boolean as 1 byte.
@@ -90,7 +89,7 @@ class Hasher(Handle):
         self._mix_byte(1 if value else 0)
 
     # PrimitiveType.INT8
-    @builtin_method(103)
+    @declare_method(103)
     def hash_int8(self, value: Int8) -> None:
         """
         Hash a signed 8-bit integer as raw byte.
@@ -99,7 +98,7 @@ class Hasher(Handle):
         self._mix_byte(value & 0xFF)
 
     # PrimitiveType.INT16
-    @builtin_method(104)
+    @declare_method(104)
     def hash_int16(self, value: Int16) -> None:
         """
         Hash a signed 16-bit integer using zigzag encoding then varint.
@@ -112,7 +111,7 @@ class Hasher(Handle):
         self._mix_byte(zigzag & 0x7F)
 
     # PrimitiveType.INT32
-    @builtin_method(105)
+    @declare_method(105)
     def hash_int32(self, value: Int32) -> None:
         """
         Hash a signed 32-bit integer using zigzag encoding then varint.
@@ -125,7 +124,7 @@ class Hasher(Handle):
         self._mix_byte(zigzag & 0x7F)
 
     # PrimitiveType.INT64
-    @builtin_method(106)
+    @declare_method(106)
     def hash_int64(self, value: Int64) -> None:
         """
         Hash a signed 64-bit integer using zigzag encoding then varint.
@@ -138,7 +137,7 @@ class Hasher(Handle):
         self._mix_byte(zigzag & 0x7F)
 
     # PrimitiveType.INT128
-    @builtin_method(107)
+    @declare_method(107)
     def hash_int128(self, value: Int128) -> None:
         """
         Hash a signed 128-bit integer using zigzag encoding then varint.
@@ -151,7 +150,7 @@ class Hasher(Handle):
         self._mix_byte(zigzag & 0x7F)
 
     # PrimitiveType.UINT8
-    @builtin_method(110)
+    @declare_method(110)
     def hash_uint8(self, value: UInt8) -> None:
         """
         Hash an unsigned 8-bit integer as raw byte.
@@ -160,7 +159,7 @@ class Hasher(Handle):
         self._mix_byte(value)
 
     # PrimitiveType.UINT16
-    @builtin_method(111)
+    @declare_method(111)
     def hash_uint16(self, value: UInt16) -> None:
         """
         Hash an unsigned 16-bit integer using varint encoding.
@@ -172,7 +171,7 @@ class Hasher(Handle):
         self._mix_byte(value & 0x7F)
 
     # PrimitiveType.UINT32
-    @builtin_method(112)
+    @declare_method(112)
     def hash_uint32(self, value: UInt32) -> None:
         """
         Hash an unsigned 32-bit integer using varint encoding.
@@ -184,7 +183,7 @@ class Hasher(Handle):
         self._mix_byte(value & 0x7F)
 
     # PrimitiveType.UINT64
-    @builtin_method(113)
+    @declare_method(113)
     def hash_uint64(self, value: UInt64) -> None:
         """
         Hash an unsigned 64-bit integer using varint encoding.
@@ -196,7 +195,7 @@ class Hasher(Handle):
         self._mix_byte(value & 0x7F)
 
     # PrimitiveType.UINT128
-    @builtin_method(114)
+    @declare_method(114)
     def hash_uint128(self, value: UInt128) -> None:
         """
         Hash an unsigned 128-bit integer using varint encoding.
@@ -208,7 +207,7 @@ class Hasher(Handle):
         self._mix_byte(value & 0x7F)
 
     # PrimitiveType.FLOAT16
-    @builtin_method(122)
+    @declare_method(122)
     def hash_float16(self, value: float) -> None:
         """
         Hash a fixed-length 16-bit float.
@@ -217,7 +216,7 @@ class Hasher(Handle):
         self._mix_bytes(struct.pack("<e", value))
 
     # PrimitiveType.FLOAT32
-    @builtin_method(123)
+    @declare_method(123)
     def hash_float32(self, value: float) -> None:
         """
         Hash a fixed-length 32-bit float.
@@ -226,7 +225,7 @@ class Hasher(Handle):
         self._mix_bytes(struct.pack("<f", value))
 
     # PrimitiveType.FLOAT64
-    @builtin_method(124)
+    @declare_method(124)
     def hash_float64(self, value: float) -> None:
         """
         Hash a fixed-length 64-bit float.
@@ -235,7 +234,7 @@ class Hasher(Handle):
         self._mix_bytes(struct.pack("<d", value))
 
     # PrimitiveType.DATETIME
-    @builtin_method(140)
+    @declare_method(140)
     def hash_datetime(self, value: Datetime) -> None:
         """
         Hash a datetime as zigzag-encoded varint of microseconds since epoch.
@@ -254,7 +253,7 @@ class Hasher(Handle):
         self.hash_int64(micros)
 
     # PrimitiveType.DATE
-    @builtin_method(141)
+    @declare_method(141)
     def hash_date(self, value: Date) -> None:
         """
         Hash a date as zigzag-encoded varint of days since epoch (0001-01-01).
@@ -264,7 +263,7 @@ class Hasher(Handle):
         self.hash_int32(days)
 
     # PrimitiveType.TIME
-    @builtin_method(142)
+    @declare_method(142)
     def hash_time(self, value: Time) -> None:
         """
         Hash a time as varint of microseconds since midnight.
@@ -279,7 +278,7 @@ class Hasher(Handle):
         self.hash_uint64(micros)
 
     # PrimitiveType.DURATION
-    @builtin_method(143)
+    @declare_method(143)
     def hash_duration(self, value: Duration) -> None:
         """
         Hash a duration as zigzag-encoded varint of microseconds.
@@ -289,7 +288,7 @@ class Hasher(Handle):
         self.hash_int64(micros)
 
     # PrimitiveType.STRING
-    @builtin_method(150)
+    @declare_method(150)
     def hash_string(self, value: String) -> None:
         """
         Hash a UTF-8 string with varint length prefix followed by UTF-8 bytes.
@@ -299,7 +298,7 @@ class Hasher(Handle):
         self.hash_bytes(encoded)
 
     # PrimitiveType.UUID
-    @builtin_method(151)
+    @declare_method(151)
     def hash_uuid(self, value: UUID) -> None:
         """
         Hash a UUID as 16 raw bytes.
@@ -307,7 +306,7 @@ class Hasher(Handle):
         self._mix_bytes(value.bytes)
 
     # PrimitiveType.BYTES
-    @builtin_method(152)
+    @declare_method(152)
     def hash_bytes(self, value: Bytes) -> None:
         """
         Hash raw bytes with varint length prefix followed by the bytes.
@@ -321,7 +320,7 @@ class Hasher(Handle):
         self._mix_bytes(value)
 
     # PrimitiveType.JSON
-    @builtin_method(155)
+    @declare_method(155)
     def hash_json(self, value: Any) -> None:
         """
         Hash JSON.

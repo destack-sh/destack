@@ -2,7 +2,6 @@ from collections.abc import Mapping
 from typing import Any, assert_never, cast, override
 
 from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
-from destack.utils.uuid import UUID
 
 from ...builtin import (
     EnumType,
@@ -15,7 +14,8 @@ from ...builtin import (
     TypeCardinality,
 )
 from ...common import NodeReference, Type, Value
-from ..runtime import BinaryReader, BinaryWriter, Encoder, EncoderOptions, Session
+from ...runtime import BinaryReader, BinaryWriter, Encoder, EncoderOptions, Session
+from ...utils.uuid import UUID
 from .core import KompaktObjectEncoder
 
 _UUID_NULL = UUID(int=0)
@@ -134,9 +134,9 @@ class KompaktEncoder(Encoder[bytes]):
         writer: BinaryWriter,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
-        # preamble (3 bits cardinality, 3 bits scalar type, 1 bit is_required)
+        # preamble (4 bits cardinality, 3 bits scalar type, 1 bit is_required)
         writer.write_uint8(
-            type.cardinality | ((type.scalar_type or 0) << 3) | (type.is_required << 6)
+            type.cardinality | ((type.scalar_type or 0) << 4) | (type.is_required << 7)
         )
         # scalar (type folded into preamble)
         if type.cardinality == TypeCardinality.SCALAR:
@@ -185,11 +185,11 @@ class KompaktEncoder(Encoder[bytes]):
         reader: BinaryReader,
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Type:
-        # preamble (3 bits cardinality, 3 bits scalar type, 1 bit is_required)
+        # preamble (4 bits cardinality, 3 bits scalar type, 1 bit is_required)
         preamble = reader.read_uint8()
-        cardinality = TypeCardinality(preamble & 0b111)
-        scalar_type = ScalarType((preamble >> 3) & 0b111) if (preamble >> 3) & 0b111 else None
-        is_required = bool((preamble >> 6) & 0b1)
+        cardinality = TypeCardinality(preamble & 0b1111)
+        scalar_type = ScalarType((preamble >> 4) & 0b111) if (preamble >> 4) & 0b111 else None
+        is_required = bool((preamble >> 7) & 0b1)
         key_type = None
         value_type = None
         element_types = None

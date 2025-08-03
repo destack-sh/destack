@@ -72,7 +72,7 @@ _ENUM_TYPE_BY_CLASS: dict[type[Enum], "EnumType"] = {}
 BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=Enum)
 
 
-def builtin_enum(enum_type: "EnumType"):
+def declare_enum(enum_type: "EnumType"):
     """Register a builtin Enum."""
 
     def register_enum(cls: type[BuiltinEnumT]) -> type[BuiltinEnumT]:

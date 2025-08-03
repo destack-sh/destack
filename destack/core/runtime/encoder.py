@@ -2,7 +2,7 @@ from abc import abstractmethod
 from enum import IntFlag
 from typing import TYPE_CHECKING, Any
 
-from ..builtin import Handle, HandleType, Object, ObjectKind, builtin_handle
+from ..builtin import Handle, HandleType, Object, ObjectKind, declare_handle
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ class EncoderOptions(IntFlag):
     UNWRAP_VALUE = 1 << 4
 
 
-@builtin_handle(HandleType.ENCODER, is_abstract=True)
+@declare_handle(HandleType.ENCODER, is_abstract=True)
 class Encoder[T: Any = Any](Handle):
     """Encoder for packing/unpacking Objects."""
 

@@ -6,10 +6,10 @@ from destack.core import (
     EnumType,
     Event,
     NodeType,
-    builtin_entity,
-    builtin_enum,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_enum,
+    declare_event,
+    declare_property,
 )
 
 from .schedule import Schedule
@@ -20,55 +20,55 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_event(NodeType.TIMER_EVENT, is_abstract=True)
+@declare_event(NodeType.TIMER_EVENT, is_abstract=True)
 class TimerEvent(Event):
     """A TimerEvent is an Event that corresponds to a Timer."""
 
-    timer: "Timer" = builtin_property(101)
+    timer: "Timer" = declare_property(101)
 
 
-@builtin_event(NodeType.TIMER_STARTED_EVENT)
+@declare_event(NodeType.TIMER_STARTED_EVENT)
 class TimerStartedEvent(TimerEvent):
     """A Timer was started."""
 
     pass
 
 
-@builtin_event(NodeType.TIMER_PAUSED_EVENT)
+@declare_event(NodeType.TIMER_PAUSED_EVENT)
 class TimerPausedEvent(TimerEvent):
     """A Timer was paused."""
 
     pass
 
 
-@builtin_event(NodeType.TIMER_RESUMED_EVENT)
+@declare_event(NodeType.TIMER_RESUMED_EVENT)
 class TimerResumedEvent(TimerEvent):
     """A Timer was resumed."""
 
     pass
 
 
-@builtin_event(NodeType.TIMER_COMPLETED_EVENT)
+@declare_event(NodeType.TIMER_COMPLETED_EVENT)
 class TimerCompletedEvent(TimerEvent):
     """A Timer was completed."""
 
     pass
 
 
-@builtin_event(NodeType.TIMER_CANCELLED_EVENT)
+@declare_event(NodeType.TIMER_CANCELLED_EVENT)
 class TimerCancelledEvent(TimerEvent):
     """A Timer was cancelled."""
 
     pass
 
 
-@builtin_enum(EnumType.TIMER_TYPE)
+@declare_enum(EnumType.TIMER_TYPE)
 class TimerType(Enum):
     ONCE = 1
     RECURRING = 2
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.TIMER,
     event_types=(
         NodeType.TIMER_STARTED_EVENT,
@@ -79,5 +79,5 @@ class TimerType(Enum):
 class Timer(Entity):
     """A Timer."""
 
-    type: TimerType = builtin_property(100, is_repr=True)
-    schedule: "Schedule | None" = builtin_property(110)
+    type: TimerType = declare_property(100, is_repr=True)
+    schedule: "Schedule | None" = declare_property(110)

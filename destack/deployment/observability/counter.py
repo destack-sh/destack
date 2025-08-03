@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.core import NodeType, builtin_entity, builtin_event, builtin_property
+from destack.core import NodeType, declare_entity, declare_event, declare_property
 
 from .metric import MeasurementEvent, Metric
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.COUNTER_METRIC,
     event_types=(NodeType.COUNTER_MEASUREMENT_EVENT,),
 )
@@ -20,8 +20,8 @@ class CounterMetric(Metric):
     pass
 
 
-@builtin_event(NodeType.COUNTER_MEASUREMENT_EVENT)
+@declare_event(NodeType.COUNTER_MEASUREMENT_EVENT)
 class CounterMeasurementEvent(MeasurementEvent):
     """A Counter Measurement."""
 
-    definition: "CounterMetric" = builtin_property(6)
+    definition: "CounterMetric" = declare_property(6)

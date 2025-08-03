@@ -4,9 +4,9 @@ from destack.core import (
     Float32,
     NodeType,
     StructType,
-    builtin_entity,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_property,
+    declare_struct,
 )
 
 from .shape import Form2D, Shape2D
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_struct(
+@declare_struct(
     StructType.RECTANGLE2D,
     frozen=True,
     is_final=True,
@@ -26,13 +26,13 @@ if TYPE_CHECKING:
 class Rectangle2D(Form2D):
     """A Rectangle is a rectangle."""
 
-    width: Float32 = builtin_property(210, is_repr=True)
-    height: Float32 = builtin_property(220, is_repr=True)
+    width: Float32 = declare_property(210, is_repr=True)
+    height: Float32 = declare_property(220, is_repr=True)
 
 
-@builtin_entity(NodeType.RECTANGLE_SHAPE2D)
+@declare_entity(NodeType.RECTANGLE_SHAPE2D)
 class RectangleShape2D(Shape2D):
     """A RectangleShape is a shape that represents a rectangle."""
 
-    width: Float32 = builtin_property(210, is_repr=True)
-    height: Float32 = builtin_property(220, is_repr=True)
+    width: Float32 = declare_property(210, is_repr=True)
+    height: Float32 = declare_property(220, is_repr=True)

@@ -15,10 +15,10 @@ from ..builtin import (
     EnumType,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_property_parent,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.BRANCH_TYPE)
+@declare_enum(EnumType.BRANCH_TYPE)
 class BranchType(Enum):
     """The type of a Branch."""
 
@@ -36,7 +36,7 @@ class BranchType(Enum):
     ROOT = 11
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.BRANCH,
     is_final=True,
     traits=(TraitType.OWNABLE,),
@@ -48,8 +48,8 @@ class Branch(Entity):
 
     """
 
-    parent: Optional["Space"] = builtin_property_parent()
-    type: BranchType = builtin_property(100)
+    parent: Optional["Space"] = declare_property_parent()
+    type: BranchType = declare_property(100)
 
     @contextmanager
     def active(self) -> Generator[None, None, None]:
@@ -63,7 +63,7 @@ class Branch(Entity):
             ACTIVE_BRANCH.reset(token)
 
 
-@builtin_enum(EnumType.SNAPSHOT_TYPE)
+@declare_enum(EnumType.SNAPSHOT_TYPE)
 class SnapshotType(Enum):
     """The type of a Snapshot."""
 
@@ -71,7 +71,7 @@ class SnapshotType(Enum):
     ROOT = 11
 
 
-@builtin_enum(EnumType.SNAPSHOT_STATUS)
+@declare_enum(EnumType.SNAPSHOT_STATUS)
 class SnapshotStatus(Enum):
     """The status of a Snapshot."""
 
@@ -80,7 +80,7 @@ class SnapshotStatus(Enum):
     PASSIVE = 50, "Passive", "Inactive and read-only"
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.SNAPSHOT,
     is_final=True,
     traits=(TraitType.OWNABLE,),
@@ -95,10 +95,10 @@ class Snapshot(Entity):
      (Technically, Snapshots are part of themselves.)
     """
 
-    parent: Union["Space", None] = builtin_property_parent(is_readonly=True)
+    parent: Union["Space", None] = declare_property_parent(is_readonly=True)
 
-    type: SnapshotType = builtin_property(100)
-    status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)
+    type: SnapshotType = declare_property(100)
+    status: SnapshotStatus = declare_property(110, default=SnapshotStatus.ACTIVE)
 
     @contextmanager
     def active(self) -> Generator[None, None, None]:

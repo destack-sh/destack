@@ -3,6 +3,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, assert_never
 
 from destack import (
+    Casing,
     Encoding,
     Node,
     Object,
@@ -13,9 +14,9 @@ from destack import (
     StructType,
     TypeCardinality,
     TypeDeclaration,
+    to_casing,
 )
 from destack.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
-from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
     pass

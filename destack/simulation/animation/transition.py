@@ -7,10 +7,10 @@ from destack.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 from ..style.style import Style
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.TRANSITION_TYPE)
+@declare_enum(EnumType.TRANSITION_TYPE)
 class TransitionType(Enum):
     """Built-in transition types."""
 
@@ -30,7 +30,7 @@ class TransitionType(Enum):
     SPRING = 11
 
 
-@builtin_enum(EnumType.SPRING_TYPE)
+@declare_enum(EnumType.SPRING_TYPE)
 class SpringType(Enum):
     """Built-in spring types."""
 
@@ -38,32 +38,32 @@ class SpringType(Enum):
     PHYSICAL = 2
 
 
-@builtin_struct(StructType.TRANSITION, frozen=True)
+@declare_struct(StructType.TRANSITION, frozen=True)
 class Transition(StructFrozen):
     """A transition value."""
 
-    type: TransitionType = builtin_property(100, default=TransitionType.TWEEN, is_repr=True)
-    style: Optional["TransitionStyle"] = builtin_property(101, is_repr=True)
-    delay: Optional[Float32] = builtin_property(102, is_repr=True)
-    duration: Optional[Float32] = builtin_property(103, is_repr=True)
-    ease: list[Float32] = builtin_property(104, is_repr=True)
-    stiffness: Optional[Float32] = builtin_property(105, is_repr=True)
-    damping: Optional[Float32] = builtin_property(106, is_repr=True)
-    mass: Optional[Float32] = builtin_property(107, is_repr=True)
-    bounce: Optional[Float32] = builtin_property(108, is_repr=True)
-    spring_type: Optional[SpringType] = builtin_property(109, is_repr=True)
+    type: TransitionType = declare_property(100, default=TransitionType.TWEEN, is_repr=True)
+    style: Optional["TransitionStyle"] = declare_property(101, is_repr=True)
+    delay: Optional[Float32] = declare_property(102, is_repr=True)
+    duration: Optional[Float32] = declare_property(103, is_repr=True)
+    ease: list[Float32] = declare_property(104, is_repr=True)
+    stiffness: Optional[Float32] = declare_property(105, is_repr=True)
+    damping: Optional[Float32] = declare_property(106, is_repr=True)
+    mass: Optional[Float32] = declare_property(107, is_repr=True)
+    bounce: Optional[Float32] = declare_property(108, is_repr=True)
+    spring_type: Optional[SpringType] = declare_property(109, is_repr=True)
 
 
-@builtin_entity(NodeType.TRANSITION_STYLE)
+@declare_entity(NodeType.TRANSITION_STYLE)
 class TransitionStyle(Style):
     """A transition style."""
 
-    type: TransitionType = builtin_property(100, default=TransitionType.TWEEN, is_repr=True)
-    delay: Optional[Float32] = builtin_property(102, is_repr=True)
-    duration: Optional[Float32] = builtin_property(103, is_repr=True)
-    ease: list[Float32] = builtin_property(104, is_repr=True)
-    stiffness: Optional[Float32] = builtin_property(105, is_repr=True)
-    damping: Optional[Float32] = builtin_property(106, is_repr=True)
-    mass: Optional[Float32] = builtin_property(107, is_repr=True)
-    bounce: Optional[Float32] = builtin_property(108, is_repr=True)
-    spring_type: Optional[SpringType] = builtin_property(109, is_repr=True)
+    type: TransitionType = declare_property(100, default=TransitionType.TWEEN, is_repr=True)
+    delay: Optional[Float32] = declare_property(102, is_repr=True)
+    duration: Optional[Float32] = declare_property(103, is_repr=True)
+    ease: list[Float32] = declare_property(104, is_repr=True)
+    stiffness: Optional[Float32] = declare_property(105, is_repr=True)
+    damping: Optional[Float32] = declare_property(106, is_repr=True)
+    mass: Optional[Float32] = declare_property(107, is_repr=True)
+    bounce: Optional[Float32] = declare_property(108, is_repr=True)
+    spring_type: Optional[SpringType] = declare_property(109, is_repr=True)

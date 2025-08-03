@@ -1,13 +1,13 @@
 from typing import final
 
-from destack.core import ActionType, NodeType, TraitType, builtin_entity, builtin_property
+from destack.core import ActionType, NodeType, TraitType, declare_entity, declare_property
 
 from .function import Function
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.ACTION,
     traits=(TraitType.RUNNABLE,),
     is_final=True,
@@ -19,4 +19,4 @@ class Action(Function):
     Actions are stateful and can be called and managed across runtimes.
     """
 
-    type: ActionType = builtin_property(100)
+    type: ActionType = declare_property(100)

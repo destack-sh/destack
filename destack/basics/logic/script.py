@@ -4,8 +4,8 @@ from destack.core import (
     Entity,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_property,
+    declare_entity,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -14,9 +14,9 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(NodeType.SCRIPT, traits=(TraitType.ORDERED,))
+@declare_entity(NodeType.SCRIPT, traits=(TraitType.ORDERED,))
 class Script(Entity):
     """A Script."""
 
-    code: str = builtin_property(110)
+    code: str = declare_property(110)
     # type, language, code, ...

@@ -7,10 +7,10 @@ from destack.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 from .style import Style
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.COLOR_TYPE)
+@declare_enum(EnumType.COLOR_TYPE)
 class ColorType(Enum):
     """Built-in color formats."""
 
@@ -32,7 +32,7 @@ class ColorType(Enum):
     P3 = 12
 
 
-@builtin_enum(EnumType.COLOR_HUE)
+@declare_enum(EnumType.COLOR_HUE)
 class ColorHue(Enum):
     """Built-in colors a la SwiftUI or Tailwind."""
 
@@ -56,7 +56,7 @@ class ColorHue(Enum):
     ROSE = 47
 
 
-@builtin_enum(EnumType.COLOR_SHADE)
+@declare_enum(EnumType.COLOR_SHADE)
 class ColorShade(Enum):
     """Built-in color shades a la Tailwind."""
 
@@ -74,7 +74,7 @@ class ColorShade(Enum):
     S950 = 950
 
 
-@builtin_enum(EnumType.COLOR_INTENT)
+@declare_enum(EnumType.COLOR_INTENT)
 class ColorIntent(Enum):
     """Built-in color intents."""
 
@@ -87,15 +87,15 @@ class ColorIntent(Enum):
     ERROR = 13
 
 
-@builtin_struct(StructType.COLOR, frozen=True, is_final=True)
+@declare_struct(StructType.COLOR, frozen=True, is_final=True)
 @final
 class Color(StructFrozen):
     """A color value."""
 
-    r: Float32 = builtin_property(101, is_repr=True)
-    g: Float32 = builtin_property(102, is_repr=True)
-    b: Float32 = builtin_property(103, is_repr=True)
-    a: Float32 = builtin_property(104, is_repr=True)
+    r: Float32 = declare_property(101, is_repr=True)
+    g: Float32 = declare_property(102, is_repr=True)
+    b: Float32 = declare_property(103, is_repr=True)
+    a: Float32 = declare_property(104, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
@@ -103,19 +103,19 @@ class Color(StructFrozen):
         return Color(r=r, g=g, b=b, a=a or 1.0)
 
 
-@builtin_entity(NodeType.COLOR_STYLE)
+@declare_entity(NodeType.COLOR_STYLE)
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
-    type: ColorType = builtin_property(100, is_repr=True)
-    hue: Optional[ColorHue] = builtin_property(200, is_repr=True)
-    shade: Optional[ColorShade] = builtin_property(201, is_repr=True)
-    intent: Optional[ColorIntent] = builtin_property(202, is_repr=True)
-    r: Optional[Float32] = builtin_property(203, is_repr=True)
-    g: Optional[Float32] = builtin_property(204, is_repr=True)
-    b: Optional[Float32] = builtin_property(205, is_repr=True)
-    a: Optional[Float32] = builtin_property(206, is_repr=True)
-    dark: Color | None = builtin_property(207)
+    type: ColorType = declare_property(100, is_repr=True)
+    hue: Optional[ColorHue] = declare_property(200, is_repr=True)
+    shade: Optional[ColorShade] = declare_property(201, is_repr=True)
+    intent: Optional[ColorIntent] = declare_property(202, is_repr=True)
+    r: Optional[Float32] = declare_property(203, is_repr=True)
+    g: Optional[Float32] = declare_property(204, is_repr=True)
+    b: Optional[Float32] = declare_property(205, is_repr=True)
+    a: Optional[Float32] = declare_property(206, is_repr=True)
+    dark: Color | None = declare_property(207)
 
     @staticmethod
     def from_color(name: str, color: Color, dark: Color | None = None) -> "ColorStyle":

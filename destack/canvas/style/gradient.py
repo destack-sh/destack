@@ -7,10 +7,10 @@ from destack.core import (
     NodeType,
     StructFrozen,
     StructType,
-    builtin_entity,
-    builtin_enum,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_enum,
+    declare_property,
+    declare_struct,
 )
 
 from .color import Color
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.GRADIENT_TYPE)
+@declare_enum(EnumType.GRADIENT_TYPE)
 class GradientType(Enum):
     """Built-in gradient types."""
 
@@ -31,7 +31,7 @@ class GradientType(Enum):
     CONIC = 12
 
 
-@builtin_struct(
+@declare_struct(
     StructType.GRADIENT_STOP,
     frozen=True,
     is_final=True,
@@ -40,11 +40,11 @@ class GradientType(Enum):
 class GradientStop(StructFrozen):
     """A gradient stop with color and position."""
 
-    color: Optional["Color"] = builtin_property(101, is_repr=True)
-    position: Float32 = builtin_property(102, is_repr=True)
+    color: Optional["Color"] = declare_property(101, is_repr=True)
+    position: Float32 = declare_property(102, is_repr=True)
 
 
-@builtin_struct(
+@declare_struct(
     StructType.GRADIENT,
     frozen=True,
     is_final=True,
@@ -53,19 +53,19 @@ class GradientStop(StructFrozen):
 class Gradient(StructFrozen):
     """A gradient value."""
 
-    type: GradientType = builtin_property(100, default=GradientType.LINEAR, is_repr=True)
-    style: Optional["GradientStyle"] = builtin_property(101, is_repr=True)
-    angle: Optional[Float32] = builtin_property(102, is_repr=True)
-    stops: list[GradientStop] = builtin_property(103, is_repr=True)
-    center_anchor: Optional["Axis2"] = builtin_property(104, is_repr=True)
+    type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True)
+    style: Optional["GradientStyle"] = declare_property(101, is_repr=True)
+    angle: Optional[Float32] = declare_property(102, is_repr=True)
+    stops: list[GradientStop] = declare_property(103, is_repr=True)
+    center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True)
 
 
-@builtin_entity(NodeType.GRADIENT_STYLE)
+@declare_entity(NodeType.GRADIENT_STYLE)
 class GradientStyle(Style):
     """A gradient style."""
 
-    type: GradientType = builtin_property(100, default=GradientType.LINEAR, is_repr=True)
-    angle: Optional[Float32] = builtin_property(102, is_repr=True)
-    stops: list[GradientStop] = builtin_property(103, is_repr=True)
-    center_anchor: Optional["Axis2"] = builtin_property(104, is_repr=True)
-    dark: Gradient | None = builtin_property(105)
+    type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True)
+    angle: Optional[Float32] = declare_property(102, is_repr=True)
+    stops: list[GradientStop] = declare_property(103, is_repr=True)
+    center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True)
+    dark: Gradient | None = declare_property(105)

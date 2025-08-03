@@ -11,9 +11,9 @@ from destack.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 
 from ..utils.env import IS_DEV, IS_TEST
 from .builtin import EnumType, ObjectKind, ObjectStability, StructType
-from .declaration import StructDeclaration, TagDeclaration, builtin_method
+from .declaration import StructDeclaration, TagDeclaration, declare_method
 from .object import Object, _process_object_cls
-from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
+from .property import _PROPERTY_SPECIFIERS, declare_property_runtime
 from .types import Int32
 
 if TYPE_CHECKING:
@@ -124,7 +124,7 @@ def _process_struct_cls(
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def builtin_struct(
+def declare_struct(
     struct_type: StructType,
     *,
     frozen: bool = False,
@@ -152,7 +152,7 @@ def builtin_struct(
     return decorate
 
 
-@builtin_struct(StructType.STRUCT, is_abstract=True)
+@declare_struct(StructType.STRUCT, is_abstract=True)
 class Struct(Object):
     """A Struct is an ordered collection of Properties."""
 
@@ -167,7 +167,7 @@ class Struct(Object):
         raise NotImplementedError  # generated
 
 
-@builtin_struct(
+@declare_struct(
     StructType.STRUCT,
     frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
@@ -176,16 +176,16 @@ class StructFrozen(Struct):
     """An immutable Struct."""
 
     """Cached hash of the Struct."""
-    _hash: Int32 | None = builtin_property_runtime(410)
+    _hash: Int32 | None = declare_property_runtime(410)
     """Cached repr of the Struct."""
-    _repr: str | None = builtin_property_runtime(411)
+    _repr: str | None = declare_property_runtime(411)
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
         object.__setattr__(self, "_hash", None)
         object.__setattr__(self, "_repr", None)
 
-    @builtin_method(60)
+    @declare_method(60)
     def clone(self, **override: Any) -> Self:
         """Clone the Struct with new values."""
         kwargs: dict[str, Any] = {}

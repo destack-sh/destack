@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, final
 from destack.core import (
     NodeType,
     StructType,
-    builtin_entity,
-    builtin_property,
-    builtin_struct,
+    declare_entity,
+    declare_property,
+    declare_struct,
 )
 
 from .shape import Form2D, Shape2D
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_struct(
+@declare_struct(
     StructType.PATH2D,
     frozen=True,
     is_final=True,
@@ -25,11 +25,11 @@ if TYPE_CHECKING:
 class Path2D(Form2D):
     """A Path is a path of multiple points."""
 
-    points: list["Vector2"] = builtin_property(210)
+    points: list["Vector2"] = declare_property(210)
 
 
-@builtin_entity(NodeType.PATH_SHAPE2D)
+@declare_entity(NodeType.PATH_SHAPE2D)
 class PathShape2D(Shape2D):
     """A PathShape is a shape that represents a path of multiple points."""
 
-    points: list["Vector2"] = builtin_property(200)
+    points: list["Vector2"] = declare_property(200)

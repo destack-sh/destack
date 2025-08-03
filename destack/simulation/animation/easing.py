@@ -1,7 +1,7 @@
-from destack.core import Enum, EnumType, builtin_enum
+from destack.core import Enum, EnumType, declare_enum
 
 
-@builtin_enum(EnumType.EASING)
+@declare_enum(EnumType.EASING)
 class Easing(Enum):
     """Built-in easing types."""
 

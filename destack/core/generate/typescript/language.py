@@ -4,10 +4,11 @@ from collections import defaultdict
 from itertools import chain
 from typing import assert_never, cast
 
-from destack import (
+from destack.core import (
     EMPTY_DICT,
     EPSILON_EXPONENT,
     UNSET,
+    Casing,
     ConstantDefinition,
     EdgeType,
     Entity,
@@ -17,6 +18,7 @@ from destack import (
     NodeDefinition,
     NodeType,
     Object,
+    ObjectKind,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
@@ -29,8 +31,8 @@ from destack import (
     TypeDeclaration,
     ValueFactory,
     expand_node_types,
+    to_casing,
 )
-from destack.core.builtin.builtin import ObjectKind
 from destack.registry import (
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
@@ -39,7 +41,6 @@ from destack.registry import (
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
 )
-from destack.utils.string import Casing, to_casing
 
 from .const import (
     MARKER_CUSTOM_END,
@@ -1714,7 +1715,7 @@ def _get_object_references(cls: type["Object"], is_value: bool) -> set[NodeType 
     return object_types
 
 
-def _get_builtin_object_dependencies(
+def _get_declare_object_dependencies(
     cls: type[Object], is_abstract: bool
 ) -> tuple[dict[str, Definition], set[str]]:
     """Get the dependencies of a definition."""
@@ -1772,7 +1773,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_struct(definition)
         name = definition.name
-        dependencies, value_dependencies = _get_builtin_object_dependencies(
+        dependencies, value_dependencies = _get_declare_object_dependencies(
             cast(type[Object], cls), is_abstract=False
         )
     elif isinstance(definition, NodeDefinition):
@@ -1782,7 +1783,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_node(definition)
         name = definition.name
-        dependencies, value_dependencies = _get_builtin_object_dependencies(
+        dependencies, value_dependencies = _get_declare_object_dependencies(
             cast(type[Object], cls), is_abstract=cls.__declaration__.is_abstract
         )
     else:

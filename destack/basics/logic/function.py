@@ -6,8 +6,8 @@ from destack.core import (
     NodeType,
     RuntimeLanguage,
     RuntimePlatform,
-    builtin_entity,
-    builtin_property,
+    declare_entity,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -16,17 +16,17 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(NodeType.FUNCTION, is_abstract=True)
+@declare_entity(NodeType.FUNCTION, is_abstract=True)
 class Function(Entity):
     # meta
-    type: MethodType = builtin_property(100)
-    text: Optional["Text"] = builtin_property(104)
+    type: MethodType = declare_property(100)
+    text: Optional["Text"] = declare_property(104)
 
-    platforms: list[RuntimePlatform] | None = builtin_property(
+    platforms: list[RuntimePlatform] | None = declare_property(
         130,
         description="The platforms this Function is available on (all if empty).",
     )
-    languages: list[RuntimeLanguage] | None = builtin_property(
+    languages: list[RuntimeLanguage] | None = declare_property(
         131,
         description="The languages this Function is available in (all if empty).",
     )

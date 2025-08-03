@@ -7,9 +7,9 @@ from destack.core import (
     Event,
     NodeType,
     TraitType,
-    builtin_entity,
-    builtin_event,
-    builtin_property,
+    declare_entity,
+    declare_event,
+    declare_property,
 )
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_entity(
+@declare_entity(
     NodeType.FOLLOW,
     traits=(TraitType.OWNED,),
     constraints=(
@@ -35,16 +35,16 @@ class Follow(Entity):
     pass
 
 
-@builtin_event(NodeType.FOLLOW_EVENT)
+@declare_event(NodeType.FOLLOW_EVENT)
 class FollowEvent(Event):
-    follow: "Follow" = builtin_property(101)
+    follow: "Follow" = declare_property(101)
 
 
-@builtin_event(NodeType.FOLLOW_ADDED_EVENT)
+@declare_event(NodeType.FOLLOW_ADDED_EVENT)
 class FollowAddedEvent(FollowEvent):
     pass
 
 
-@builtin_event(NodeType.FOLLOW_REMOVED_EVENT)
+@declare_event(NodeType.FOLLOW_REMOVED_EVENT)
 class FollowRemovedEvent(FollowEvent):
     pass
