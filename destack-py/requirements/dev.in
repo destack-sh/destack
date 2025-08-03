@@ -1,0 +1,2 @@
+# run ./scripts/update_python.sh
+# NOTE: we only have dev requirements because Destack must remain dependency-free

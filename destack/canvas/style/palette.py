@@ -1,0 +1,22 @@
+from typing import TYPE_CHECKING
+
+from destack.core import (
+    Entity,
+    NodeType,
+    builtin_entity,
+    builtin_property,
+)
+
+if TYPE_CHECKING:
+    from destack import Icon
+
+# pyright: reportIncompatibleVariableOverride=false
+
+
+@builtin_entity(NodeType.PALETTE)
+class Palette(
+    Entity,
+):
+    """A Palette of Colors."""
+
+    icon: "Icon | None" = builtin_property(102)
