@@ -25,7 +25,7 @@ from .declaration import (
     TagDeclaration,
     declare_method,
 )
-from .enum import Enum, declare_enum
+from .enum import EnumDeclaration, declare_enum
 from .node import Node, _process_node_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -52,7 +52,7 @@ object_set_ = object.__setattr__
 
 
 @declare_enum(EnumType.MATERIALIZATION)
-class Materialization(Enum):
+class Materialization(EnumDeclaration):
     """
     The materialization level of an Entity.
     """

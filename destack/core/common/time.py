@@ -11,7 +11,7 @@ from ..builtin import (
     ACTIVE_BRANCH,
     ACTIVE_SNAPSHOT,
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     NodeType,
     TraitType,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.BRANCH_TYPE)
-class BranchType(Enum):
+class BranchType(EnumDeclaration):
     """The type of a Branch."""
 
     PARTIAL = 2
@@ -64,7 +64,7 @@ class Branch(Entity):
 
 
 @declare_enum(EnumType.SNAPSHOT_TYPE)
-class SnapshotType(Enum):
+class SnapshotType(EnumDeclaration):
     """The type of a Snapshot."""
 
     FULL = 10
@@ -72,7 +72,7 @@ class SnapshotType(Enum):
 
 
 @declare_enum(EnumType.SNAPSHOT_STATUS)
-class SnapshotStatus(Enum):
+class SnapshotStatus(EnumDeclaration):
     """The status of a Snapshot."""
 
     CREATING = 1, "Creating", "Under construction"

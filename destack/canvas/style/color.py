@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.COLOR_TYPE)
-class ColorType(Enum):
+class ColorType(EnumDeclaration):
     """Built-in color formats."""
 
     BUILTIN = 1
@@ -33,7 +33,7 @@ class ColorType(Enum):
 
 
 @declare_enum(EnumType.COLOR_HUE)
-class ColorHue(Enum):
+class ColorHue(EnumDeclaration):
     """Built-in colors a la SwiftUI or Tailwind."""
 
     GRAY = 30
@@ -57,7 +57,7 @@ class ColorHue(Enum):
 
 
 @declare_enum(EnumType.COLOR_SHADE)
-class ColorShade(Enum):
+class ColorShade(EnumDeclaration):
     """Built-in color shades a la Tailwind."""
 
     S25 = 25
@@ -75,7 +75,7 @@ class ColorShade(Enum):
 
 
 @declare_enum(EnumType.COLOR_INTENT)
-class ColorIntent(Enum):
+class ColorIntent(EnumDeclaration):
     """Built-in color intents."""
 
     PRIMARY = 1

@@ -8,7 +8,7 @@ from destack.core import (
     declare_event,
     declare_property,
 )
-from destack.language.geometry import Entity2D
+from destack.simulation.geometry import Entity2D
 
 if TYPE_CHECKING:
     from destack import (

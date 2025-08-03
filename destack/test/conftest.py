@@ -20,15 +20,11 @@ def _setup_test_env():
     if _is_test_setup:
         return
 
-    from destack.utils.env import ENV, Env, setup_env
+    from destack.core.utils.env import ENV, Env, setup_env
 
     assert ENV == Env.TEST, f"must run in {Env.TEST} (got: {ENV!r})"
 
     setup_env()
-
-    from destack import finalize
-
-    finalize()
 
     _is_test_setup = True
 

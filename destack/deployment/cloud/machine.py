@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     VERSION,
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
@@ -21,12 +21,12 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.MACHINE_TYPE)
-class MachineType(Enum):
-    RUNTIME = 10, "Runtime", "The main Destack runtime", "fas fa-machine-classic"
-    UBUNTU = 1000, "Ubuntu", "A Linux machine running Ubuntu", "fab fa-ubuntu"
-    MAC = 1100, "Mac", "A Mac machine", "fab fa-apple"
-    WINDOWS = 1200, "Windows", "A Windows machine", "fab fa-windows"
-    CUSTOM = 9000, "Custom", "A custom Docker image", "fas fa-whale"
+class MachineType(EnumDeclaration):
+    RUNTIME = 10, "Runtime", "The main Destack runtime"
+    UBUNTU = 1000, "Ubuntu", "A Linux machine running Ubuntu"
+    MAC = 1100, "Mac", "A Mac machine"
+    WINDOWS = 1200, "Windows", "A Windows machine"
+    CUSTOM = 9000, "Custom", "A custom Docker image"
 
 
 @declare_entity(NodeType.MACHINE, traits=(TraitType.RESOURCE,))

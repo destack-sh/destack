@@ -9,7 +9,7 @@ from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
-from .enum import Enum, declare_enum
+from .enum import EnumDeclaration, declare_enum
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
 from .types import UInt128
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.EVENT_STATUS)
-class EventStatus(Enum):
+class EventStatus(EnumDeclaration):
     """The (forever) status of an Event."""
 
     # client

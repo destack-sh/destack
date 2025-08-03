@@ -1,10 +1,12 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 from destack.core import (
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
+    Icon,
     NodeType,
+    Space,
     TraitType,
     declare_entity,
     declare_enum,
@@ -13,18 +15,18 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack import Icon, Scene, Space
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @declare_enum(EnumType.FOLDER_TYPE)
-class FolderType(Enum):
-    SYSTEM = 1, "Root", "The root folder of a Space", "fas fa-home"
-    HOME = 2, "Home", "The home folder of a Space", "fas fa-home"
-    GENERAL = 3, "General", "A general folder", "fas fa-folder-open"
-    MODULE = 4, "Module", "A module", "fas fa-box-open"
-    APP = 5, "App", "An app folder", "fas fa-folder"
+class FolderType(EnumDeclaration):
+    SYSTEM = 1, "Root", "The root folder of a Space"
+    HOME = 2, "Home", "The home folder of a Space"
+    GENERAL = 3, "General", "A general folder"
+    MODULE = 4, "Module", "A module"
+    APP = 5, "App", "An app folder"
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
@@ -46,5 +48,3 @@ class Folder(Entity):
     type: FolderType = declare_property(100, is_repr=True, default=FolderType.GENERAL)
     icon: "Icon | None" = declare_property(102)
     slug: str | None = declare_property(103, is_repr=True)
-
-    main_scene: Optional["Scene"] = declare_property(110)

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     NodeType,
     StructFrozen,
@@ -22,14 +22,14 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.FONT_TYPE)
-class FontType(Enum):
+class FontType(EnumDeclaration):
     SERIF = 10
     SANS = 11
     MONO = 12
 
 
 @declare_enum(EnumType.FONT_WEIGHT)
-class FontWeight(Enum):
+class FontWeight(EnumDeclaration):
     THIN = 100
     EXTRA_LIGHT = 200
     LIGHT = 300
@@ -42,7 +42,7 @@ class FontWeight(Enum):
 
 
 @declare_enum(EnumType.FONT_SIZE)
-class FontSize(Enum):
+class FontSize(EnumDeclaration):
     XS = 12
     SM = 14
     BASE = 16
@@ -57,7 +57,7 @@ class FontSize(Enum):
 
 
 @declare_enum(EnumType.TEXT_ALIGN)
-class TextAlign(Enum):
+class TextAlign(EnumDeclaration):
     LEFT = 1
     CENTER = 2
     RIGHT = 3
@@ -65,14 +65,14 @@ class TextAlign(Enum):
 
 
 @declare_enum(EnumType.TEXT_DECORATION)
-class TextDecoration(Enum):
+class TextDecoration(EnumDeclaration):
     NONE = 1
     UNDERLINE = 2
     STRIKETHROUGH = 3
 
 
 @declare_enum(EnumType.TEXT_TRANSFORM)
-class TextTransform(Enum):
+class TextTransform(EnumDeclaration):
     NONE = 1
     UPPERCASE = 2
     LOWERCASE = 3

@@ -1,4 +1,4 @@
-from destack.utils.uuid import UUID, uuid7
+from destack.core.utils.uuid import UUID, uuid7
 
 
 def test_generate_uuid7() -> None:

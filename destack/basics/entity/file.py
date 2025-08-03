@@ -6,7 +6,7 @@ from typing import (
 
 from destack.core import (
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
@@ -18,30 +18,26 @@ from destack.core import (
     declare_property,
     declare_property_parent,
 )
-from destack.utils.env import get_from_env
 
 if TYPE_CHECKING:
     from destack import File, Space
 
 
 FILE_HASH_LENGTH = 64  # 256 bits
-MAX_FILE_SIZE = get_from_env(
-    "MAX_FILE_SIZE", typ=int, default=1024 * 1024 * 128, description="Max file size (in bytes)"
-)
 
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @declare_enum(EnumType.FILE_RETENTION_MODE)
-class FileRetentionMode(Enum):
+class FileRetentionMode(EnumDeclaration):
     AUTOMATIC = 1  # garbage collected if no references
     MANUAL = 2  # never garbage collected
     TIMED = 3  # delete after a certain time
 
 
 @declare_enum(EnumType.FILE_TYPE)
-class FileType(Enum):
+class FileType(EnumDeclaration):
     TEXT = 1, None, None, "fas fa-file-lines"
     CODE = 2, None, None, "fas fa-file-code"
     IMAGE = 3, None, None, "fas fa-image"

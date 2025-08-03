@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
@@ -20,14 +20,14 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.NOTIFICATION_STATUS)
-class NotificationStatus(Enum):
+class NotificationStatus(EnumDeclaration):
     """A Status of a Notification."""
 
-    UNREAD = 1, "Pending", "Pending", "fas fa-circle"
-    READ = 2, "Read", "Read", "fas fa-check"
-    DISMISSED = 3, "Dismissed", "Dismissed", "fas fa-times"
-    EXPIRED = 4, "Expired", "Expired", "fas fa-clock"
-    RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
+    UNREAD = 1, "Pending", "Pending"
+    READ = 2, "Read", "Read"
+    DISMISSED = 3, "Dismissed", "Dismissed"
+    EXPIRED = 4, "Expired", "Expired"
+    RESCINDED = 5, "Rescinded", "Rescinded"
 
 
 @declare_event(NodeType.NOTIFICATION_EVENT, is_abstract=True)

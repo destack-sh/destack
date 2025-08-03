@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     NodeType,
     StructType,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.ARROW_HEAD_TYPE)
-class ArrowHeadType(Enum):
+class ArrowHeadType(EnumDeclaration):
     ARROW = 1
     TRIANGLE = 2
     DOT = 3

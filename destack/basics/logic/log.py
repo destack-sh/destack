@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.LOG_LEVEL)
-class LogLevel(Enum):
+class LogLevel(EnumDeclaration):
     TRACE = 1
     DEBUG = 2
     INFO = 3

@@ -21,14 +21,14 @@ from destack import (
     User,
     Value,
     Vector3,
+    uuid4,
 )
-from destack.encoder.registry import get_encoder
+from destack.core.encoding.registry import get_encoder
 from destack.test.encoder.conftest import (
     LoggingBinaryReader,
     LoggingBinaryWriter,
     wrap_encoder,
 )
-from destack.utils.uuid import uuid4
 
 # ruff: noqa: T201
 

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     Icon,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.LAYER_TYPE)
-class LayerType(Enum):
+class LayerType(EnumDeclaration):
     """Built-in layer types."""
 
     GENERAL = 1

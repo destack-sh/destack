@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     NodeType,
     StructFrozen,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.MIGRATION_TYPE)
-class MigrationType(Enum):
+class MigrationType(EnumDeclaration):
     """Type of a builtin Migration."""
 
     CREATE = 1

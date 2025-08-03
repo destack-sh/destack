@@ -91,7 +91,7 @@ from .entity import (
     Materialization,
     declare_entity,
 )
-from .enum import Enum, declare_enum
+from .enum import EnumDeclaration, declare_enum
 from .event import Event, EventStatus, declare_event
 from .handle import Handle, declare_handle
 from .message import Message, declare_message
@@ -170,7 +170,7 @@ __all__ = [
     "Encoding",
     "Entity",
     "EntityPartial",
-    "Enum",
+    "EnumDeclaration",
     "EnumType",
     "EnvironmentType",
     "Event",

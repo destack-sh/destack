@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, TypeAliasType
 
 from ..utils.uuid import UUID
 from .builtin import EnumType
-from .enum import Enum, declare_enum
+from .enum import EnumDeclaration, declare_enum
 from .types import (
     Boolean,
     Bytes,
@@ -33,14 +33,14 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.PROPERTY_ZONE)
-class PropertyZone(Enum):
-    MEMBER = 1, "Member", None, None
-    INPUT = 10, "Input", None, None
-    OUTPUT = 11, "Output", None, None
+class PropertyZone(EnumDeclaration):
+    MEMBER = 1, "Member", None
+    INPUT = 10, "Input", None
+    OUTPUT = 11, "Output", None
 
 
 @declare_enum(EnumType.RUNTIME_LANGUAGE)
-class RuntimeLanguage(Enum):
+class RuntimeLanguage(EnumDeclaration):
     """The language of the Runtime."""
 
     PYTHON = 1
@@ -49,7 +49,7 @@ class RuntimeLanguage(Enum):
 
 
 @declare_enum(EnumType.RUNTIME_PLATFORM)
-class RuntimePlatform(Enum):
+class RuntimePlatform(EnumDeclaration):
     """The platform of the Runtime."""
 
     CORE = 100, "Core", "Core platform"
@@ -62,7 +62,7 @@ class RuntimePlatform(Enum):
 
 
 @declare_enum(EnumType.RUNTIME_TYPE)
-class RuntimeType(Enum):
+class RuntimeType(EnumDeclaration):
     """The specific Runtime (RuntimeLanguage x RuntimePlatform)."""
 
     CORE_PYTHON = 101, "destack-py", "Destack Python SDK"
@@ -76,46 +76,46 @@ class RuntimeType(Enum):
 
 
 @declare_enum(EnumType.ENVIRONMENT_TYPE)
-class EnvironmentType(Enum):
-    SYSTEM = 1, "System", "Managed by the system", "fas fa-cog"
-    DEVELOPMENT = 3, "Development", "Active in development", "fas fa-flask"
-    TEST = 5, "Test", "Active in test", "fas fa-flask"
-    STAGING = 7, "Staging", "Active in staging", "fas fa-globe"
-    PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
+class EnvironmentType(EnumDeclaration):
+    SYSTEM = 1, "System", "Managed by the system"
+    DEVELOPMENT = 3, "Development", "Active in development"
+    TEST = 5, "Test", "Active in test"
+    STAGING = 7, "Staging", "Active in staging"
+    PRODUCTION = 10, "Production", "Active in production"
 
 
 @declare_enum(EnumType.REGION_CONTINENT)
-class RegionContinent(Enum):
+class RegionContinent(EnumDeclaration):
     """
     'Continents' of Regions.
     """
 
-    EUROPE = 1_000, "Europe", None, "🇪🇺"
-    NORTH_AMERICA = 2_000, "North America", None, "🇺🇸"
-    SOUTH_AMERICA = 3_000, "South America", None, "🇧🇷"
-    MIDDLE_EAST = 4_000, "Middle East", None, "🇸🇦"
-    AFRICA = 5_000, "Africa", None, "🇿🇦"
-    ASIA = 6_000, "Asia", None, "🇮🇳"
-    AUSTRALIA = 7_000, "Australia", None, "🇦🇺"
+    EUROPE = 1_000, "Europe", None
+    NORTH_AMERICA = 2_000, "North America", None
+    SOUTH_AMERICA = 3_000, "South America", None
+    MIDDLE_EAST = 4_000, "Middle East", None
+    AFRICA = 5_000, "Africa", None
+    ASIA = 6_000, "Asia", None
+    AUSTRALIA = 7_000, "Australia", None
 
 
 @declare_enum(EnumType.REGION_AREA)
-class RegionArea(Enum):
+class RegionArea(EnumDeclaration):
     """
     A larger Area of Regions within a Continent.
     """
 
-    EUROPE_CENTRAL = 1_000, None, None, "🇪🇺"
-    NORTH_AMERICA_EAST = 2_000, None, None, "🇺🇸"
-    NORTH_AMERICA_WEST = 2_200, None, None, "🇺🇸"
-    SOUTH_AMERICA_EAST = 3_000, None, None, "🇧🇷"
-    MIDDLE_EAST_CENTRAL = 4_000, None, None, "🇸🇦"
-    MIDDLE_EAST_WEST = 4_200, None, None, "🇸🇦"
-    AFRICA_SOUTH = 5_000, None, None, "🇿🇦"
+    EUROPE_CENTRAL = 1_000, None, None
+    NORTH_AMERICA_EAST = 2_000, None, None
+    NORTH_AMERICA_WEST = 2_200, None, None
+    SOUTH_AMERICA_EAST = 3_000, None, None
+    MIDDLE_EAST_CENTRAL = 4_000, None, None
+    MIDDLE_EAST_WEST = 4_200, None, None
+    AFRICA_SOUTH = 5_000, None, None
     ASIA_WEST = 6_000
     ASIA_SOUTH = 6_200
     ASIA_EAST = 6_400
-    AUSTRALIA_SOUTH = 7_000, None, None, "🇦🇺"
+    AUSTRALIA_SOUTH = 7_000, None, None
 
     @property
     def continent(self) -> RegionContinent:
@@ -123,39 +123,39 @@ class RegionArea(Enum):
 
 
 @declare_enum(EnumType.REGION)
-class Region(Enum):
+class Region(EnumDeclaration):
     """Regions in an Area on a Continent."""
 
     # eu-central
-    ZURICH = 1_000, None, None, "🇨🇭"
-    FRANKFURT = 1_010, None, None, "🇩🇪"
+    ZURICH = 1_000, None, None
+    FRANKFURT = 1_010, None, None
 
     # na-east
-    VIRGINIA = 2_000, None, None, "🇺🇸"
-    OHIO = 2_010, None, None, "🇺🇸"
+    VIRGINIA = 2_000, None, None
+    OHIO = 2_010, None, None
 
     # na-west
-    OREGON = 2_200, None, None, "🇺🇸"
+    OREGON = 2_200, None, None
 
     # sa-east
-    SAO_PAULO = 3_000, None, None, "🇧🇷"
+    SAO_PAULO = 3_000, None, None
 
     ...
 
     # af-south
-    CAPE_TOWN = 5_000, None, None, "🇿🇦"
+    CAPE_TOWN = 5_000, None, None
 
     # as-east
-    MUMBAI = 6_000, None, None, "🇮🇳"
+    MUMBAI = 6_000, None, None
 
     # as-south
-    SINGAPORE = 6_200, None, None, "🇸🇬"
+    SINGAPORE = 6_200, None, None
 
     # as-east
-    TOKYO = 6_400, None, None, "🇯🇵"
+    TOKYO = 6_400, None, None
 
     # au-south
-    SYDNEY = 7_000, None, None, "🇦🇺"
+    SYDNEY = 7_000, None, None
 
     @property
     def continent(self) -> RegionContinent:
@@ -167,7 +167,7 @@ class Region(Enum):
 
 
 @declare_enum(EnumType.EDGE_TYPE)
-class EdgeType(Enum):
+class EdgeType(EnumDeclaration):
     PARENT = 1
     REGULAR = 5
 
@@ -181,7 +181,7 @@ class EdgeType(Enum):
 
 
 @declare_enum(EnumType.CASCADE_ACTION)
-class CascadeAction(Enum):
+class CascadeAction(EnumDeclaration):
     RESTRICT = 1
     CASCADE = 2
     SET_NULL = 3
@@ -189,7 +189,7 @@ class CascadeAction(Enum):
 
 
 @declare_enum(EnumType.EDGE_DIRECTION)
-class EdgeDirection(Enum):
+class EdgeDirection(EnumDeclaration):
     PARENT = 1
     CHILD = 2
     DEFINITION = 10
@@ -198,7 +198,7 @@ class EdgeDirection(Enum):
 
 
 @declare_enum(EnumType.ENCODING)
-class Encoding(Enum):
+class Encoding(EnumDeclaration):
     """Encoding scheme."""
 
     JSON = 1, "JSON", "JSON encoding"
@@ -210,7 +210,7 @@ assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 
 
 @declare_enum(EnumType.TYPE_CARDINALITY)
-class TypeCardinality(Enum):
+class TypeCardinality(EnumDeclaration):
     """The order of a Type (scalar, list, map, etc.)."""
 
     SCALAR = 1, "Scalar", "Single value"
@@ -226,44 +226,38 @@ assert max(TypeCardinality) < 16, "TypeCardinality must be less than 8"  # for :
 
 
 @declare_enum(EnumType.SCALAR_TYPE)
-class ScalarType(Enum):
+class ScalarType(EnumDeclaration):
     """The type of a scalar (single value like primitive, enum, struct, etc.)."""
 
     PRIMITIVE = (
         1,
         "Primitive",
         "Primitive value (boolean, number, time, string, etc.)",
-        "fas fa-hashtag",
     )
     ENUM = (
         2,
         "Enum",
         "Enum value (enumeration of options)",
-        "fas fa-shapes",
     )
     NODE_REFERENCE = (
         3,
         "Node Reference",
         "Reference to a Node (NodeReference)",
-        "fas fa-link",
     )
     NODE_VALUE = (
         4,
         "Node Value",
         "Value of a Node",
-        "fas fa-link",
     )
     STRUCT = (
         5,
         "Struct",
         "Struct value (structured data)",
-        "fas fa-shapes",
     )
     HANDLE = (
         6,
         "Handle",
         "Handle (runtime-only)",
-        "fas fa-link",
     )
     # LITERAL = 7, "Literal", "Literal value (constant value)"
     # UNION = 8, "Union", "Tagged union of heterogeneous values"
@@ -274,80 +268,69 @@ assert max(ScalarType) <= 8, "ScalarType must be less than 8"  # for :Encoding
 
 
 @declare_enum(EnumType.PRIMITIVE_TYPE)
-class PrimitiveType(Enum):
+class PrimitiveType(EnumDeclaration):
     """
     A fundamental scalar data type.
     """
 
     # :PrimitiveType
-    NONE = 1, "Null", "Null value", "fas fa-null"
+    NONE = 1, "Null", "Null value"
     BOOLEAN = (
         2,
         "Boolean",
         "Boolean flag (True or False)",
-        "fas fa-toggle-large-on",
     )
     # integer
     INT8 = (
         3,
         "Int8",
         "8-bit signed integer (-2^7 to 2^7-1)",
-        "fas fa-tally",
     )
     INT16 = (
         4,
         "Int16",
         "16-bit signed integer (-2^15 to 2^15-1)",
-        "fas fa-tally",
     )
     INT32 = (
         5,
         "Int32",
         "32-bit signed integer (-2^31 to 2^31-1)",
-        "fas fa-tally",
     )
     INT64 = (
         6,
         "Int64",
         "64-bit signed integer (-2^63 to 2^63-1)",
-        "fas fa-tally",
     )
     INT128 = (
         7,
         "Int128",
         "128-bit signed integer (-2^127 to 2^127-1)",
-        "fas fa-tally",
     )
     # INT256, ...
     UINT8 = (
         10,
         "UInt8",
         "8-bit unsigned integer (0 to 2^8-1)",
-        "fas fa-tally",
     )
     UINT16 = (
         11,
         "UInt16",
         "16-bit unsigned integer (0 to 2^16-1)",
-        "fas fa-tally",
     )
     UINT32 = (
         12,
         "UInt32",
         "32-bit unsigned integer (0 to 2^32-1)",
-        "fas fa-tally",
     )
     UINT64 = (
         13,
         "UInt64",
         "64-bit unsigned integer (0 to 2^64-1)",
-        "fas fa-tally",
     )
     UINT128 = (
         14,
         "UInt128",
         "128-bit unsigned integer (0 to 2^128-1)",
-        "fas fa-tally",
     )
     # UINT256, ...
     # float
@@ -356,19 +339,16 @@ class PrimitiveType(Enum):
         22,
         "Float16",
         "16-bit half-precision float (±2^14)",
-        "fas fa-hashtag",
     )
     FLOAT32 = (
         23,
         "Float32",
         "32-bit single-precision float (±2^127)",
-        "fas fa-hashtag",
     )
     FLOAT64 = (
         24,
         "Float64",
         "64-bit double-precision float (±2^1023)",
-        "fas fa-hashtag",
     )
     # COMPLEX16, COMPLEX32, COMPLEX64, ...
     # DECIMAL, ...
@@ -377,51 +357,43 @@ class PrimitiveType(Enum):
         40,
         "Datetime",
         "Datetime (microsecond precision, UTC, 0001-01-01 to 9999-12-31)",
-        "fas fa-calendar-days",
     )
     DATE = (
         41,
         "Date",
         "Date (day precision, 0001-01-01 to 9999-12-31)",
-        "fas fa-calendar-days",
     )
     TIME = (
         42,
         "Time",
         "Time (microsecond precision, 00:00:00.000000 to 23:59:59.999999)",
-        "fas fa-clock",
     )
     DURATION = (
         43,
         "Duration",
         "Duration (microsecond precision, 00:00:00.000000 to 9999-12-31 23:59:59.999999)",
-        "fas fa-stopwatch",
     )
     # string
     STRING = (
         50,
         "String",
         "Plain text",
-        "fas fa-font-case",
     )
     UUID = (
         51,
         "UUID",
         "Universally unique identifier (UUID4 or UUID7, 16 bytes)",
-        "fas fa-fingerprint",
     )
     BYTES = (
         52,
         "Bytes",
         "Binary data (arbitrary bytes)",
-        "fas fa-file-lines",
     )
     # VECTOR?
     JSON = (
         55,
         "JSON",
         "JSON (arbitrary JSON data)",
-        "fas fa-brackets-curly",
     )
 
 
@@ -471,7 +443,7 @@ PRIMITIVE_PY_TYPES = tuple(t for t in PRIMITIVE_TYPE_BY_ANNOTATION if isinstance
 
 
 @declare_enum(EnumType.VALUE_FACTORY)
-class ValueFactory(Enum):
+class ValueFactory(EnumDeclaration):
     """The factory to use for generating values."""
 
     UUID4 = 1, "UUID4", "Generate a random UUIDv4"
@@ -491,7 +463,7 @@ class ValueFactory(Enum):
 
 
 @declare_enum(EnumType.ROLE_TYPE)
-class RoleType(Enum):
+class RoleType(EnumDeclaration):
     SYSTEM = 1
     OWNER = 2
     ADMIN = 3
@@ -501,7 +473,7 @@ class RoleType(Enum):
 
 
 @declare_enum(EnumType.CLIENT_TYPE)
-class ClientType(Enum):
+class ClientType(EnumDeclaration):
     # user
     WEB = 1
     BROWSER_PLUGIN = 2
@@ -512,13 +484,13 @@ class ClientType(Enum):
 
 
 @declare_enum(EnumType.TENANCY)
-class Tenancy(Enum):
+class Tenancy(EnumDeclaration):
     DEDICATED = 1
     SHARED = 2
 
 
 @declare_enum(EnumType.CONSTRAINT_TYPE)
-class ConstraintType(Enum):
+class ConstraintType(EnumDeclaration):
     """Type of a Constraint."""
 
     UNIQUE = 1
@@ -526,7 +498,7 @@ class ConstraintType(Enum):
 
 
 @declare_enum(EnumType.INDEX_TYPE)
-class IndexType(Enum):
+class IndexType(EnumDeclaration):
     """Type of an Index."""
 
     BTREE = 1
@@ -534,14 +506,14 @@ class IndexType(Enum):
 
 
 @declare_enum(EnumType.METHOD_TYPE)
-class MethodType(Enum):
+class MethodType(EnumDeclaration):
     PROPERTY = 1, "Property", "Computed property"
     INSTANCE = 2, "Instance", "Instance method"
     STATIC = 3, "Static", "Static method"
 
 
 @declare_enum(EnumType.ACTION_TYPE)
-class ActionType(Enum):
+class ActionType(EnumDeclaration):
     UNARY_IN_UNARY_OUT = 1, "Unary In, Unary Out", "Single in, single out"
     UNARY_IN_STREAM_OUT = 2, "Unary In, Stream Out", "Single in, stream out"
     STREAM_IN_UNARY_OUT = 3, "Stream In, Unary Out", "Stream in, single out"
@@ -549,7 +521,7 @@ class ActionType(Enum):
 
 
 @declare_enum(EnumType.FUNCTION_OPERATOR)
-class FunctionOperator(Enum):
+class FunctionOperator(EnumDeclaration):
     """The overridable builtin operators for Functions (depends on runtime language)."""
 
     # comparison operators

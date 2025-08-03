@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.core import (
+    UUID,
     Entity,
-    Enum,
+    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
@@ -12,7 +13,6 @@ from destack.core import (
     declare_event,
     declare_property,
 )
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack import Condition, Icon
@@ -28,7 +28,7 @@ class TriggerEvent(Event):
 
 
 @declare_enum(EnumType.TRIGGER_TYPE)
-class TriggerType(Enum):
+class TriggerType(EnumDeclaration):
     EVENT = 1
 
 

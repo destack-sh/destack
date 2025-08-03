@@ -4,7 +4,7 @@ from .builtin import EnumType, NodeType
 from .common import UInt8
 from .const import UNSET
 from .entity import Entity
-from .enum import Enum, declare_enum
+from .enum import EnumDeclaration, declare_enum
 from .event import Event, declare_event
 from .property import declare_property
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.EDIT_TYPE)
-class EditType(Enum):
+class EditType(EnumDeclaration):
     """The type of Edit."""
 
     CREATE = 1, "Create a new Entity"
@@ -26,7 +26,7 @@ class EditType(Enum):
 
 
 @declare_enum(EnumType.EDIT_OPERATION)
-class EditOperation(Enum):
+class EditOperation(EnumDeclaration):
     """The update operation to perform on a Node."""
 
     # direct

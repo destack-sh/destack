@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, final
 
 from destack.core import (
-    Enum,
+    EnumDeclaration,
     EnumType,
     Float32,
     StructFrozen,
@@ -19,53 +19,53 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.LAYOUT)
-class Layout(Enum):
+class Layout(EnumDeclaration):
     """The layout of elements."""
 
-    STACK = 1, "Stack", "Stack", "fas fa-objects-align-center-vertical"
-    GRID = 2, "Grid", "Grid", "fas fa-grid-2"
+    STACK = 1, "Stack", "Stack"
+    GRID = 2, "Grid", "Grid"
 
 
 @declare_enum(EnumType.OVERFLOW)
-class Overflow(Enum):
+class Overflow(EnumDeclaration):
     """The overflow behavior of elements."""
 
-    HIDDEN = 2, "Hidden", "Hidden", "fas fa-eye-slash"
-    VISIBLE = 3, "Visible", "Visible", "fas fa-eye"
-    SCROLL = 4, "Scroll", "Scroll", "fas fa-machine-mouse-scrollwheel"
+    HIDDEN = 2, "Hidden", "Hidden"
+    VISIBLE = 3, "Visible", "Visible"
+    SCROLL = 4, "Scroll", "Scroll"
 
 
 @declare_enum(EnumType.DIRECTION)
-class Direction(Enum):
+class Direction(EnumDeclaration):
     """The direction of elements."""
 
-    HORIZONTAL = 1, "Horizontal", "Horizontal", "fas fa-left-right"
-    VERTICAL = 2, "Vertical", "Vertical", "fas fa-up-down"
+    HORIZONTAL = 1, "Horizontal", "Horizontal"
+    VERTICAL = 2, "Vertical", "Vertical"
 
 
 @declare_enum(EnumType.DISTRIBUTE)
-class Distribute(Enum):
+class Distribute(EnumDeclaration):
     """The distribution of elements."""
 
-    START = 1, "Start", "Start", "fas fa-align-left"
-    CENTER = 2, "Center", "Center", "fas fa-align-center"
-    END = 3, "End", "End", "fas fa-align-right"
+    START = 1, "Start", "Start"
+    CENTER = 2, "Center", "Center"
+    END = 3, "End", "End"
     SPACE_BETWEEN = 4, "Viewport Between", "Viewport Between"
     SPACE_AROUND = 5, "Viewport Around", "Viewport Around"
     SPACE_EVENLY = 6, "Viewport Evenly", "Viewport Evenly"
 
 
 @declare_enum(EnumType.ALIGN)
-class Align(Enum):
+class Align(EnumDeclaration):
     """The alignment of elements."""
 
-    START = 1, "Start", "Start", "fas fa-align-left"
-    CENTER = 2, "Center", "Center", "fas fa-align-center"
-    END = 3, "End", "End", "fas fa-align-right"
+    START = 1, "Start", "Start"
+    CENTER = 2, "Center", "Center"
+    END = 3, "End", "End"
 
 
 @declare_enum(EnumType.ANCHOR)
-class Anchor(Enum):
+class Anchor(EnumDeclaration):
     """The position of elements."""
 
     RELATIVE = 1, "Relative", "Relative to parent"
@@ -75,7 +75,7 @@ class Anchor(Enum):
 
 
 @declare_enum(EnumType.LENGTH_TYPE)
-class LengthType(Enum):
+class LengthType(EnumDeclaration):
     """The unit of a length value."""
 
     PIXEL = 1, "Pixel", "px"
