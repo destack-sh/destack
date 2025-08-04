@@ -109,15 +109,6 @@ class RuntimeType(OptionEnum):
     )
 
 
-@declare_enum(EnumType.ENVIRONMENT_TYPE)
-class EnvironmentType(OptionEnum):
-    SYSTEM = declare_option(1, "System", description="Managed by the system")
-    DEVELOPMENT = declare_option(3, "Development", description="Active in development")
-    TEST = declare_option(5, "Test", description="Active in test")
-    STAGING = declare_option(7, "Staging", description="Active in staging")
-    PRODUCTION = declare_option(10, "Production", description="Active in production")
-
-
 @declare_enum(EnumType.REGION_CONTINENT)
 class RegionContinent(OptionEnum):
     """

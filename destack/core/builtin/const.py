@@ -6,10 +6,8 @@ from typing import (
     cast,
 )
 
-from ..utils.env import get_from_env
 from ..utils.frozen import frozendict
 from ..utils.uuid import uuid4
-from .common import Region
 
 if TYPE_CHECKING:
     from destack import (
@@ -141,9 +139,6 @@ def active_event() -> "Event":
     event = ACTIVE_EVENT.get()
     assert event is not None, "no active event"
     return event
-
-
-REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
 
 
 class DestackError(Exception):

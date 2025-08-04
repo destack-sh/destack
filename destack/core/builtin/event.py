@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, dataclass_transform
 
-from ..utils.env import IS_DEV, IS_TEST
 from ..utils.uuid import UUID
 from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT
@@ -79,11 +78,13 @@ def declare_event(
             enum_types=enum_types,
             message_types=message_types,
         )
-        if IS_DEV or IS_TEST:
-            assert event_type.name.endswith("EVENT"), f"Event {cls.__name__} must end with 'EVENT'"
-            assert event_type == NodeType.EVENT or NodeType.EVENT in cls.__declaration__.inherits, (
-                f"Event {cls.__name__} must inherit from Event"
-            )
+
+        # validate
+        assert event_type.name.endswith("EVENT"), f"Event {cls.__name__} must end with 'EVENT'"
+        assert event_type == NodeType.EVENT or NodeType.EVENT in cls.__declaration__.inherits, (
+            f"Event {cls.__name__} must inherit from Event"
+        )
+
         return cls
 
     return decorate

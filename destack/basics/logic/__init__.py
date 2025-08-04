@@ -1,5 +1,4 @@
 from .action import Action
-from .environment import Environment
 from .function import Function
 from .log import LogEvent, LogLevel
 from .method import Method
@@ -30,7 +29,6 @@ from .trigger import Trigger, TriggerType
 __all__ = [
     "Action",
     "DayOfWeek",
-    "Environment",
     "Function",
     "LogEvent",
     "LogLevel",

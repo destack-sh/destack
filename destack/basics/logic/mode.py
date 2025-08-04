@@ -1,21 +1,18 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
     NodeType,
     declare_entity,
     declare_property,
-    declare_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack import Icon, Space
+    from destack import Icon
 
 
 @declare_entity(NodeType.MODE)
 class Mode(Entity):
-    """An Mode is a deployment scenario of a Space."""
-
-    parent: Optional["Space"] = declare_property_parent()
+    """A Mode is a usage scenario."""
 
     icon: "Icon | None" = declare_property(102)

@@ -1,7 +1,13 @@
-from .basics import *  # noqa: F403
-from .canvas import *  # noqa: F403
-from .core import *  # noqa: F403
-from .deployment import *  # noqa: F403
-from .distribution import *  # noqa: F403
-from .simulation import *  # noqa: F403
-from .stage import *  # noqa: F403
+# ruff: noqa: F403, I001
+
+from .basics import *
+from .canvas import *
+from .core import *
+from .deployment import *
+from .distribution import *
+from .simulation import *
+from .stage import *
+
+from .finalize import finalize
+
+finalize()

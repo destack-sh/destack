@@ -15,7 +15,6 @@ from typing import (
 )
 
 from ..utils.code import execute_arbitrary_code
-from ..utils.env import IS_DEV, IS_TEST
 from ..utils.frozen import frozendict, frozenlist
 from ..utils.func import get_superclasses
 from ..utils.string import Casing, to_casing
@@ -40,7 +39,6 @@ from .const import (
     EPSILON_EXPONENT,
     METAKIND_PROPERTY_ID,
     METATYPE_PROPERTY_ID,
-    REGION,
     UNSET,
 )
 from .declaration import (
@@ -166,7 +164,6 @@ class ObjectGenerator:
         extra_glbls["uuid4"] = uuid4
         extra_glbls["uuid7"] = uuid7
         extra_glbls["to_nano_id"] = to_nano_id
-        extra_glbls["REGION"] = REGION
 
         method_body_lines = []
         body_properties = {prop.name: prop for prop in declaration.properties}
@@ -1282,7 +1279,7 @@ _METATYPE_TYPE = TypeDeclaration(
     primitive_type=PrimitiveType.INT32,
     is_required=True,
 )
-_generator = ObjectGenerator(check_required=IS_DEV or IS_TEST)
+_generator = ObjectGenerator()
 
 
 def _process_object_cls[ObjectT: Object](
@@ -1318,17 +1315,16 @@ def _process_object_cls[ObjectT: Object](
     )
 
     # check for redundant components
-    if IS_DEV or IS_TEST:
-        for component in cls.__bases__:
-            if component.__name__ in ("ABC", "object", "Generic"):
-                continue
-            for other_component in cls.__bases__:
-                if component.__name__ != other_component.__name__ and component in get_superclasses(
-                    other_component
-                ):
-                    raise AssertionError(
-                        f"'{cls.__name__}' has redundant component '{component.__name__}' (already inherits from '{other_component.__name__}')"
-                    )
+    for component in cls.__bases__:
+        if component.__name__ in ("ABC", "object", "Generic"):
+            continue
+        for other_component in cls.__bases__:
+            if component.__name__ != other_component.__name__ and component in get_superclasses(
+                other_component
+            ):
+                raise AssertionError(
+                    f"'{cls.__name__}' has redundant component '{component.__name__}' (already inherits from '{other_component.__name__}')"
+                )
 
     # collect all components from class hierarchy (including self)
     components: list[type[Object]] = []

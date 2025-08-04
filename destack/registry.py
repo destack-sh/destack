@@ -27,7 +27,7 @@ NODE_CLASS_BY_TYPE: dict["NodeType", type["Node"]] = {}
 NODE_TYPE_BY_CLASS: dict[type["Node"], "NodeType"] = {}
 
 STRUCT_CLASS_BY_TYPE: dict["StructType", type["Struct"]] = {}
-STRUCT_TYPE_BY_CLASS: dict[type["Struct"], StructType] = {}
+STRUCT_TYPE_BY_CLASS: dict[type["Struct"], "StructType"] = {}
 
 HANDLE_CLASS_BY_TYPE: dict["HandleType", type["Handle"]] = {}
 HANDLE_TYPE_BY_CLASS: dict[type["Handle"], "HandleType"] = {}

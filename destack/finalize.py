@@ -10,7 +10,7 @@ from .core.builtin import (
     Object,
     StructType,
 )
-from .core.utils.env import IS_DEV, IS_TEST
+from .core.utils.environment import IS_DEV, IS_TEST
 from .registry import (
     BUILTIN_CLASS_BY_NAME,
     ENUM_CLASS_BY_TYPE,
@@ -213,7 +213,7 @@ def finalize():
                 setattr(object_cls, name, attribute.value)
         object_cls.__definition__.constants = list(constants)  # type: ignore (frozen)
 
-    # sanity check stuff
+    # validate stuff
     if IS_DEV or IS_TEST:
         # check we have all the declared builtin objects
         if len(EnumType) != len(ENUM_CLASS_BY_TYPE):

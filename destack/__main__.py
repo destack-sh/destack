@@ -1,11 +1,8 @@
-import os
 import sys
 from pathlib import Path
 
-# if not serving, default to ENVIRONMENT=dev
-if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is None:
-    os.environ["ENVIRONMENT"] = "dev"
-
+# add parent directory to path so destack imports work when running directly
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from destack.core.cli import console, create_cli
 

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, ClassVar, cast
 
 from destack.registry import ENUM_CLASS_BY_TYPE, ENUM_TYPE_BY_CLASS
 
-from ..utils.env import IS_DEV, IS_TEST
 from ..utils.string import Casing, to_casing
 from .const import UNSET
 
@@ -21,7 +20,7 @@ type_ = type
 class EnumDeclaration:
     # meta
     id: int
-    type: EnumType
+    type: "EnumType"
     name: str
     description: str | None
     is_flag: bool
@@ -37,9 +36,13 @@ class OptionDeclaration:
     name: str = UNSET
     description: str | None = None
 
+    @property
+    def value(self) -> int:
+        return self.id  # aliased for enum compatibility
+
 
 def _process_enum_cls(
-    cls: type_["Enum"], enum_type: EnumType
+    cls: type_["Enum"], enum_type: "EnumType"
 ) -> tuple[type["Enum"], EnumDeclaration]:
     # walk the class defiition and collect options
     options: list[OptionDeclaration] = []
@@ -104,39 +107,36 @@ def declare_enum(enum_type: "EnumType"):
         ENUM_TYPE_BY_CLASS[cls] = enum_type  # type: ignore
 
         # validate
-        if IS_DEV or IS_TEST:
-            # check name
-            enum_name = to_casing(cls.__name__, Casing.ALL_CAPS)
-            assert enum_type.name == enum_name, (
-                f"enum name mismatch: {enum_type.name} != {enum_name}"
-            )
-            # check options
-            options_by_id: dict[int, OptionDeclaration] = {}
-            if issubclass(cls, OptionEnum):
-                # options must be unique and in range (0 is forbidden)
-                for option in declaration.options:
-                    assert 0 < option.id < 2**32, (
-                        f"option {option.name}: {option.id} is out of range for {cls.__name__}"
-                    )
-                    assert option.id not in options_by_id, (
-                        f"option {option.name}: {option.id} is a duplicate for {cls.__name__}"
-                    )
-                    options_by_id[option.id] = option
-            elif issubclass(cls, FlagEnum):
-                # flags must be unique and powers of 2 (0 is allowed)
-                for option in declaration.options:
-                    assert 0 <= option.id < 2**32, (
-                        f"option {option.name}: {option.id} is out of range for {cls.__name__}"
-                    )
-                    assert option.id & (option.id - 1) == 0, (
-                        f"option {option.name}: {option.id} is not a power of 2 for {cls.__name__}"
-                    )
-                    assert option.id not in options_by_id, (
-                        f"option {option.name}: {option.id} is a duplicate for {cls.__name__}"
-                    )
-                    options_by_id[option.id] = option
-            else:
-                raise ValueError(f"enum {cls.__name__} is not a OptionEnum or FlagEnum")
+        # check name
+        enum_name = to_casing(cls.__name__, Casing.ALL_CAPS)
+        assert enum_type.name == enum_name, f"enum name mismatch: {enum_type.name} != {enum_name}"
+        # check options
+        options_by_id: dict[int, OptionDeclaration] = {}
+        if issubclass(cls, OptionEnum):
+            # options must be unique and in range (0 is forbidden)
+            for option in declaration.options:
+                assert 0 < option.id < 2**32, (
+                    f"option {option.name}: {option.id} is out of range for {cls.__name__}"
+                )
+                assert option.id not in options_by_id, (
+                    f"option {option.name}: {option.id} is a duplicate for {cls.__name__}"
+                )
+                options_by_id[option.id] = option
+        elif issubclass(cls, FlagEnum):
+            # flags must be unique and powers of 2 (0 is allowed)
+            for option in declaration.options:
+                assert 0 <= option.id < 2**32, (
+                    f"option {option.name}: {option.id} is out of range for {cls.__name__}"
+                )
+                assert option.id & (option.id - 1) == 0, (
+                    f"option {option.name}: {option.id} is not a power of 2 for {cls.__name__}"
+                )
+                assert option.id not in options_by_id, (
+                    f"option {option.name}: {option.id} is a duplicate for {cls.__name__}"
+                )
+                options_by_id[option.id] = option
+        else:
+            raise ValueError(f"enum {cls.__name__} is not a OptionEnum or FlagEnum")
 
         return cls
 
@@ -144,7 +144,7 @@ def declare_enum(enum_type: "EnumType"):
 
 
 class Enum(enum.IntEnum if TYPE_CHECKING else object):
-    metatype: ClassVar[EnumType]  # type: ignore
+    metatype: ClassVar["EnumType"]  # type: ignore
     __declaration__: ClassVar[EnumDeclaration]  # type: ignore
 
 

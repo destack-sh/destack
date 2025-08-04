@@ -1,10 +1,6 @@
 from typing import TYPE_CHECKING, override
 
-from destack.core import (
-    METATYPE_PROPERTY_KEY,
-    Object,
-    PropertyDeclaration,
-)
+from destack.core import METATYPE_PROPERTY_KEY, Object, PropertyDeclaration
 
 from ..json.generate import JsonEncoderGenerator
 
@@ -24,7 +20,7 @@ class JsoncEncoderGenerator(JsonEncoderGenerator):
     @override
     def generate_pack_object_metatype(self, cls: type["Object"]) -> str:
         """Generate the metatype code for an Object."""
-        return f"_object_json['{METATYPE_PROPERTY_KEY}'] = {cls.metatype.id}"
+        return f"_object_json['{METATYPE_PROPERTY_KEY}'] = {cls.metatype}"
 
     @override
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
