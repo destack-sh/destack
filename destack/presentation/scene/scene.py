@@ -11,7 +11,7 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.stage import LayoutView
+    from destack.presentation import LayoutView
 
 
 @declare_event(NodeType.SCENE_EVENT, is_abstract=True)
