@@ -37,10 +37,6 @@ if TYPE_CHECKING:
 
 from .core import KompaktObjectEncoder
 
-# ruff: noqa: FURB113
-# pyright: reportIncompatibleVariableOverride=false
-
-
 type_ = type
 
 

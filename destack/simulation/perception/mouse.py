@@ -15,8 +15,6 @@ from .pointer import PointerEvent
 if TYPE_CHECKING:
     from destack import Vector2
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.MOUSE_BUTTON)
 class MouseButton(OptionEnum):

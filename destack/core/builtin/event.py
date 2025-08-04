@@ -17,8 +17,6 @@ from .types import UInt128
 if TYPE_CHECKING:
     from destack import Branch, Client, NodeReference, Snapshot, Space
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.EVENT_STATUS)
 class EventStatus(OptionEnum):

@@ -27,8 +27,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Condition, Icon, Value
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(NodeType.CUSTOM_EVENT_DEFINITION)
 class CustomEventDefinition(

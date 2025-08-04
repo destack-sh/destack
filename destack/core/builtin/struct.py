@@ -19,7 +19,6 @@ from .types import Int32
 if TYPE_CHECKING:
     from destack import StructDefinition
 
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 

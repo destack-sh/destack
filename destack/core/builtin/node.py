@@ -40,7 +40,6 @@ if TYPE_CHECKING:
         Space,
     )
 
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 

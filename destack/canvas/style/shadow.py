@@ -20,8 +20,6 @@ from .style import Style
 if TYPE_CHECKING:
     from destack import Axis2
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.SHADOW_TYPE)
 class ShadowType(OptionEnum):

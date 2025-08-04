@@ -12,8 +12,6 @@ from .content import ContentView
 if TYPE_CHECKING:
     from destack import Fill, Font
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.TEXT_VIEW,

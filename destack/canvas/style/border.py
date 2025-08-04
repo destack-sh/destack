@@ -20,9 +20,6 @@ if TYPE_CHECKING:
     from destack import Inset2
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 @declare_enum(EnumType.BORDER_TYPE)
 class BorderType(OptionEnum):
     """Built-in border types."""

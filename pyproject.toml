@@ -1,5 +1,6 @@
 [project]
 name = "destack"
+description = "Destack monorepo with various distributions/pckages"
 version = "2025.08.01.22"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 
@@ -63,15 +64,19 @@ ignore = [
 	"SIM102",
 	# non lowercase variable in function
 	"N806",
+	# identical if/else branches
+	"SIM114",
+	# repeated list append
+	"FURB113",
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["destack-py", "destack", "desys", "derun", "deweb"]
+known-first-party = ["destack"]
 
 [tool.pyright]
-include = ["destack", "destack-py", "destack-py-server"]
+include = ["destack", "destack-py", "destack-py-server", "destack-py-web"]
 ignore = ["*/venv*"]
-venv = "destack-py/venv"
+venv = "destack-py-server/venv"
 extraPaths = ["destack", "destack-py", "destack-py-server", "destack-py-web"]
 strictDictionaryInference = true
 strictListInference = true
@@ -94,23 +99,4 @@ reportUnnecessaryContains = false
 reportUnnecessaryComparison = false
 reportUnnecessaryCast = false
 reportConstantRedefinition = false
-
-[tool.pytest_env]
-ENVIRONMENT = "test"
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_test_loop_scope = "session"
-python_files = "test/**/*.py test/*.py"
-python_classes = "!TestProfile"
-pythonpath = ["destack-py", "destack-py-system"]
-log_cli = true
-addopts = [
-	'-rP',
-	"-vv",
-	"--import-mode=importlib",
-	"--color=yes",
-	'--strict-markers',
-]
-markers = []
-filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
+reportIncompatibleVariableOverride = false

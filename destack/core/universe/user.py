@@ -13,8 +13,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack import Space
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.USER,

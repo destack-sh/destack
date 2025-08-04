@@ -30,7 +30,6 @@ from ..utils.uuid import UUID
 if TYPE_CHECKING:
     from destack import Space, User
 
-# pyright: reportIncompatibleVariableOverride=false
 
 # universe and space constants
 _UNIVERSE_ID = UUID(int=1)

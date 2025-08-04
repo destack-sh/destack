@@ -18,9 +18,6 @@ if TYPE_CHECKING:
     pass
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 @declare_enum(EnumType.TRANSITION_TYPE)
 class TransitionType(OptionEnum):
     """Built-in transition types."""

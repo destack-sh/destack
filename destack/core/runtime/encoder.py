@@ -1,15 +1,16 @@
 from abc import abstractmethod
-from enum import IntFlag
 from typing import TYPE_CHECKING, Any
 
 from ..builtin import (
     EnumType,
+    FlagEnum,
     Handle,
     HandleType,
     Object,
     ObjectKind,
     declare_enum,
     declare_handle,
+    declare_method,
     declare_option,
 )
 from .binary import BinaryReader, BinaryWriter
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.ENCODER_OPTIONS)
-class EncoderOptions(IntFlag):
+class EncoderOptions(FlagEnum):
     """Options for encoding."""
 
     DEFAULT = declare_option(0)
@@ -40,6 +41,7 @@ class Encoder[T: Any = Any](Handle):
     """Encoder for packing/unpacking Objects."""
 
     @abstractmethod
+    @declare_method(100)
     def pack_object(
         self,
         object: Object,
@@ -49,6 +51,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(101)
     def unpack_object(
         self,
         kind: ObjectKind | None,
@@ -64,6 +67,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(102)
     def pack_object_binary(
         self,
         object: Object,
@@ -74,6 +78,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(103)
     def unpack_object_binary(
         self,
         kind: ObjectKind | None,
@@ -89,6 +94,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(110)
     def pack_type(
         self,
         type: "Type",
@@ -98,6 +104,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(111)
     def unpack_type(
         self,
         value: T,
@@ -107,6 +114,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(112)
     def pack_type_binary(
         self,
         type: "Type",
@@ -117,6 +125,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(113)
     def unpack_type_binary(
         self,
         reader: "BinaryReader",
@@ -126,6 +135,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(120)
     def pack_value(
         self,
         type: "Type",
@@ -136,6 +146,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(121)
     def unpack_value(
         self,
         type: "Type",
@@ -147,6 +158,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(122)
     def pack_value_binary(
         self,
         type: "Type",
@@ -158,6 +170,7 @@ class Encoder[T: Any = Any](Handle):
         raise NotImplementedError
 
     @abstractmethod
+    @declare_method(123)
     def unpack_value_binary(
         self,
         type: "Type",

@@ -19,8 +19,6 @@ from destack.core import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.SANCTION_EVENT, is_abstract=True)
 class SanctionEvent(Event):

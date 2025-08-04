@@ -15,8 +15,6 @@ from destack.core import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.LOG_LEVEL)
 class LogLevel(OptionEnum):

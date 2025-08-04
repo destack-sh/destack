@@ -34,7 +34,7 @@
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/main.py",
+      "program": "${workspaceFolder}/destack/main.py",
       "args": ["generate"],
       "justMyCode": true
     },

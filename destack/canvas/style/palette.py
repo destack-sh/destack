@@ -10,8 +10,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Icon
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(NodeType.PALETTE)
 class Palette(

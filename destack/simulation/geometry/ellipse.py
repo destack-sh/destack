@@ -14,8 +14,6 @@ from .shape import Form2D, Shape2D
 if TYPE_CHECKING:
     from destack import Vector2
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_struct(StructType.ELLIPSE2D, frozen=True)
 class Ellipse2D(Form2D):

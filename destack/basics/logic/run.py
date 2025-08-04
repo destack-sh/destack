@@ -19,9 +19,6 @@ if TYPE_CHECKING:
     from destack import Action, NodeReference
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 @declare_enum(EnumType.RUN_STATUS)
 class RunStatus(OptionEnum):
     # pre

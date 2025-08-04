@@ -13,8 +13,6 @@ from .shape import Form2D, Shape2D
 if TYPE_CHECKING:
     from destack import Vector2
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_struct(
     StructType.LINE2D,

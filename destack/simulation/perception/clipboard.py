@@ -5,8 +5,6 @@ from destack.core import (
 
 from .input import InputEvent
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.CLIPBOARD_EVENT, is_abstract=True)
 class ClipboardEvent(InputEvent):

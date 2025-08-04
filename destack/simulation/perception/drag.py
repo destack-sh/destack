@@ -11,8 +11,6 @@ from .input import InputEvent
 if TYPE_CHECKING:
     from destack import Vector2
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.DRAG_EVENT, is_abstract=True)
 class DragEvent(InputEvent):

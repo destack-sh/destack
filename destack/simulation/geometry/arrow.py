@@ -17,8 +17,6 @@ from .shape import Form2D, Shape2D
 if TYPE_CHECKING:
     from destack import Vector2
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.ARROW_HEAD_TYPE)
 class ArrowHeadType(OptionEnum):

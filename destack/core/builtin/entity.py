@@ -45,7 +45,6 @@ if TYPE_CHECKING:
         Value,
     )
 
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 object_set_ = object.__setattr__

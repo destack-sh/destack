@@ -18,8 +18,6 @@ from destack.registry import ENUM_CLASS_BY_TYPE
 if TYPE_CHECKING:
     pass
 
-# ruff: noqa: SIM114
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 

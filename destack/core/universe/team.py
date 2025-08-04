@@ -12,8 +12,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack.core import Organization
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.TEAM,

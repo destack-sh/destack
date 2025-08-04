@@ -27,9 +27,6 @@ if TYPE_CHECKING:
 FILE_HASH_LENGTH = 64  # 256 bits
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 @declare_enum(EnumType.FILE_TYPE)
 class FileType(OptionEnum):
     TEXT = declare_option(1, "Text", description="A text file")

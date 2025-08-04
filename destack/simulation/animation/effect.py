@@ -21,9 +21,6 @@ if TYPE_CHECKING:
     from destack import Axis3, Vector2
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 @declare_enum(EnumType.EFFECT_TYPE)
 class EffectType(OptionEnum):
     """When the effect fires."""

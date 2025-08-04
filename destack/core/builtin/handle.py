@@ -17,7 +17,6 @@ from .property import _PROPERTY_SPECIFIERS
 if TYPE_CHECKING:
     from destack import HandleDefinition
 
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 

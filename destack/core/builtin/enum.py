@@ -13,7 +13,6 @@ from .const import UNSET
 if TYPE_CHECKING:
     from destack import EnumType
 
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 
@@ -92,16 +91,17 @@ def declare_enum(enum_type: "EnumType"):
     """Register a builtin Enum."""
 
     def decorate[T: type_["OptionEnum | FlagEnum"]](cls: T) -> T:
-        cls, _ = _process_enum_cls(cls, enum_type)  # type: ignore
-        cls.metatype = enum_type
+        processed_cls, declaration = _process_enum_cls(cast(type_["Enum"], cls), enum_type)
+        cls = cast(T, processed_cls)
+        cls.metatype = enum_type  # type: ignore
 
         # register
         if (existing_enum_type := ENUM_CLASS_BY_TYPE.get(enum_type)) is not None:
             raise ValueError(
                 f"enum {enum_type} duplicate: {existing_enum_type} ({cls.__module__}.{cls.__name__} != {existing_enum_type.__module__}.{existing_enum_type.__name__})"
             )
-        ENUM_CLASS_BY_TYPE[enum_type] = cls
-        ENUM_TYPE_BY_CLASS[cls] = enum_type
+        ENUM_CLASS_BY_TYPE[enum_type] = cls  # type: ignore
+        ENUM_TYPE_BY_CLASS[cls] = enum_type  # type: ignore
 
         # validate
         if IS_DEV or IS_TEST:
@@ -114,7 +114,7 @@ def declare_enum(enum_type: "EnumType"):
             options_by_id: dict[int, OptionDeclaration] = {}
             if issubclass(cls, OptionEnum):
                 # options must be unique and in range (0 is forbidden)
-                for option in cls.__declaration__.options:
+                for option in declaration.options:
                     assert 0 < option.id < 2**32, (
                         f"option {option.name}: {option.id} is out of range for {cls.__name__}"
                     )
@@ -124,7 +124,7 @@ def declare_enum(enum_type: "EnumType"):
                     options_by_id[option.id] = option
             elif issubclass(cls, FlagEnum):
                 # flags must be unique and powers of 2 (0 is allowed)
-                for option in cls.__declaration__.options:
+                for option in declaration.options:
                     assert 0 <= option.id < 2**32, (
                         f"option {option.name}: {option.id} is out of range for {cls.__name__}"
                     )
@@ -152,5 +152,5 @@ class OptionEnum(Enum):
     pass
 
 
-class FlagEnum(Enum):
+class FlagEnum(enum.IntFlag if TYPE_CHECKING else Enum):
     pass

@@ -6,9 +6,6 @@ if TYPE_CHECKING:
     from .encoder import JsonEncoder
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 type_ = type
 
 

@@ -24,8 +24,6 @@ from .graph import Graph
 if TYPE_CHECKING:
     from destack import Connection, Context
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_handle(HandleType.SESSION)
 class Session(Handle):

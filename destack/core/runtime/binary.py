@@ -31,8 +31,6 @@ from ..utils.uuid import UUID
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 class BinaryError(ValueError):
     """Base class for binary encoding/decoding errors."""
