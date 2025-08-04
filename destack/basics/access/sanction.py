@@ -4,14 +4,15 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     UNSET,
     Entity,
-    EnumDeclaration,
     EnumType,
     Event,
     NodeReference,
     NodeType,
+    OptionEnum,
     declare_entity,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
 )
 
@@ -48,11 +49,11 @@ class SanctionExpiredEvent(SanctionEvent):
 
 
 @declare_enum(EnumType.SANCTION_TYPE)
-class SanctionType(EnumDeclaration):
+class SanctionType(OptionEnum):
     """A Type of Sanction."""
 
-    BAN = 1
-    MUTE = 2
+    BAN = declare_option(1, "Ban", description="A Ban")
+    MUTE = declare_option(2, "Mute", description="A Mute")
 
 
 @declare_entity(

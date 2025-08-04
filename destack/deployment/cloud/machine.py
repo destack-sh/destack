@@ -3,14 +3,15 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     VERSION,
     Entity,
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     TraitType,
     UInt32,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
 )
 
@@ -21,12 +22,12 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.MACHINE_TYPE)
-class MachineType(EnumDeclaration):
-    RUNTIME = 10, "Runtime", "The main Destack runtime"
-    UBUNTU = 1000, "Ubuntu", "A Linux machine running Ubuntu"
-    MAC = 1100, "Mac", "A Mac machine"
-    WINDOWS = 1200, "Windows", "A Windows machine"
-    CUSTOM = 9000, "Custom", "A custom Docker image"
+class MachineType(OptionEnum):
+    RUNTIME = declare_option(10, "Runtime", description="The main Destack runtime")
+    UBUNTU = declare_option(1000, "Ubuntu", description="A Linux machine running Ubuntu")
+    MAC = declare_option(1100, "Mac", description="A Mac machine")
+    WINDOWS = declare_option(1200, "Windows", description="A Windows machine")
+    CUSTOM = declare_option(9000, "Custom", description="A custom Docker image")
 
 
 @declare_entity(NodeType.MACHINE, traits=(TraitType.RESOURCE,))

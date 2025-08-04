@@ -11,12 +11,13 @@ from ..builtin import (
     ACTIVE_BRANCH,
     ACTIVE_SNAPSHOT,
     Entity,
-    EnumDeclaration,
     EnumType,
     NodeType,
+    OptionEnum,
     TraitType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_property_parent,
 )
@@ -28,12 +29,12 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.BRANCH_TYPE)
-class BranchType(EnumDeclaration):
+class BranchType(OptionEnum):
     """The type of a Branch."""
 
-    PARTIAL = 2
-    FULL = 10
-    ROOT = 11
+    PARTIAL = declare_option(2)
+    FULL = declare_option(10)
+    ROOT = declare_option(11)
 
 
 @declare_entity(
@@ -64,20 +65,20 @@ class Branch(Entity):
 
 
 @declare_enum(EnumType.SNAPSHOT_TYPE)
-class SnapshotType(EnumDeclaration):
+class SnapshotType(OptionEnum):
     """The type of a Snapshot."""
 
-    FULL = 10
-    ROOT = 11
+    FULL = declare_option(10)
+    ROOT = declare_option(11)
 
 
 @declare_enum(EnumType.SNAPSHOT_STATUS)
-class SnapshotStatus(EnumDeclaration):
+class SnapshotStatus(OptionEnum):
     """The status of a Snapshot."""
 
-    CREATING = 1, "Creating", "Under construction"
-    ACTIVE = 10, "Active", "Live and editable"
-    PASSIVE = 50, "Passive", "Inactive and read-only"
+    CREATING = declare_option(1, description="Under construction")
+    ACTIVE = declare_option(10, description="Live and editable")
+    PASSIVE = declare_option(50, description="Inactive and read-only")
 
 
 @declare_entity(

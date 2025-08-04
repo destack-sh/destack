@@ -5,7 +5,7 @@ from destack.registry import ENUM_TYPE_BY_CLASS
 from ..builtin import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_ANNOTATION,
-    EnumDeclaration,
+    Enum,
     EnumType,
     Float32,
     HandleType,
@@ -157,7 +157,7 @@ class Type(StructFrozen):
                 scalar_type=ScalarType.HANDLE,
                 handle_type=value_or_type.metatype,
             )
-        elif isinstance(value_or_type, EnumDeclaration):
+        elif isinstance(value_or_type, Enum):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.ENUM,

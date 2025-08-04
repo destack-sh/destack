@@ -9,6 +9,7 @@ from ..builtin import (
     CascadeAction,
     ConstraintDeclaration,
     EdgeType,
+    Enum,
     EnumDeclaration,
     EnumType,
     HandleDeclaration,
@@ -693,18 +694,18 @@ class EnumDefinition(StructFrozen):
 
     @classmethod
     def from_declaration(
-        cls, enum_type: EnumType, enum_cls: type_[EnumDeclaration]
+        cls, enum_cls: type_[Enum], declaration: EnumDeclaration
     ) -> "EnumDefinition":
         """Create EnumDefinition from an Enum class."""
 
         return cls(
-            id=enum_type.value,
-            type=enum_type,
-            name=enum_type.camel_name,
-            description=enum_type.__doc__,
-            is_flag=enum_type.is_flag,
+            id=declaration.id,
+            type=declaration.type,
+            name=declaration.name,
+            description=declaration.description,
+            is_flag=declaration.is_flag,
             options=[
-                OptionDefinition.from_declaration(enum_type, option)
+                OptionDefinition.from_declaration(declaration.type, option)
                 for option in enum_cls.__members__.values()
             ],
         )
@@ -961,7 +962,7 @@ class OptionDefinition(StructFrozen):
     taggings: list[UInt8] = declare_property(109)
 
     @classmethod
-    def from_declaration(cls, enum_type: EnumType, option: EnumDeclaration) -> "OptionDefinition":
+    def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
         """Create OptionDefinition from an Enum option."""
         return cls(
             id=option.value,

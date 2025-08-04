@@ -4,12 +4,13 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Optional, assert_never
 
 from ..builtin import (
-    EnumDeclaration,
     EnumType,
     Node,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -19,13 +20,13 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.TEXT_SPAN_TYPE)
-class TextSpanType(EnumDeclaration):
-    TEXT = 1, "Formatted text"
-    HARD_BREAK = 2, "Hard break"
-    MENTION = 10, "Reference to a Node"
-    LINK = 11, "Hyperlink"
-    CITATION = 12, "Citation"
-    EQUATION = 20, "TeX equation"
+class TextSpanType(OptionEnum):
+    TEXT = declare_option(1, description="Formatted text")
+    HARD_BREAK = declare_option(2, description="Hard break")
+    MENTION = declare_option(10, description="Reference to a Node")
+    LINK = declare_option(11, description="Hyperlink")
+    CITATION = declare_option(12, description="Citation")
+    EQUATION = declare_option(20, description="TeX equation")
 
 
 @declare_struct(StructType.TEXT_SPAN, frozen=True)

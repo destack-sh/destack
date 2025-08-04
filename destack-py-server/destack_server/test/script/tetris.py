@@ -40,7 +40,7 @@ class TetrisBoard(Entity):
 
 
 @enum
-class TetrisShape(EnumDeclaration):
+class TetrisShape(Enum):
     I = 1
     J = 2
     L = 3

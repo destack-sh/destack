@@ -2,14 +2,15 @@ from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
-    EnumDeclaration,
     EnumType,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     UInt32,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -21,10 +22,10 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.MIGRATION_TYPE)
-class MigrationType(EnumDeclaration):
+class MigrationType(OptionEnum):
     """Type of a builtin Migration."""
 
-    CREATE = 1
+    CREATE = declare_option(1, "Create", description="A Create Migration")
     # UPDATE, DELETE, ...
 
 

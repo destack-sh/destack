@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -23,19 +24,19 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.SHADOW_TYPE)
-class ShadowType(EnumDeclaration):
+class ShadowType(OptionEnum):
     """Built-in shadow types."""
 
-    BOX = 10
-    REALISTIC = 11
+    BOX = declare_option(10, "Box", description="A box shadow")
+    REALISTIC = declare_option(11, "Realistic", description="A realistic shadow")
 
 
 @declare_enum(EnumType.SHADOW_POSITION)
-class ShadowPosition(EnumDeclaration):
+class ShadowPosition(OptionEnum):
     """Built-in shadow positions."""
 
-    OUTSIDE = 1
-    INSIDE = 2
+    OUTSIDE = declare_option(1, "Outside", description="An outside shadow")
+    INSIDE = declare_option(2, "Inside", description="An inside shadow")
 
 
 @declare_struct(

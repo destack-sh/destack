@@ -91,7 +91,15 @@ from .entity import (
     Materialization,
     declare_entity,
 )
-from .enum import EnumDeclaration, declare_enum
+from .enum import (
+    Enum,
+    EnumDeclaration,
+    FlagEnum,
+    OptionDeclaration,
+    OptionEnum,
+    declare_enum,
+    declare_option,
+)
 from .event import Event, EventStatus, declare_event
 from .handle import Handle, declare_handle
 from .message import Message, declare_message
@@ -170,11 +178,13 @@ __all__ = [
     "Encoding",
     "Entity",
     "EntityPartial",
+    "Enum",
     "EnumDeclaration",
     "EnumType",
     "EnvironmentType",
     "Event",
     "EventStatus",
+    "FlagEnum",
     "Float16",
     "Float32",
     "Float64",
@@ -201,6 +211,8 @@ __all__ = [
     "ObjectDeclaration",
     "ObjectKind",
     "ObjectStability",
+    "OptionDeclaration",
+    "OptionEnum",
     "PermissionDeclaration",
     "PrimitiveType",
     "PropertyDeclaration",
@@ -244,6 +256,7 @@ __all__ = [
     "declare_handle",
     "declare_message",
     "declare_method",
+    "declare_option",
     "declare_property",
     "declare_property_parent",
     "declare_property_runtime",

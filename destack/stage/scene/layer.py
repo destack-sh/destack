@@ -2,14 +2,11 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
     Entity,
-    EnumDeclaration,
-    EnumType,
     Float32,
     Icon,
     NodeType,
     TraitType,
     declare_entity,
-    declare_enum,
     declare_property,
 )
 
@@ -17,15 +14,6 @@ if TYPE_CHECKING:
     pass
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@declare_enum(EnumType.LAYER_TYPE)
-class LayerType(EnumDeclaration):
-    """Built-in layer types."""
-
-    GENERAL = 1
-    SHAPE = 2
-    # RASTER, ...
 
 
 @declare_entity(
@@ -37,7 +25,6 @@ class LayerType(EnumDeclaration):
 class Layer(Entity):
     """A Layer is a container for Views."""
 
-    type: LayerType = declare_property(100, default=LayerType.GENERAL)
     icon: "Icon | None" = declare_property(102)
 
     # style

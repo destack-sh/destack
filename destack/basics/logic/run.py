@@ -3,13 +3,14 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.core import (
     Entity,
-    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
+    OptionEnum,
     declare_entity,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
     declare_property_parent,
 )
@@ -22,19 +23,19 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.RUN_STATUS)
-class RunStatus(EnumDeclaration):
+class RunStatus(OptionEnum):
     # pre
-    SCHEDULED = 2, "Scheduled", "Scheduled for sometime", "fas fa-clock"
+    SCHEDULED = declare_option(2, "Scheduled", description="Scheduled for sometime")
     # active
-    RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch"
+    RUNNING = declare_option(10, "Running", description="Actively running")
     # interrupted
-    PAUSED = 21, "Paused", "Paused manually", "fas fa-circle-pause"
-    YIELDED = 23, "Yielded", "Yielded to someone", "fas fa-circle-pause"
+    PAUSED = declare_option(21, "Paused", description="Paused manually")
+    YIELDED = declare_option(23, "Yielded", description="Yielded to someone")
     # terminal
-    CANCELLED = 51, "Cancelled", "Cancelled before running", "fas fa-circle-xmark"
-    ABORTED = 52, "Aborted", "Aborted while running", "fas fa-circle-xmark"
-    FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark"
-    COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"
+    CANCELLED = declare_option(51, "Cancelled", description="Cancelled before running")
+    ABORTED = declare_option(52, "Aborted", description="Aborted while running")
+    FAILED = declare_option(53, "Failed", description="Failed due to an error")
+    COMPLETED = declare_option(54, "Completed", description="Completed successfully")
 
     @property
     def is_pre(self) -> bool:

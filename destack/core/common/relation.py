@@ -10,18 +10,19 @@ from typing import (
 from destack.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ..builtin import (
-    EnumDeclaration,
     EnumType,
     HandleType,
     NodeType,
     Object,
     ObjectKind,
+    OptionEnum,
     PropertyDeclaration,
     Struct,
     StructFrozen,
     StructType,
     UInt8,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -130,11 +131,11 @@ class ObjectDefinitionReference(StructFrozen):
 
 
 @declare_enum(EnumType.PROPERTY_REFERENCE_TYPE)
-class PropertyReferenceType(EnumDeclaration):
+class PropertyReferenceType(OptionEnum):
     """The type of a property reference."""
 
-    BUILTIN = 1
-    CUSTOM = 2
+    BUILTIN = declare_option(1)
+    CUSTOM = declare_option(2)
 
 
 @declare_struct(

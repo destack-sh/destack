@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Float32,
+    OptionEnum,
     StructFrozen,
     StructType,
     UInt16,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -19,71 +20,71 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.LAYOUT)
-class Layout(EnumDeclaration):
+class Layout(OptionEnum):
     """The layout of elements."""
 
-    STACK = 1, "Stack", "Stack"
-    GRID = 2, "Grid", "Grid"
+    STACK = declare_option(1, description="Stack")
+    GRID = declare_option(2, description="Grid")
 
 
 @declare_enum(EnumType.OVERFLOW)
-class Overflow(EnumDeclaration):
+class Overflow(OptionEnum):
     """The overflow behavior of elements."""
 
-    HIDDEN = 2, "Hidden", "Hidden"
-    VISIBLE = 3, "Visible", "Visible"
-    SCROLL = 4, "Scroll", "Scroll"
+    HIDDEN = declare_option(2, description="Hidden")
+    VISIBLE = declare_option(3, description="Visible")
+    SCROLL = declare_option(4, description="Scroll")
 
 
 @declare_enum(EnumType.DIRECTION)
-class Direction(EnumDeclaration):
+class Direction(OptionEnum):
     """The direction of elements."""
 
-    HORIZONTAL = 1, "Horizontal", "Horizontal"
-    VERTICAL = 2, "Vertical", "Vertical"
+    HORIZONTAL = declare_option(1, description="Horizontal")
+    VERTICAL = declare_option(2, description="Vertical")
 
 
 @declare_enum(EnumType.DISTRIBUTE)
-class Distribute(EnumDeclaration):
+class Distribute(OptionEnum):
     """The distribution of elements."""
 
-    START = 1, "Start", "Start"
-    CENTER = 2, "Center", "Center"
-    END = 3, "End", "End"
-    SPACE_BETWEEN = 4, "Viewport Between", "Viewport Between"
-    SPACE_AROUND = 5, "Viewport Around", "Viewport Around"
-    SPACE_EVENLY = 6, "Viewport Evenly", "Viewport Evenly"
+    START = declare_option(1, description="Start")
+    CENTER = declare_option(2, description="Center")
+    END = declare_option(3, description="End")
+    SPACE_BETWEEN = declare_option(4, description="Viewport Between")
+    SPACE_AROUND = declare_option(5, description="Viewport Around")
+    SPACE_EVENLY = declare_option(6, description="Viewport Evenly")
 
 
 @declare_enum(EnumType.ALIGN)
-class Align(EnumDeclaration):
+class Align(OptionEnum):
     """The alignment of elements."""
 
-    START = 1, "Start", "Start"
-    CENTER = 2, "Center", "Center"
-    END = 3, "End", "End"
+    START = declare_option(1, description="Start")
+    CENTER = declare_option(2, description="Center")
+    END = declare_option(3, description="End")
 
 
 @declare_enum(EnumType.ANCHOR)
-class Anchor(EnumDeclaration):
+class Anchor(OptionEnum):
     """The position of elements."""
 
-    RELATIVE = 1, "Relative", "Relative to parent"
-    ABSOLUTE = 2, "Absolute", "Absolute in parent"
-    FIXED = 3, "Fixed", "Fixed to root"
-    STICKY = 4, "Sticky", "Sticky to parent"
+    RELATIVE = declare_option(1, description="Relative to parent")
+    ABSOLUTE = declare_option(2, description="Absolute in parent")
+    FIXED = declare_option(3, description="Fixed to root")
+    STICKY = declare_option(4, description="Sticky to parent")
 
 
 @declare_enum(EnumType.LENGTH_TYPE)
-class LengthType(EnumDeclaration):
+class LengthType(OptionEnum):
     """The unit of a length value."""
 
-    PIXEL = 1, "Pixel", "px"
-    REM = 2, "Rem", "rem"
-    PERCENT = 3, "Percent", "%"
-    FR = 4, "Fr", "fr"
-    FIT = 10, "Fit", "fit"
-    FILL = 11, "Fill", "fill"
+    PIXEL = declare_option(1, description="Pixel")
+    REM = declare_option(2, description="Rem")
+    PERCENT = declare_option(3, description="Percent")
+    FR = declare_option(4, description="Fr")
+    FIT = declare_option(10, description="Fit")
+    FILL = declare_option(11, description="Fill")
 
 
 @declare_struct(

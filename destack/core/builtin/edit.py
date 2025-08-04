@@ -4,7 +4,7 @@ from .builtin import EnumType, NodeType
 from .common import UInt8
 from .const import UNSET
 from .entity import Entity
-from .enum import EnumDeclaration, declare_enum
+from .enum import OptionEnum, declare_enum, declare_option
 from .event import Event, declare_event
 from .property import declare_property
 
@@ -13,24 +13,26 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.EDIT_TYPE)
-class EditType(EnumDeclaration):
+class EditType(OptionEnum):
     """The type of Edit."""
 
-    CREATE = 1, "Create a new Entity"
-    UPSERT = 2, "Upsert an Entity (create if not exists, update if exists)"
+    CREATE = declare_option(1, description="Create a new Entity")
+    UPSERT = declare_option(
+        2, description="Upsert an Entity (create if not exists, update if exists)"
+    )
     # INSTANTIATE, MATERIALIZE, ...?
-    UPDATE = 10, "Update an existing Entity"
-    MOVE = 11, "Move an Entity to a new parent Entity (or detach)"
-    DELETE = 20, "Delete an Entity (and its descendants)"
-    RESTORE = 21, "Restore a deleted Entity (and its descendants)"
+    UPDATE = declare_option(10, description="Update an existing Entity")
+    MOVE = declare_option(11, description="Move an Entity to a new parent Entity (or detach)")
+    DELETE = declare_option(20, description="Delete an Entity (and its descendants)")
+    RESTORE = declare_option(21, description="Restore a deleted Entity (and its descendants)")
 
 
 @declare_enum(EnumType.EDIT_OPERATION)
-class EditOperation(EnumDeclaration):
+class EditOperation(OptionEnum):
     """The update operation to perform on a Node."""
 
     # direct
-    SET = 1, "Set a Property to a value (may be an empty value)"
+    SET = declare_option(1, description="Set a Property to a value (may be an empty value)")
     # UNSET = 3, "Unset a Property (remove it from the override)"
 
     # sequence

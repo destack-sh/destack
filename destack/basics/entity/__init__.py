@@ -7,11 +7,7 @@ from .custom import (
     CustomPropertyDefinition,
     CustomStructDefinition,
 )
-from .file import (
-    File,
-    FileRetentionMode,
-    FileType,
-)
+from .file import File, FileType
 from .index import Index
 from .migration import (
     Migration,
@@ -31,7 +27,6 @@ __all__ = [
     "CustomPropertyDefinition",
     "CustomStructDefinition",
     "File",
-    "FileRetentionMode",
     "FileType",
     "Index",
     "Migration",

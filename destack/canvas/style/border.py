@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -23,14 +24,14 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.BORDER_TYPE)
-class BorderType(EnumDeclaration):
+class BorderType(OptionEnum):
     """Built-in border types."""
 
-    STYLE = 2
-    SOLID = 10
-    DASHED = 11
-    DOTTED = 12
-    DOUBLE = 13
+    STYLE = declare_option(2, "Style", description="A border style")
+    SOLID = declare_option(10, "Solid", description="A solid border")
+    DASHED = declare_option(11, "Dashed", description="A dashed border")
+    DOTTED = declare_option(12, "Dotted", description="A dotted border")
+    DOUBLE = declare_option(13, "Double", description="A double border")
 
 
 @declare_struct(

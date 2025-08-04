@@ -3,14 +3,15 @@ from typing import TYPE_CHECKING, Optional, Union
 from destack.core import (
     UUID,
     Entity,
-    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
+    OptionEnum,
     Value,
     declare_entity,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
 )
 
@@ -28,8 +29,8 @@ class TriggerEvent(Event):
 
 
 @declare_enum(EnumType.TRIGGER_TYPE)
-class TriggerType(EnumDeclaration):
-    EVENT = 1
+class TriggerType(OptionEnum):
+    EVENT = declare_option(1, "Event", description="A Trigger that runs on an Event")
 
 
 @declare_entity(NodeType.TRIGGER)

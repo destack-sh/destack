@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, final
 
 from ..builtin import (
-    EnumDeclaration,
     EnumType,
     Node,
+    OptionEnum,
     PropertyDeclaration,
     StructFrozen,
     StructType,
@@ -11,6 +11,7 @@ from ..builtin import (
     UInt32,
     ValueFactory,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -36,28 +37,28 @@ type_ = type
 
 
 @declare_enum(EnumType.CONDITIONAL_TYPE)
-class ConditionalType(EnumDeclaration):
+class ConditionalType(OptionEnum):
     # logical
-    NOT = 1
-    AND = 2
-    OR = 3
+    NOT = declare_option(1)
+    AND = declare_option(2)
+    OR = declare_option(3)
     # comparison
-    EQUALS = 10
-    NOT_EQUALS = 11
-    GREATER_THAN = 12
-    GREATER_THAN_OR_EQUALS = 13
-    LESS_THAN = 14
-    LESS_THAN_OR_EQUALS = 15
+    EQUALS = declare_option(10)
+    NOT_EQUALS = declare_option(11)
+    GREATER_THAN = declare_option(12)
+    GREATER_THAN_OR_EQUALS = declare_option(13)
+    LESS_THAN = declare_option(14)
+    LESS_THAN_OR_EQUALS = declare_option(15)
     # string
-    MATCHES = 20
-    STARTS_WITH = 21
-    ENDS_WITH = 22
+    MATCHES = declare_option(20)
+    STARTS_WITH = declare_option(21)
+    ENDS_WITH = declare_option(22)
     # collections
-    IN = 30
-    NOT_IN = 31
+    IN = declare_option(30)
+    NOT_IN = declare_option(31)
     # existence
-    EXISTS = 40
-    NOT_EXISTS = 41
+    EXISTS = declare_option(40)
+    NOT_EXISTS = declare_option(41)
 
 
 @declare_struct(
@@ -115,13 +116,13 @@ class Condition(StructFrozen):
 
 
 @declare_enum(EnumType.AGGREGATION_TYPE)
-class AggregationType(EnumDeclaration):
-    EXISTS = 1
-    COUNT = 2
-    SUM = 3
-    MIN = 4
-    MAX = 5
-    AVERAGE = 6
+class AggregationType(OptionEnum):
+    EXISTS = declare_option(1)
+    COUNT = declare_option(2)
+    SUM = declare_option(3)
+    MIN = declare_option(4)
+    MAX = declare_option(5)
+    AVERAGE = declare_option(6)
 
 
 @declare_struct(StructType.AGGREGATION, frozen=True)
@@ -147,12 +148,12 @@ class Aggregation(StructFrozen):
 
 
 @declare_enum(EnumType.EXPRESSION_TYPE)
-class ExpressionType(EnumDeclaration):
-    LITERAL = 1
-    ATTRIBUTE = 2
-    CONDITION = 3
-    FUNCTION = 4
-    AGGREGATION = 5
+class ExpressionType(OptionEnum):
+    LITERAL = declare_option(1)
+    ATTRIBUTE = declare_option(2)
+    CONDITION = declare_option(3)
+    FUNCTION = declare_option(4)
+    AGGREGATION = declare_option(5)
     # SUBQUERY?
 
 
@@ -212,18 +213,18 @@ ExpressionIn = Union[
 
 
 @declare_enum(EnumType.SORT_TYPE)
-class SortType(EnumDeclaration):
-    ASCENDING = 1
-    DESCENDING = 2
+class SortType(OptionEnum):
+    ASCENDING = declare_option(1)
+    DESCENDING = declare_option(2)
 
 
 @declare_enum(EnumType.SORT_MODE)
-class SortMode(EnumDeclaration):
-    MAX = 1
-    MIN = 2
-    AVERAGE = 3
-    SUM = 4
-    MEDIAN = 5
+class SortMode(OptionEnum):
+    MAX = declare_option(1)
+    MIN = declare_option(2)
+    AVERAGE = declare_option(3)
+    SUM = declare_option(4)
+    MEDIAN = declare_option(5)
 
 
 SortIn = Union[
@@ -287,11 +288,11 @@ class Select(StructFrozen):
 
 
 @declare_enum(EnumType.JOIN_TYPE)
-class JoinType(EnumDeclaration):
-    LEFT = 1
+class JoinType(OptionEnum):
+    LEFT = declare_option(1)
     # RIGHT, INNER, OUTER, CROSS?
-    PARENT = 10
-    CHILD = 11
+    PARENT = declare_option(10)
+    CHILD = declare_option(11)
 
 
 @declare_struct(
@@ -330,11 +331,11 @@ JoinIn = Union[Join, "JoinType"]
 
 
 @declare_enum(EnumType.QUERY_TYPE)
-class QueryType(EnumDeclaration):
-    NODE = 1, "Node", "Flat list of Nodes"
-    SCALAR = 5, "Scalar", "Single scalar Value"
-    GROUPED_NODE = 10, "Grouped Node", "Grouped list of Nodes"
-    GROUPED_SCALAR = 15, "Grouped Scalar", "Grouped list of scalar Values"
+class QueryType(OptionEnum):
+    NODE = declare_option(1, description="Flat list of Nodes")
+    SCALAR = declare_option(5, description="Single scalar Value")
+    GROUPED_NODE = declare_option(10, description="Grouped list of Nodes")
+    GROUPED_SCALAR = declare_option(15, description="Grouped list of scalar Values")
 
 
 @declare_struct(

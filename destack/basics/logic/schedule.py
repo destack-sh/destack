@@ -2,14 +2,15 @@ from datetime import datetime
 from typing import TYPE_CHECKING, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
+    OptionEnum,
     Struct,
     StructType,
     UInt8,
     UInt16,
     UInt32,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -21,40 +22,40 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.DAY_OF_WEEK)
-class DayOfWeek(EnumDeclaration):
-    MONDAY = 1
-    TUESDAY = 2
-    WEDNESDAY = 3
-    THURSDAY = 4
-    FRIDAY = 5
-    SATURDAY = 6
-    SUNDAY = 7
+class DayOfWeek(OptionEnum):
+    MONDAY = declare_option(1, "Monday", description="Monday")
+    TUESDAY = declare_option(2, "Tuesday", description="Tuesday")
+    WEDNESDAY = declare_option(3, "Wednesday", description="Wednesday")
+    THURSDAY = declare_option(4, "Thursday", description="Thursday")
+    FRIDAY = declare_option(5, "Friday", description="Friday")
+    SATURDAY = declare_option(6, "Saturday", description="Saturday")
+    SUNDAY = declare_option(7, "Sunday", description="Sunday")
 
 
 @declare_enum(EnumType.MONTH)
-class Month(EnumDeclaration):
-    JANUARY = 1
-    FEBRUARY = 2
-    MARCH = 3
-    APRIL = 4
-    MAY = 5
-    JUNE = 6
-    JULY = 7
-    AUGUST = 8
-    SEPTEMBER = 9
-    OCTOBER = 10
-    NOVEMBER = 11
-    DECEMBER = 12
+class Month(OptionEnum):
+    JANUARY = declare_option(1, "January", description="January")
+    FEBRUARY = declare_option(2, "February", description="February")
+    MARCH = declare_option(3, "March", description="March")
+    APRIL = declare_option(4, "April", description="April")
+    MAY = declare_option(5, "May", description="May")
+    JUNE = declare_option(6, "June", description="June")
+    JULY = declare_option(7, "July", description="July")
+    AUGUST = declare_option(8, "August", description="August")
+    SEPTEMBER = declare_option(9, "September", description="September")
+    OCTOBER = declare_option(10, "October", description="October")
+    NOVEMBER = declare_option(11, "November", description="November")
+    DECEMBER = declare_option(12, "December", description="December")
 
 
 @declare_enum(EnumType.SCHEDULE_FREQUENCY)
-class ScheduleFrequency(EnumDeclaration):
-    YEAR = 1
-    MONTH = 2
-    WEEK = 3
-    DAY = 4
-    HOUR = 5
-    MINUTE = 6
+class ScheduleFrequency(OptionEnum):
+    YEAR = declare_option(1, "Year", description="Yearly")
+    MONTH = declare_option(2, "Month", description="Monthly")
+    WEEK = declare_option(3, "Week", description="Weekly")
+    DAY = declare_option(4, "Day", description="Daily")
+    HOUR = declare_option(5, "Hour", description="Hourly")
+    MINUTE = declare_option(6, "Minute", description="Minutely")
 
 
 @declare_struct(StructType.SCHEDULE, is_final=True)

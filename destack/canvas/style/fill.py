@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -23,31 +24,31 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.FILL_TYPE)
-class FillType(EnumDeclaration):
-    SOLID = 10
-    GRADIENT = 11
-    IMAGE = 12
+class FillType(OptionEnum):
+    SOLID = declare_option(10, "Solid", description="A solid fill")
+    GRADIENT = declare_option(11, "Gradient", description="A gradient fill")
+    IMAGE = declare_option(12, "Image", description="An image fill")
 
 
 @declare_enum(EnumType.FILL_POSITION)
-class FillPosition(EnumDeclaration):
-    TOP_LEFT = 1
-    TOP_CENTER = 2
-    TOP_RIGHT = 3
-    LEFT = 10
-    CENTER = 11
-    RIGHT = 12
-    BOTTOM_LEFT = 20
-    BOTTOM_CENTER = 21
-    BOTTOM_RIGHT = 22
+class FillPosition(OptionEnum):
+    TOP_LEFT = declare_option(1, "Top Left", description="A top left fill position")
+    TOP_CENTER = declare_option(2, "Top Center", description="A top center fill position")
+    TOP_RIGHT = declare_option(3, "Top Right", description="A top right fill position")
+    LEFT = declare_option(10, "Left", description="A left fill position")
+    CENTER = declare_option(11, "Center", description="A center fill position")
+    RIGHT = declare_option(12, "Right", description="A right fill position")
+    BOTTOM_LEFT = declare_option(20, "Bottom Left", description="A bottom left fill position")
+    BOTTOM_CENTER = declare_option(21, "Bottom Center", description="A bottom center fill position")
+    BOTTOM_RIGHT = declare_option(22, "Bottom Right", description="A bottom right fill position")
 
 
 @declare_enum(EnumType.FILL_SIZE)
-class FillSize(EnumDeclaration):
-    FILL = 1
-    STRETCH = 2
-    FIT = 3
-    TILE = 4
+class FillSize(OptionEnum):
+    FILL = declare_option(1, "Fill", description="A fill size")
+    STRETCH = declare_option(2, "Stretch", description="A stretch size")
+    FIT = declare_option(3, "Fit", description="A fit size")
+    TILE = declare_option(4, "Tile", description="A tile size")
 
 
 @declare_struct(

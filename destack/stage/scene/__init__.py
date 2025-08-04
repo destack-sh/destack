@@ -1,10 +1,9 @@
-from .layer import Layer, LayerType
+from .layer import Layer
 from .scene import Scene, SceneEvent
 from .stage import Stage
 
 __all__ = [
     "Layer",
-    "LayerType",
     "Scene",
     "SceneEvent",
     "Stage",

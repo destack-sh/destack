@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, TypeAliasType
 
 from ..utils.uuid import UUID
 from .builtin import EnumType
-from .enum import EnumDeclaration, declare_enum
+from .enum import OptionEnum, declare_enum, declare_option
 from .types import (
     Boolean,
     Bytes,
@@ -33,231 +33,245 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.PROPERTY_ZONE)
-class PropertyZone(EnumDeclaration):
-    MEMBER = 1, "Member", None
-    INPUT = 10, "Input", None
-    OUTPUT = 11, "Output", None
+class PropertyZone(OptionEnum):
+    MEMBER = declare_option(1)
+    INPUT = declare_option(10)
+    OUTPUT = declare_option(11)
 
 
 @declare_enum(EnumType.RUNTIME_LANGUAGE)
-class RuntimeLanguage(EnumDeclaration):
+class RuntimeLanguage(OptionEnum):
     """The language of the Runtime."""
 
-    PYTHON = 1
-    TYPESCRIPT = 2
-    RUST = 3
+    PYTHON = declare_option(1)
+    TYPESCRIPT = declare_option(2)
+    RUST = declare_option(3)
 
 
 @declare_enum(EnumType.RUNTIME_PLATFORM)
-class RuntimePlatform(EnumDeclaration):
+class RuntimePlatform(OptionEnum):
     """The platform of the Runtime."""
 
-    CORE = 100, "Core", "Core platform"
-    SYSTEM = 200, "System", "Destack system (internal)"
-    SERVER = 300, "Server", "Server environment"
-    WEB = 400, "Web", "Web browser"
-    MOBILE = 500, "Mobile", "Mobile device"
-    DESKTOP = 600, "Desktop", "Desktop computer"
+    CORE = declare_option(
+        100,
+        "Core",
+        description="Core platform",
+    )
+    SYSTEM = declare_option(
+        200,
+        "System",
+        description="Destack system (internal)",
+    )
+    SERVER = declare_option(
+        300,
+        "Server",
+        description="Server environment",
+    )
+    WEB = declare_option(
+        400,
+        "Web",
+        description="Web browser",
+    )
+    MOBILE = declare_option(
+        500,
+        "Mobile",
+        description="Mobile device",
+    )
+    DESKTOP = declare_option(
+        600,
+        "Desktop",
+        description="Desktop computer",
+    )
     # EMAIL, AR/VR/XR, ...
 
 
 @declare_enum(EnumType.RUNTIME_TYPE)
-class RuntimeType(EnumDeclaration):
+class RuntimeType(OptionEnum):
     """The specific Runtime (RuntimeLanguage x RuntimePlatform)."""
 
-    CORE_PYTHON = 101, "destack-py", "Destack Python SDK"
-    CORE_TYPESCRIPT = 102, "destack-ts", "Destack TypeScript SDK"
-    CORE_RUST = 103, "destack-rs", "Destack Rust SDK"
-    SYSTEM_TYPESCRIPT = 202, "destack-ts-system", "Destack TypeScript system Runtime (internal)"
-    SYSTEM_RUST = 203, "destack-rs-system", "Destack Rust system Runtime (internal)"
-    SERVER_PYTHON = 301, "destack-py-server", "Destack Python server Runtime"
-    SERVER_TYPESCRIPT = 302, "destack-ts-server", "Destack TypeScript server Runtime"
-    WEB_TYPESCRIPT = 402, "destack-ts-web", "Destack TypeScript web Runtime"
+    CORE_PYTHON = declare_option(101, "destack-py", description="Destack Python SDK")
+    CORE_TYPESCRIPT = declare_option(102, "destack-ts", description="Destack TypeScript SDK")
+    CORE_RUST = declare_option(103, "destack-rs", description="Destack Rust SDK")
+    SYSTEM_TYPESCRIPT = declare_option(
+        202, "destack-ts-system", description="Destack TypeScript system Runtime (internal)"
+    )
+    SYSTEM_RUST = declare_option(
+        203, "destack-rs-system", description="Destack Rust system Runtime (internal)"
+    )
+    SERVER_PYTHON = declare_option(
+        301, "destack-py-server", description="Destack Python server Runtime"
+    )
+    SERVER_TYPESCRIPT = declare_option(
+        302, "destack-ts-server", description="Destack TypeScript server Runtime"
+    )
+    WEB_TYPESCRIPT = declare_option(
+        402, "destack-ts-web", description="Destack TypeScript web Runtime"
+    )
 
 
 @declare_enum(EnumType.ENVIRONMENT_TYPE)
-class EnvironmentType(EnumDeclaration):
-    SYSTEM = 1, "System", "Managed by the system"
-    DEVELOPMENT = 3, "Development", "Active in development"
-    TEST = 5, "Test", "Active in test"
-    STAGING = 7, "Staging", "Active in staging"
-    PRODUCTION = 10, "Production", "Active in production"
+class EnvironmentType(OptionEnum):
+    SYSTEM = declare_option(1, "System", description="Managed by the system")
+    DEVELOPMENT = declare_option(3, "Development", description="Active in development")
+    TEST = declare_option(5, "Test", description="Active in test")
+    STAGING = declare_option(7, "Staging", description="Active in staging")
+    PRODUCTION = declare_option(10, "Production", description="Active in production")
 
 
 @declare_enum(EnumType.REGION_CONTINENT)
-class RegionContinent(EnumDeclaration):
+class RegionContinent(OptionEnum):
     """
     'Continents' of Regions.
     """
 
-    EUROPE = 1_000, "Europe", None
-    NORTH_AMERICA = 2_000, "North America", None
-    SOUTH_AMERICA = 3_000, "South America", None
-    MIDDLE_EAST = 4_000, "Middle East", None
-    AFRICA = 5_000, "Africa", None
-    ASIA = 6_000, "Asia", None
-    AUSTRALIA = 7_000, "Australia", None
+    EUROPE = declare_option(1_000, "Europe")
+    NORTH_AMERICA = declare_option(2_000, "North America")
+    SOUTH_AMERICA = declare_option(3_000, "South America")
+    MIDDLE_EAST = declare_option(4_000, "Middle East")
+    AFRICA = declare_option(5_000, "Africa")
+    ASIA = declare_option(6_000, "Asia")
+    AUSTRALIA = declare_option(7_000, "Australia")
 
 
 @declare_enum(EnumType.REGION_AREA)
-class RegionArea(EnumDeclaration):
+class RegionArea(OptionEnum):
     """
     A larger Area of Regions within a Continent.
     """
 
-    EUROPE_CENTRAL = 1_000, None, None
-    NORTH_AMERICA_EAST = 2_000, None, None
-    NORTH_AMERICA_WEST = 2_200, None, None
-    SOUTH_AMERICA_EAST = 3_000, None, None
-    MIDDLE_EAST_CENTRAL = 4_000, None, None
-    MIDDLE_EAST_WEST = 4_200, None, None
-    AFRICA_SOUTH = 5_000, None, None
-    ASIA_WEST = 6_000
-    ASIA_SOUTH = 6_200
-    ASIA_EAST = 6_400
-    AUSTRALIA_SOUTH = 7_000, None, None
-
-    @property
-    def continent(self) -> RegionContinent:
-        return RegionContinent((self.id // 1_000) * 1_000)
+    EUROPE_CENTRAL = declare_option(1_000)
+    NORTH_AMERICA_EAST = declare_option(2_000)
+    NORTH_AMERICA_WEST = declare_option(2_200)
+    SOUTH_AMERICA_EAST = declare_option(3_000)
+    MIDDLE_EAST_CENTRAL = declare_option(4_000)
+    MIDDLE_EAST_WEST = declare_option(4_200)
+    AFRICA_SOUTH = declare_option(5_000)
+    ASIA_WEST = declare_option(6_000)
+    ASIA_SOUTH = declare_option(6_200)
+    ASIA_EAST = declare_option(6_400)
+    AUSTRALIA_SOUTH = declare_option(7_000)
 
 
 @declare_enum(EnumType.REGION)
-class Region(EnumDeclaration):
+class Region(OptionEnum):
     """Regions in an Area on a Continent."""
 
     # eu-central
-    ZURICH = 1_000, None, None
-    FRANKFURT = 1_010, None, None
+    ZURICH = declare_option(1_000)
+    FRANKFURT = declare_option(1_010)
 
     # na-east
-    VIRGINIA = 2_000, None, None
-    OHIO = 2_010, None, None
+    VIRGINIA = declare_option(2_000)
+    OHIO = declare_option(2_010)
 
     # na-west
-    OREGON = 2_200, None, None
+    OREGON = declare_option(2_200)
 
     # sa-east
-    SAO_PAULO = 3_000, None, None
+    SAO_PAULO = declare_option(3_000)
 
     ...
 
     # af-south
-    CAPE_TOWN = 5_000, None, None
+    CAPE_TOWN = declare_option(5_000)
 
     # as-east
-    MUMBAI = 6_000, None, None
+    MUMBAI = declare_option(6_000)
 
     # as-south
-    SINGAPORE = 6_200, None, None
+    SINGAPORE = declare_option(6_200)
 
     # as-east
-    TOKYO = 6_400, None, None
+    TOKYO = declare_option(6_400)
 
     # au-south
-    SYDNEY = 7_000, None, None
-
-    @property
-    def continent(self) -> RegionContinent:
-        return RegionContinent((self.id // 1_000) * 1_000)
-
-    @property
-    def area(self) -> RegionArea:
-        return RegionArea((self.id // 200) * 200)
+    SYDNEY = declare_option(7_000)
 
 
 @declare_enum(EnumType.EDGE_TYPE)
-class EdgeType(EnumDeclaration):
-    PARENT = 1
-    REGULAR = 5
-
-    @property
-    def is_node_tree(self):
-        return self.id <= 4
-
-    @property
-    def is_node(self):
-        return self.id < 10
+class EdgeType(OptionEnum):
+    PARENT = declare_option(1)
+    REGULAR = declare_option(5)
 
 
 @declare_enum(EnumType.CASCADE_ACTION)
-class CascadeAction(EnumDeclaration):
-    RESTRICT = 1
-    CASCADE = 2
-    SET_NULL = 3
+class CascadeAction(OptionEnum):
+    RESTRICT = declare_option(1)
+    CASCADE = declare_option(2)
+    SET_NULL = declare_option(3)
     # SET_DEFAULT, NONE, ...
 
 
 @declare_enum(EnumType.EDGE_DIRECTION)
-class EdgeDirection(EnumDeclaration):
-    PARENT = 1
-    CHILD = 2
-    DEFINITION = 10
-    INSTANCE = 11
-    SIDE = 20
+class EdgeDirection(OptionEnum):
+    PARENT = declare_option(1)
+    CHILD = declare_option(2)
+    DEFINITION = declare_option(10)
+    INSTANCE = declare_option(11)
+    SIDE = declare_option(20)
 
 
 @declare_enum(EnumType.ENCODING)
-class Encoding(EnumDeclaration):
+class Encoding(OptionEnum):
     """Encoding scheme."""
 
-    JSON = 1, "JSON", "JSON encoding"
-    JSONC = 2, "JSONC", "Constant-keyed JSON encoding"
-    KOMPAKT = 3, "KOMPAKT", "Kompakt encoding"
+    JSON = declare_option(1, "JSON", description="JSON encoding")
+    JSONC = declare_option(2, "JSONC", description="Constant-keyed JSON encoding")
+    KOMPAKT = declare_option(3, "KOMPAKT", description="Kompakt encoding")
 
 
 assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding
 
 
 @declare_enum(EnumType.TYPE_CARDINALITY)
-class TypeCardinality(EnumDeclaration):
+class TypeCardinality(OptionEnum):
     """The order of a Type (scalar, list, map, etc.)."""
 
-    SCALAR = 1, "Scalar", "Single value"
-    LIST = 2, "List", "Dynamic sequence of homogeneous values"
-    TUPLE = 3, "Tuple", "Fixed sequence of heterogeneous values"
+    SCALAR = declare_option(1, "Scalar", description="Single value")
+    LIST = declare_option(2, "List", description="Dynamic sequence of homogeneous values")
+    TUPLE = declare_option(3, "Tuple", description="Fixed sequence of heterogeneous values")
     # ARRAY/NDARRAY, "Array", "Dense multi-dimensional array of homogeneous values"
     # SPARSE_ARRAY?, "Sparse Array", "Sparse multi-dimensional array of homogeneous values"
     # SET?, "Set", "Set of unique values (dynamic length)"
-    MAP = 10, "Map", "Mapping of homogenous keys to homogeneous values"
+    MAP = declare_option(10, "Map", description="Mapping of homogenous keys to homogeneous values")
 
 
 assert max(TypeCardinality) < 16, "TypeCardinality must be less than 8"  # for :Encoding
 
 
 @declare_enum(EnumType.SCALAR_TYPE)
-class ScalarType(EnumDeclaration):
+class ScalarType(OptionEnum):
     """The type of a scalar (single value like primitive, enum, struct, etc.)."""
 
-    PRIMITIVE = (
+    PRIMITIVE = declare_option(
         1,
         "Primitive",
-        "Primitive value (boolean, number, time, string, etc.)",
+        description="Primitive value (boolean, number, time, string, etc.)",
     )
-    ENUM = (
+    ENUM = declare_option(
         2,
         "Enum",
-        "Enum value (enumeration of options)",
+        description="Enum value (enumeration of options)",
     )
-    NODE_REFERENCE = (
+    NODE_REFERENCE = declare_option(
         3,
         "Node Reference",
-        "Reference to a Node (NodeReference)",
+        description="Reference to a Node (NodeReference)",
     )
-    NODE_VALUE = (
+    NODE_VALUE = declare_option(
         4,
         "Node Value",
-        "Value of a Node",
+        description="Value of a Node",
     )
-    STRUCT = (
+    STRUCT = declare_option(
         5,
         "Struct",
-        "Struct value (structured data)",
+        description="Struct value (structured data)",
     )
-    HANDLE = (
+    HANDLE = declare_option(
         6,
         "Handle",
-        "Handle (runtime-only)",
+        description="Handle (runtime-only)",
     )
     # LITERAL = 7, "Literal", "Literal value (constant value)"
     # UNION = 8, "Union", "Tagged union of heterogeneous values"
@@ -268,132 +282,132 @@ assert max(ScalarType) <= 8, "ScalarType must be less than 8"  # for :Encoding
 
 
 @declare_enum(EnumType.PRIMITIVE_TYPE)
-class PrimitiveType(EnumDeclaration):
+class PrimitiveType(OptionEnum):
     """
     A fundamental scalar data type.
     """
 
     # :PrimitiveType
-    NONE = 1, "Null", "Null value"
-    BOOLEAN = (
+    NONE = declare_option(1, "Null", description="Null value")
+    BOOLEAN = declare_option(
         2,
         "Boolean",
-        "Boolean flag (True or False)",
+        description="Boolean flag (True or False)",
     )
     # integer
-    INT8 = (
+    INT8 = declare_option(
         3,
         "Int8",
-        "8-bit signed integer (-2^7 to 2^7-1)",
+        description="8-bit signed integer (-2^7 to 2^7-1)",
     )
-    INT16 = (
+    INT16 = declare_option(
         4,
         "Int16",
-        "16-bit signed integer (-2^15 to 2^15-1)",
+        description="16-bit signed integer (-2^15 to 2^15-1)",
     )
-    INT32 = (
+    INT32 = declare_option(
         5,
         "Int32",
-        "32-bit signed integer (-2^31 to 2^31-1)",
+        description="32-bit signed integer (-2^31 to 2^31-1)",
     )
-    INT64 = (
+    INT64 = declare_option(
         6,
         "Int64",
-        "64-bit signed integer (-2^63 to 2^63-1)",
+        description="64-bit signed integer (-2^63 to 2^63-1)",
     )
-    INT128 = (
+    INT128 = declare_option(
         7,
         "Int128",
-        "128-bit signed integer (-2^127 to 2^127-1)",
+        description="128-bit signed integer (-2^127 to 2^127-1)",
     )
     # INT256, ...
-    UINT8 = (
+    UINT8 = declare_option(
         10,
         "UInt8",
-        "8-bit unsigned integer (0 to 2^8-1)",
+        description="8-bit unsigned integer (0 to 2^8-1)",
     )
-    UINT16 = (
+    UINT16 = declare_option(
         11,
         "UInt16",
-        "16-bit unsigned integer (0 to 2^16-1)",
+        description="16-bit unsigned integer (0 to 2^16-1)",
     )
-    UINT32 = (
+    UINT32 = declare_option(
         12,
         "UInt32",
-        "32-bit unsigned integer (0 to 2^32-1)",
+        description="32-bit unsigned integer (0 to 2^32-1)",
     )
-    UINT64 = (
+    UINT64 = declare_option(
         13,
         "UInt64",
-        "64-bit unsigned integer (0 to 2^64-1)",
+        description="64-bit unsigned integer (0 to 2^64-1)",
     )
-    UINT128 = (
+    UINT128 = declare_option(
         14,
         "UInt128",
-        "128-bit unsigned integer (0 to 2^128-1)",
+        description="128-bit unsigned integer (0 to 2^128-1)",
     )
     # UINT256, ...
     # float
     # FLOAT4, FLOAT8, ...
-    FLOAT16 = (
+    FLOAT16 = declare_option(
         22,
         "Float16",
-        "16-bit half-precision float (±2^14)",
+        description="16-bit half-precision float (±2^14)",
     )
-    FLOAT32 = (
+    FLOAT32 = declare_option(
         23,
         "Float32",
-        "32-bit single-precision float (±2^127)",
+        description="32-bit single-precision float (±2^127)",
     )
-    FLOAT64 = (
+    FLOAT64 = declare_option(
         24,
         "Float64",
-        "64-bit double-precision float (±2^1023)",
+        description="64-bit double-precision float (±2^1023)",
     )
     # COMPLEX16, COMPLEX32, COMPLEX64, ...
     # DECIMAL, ...
     # time
-    DATETIME = (
+    DATETIME = declare_option(
         40,
         "Datetime",
-        "Datetime (microsecond precision, UTC, 0001-01-01 to 9999-12-31)",
+        description="Datetime (microsecond precision, UTC, 0001-01-01 to 9999-12-31)",
     )
-    DATE = (
+    DATE = declare_option(
         41,
         "Date",
-        "Date (day precision, 0001-01-01 to 9999-12-31)",
+        description="Date (day precision, 0001-01-01 to 9999-12-31)",
     )
-    TIME = (
+    TIME = declare_option(
         42,
         "Time",
-        "Time (microsecond precision, 00:00:00.000000 to 23:59:59.999999)",
+        description="Time (microsecond precision, 00:00:00.000000 to 23:59:59.999999)",
     )
-    DURATION = (
+    DURATION = declare_option(
         43,
         "Duration",
-        "Duration (microsecond precision, 00:00:00.000000 to 9999-12-31 23:59:59.999999)",
+        description="Duration (microsecond precision, 00:00:00.000000 to 9999-12-31 23:59:59.999999)",
     )
     # string
-    STRING = (
+    STRING = declare_option(
         50,
         "String",
-        "Plain text",
+        description="Plain text",
     )
-    UUID = (
+    UUID = declare_option(
         51,
         "UUID",
-        "Universally unique identifier (UUID4 or UUID7, 16 bytes)",
+        description="Universally unique identifier (UUID4 or UUID7, 16 bytes)",
     )
-    BYTES = (
+    BYTES = declare_option(
         52,
         "Bytes",
-        "Binary data (arbitrary bytes)",
+        description="Binary data (arbitrary bytes)",
     )
     # VECTOR?
-    JSON = (
+    JSON = declare_option(
         55,
         "JSON",
-        "JSON (arbitrary JSON data)",
+        description="JSON (arbitrary JSON data)",
     )
 
 
@@ -443,131 +457,143 @@ PRIMITIVE_PY_TYPES = tuple(t for t in PRIMITIVE_TYPE_BY_ANNOTATION if isinstance
 
 
 @declare_enum(EnumType.VALUE_FACTORY)
-class ValueFactory(EnumDeclaration):
+class ValueFactory(OptionEnum):
     """The factory to use for generating values."""
 
-    UUID4 = 1, "UUID4", "Generate a random UUIDv4"
-    UUID7 = 2, "UUID7", "Generate a random (time-sorted) UUIDv7"
-    NOW = 10, "Now", "Get the current timestamp (system)"
-    REMOTE_EPOCH = 11, "Remote Epoch", "Get the current logical time (system)"
-    LOCAL_EPOCH = 12, "Local Epoch", "Get the current logical time (system)"
-    ACTOR = 20, "Actor", "Get the current Actor"
-    CLIENT = 21, "Client", "Get the current Client"
-    CLIENT_NONCE = 22, "ClientNonce", "Get the current Client nonce"
-    REGION = 30, "Region", "Get the current Region"
-    SELF = 40, "Self", "Get the current Node"
-    SPACE = 41, "Space", "Get the current Space"
-    BRANCH = 42, "Branch", "Get the current Branch"
-    SNAPSHOT = 43, "Snapshot", "Get the current Snapshot"
-    NAME = 50, "Name", "Generate a relevant name"
+    UUID4 = declare_option(1, "UUID4", description="Generate a random UUIDv4")
+    UUID7 = declare_option(2, "UUID7", description="Generate a random (time-sorted) UUIDv7")
+    NOW = declare_option(10, "Now", description="Get the current timestamp (system)")
+    REMOTE_EPOCH = declare_option(
+        11, "Remote Epoch", description="Get the current logical time (system)"
+    )
+    LOCAL_EPOCH = declare_option(
+        12, "Local Epoch", description="Get the current logical time (system)"
+    )
+    ACTOR = declare_option(20, "Actor", description="Get the current Actor")
+    CLIENT = declare_option(21, "Client", description="Get the current Client")
+    CLIENT_NONCE = declare_option(22, "ClientNonce", description="Get the current Client nonce")
+    REGION = declare_option(30, "Region", description="Get the current Region")
+    SELF = declare_option(40, "Self", description="Get the current Node")
+    SPACE = declare_option(41, "Space", description="Get the current Space")
+    BRANCH = declare_option(42, "Branch", description="Get the current Branch")
+    SNAPSHOT = declare_option(43, "Snapshot", description="Get the current Snapshot")
+    NAME = declare_option(50, "Name", description="Generate a relevant name")
 
 
 @declare_enum(EnumType.ROLE_TYPE)
-class RoleType(EnumDeclaration):
-    SYSTEM = 1
-    OWNER = 2
-    ADMIN = 3
-    DEVELOPER = 5
-    USER = 7
-    SPECTATOR = 10
+class RoleType(OptionEnum):
+    SYSTEM = declare_option(1)
+    OWNER = declare_option(2)
+    ADMIN = declare_option(3)
+    DEVELOPER = declare_option(5)
+    USER = declare_option(7)
+    SPECTATOR = declare_option(10)
 
 
 @declare_enum(EnumType.CLIENT_TYPE)
-class ClientType(EnumDeclaration):
+class ClientType(OptionEnum):
     # user
-    WEB = 1
-    BROWSER_PLUGIN = 2
-    DESKTOP = 3
-    MOBILE = 4
+    WEB = declare_option(1)
+    BROWSER_PLUGIN = declare_option(2)
+    DESKTOP = declare_option(3)
+    MOBILE = declare_option(4)
     # system
-    MACHINE = 10
+    MACHINE = declare_option(10)
 
 
 @declare_enum(EnumType.TENANCY)
-class Tenancy(EnumDeclaration):
-    DEDICATED = 1
-    SHARED = 2
+class Tenancy(OptionEnum):
+    DEDICATED = declare_option(1)
+    SHARED = declare_option(2)
 
 
 @declare_enum(EnumType.CONSTRAINT_TYPE)
-class ConstraintType(EnumDeclaration):
+class ConstraintType(OptionEnum):
     """Type of a Constraint."""
 
-    UNIQUE = 1
+    UNIQUE = declare_option(1)
     # CHECK, ...
 
 
 @declare_enum(EnumType.INDEX_TYPE)
-class IndexType(EnumDeclaration):
+class IndexType(OptionEnum):
     """Type of an Index."""
 
-    BTREE = 1
+    BTREE = declare_option(1)
     # HASH, ...
 
 
 @declare_enum(EnumType.METHOD_TYPE)
-class MethodType(EnumDeclaration):
-    PROPERTY = 1, "Property", "Computed property"
-    INSTANCE = 2, "Instance", "Instance method"
-    STATIC = 3, "Static", "Static method"
+class MethodType(OptionEnum):
+    PROPERTY = declare_option(1, "Property", description="Computed property")
+    INSTANCE = declare_option(2, "Instance", description="Instance method")
+    STATIC = declare_option(3, "Static", description="Static method")
 
 
 @declare_enum(EnumType.ACTION_TYPE)
-class ActionType(EnumDeclaration):
-    UNARY_IN_UNARY_OUT = 1, "Unary In, Unary Out", "Single in, single out"
-    UNARY_IN_STREAM_OUT = 2, "Unary In, Stream Out", "Single in, stream out"
-    STREAM_IN_UNARY_OUT = 3, "Stream In, Unary Out", "Stream in, single out"
-    STREAM_IN_STREAM_OUT = 4, "Stream In, Stream Out", "Stream in, stream out"
+class ActionType(OptionEnum):
+    UNARY_IN_UNARY_OUT = declare_option(
+        1, "Unary In, Unary Out", description="Single in, single out"
+    )
+    UNARY_IN_STREAM_OUT = declare_option(
+        2, "Unary In, Stream Out", description="Single in, stream out"
+    )
+    STREAM_IN_UNARY_OUT = declare_option(
+        3, "Stream In, Unary Out", description="Stream in, single out"
+    )
+    STREAM_IN_STREAM_OUT = declare_option(
+        4, "Stream In, Stream Out", description="Stream in, stream out"
+    )
 
 
 @declare_enum(EnumType.FUNCTION_OPERATOR)
-class FunctionOperator(EnumDeclaration):
+class FunctionOperator(OptionEnum):
     """The overridable builtin operators for Functions (depends on runtime language)."""
 
     # comparison operators
-    EQ = 1, "Equals", "="
-    NEQ = 2, "Not Equals", "!="
-    GT = 3, "Greater Than", ">"
-    LT = 4, "Less Than", "<"
-    GTE = 5, "Greater Than or Equal To", ">="
-    LTE = 6, "Less Than or Equal To", "<="
-    IN = 7, "In", "in"
-    NOT_IN = 8, "Not In", "not in"
-    IS = 9, "Is", "is"
-    IS_NOT = 10, "Is Not", "is not"
+    EQ = declare_option(1, "Equals", description="=")
+    NEQ = declare_option(2, "Not Equals", description="!=")
+    GT = declare_option(3, "Greater Than", description=">")
+    LT = declare_option(4, "Less Than", description="<")
+    GTE = declare_option(5, "Greater Than or Equal To", description=">=")
+    LTE = declare_option(6, "Less Than or Equal To", description="<=")
+    IN = declare_option(7, "In", description="in")
+    NOT_IN = declare_option(8, "Not In", description="not in")
+    IS = declare_option(9, "Is", description="is")
+    IS_NOT = declare_option(10, "Is Not", description="is not")
 
     # arithmetic operators
-    ADD = 20, "Add", "+"
-    SUB = 21, "Subtract", "-"
-    MUL = 22, "Multiply", "*"
-    TRUEDIV = 23, "True Divide", "/"
-    FLOORDIV = 24, "Floor Divide", "//"
-    MOD = 25, "Modulo", "%"
-    POW = 26, "Power", "**"
-    DIVMOD = 27, "Divmod", "divmod"
+    ADD = declare_option(20, "Add", description="+")
+    SUB = declare_option(21, "Subtract", description="-")
+    MUL = declare_option(22, "Multiply", description="*")
+    TRUEDIV = declare_option(23, "True Divide", description="/")
+    FLOORDIV = declare_option(24, "Floor Divide", description="//")
+    MOD = declare_option(25, "Modulo", description="%")
+    POW = declare_option(26, "Power", description="**")
+    DIVMOD = declare_option(27, "Divmod", description="divmod")
 
     # unary operators
-    POS = 30, "Positive", "+"
-    NEG = 31, "Negative", "-"
-    ABS = 32, "Absolute", "abs"
-    INVERT = 33, "Invert", "~"
+    POS = declare_option(30, "Positive", description="+")
+    NEG = declare_option(31, "Negative", description="-")
+    ABS = declare_option(32, "Absolute", description="abs")
+    INVERT = declare_option(33, "Invert", description="~")
 
     # bitwise operators
-    AND = 40, "Bitwise And", "&"
-    OR = 41, "Bitwise Or", "|"
-    XOR = 42, "Bitwise Xor", "^"
-    LSHIFT = 43, "Left Shift", "<<"
-    RSHIFT = 44, "Right Shift", ">>"
+    AND = declare_option(40, "Bitwise And", description="&")
+    OR = declare_option(41, "Bitwise Or", description="|")
+    XOR = declare_option(42, "Bitwise Xor", description="^")
+    LSHIFT = declare_option(43, "Left Shift", description="<<")
+    RSHIFT = declare_option(44, "Right Shift", description=">>")
 
     # logical operators
-    BOOL = 50, "Boolean", "bool"
-    NOT = 51, "Not", "not"
+    BOOL = declare_option(50, "Boolean", description="bool")
+    NOT = declare_option(51, "Not", description="not")
 
     # container operators
-    LEN = 60, "Length", "len"
-    GETITEM = 61, "Get Item", "[]"
-    SETITEM = 62, "Set Item", "[]="
-    DELITEM = 63, "Delete Item", "del []"
-    CONTAINS = 64, "Contains", "in"
-    ITER = 65, "Iterator", "iter"
-    NEXT = 66, "Next", "next"
+    LEN = declare_option(60, "Length", description="len")
+    GETITEM = declare_option(61, "Get Item", description="[]")
+    SETITEM = declare_option(62, "Set Item", description="[]=")
+    DELITEM = declare_option(63, "Delete Item", description="del []")
+    CONTAINS = declare_option(64, "Contains", description="in")
+    ITER = declare_option(65, "Iterator", description="iter")
+    NEXT = declare_option(66, "Next", description="next")

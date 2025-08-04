@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
+    OptionEnum,
     Value,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
 )
 
@@ -18,13 +19,13 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.LOG_LEVEL)
-class LogLevel(EnumDeclaration):
-    TRACE = 1
-    DEBUG = 2
-    INFO = 3
-    WARNING = 4
-    ERROR = 5
-    PANIC = 6
+class LogLevel(OptionEnum):
+    TRACE = declare_option(1, "Trace", description="A Trace")
+    DEBUG = declare_option(2, "Debug", description="A Debug")
+    INFO = declare_option(3, "Info", description="An Info")
+    WARNING = declare_option(4, "Warning", description="A Warning")
+    ERROR = declare_option(5, "Error", description="An Error")
+    PANIC = declare_option(6, "Panic", description="A Panic")
 
 
 @declare_event(NodeType.LOG_EVENT)

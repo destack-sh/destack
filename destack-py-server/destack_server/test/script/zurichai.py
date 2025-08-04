@@ -161,7 +161,7 @@ class EmailSender(Entity):
 
 
 @enum
-class MeetupResponseType(EnumDeclaration):
+class MeetupResponseType(Enum):
     YES = 1
     NO = 2
     MAYBE = 3
