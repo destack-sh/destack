@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
-    EnumDeclaration,
     EnumType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -22,12 +23,10 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.ICON_TYPE)
-class IconType(EnumDeclaration):
-    EMOJI = 1
-    FONT_AWESOME = 3
-    VS_CODE = 4
-    FILE = 10
-    FILE_URL = 11
+class IconType(OptionEnum):
+    EMOJI = declare_option(1)
+    FILE = declare_option(10)
+    FILE_URL = declare_option(11)
 
 
 @declare_struct(StructType.ICON, frozen=True)

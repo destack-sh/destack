@@ -9,7 +9,7 @@ from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
-from .enum import EnumDeclaration, declare_enum
+from .enum import OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
 from .types import UInt128
@@ -21,18 +21,18 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.EVENT_STATUS)
-class EventStatus(EnumDeclaration):
+class EventStatus(OptionEnum):
     """The (forever) status of an Event."""
 
     # client
-    PENDING = 1, "Pending", "Pending application on client"
-    STAGED = 2, "Staged", "Optimistically staged on client"
+    PENDING = declare_option(1, description="Pending application on client")
+    STAGED = declare_option(2, description="Optimistically staged on client")
     # PREDICTED, SUPERSEDED, ...
     # system hot
-    APPROVED = 10, "Completed", "Successfully applied in system"
-    SKIPPED = 11, "Skipped", "Skipped and ignored in system"
-    FAILED = 12, "Failed", "Could not apply in system"
-    REJECTED = 13, "Rejected", "Denied by the system"
+    APPROVED = declare_option(10, description="Successfully applied in system")
+    SKIPPED = declare_option(11, description="Skipped and ignored in system")
+    FAILED = declare_option(12, description="Could not apply in system")
+    REJECTED = declare_option(13, description="Denied by the system")
     # system cold
     # COMPACTED, ...
 

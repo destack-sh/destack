@@ -1,15 +1,16 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     UInt8,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -23,11 +24,11 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.STROKE_TYPE)
-class StrokeType(EnumDeclaration):
-    SOLID = 1
-    DASHED = 2
-    DOTTED = 3
-    FREEHAND = 4
+class StrokeType(OptionEnum):
+    SOLID = declare_option(1, "Solid", description="A solid stroke")
+    DASHED = declare_option(2, "Dashed", description="A dashed stroke")
+    DOTTED = declare_option(3, "Dotted", description="A dotted stroke")
+    FREEHAND = declare_option(4, "Freehand", description="A freehand stroke")
 
 
 @declare_struct(

@@ -4,14 +4,15 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     UNSET,
     Entity,
-    EnumDeclaration,
     EnumType,
     Event,
     NodeReference,
     NodeType,
+    OptionEnum,
     declare_entity,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
 )
 
@@ -48,11 +49,11 @@ class EntitlementExpiredEvent(EntitlementEvent):
 
 
 @declare_enum(EnumType.ENTITLEMENT_TYPE)
-class EntitlementType(EnumDeclaration):
+class EntitlementType(OptionEnum):
     """A Type of Entitlement."""
 
-    PERMISSION = 1
-    ROLE = 2
+    PERMISSION = declare_option(1, "Permission", description="A Permission")
+    ROLE = declare_option(2, "Role", description="A Role")
 
 
 @declare_entity(

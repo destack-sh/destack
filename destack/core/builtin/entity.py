@@ -12,7 +12,6 @@ from typing import (
 
 from destack.registry import NODE_CLASS_BY_TYPE
 
-from ..common.relation import NodeReference
 from ..utils.fractional import INTEGER_ZERO, get_order_key
 from ..utils.uuid import UUID
 from .builtin import EnumType, NodeType, ObjectKind, StructType, TraitType
@@ -25,7 +24,7 @@ from .declaration import (
     TagDeclaration,
     declare_method,
 )
-from .enum import EnumDeclaration, declare_enum
+from .enum import OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -37,6 +36,7 @@ from .property import (
 if TYPE_CHECKING:
     from destack import (
         Branch,
+        NodeReference,
         Script,
         Session,
         Snapshot,
@@ -52,15 +52,17 @@ object_set_ = object.__setattr__
 
 
 @declare_enum(EnumType.MATERIALIZATION)
-class Materialization(EnumDeclaration):
+class Materialization(OptionEnum):
     """
     The materialization level of an Entity.
     """
 
-    VIRTUAL = 1, "Virtual", "Entity matches its definition, only exists when queried"
-    PARTIAL = 2, "Partial", "Entity is a partial override of its definition"
-    FULL = 3, "Full", "Entity is a full copy of its definition"
-    ROOT = 4, "Root", "Entity is its own root (no other definition)"
+    VIRTUAL = declare_option(
+        1, description="Entity matches its definition, only exists when queried"
+    )
+    PARTIAL = declare_option(2, description="Entity is a partial override of its definition")
+    FULL = declare_option(3, description="Entity is a full copy of its definition")
+    ROOT = declare_option(4, description="Entity is its own root (no other definition)")
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)

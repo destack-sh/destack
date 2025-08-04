@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from .enum import EnumDeclaration, declare_enum
+from .enum import OptionEnum, declare_enum, declare_option
 
 if TYPE_CHECKING:
     pass
@@ -11,61 +11,61 @@ if TYPE_CHECKING:
 #
 
 
-class EnumType(EnumDeclaration):
+class EnumType(OptionEnum):
     #
     # CORE
     #
 
     # builtin [1]
-    OBJECT_KIND = 1
-    ENUM_TYPE = 2
-    NODE_TYPE = 3
-    STRUCT_TYPE = 4
-    TRAIT_TYPE = 5
-    HANDLE_TYPE = 6
-    OBJECT_STABILITY = 8
-    UNIVERSE_DOMAIN = 9
-    UNIVERSE_CATEGORY = 10
-    PROPERTY_REFERENCE_TYPE = 13
-    MATERIALIZATION = 14
-    RUNTIME_PLATFORM = 30
-    RUNTIME_LANGUAGE = 31
-    RUNTIME_TYPE = 32
-    EVENT_STATUS = 50
+    OBJECT_KIND = declare_option(1)
+    ENUM_TYPE = declare_option(2)
+    NODE_TYPE = declare_option(3)
+    STRUCT_TYPE = declare_option(4)
+    TRAIT_TYPE = declare_option(5)
+    HANDLE_TYPE = declare_option(6)
+    OBJECT_STABILITY = declare_option(8)
+    UNIVERSE_DOMAIN = declare_option(9)
+    UNIVERSE_CATEGORY = declare_option(10)
+    PROPERTY_REFERENCE_TYPE = declare_option(13)
+    MATERIALIZATION = declare_option(14)
+    RUNTIME_PLATFORM = declare_option(30)
+    RUNTIME_LANGUAGE = declare_option(31)
+    RUNTIME_TYPE = declare_option(32)
+    EVENT_STATUS = declare_option(50)
 
     # common [100_000]
     # type/value
-    PRIMITIVE_TYPE = 100_000
-    TYPE_CARDINALITY = 100_001
-    SCALAR_TYPE = 100_002
-    VALUE_FACTORY = 100_003
-    PROPERTY_ZONE = 100_006
-    EDGE_TYPE = 100_007
-    EDGE_DIRECTION = 100_008
-    CASCADE_ACTION = 100_009
-    ENCODING = 100_010
+    PRIMITIVE_TYPE = declare_option(100_000)
+    TYPE_CARDINALITY = declare_option(100_001)
+    SCALAR_TYPE = declare_option(100_002)
+    VALUE_FACTORY = declare_option(100_003)
+    PROPERTY_ZONE = declare_option(100_006)
+    EDGE_TYPE = declare_option(100_007)
+    EDGE_DIRECTION = declare_option(100_008)
+    CASCADE_ACTION = declare_option(100_009)
+    ENCODING = declare_option(100_010)
 
     # edit
-    EDIT_TYPE = 200
-    EDIT_OPERATION = 201
+    EDIT_TYPE = declare_option(200)
+    EDIT_OPERATION = declare_option(201)
 
     # query
-    CONDITIONAL_TYPE = 300
-    AGGREGATION_TYPE = 301
-    SORT_MODE = 302
-    SORT_TYPE = 303
-    JOIN_TYPE = 304
-    EXPRESSION_TYPE = 306
-    QUERY_TYPE = 320
+    CONDITIONAL_TYPE = declare_option(300)
+    AGGREGATION_TYPE = declare_option(301)
+    SORT_MODE = declare_option(302)
+    SORT_TYPE = declare_option(303)
+    JOIN_TYPE = declare_option(304)
+    EXPRESSION_TYPE = declare_option(306)
+    QUERY_TYPE = declare_option(320)
 
     # universe [200_000]
-    CLIENT_TYPE = 200_200
+    CLIENT_TYPE = declare_option(200_200)
 
     # space [300_000]
-    FOLDER_TYPE = 300_500
-    BRANCH_TYPE = 300_300
-    SNAPSHOT_TYPE = 300_400
-    SNAPSHOT_STATUS = 300_401
+    FOLDER_TYPE = declare_option(300_500)
+    BRANCH_TYPE = declare_option(300_300)
+    SNAPSHOT_TYPE = declare_option(300_400)
+    SNAPSHOT_STATUS = declare_option(300_401)
 
     # runtime [400_000]
     # ...
@@ -78,33 +78,32 @@ class EnumType(EnumDeclaration):
     #
 
     # entity [10_000_000]
-    FILE_RETENTION_MODE = 10_000_000
-    FILE_TYPE = 10_000_001
-    TEXT_SPAN_TYPE = 10_000_002
-    ICON_TYPE = 10_000_003
-    INDEX_TYPE = 10_000_100
-    CONSTRAINT_TYPE = 10_000_200
-    MIGRATION_TYPE = 10_000_300
+    FILE_TYPE = declare_option(10_000_001)
+    TEXT_SPAN_TYPE = declare_option(10_000_002)
+    ICON_TYPE = declare_option(10_000_003)
+    INDEX_TYPE = declare_option(10_000_100)
+    CONSTRAINT_TYPE = declare_option(10_000_200)
+    MIGRATION_TYPE = declare_option(10_000_300)
 
     # logic [10_100_000]
-    FUNCTION_OPERATOR = 10_100_400
-    METHOD_TYPE = 10_100_500
-    ACTION_TYPE = 10_100_600
-    TRIGGER_TYPE = 10_100_700
-    TIMER_TYPE = 10_100_800
-    DAY_OF_WEEK = 10_100_801
-    MONTH = 10_100_802
-    SCHEDULE_FREQUENCY = 10_100_803
-    ENVIRONMENT_TYPE = 10_100_000
-    RUN_STATUS = 10_101_000
-    LOG_LEVEL = 10_101_100
+    FUNCTION_OPERATOR = declare_option(10_100_400)
+    METHOD_TYPE = declare_option(10_100_500)
+    ACTION_TYPE = declare_option(10_100_600)
+    TRIGGER_TYPE = declare_option(10_100_700)
+    TIMER_TYPE = declare_option(10_100_800)
+    DAY_OF_WEEK = declare_option(10_100_801)
+    MONTH = declare_option(10_100_802)
+    SCHEDULE_FREQUENCY = declare_option(10_100_803)
+    ENVIRONMENT_TYPE = declare_option(10_100_000)
+    RUN_STATUS = declare_option(10_101_000)
+    LOG_LEVEL = declare_option(10_101_100)
 
     # intelligence [10_200_000]
 
     # access [10_300_000]
-    ROLE_TYPE = 10_300_300
-    SANCTION_TYPE = 10_300_400
-    ENTITLEMENT_TYPE = 10_300_500
+    ROLE_TYPE = declare_option(10_300_300)
+    SANCTION_TYPE = declare_option(10_300_400)
+    ENTITLEMENT_TYPE = declare_option(10_300_500)
 
     # quality [10_400_000]
     # ...
@@ -114,27 +113,27 @@ class EnumType(EnumDeclaration):
     #
 
     # geometry [20_000_000]
-    ANCHOR = 20_000_000
-    LENGTH_TYPE = 20_000_001
-    LAYOUT = 20_000_002
-    DISTRIBUTE = 20_000_003
-    ALIGN = 20_000_004
-    DIRECTION = 20_000_005
-    OVERFLOW = 20_000_006
-    ARROW_HEAD_TYPE = 20_000_200
+    ANCHOR = declare_option(20_000_000)
+    LENGTH_TYPE = declare_option(20_000_001)
+    LAYOUT = declare_option(20_000_002)
+    DISTRIBUTE = declare_option(20_000_003)
+    ALIGN = declare_option(20_000_004)
+    DIRECTION = declare_option(20_000_005)
+    OVERFLOW = declare_option(20_000_006)
+    ARROW_HEAD_TYPE = declare_option(20_000_200)
 
     # physics [20_100_000]
     # ...
 
     # perception [20_200_000]
-    MOUSE_BUTTON = 20_200_000
+    MOUSE_BUTTON = declare_option(20_200_000)
 
     # animation [20_300_000]
-    TRANSITION_TYPE = 20_300_000
-    SPRING_TYPE = 20_300_001
-    EFFECT_TYPE = 20_300_100
-    REPEAT_TYPE = 20_300_002
-    EASING = 20_300_003
+    TRANSITION_TYPE = declare_option(20_300_000)
+    SPRING_TYPE = declare_option(20_300_001)
+    EFFECT_TYPE = declare_option(20_300_100)
+    REPEAT_TYPE = declare_option(20_300_002)
+    EASING = declare_option(20_300_003)
 
     #
     # CANVAS
@@ -163,32 +162,32 @@ class EnumType(EnumDeclaration):
     #
 
     # scene [40_000_000]
-    LAYER_TYPE = 40_000_200
+    # ...
 
     # view [40_100_000]
     # ...
 
     # style [40_200_000]
-    COLOR_TYPE = 40_200_000
-    COLOR_SHADE = 40_200_001
-    COLOR_HUE = 40_200_002
-    COLOR_INTENT = 40_200_003
-    FILL_TYPE = 40_200_400
-    FILL_POSITION = 40_200_401
-    FILL_SIZE = 40_200_402
-    FONT_TYPE = 40_200_500
-    FONT_WEIGHT = 40_200_501
-    FONT_SIZE = 40_200_502
-    TEXT_ALIGN = 40_200_503
-    TEXT_DECORATION = 40_200_504
-    TEXT_TRANSFORM = 40_200_505
-    BORDER_TYPE = 40_200_600
-    SHADOW_TYPE = 40_200_700
-    SHADOW_POSITION = 40_200_701
-    GRADIENT_TYPE = 40_200_800
-    STROKE_TYPE = 40_200_900
-    TEXT_SPLIT_TYPE = 40_200_901
-    OFFSCREEN_BEHAVIOR = 40_200_902
+    COLOR_TYPE = declare_option(40_200_000)
+    COLOR_SHADE = declare_option(40_200_001)
+    COLOR_HUE = declare_option(40_200_002)
+    COLOR_INTENT = declare_option(40_200_003)
+    FILL_TYPE = declare_option(40_200_400)
+    FILL_POSITION = declare_option(40_200_401)
+    FILL_SIZE = declare_option(40_200_402)
+    FONT_TYPE = declare_option(40_200_500)
+    FONT_WEIGHT = declare_option(40_200_501)
+    FONT_SIZE = declare_option(40_200_502)
+    TEXT_ALIGN = declare_option(40_200_503)
+    TEXT_DECORATION = declare_option(40_200_504)
+    TEXT_TRANSFORM = declare_option(40_200_505)
+    BORDER_TYPE = declare_option(40_200_600)
+    SHADOW_TYPE = declare_option(40_200_700)
+    SHADOW_POSITION = declare_option(40_200_701)
+    GRADIENT_TYPE = declare_option(40_200_800)
+    STROKE_TYPE = declare_option(40_200_900)
+    TEXT_SPLIT_TYPE = declare_option(40_200_901)
+    OFFSCREEN_BEHAVIOR = declare_option(40_200_902)
 
     # rendering [40_200_000]
     # ...
@@ -204,11 +203,11 @@ class EnumType(EnumDeclaration):
     #
 
     # cloud [50_000_000]
-    REGION = 50_000_001
-    REGION_AREA = 50_000_002
-    REGION_CONTINENT = 50_000_003
-    TENANCY = 50_000_004
-    MACHINE_TYPE = 50_000_000
+    REGION = declare_option(50_000_001)
+    REGION_AREA = declare_option(50_000_002)
+    REGION_CONTINENT = declare_option(50_000_003)
+    TENANCY = declare_option(50_000_004)
+    MACHINE_TYPE = declare_option(50_000_000)
 
     # observability [50_100_000]
     # ...
@@ -227,7 +226,7 @@ class EnumType(EnumDeclaration):
     # ...
 
     # social [60_200_000]
-    NOTIFICATION_STATUS = 60_200_300
+    NOTIFICATION_STATUS = declare_option(60_200_300)
 
     # finance [60_300_000]
     # ...
@@ -243,26 +242,46 @@ class EnumType(EnumDeclaration):
     # ...
 
 
-declare_enum(EnumType.ENUM_TYPE)(EnumType)
+EnumType = declare_enum(EnumType.ENUM_TYPE)(EnumType)
 
 
 @declare_enum(EnumType.OBJECT_KIND)
-class ObjectKind(EnumDeclaration):
-    NODE = 1, "Node", "Object with data, logic and universally addressable identity"
-    STRUCT = 2, "Struct", "Object with data and logic (embedded elsewhere)"
-    HANDLE = 3, "Handle", "Object with special data and logic (runtime only)"
+class ObjectKind(OptionEnum):
+    NODE = declare_option(
+        1,
+        "Node",
+        description="Object with data, logic and universally addressable identity",
+    )
+    STRUCT = declare_option(
+        2,
+        "Struct",
+        description="Object with data and logic (embedded elsewhere)",
+    )
+    HANDLE = declare_option(
+        3,
+        "Handle",
+        description="Object with special data and logic (runtime only)",
+    )
 
 
 @declare_enum(EnumType.OBJECT_STABILITY)
-class ObjectStability(EnumDeclaration):
-    DYNAMIC = 1, "Definition may change in every compatible way"
+class ObjectStability(OptionEnum):
+    DYNAMIC = declare_option(
+        1,
+        "Dynamic",
+        description="Definition may change in every compatible way",
+    )
     # GROWABLE = 2, "Definition may change with new properties at the end (only)"
     # NOTE :Performance: ObjectStability.GROWABLE is annoying to implement but probably worth it
-    STATIC = 7, "Definition may never change"
+    STATIC = declare_option(
+        7,
+        "Static",
+        description="Definition may never change",
+    )
 
 
 @declare_enum(EnumType.TRAIT_TYPE)
-class TraitType(EnumDeclaration):
+class TraitType(OptionEnum):
     #
     # CORE
     #
@@ -271,10 +290,10 @@ class TraitType(EnumDeclaration):
     # LOCAL?
     # storage
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
-    ORDERED = 1, "Ordered", "Is ordered"
+    ORDERED = declare_option(1, "Ordered", description="Is ordered")
     # PAUSABLE?
-    RESOURCE = 2, "Resource", "Is a Resource"
-    VARIANT = 3, "Variant", "Is a Variant"
+    RESOURCE = declare_option(2, "Resource", description="Is a Resource")
+    VARIANT = declare_option(3, "Variant", description="Is a Variant")
 
     # common [100_000]
     # ...
@@ -299,16 +318,16 @@ class TraitType(EnumDeclaration):
     # ...
 
     # logic [10_100_000]
-    RUNNABLE = 10_100_000, "Runnable", "Can be run"
+    RUNNABLE = declare_option(10_100_000, "Runnable", description="Can be run")
 
     # intelligence [10_200_000]
     # ...
 
     # access [10_300_000]
-    OWNABLE = 10_300_000, "Ownable", "Is ownable"
-    OWNED = 10_300_001, "Owned", "Is owned"
-    JOINABLE = 10_300_002, "Joinable", "Is joinable"
-    ACTOR = 10_300_003, "Actor", "Is an Actor"
+    OWNABLE = declare_option(10_300_000, "Ownable", description="Is ownable")
+    OWNED = declare_option(10_300_001, "Owned", description="Is owned")
+    JOINABLE = declare_option(10_300_002, "Joinable", description="Is joinable")
+    ACTOR = declare_option(10_300_003, "Actor", description="Is an Actor")
 
     # quality [10_400_000]
     # ...
@@ -324,9 +343,9 @@ class TraitType(EnumDeclaration):
     # ...
 
     # perception [20_200_000]
-    INTERACTIVE = 20_200_000, "Interactive", "Can be interacted with"
-    DRAGGABLE = 20_200_001, "Draggable", "Can be dragged"
-    SELECTABLE = 20_200_002, "Selectable", "Can be selected"
+    INTERACTIVE = declare_option(20_200_000, "Interactive", description="Can be interacted with")
+    DRAGGABLE = declare_option(20_200_001, "Draggable", description="Can be dragged")
+    SELECTABLE = declare_option(20_200_002, "Selectable", description="Can be selected")
     # ...
 
     # animation [20_300_000]
@@ -397,9 +416,9 @@ class TraitType(EnumDeclaration):
     # ...
 
     # social [60_200_000]
-    STARABLE = 60_200_100, "Starable", "Can be starred"
-    REACTABLE = 60_200_000, "Reactable", "Can be reacted to"
-    FOLLOWABLE = 60_200_200, "Followable", "Can be followed"
+    STARABLE = declare_option(60_200_100, "Starable", description="Can be starred")
+    REACTABLE = declare_option(60_200_000, "Reactable", description="Can be reacted to")
+    FOLLOWABLE = declare_option(60_200_200, "Followable", description="Can be followed")
     # RATEABLE, VOTABLE, ...
     # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
 
@@ -411,47 +430,47 @@ class TraitType(EnumDeclaration):
 
 
 @declare_enum(EnumType.NODE_TYPE)
-class NodeType(EnumDeclaration):
+class NodeType(OptionEnum):
     #
     # CORE
     #
 
     # builtin [1]
     # root
-    NODE = 1, "Node", "Root of all Nodes"
-    ENTITY = 2, "Entity", "Versioned, stateful Node"
-    EVENT = 3, "Event", "Immutable datum of something happening"
-    EDIT_EVENT = 10, "Edit Event", None
+    NODE = declare_option(1, "Node", description="Root of all Nodes")
+    ENTITY = declare_option(2, "Entity", description="Versioned, stateful Node")
+    EVENT = declare_option(3, "Event", description="Immutable datum of something happening")
+    EDIT_EVENT = declare_option(10, "Edit Event")
     # CHANGE_EVENT?
 
     # common [100_000]
     # ...
 
     # universe [200_000]
-    UNIVERSE = 200_000, "Universe", "The Destack computational universe"
+    UNIVERSE = declare_option(200_000, "Universe", description="The Destack computational universe")
     # GALAXY, ...
     # HANDLE?, ...
     # user
-    USER = 200_100, "User", None
+    USER = declare_option(200_100, "User")
     # FRIENDSHIP, FRIENDSHIP_INVITE, ...
-    CLIENT = 200_200, "Client", None
+    CLIENT = declare_option(200_200, "Client")
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     # organization
-    ORGANIZATION = 200_300, "Organization", None
-    TEAM = 200_400, "Team", "Team in an Organization"
+    ORGANIZATION = declare_option(200_300, "Organization")
+    TEAM = declare_option(200_400, "Team", description="Team in an Organization")
 
     # space [300_000]
-    SPACE = 300_000, "Space", "Universal Space"
-    TAG = 300_100, "Tag", None
-    TAGGING = 300_200, "Tagging", None
+    SPACE = declare_option(300_000, "Space", description="Universal Space")
+    TAG = declare_option(300_100, "Tag")
+    TAGGING = declare_option(300_200, "Tagging")
     # TRAIT?
     # FRAGMENT (multiple disjoint trees)
     # SLOT (inside tree)
     # LINK/PORTAL (to another subtree)
     # TIMELINE, TRACK, (KEY)FRAME, ...
-    BRANCH = 300_300, "Branch", None
-    SNAPSHOT = 300_400, "Snapshot", "Point in Space-time"
-    FOLDER = 300_500, "Folder", "Sub-space of a Space"
+    BRANCH = declare_option(300_300, "Branch")
+    SNAPSHOT = declare_option(300_400, "Snapshot", description="Point in Space-time")
+    FOLDER = declare_option(300_500, "Folder", description="Sub-space of a Space")
     # APPLICATION (extends Folder?), ...
     # DEPENDENCY, ...
     # VERSION, ...
@@ -470,60 +489,66 @@ class NodeType(EnumDeclaration):
     #
 
     # entity [10_000_000]
-    FILE = 10_000_000, "File", None
+    FILE = declare_option(10_000_000, "File")
     # DIRECTORY, SYNC, ...
     # INDEX, CONSTRAINT, MIGRATION, ...
-    # REMOTE, ...
+    # REMOTE, FOREIGN_DATA/ENTITY_WRAPPER, ...
     # SECRET, ...
-    INDEX = 10_000_100, "Index", "Index of an Entity"
-    CONSTRAINT = 10_000_200, "Constraint", "Constraint of an Entity"
+    INDEX = declare_option(10_000_100, "Index", description="Index of an Entity")
+    CONSTRAINT = declare_option(10_000_200, "Constraint", description="Constraint of an Entity")
     # EXPECTATION, ...
-    MIGRATION = 10_000_300, "Migration", "Migration of an Entity"
-    MIGRATION_OPERATION = (10_000_301, "Migration Operation", "Migration Operation of an Entity")
+    MIGRATION = declare_option(10_000_300, "Migration", description="Migration of an Entity")
+    MIGRATION_OPERATION = declare_option(
+        10_000_301, "Migration Operation", description="Migration Operation of an Entity"
+    )
     # custom
-    CUSTOM_EVENT_DEFINITION = 10_000_400, "Custom Event", "Custom Event Definition"
-    CUSTOM_STRUCT_DEFINITION = (
+    CUSTOM_EVENT_DEFINITION = declare_option(
+        10_000_400, "Custom Event", description="Custom Event Definition"
+    )
+    CUSTOM_STRUCT_DEFINITION = declare_option(
         10_000_500,
         "Custom Struct",
-        "Custom Struct Definition",
+        description="Custom Struct Definition",
     )
-    CUSTOM_MESSAGE_DEFINITION = (
+    CUSTOM_MESSAGE_DEFINITION = declare_option(
         10_000_600,
         "Custom Message",
-        "Custom Message Definition",
+        description="Custom Message Definition",
     )
-    CUSTOM_PROPERTY_DEFINITION = (
+    CUSTOM_PROPERTY_DEFINITION = declare_option(
         10_000_700,
         "Custom Property",
-        "Custom Property Definition",
+        description="Custom Property Definition",
     )
-    CUSTOM_ENUM_DEFINITION = 10_000_800, "Custom Enum", "Custom Enum Definition"
-    CUSTOM_OPTION_DEFINITION = (
+    CUSTOM_ENUM_DEFINITION = declare_option(
+        10_000_800, "Custom Enum", description="Custom Enum Definition"
+    )
+    CUSTOM_OPTION_DEFINITION = declare_option(
         10_000_900,
         "Custom Option",
-        "Custom Option Definition",
+        description="Custom Option Definition",
     )
     # CUSTOM_ALIAS_DEFINITION, CUSTOM_UNION_DEFINITION, ...
 
     # logic [10_100_000]
-    ENVIRONMENT = 10_100_000, "Environment", None
-    MODE = 10_100_100, "Mode", None
-    SCRIPT = 10_100_200, "Script", None
-    CUSTOM_EVENT = 10_100_300, "Signal", "Custom Event instance"
-    MEASUREMENT_EVENT = 10_100_301, "Measurement of a Metric", None
-    FUNCTION = 10_100_400, "Function", None
-    METHOD = 10_100_500, "Method", None
-    ACTION = 10_100_600, "Action", None
-    TRIGGER = 10_100_700, "Trigger", None
-    TRIGGER_EVENT = 10_100_701, "Trigger Event", None
-    TIMER = 10_100_800, "Timer", None
-    TIMER_EVENT = 10_100_801, "Timer Event", None
-    TIMER_STARTED_EVENT = 10_100_802, "Timer Started Event", None
-    TIMER_PAUSED_EVENT = 10_100_803, "Timer Paused Event", None
-    TIMER_RESUMED_EVENT = 10_100_804, "Timer Resumed Event", None
-    TIMER_COMPLETED_EVENT = 10_100_805, "Timer Completed Event", None
-    TIMER_CANCELLED_EVENT = 10_100_806, "Timer Cancelled Event", None
-    ROUTE = 10_100_900, "Route", None
+    ENVIRONMENT = declare_option(10_100_000, "Environment")
+    MODE = declare_option(10_100_100, "Mode")
+    SCRIPT = declare_option(10_100_200, "Script")
+    CUSTOM_EVENT = declare_option(10_100_300, "Signal", description="Custom Event instance")
+    MEASUREMENT_EVENT = declare_option(10_100_301, "Measurement of a Metric")
+    FUNCTION = declare_option(10_100_400, "Function")
+    METHOD = declare_option(10_100_500, "Method")
+    ACTION = declare_option(10_100_600, "Action")
+    TRIGGER = declare_option(10_100_700, "Trigger")
+    TRIGGER_EVENT = declare_option(10_100_701, "Trigger Event")
+    TIMER = declare_option(10_100_800, "Timer")
+    TIMER_EVENT = declare_option(10_100_801, "Timer Event")
+    TIMER_STARTED_EVENT = declare_option(10_100_802, "Timer Started Event")
+    TIMER_PAUSED_EVENT = declare_option(10_100_803, "Timer Paused Event")
+    TIMER_RESUMED_EVENT = declare_option(10_100_804, "Timer Resumed Event")
+    TIMER_COMPLETED_EVENT = declare_option(10_100_805, "Timer Completed Event")
+    TIMER_CANCELLED_EVENT = declare_option(10_100_806, "Timer Cancelled Event")
+    ROUTE = declare_option(10_100_900, "Route")
     # EFFECT, ...
     # BREAKPOINT, ...
     # ROOM, TOPIC, CHANNEL, ...
@@ -536,18 +561,18 @@ class NodeType(EnumDeclaration):
     # PREVIEW, DRAFT, ROLLOUT, ...
     # TASK, TASK_GROUP/TASK_QUEUE, ...
     # JOB, ...
-    RUN = 10_101_000, "Run", None
-    RUN_EVENT = 10_101_001, "Run Event", None
-    RUN_STARTED_EVENT = 10_101_002, "Run Started Event", None
-    RUN_PAUSE_REQUESTED_EVENT = 10_101_003, "Run Pause Requested Event", None
-    RUN_PAUSED_EVENT = 10_101_004, "Run Paused Event", None
-    RUN_RESUME_REQUESTED_EVENT = 10_101_005, "Run Resume Requested Event", None
-    RUN_RESUMED_EVENT = 10_101_006, "Run Resumed Event", None
-    RUN_STOP_REQUESTED_EVENT = 10_101_007, "Run Stop Requested Event", None
-    RUN_FAILED_EVENT = 10_101_008, "Run Failed Event", None
-    RUN_COMPLETED_EVENT = 10_101_009, "Run Completed Event", None
-    SPAN_EVENT = 10_101_010, "Span", None
-    LOG_EVENT = 10_101_011, "Log", None
+    RUN = declare_option(10_101_000, "Run")
+    RUN_EVENT = declare_option(10_101_001, "Run Event")
+    RUN_STARTED_EVENT = declare_option(10_101_002, "Run Started Event")
+    RUN_PAUSE_REQUESTED_EVENT = declare_option(10_101_003, "Run Pause Requested Event")
+    RUN_PAUSED_EVENT = declare_option(10_101_004, "Run Paused Event")
+    RUN_RESUME_REQUESTED_EVENT = declare_option(10_101_005, "Run Resume Requested Event")
+    RUN_RESUMED_EVENT = declare_option(10_101_006, "Run Resumed Event")
+    RUN_STOP_REQUESTED_EVENT = declare_option(10_101_007, "Run Stop Requested Event")
+    RUN_FAILED_EVENT = declare_option(10_101_008, "Run Failed Event")
+    RUN_COMPLETED_EVENT = declare_option(10_101_009, "Run Completed Event")
+    SPAN_EVENT = declare_option(10_101_010, "Span")
+    LOG_EVENT = declare_option(10_101_011, "Log")
 
     # intelligence [10_200_000]
     # MODEL, FINETUNE, ...
@@ -555,37 +580,40 @@ class NodeType(EnumDeclaration):
     # RECOMMENDATION, ...
 
     # access [10_300_000]
-    PERMISSION = 10_300_000, "Permission", "Permission for something"
-    MEMBERSHIP = 10_300_100, "Membership", "Membership to something"
-    MEMBERSHIP_EVENT = 10_300_101, "Membership Event", None
-    MEMBERSHIP_JOINED_EVENT = 10_300_102, "Membership Join Event", None
-    MEMBERSHIP_LEFT_EVENT = 10_300_103, "Membership Leave Event", None
-    INVITE = 10_300_200, "Invite", "Invite to a Space/Folder"
-    INVITE_EVENT = 10_300_201, "Invite Event", None
-    INVITE_SENT_EVENT = 10_300_202, "Invite Sent Event", None
-    INVITE_RESCINDED_EVENT = 10_300_203, "Invite Rescinded Event", None
-    INVITE_ACCEPTED_EVENT = 10_300_204, "Invite Accepted Event", None
-    INVITE_REJECTED_EVENT = 10_300_205, "Invite Rejected Event", None
-    ROLE = 10_300_300, "Role", "Role in something"
-    ROLE_EVENT = 10_300_301, "Role Event", None
-    ROLE_ASSIGNED_EVENT = 10_300_302, "Role Assigned Event", None
-    ROLE_UNASSIGNED_EVENT = 10_300_303, "Role Unassigned Event", None
-    SANCTION = 10_300_400, "Sanction", "Temporary or permanent restriction"
-    SANCTION_EVENT = 10_300_401, "Sanction Event", None
-    SANCTION_REQUESTED_EVENT = 10_300_402, "Sanction Requested Event", None
-    SANCTION_GRANTED_EVENT = 10_300_403, "Sanction Granted Event", None
-    SANCTION_REVOKED_EVENT = 10_300_404, "Sanction Revoked Event", None
-    SANCTION_EXPIRED_EVENT = 10_300_405, "Sanction Expired Event", None
-    ENTITLEMENT = 10_300_500, "Entitlement", "Temporary or permanent grant"
-    ENTITLEMENT_EVENT = 10_300_501, "Entitlement Event", None
-    ENTITLEMENT_REQUESTED_EVENT = (
+    PERMISSION = declare_option(10_300_000, "Permission", description="Permission for something")
+    MEMBERSHIP = declare_option(10_300_100, "Membership", description="Membership to something")
+    MEMBERSHIP_EVENT = declare_option(10_300_101, "Membership Event")
+    MEMBERSHIP_JOINED_EVENT = declare_option(10_300_102, "Membership Join Event")
+    MEMBERSHIP_LEFT_EVENT = declare_option(10_300_103, "Membership Leave Event")
+    INVITE = declare_option(10_300_200, "Invite", description="Invite to a Space/Folder")
+    INVITE_EVENT = declare_option(10_300_201, "Invite Event")
+    INVITE_SENT_EVENT = declare_option(10_300_202, "Invite Sent Event")
+    INVITE_RESCINDED_EVENT = declare_option(10_300_203, "Invite Rescinded Event")
+    INVITE_ACCEPTED_EVENT = declare_option(10_300_204, "Invite Accepted Event")
+    INVITE_REJECTED_EVENT = declare_option(10_300_205, "Invite Rejected Event")
+    ROLE = declare_option(10_300_300, "Role", description="Role in something")
+    ROLE_EVENT = declare_option(10_300_301, "Role Event")
+    ROLE_ASSIGNED_EVENT = declare_option(10_300_302, "Role Assigned Event")
+    ROLE_UNASSIGNED_EVENT = declare_option(10_300_303, "Role Unassigned Event")
+    SANCTION = declare_option(
+        10_300_400, "Sanction", description="Temporary or permanent restriction"
+    )
+    SANCTION_EVENT = declare_option(10_300_401, "Sanction Event")
+    SANCTION_REQUESTED_EVENT = declare_option(10_300_402, "Sanction Requested Event")
+    SANCTION_GRANTED_EVENT = declare_option(10_300_403, "Sanction Granted Event")
+    SANCTION_REVOKED_EVENT = declare_option(10_300_404, "Sanction Revoked Event")
+    SANCTION_EXPIRED_EVENT = declare_option(10_300_405, "Sanction Expired Event")
+    ENTITLEMENT = declare_option(
+        10_300_500, "Entitlement", description="Temporary or permanent grant"
+    )
+    ENTITLEMENT_EVENT = declare_option(10_300_501, "Entitlement Event")
+    ENTITLEMENT_REQUESTED_EVENT = declare_option(
         10_300_502,
         "Entitlement Requested Event",
-        None,
     )
-    ENTITLEMENT_GRANTED_EVENT = 10_300_503, "Entitlement Granted Event", None
-    ENTITLEMENT_REVOKED_EVENT = 10_300_504, "Entitlement Revoked Event", None
-    ENTITLEMENT_EXPIRED_EVENT = 10_300_505, "Entitlement Expired Event", None
+    ENTITLEMENT_GRANTED_EVENT = declare_option(10_300_503, "Entitlement Granted Event")
+    ENTITLEMENT_REVOKED_EVENT = declare_option(10_300_504, "Entitlement Revoked Event")
+    ENTITLEMENT_EXPIRED_EVENT = declare_option(10_300_505, "Entitlement Expired Event")
     # CHALLENGE, ...
 
     # quality [10_400_000]
@@ -600,18 +628,18 @@ class NodeType(EnumDeclaration):
 
     # geometry [20_000_000]
     # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
-    ENTITY2D = 20_000_000, "Entity2D", "2D Entity"
-    ENTITY3D = 20_000_100, "Entity3D", "3D Entity"
-    SHAPE2D = 20_000_200, "Shape2D", None
-    LINE_SHAPE2D = 20_000_201, "Line Shape2D", None
-    ARROW_SHAPE2D = 20_000_202, "Arrow Shape2D", None
-    RECTANGLE_SHAPE2D = 20_000_203, "Rectangle Shape2D", None
-    ELLIPSE_SHAPE2D = 20_000_204, "Ellipse Shape2D", None
-    CAPSULE_SHAPE2D = 20_000_205, "Capsule Shape2D", None
-    STAR_SHAPE2D = 20_000_206, "Star Shape2D", None
-    POLYGON_SHAPE2D = 20_000_207, "Polygon Shape2D", None
-    PATH_SHAPE2D = 20_000_208, "Path Shape2D", None
-    SHAPE3D = 20_000_300, "Shape3D", None
+    ENTITY2D = declare_option(20_000_000, "Entity2D", description="2D Entity")
+    ENTITY3D = declare_option(20_000_100, "Entity3D", description="3D Entity")
+    SHAPE2D = declare_option(20_000_200, "Shape2D")
+    LINE_SHAPE2D = declare_option(20_000_201, "Line Shape2D")
+    ARROW_SHAPE2D = declare_option(20_000_202, "Arrow Shape2D")
+    RECTANGLE_SHAPE2D = declare_option(20_000_203, "Rectangle Shape2D")
+    ELLIPSE_SHAPE2D = declare_option(20_000_204, "Ellipse Shape2D")
+    CAPSULE_SHAPE2D = declare_option(20_000_205, "Capsule Shape2D")
+    STAR_SHAPE2D = declare_option(20_000_206, "Star Shape2D")
+    POLYGON_SHAPE2D = declare_option(20_000_207, "Polygon Shape2D")
+    PATH_SHAPE2D = declare_option(20_000_208, "Path Shape2D")
+    SHAPE3D = declare_option(20_000_300, "Shape3D")
 
     # physics [20_100_000]
     # BODY, BODY2D, ...
@@ -625,45 +653,45 @@ class NodeType(EnumDeclaration):
     # NAVIGATION, ...
 
     # perception [20_200_000]
-    INPUT_EVENT = 20_200_000, "Input Event", None
+    INPUT_EVENT = declare_option(20_200_000, "Input Event")
     # pointer events
-    POINTER_EVENT = 20_200_100, "Pointer Event", None
-    POINTER_DOWN_EVENT = 20_200_101, "Pointer Down Event", None
-    POINTER_UP_EVENT = 20_200_102, "Pointer Up Event", None
-    POINTER_MOVE_EVENT = 20_200_103, "Pointer Move Event", None
-    POINTER_ENTER_EVENT = 20_200_104, "Pointer Enter Event", None
-    POINTER_OVER_EVENT = 20_200_105, "Pointer Over Event", None
-    POINTER_LEAVE_EVENT = 20_200_106, "Pointer Leave Event", None
-    POINTER_LONG_PRESS_EVENT = 20_200_107, "Long Press Event", None
+    POINTER_EVENT = declare_option(20_200_100, "Pointer Event")
+    POINTER_DOWN_EVENT = declare_option(20_200_101, "Pointer Down Event")
+    POINTER_UP_EVENT = declare_option(20_200_102, "Pointer Up Event")
+    POINTER_MOVE_EVENT = declare_option(20_200_103, "Pointer Move Event")
+    POINTER_ENTER_EVENT = declare_option(20_200_104, "Pointer Enter Event")
+    POINTER_OVER_EVENT = declare_option(20_200_105, "Pointer Over Event")
+    POINTER_LEAVE_EVENT = declare_option(20_200_106, "Pointer Leave Event")
+    POINTER_LONG_PRESS_EVENT = declare_option(20_200_107, "Long Press Event")
     # mouse events
-    MOUSE_EVENT = 20_200_200, "Mouse Event", None
-    CLICK_EVENT = 20_200_201, "Click Event", None
-    SINGLE_CLICK_EVENT = 20_200_202, "Single Click Event", None
-    DOUBLE_CLICK_EVENT = 20_200_203, "Double Click Event", None
-    TRIPLE_CLICK_EVENT = 20_200_204, "Triple Click Event", None
-    WHEEL_EVENT = 20_200_210, "Wheel Event", None
+    MOUSE_EVENT = declare_option(20_200_200, "Mouse Event")
+    CLICK_EVENT = declare_option(20_200_201, "Click Event")
+    SINGLE_CLICK_EVENT = declare_option(20_200_202, "Single Click Event")
+    DOUBLE_CLICK_EVENT = declare_option(20_200_203, "Double Click Event")
+    TRIPLE_CLICK_EVENT = declare_option(20_200_204, "Triple Click Event")
+    WHEEL_EVENT = declare_option(20_200_210, "Wheel Event")
     # key events
-    KEY_EVENT = 20_200_300, "Key Event", None
-    KEY_DOWN_EVENT = 20_200_301, "Key Down Event", None
-    KEY_UP_EVENT = 20_200_302, "Key Up Event", None
-    KEY_PRESS_EVENT = 20_200_303, "Key Press Event", None
+    KEY_EVENT = declare_option(20_200_300, "Key Event")
+    KEY_DOWN_EVENT = declare_option(20_200_301, "Key Down Event")
+    KEY_UP_EVENT = declare_option(20_200_302, "Key Up Event")
+    KEY_PRESS_EVENT = declare_option(20_200_303, "Key Press Event")
     # drag events
-    DRAG_EVENT = 20_200_400, "Drag Event", None
-    DRAG_START_EVENT = 20_200_401, "Drag Start Event", None
-    DRAG_END_EVENT = 20_200_402, "Drag End Event", None
-    DRAG_OVER_EVENT = 20_200_403, "Drag Over Event", None
-    DRAG_ENTER_EVENT = 20_200_404, "Drag Enter Event", None
-    DRAG_LEAVE_EVENT = 20_200_405, "Drag Leave Event", None
-    DROP_EVENT = 20_200_406, "Drop Event", None
+    DRAG_EVENT = declare_option(20_200_400, "Drag Event")
+    DRAG_START_EVENT = declare_option(20_200_401, "Drag Start Event")
+    DRAG_END_EVENT = declare_option(20_200_402, "Drag End Event")
+    DRAG_OVER_EVENT = declare_option(20_200_403, "Drag Over Event")
+    DRAG_ENTER_EVENT = declare_option(20_200_404, "Drag Enter Event")
+    DRAG_LEAVE_EVENT = declare_option(20_200_405, "Drag Leave Event")
+    DROP_EVENT = declare_option(20_200_406, "Drop Event")
     # clipboard events
-    CLIPBOARD_EVENT = 20_200_500, "Clipboard Event", None
-    COPY_EVENT = 20_200_501, "Copy Event", None
-    CUT_EVENT = 20_200_502, "Cut Event", None
-    PASTE_EVENT = 20_200_503, "Paste Event", None
+    CLIPBOARD_EVENT = declare_option(20_200_500, "Clipboard Event")
+    COPY_EVENT = declare_option(20_200_501, "Copy Event")
+    CUT_EVENT = declare_option(20_200_502, "Cut Event")
+    PASTE_EVENT = declare_option(20_200_503, "Paste Event")
     # focus events
-    FOCUS_EVENT = 20_200_600, "Focus Event", None
-    FOCUS_IN_EVENT = 20_200_601, "Focus In Event", None
-    FOCUS_OUT_EVENT = 20_200_602, "Focus Out Event", None
+    FOCUS_EVENT = declare_option(20_200_600, "Focus Event")
+    FOCUS_IN_EVENT = declare_option(20_200_601, "Focus In Event")
+    FOCUS_OUT_EVENT = declare_option(20_200_602, "Focus Out Event")
     # command
     # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
@@ -672,8 +700,8 @@ class NodeType(EnumDeclaration):
     # AUDIO, AUDIO_PLAYER, VIDEO, VIDEO_PLAYER, ...
 
     # animation [20_300_000]
-    TRANSITION_STYLE = 20_300_000, "Transition Style", None
-    EFFECT_STYLE = 20_300_100, "Effect Style", None
+    TRANSITION_STYLE = declare_option(20_300_000, "Transition Style")
+    EFFECT_STYLE = declare_option(20_300_100, "Effect Style")
     # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
     # KEYFRAME_VARIANT, ...
     # RIG, ...
@@ -702,16 +730,16 @@ class NodeType(EnumDeclaration):
     # TEXTURE, ...
 
     # style [30_500_000]
-    THEME = 30_500_000, "Theme", None
-    PALETTE = 30_500_100, "Palette", None
-    STYLE = 30_500_200, "Style", None
-    COLOR_STYLE = 30_500_300, "Color Style", None
-    FILL_STYLE = 30_500_400, "Fill Style", None
-    FONT_STYLE = 30_500_500, "Font Style", None
-    BORDER_STYLE = 30_500_600, "Border Style", None
-    SHADOW_STYLE = 30_500_700, "Shadow Style", None
-    GRADIENT_STYLE = 30_500_800, "Gradient Style", None
-    STROKE_STYLE = 30_500_900, "Stroke Style", None
+    THEME = declare_option(30_500_000, "Theme")
+    PALETTE = declare_option(30_500_100, "Palette")
+    STYLE = declare_option(30_500_200, "Style")
+    COLOR_STYLE = declare_option(30_500_300, "Color Style")
+    FILL_STYLE = declare_option(30_500_400, "Fill Style")
+    FONT_STYLE = declare_option(30_500_500, "Font Style")
+    BORDER_STYLE = declare_option(30_500_600, "Border Style")
+    SHADOW_STYLE = declare_option(30_500_700, "Shadow Style")
+    GRADIENT_STYLE = declare_option(30_500_800, "Gradient Style")
+    STROKE_STYLE = declare_option(30_500_900, "Stroke Style")
     # BRUSH_STYLE, ...
 
     #
@@ -719,10 +747,10 @@ class NodeType(EnumDeclaration):
     #
 
     # scene [40_000_000]
-    STAGE = 40_000_000, "Stage", None
-    SCENE = 40_000_100, "Scene", "Scene of an Application"
-    SCENE_EVENT = 40_000_101, "Scene Event", None
-    LAYER = 40_000_200, "Layer", "Layer of a Scene"
+    STAGE = declare_option(40_000_000, "Stage")
+    SCENE = declare_option(40_000_100, "Scene", description="Scene of an Application")
+    SCENE_EVENT = declare_option(40_000_101, "Scene Event")
+    LAYER = declare_option(40_000_200, "Layer", description="Layer of a Scene")
     # BREAKPOINT_VARIANT, ...
     # VIEWPORT, OVERLAY, WIDGET, HUD, ...
     # ROOM, ...
@@ -730,25 +758,25 @@ class NodeType(EnumDeclaration):
 
     # view [40_100_000]
     # container views
-    VIEW = 40_100_000, "View", "View in a Scene"
-    VIEW_EVENT = 40_100_001, "View Event", None
-    LAYOUT_VIEW = 40_100_100, "Container View", None
-    FRAME_VIEW = 40_100_200, "Frame View", "Fixed Container"
-    LABEL_VIEW = 40_100_300, "Label View", "Label Container"
-    SPLIT_VIEW = 40_100_400, "Split View", "Split Container"
+    VIEW = declare_option(40_100_000, "View", description="View in a Scene")
+    VIEW_EVENT = declare_option(40_100_001, "View Event")
+    LAYOUT_VIEW = declare_option(40_100_100, "Container View")
+    FRAME_VIEW = declare_option(40_100_200, "Frame View", description="Fixed Container")
+    LABEL_VIEW = declare_option(40_100_300, "Label View", description="Label Container")
+    SPLIT_VIEW = declare_option(40_100_400, "Split View", description="Split Container")
     # SLOT_DEFINITION_VIEW, SLOT_VIEW, ...
     # FORM_VIEW, MENU_VIEW, ...
     # TAB_VIEW, ...
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
     # POPOVER, SHEET, ALERT, HUD, ...
     # content views
-    CONTENT_VIEW = 40_100_500, "Content View", None
-    TEXT_VIEW = 40_100_501, "Text View", "Text"
+    CONTENT_VIEW = declare_option(40_100_500, "Content View")
+    TEXT_VIEW = declare_option(40_100_501, "Text View", description="Text")
     # CODE_VIEW, ICON_VIEW, IMAGE_VIEW, AUDIO_VIEW, VIDEO_VIEW, DOCUMENT_VIEW, ...
     # input views
-    INPUT_VIEW = 40_100_600, "Input View", None
-    NUMBER_INPUT_VIEW = 40_100_601, "Number Input View", "Number Input"
-    SLIDER_INPUT_VIEW = 40_100_602, "Slider Input View", "Slider Input"
+    INPUT_VIEW = declare_option(40_100_600, "Input View")
+    NUMBER_INPUT_VIEW = declare_option(40_100_601, "Number Input View", description="Number Input")
+    SLIDER_INPUT_VIEW = declare_option(40_100_602, "Slider Input View", description="Slider Input")
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
@@ -769,19 +797,19 @@ class NodeType(EnumDeclaration):
     #
 
     # cloud [50_000_000]
-    MACHINE = 50_000_000, "Machine", "Machine for ephemeral computing"
+    MACHINE = declare_option(50_000_000, "Machine", description="Machine for ephemeral computing")
     # DATABASE, SEARCH, VAULT, CACHE, S3, ...
     # HOST, ENDPOINT, NETWORK, AUTOSCALER, ...
 
     # observability [50_100_000]
     # metric
-    METRIC = 50_100_000, "Metric", None
-    GAUGE_METRIC = 50_100_100, "Gauge Metric", None
-    GAUGE_MEASUREMENT_EVENT = 50_100_101, "Gauge Measurement", None
-    COUNTER_METRIC = 50_100_200, "Counter Metric", None
-    COUNTER_MEASUREMENT_EVENT = 50_100_201, "Counter Measurement", None
-    HISTOGRAM_METRIC = 50_100_300, "Histogram Metric", None
-    HISTOGRAM_MEASUREMENT_EVENT = 50_100_301, "Histogram Measurement", None
+    METRIC = declare_option(50_100_000, "Metric")
+    GAUGE_METRIC = declare_option(50_100_100, "Gauge Metric")
+    GAUGE_MEASUREMENT_EVENT = declare_option(50_100_101, "Gauge Measurement")
+    COUNTER_METRIC = declare_option(50_100_200, "Counter Metric")
+    COUNTER_MEASUREMENT_EVENT = declare_option(50_100_201, "Counter Measurement")
+    HISTOGRAM_METRIC = declare_option(50_100_300, "Histogram Metric")
+    HISTOGRAM_MEASUREMENT_EVENT = declare_option(50_100_301, "Histogram Measurement")
     # INCIDENT, ESCALATION, ...
 
     # experience [50_200_000]
@@ -804,25 +832,25 @@ class NodeType(EnumDeclaration):
     # ...
 
     # social [60_200_000]
-    REACTION = 60_200_000, "Reaction", None
-    REACTION_EVENT = 60_200_001, "Reaction Event", None
-    REACTION_ADDED_EVENT = 60_200_002, "Reaction Added Event", None
-    REACTION_REMOVED_EVENT = 60_200_003, "Reaction Removed Event", None
-    STAR = 60_200_100, "Star", None
-    STAR_EVENT = 60_200_101, "Star Event", None
-    STAR_ADDED_EVENT = 60_200_102, "Star Added Event", None
-    STAR_REMOVED_EVENT = 60_200_103, "Star Removed Event", None
-    FOLLOW = 60_200_200, "Follow", None
-    FOLLOW_EVENT = 60_200_201, "Follow Event", None
-    FOLLOW_ADDED_EVENT = 60_200_202, "Follow Added Event", None
-    FOLLOW_REMOVED_EVENT = 60_200_203, "Follow Removed Event", None
-    NOTIFICATION = 60_200_300, "Notification", None
-    NOTIFICATION_EVENT = 60_200_301, "Notification Event", None
-    NOTIFICATION_SENT_EVENT = 60_200_302, "Notification Sent Event", None
-    NOTIFICATION_RESCINDED_EVENT = 60_200_303, "Notification Rescinded Event", None
-    NOTIFICATION_READ_EVENT = 60_200_304, "Notification Read Event", None
-    NOTIFICATION_DISMISSED_EVENT = 60_200_305, "Notification Dismissed Event", None
-    NOTIFICATION_EXPIRED_EVENT = 60_200_306, "Notification Expired Event", None
+    REACTION = declare_option(60_200_000, "Reaction")
+    REACTION_EVENT = declare_option(60_200_001, "Reaction Event")
+    REACTION_ADDED_EVENT = declare_option(60_200_002, "Reaction Added Event")
+    REACTION_REMOVED_EVENT = declare_option(60_200_003, "Reaction Removed Event")
+    STAR = declare_option(60_200_100, "Star")
+    STAR_EVENT = declare_option(60_200_101, "Star Event")
+    STAR_ADDED_EVENT = declare_option(60_200_102, "Star Added Event")
+    STAR_REMOVED_EVENT = declare_option(60_200_103, "Star Removed Event")
+    FOLLOW = declare_option(60_200_200, "Follow")
+    FOLLOW_EVENT = declare_option(60_200_201, "Follow Event")
+    FOLLOW_ADDED_EVENT = declare_option(60_200_202, "Follow Added Event")
+    FOLLOW_REMOVED_EVENT = declare_option(60_200_203, "Follow Removed Event")
+    NOTIFICATION = declare_option(60_200_300, "Notification")
+    NOTIFICATION_EVENT = declare_option(60_200_301, "Notification Event")
+    NOTIFICATION_SENT_EVENT = declare_option(60_200_302, "Notification Sent Event")
+    NOTIFICATION_RESCINDED_EVENT = declare_option(60_200_303, "Notification Rescinded Event")
+    NOTIFICATION_READ_EVENT = declare_option(60_200_304, "Notification Read Event")
+    NOTIFICATION_DISMISSED_EVENT = declare_option(60_200_305, "Notification Dismissed Event")
+    NOTIFICATION_EXPIRED_EVENT = declare_option(60_200_306, "Notification Expired Event")
     # FEED, FEED_ITEM, ...
     # THREAD, MESSAGE, ...
     # POLL, VOTE, REVIEW, RATING, RANK, ...
@@ -838,58 +866,58 @@ class NodeType(EnumDeclaration):
 
 
 @declare_enum(EnumType.STRUCT_TYPE)
-class StructType(EnumDeclaration):
+class StructType(OptionEnum):
     #
     # CORE
     #
 
     # builtin [1]
     # root
-    STRUCT = 1, "Struct", "Root of all Structs"
-    MESSAGE = 2, "Message", "Message"
+    STRUCT = declare_option(1, "Struct", description="Root of all Structs")
+    MESSAGE = declare_option(2, "Message", description="Message")
 
-    OBJECT_DEFINITION = 10
-    OBJECT_DEFINITION_REFERENCE = 11
-    NODE_DEFINITION = 12
-    STRUCT_DEFINITION = 15
-    HANDLE_DEFINITION = 17
-    ENUM_DEFINITION = 19
-    PROPERTY_DEFINITION = 20
-    CONSTANT_DEFINITION = 21
-    OPTION_DEFINITION = 22
-    TAG_DEFINITION = 23
+    OBJECT_DEFINITION = declare_option(10)
+    OBJECT_DEFINITION_REFERENCE = declare_option(11)
+    NODE_DEFINITION = declare_option(12)
+    STRUCT_DEFINITION = declare_option(15)
+    HANDLE_DEFINITION = declare_option(17)
+    ENUM_DEFINITION = declare_option(19)
+    PROPERTY_DEFINITION = declare_option(20)
+    CONSTANT_DEFINITION = declare_option(21)
+    OPTION_DEFINITION = declare_option(22)
+    TAG_DEFINITION = declare_option(23)
     # ALIAS_DEFINITION, UNION_DEFINITION, ...
 
     # common [100_000]
     # ...
 
     # type/value
-    VALUE = 100_000
-    TYPE = 100_001
-    NUMBER_CONSTRAINT = 100_010
-    STRING_CONSTRAINT = 100_011
-    COLLECTION_CONSTRAINT = 100_012
+    VALUE = declare_option(100_000)
+    TYPE = declare_option(100_001)
+    NUMBER_CONSTRAINT = declare_option(100_010)
+    STRING_CONSTRAINT = declare_option(100_011)
+    COLLECTION_CONSTRAINT = declare_option(100_012)
 
     # expressions
-    EXPRESSION = 100_020
-    JOIN = 100_022
-    AGGREGATION = 100_023
-    CONDITION = 100_024
-    SORT = 100_025
-    SELECT = 100_026
+    EXPRESSION = declare_option(100_020)
+    JOIN = declare_option(100_022)
+    AGGREGATION = declare_option(100_023)
+    CONDITION = declare_option(100_024)
+    SORT = declare_option(100_025)
+    SELECT = declare_option(100_026)
 
     # query
-    QUERY = 100_030
+    QUERY = declare_option(100_030)
 
     # references
-    NODE_REFERENCE = 100_040
-    PROPERTY_REFERENCE = 100_041
+    NODE_REFERENCE = declare_option(100_040)
+    PROPERTY_REFERENCE = declare_option(100_041)
 
     # universe [200_000]
-    UNIVERSE_SIGNUP_REQUEST = 200_000
-    UNIVERSE_SIGNUP_RESPONSE = 200_001
-    UNIVERSE_SPAWN_REQUEST = 200_002
-    UNIVERSE_SPAWN_RESPONSE = 200_003
+    UNIVERSE_SIGNUP_REQUEST = declare_option(200_000)
+    UNIVERSE_SIGNUP_RESPONSE = declare_option(200_001)
+    UNIVERSE_SPAWN_REQUEST = declare_option(200_002)
+    UNIVERSE_SPAWN_RESPONSE = declare_option(200_003)
     # ...
 
     # space [300_000]
@@ -906,31 +934,35 @@ class StructType(EnumDeclaration):
     #
 
     # entity [10_000_000]
-    INDEX_DEFINITION = 10_000_100
-    CONSTRAINT_DEFINITION = 10_000_200
+    INDEX_DEFINITION = declare_option(10_000_100)
+    CONSTRAINT_DEFINITION = declare_option(10_000_200)
     # EXPECTATION_DEFINITION = 10_000_300
-    MIGRATION_DEFINITION = 10_000_300
-    MIGRATION_OPERATION_DEFINITION = 10_000_301
-    TEXT = 10_000_010, None, None
-    TEXT_SPAN = 10_000_011, None, None
-    ICON = 10_000_012
+    MIGRATION_DEFINITION = declare_option(10_000_300)
+    MIGRATION_OPERATION_DEFINITION = declare_option(10_000_301)
+    TEXT = declare_option(10_000_010)
+    TEXT_SPAN = declare_option(10_000_011)
+    ICON = declare_option(10_000_012)
     # custom
-    CUSTOM_STRUCT = 10_000_500, "Custom Struct", "Custom Struct Instance"
-    CUSTOM_MESSAGE = 10_000_600, "Custom Message", "Custom Message Instance"
+    CUSTOM_STRUCT = declare_option(
+        10_000_500, "Custom Struct", description="Custom Struct Instance"
+    )
+    CUSTOM_MESSAGE = declare_option(
+        10_000_600, "Custom Message", description="Custom Message Instance"
+    )
     # ...
 
     # logic [10_100_000]
-    FUNCTION_DEFINITION = 10_100_400
-    METHOD_DEFINITION = 10_100_500
-    ACTION_DEFINITION = 10_100_600
-    SCHEDULE = 10_100_810
+    FUNCTION_DEFINITION = declare_option(10_100_400)
+    METHOD_DEFINITION = declare_option(10_100_500)
+    ACTION_DEFINITION = declare_option(10_100_600)
+    SCHEDULE = declare_option(10_100_810)
     # ...
 
     # intelligence [10_200_000]
     # ...
 
     # access [10_300_000]
-    PERMISSION_DEFINITION = 10_300_000
+    PERMISSION_DEFINITION = declare_option(10_300_000)
 
     # quality [10_400_000]
     # ...
@@ -940,31 +972,31 @@ class StructType(EnumDeclaration):
     #
 
     # geometry [20_000_000]
-    VECTOR2 = 20_000_010, None, None
-    VECTOR2I = 20_000_011, None, None
-    VECTOR3 = 20_000_012, None, None
-    VECTOR3I = 20_000_013, None, None
-    VECTOR4 = 20_000_014, None, None
-    VECTOR4I = 20_000_015, None, None
-    QUATERNION = 20_000_020, None, None
-    LENGTH = 20_000_030, "Length", None
-    OFFSET2 = 20_000_031, "Position", None
-    GRID2 = 20_000_032, "Grid", None
-    GRID_SPAN2 = 20_000_033, "Grid Span", None
-    INSET2 = 20_000_034, "Insets", None
-    CORNER2 = 20_000_035, "Corners", None
-    AXIS2 = 20_000_036, "Axis2", None
-    AXIS3 = 20_000_037, "Axis3", None
-    FORM2D = 20_000_200, "Form2D", None
-    LINE2D = 20_000_201, "Line", None
-    ARROW2D = 20_000_202, "Arrow", None
-    RECTANGLE2D = 20_000_203, "Rectangle", None
-    ELLIPSE2D = 20_000_204, "Ellipse", None
-    CAPSULE2D = 20_000_205, "Capsule", None
-    STAR2D = 20_000_206, "Star", None
-    POLYGON2D = 20_000_207, "Polygon", None
-    PATH2D = 20_000_208, "Path", None
-    FORM3D = 20_000_300, "Form3D", None
+    VECTOR2 = declare_option(20_000_010)
+    VECTOR2I = declare_option(20_000_011)
+    VECTOR3 = declare_option(20_000_012)
+    VECTOR3I = declare_option(20_000_013)
+    VECTOR4 = declare_option(20_000_014)
+    VECTOR4I = declare_option(20_000_015)
+    QUATERNION = declare_option(20_000_020)
+    LENGTH = declare_option(20_000_030, "Length")
+    OFFSET2 = declare_option(20_000_031, "Position")
+    GRID2 = declare_option(20_000_032, "Grid")
+    GRID_SPAN2 = declare_option(20_000_033, "Grid Span")
+    INSET2 = declare_option(20_000_034, "Insets")
+    CORNER2 = declare_option(20_000_035, "Corners")
+    AXIS2 = declare_option(20_000_036, "Axis2")
+    AXIS3 = declare_option(20_000_037, "Axis3")
+    FORM2D = declare_option(20_000_200, "Form2D")
+    LINE2D = declare_option(20_000_201, "Line")
+    ARROW2D = declare_option(20_000_202, "Arrow")
+    RECTANGLE2D = declare_option(20_000_203, "Rectangle")
+    ELLIPSE2D = declare_option(20_000_204, "Ellipse")
+    CAPSULE2D = declare_option(20_000_205, "Capsule")
+    STAR2D = declare_option(20_000_206, "Star")
+    POLYGON2D = declare_option(20_000_207, "Polygon")
+    PATH2D = declare_option(20_000_208, "Path")
+    FORM3D = declare_option(20_000_300, "Form3D")
 
     # physics [20_100_000]
     # ...
@@ -973,8 +1005,8 @@ class StructType(EnumDeclaration):
     # ...
 
     # animation [20_300_000]
-    TRANSITION = 20_300_000, "Transition", None
-    EFFECT = 20_300_100, "Effect", None
+    TRANSITION = declare_option(20_300_000, "Transition")
+    EFFECT = declare_option(20_300_100, "Effect")
 
     #
     # CANVAS
@@ -996,17 +1028,17 @@ class StructType(EnumDeclaration):
     # ...
 
     # style [30_500_000]
-    COLOR = 30_500_000, "Color", None
-    FILL = 30_500_100, "Fill", None
-    FONT = 30_500_200, "Font", None
-    BORDER = 30_500_300, "Border", None
-    SHADOW = 30_500_400, "Shadow", None
-    GRADIENT = 30_500_500, "Gradient", None
-    GRADIENT_STOP = 30_500_501, "Gradient Stop", None
-    STROKE = 30_500_600, "Stroke", None
-    STROKE_CAP = 30_500_601, "Stroke Cap", None
-    STROKE_PATH = 30_500_602, "Stroke Path", None
-    STROKE_POINT = 30_500_603, "Stroke Point", None
+    COLOR = declare_option(30_500_000, "Color")
+    FILL = declare_option(30_500_100, "Fill")
+    FONT = declare_option(30_500_200, "Font")
+    BORDER = declare_option(30_500_300, "Border")
+    SHADOW = declare_option(30_500_400, "Shadow")
+    GRADIENT = declare_option(30_500_500, "Gradient")
+    GRADIENT_STOP = declare_option(30_500_501, "Gradient Stop")
+    STROKE = declare_option(30_500_600, "Stroke")
+    STROKE_CAP = declare_option(30_500_601, "Stroke Cap")
+    STROKE_PATH = declare_option(30_500_602, "Stroke Path")
+    STROKE_POINT = declare_option(30_500_603, "Stroke Point")
 
     #
     # STAGE
@@ -1061,99 +1093,107 @@ class StructType(EnumDeclaration):
 
 
 @declare_enum(EnumType.HANDLE_TYPE)
-class HandleType(EnumDeclaration):
-    HANDLE = 1
+class HandleType(OptionEnum):
+    HANDLE = declare_option(1)
 
-    SESSION = 10
-    GRAPH = 11
-    CONNECTION = 12
-    STREAM = 13
+    SESSION = declare_option(10)
+    GRAPH = declare_option(11)
+    CONNECTION = declare_option(12)
+    STREAM = declare_option(13)
 
-    CONTEXT = 20
-    LOGGER = 21
-    TRACER = 22
+    CONTEXT = declare_option(20)
+    LOGGER = declare_option(21)
+    TRACER = declare_option(22)
 
-    HASHER = 30
-    ENCODER = 31
-    BINARY_WRITER = 32
-    BINARY_READER = 33
+    HASHER = declare_option(30)
+    ENCODER = declare_option(31)
+    BINARY_WRITER = declare_option(32)
+    BINARY_READER = declare_option(33)
 
 
 @declare_enum(EnumType.UNIVERSE_DOMAIN)
-class UniverseDomain(EnumDeclaration):
+class UniverseDomain(OptionEnum):
     """The Destack Universe is organized into domains."""
 
-    CORE = 1, "Core", "Universe intrinsics"
-    BASICS = 10_000_000, "Basics", "Scaffolding the Universe"
-    SIMULATION = 20_000_000, "Simulation", "Modeling the Universe"
-    CANVAS = 30_000_000, "Crafting", "Imagining the Universe"
-    STAGE = 40_000_000, "Stage", "Presenting the Universe"
-    DEPLOYMENT = 50_000_000, "Deployment", "Operating the Universe"
-    DISTRIBUTION = 60_000_000, "Distribution", "Distributing the Universe"
+    CORE = declare_option(1, "Core", description="Universe intrinsics")
+    BASICS = declare_option(10_000_000, "Basics", description="Scaffolding the Universe")
+    SIMULATION = declare_option(20_000_000, "Simulation", description="Modeling the Universe")
+    CANVAS = declare_option(30_000_000, "Crafting", description="Imagining the Universe")
+    STAGE = declare_option(40_000_000, "Stage", description="Presenting the Universe")
+    DEPLOYMENT = declare_option(50_000_000, "Deployment", description="Operating the Universe")
+    DISTRIBUTION = declare_option(
+        60_000_000, "Distribution", description="Distributing the Universe"
+    )
 
 
 @declare_enum(EnumType.UNIVERSE_CATEGORY)
-class UniverseCategory(EnumDeclaration):
+class UniverseCategory(OptionEnum):
     """How the Destack Universe is organized (domains > categories)."""
 
     # core
-    BUILTIN = 1, "Core", "Primitives and intrinsics"
-    COMMON = 100_000, "Common", "Common and shared"
-    UNIVERSE = 200_000, "Universe", "Global computational universe"
-    SPACE = 300_000, "Space", "Spacetime organization"
-    RUNTIME = 400_000, "Runtime", "Runtime and execution"
-    GENERATE = 500_000, "Generate", "SDK generation"
+    BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
+    COMMON = declare_option(100_000, "Common", description="Common and shared")
+    UNIVERSE = declare_option(200_000, "Universe", description="Global computational universe")
+    SPACE = declare_option(300_000, "Space", description="Spacetime organization")
+    RUNTIME = declare_option(400_000, "Runtime", description="Runtime and execution")
+    GENERATE = declare_option(500_000, "Generate", description="SDK generation")
     # CLI, ENCODER, GRAPH, ...
 
     # basics
-    ENTITY = 10_000_000, "Entity", "Entity management"
-    LOGIC = 10_100_000, "Logic", "Scripting and behavior"
-    INTELLIGENCE = 10_200_000, "Intelligence", "Artificial intelligence"  # AI
-    ACCESS = 10_300_000, "Access", "Access and identity"
-    QUALITY = 10_400_000, "Quality", "Quality assurance"
-    STUDIO = 10_500_000, "Studio", "Editing the Universe"
+    ENTITY = declare_option(10_000_000, "Entity", description="Entity management")
+    LOGIC = declare_option(10_100_000, "Logic", description="Scripting and behavior")
+    INTELLIGENCE = declare_option(
+        10_200_000, "Intelligence", description="Artificial intelligence"
+    )  # AI
+    ACCESS = declare_option(10_300_000, "Access", description="Access and identity")
+    QUALITY = declare_option(10_400_000, "Quality", description="Quality assurance")
+    STUDIO = declare_option(10_500_000, "Studio", description="Editing the Universe")
     # STREAMING, INTERNET, ...
 
     # simulation
-    GEOMETRY = 20_000_000, "Geometry", "Geometric representations"
-    PHYSICS = 20_100_000, "Physics", "Physics simulation"
-    PERCEPTION = 20_200_000, "Perception", "Sensing and interaction"
-    ANIMATION = 20_300_000, "Animation", "Motion and time choreography"
+    GEOMETRY = declare_option(20_000_000, "Geometry", description="Geometric representations")
+    PHYSICS = declare_option(20_100_000, "Physics", description="Physics simulation")
+    PERCEPTION = declare_option(20_200_000, "Perception", description="Sensing and interaction")
+    ANIMATION = declare_option(20_300_000, "Animation", description="Motion and time choreography")
     # CHARACTER/HUMAN?, ...
     # GEOGRAPHY/GEOLOCATION/MAPPING?, ...
     # MATERIAL?, MECHANICAL, ELECTRICAL, THERMODYNAMICS, INTERSTELLAR, ...
     # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
 
     # canvas
-    AUDIO = 30_000_000, "Audio", "Audio and sound production"
-    IMAGE = 30_100_000, "Image", "Image and photo production"
-    VIDEO = 30_200_000, "Video", "Video production"
-    MODEL = 30_300_000, "Model", "Modeling and sculpting"
-    PAINT = 30_400_000, "Paint", "Drawing and painting"
-    STYLE = 30_500_000, "Style", "Appearance and theming"
+    AUDIO = declare_option(30_000_000, "Audio", description="Audio and sound production")
+    IMAGE = declare_option(30_100_000, "Image", description="Image and photo production")
+    VIDEO = declare_option(30_200_000, "Video", description="Video production")
+    MODEL = declare_option(30_300_000, "Model", description="Modeling and sculpting")
+    PAINT = declare_option(30_400_000, "Paint", description="Drawing and painting")
+    STYLE = declare_option(30_500_000, "Style", description="Appearance and theming")
     # MATERIAL?, NARRATIVE, ...
 
     # stage
-    SCENE = 40_000_000, "Scene", "Stage building"
-    VIEW = 40_100_000, "View", "View building"
-    RENDERING = 40_200_000, "Rendering", "Rendering and shading"
-    SHADERS = 40_300_000, "Shaders", "Shader programming"
-    LIGHTING = 40_400_000, "Lighting", "Lighting and shadows"
+    SCENE = declare_option(40_000_000, "Scene", description="Stage building")
+    VIEW = declare_option(40_100_000, "View", description="View building")
+    RENDERING = declare_option(40_200_000, "Rendering", description="Rendering and shading")
+    SHADERS = declare_option(40_300_000, "Shaders", description="Shader programming")
+    LIGHTING = declare_option(40_400_000, "Lighting", description="Lighting and shadows")
     # CAMERA/VIEWPORT, XR, PARTICLE, ...
 
     # deployment
-    CLOUD = 50_000_000, "Cloud", "Cloud computing infrastructure"
-    OBSERVABILITY = 50_100_000, "Observability", "Telemetry on everything"
-    EXPERIENCE = 50_200_000, "Experience", "User experience"
+    CLOUD = declare_option(50_000_000, "Cloud", description="Cloud computing infrastructure")
+    OBSERVABILITY = declare_option(
+        50_100_000, "Observability", description="Telemetry on everything"
+    )
+    EXPERIENCE = declare_option(50_200_000, "Experience", description="User experience")
     # PRINTING, ACTUATION, ROBOTICS, ...
     # TRANSPORTATION, ENERGY, DEFENSE, ...
     # CONSUMER/HOME, PHARMACEUTICAL, ...
 
     # distribution
-    LOCALIZATION = 60_000_000, "Localization", "Localization and internationalization"
-    LEGAL = 60_100_000, "Legal", "Legal, compliance and policy"
-    SOCIAL = 60_200_000, "Social", "Interactions, reputation and trust"
-    FINANCE = 60_300_000, "Finance", "Accounting and finance"
-    COMMERCE = 60_400_000, "Commerce", "Billing and monetization"
+    LOCALIZATION = declare_option(
+        60_000_000, "Localization", description="Localization and internationalization"
+    )
+    LEGAL = declare_option(60_100_000, "Legal", description="Legal, compliance and policy")
+    SOCIAL = declare_option(60_200_000, "Social", description="Interactions, reputation and trust")
+    FINANCE = declare_option(60_300_000, "Finance", description="Accounting and finance")
+    COMMERCE = declare_option(60_400_000, "Commerce", description="Billing and monetization")
     # ACCESSIBILITY, GOVERNANCE, ...
     # CONTENT, COST, CRYPTO, ...

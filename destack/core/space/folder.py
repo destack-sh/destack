@@ -2,14 +2,15 @@ from typing import TYPE_CHECKING, Union
 
 from destack.core import (
     Entity,
-    EnumDeclaration,
     EnumType,
     Icon,
     NodeType,
+    OptionEnum,
     Space,
     TraitType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_property_parent,
 )
@@ -21,12 +22,12 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.FOLDER_TYPE)
-class FolderType(EnumDeclaration):
-    SYSTEM = 1, "Root", "The root folder of a Space"
-    HOME = 2, "Home", "The home folder of a Space"
-    GENERAL = 3, "General", "A general folder"
-    MODULE = 4, "Module", "A module"
-    APP = 5, "App", "An app folder"
+class FolderType(OptionEnum):
+    SYSTEM = declare_option(1, "Root", description="The root folder of a Space")
+    HOME = declare_option(2, "Home", description="The home folder of a Space")
+    GENERAL = declare_option(3, "General", description="A general folder")
+    MODULE = declare_option(4, "Module", description="A module")
+    APP = declare_option(5, "App", description="An app folder")
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 

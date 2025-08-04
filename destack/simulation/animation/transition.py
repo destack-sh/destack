@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -21,19 +22,19 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.TRANSITION_TYPE)
-class TransitionType(EnumDeclaration):
+class TransitionType(OptionEnum):
     """Built-in transition types."""
 
-    TWEEN = 10
-    SPRING = 11
+    TWEEN = declare_option(10)
+    SPRING = declare_option(11)
 
 
 @declare_enum(EnumType.SPRING_TYPE)
-class SpringType(EnumDeclaration):
+class SpringType(OptionEnum):
     """Built-in spring types."""
 
-    TIME = 1
-    PHYSICAL = 2
+    TIME = declare_option(1)
+    PHYSICAL = declare_option(2)
 
 
 @declare_struct(StructType.TRANSITION, frozen=True)

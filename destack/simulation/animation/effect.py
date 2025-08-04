@@ -2,14 +2,15 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -24,40 +25,40 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.EFFECT_TYPE)
-class EffectType(EnumDeclaration):
+class EffectType(OptionEnum):
     """When the effect fires."""
 
-    APPEAR = 10, "Appear", "Initial render in"
-    ENTER = 11, "Enter", "Enters viewport"
-    EXIT = 12, "Exit", "Leaves viewport"
-    HOVER = 20, "Hover", "While hover"
-    PRESS = 21, "Press", "While tap"
-    DRAG = 22, "Drag", "While drag / drag"
-    FOCUS = 23, "Focus", "While focus"
-    LOOP = 30, "Loop", "Continuous loop"
+    APPEAR = declare_option(10, description="Initial render in")
+    ENTER = declare_option(11, description="Enters viewport")
+    EXIT = declare_option(12, description="Leaves viewport")
+    HOVER = declare_option(20, description="While hover")
+    PRESS = declare_option(21, description="While tap")
+    DRAG = declare_option(22, description="While drag / drag")
+    FOCUS = declare_option(23, description="While focus")
+    LOOP = declare_option(30, description="Continuous loop")
     # SCROLL, ...
 
 
 @declare_enum(EnumType.REPEAT_TYPE)
-class RepeatType(EnumDeclaration):
-    LOOP = 1, "Loop", "Restart from beginning"
-    REVERSE = 2, "Reverse", "Yoyo back and forth"
-    MIRROR = 3, "Mirror", "Mirror keyframes"
+class RepeatType(OptionEnum):
+    LOOP = declare_option(1, description="Restart from beginning")
+    REVERSE = declare_option(2, description="Yoyo back and forth")
+    MIRROR = declare_option(3, description="Mirror keyframes")
 
 
 @declare_enum(EnumType.TEXT_SPLIT_TYPE)
-class TextSplitType(EnumDeclaration):
-    CHAR = 1, "Char", "Split by character"
-    WORD = 2, "Word", "Split by word"
-    LINE = 3, "Line", "Split by line"
+class TextSplitType(OptionEnum):
+    CHAR = declare_option(1, description="Split by character")
+    WORD = declare_option(2, description="Split by word")
+    LINE = declare_option(3, description="Split by line")
 
 
 @declare_enum(EnumType.OFFSCREEN_BEHAVIOR)
-class OffscreenBehavior(EnumDeclaration):
+class OffscreenBehavior(OptionEnum):
     """What happens when the element is offscreen."""
 
-    PLAY = 1, "Play", "Play the animation"
-    PAUSE = 2, "Pause", "Pause the animation"
+    PLAY = declare_option(1, description="Play the animation")
+    PAUSE = declare_option(2, description="Pause the animation")
 
 
 @declare_struct(StructType.EFFECT, frozen=True)

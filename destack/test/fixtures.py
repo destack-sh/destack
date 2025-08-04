@@ -10,10 +10,9 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack import REGION, Context, Session, Space, Universe
+from destack import REGION, Context, Session, Space, Universe, uuid4
 from destack.graph import MemoryGraph
 from destack.test.conftest import _setup_test_env
-from destack.utils.uuid import uuid4
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")

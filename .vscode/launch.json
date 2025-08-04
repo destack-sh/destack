@@ -20,7 +20,7 @@
       "name": "test.collect",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/destack-py/venv/bin/pytest",
+      "program": "${workspaceFolder}/venv/bin/pytest",
       "args": ["--collect-only"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
@@ -34,7 +34,7 @@
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
+      "program": "${workspaceFolder}/main.py",
       "args": ["generate"],
       "justMyCode": true
     },

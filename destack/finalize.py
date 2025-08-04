@@ -183,9 +183,9 @@ def finalize():
         )
         HANDLE_DEFINITION_BY_TYPE[handle_cls.metatype] = handle_definition
         handle_cls.__definition__ = handle_definition
-    for enum_type in ENUM_CLASS_BY_TYPE:
-        enum_definition = EnumDefinition.from_declaration(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
-        ENUM_DEFINITION_BY_TYPE[enum_type] = enum_definition
+    for enum_cls in ENUM_CLASS_BY_TYPE.values():
+        enum_definition = EnumDefinition.from_declaration(enum_cls, enum_cls.__declaration__)
+        ENUM_DEFINITION_BY_TYPE[enum_cls.metatype] = enum_definition
 
     # index node scalar types
     for node_type in NodeType:

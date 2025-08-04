@@ -1,11 +1,12 @@
 from typing import TYPE_CHECKING
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     NodeType,
+    OptionEnum,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
 )
 
@@ -18,12 +19,12 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.MOUSE_BUTTON)
-class MouseButton(EnumDeclaration):
+class MouseButton(OptionEnum):
     """A MouseButton is a button on a mouse."""
 
-    LEFT = 1
-    RIGHT = 2
-    MIDDLE = 3
+    LEFT = declare_option(1, description="Left button")
+    RIGHT = declare_option(2, description="Right button")
+    MIDDLE = declare_option(3, description="Middle button")
 
 
 @declare_event(NodeType.MOUSE_EVENT, is_abstract=True)

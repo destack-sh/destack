@@ -6,15 +6,16 @@ from typing import (
 
 from destack.core import (
     Entity,
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     TraitType,
     UInt32,
     UInt64,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_property_parent,
 )
@@ -29,25 +30,18 @@ FILE_HASH_LENGTH = 64  # 256 bits
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@declare_enum(EnumType.FILE_RETENTION_MODE)
-class FileRetentionMode(EnumDeclaration):
-    AUTOMATIC = 1  # garbage collected if no references
-    MANUAL = 2  # never garbage collected
-    TIMED = 3  # delete after a certain time
-
-
 @declare_enum(EnumType.FILE_TYPE)
-class FileType(EnumDeclaration):
-    TEXT = 1, None, None, "fas fa-file-lines"
-    CODE = 2, None, None, "fas fa-file-code"
-    IMAGE = 3, None, None, "fas fa-image"
-    AUDIO = 4, None, None, "fas fa-volume"
-    VIDEO = 5, None, None, "fas fa-video"
-    DOCUMENT = 6, None, None, "fas fa-file-invoice"
-    DATA = 7, None, None, "fas fa-database"
-    ARCHIVE = 8, None, None, "fas fa-file-zipper"
-    EXECUTABLE = 9, None, None, "fas fa-file-binary"
-    GENERIC = 99, None, None, "fas fa-file"
+class FileType(OptionEnum):
+    TEXT = declare_option(1, "Text", description="A text file")
+    CODE = declare_option(2, "Code", description="A code file")
+    IMAGE = declare_option(3, "Image", description="An image file")
+    AUDIO = declare_option(4, "Audio", description="An audio file")
+    VIDEO = declare_option(5, "Video", description="A video file")
+    DOCUMENT = declare_option(6, "Document", description="A document file")
+    DATA = declare_option(7, "Data", description="A data file")
+    ARCHIVE = declare_option(8, "Archive", description="An archive file")
+    EXECUTABLE = declare_option(9, "Executable", description="An executable file")
+    GENERIC = declare_option(99, "Generic", description="A generic file")
 
 
 @declare_entity(NodeType.FILE, traits=(TraitType.RESOURCE,))

@@ -2,13 +2,14 @@ from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
-    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
+    OptionEnum,
     declare_entity,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
 )
 
@@ -63,9 +64,9 @@ class TimerCancelledEvent(TimerEvent):
 
 
 @declare_enum(EnumType.TIMER_TYPE)
-class TimerType(EnumDeclaration):
-    ONCE = 1
-    RECURRING = 2
+class TimerType(OptionEnum):
+    ONCE = declare_option(1, "Once", description="A one-time timer")
+    RECURRING = declare_option(2, "Recurring", description="A recurring timer")
 
 
 @declare_entity(

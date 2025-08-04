@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     NodeType,
+    OptionEnum,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -20,10 +21,10 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.ARROW_HEAD_TYPE)
-class ArrowHeadType(EnumDeclaration):
-    ARROW = 1
-    TRIANGLE = 2
-    DOT = 3
+class ArrowHeadType(OptionEnum):
+    ARROW = declare_option(1)
+    TRIANGLE = declare_option(2)
+    DOT = declare_option(3)
 
 
 @declare_struct(

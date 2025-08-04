@@ -44,7 +44,7 @@ class TicTacToeBoard(Entity):
 
 
 @enum
-class TicTacToeCellState(EnumDeclaration):
+class TicTacToeCellState(Enum):
     EMPTY = 1
     X = 2
     O = 3

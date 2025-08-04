@@ -2,7 +2,16 @@ from abc import abstractmethod
 from enum import IntFlag
 from typing import TYPE_CHECKING, Any
 
-from ..builtin import EnumType, Handle, HandleType, Object, ObjectKind, declare_enum, declare_handle
+from ..builtin import (
+    EnumType,
+    Handle,
+    HandleType,
+    Object,
+    ObjectKind,
+    declare_enum,
+    declare_handle,
+    declare_option,
+)
 from .binary import BinaryReader, BinaryWriter
 
 if TYPE_CHECKING:
@@ -13,17 +22,17 @@ if TYPE_CHECKING:
 class EncoderOptions(IntFlag):
     """Options for encoding."""
 
-    DEFAULT = 0
+    DEFAULT = declare_option(0)
     # whether to omit the metatype of the object (if possible)
-    OMIT_METATYPE = 1
+    OMIT_METATYPE = declare_option(1)
     # whether to omit the key of properties (if possible)
-    # OMIT_KEY = 1 << 1
+    # OMIT_KEY = declare_option(1 << 1)
     # whether to omit the type of the value (if possible)
-    # OMIT_TYPE = 1 << 2
+    # OMIT_TYPE = declare_option(1 << 2)
     # whether to omit None values (if possible)
-    OMIT_NONE = 1 << 3
+    OMIT_NONE = declare_option(1 << 3)
     # whether to unwrap Values (if possible)
-    UNWRAP_VALUE = 1 << 4
+    UNWRAP_VALUE = declare_option(1 << 4)
 
 
 @declare_handle(HandleType.ENCODER, is_abstract=True)

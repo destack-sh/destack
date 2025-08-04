@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -23,68 +24,68 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.COLOR_TYPE)
-class ColorType(EnumDeclaration):
+class ColorType(OptionEnum):
     """Built-in color formats."""
 
-    BUILTIN = 1
-    RGB = 10
-    HSL = 11
-    P3 = 12
+    BUILTIN = declare_option(1, "Builtin", description="A builtin color")
+    RGB = declare_option(10, "RGB", description="An RGB color")
+    HSL = declare_option(11, "HSL", description="An HSL color")
+    P3 = declare_option(12, "P3", description="A P3 color")
 
 
 @declare_enum(EnumType.COLOR_HUE)
-class ColorHue(EnumDeclaration):
+class ColorHue(OptionEnum):
     """Built-in colors a la SwiftUI or Tailwind."""
 
-    GRAY = 30
-    RED = 31
-    ORANGE = 32
-    AMBER = 33
-    YELLOW = 34
-    LIME = 35
-    GREEN = 36
-    EMERALD = 37
-    TEAL = 38
-    CYAN = 39
-    SKY = 40
-    BLUE = 41
-    INDIGO = 42
-    VIOLET = 43
-    PURPLE = 44
-    FUCHSIA = 45
-    PINK = 46
-    ROSE = 47
+    GRAY = declare_option(30, "Gray", description="A Gray color")
+    RED = declare_option(31, "Red", description="A Red color")
+    ORANGE = declare_option(32, "Orange", description="An Orange color")
+    AMBER = declare_option(33, "Amber", description="An Amber color")
+    YELLOW = declare_option(34, "Yellow", description="A Yellow color")
+    LIME = declare_option(35, "Lime", description="A Lime color")
+    GREEN = declare_option(36, "Green", description="A Green color")
+    EMERALD = declare_option(37, "Emerald", description="An Emerald color")
+    TEAL = declare_option(38, "Teal", description="A Teal color")
+    CYAN = declare_option(39, "Cyan", description="A Cyan color")
+    SKY = declare_option(40, "Sky", description="A Sky color")
+    BLUE = declare_option(41, "Blue", description="A Blue color")
+    INDIGO = declare_option(42, "Indigo", description="An Indigo color")
+    VIOLET = declare_option(43, "Violet", description="A Violet color")
+    PURPLE = declare_option(44, "Purple", description="A Purple color")
+    FUCHSIA = declare_option(45, "Fuchsia", description="A Fuchsia color")
+    PINK = declare_option(46, "Pink", description="A Pink color")
+    ROSE = declare_option(47, "Rose", description="A Rose color")
 
 
 @declare_enum(EnumType.COLOR_SHADE)
-class ColorShade(EnumDeclaration):
+class ColorShade(OptionEnum):
     """Built-in color shades a la Tailwind."""
 
-    S25 = 25
-    S50 = 50
-    S100 = 100
-    S200 = 200
-    S300 = 300
-    S400 = 400
-    S500 = 500
-    S600 = 600
-    S700 = 700
-    S800 = 800
-    S900 = 900
-    S950 = 950
+    S25 = declare_option(25, "25", description="A 25% shade")
+    S50 = declare_option(50, "50", description="A 50% shade")
+    S100 = declare_option(100, "100", description="A 100% shade")
+    S200 = declare_option(200, "200", description="A 200% shade")
+    S300 = declare_option(300, "300", description="A 300% shade")
+    S400 = declare_option(400, "400", description="A 400% shade")
+    S500 = declare_option(500, "500", description="A 500% shade")
+    S600 = declare_option(600, "600", description="A 600% shade")
+    S700 = declare_option(700, "700", description="A 700% shade")
+    S800 = declare_option(800, "800", description="A 800% shade")
+    S900 = declare_option(900, "900", description="A 900% shade")
+    S950 = declare_option(950, "950", description="A 950% shade")
 
 
 @declare_enum(EnumType.COLOR_INTENT)
-class ColorIntent(EnumDeclaration):
+class ColorIntent(OptionEnum):
     """Built-in color intents."""
 
-    PRIMARY = 1
-    SECONDARY = 2
-    NEUTRAL = 3
-    SUCCESS = 10
-    INFO = 11
-    WARNING = 12
-    ERROR = 13
+    PRIMARY = declare_option(1, "Primary", description="A Primary intent")
+    SECONDARY = declare_option(2, "Secondary", description="A Secondary intent")
+    NEUTRAL = declare_option(3, "Neutral", description="A Neutral intent")
+    SUCCESS = declare_option(10, "Success", description="A Success intent")
+    INFO = declare_option(11, "Info", description="An Info intent")
+    WARNING = declare_option(12, "Warning", description="A Warning intent")
+    ERROR = declare_option(13, "Error", description="An Error intent")
 
 
 @declare_struct(StructType.COLOR, frozen=True, is_final=True)

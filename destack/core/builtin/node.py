@@ -341,17 +341,7 @@ class Node(Object):
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         """Make a get Query for this Node."""
-        from ..common.query import Join, Query, QueryType, to_subqueries
-
-        query = Query(
-            type=QueryType.NODE,
-            definition=cls.__definition__.to_ref(),
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            subqueries=to_subqueries(subqueries),
-        )
-        return query  # type: ignore
+        ...
 
     @classmethod
     @declare_method(61)
@@ -369,22 +359,7 @@ class Node(Object):
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         """Make a search Query for this Node."""
-        from ..common.query import Expression, Join, Query, QueryType, to_subqueries
-
-        query = Query(
-            type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
-            definition=cls.__definition__.to_ref(),
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            having=having,
-            group_by=[Expression.of(expr) for expr in group_by or ()],
-            sort=sort or [],
-            limit=limit,
-            offset=offset,
-            subqueries=to_subqueries(subqueries),
-        )
-        return query  # type: ignore
+        ...
 
     @classmethod
     @declare_method(62)
@@ -396,23 +371,7 @@ class Node(Object):
         join: Optional["JoinIn"] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make a count Query for this Node."""
-        from ..common.query import (
-            Aggregation,
-            AggregationType,
-            Join,
-            Query,
-            QueryType,
-        )
-
-        query = Query(
-            type=QueryType.SCALAR,
-            definition=cls.__definition__.to_ref(),
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            aggregation=Aggregation(type=AggregationType.EXISTS),
-        )
-        return query  # type: ignore
+        ...
 
     @classmethod
     @declare_method(63)
@@ -427,20 +386,7 @@ class Node(Object):
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make a min Query for this Node."""
-        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
-
-        query = Query(
-            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=cls.__definition__.to_ref(),
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            having=having,
-            group_by=[Expression.of(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.COUNT),
-            sort=sort or [],
-        )
-        return query  # type: ignore
+        ...
 
     @classmethod
     @declare_method(64)
@@ -455,20 +401,7 @@ class Node(Object):
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
-
-        query = Query(
-            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=cls.__definition__.to_ref(),
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            having=having,
-            group_by=[Expression.of(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.MIN, expression=Expression.of(expression)),
-            sort=sort or [],
-        )
-        return query  # type: ignore
+        ...
 
     @classmethod
     @declare_method(65)
@@ -484,20 +417,7 @@ class Node(Object):
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make an average Query for this Node."""
-        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
-
-        query = Query(
-            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=cls.__definition__.to_ref(),
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            having=having,
-            group_by=[Expression.of(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.MAX, expression=Expression.of(expression)),
-            sort=sort or [],
-        )
-        return query  # type: ignore
+        ...
 
     @classmethod
     @declare_method(66)
@@ -513,20 +433,7 @@ class Node(Object):
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make an average Query for this Node."""
-        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
-
-        query = Query(
-            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            definition=cls.__definition__.to_ref(),
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            having=having,
-            group_by=[Expression.of(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.SUM, expression=Expression.of(expression)),
-            sort=sort or [],
-        )
-        return query  # type: ignore
+        ...
 
 
 def expand_node_inheritance(types: Collection[NodeType]) -> Sequence[NodeType]:

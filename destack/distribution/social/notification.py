@@ -2,14 +2,15 @@ from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
-    EnumDeclaration,
     EnumType,
     Event,
     NodeType,
+    OptionEnum,
     TraitType,
     declare_entity,
     declare_enum,
     declare_event,
+    declare_option,
     declare_property,
 )
 
@@ -20,14 +21,14 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.NOTIFICATION_STATUS)
-class NotificationStatus(EnumDeclaration):
+class NotificationStatus(OptionEnum):
     """A Status of a Notification."""
 
-    UNREAD = 1, "Pending", "Pending"
-    READ = 2, "Read", "Read"
-    DISMISSED = 3, "Dismissed", "Dismissed"
-    EXPIRED = 4, "Expired", "Expired"
-    RESCINDED = 5, "Rescinded", "Rescinded"
+    UNREAD = declare_option(1, description="Pending")
+    READ = declare_option(2, description="Read")
+    DISMISSED = declare_option(3, description="Dismissed")
+    EXPIRED = declare_option(4, description="Expired")
+    RESCINDED = declare_option(5, description="Rescinded")
 
 
 @declare_event(NodeType.NOTIFICATION_EVENT, is_abstract=True)

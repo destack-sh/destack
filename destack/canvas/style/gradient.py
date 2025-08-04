@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
-    EnumDeclaration,
     EnumType,
     Float32,
     NodeType,
+    OptionEnum,
     StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
+    declare_option,
     declare_property,
     declare_struct,
 )
@@ -23,12 +24,12 @@ if TYPE_CHECKING:
 
 
 @declare_enum(EnumType.GRADIENT_TYPE)
-class GradientType(EnumDeclaration):
+class GradientType(OptionEnum):
     """Built-in gradient types."""
 
-    LINEAR = 10
-    RADIAL = 11
-    CONIC = 12
+    LINEAR = declare_option(10, "Linear", description="A linear gradient")
+    RADIAL = declare_option(11, "Radial", description="A radial gradient")
+    CONIC = declare_option(12, "Conic", description="A conic gradient")
 
 
 @declare_struct(
