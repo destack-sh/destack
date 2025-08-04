@@ -26,6 +26,7 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "env": {
+        "ENVIRONMENT": "test"
       },
     },
     // general configs
@@ -34,9 +35,12 @@
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack/main.py",
+      "program": "${workspaceFolder}/destack",
       "args": ["generate"],
-      "justMyCode": true
+      "justMyCode": true,
+      "env": {
+        "ENVIRONMENT": "development"
+      },
     },
   ],
 }

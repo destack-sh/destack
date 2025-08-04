@@ -1,15 +1,14 @@
 import os
-import sys
 from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Optional, cast
 
 
-class Env(StrEnum):
-    DEV = "dev"
+class Environment(StrEnum):
+    DEVELOPMENT = "development"
     TEST = "test"
-    STAGE = "stage"
-    PROD = "prod"
+    STAGING = "staging"
+    PRODUCTION = "production"
 
     @property
     def slug(self) -> str:
@@ -83,29 +82,36 @@ def get_from_env[T](
 _setup_env: bool = False
 
 
-def setup_env():
+def _load_dotenv(path: Path, *, override: bool = True) -> None:
+    """Loads a .env file from the given path."""
+
+    for line in path.read_text().splitlines():
+        if line.startswith("#"):
+            continue
+        key, value = line.split("=", 1)
+        if key in os.environ and not override:
+            raise ValueError(f"{path}: {key} is already set")
+        os.environ[key] = value
+
+
+def setup_environment():
     """Loads .env files according to the local environment at the project root."""
     global _setup_env
     if _setup_env:
         return
 
-    try:
-        import dotenv
-    except ImportError:
-        return
-
     _setup_env = True
 
-    if ENV == Env.PROD:
+    if ENVIRONMENT == Environment.PRODUCTION:
         dot_env_files = [".env", ".env.prod", ".env.prod.local"]
-    elif ENV == Env.STAGE:
+    elif ENVIRONMENT == Environment.STAGING:
         dot_env_files = [".env", ".env.stage", ".env.stage.local"]
-    elif ENV == Env.TEST:
+    elif ENVIRONMENT == Environment.TEST:
         dot_env_files = [".env", ".env.test", ".env.test.local"]
-    elif ENV == Env.DEV:
+    elif ENVIRONMENT == Environment.DEVELOPMENT:
         dot_env_files = [".env", ".env.dev", ".env.dev.local"]
     else:
-        raise ValueError(f"unexpected environment: {ENV}")
+        raise ValueError(f"unexpected environment: {ENVIRONMENT}")
 
     # find .env files (walk up from current directory)
     dot_env_paths = []
@@ -118,20 +124,10 @@ def setup_env():
         dir = dir.parent
 
     for dot_env_path in dot_env_paths:
-        dotenv.load_dotenv(dot_env_path, verbose=True, override=True)
+        _load_dotenv(dot_env_path, override=True)
 
 
-ENV = get_from_env(
-    "ENVIRONMENT", typ=Env, description="The current Environment [dev, test, stage, prod]"
+ENVIRONMENT = get_from_env(
+    "ENVIRONMENT", typ=Environment, description="The current system Environment"
 )
-setup_env()
-IS_DEV = ENV == Env.DEV
-IS_PROD = ENV == Env.PROD
-IS_STAGE = ENV == Env.STAGE
-IS_TEST: bool = (
-    "test" in sys.argv
-    or "pytest" in sys.argv[0]
-    or get_from_env("TEST", default=False, typ=bool, description="Whether to run in test mode")
-    or ENV == Env.TEST
-)
-REPOSITORY_PATH = Path(__file__).parent.parent.parent.resolve()
+setup_environment()

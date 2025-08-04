@@ -4,11 +4,13 @@ version = "2025.08.01.22"
 description = "Destack Definition Language (Internal)"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 requires-python = ">=3.13"
-dependencies = ["destack @ path = ../destack"]
 
 [build-system]
 requires = ["uv_build>=0.7.13,<0.8.0"]
 build-backend = "uv_build"
+
+[tool.uv]
+package = true
 
 [tool.pytest_env]
 ENVIRONMENT = "test"
@@ -18,7 +20,7 @@ asyncio_mode = "auto"
 asyncio_default_test_loop_scope = "session"
 python_files = "test/**/*.py test/*.py"
 python_classes = "!TestProfile"
-pythonpath = ["destack", "destack-py", "destack-py-server", "destack-py-web"]
+pythonpath = ["."]
 log_cli = true
 addopts = [
 	'-rP',

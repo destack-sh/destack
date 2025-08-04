@@ -11,7 +11,6 @@ from typing import (
 
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
 
-from ..utils.env import IS_DEV, IS_TEST
 from ..utils.uuid import UUID
 from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 from .const import UNSET
@@ -154,40 +153,36 @@ def _process_node_cls(
     NODE_TYPE_BY_CLASS[cls] = node_type
     NODE_CLASS_BY_TYPE[node_type] = cls
 
-    # sanity check
-    if IS_DEV or IS_TEST:
-        # check for too many nullable properties (for :Encoding)
-        nullable_properties = [p for p in cls.__properties__.values() if not p.type.is_required]
-        assert len(nullable_properties) <= 64, (
-            f"Node {cls.__name__} has too many nullable properties"
+    # validate
+    # check for too many nullable properties (for :Encoding)
+    nullable_properties = [p for p in cls.__properties__.values() if not p.type.is_required]
+    assert len(nullable_properties) <= 64, f"Node {cls.__name__} has too many nullable properties"
+    # check for too many properties (for :Encoding)
+    wired_properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
+    assert len(wired_properties) <= 128, f"Node {cls.__name__} has too many wired properties"
+    # non-abstract nodes must have properties
+    if not is_abstract and not any(
+        not prop.is_runtime_only for prop in cls.__declaration__.properties
+    ):
+        raise ValueError(f"{cls.__name__} is not abstract but has no properties")
+    # abstract nodes cannot extend non-abstract nodes
+    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+        raise ValueError(
+            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
         )
-        # check for too many properties (for :Encoding)
-        wired_properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
-        assert len(wired_properties) <= 128, f"Node {cls.__name__} has too many wired properties"
-        # non-abstract nodes must have properties
-        if not is_abstract and not any(
-            not prop.is_runtime_only for prop in cls.__declaration__.properties
-        ):
-            raise ValueError(f"{cls.__name__} is not abstract but has no properties")
-        # abstract nodes cannot extend non-abstract nodes
-        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-            raise ValueError(
-                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-            )
-        # cannot be both abstract and final
-        if is_abstract and is_final:
-            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
-        # final objects cannot be extended
-        if any(
-            hasattr(base, "__declaration__") and base.__declaration__.is_final
+    # cannot be both abstract and final
+    if is_abstract and is_final:
+        raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+    # final objects cannot be extended
+    if any(
+        hasattr(base, "__declaration__") and base.__declaration__.is_final for base in cls.__bases__
+    ):
+        bad_base = next(
+            base
             for base in cls.__bases__
-        ):
-            bad_base = next(
-                base
-                for base in cls.__bases__
-                if hasattr(base, "__declaration__") and base.__declaration__.is_final
-            )
-            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
+            if hasattr(base, "__declaration__") and base.__declaration__.is_final
+        )
+        raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
 
     return cast(type["Node"], cls)
 

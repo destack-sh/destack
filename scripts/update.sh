@@ -1,6 +1,9 @@
 #!/bin/bash
 
+#
+# Python
 # update all requirements files from their .in
+#
 
 uv pip compile \
     destack/requirements/dev.in \
@@ -31,3 +34,10 @@ if [ "$1" == "--sync" ]; then
     source destack-py-server/venv/bin/activate && \
         uv pip sync destack-py-server/destack_server/requirements/requirements-dev.txt
 fi
+
+
+#
+# Javascript
+# 
+
+bun i

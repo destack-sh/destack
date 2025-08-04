@@ -86,6 +86,7 @@ class EnumType(OptionEnum):
     MIGRATION_TYPE = declare_option(10_000_300)
 
     # logic [10_100_000]
+    RUN_STATUS = declare_option(10_101_000)
     FUNCTION_OPERATOR = declare_option(10_100_400)
     METHOD_TYPE = declare_option(10_100_500)
     ACTION_TYPE = declare_option(10_100_600)
@@ -94,8 +95,6 @@ class EnumType(OptionEnum):
     DAY_OF_WEEK = declare_option(10_100_801)
     MONTH = declare_option(10_100_802)
     SCHEDULE_FREQUENCY = declare_option(10_100_803)
-    ENVIRONMENT_TYPE = declare_option(10_100_000)
-    RUN_STATUS = declare_option(10_101_000)
     LOG_LEVEL = declare_option(10_101_100)
 
     # intelligence [10_200_000]
@@ -531,7 +530,6 @@ class NodeType(OptionEnum):
     # CUSTOM_ALIAS_DEFINITION, CUSTOM_UNION_DEFINITION, ...
 
     # logic [10_100_000]
-    ENVIRONMENT = declare_option(10_100_000, "Environment")
     MODE = declare_option(10_100_100, "Mode")
     SCRIPT = declare_option(10_100_200, "Script")
     CUSTOM_EVENT = declare_option(10_100_300, "Signal", description="Custom Event instance")

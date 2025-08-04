@@ -1,8 +1,6 @@
-[project]
-name = "destack"
-description = "Destack monorepo with various distributions/pckages"
-version = "2025.08.01.22"
-authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
+#
+# Meta
+#
 
 [tool.uv]
 workspace = { members = [
@@ -12,6 +10,10 @@ workspace = { members = [
 	"destack-py-server",
 	"destack-py-web",
 ] }
+
+#
+# Ruff
+#
 
 [tool.ruff]
 line-length = 100
@@ -72,6 +74,10 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["destack"]
+
+#
+# Pyright
+#
 
 [tool.pyright]
 include = ["destack", "destack-py", "destack-py-server", "destack-py-web"]

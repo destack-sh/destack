@@ -9,7 +9,6 @@ from typing import (
 
 from destack.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 
-from ..utils.env import IS_DEV, IS_TEST
 from .builtin import EnumType, ObjectKind, ObjectStability, StructType
 from .declaration import StructDeclaration, TagDeclaration, declare_method
 from .object import Object, _process_object_cls
@@ -87,37 +86,35 @@ def _process_struct_cls(
         STRUCT_CLASS_BY_TYPE[struct_type] = cls
         STRUCT_TYPE_BY_CLASS[cls] = struct_type
 
-    # sanity check
-    if IS_DEV or IS_TEST:
-        # non-abstract structs must have properties
-        if not is_abstract and not any(
-            not prop.is_runtime_only for prop in cls.__declaration__.properties
-        ):
-            raise ValueError(f"{cls.__name__} is not abstract but has no properties")
-        # abstract objects cannot extend non-abstract objects
-        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-            raise ValueError(
-                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-            )
-        # cannot be both abstract and final
-        if is_abstract and is_final:
-            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
-        # final classes must be annotated with @final
-        if is_final != getattr(cls, "__final__", False):
-            raise ValueError(
-                f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
-            )
-        # final objects cannot be extended
-        if any(
-            hasattr(base, "__declaration__") and base.__declaration__.is_final
+    # validate
+    # non-abstract structs must have properties
+    if not is_abstract and not any(
+        not prop.is_runtime_only for prop in cls.__declaration__.properties
+    ):
+        raise ValueError(f"{cls.__name__} is not abstract but has no properties")
+    # abstract objects cannot extend non-abstract objects
+    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+        raise ValueError(
+            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+        )
+    # cannot be both abstract and final
+    if is_abstract and is_final:
+        raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+    # final classes must be annotated with @final
+    if is_final != getattr(cls, "__final__", False):
+        raise ValueError(
+            f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
+        )
+    # final objects cannot be extended
+    if any(
+        hasattr(base, "__declaration__") and base.__declaration__.is_final for base in cls.__bases__
+    ):
+        bad_base = next(
+            base
             for base in cls.__bases__
-        ):
-            bad_base = next(
-                base
-                for base in cls.__bases__
-                if hasattr(base, "__declaration__") and base.__declaration__.is_final
-            )
-            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
+            if hasattr(base, "__declaration__") and base.__declaration__.is_final
+        )
+        raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
 
     return cast(type["Struct"], cls)
 

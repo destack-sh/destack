@@ -8,7 +8,6 @@ from typing import (
 
 from destack.registry import HANDLE_CLASS_BY_TYPE, HANDLE_TYPE_BY_CLASS
 
-from ..utils.env import IS_DEV, IS_TEST
 from .builtin import EnumType, HandleType, NodeType, ObjectKind, ObjectStability
 from .declaration import HandleDeclaration, TagDeclaration
 from .object import Object, _process_object_cls
@@ -90,37 +89,35 @@ def _process_handle_cls(
     HANDLE_CLASS_BY_TYPE[handle_type] = cls
     HANDLE_TYPE_BY_CLASS[cls] = handle_type
 
-    # sanity check
-    if IS_DEV or IS_TEST:
-        if any(not prop.is_runtime_only for prop in cls.__properties__.values()):
-            non_runtime_properties = [
-                prop for prop in cls.__properties__.values() if not prop.is_runtime_only
-            ]
-            raise ValueError(f"{cls.__name__} has non-runtime properties: {non_runtime_properties}")
-        # abstract objects cannot extend non-abstract objects
-        if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-            raise ValueError(
-                f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-            )
-        # cannot be both abstract and final
-        if is_abstract and is_final:
-            raise ValueError(f"{cls.__name__} cannot be both abstract and final")
-        # final classes must be annotated with @final
-        if is_final != getattr(cls, "__final__", False):
-            raise ValueError(
-                f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
-            )
-        # final objects cannot be extended
-        if any(
-            hasattr(base, "__declaration__") and base.__declaration__.is_final
+    # validate
+    if any(not prop.is_runtime_only for prop in cls.__properties__.values()):
+        non_runtime_properties = [
+            prop for prop in cls.__properties__.values() if not prop.is_runtime_only
+        ]
+        raise ValueError(f"{cls.__name__} has non-runtime properties: {non_runtime_properties}")
+    # abstract objects cannot extend non-abstract objects
+    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+        raise ValueError(
+            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+        )
+    # cannot be both abstract and final
+    if is_abstract and is_final:
+        raise ValueError(f"{cls.__name__} cannot be both abstract and final")
+    # final classes must be annotated with @final
+    if is_final != getattr(cls, "__final__", False):
+        raise ValueError(
+            f"{cls.__name__} has @final={getattr(cls, '__final__', False)} but is_final={is_final}"
+        )
+    # final objects cannot be extended
+    if any(
+        hasattr(base, "__declaration__") and base.__declaration__.is_final for base in cls.__bases__
+    ):
+        bad_base = next(
+            base
             for base in cls.__bases__
-        ):
-            bad_base = next(
-                base
-                for base in cls.__bases__
-                if hasattr(base, "__declaration__") and base.__declaration__.is_final
-            )
-            raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
+            if hasattr(base, "__declaration__") and base.__declaration__.is_final
+        )
+        raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
 
     return cast(type["Handle"], cls)
 
