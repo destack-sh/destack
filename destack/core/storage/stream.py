@@ -16,8 +16,6 @@ class Stream(Handle):
     A Stream inside a Connection.
     """
 
-    async def open(self) -> None:
-        raise NotImplementedError
+    async def open(self) -> None: ...
 
-    async def close(self) -> None:
-        raise NotImplementedError
+    async def close(self) -> None: ...

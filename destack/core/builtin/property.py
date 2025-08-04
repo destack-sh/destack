@@ -11,14 +11,16 @@ from typing import (
     TypeAliasType,
 )
 
-from ..utils.string import Casing, to_casing
+from ..utility import Casing, to_casing
 from .builtin import (
     HandleType,
     NodeType,
     ObjectKind,
     StructType,
 )
-from .common import (
+from .const import UNSET
+from .enum import OptionDeclaration
+from .hoisted import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
     CascadeAction,
     EdgeType,
@@ -29,8 +31,6 @@ from .common import (
     TypeCardinality,
     ValueFactory,
 )
-from .const import UNSET
-from .enum import OptionDeclaration
 
 if TYPE_CHECKING:
     from destack import (

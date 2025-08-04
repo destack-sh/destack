@@ -136,8 +136,7 @@ class ObjectDefinition(StructFrozen):
     )
 
     @abc.abstractmethod
-    def to_ref(self) -> "ObjectDefinitionReference":
-        raise NotImplementedError
+    def to_ref(self) -> "ObjectDefinitionReference": ...
 
 
 @declare_struct(
@@ -706,7 +705,7 @@ class EnumDefinition(StructFrozen):
             description=declaration.description,
             is_flag=declaration.is_flag,
             options=[
-                OptionDefinition.from_declaration(declaration.type, option)
+                OptionDefinition.from_declaration(declaration.type, cast(OptionDeclaration, option))
                 for option in enum_cls.__options__
             ],
         )

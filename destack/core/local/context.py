@@ -12,7 +12,7 @@ from ..builtin import (
     declare_handle,
     declare_property_runtime,
 )
-from ..utils.uuid import UUID
+from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import Client

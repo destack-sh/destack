@@ -13,20 +13,18 @@ from typing import (
     dataclass_transform,
 )
 
-from ..utils.code import execute_arbitrary_code
-from ..utils.frozen import frozendict, frozenlist
-from ..utils.func import get_superclasses
-from ..utils.string import Casing, to_casing
-from ..utils.uuid import UUID, to_nano_id, uuid4, uuid7
-from .builtin import NodeType, ObjectKind, ObjectStability, StructType
-from .common import (
-    Encoding,
-    EnumType,
-    PrimitiveType,
-    ScalarType,
-    TypeCardinality,
-    ValueFactory,
+from ..utility import (
+    UUID,
+    Casing,
+    execute_arbitrary_code,
+    frozendict,
+    frozenlist,
+    get_superclasses,
+    to_casing,
+    uuid4,
+    uuid7,
 )
+from .builtin import NodeType, ObjectKind, ObjectStability, StructType
 from .const import (
     ACTIVE_BRANCH,
     ACTIVE_EVENT,
@@ -47,6 +45,14 @@ from .declaration import (
     declare_method,
 )
 from .enum import OptionDeclaration
+from .hoisted import (
+    Encoding,
+    EnumType,
+    PrimitiveType,
+    ScalarType,
+    TypeCardinality,
+    ValueFactory,
+)
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -163,7 +169,6 @@ class ObjectGenerator:
         extra_glbls["EMPTY_DICT"] = frozendict()
         extra_glbls["uuid4"] = uuid4
         extra_glbls["uuid7"] = uuid7
-        extra_glbls["to_nano_id"] = to_nano_id
 
         method_body_lines = []
         body_properties = {prop.name: prop for prop in declaration.properties}

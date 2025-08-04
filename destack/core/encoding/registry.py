@@ -1,6 +1,7 @@
 from typing import assert_never
 
-from destack.core import Encoder, Encoding
+from ..builtin import Encoding
+from .encoder import Encoder
 
 _ENCODERS: dict[Encoding, Encoder] = {}
 

@@ -1,7 +1,11 @@
+"""
+Hoisted declarations which belong elsewhere but are needed early in the import chain.
+"""
+
 from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, TypeAliasType
 
-from ..utils.uuid import UUID
+from ..utility import UUID
 from .builtin import EnumType
 from .enum import OptionEnum, declare_enum, declare_option
 from .types import (
@@ -550,8 +554,6 @@ class FunctionOperator(OptionEnum):
     LTE = declare_option(6, "Less Than or Equal To", description="<=")
     IN = declare_option(7, "In", description="in")
     NOT_IN = declare_option(8, "Not In", description="not in")
-    IS = declare_option(9, "Is", description="is")
-    IS_NOT = declare_option(10, "Is Not", description="is not")
 
     # arithmetic operators
     ADD = declare_option(20, "Add", description="+")

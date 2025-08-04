@@ -8,7 +8,6 @@ from typing import (
 
 from ..builtin import (
     ACTIVE_SESSION,
-    EditEvent,
     Entity,
     Event,
     Handle,
@@ -19,10 +18,9 @@ from ..builtin import (
     declare_method,
     declare_property_runtime,
 )
-from .graph import Graph
 
 if TYPE_CHECKING:
-    from destack import Connection, Context
+    from destack import Connection, Context, EditEvent, Graph
 
 
 @declare_handle(HandleType.SESSION)
@@ -74,7 +72,7 @@ class Session(Handle):
         ...
 
     @declare_method(106)
-    def update(self, node: Entity, edit: EditEvent):
+    def update(self, node: Entity, edit: "EditEvent"):
         """Updates an Entity."""
         ...
 

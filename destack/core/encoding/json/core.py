@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Any
 
-from destack.core import EncoderOptions, Object, Session
+from ...builtin import Object
 
 if TYPE_CHECKING:
-    from .encoder import JsonEncoder
+    from .encoder import EncoderOptions, JsonEncoder, Session
 
 
 type_ = type
@@ -16,15 +16,13 @@ class JsonObjectEncoder[T: Object = Object]:
         self,
         _encoder: "JsonEncoder",
         _object: T,
-        _options: EncoderOptions,
-    ) -> dict[str, Any]:
-        raise NotImplementedError
+        _options: "EncoderOptions",
+    ) -> dict[str, Any]: ...
 
     def unpack_object(
         self,
         _encoder: "JsonEncoder",
         _object_json: dict[str, Any],
-        _session: Session | None,
-        _options: EncoderOptions,
-    ) -> T:
-        raise NotImplementedError
+        _session: "Session | None",
+        _options: "EncoderOptions",
+    ) -> T: ...

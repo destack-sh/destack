@@ -25,7 +25,7 @@ from destack.registry import (
     STRUCT_DEFINITION_BY_TYPE,
 )
 
-from ..utils.uuid import UUID
+from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import Space, User

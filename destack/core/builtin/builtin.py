@@ -26,7 +26,6 @@ class EnumType(OptionEnum):
     OBJECT_STABILITY = declare_option(8)
     UNIVERSE_DOMAIN = declare_option(9)
     UNIVERSE_CATEGORY = declare_option(10)
-    PROPERTY_REFERENCE_TYPE = declare_option(13)
     MATERIALIZATION = declare_option(14)
     RUNTIME_PLATFORM = declare_option(30)
     RUNTIME_LANGUAGE = declare_option(31)
@@ -34,7 +33,6 @@ class EnumType(OptionEnum):
     EVENT_STATUS = declare_option(50)
 
     # common [100_000]
-    # type/value
     PRIMITIVE_TYPE = declare_option(100_000)
     TYPE_CARDINALITY = declare_option(100_001)
     SCALAR_TYPE = declare_option(100_002)
@@ -44,34 +42,42 @@ class EnumType(OptionEnum):
     EDGE_DIRECTION = declare_option(100_008)
     CASCADE_ACTION = declare_option(100_009)
     ENCODING = declare_option(100_010)
-
     # edit
-    EDIT_TYPE = declare_option(200)
-    EDIT_OPERATION = declare_option(201)
-
+    EDIT_TYPE = declare_option(100_200)
+    EDIT_OPERATION = declare_option(100_201)
+    PROPERTY_REFERENCE_TYPE = declare_option(100_213)
     # query
-    CONDITIONAL_TYPE = declare_option(300)
-    AGGREGATION_TYPE = declare_option(301)
-    SORT_MODE = declare_option(302)
-    SORT_TYPE = declare_option(303)
-    JOIN_TYPE = declare_option(304)
-    EXPRESSION_TYPE = declare_option(306)
-    QUERY_TYPE = declare_option(320)
+    CONDITIONAL_TYPE = declare_option(100_300)
+    AGGREGATION_TYPE = declare_option(100_301)
+    SORT_MODE = declare_option(100_302)
+    SORT_TYPE = declare_option(100_303)
+    JOIN_TYPE = declare_option(100_304)
+    EXPRESSION_TYPE = declare_option(100_306)
+    QUERY_TYPE = declare_option(100_320)
 
-    # universe [200_000]
-    CLIENT_TYPE = declare_option(200_200)
+    # encoding [200_000]
+    ENCODER_OPTIONS = declare_option(200_000)
 
-    # space [300_000]
-    FOLDER_TYPE = declare_option(300_500)
-    BRANCH_TYPE = declare_option(300_300)
-    SNAPSHOT_TYPE = declare_option(300_400)
-    SNAPSHOT_STATUS = declare_option(300_401)
-
-    # runtime [400_000]
+    # storage [300_000]
     # ...
 
-    # generate [500_000]
+    # generation [400_000]
     # ...
+
+    # local [500_000]
+    # ...
+
+    # utility [600_000]
+    # ...
+
+    # universe [1_000_000]
+    CLIENT_TYPE = declare_option(1_000_000)
+
+    # space [1_100_000]
+    FOLDER_TYPE = declare_option(1_100_500)
+    BRANCH_TYPE = declare_option(1_100_300)
+    SNAPSHOT_TYPE = declare_option(1_100_400)
+    SNAPSHOT_STATUS = declare_option(1_100_401)
 
     #
     # BASICS
@@ -98,6 +104,7 @@ class EnumType(OptionEnum):
     LOG_LEVEL = declare_option(10_101_100)
 
     # intelligence [10_200_000]
+    # ...
 
     # access [10_300_000]
     ROLE_TYPE = declare_option(10_300_300)
@@ -286,27 +293,33 @@ class TraitType(OptionEnum):
     #
 
     # builtin [1]
-    # LOCAL?
-    # storage
-    # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
     ORDERED = declare_option(1, "Ordered", description="Is ordered")
-    # PAUSABLE?
     RESOURCE = declare_option(2, "Resource", description="Is a Resource")
     VARIANT = declare_option(3, "Variant", description="Is a Variant")
+    # PAUSABLE?
 
     # common [100_000]
     # ...
 
-    # universe [200_000]
+    # encoding [200_000]
     # ...
 
-    # space [300_000]
+    # storage [300_000]
     # ...
 
-    # runtime [400_000]
+    # generation [400_000]
     # ...
 
-    # generate [500_000]
+    # local [500_000]
+    # ...
+
+    # utility [600_000]
+    # ...
+
+    # universe [1_000_000]
+    # ...
+
+    # space [1_100_000]
     # ...
 
     #
@@ -439,49 +452,60 @@ class NodeType(OptionEnum):
     NODE = declare_option(1, "Node", description="Root of all Nodes")
     ENTITY = declare_option(2, "Entity", description="Versioned, stateful Node")
     EVENT = declare_option(3, "Event", description="Immutable datum of something happening")
-    EDIT_EVENT = declare_option(10, "Edit Event")
-    # CHANGE_EVENT?
 
     # common [100_000]
+    EDIT_EVENT = declare_option(100_000, "Edit Event")
+    # CHANGE_EVENT?
     # ...
 
-    # universe [200_000]
-    UNIVERSE = declare_option(200_000, "Universe", description="The Destack computational universe")
+    # encoding [200_000]
+    # ...
+
+    # storage [300_000]
+    # ...
+
+    # generation [400_000]
+    # ...
+
+    # local [500_000]
+    # ...
+
+    # utility [600_000]
+    # ...
+
+    # universe [1_000_000]
+    UNIVERSE = declare_option(
+        1_000_000, "Universe", description="The Destack computational universe"
+    )
     # GALAXY, ...
     # HANDLE?, ...
     # user
-    USER = declare_option(200_100, "User")
+    USER = declare_option(1_000_100, "User")
     # FRIENDSHIP, FRIENDSHIP_INVITE, ...
-    CLIENT = declare_option(200_200, "Client")
+    CLIENT = declare_option(1_000_200, "Client")
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     # organization
-    ORGANIZATION = declare_option(200_300, "Organization")
-    TEAM = declare_option(200_400, "Team", description="Team in an Organization")
+    ORGANIZATION = declare_option(1_000_300, "Organization")
+    TEAM = declare_option(1_000_400, "Team", description="Team in an Organization")
 
-    # space [300_000]
-    SPACE = declare_option(300_000, "Space", description="Universal Space")
-    TAG = declare_option(300_100, "Tag")
-    TAGGING = declare_option(300_200, "Tagging")
+    # space [1_100_000]
+    SPACE = declare_option(1_100_000, "Space", description="Universal Space")
+    TAG = declare_option(1_100_100, "Tag")
+    TAGGING = declare_option(1_100_200, "Tagging")
     # TRAIT?
     # FRAGMENT (multiple disjoint trees)
     # SLOT (inside tree)
     # LINK/PORTAL (to another subtree)
     # TIMELINE, TRACK, (KEY)FRAME, ...
-    BRANCH = declare_option(300_300, "Branch")
-    SNAPSHOT = declare_option(300_400, "Snapshot", description="Point in Space-time")
-    FOLDER = declare_option(300_500, "Folder", description="Sub-space of a Space")
+    BRANCH = declare_option(1_100_300, "Branch")
+    SNAPSHOT = declare_option(1_100_400, "Snapshot", description="Point in Space-time")
+    FOLDER = declare_option(1_100_500, "Folder", description="Sub-space of a Space")
     # APPLICATION (extends Folder?), ...
     # DEPENDENCY, ...
     # VERSION, ...
     # HISTORY, REPLAY, ...
     # FORK, ...
     # LINK, PORTAL, ...
-
-    # runtime [400_000]
-    # ...
-
-    # generate [500_000]
-    # ...
 
     #
     # BASICS
@@ -911,20 +935,29 @@ class StructType(OptionEnum):
     NODE_REFERENCE = declare_option(100_040)
     PROPERTY_REFERENCE = declare_option(100_041)
 
-    # universe [200_000]
-    UNIVERSE_SIGNUP_REQUEST = declare_option(200_000)
-    UNIVERSE_SIGNUP_RESPONSE = declare_option(200_001)
-    UNIVERSE_SPAWN_REQUEST = declare_option(200_002)
-    UNIVERSE_SPAWN_RESPONSE = declare_option(200_003)
+    # runtime [200_000]
     # ...
 
-    # space [300_000]
+    # graph [300_000]
     # ...
 
-    # runtime [400_000]
+    # generator [400_000]
     # ...
 
-    # generate [500_000]
+    # cli [500_000]
+    # ...
+
+    # encoder [600_000]
+    # ...
+
+    # universe [1_000_000]
+    UNIVERSE_SIGNUP_REQUEST = declare_option(1_000_000)
+    UNIVERSE_SIGNUP_RESPONSE = declare_option(1_000_001)
+    UNIVERSE_SPAWN_REQUEST = declare_option(1_000_002)
+    UNIVERSE_SPAWN_RESPONSE = declare_option(1_000_003)
+    # ...
+
+    # space [1_100_000]
     # ...
 
     #
@@ -1092,21 +1125,30 @@ class StructType(OptionEnum):
 
 @declare_enum(EnumType.HANDLE_TYPE)
 class HandleType(OptionEnum):
+    """The type of a Handle."""
+
+    #
+    # CORE
+    #
+
     HANDLE = declare_option(1)
 
-    SESSION = declare_option(10)
-    GRAPH = declare_option(11)
-    CONNECTION = declare_option(12)
-    STREAM = declare_option(13)
+    # runtime [200_000]
+    SESSION = declare_option(200_000)
+    CONTEXT = declare_option(200_100)
+    LOGGER = declare_option(200_200)
+    TRACER = declare_option(200_300)
 
-    CONTEXT = declare_option(20)
-    LOGGER = declare_option(21)
-    TRACER = declare_option(22)
+    # encoding [300_000]
+    HASHER = declare_option(300_000)
+    ENCODER = declare_option(300_100)
+    BINARY_WRITER = declare_option(300_200)
+    BINARY_READER = declare_option(300_300)
 
-    HASHER = declare_option(30)
-    ENCODER = declare_option(31)
-    BINARY_WRITER = declare_option(32)
-    BINARY_READER = declare_option(33)
+    # storage [400_000]
+    GRAPH = declare_option(400_000)
+    CONNECTION = declare_option(400_100)
+    STREAM = declare_option(400_200)
 
 
 @declare_enum(EnumType.UNIVERSE_DOMAIN)
@@ -1128,16 +1170,25 @@ class UniverseDomain(OptionEnum):
 class UniverseCategory(OptionEnum):
     """How the Destack Universe is organized (domains > categories)."""
 
-    # core
-    BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
-    COMMON = declare_option(100_000, "Common", description="Common and shared")
-    UNIVERSE = declare_option(200_000, "Universe", description="Global computational universe")
-    SPACE = declare_option(300_000, "Space", description="Spacetime organization")
-    RUNTIME = declare_option(400_000, "Runtime", description="Runtime and execution")
-    GENERATE = declare_option(500_000, "Generate", description="SDK generation")
-    # CLI, ENCODER, GRAPH, ...
+    #
+    # CORE
+    #
 
-    # basics
+    BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
+    COMMON = declare_option(100_000, "Common", description="Shared definitions")
+    ENCODING = declare_option(200_000, "Encoding", description="Serialization and packing")
+    STORAGE = declare_option(300_000, "Storage", description="Graph storage and synchronization")
+    GENERATION = declare_option(400_000, "Generation", description="SDK generation")
+    LOCAL = declare_option(500_000, "Local", description="Local runtime integration")
+    UTILITY = declare_option(600_000, "Utility", description="Utility functions")
+    # ...
+    UNIVERSE = declare_option(1_000_000, "Universe", description="Global computational universe")
+    SPACE = declare_option(1_100_000, "Space", description="Spacetime organization")
+
+    #
+    # BASICS
+    #
+
     ENTITY = declare_option(10_000_000, "Entity", description="Entity management")
     LOGIC = declare_option(10_100_000, "Logic", description="Scripting and behavior")
     INTELLIGENCE = declare_option(
@@ -1148,7 +1199,10 @@ class UniverseCategory(OptionEnum):
     STUDIO = declare_option(10_500_000, "Studio", description="Editing the Universe")
     # STREAMING, INTERNET, ...
 
-    # simulation
+    #
+    # SIMULATION
+    #
+
     GEOMETRY = declare_option(20_000_000, "Geometry", description="Geometric representations")
     PHYSICS = declare_option(20_100_000, "Physics", description="Physics simulation")
     PERCEPTION = declare_option(20_200_000, "Perception", description="Sensing and interaction")
@@ -1158,7 +1212,10 @@ class UniverseCategory(OptionEnum):
     # MATERIAL?, MECHANICAL, ELECTRICAL, THERMODYNAMICS, INTERSTELLAR, ...
     # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
 
-    # canvas
+    #
+    # CANVAS
+    #
+
     AUDIO = declare_option(30_000_000, "Audio", description="Audio and sound production")
     IMAGE = declare_option(30_100_000, "Image", description="Image and photo production")
     VIDEO = declare_option(30_200_000, "Video", description="Video production")
@@ -1167,7 +1224,10 @@ class UniverseCategory(OptionEnum):
     STYLE = declare_option(30_500_000, "Style", description="Appearance and theming")
     # MATERIAL?, NARRATIVE, ...
 
-    # stage
+    #
+    # STAGE
+    #
+
     SCENE = declare_option(40_000_000, "Scene", description="Stage building")
     VIEW = declare_option(40_100_000, "View", description="View construction")
     RENDERING = declare_option(40_200_000, "Rendering", description="Render pipelines")
@@ -1175,7 +1235,10 @@ class UniverseCategory(OptionEnum):
     LIGHTING = declare_option(40_400_000, "Lighting", description="Lighting and shadows")
     # CAMERA/VIEWPORT, XR, PARTICLE, ...
 
-    # deployment
+    #
+    # DEPLOYMENT
+    #
+
     CLOUD = declare_option(50_000_000, "Cloud", description="Cloud computing infrastructure")
     OBSERVABILITY = declare_option(
         50_100_000, "Observability", description="Telemetry on everything"
@@ -1185,7 +1248,10 @@ class UniverseCategory(OptionEnum):
     # TRANSPORTATION, ENERGY, DEFENSE, ...
     # CONSUMER/HOME, PHARMACEUTICAL, ...
 
-    # distribution
+    #
+    # DISTRIBUTION
+    #
+
     LOCALIZATION = declare_option(
         60_000_000, "Localization", description="Localization and internationalization"
     )

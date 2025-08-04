@@ -26,7 +26,7 @@ from ..builtin import (
     declare_property_runtime,
 )
 from ..universe import Universe
-from ..utils.uuid import UUID
+from ..utility import UUID
 
 if TYPE_CHECKING:
     pass

@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING
 
-from .builtin import EnumType, NodeType
-from .common import UInt8
-from .const import UNSET
-from .entity import Entity
-from .enum import OptionEnum, declare_enum, declare_option
-from .event import Event, declare_event
-from .property import declare_property
+from ..builtin.builtin import EnumType, NodeType
+from ..builtin.const import UNSET
+from ..builtin.entity import Entity
+from ..builtin.enum import OptionEnum, declare_enum, declare_option
+from ..builtin.event import Event, declare_event
+from ..builtin.hoisted import UInt8
+from ..builtin.property import declare_property
 
 if TYPE_CHECKING:
     from destack import NodeReference, Value

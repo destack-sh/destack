@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, dataclass_transform
 
-from ..utils.uuid import UUID
+from ..utility import UUID
 from .builtin import EnumType, NodeType, StructType
 from .const import ACTIVE_EVENT
 from .declaration import TagDeclaration, declare_method

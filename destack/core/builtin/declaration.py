@@ -10,7 +10,7 @@ from .builtin import (
     StructType,
     TraitType,
 )
-from .common import (
+from .hoisted import (
     ActionType,
     ConstraintType,
     FunctionOperator,

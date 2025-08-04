@@ -3,15 +3,11 @@ import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
 from enum import Enum
-from typing import Any, assert_never, cast, override
+from typing import TYPE_CHECKING, Any, assert_never, cast, override
 
-from destack.core import (
-    UUID,
-    BinaryReader,
-    BinaryWriter,
-    Casing,
-    Encoder,
-    EncoderOptions,
+from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+
+from ...builtin import (
     Json,
     NodeType,
     Object,
@@ -19,17 +15,16 @@ from destack.core import (
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
-    Session,
     StructType,
-    Type,
     TypeCardinality,
-    Value,
-    to_casing,
 )
-from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
-
-from ...utils.time import timedelta_from_isoformat, timedelta_to_isoformat
+from ...common import Type, Value
+from ...utility import UUID, Casing, timedelta_from_isoformat, timedelta_to_isoformat, to_casing
+from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderOptions
 from .core import JsonObjectEncoder
+
+if TYPE_CHECKING:
+    from destack import Session
 
 type_ = type
 
@@ -40,7 +35,7 @@ VALUE_TYPE_PROPERTY = Value.__properties__["type"]
 VALUE_VALUE_PROPERTY = Value.__properties__["value"]
 
 
-class JsonEncoder(Encoder[Json]):
+class JsonEncoder(Encoder):
     """Encoder for standard JSON format with proper names."""
 
     def __init__(self, encoders: Mapping[tuple[ObjectKind, int], JsonObjectEncoder]):
@@ -83,7 +78,7 @@ class JsonEncoder(Encoder[Json]):
         kind: ObjectKind | None,
         type: int | None,
         value: Json,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         # key
@@ -126,7 +121,7 @@ class JsonEncoder(Encoder[Json]):
         kind: ObjectKind | None,
         type: int | None,
         reader: BinaryReader,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
@@ -221,7 +216,7 @@ class JsonEncoder(Encoder[Json]):
         self,
         type: Type,
         value: Json,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         if value is None:
@@ -466,7 +461,7 @@ class JsonEncoder(Encoder[Json]):
         self,
         type: Type,
         reader: BinaryReader,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
@@ -495,7 +490,7 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         self,
         _encoder: "JsonEncoder",
         _object_json: dict[str, Any],
-        _session: Session | None,
+        _session: "Session | None",
         _options: EncoderOptions,
     ) -> Value:
         type_key = _encoder.get_target_property_key(VALUE_TYPE_PROPERTY)

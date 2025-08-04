@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any, assert_never, cast, override
+from typing import TYPE_CHECKING, Any, assert_never, cast, override
 
 from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
@@ -14,14 +14,17 @@ from ...builtin import (
     TypeCardinality,
 )
 from ...common import NodeReference, Type, Value
-from ...runtime import BinaryReader, BinaryWriter, Encoder, EncoderOptions, Session
-from ...utils.uuid import UUID
+from ...utility import UUID
+from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderOptions
 from .core import KompaktObjectEncoder
+
+if TYPE_CHECKING:
+    from destack import Session
 
 _UUID_NULL = UUID(int=0)
 
 
-class KompaktEncoder(Encoder[bytes]):
+class KompaktEncoder(Encoder):
     """Encoder for our Kompakt format."""
 
     def __init__(self, encoders: Mapping[tuple[ObjectKind, int], KompaktObjectEncoder]):
@@ -61,7 +64,7 @@ class KompaktEncoder(Encoder[bytes]):
         kind: ObjectKind | None,
         type: int | None,
         value: bytes,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         reader = BinaryReader(buffer=value)
@@ -91,7 +94,7 @@ class KompaktEncoder(Encoder[bytes]):
         kind: ObjectKind | None,
         type: int | None,
         reader: BinaryReader,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         # metatype
@@ -259,7 +262,7 @@ class KompaktEncoder(Encoder[bytes]):
         self,
         type: Type,
         value: Any,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         reader = BinaryReader(buffer=value)
@@ -315,7 +318,7 @@ class KompaktEncoder(Encoder[bytes]):
         self,
         type: Type,
         reader: BinaryReader,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         # scalar
@@ -449,7 +452,7 @@ class KompaktEncoder(Encoder[bytes]):
         self,
         type: Type,
         reader: BinaryReader,
-        session: Session | None,
+        session: "Session | None",
         options: EncoderOptions,
     ) -> Any:
         """Unpack a scalar value from binary."""
@@ -576,7 +579,7 @@ class KompaktTypeEncoder(KompaktObjectEncoder[Type]):
         self,
         _encoder: "KompaktEncoder",
         _reader: BinaryReader,
-        _session: Session | None,
+        _session: "Session | None",
         _options: EncoderOptions,
     ) -> Type:
         return _encoder.unpack_type_binary(_reader, _options)
@@ -603,7 +606,7 @@ class KompaktValueEncoder(KompaktObjectEncoder[Value]):
         self,
         _encoder: "KompaktEncoder",
         _reader: BinaryReader,
-        _session: Session | None,
+        _session: "Session | None",
         _options: EncoderOptions,
     ) -> Value:
         type = _encoder.unpack_type_binary(_reader, _options)
@@ -638,7 +641,7 @@ class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
         self,
         _encoder: "KompaktEncoder",
         _reader: BinaryReader,
-        _session: Session | None,
+        _session: "Session | None",
         _options: EncoderOptions,
     ) -> NodeReference:
         type = NodeType(_reader.read_uint32())

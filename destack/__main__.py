@@ -4,7 +4,7 @@ from pathlib import Path
 # add parent directory to path so destack imports work when running directly
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from destack.core.cli import console, create_cli
+from destack.core.local import console, create_cli
 
 # create main CLI app
 cli = create_cli(help="Destack CLI")

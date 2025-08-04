@@ -14,6 +14,7 @@ from .definition import (
     StructDefinition,
     TagDefinition,
 )
+from .edit import EditEvent, EditOperation, EditType
 from .icon import Icon, IconType
 from .query import (
     Aggregation,
@@ -71,6 +72,9 @@ __all__ = [
     "ConditionalType",
     "ConstantDefinition",
     "ConstraintDefinition",
+    "EditEvent",
+    "EditOperation",
+    "EditType",
     "EnumDefinition",
     "Expression",
     "ExpressionIn",
