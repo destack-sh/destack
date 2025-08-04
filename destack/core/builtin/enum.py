@@ -1,8 +1,9 @@
 import enum
 import inspect
+from collections.abc import Iterator
 from dataclasses import dataclass
 from sys import intern
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, Self, assert_never, cast
 
 from destack.registry import ENUM_CLASS_BY_TYPE, ENUM_TYPE_BY_CLASS
 
@@ -29,12 +30,25 @@ class EnumDeclaration:
     options: list["OptionDeclaration"]
 
 
-@dataclass(slots=True)
-class OptionDeclaration:
+class OptionDeclaration(int):
     # meta
     id: int
     name: str = UNSET
+    component: type_["Enum"] = UNSET
+    title: str | None = None
     description: str | None = None
+
+    def __new__(cls, id: int, name: str, title: str, description: str | None = None):
+        obj = int.__new__(cls, id)  # create the int part
+        obj.id = id
+        obj.name = name
+        obj.component = UNSET
+        obj.title = title
+        obj.description = description
+        return obj
+
+    def __repr__(self) -> str:
+        return f"<{self.component.__name__} {self.name} ({self.id})>"
 
     @property
     def value(self) -> int:
@@ -56,8 +70,10 @@ def _process_enum_cls(
         ):
             continue  # ignore reserved names and non-fields
         elif isinstance(attribute, OptionDeclaration):
-            if attribute.name is UNSET:
-                attribute.name = intern(name)
+            attribute.name = intern(name)
+            if attribute.title is UNSET:
+                attribute.title = to_casing(attribute.name, Casing.CAMEL, allow_whitespace=True)
+            attribute.component = cls
             options.append(attribute)
         else:
             raise TypeError(
@@ -75,6 +91,13 @@ def _process_enum_cls(
     )
     cls.__declaration__ = declaration
 
+    # register options
+    options_by_id: dict[int, OptionDeclaration] = {option.id: option for option in options}
+    options_by_name: dict[str, OptionDeclaration] = {option.name: option for option in options}
+    cls.__options__ = options  # type: ignore
+    cls.__options_by_id__ = options_by_id  # type: ignore
+    cls.__options_by_name__ = options_by_name  # type: ignore
+
     return cls, declaration
 
 
@@ -83,7 +106,8 @@ def declare_option(id: int, title: str | None = None, *, description: str | None
 
     declaration = OptionDeclaration(
         id=id,
-        name=title or UNSET,
+        name=UNSET,
+        title=title or UNSET,
         description=description,
     )
 
@@ -136,16 +160,34 @@ def declare_enum(enum_type: "EnumType"):
                 )
                 options_by_id[option.id] = option
         else:
-            raise ValueError(f"enum {cls.__name__} is not a OptionEnum or FlagEnum")
+            assert_never(cls)
 
         return cls
 
     return decorate
 
 
-class Enum(enum.IntEnum if TYPE_CHECKING else object):
+class _EnumMeta(type):  # type: ignore
+    """Metaclass for Enum that adds __len__ and __iter__."""
+
+    def __len__(cls) -> int:
+        return len(cls.__declaration__.options)  # type: ignore
+
+    def __iter__(cls) -> Iterator[OptionDeclaration]:
+        return iter(cls.__declaration__.options)  # type: ignore
+
+
+class Enum(
+    # pretend this is an IntEnum for regular use
+    enum.IntEnum if TYPE_CHECKING else object,
+    metaclass=type if TYPE_CHECKING else _EnumMeta,
+):
     metatype: ClassVar["EnumType"]  # type: ignore
     __declaration__: ClassVar[EnumDeclaration]  # type: ignore
+
+    __options__: ClassVar[list[Self]] = []
+    __options_by_id__: ClassVar[dict[int, Self]] = {}
+    __options_by_name__: ClassVar[dict[str, Self]] = {}
 
 
 class OptionEnum(Enum):

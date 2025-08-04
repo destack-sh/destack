@@ -30,6 +30,7 @@ from .common import (
     ValueFactory,
 )
 from .const import UNSET
+from .enum import OptionDeclaration
 
 if TYPE_CHECKING:
     from destack import (
@@ -47,10 +48,10 @@ type_ = type
 def resolve_enum_type(class_name: str) -> EnumType | None:
     """Get the EnumType for the given enum name."""
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
-    if enum_type := EnumType.__members__.get(enum_name):
+    if enum_type := EnumType.__options_by_name__.get(enum_name):
         return enum_type
     enum_name = class_name.upper()
-    if enum_type := EnumType.__members__.get(enum_name):
+    if enum_type := EnumType.__options_by_name__.get(enum_name):
         return enum_type
     return None
 
@@ -58,10 +59,10 @@ def resolve_enum_type(class_name: str) -> EnumType | None:
 def resolve_struct_type(class_name: str) -> StructType | None:
     """Get the StructType for the given struct name."""
     struct_name = to_casing(class_name, Casing.ALL_CAPS)
-    if struct_type := StructType.__members__.get(struct_name):
+    if struct_type := StructType.__options_by_name__.get(struct_name):
         return struct_type
     struct_name = class_name.upper()
-    if struct_type := StructType.__members__.get(struct_name):
+    if struct_type := StructType.__options_by_name__.get(struct_name):
         return struct_type
     return None
 
@@ -69,10 +70,10 @@ def resolve_struct_type(class_name: str) -> StructType | None:
 def resolve_handle_type(class_name: str) -> HandleType | None:
     """Get the HandleType for the given handle name."""
     handle_name = to_casing(class_name, Casing.ALL_CAPS)
-    if handle_type := HandleType.__members__.get(handle_name):
+    if handle_type := HandleType.__options_by_name__.get(handle_name):
         return handle_type
     handle_name = class_name.upper()
-    if handle_type := HandleType.__members__.get(handle_name):
+    if handle_type := HandleType.__options_by_name__.get(handle_name):
         return handle_type
     return None
 
@@ -80,9 +81,9 @@ def resolve_handle_type(class_name: str) -> HandleType | None:
 def resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     """Get the NodeType for the given node name."""
     enum_name = to_casing(class_name, Casing.ALL_CAPS)
-    if node_type := NodeType.__members__.get(enum_name):
+    if node_type := NodeType.__options_by_name__.get(enum_name):
         return (node_type,)
-    if node_type := NodeType.__members__.get(class_name.upper()):
+    if node_type := NodeType.__options_by_name__.get(class_name.upper()):
         return (node_type,)
     if class_name == "Node":
         return tuple(NodeType)
@@ -269,10 +270,11 @@ class PropertyDeclaration:
 
         # resolve self type
         if self.type.is_self and object_type is not None:
-            if isinstance(object_type, NodeType):
-                self.type.node_types = (object_type,)
-            elif isinstance(object_type, StructType):
-                self.type.struct_type = object_type
+            assert isinstance(object_type, OptionDeclaration)
+            if issubclass(object_type.component, NodeType):
+                self.type.node_types = (object_type,)  # type: ignore
+            elif issubclass(object_type.component, StructType):
+                self.type.struct_type = object_type  # type: ignore
             else:
                 raise ValueError(f"unexpected object type for Self: {object_type!r}")
 

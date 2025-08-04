@@ -2,7 +2,6 @@ import base64
 import inspect
 import textwrap
 from collections.abc import Mapping
-from enum import Enum
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -47,6 +46,7 @@ from .declaration import (
     ObjectDeclaration,
     declare_method,
 )
+from .enum import OptionDeclaration
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -127,12 +127,12 @@ class ObjectGenerator:
                     continue
                 elif prop.default_value is UNSET:
                     default_str = "None"
-                elif isinstance(prop.default_value, Enum):
+                elif isinstance(prop.default_value, OptionDeclaration):
                     default_str = (
-                        f"{prop.default_value.__class__.__name__}.{prop.default_value.name}"
+                        f"{prop.default_value.component.__name__}.{prop.default_value.name}"
                     )
-                    extra_glbls[prop.default_value.__class__.__name__] = (
-                        prop.default_value.__class__
+                    extra_glbls[prop.default_value.component.__name__] = (
+                        prop.default_value.component
                     )
                 elif prop.default_value is None or isinstance(
                     prop.default_value, (bool, int, float, str, bytes, UUID)
@@ -1279,14 +1279,14 @@ _METATYPE_TYPE = TypeDeclaration(
     primitive_type=PrimitiveType.INT32,
     is_required=True,
 )
-_generator = ObjectGenerator()
+_generator = ObjectGenerator(check_required=False)
 
 
 def _process_object_cls[ObjectT: Object](
     cls: type[ObjectT], declaration: ObjectDeclaration
 ) -> tuple[type[ObjectT], ObjectDeclaration]:
     """Process an Object base class and return the processed class and its properties."""
-    global _time_spent_in_process_object_cls
+
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
@@ -1473,11 +1473,12 @@ def __init__(self):
         )
         # hash
         hash_str, hash_glbls = _generator.generate_hash(cls)
-        execute_arbitrary_code(
-            hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}.hash", _debug_log=True
-        )
+        execute_arbitrary_code(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}.hash")
         if declaration.kind == ObjectKind.NODE:
-            assert isinstance(declaration.type, NodeType), f"unexpected type: {declaration.type!r}"
+            assert (
+                isinstance(declaration.type, OptionDeclaration)
+                and declaration.type.component == NodeType
+            ), f"unexpected type: {declaration.type!r}"
             # path
             path_str, path_glbls = _generator.generate_path(cast(type["Node"], cls))
             execute_arbitrary_code(
