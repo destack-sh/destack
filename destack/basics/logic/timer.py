@@ -18,8 +18,6 @@ from .schedule import Schedule
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.TIMER_EVENT, is_abstract=True)
 class TimerEvent(Event):

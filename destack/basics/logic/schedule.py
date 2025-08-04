@@ -18,8 +18,6 @@ from destack.core import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.DAY_OF_WEEK)
 class DayOfWeek(OptionEnum):

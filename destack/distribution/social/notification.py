@@ -17,8 +17,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Text
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.NOTIFICATION_STATUS)
 class NotificationStatus(OptionEnum):

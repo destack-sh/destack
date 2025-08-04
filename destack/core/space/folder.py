@@ -18,8 +18,6 @@ from destack.core import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.FOLDER_TYPE)
 class FolderType(OptionEnum):

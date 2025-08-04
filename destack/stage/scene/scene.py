@@ -14,8 +14,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack.stage import LayoutView
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.SCENE_EVENT, is_abstract=True)
 class SceneEvent(Event):

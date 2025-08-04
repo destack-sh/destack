@@ -37,10 +37,6 @@ if TYPE_CHECKING:
 
 from .core import JsonObjectEncoder
 
-# ruff: noqa: FURB113, SIM114
-# pyright: reportIncompatibleVariableOverride=false
-
-
 type_ = type
 
 

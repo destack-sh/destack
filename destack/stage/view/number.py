@@ -4,8 +4,6 @@ from destack.core import Float64, NodeType, declare_entity, declare_property
 
 from .input import InputView
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.NUMBER_INPUT_VIEW,

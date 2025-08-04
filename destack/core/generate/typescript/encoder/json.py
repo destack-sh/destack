@@ -21,8 +21,6 @@ from destack.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLAS
 if TYPE_CHECKING:
     pass
 
-# ruff: noqa: FURB113, SIM114
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 

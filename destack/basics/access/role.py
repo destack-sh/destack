@@ -14,8 +14,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Icon
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.ROLE_EVENT, is_abstract=True)
 class RoleEvent(Event):

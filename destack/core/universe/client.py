@@ -12,8 +12,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(NodeType.CLIENT, is_final=True)
 @final

@@ -6,6 +6,7 @@ from pathlib import Path
 if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is None:
     os.environ["ENVIRONMENT"] = "dev"
 
+
 from destack.core.cli import console, create_cli
 
 # create main CLI app

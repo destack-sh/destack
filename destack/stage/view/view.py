@@ -20,8 +20,6 @@ if TYPE_CHECKING:
         View,
     )
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.VIEW_EVENT, is_abstract=True)
 class ViewEvent(Event):

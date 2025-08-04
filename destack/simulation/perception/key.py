@@ -6,8 +6,6 @@ from destack.core import (
 
 from .input import InputEvent
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.KEY_EVENT, is_abstract=True)
 class KeyEvent(InputEvent):

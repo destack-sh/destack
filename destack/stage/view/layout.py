@@ -16,8 +16,6 @@ if TYPE_CHECKING:
         Layout,
     )
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.LAYOUT_VIEW,

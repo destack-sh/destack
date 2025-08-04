@@ -1171,8 +1171,8 @@ class UniverseCategory(OptionEnum):
 
     # stage
     SCENE = declare_option(40_000_000, "Scene", description="Stage building")
-    VIEW = declare_option(40_100_000, "View", description="View building")
-    RENDERING = declare_option(40_200_000, "Rendering", description="Rendering and shading")
+    VIEW = declare_option(40_100_000, "View", description="View construction")
+    RENDERING = declare_option(40_200_000, "Rendering", description="Render pipelines")
     SHADERS = declare_option(40_300_000, "Shaders", description="Shader programming")
     LIGHTING = declare_option(40_400_000, "Lighting", description="Lighting and shadows")
     # CAMERA/VIEWPORT, XR, PARTICLE, ...

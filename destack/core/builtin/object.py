@@ -60,8 +60,6 @@ from .types import Int64
 if TYPE_CHECKING:
     from destack import BinaryReader, BinaryWriter, EncoderOptions, Hasher, Node, Session
 
-# ruff: noqa: SIM114, FURB113
-# pyright: reportIncompatibleVariableOverride=false
 
 __is_finalized__ = False
 

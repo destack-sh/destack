@@ -61,8 +61,6 @@ from .core import (
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 from .value import generate_value
 
-# ruff: noqa: FURB113
-
 COLLAPSE_GENERATED_CODE = False
 
 
@@ -788,7 +786,7 @@ repr(): string {{
             return f"{value_expr}?.repr()"
 
         # node value
-        elif prop.scalar_type == ScalarType.NODE_VALUE:  # noqa: SIM114
+        elif prop.scalar_type == ScalarType.NODE_VALUE:
             return f"{value_expr}.repr()"
 
         # handle

@@ -19,8 +19,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack import Branch, Event, Snapshot
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 class CreateSpaceResult(NamedTuple):
     """The result of creating a new Space."""

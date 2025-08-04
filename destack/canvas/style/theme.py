@@ -9,8 +9,6 @@ from destack.core import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(NodeType.THEME)
 class Theme(

@@ -4,8 +4,6 @@ from destack.core import ActionType, NodeType, TraitType, declare_entity, declar
 
 from .function import Function
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.ACTION,

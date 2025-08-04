@@ -7,8 +7,6 @@ from .view import View
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.CONTENT_VIEW,

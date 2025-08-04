@@ -9,8 +9,6 @@ from destack.core import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(NodeType.STYLE, is_abstract=True)
 class Style(Entity):

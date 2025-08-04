@@ -6,8 +6,6 @@ from .type import ScalarType, Type, TypeCardinality
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 type_ = type
 

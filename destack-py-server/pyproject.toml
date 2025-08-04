@@ -3,7 +3,24 @@ name = "destack-server"
 version = "2025.08.01.22"
 description = "Destack Python Server"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 
-[tool.uv_build.targets.wheel]
-packages = ["destack-server"]
+[tool.pytest_env]
+ENVIRONMENT = "test"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_test_loop_scope = "session"
+python_files = "test/**/*.py test/*.py"
+python_classes = "!TestProfile"
+pythonpath = ["destack", "destack-py", "destack-py-server", "destack-py-web"]
+log_cli = true
+addopts = [
+	'-rP',
+	"-vv",
+	"--import-mode=importlib",
+	"--color=yes",
+	'--strict-markers',
+]
+markers = []
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]

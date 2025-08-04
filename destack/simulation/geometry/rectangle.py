@@ -14,8 +14,6 @@ from .shape import Form2D, Shape2D
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_struct(
     StructType.RECTANGLE2D,

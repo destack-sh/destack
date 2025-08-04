@@ -7,8 +7,6 @@ from .metric import MeasurementEvent, Metric
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.GAUGE_METRIC,

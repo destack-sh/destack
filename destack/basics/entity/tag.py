@@ -8,8 +8,6 @@ from destack.core import UNSET, Entity, NodeType, TraitType, declare_entity, dec
 if TYPE_CHECKING:
     from destack import Icon, NodeReference
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.TAG,

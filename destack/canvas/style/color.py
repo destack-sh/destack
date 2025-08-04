@@ -20,9 +20,6 @@ if TYPE_CHECKING:
     pass
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 @declare_enum(EnumType.COLOR_TYPE)
 class ColorType(OptionEnum):
     """Built-in color formats."""

@@ -12,8 +12,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack.core import Space
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.ORGANIZATION,

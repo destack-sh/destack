@@ -5,8 +5,6 @@ from destack.core import (
 
 from .input import InputEvent
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.FOCUS_EVENT, is_abstract=True)
 class FocusEvent(InputEvent):

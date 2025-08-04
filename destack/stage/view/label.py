@@ -2,8 +2,6 @@ from destack.core import NodeType, declare_entity
 
 from .layout import LayoutView
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.LABEL_VIEW,

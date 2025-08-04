@@ -36,12 +36,12 @@ class Hasher(Handle):
     # use fnv-1a 32-bit offset basis for consistent initialization
     buffer: Int32 = declare_property_runtime(401, default=0x811C9DC5)
 
-    @declare_method(80)
+    @declare_method(200)
     def digest(self) -> Int32:
         """Get the hash as a 32-bit integer."""
         return self.buffer
 
-    @declare_method(81)
+    @declare_method(201)
     def reset(self) -> None:
         """Reset the hasher."""
         self.buffer = 0x811C9DC5

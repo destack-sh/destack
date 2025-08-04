@@ -14,8 +14,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack import Color, File
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 #
 # Icon

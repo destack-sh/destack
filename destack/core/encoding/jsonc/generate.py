@@ -11,8 +11,6 @@ from ..json.generate import JsonEncoderGenerator
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 type_ = type
 

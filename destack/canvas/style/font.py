@@ -19,8 +19,6 @@ from .style import Style
 if TYPE_CHECKING:
     from destack import Length
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.FONT_TYPE)
 class FontType(OptionEnum):

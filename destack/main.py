@@ -6,13 +6,12 @@ from pathlib import Path
 if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is None:
     os.environ["ENVIRONMENT"] = "dev"
 
-
 from destack.core.cli import console, create_cli
 
 # create main CLI app
 cli = create_cli(help="Destack CLI")
 
-# add all CLI 'apps' in our CLI folder as sub-CLIs
+# add all CLIs in our CLI folder as sub-CLIs
 for path in Path.glob(Path(__file__).parent / "cli", "*.py"):
     try:
         module = __import__(f"destack.cli.{path.stem}", fromlist=["cli"])

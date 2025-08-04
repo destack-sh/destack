@@ -4,8 +4,6 @@ from destack.core import NodeType, declare_entity
 
 from .function import Function
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(NodeType.METHOD, is_final=True)
 @final

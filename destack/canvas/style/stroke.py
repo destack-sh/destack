@@ -20,8 +20,6 @@ from .style import Style
 if TYPE_CHECKING:
     from destack import Color, Easing, Vector2
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.STROKE_TYPE)
 class StrokeType(OptionEnum):

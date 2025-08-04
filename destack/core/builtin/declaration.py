@@ -30,8 +30,6 @@ if TYPE_CHECKING:
 
 type_ = type
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @dataclass(slots=True)
 class ObjectDeclaration:

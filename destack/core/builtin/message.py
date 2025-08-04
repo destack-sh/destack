@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from destack import Client
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
 type_ = type
 
 _ALLOWED_POSTFIXES = ("MESSAGE", "REQUEST", "RESPONSE")

@@ -10,8 +10,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Anchor, Offset2, Quaternion, Vector2, Vector3
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(
     NodeType.ENTITY2D,

@@ -20,8 +20,6 @@ from .style import Style
 if TYPE_CHECKING:
     from destack import File
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_enum(EnumType.FILL_TYPE)
 class FillType(OptionEnum):

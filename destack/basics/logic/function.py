@@ -13,8 +13,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Text
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_entity(NodeType.FUNCTION, is_abstract=True)
 class Function(Entity):

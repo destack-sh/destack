@@ -13,9 +13,6 @@ if TYPE_CHECKING:
     from destack import Action
 
 
-# pyright: reportIncompatibleVariableOverride=false
-
-
 @declare_event(NodeType.SPAN_EVENT)
 class SpanEvent(Event):
     """

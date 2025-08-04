@@ -29,7 +29,7 @@ class Context(Handle):
     Context propagates across the call stack (because it propagates through Runs).
     """
 
-    # NOTE :Incomplete: Context to replace Oracle and Session globals
+    # nocheckin(language) :Incomplete: Context to replace Oracle and Session globals
     #   - logging/tracing/baggage
     #   - actor/client/client_nonce
     #   - snapshot_ptr/branch_ptr

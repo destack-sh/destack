@@ -13,8 +13,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Role, RoleType
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.INVITE_EVENT, is_abstract=True)
 class InviteEvent(Event):

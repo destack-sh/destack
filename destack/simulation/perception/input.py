@@ -9,8 +9,6 @@ from destack.core import (
 if TYPE_CHECKING:
     pass
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.INPUT_EVENT, is_abstract=True)
 class InputEvent(Event):

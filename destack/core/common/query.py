@@ -26,7 +26,6 @@ if TYPE_CHECKING:
         Value,
     )
 
-# pyright: reportIncompatibleVariableOverride=false
 
 type_ = type
 

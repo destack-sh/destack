@@ -18,8 +18,6 @@ from destack.core import (
 if TYPE_CHECKING:
     from destack import Condition, Icon
 
-# pyright: reportIncompatibleVariableOverride=false
-
 
 @declare_event(NodeType.TRIGGER_EVENT, is_abstract=True)
 class TriggerEvent(Event):
