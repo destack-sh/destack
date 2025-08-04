@@ -141,7 +141,7 @@ class EnumType(OptionEnum):
     EASING = declare_option(20_300_003)
 
     #
-    # CANVAS
+    # IMAGINATION
     #
 
     # audio [30_000_000]
@@ -166,7 +166,7 @@ class EnumType(OptionEnum):
     # ...
 
     #
-    # STAGE
+    # PRESENTATION
     #
 
     # scene [40_000_000]
@@ -207,7 +207,7 @@ class EnumType(OptionEnum):
     # ...
 
     #
-    # DEPLOYMENT
+    # PRODUCTION
     #
 
     # cloud [50_000_000]
@@ -367,7 +367,7 @@ class TraitType(OptionEnum):
     # ...
 
     #
-    # CANVAS
+    # IMAGINATION
     #
 
     # audio [30_000_000]
@@ -392,7 +392,7 @@ class TraitType(OptionEnum):
     # ...
 
     #
-    # STAGE
+    # PRESENTATION
     #
 
     # scene [40_000_000]
@@ -411,7 +411,7 @@ class TraitType(OptionEnum):
     # ...
 
     #
-    # DEPLOYMENT
+    # PRODUCTION
     #
 
     # cloud [50_000_000]
@@ -747,7 +747,7 @@ class NodeType(OptionEnum):
     # RIG, ...
 
     #
-    # CANVAS
+    # IMAGINATION
     #
 
     # audio [30_000_000]
@@ -790,7 +790,7 @@ class NodeType(OptionEnum):
     STROKE_STYLE = declare_option(31_001_600, "Stroke Style")
 
     #
-    # STAGE
+    # PRESENTATION
     #
 
     # scene [40_000_000]
@@ -840,7 +840,7 @@ class NodeType(OptionEnum):
     # ...
 
     #
-    # DEPLOYMENT
+    # PRODUCTION
     #
 
     # cloud [50_000_000]
@@ -1069,7 +1069,7 @@ class StructType(OptionEnum):
     EFFECT = declare_option(20_300_100, "Effect")
 
     #
-    # CANVAS
+    # IMAGINATION
     #
 
     # audio [30_000_000]
@@ -1104,7 +1104,7 @@ class StructType(OptionEnum):
     STROKE_POINT = declare_option(31_001_603, "Stroke Point")
 
     #
-    # STAGE
+    # PRESENTATION
     #
 
     # scene [40_000_000]
@@ -1123,7 +1123,7 @@ class StructType(OptionEnum):
     # ...
 
     #
-    # DEPLOYMENT
+    # PRODUCTION
     #
 
     # cloud [50_000_000]
@@ -1190,9 +1190,9 @@ class UniverseDomain(OptionEnum):
     CORE = declare_option(1, "Core", description="Universe intrinsics")
     BASICS = declare_option(10_000_000, "Basics", description="Scaffolding the Universe")
     SIMULATION = declare_option(20_000_000, "Simulation", description="Modeling the Universe")
-    CANVAS = declare_option(30_000_000, "Crafting", description="Imagining the Universe")
-    STAGE = declare_option(40_000_000, "Stage", description="Presenting the Universe")
-    DEPLOYMENT = declare_option(50_000_000, "Deployment", description="Operating the Universe")
+    IMAGINATION = declare_option(30_000_000, "Imagination", description="Imagining the Universe")
+    PRESENTATION = declare_option(40_000_000, "Presentation", description="Presenting the Universe")
+    PRODUCTION = declare_option(50_000_000, "Production", description="Operating the Universe")
     DISTRIBUTION = declare_option(
         60_000_000, "Distribution", description="Distributing the Universe"
     )
@@ -1243,7 +1243,7 @@ class UniverseCategory(OptionEnum):
     # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
 
     #
-    # CANVAS
+    # IMAGINATION
     #
 
     AUDIO = declare_option(30_000_000, "Audio", description="Audio and sound production")
@@ -1256,10 +1256,10 @@ class UniverseCategory(OptionEnum):
     # MATERIAL?, NARRATIVE, ...
 
     #
-    # STAGE
+    # PRESENTATION
     #
 
-    SCENE = declare_option(40_000_000, "Scene", description="Stage building")
+    SCENE = declare_option(40_000_000, "Scene", description="Staging and viewing")
     VIEW = declare_option(40_100_000, "View", description="View construction")
     RENDERING = declare_option(40_200_000, "Rendering", description="Render pipelines")
     SHADERS = declare_option(40_300_000, "Shaders", description="Shader programming")
@@ -1267,7 +1267,7 @@ class UniverseCategory(OptionEnum):
     # CAMERA/VIEWPORT, XR, PARTICLE, ...
 
     #
-    # DEPLOYMENT
+    # PRODUCTION
     #
 
     CLOUD = declare_option(50_000_000, "Cloud", description="Cloud computing infrastructure")

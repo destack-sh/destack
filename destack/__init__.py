@@ -1,12 +1,12 @@
 # ruff: noqa: F403, I001
 
 from .basics import *
-from .canvas import *
+from .imagination import *
 from .core import *
-from .deployment import *
+from .production import *
 from .distribution import *
 from .simulation import *
-from .stage import *
+from .presentation import *
 
 from .finalize import finalize
 
