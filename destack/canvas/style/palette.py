@@ -12,9 +12,7 @@ if TYPE_CHECKING:
 
 
 @declare_entity(NodeType.PALETTE)
-class Palette(
-    Entity,
-):
+class Palette(Entity):
     """A Palette of Colors."""
 
     icon: "Icon | None" = declare_property(102)

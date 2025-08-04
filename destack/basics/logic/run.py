@@ -16,7 +16,7 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack import Action, NodeReference
+    from destack import Action
 
 
 @declare_enum(EnumType.RUN_STATUS)
@@ -65,8 +65,6 @@ class RunEvent(Event):
 
     run: "Run" = declare_property(101)
     target: Optional["Entity"] = declare_property(110)
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None
 
 
 @declare_event(NodeType.RUN_STARTED_EVENT)
@@ -159,5 +157,3 @@ class Run(Entity):
     terminated_at: Optional[datetime] = declare_property(
         120, description="When the Run was last terminated."
     )
-    if TYPE_CHECKING:
-        target_ptr: Optional[NodeReference] = None

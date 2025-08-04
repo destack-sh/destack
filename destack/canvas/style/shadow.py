@@ -47,7 +47,7 @@ class Shadow(StructFrozen):
     """A shadow value."""
 
     type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True)
-    style: Optional["ShadowStyle"] = declare_property(101, is_repr=True)
+    template: Optional["ShadowStyle"] = declare_property(101, is_repr=True)
     color: Optional["Color"] = declare_property(102, is_repr=True)
     position: ShadowPosition = declare_property(103, default=ShadowPosition.OUTSIDE, is_repr=True)
     offset: Optional["Axis2"] = declare_property(104, is_repr=True)
@@ -56,14 +56,17 @@ class Shadow(StructFrozen):
     diffusion: Optional[Float32] = declare_property(107, is_repr=True)
 
 
-@declare_entity(NodeType.SHADOW_STYLE)
+@declare_entity(
+    NodeType.SHADOW_STYLE,
+    struct_type=StructType.SHADOW,
+)
 class ShadowStyle(Style):
     """A shadow style."""
 
     type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True)
-    color: Optional["Color"] = declare_property(200, is_repr=True)
-    position: ShadowPosition = declare_property(201, default=ShadowPosition.OUTSIDE, is_repr=True)
-    offset: Optional["Axis2"] = declare_property(202, is_repr=True)
-    blur: Optional[Float32] = declare_property(203, is_repr=True)
-    spread: Optional[Float32] = declare_property(204, is_repr=True)
-    diffusion: Optional[Float32] = declare_property(205, is_repr=True)
+    color: Optional["Color"] = declare_property(101, is_repr=True)
+    position: ShadowPosition = declare_property(102, default=ShadowPosition.OUTSIDE, is_repr=True)
+    offset: Optional["Axis2"] = declare_property(103, is_repr=True)
+    blur: Optional[Float32] = declare_property(104, is_repr=True)
+    spread: Optional[Float32] = declare_property(105, is_repr=True)
+    diffusion: Optional[Float32] = declare_property(106, is_repr=True)

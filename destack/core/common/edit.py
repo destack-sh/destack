@@ -1,15 +1,20 @@
 from typing import TYPE_CHECKING
 
-from ..builtin.builtin import EnumType, NodeType
-from ..builtin.const import UNSET
-from ..builtin.entity import Entity
-from ..builtin.enum import OptionEnum, declare_enum, declare_option
-from ..builtin.event import Event, declare_event
-from ..builtin.hoisted import UInt8
-from ..builtin.property import declare_property
+from ..builtin import (
+    Entity,
+    EnumType,
+    Event,
+    NodeType,
+    OptionEnum,
+    UInt8,
+    declare_enum,
+    declare_event,
+    declare_option,
+    declare_property,
+)
 
 if TYPE_CHECKING:
-    from destack import NodeReference, Value
+    from destack import Value
 
 
 @declare_enum(EnumType.EDIT_TYPE)
@@ -79,8 +84,6 @@ If it's a custom Property, this just refers to Entity.custom_values.
     key: "Value | None" = declare_property(105, is_repr=True, description="The key being edited.")
     # path?
     value: "Value | None" = declare_property(120)
-    if TYPE_CHECKING:
-        node_ptr: "NodeReference" = UNSET
 
     # reverse
     # EditEvent.type in reverse is derivable

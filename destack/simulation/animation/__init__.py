@@ -1,13 +1,13 @@
 from .easing import Easing
-from .effect import Effect, EffectStyle, EffectType
-from .transition import Transition, TransitionStyle, TransitionType
+from .effect import Effect, EffectTemplate, EffectType
+from .transition import Transition, TransitionTemplate, TransitionType
 
 __all__ = [
     "Easing",
     "Effect",
-    "EffectStyle",
+    "EffectTemplate",
     "EffectType",
     "Transition",
-    "TransitionStyle",
+    "TransitionTemplate",
     "TransitionType",
 ]

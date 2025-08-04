@@ -54,8 +54,6 @@ class ObjectDefinitionReference(StructFrozen):
     struct_type: Optional[StructType] = declare_property(103, is_repr=True)
     handle_type: Optional[HandleType] = declare_property(104, is_repr=True)
     definition: "Entity | None" = declare_property(106, is_repr=True)
-    if TYPE_CHECKING:
-        definition_ptr: Optional["NodeReference"] = None
 
     @property
     def object_cls(self) -> type_[Object] | None:
@@ -203,21 +201,8 @@ class PropertyReference(StructFrozen):
     def of(
         base: "PropertyDeclaration | PropertyDefinition | CustomPropertyDefinition",
     ) -> "PropertyReference":
-        from destack import CustomPropertyDefinition
-
-        if isinstance(base, PropertyDeclaration):
-            return base.to_ref()
-        elif isinstance(base, PropertyDefinition):
-            raise ValueError(f"cannot convert {base!r} to a PropertyReference")
-        elif isinstance(base, CustomPropertyDefinition):
-            assert base.parent_ptr is not None, f"no parent for {base!r}"
-            return PropertyReference(
-                type=PropertyReferenceType.CUSTOM,
-                node_type=base.parent_ptr.type,
-                custom_property=base,
-            )
-        else:
-            assert_never(base)
+        """Create a PropertyReference from a PropertyDeclaration, PropertyDefinition or CustomPropertyDefinition."""
+        ...
 
 
 @declare_struct(StructType.NODE_REFERENCE, frozen=True, is_final=True)

@@ -42,6 +42,7 @@ from .declaration import (
     ConstantDeclaration,
     NodeDeclaration,
     ObjectDeclaration,
+    TypeDeclaration,
     declare_method,
 )
 from .enum import OptionDeclaration
@@ -53,12 +54,7 @@ from .hoisted import (
     TypeCardinality,
     ValueFactory,
 )
-from .property import (
-    _PROPERTY_SPECIFIERS,
-    PropertyDeclaration,
-    TypeDeclaration,
-    declare_property_runtime,
-)
+from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property_runtime
 from .types import Int64
 
 if TYPE_CHECKING:
@@ -1303,6 +1299,7 @@ def _process_object_cls[ObjectT: Object](
         name="metakind",
         py_type=Any,
         type=_METAKIND_TYPE,
+        is_internal=True,
         is_runtime_only=True,
         is_static=True,
         is_identity=True,
@@ -1312,6 +1309,7 @@ def _process_object_cls[ObjectT: Object](
         id=METATYPE_PROPERTY_ID,
         name="metatype",
         py_type=Any,
+        is_internal=True,
         is_runtime_only=True,
         is_static=True,
         is_identity=True,

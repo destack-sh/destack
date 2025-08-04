@@ -296,6 +296,7 @@ class TraitType(OptionEnum):
     ORDERED = declare_option(1, "Ordered", description="Is ordered")
     RESOURCE = declare_option(2, "Resource", description="Is a Resource")
     VARIANT = declare_option(3, "Variant", description="Is a Variant")
+    TEMPLATE = declare_option(4, "Template", description="Is a Template")
     # PAUSABLE?
 
     # common [100_000]
@@ -722,8 +723,8 @@ class NodeType(OptionEnum):
     # AUDIO, AUDIO_PLAYER, VIDEO, VIDEO_PLAYER, ...
 
     # animation [20_300_000]
-    TRANSITION_STYLE = declare_option(20_300_000, "Transition Style")
-    EFFECT_STYLE = declare_option(20_300_100, "Effect Style")
+    TRANSITION_TEMPLATE = declare_option(20_300_000, "Transition Style")
+    EFFECT_TEMPLATE = declare_option(20_300_100, "Effect Style")
     # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
     # KEYFRAME_VARIANT, ...
     # RIG, ...
@@ -1191,9 +1192,7 @@ class UniverseCategory(OptionEnum):
 
     ENTITY = declare_option(10_000_000, "Entity", description="Entity management")
     LOGIC = declare_option(10_100_000, "Logic", description="Scripting and behavior")
-    INTELLIGENCE = declare_option(
-        10_200_000, "Intelligence", description="Artificial intelligence"
-    )  # AI
+    INTELLIGENCE = declare_option(10_200_000, "Intelligence", description="Artificial intelligence")
     ACCESS = declare_option(10_300_000, "Access", description="Access and identity")
     QUALITY = declare_option(10_400_000, "Quality", description="Quality assurance")
     STUDIO = declare_option(10_500_000, "Studio", description="Editing the Universe")

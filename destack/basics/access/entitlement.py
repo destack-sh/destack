@@ -2,11 +2,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
-    UNSET,
     Entity,
     EnumType,
     Event,
-    NodeReference,
     NodeType,
     OptionEnum,
     declare_entity,
@@ -66,5 +64,3 @@ class Entitlement(
     type: EntitlementType = declare_property(100)
     expires_at: Optional[datetime] = declare_property(110)
     target: "Entity" = declare_property(111)
-    if TYPE_CHECKING:
-        target_ptr: NodeReference = UNSET

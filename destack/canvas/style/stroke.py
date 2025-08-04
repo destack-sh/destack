@@ -65,27 +65,6 @@ class StrokeCap(StructFrozen):
     easing: "Easing" = declare_property(103, description="The easing function for taper.")
 
 
-@declare_entity(NodeType.STROKE_STYLE, is_final=True)
-@final
-class StrokeStyle(Style):
-    """A StrokeStyle."""
-
-    type: StrokeType = declare_property(100)
-    size: UInt8 = declare_property(200, description="The stroke size/width.")
-    thinning: Float32 = declare_property(
-        201, description="The amount of pressure-based thinning (0-1)."
-    )
-    smoothing: Float32 = declare_property(202, description="The amount of path smoothing (0-1).")
-    streamline: Float32 = declare_property(
-        203, description="The amount of streamlining applied to path (0-1)."
-    )
-    easing: "Easing" = declare_property(
-        204, description="The easing function for pressure mapping."
-    )
-    start: Optional["StrokeCap"] = declare_property(205, description="The start cap configuration.")
-    end: Optional["StrokeCap"] = declare_property(206, description="The end cap configuration.")
-
-
 @declare_struct(StructType.STROKE_POINT, frozen=True, is_final=True)
 @final
 class StrokePoint(StructFrozen):
@@ -112,3 +91,28 @@ class StrokePath(StructFrozen):
     """A stroke path."""
 
     points: list[StrokePoint] = declare_property(101, is_repr=True)
+
+
+@declare_entity(
+    NodeType.STROKE_STYLE,
+    struct_type=StructType.STROKE,
+)
+@final
+class StrokeStyle(Style):
+    """A StrokeStyle."""
+
+    type: StrokeType = declare_property(100)
+    size: UInt8 = declare_property(101, description="The stroke size/width.")
+    thinning: Float32 = declare_property(
+        102, description="The amount of pressure-based thinning (0-1)."
+    )
+    smoothing: Float32 = declare_property(103, description="The amount of path smoothing (0-1).")
+    streamline: Float32 = declare_property(
+        104, description="The amount of streamlining applied to path (0-1)."
+    )
+    easing: "Easing" = declare_property(
+        105, description="The easing function for pressure mapping."
+    )
+    color: Optional["Color"] = declare_property(106, description="The stroke color.")
+    start: Optional["StrokeCap"] = declare_property(110, description="The start cap configuration.")
+    end: Optional["StrokeCap"] = declare_property(111, description="The end cap configuration.")

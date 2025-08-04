@@ -16,7 +16,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack import NodeReference
+    pass
 
 
 @declare_enum(EnumType.TEXT_SPAN_TYPE)
@@ -36,8 +36,6 @@ class TextSpan(StructFrozen):
     type: TextSpanType = declare_property(100, default=TextSpanType.TEXT)
     content: Optional[str] = declare_property(101)
     node: Optional[Node] = declare_property(102)
-    if TYPE_CHECKING:
-        node_ptr: Optional[NodeReference] = None
     url: Optional[str] = declare_property(105)
 
     is_bold: Optional[bool] = declare_property(150)
@@ -88,7 +86,7 @@ class Text(StructFrozen):
                     return True
         elif isinstance(item, Node):
             for span in self.spans:
-                if span.node_ptr is not None and span.node_ptr.id == item.id:
+                if span.node is not None and span.node.id == item.id:
                     return True
         else:
             assert_never(item)
@@ -257,9 +255,8 @@ def _parse_inline_raw(
         if marker.startswith("[@") and marker.endswith("]"):
             identifier = marker[2:-1]
             node: Node | None = None
-            node_ptr: NodeReference | None = None
             mention_span = TextSpan(
-                type=TextSpanType.MENTION, content=identifier, node=node, node_ptr=node_ptr, **base
+                type=TextSpanType.MENTION, content=identifier, node=node, **base
             )
             spans.append(mention_span)
             continue

@@ -27,6 +27,9 @@ if TYPE_CHECKING:
 FILE_HASH_LENGTH = 64  # 256 bits
 
 
+# nocheckin: turn FileType into sub-Entities (Image, Audio, Video, etc.)
+
+
 @declare_enum(EnumType.FILE_TYPE)
 class FileType(OptionEnum):
     TEXT = declare_option(1, "Text", description="A text file")

@@ -12,7 +12,7 @@ from typing import (
 
 from destack.registry import NODE_CLASS_BY_TYPE
 
-from ..utility import INTEGER_ZERO, UUID, get_order_key
+from ..utility import INTEGER_ZERO, UUID
 from .builtin import EnumType, NodeType, ObjectKind, StructType, TraitType
 from .const import UNSET
 from .declaration import (
@@ -73,6 +73,7 @@ def declare_entity(
     is_singleton: bool = False,
     # inheritance
     traits: tuple[TraitType, ...] = (),
+    struct_type: StructType | None = None,
     # content
     indexes: tuple["IndexDeclaration", ...] = (),
     constraints: tuple["ConstraintDeclaration", ...] = (),
@@ -101,6 +102,7 @@ def declare_entity(
             is_frozen=False,
             # inheritance
             traits=traits,
+            struct_type=struct_type,
             # content
             indexes=indexes,
             constraints=constraints,
@@ -158,8 +160,6 @@ class Entity(Node):
     parent: Optional["Entity"] = declare_property_parent(
         description="The parent of this Entity. Most Entities can be attached to any other Entity."
     )
-    if TYPE_CHECKING:
-        parent_ptr: Optional[NodeReference] = None
 
     # 1-20: identity
     materialization: Materialization = declare_property(
@@ -224,12 +224,6 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         description="The (root) Entity that is being instantiated.",
         tags=("identity",),
     )
-    if TYPE_CHECKING:
-        definition_ptr: Optional["NodeReference"] = None
-        branch_ptr: NodeReference = UNSET
-        snapshot_ptr: NodeReference = UNSET
-        preceded_by_ptr: Optional[NodeReference] = None
-        instance_ptr: Optional[NodeReference] = None
 
     # 20-40: Entity tracking
     created_at: datetime = declare_property(
@@ -307,10 +301,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # managed_by: Optional["Entity"]
     # nocheckin(language): authority (how do authority and runtime choice relate? Action RPC?)
     # controlled_by, possessed_by, ...
-    if TYPE_CHECKING:
-        created_by_ptr: NodeReference = UNSET
-        updated_by_ptr: NodeReference = UNSET
-        owned_by_ptr: Optional[NodeReference] = None
 
     # 40-60: Entity basics
     name: str = declare_property(
@@ -379,16 +369,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        if self._ref is None:
-            self._ref = NodeReference(
-                type=self.metatype,
-                id=self.id,
-                space_id=self.space_ptr.id,
-                branch_id=self.branch_ptr.id,
-                snapshot_id=self.snapshot_ptr.id,
-                definition_id=self.definition_ptr.id if self.definition_ptr is not None else None,
-            )
-        return self._ref
+        ...
 
     @declare_method(10)
     @property
@@ -421,17 +402,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the children of this Entity."""
-        if isinstance(type, type_):
-            type = type.metatype
-        children = self._session.graph.get_children(
-            self,
-            self.space_ptr.id,
-            self.branch_ptr.id,
-            self.snapshot_ptr.id,
-            type,
-            include_deleted,
-        )
-        return cast(Sequence[N], children)
+        ...
 
     @declare_method(31)
     def get_child[N: Entity = Entity](
@@ -441,19 +412,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> N | None:
         """Gets a specific child of this Node by name."""
-        if isinstance(type, type_):
-            type = type.metatype
-        for child in self._session.graph.get_children(
-            self,
-            self.space_ptr.id,
-            self.branch_ptr.id,
-            self.snapshot_ptr.id,
-            type,
-            include_deleted,
-        ):
-            if getattr(child, "name", None) == name:
-                return cast(N, child)
-        return None
+        ...
 
     @declare_method(32)
     def child[N: Entity = Entity](
@@ -475,17 +434,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the ancestors of this Node."""
-        if isinstance(type, type_):
-            type = type.metatype
-        ancestors = self._session.graph.get_ancestors(
-            self,
-            self.space_ptr.id,
-            self.branch_ptr.id,
-            self.snapshot_ptr.id,
-            type,
-            include_deleted,
-        )
-        return cast(Sequence[N], ancestors)
+        ...
 
     @declare_method(34)
     def get_descendants[N: Entity = Entity](
@@ -494,57 +443,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> Sequence[N]:
         """Gets the descendants of this Node."""
-        if isinstance(type, type_):
-            type = type.metatype
-        descendants = self._session.graph.get_descendants(
-            self,
-            self.space_ptr.id,
-            self.branch_ptr.id,
-            self.snapshot_ptr.id,
-            type,
-            include_deleted,
-        )
-        return cast(Sequence[N], descendants)
-
-    def _assign_order(
-        self,
-        child: "Entity",
-        after: "Entity | None" = None,
-        before: "Entity | None" = None,
-        *,
-        _existing_nodes: Sequence["Entity"] | None = None,
-    ):
-        """Assign an order key to a child Entity."""
-        order_base = next(
-            (
-                node_type
-                for node_type in child.__definition__.inherits
-                if TraitType.OWNED in NODE_CLASS_BY_TYPE[node_type].__definition__.traits
-            ),
-            child.metatype,
-        )
-        if _existing_nodes is None:
-            _existing_nodes = cast(
-                Sequence[Entity],
-                self._session.graph.get_children(
-                    self, self.space_ptr.id, self.branch_ptr.id, self.snapshot_ptr.id, order_base
-                ),
-            )
-        if _existing_nodes:
-            if after is None:
-                after = _existing_nodes[-1]
-            after_order_key = after.order_key
-            if (
-                after_order_key is not None
-                and before is not None
-                and before.order_key > after_order_key
-            ):
-                before_order_key = before.order_key
-            else:
-                before_order_key = None
-            assert isinstance(child, Entity), f"{child!r} is not an Entity"
-            order_key = get_order_key(after_order_key, before_order_key)
-            child.set("order_key", order_key)
+        ...
 
     @declare_method(40)
     def detach(self):
@@ -553,9 +452,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         Does not delete the Entity, just removes it from its parent.
         Raises an error if it has no parent.
         """
-        if self.parent_ptr is None:
-            raise ValueError(f"{self!r} has no parent to detach from")
-        self.move_to(parent=None)
+        ...
 
     @declare_method(41)
     def move_to(
@@ -567,31 +464,10 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     ):
         """
         Move this Entity to a new parent Entity.
-        If the Entity IsOrdered, it will be positioned (relative to after/before).
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-
-        # prepare graph & nodes
-        session = self._session
-        nodes: tuple[Entity, ...] = (
-            self,
-            *self._session.graph.get_descendants(
-                self, self.space_ptr.id, self.branch_ptr.id, self.snapshot_ptr.id
-            ),
-        )
-
-        # assign parent & order
-        if parent is not None:
-            self.parent_ptr = parent.to_ref()
-            if TraitType.ORDERED in self.__definition__.traits:
-                parent._assign_order(self, after, before)
-
-        # create new nodes
-        if self._is_new and parent is not None and not parent._is_new:
-            for node in nodes:
-                assert isinstance(node, Entity), f"{node!r} of {parent!r} is not an Entity"
-                session.create(node)
+        ...
 
     @declare_method(42)
     def add_sibling(
@@ -603,12 +479,10 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     ) -> Self:
         """
         Add an Entity as a sibling of this Entity.
-        If the Entity IsOrdered, it will be positioned (relative to after/before).
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        sibling.move_to(self.parent, after=after, before=before)
-        return self
+        ...
 
     @declare_method(43)
     def add_siblings(
@@ -618,9 +492,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         before: "Entity | None" = None,
     ) -> Self:
         """Add multiple Entities as siblings of this Entity."""
-        for sibling in siblings:
-            sibling.move_to(self.parent, after=after, before=before)
-        return self
+        ...
 
     @declare_method(44)
     def add_child(
@@ -636,8 +508,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        child.move_to(self, after=after, before=before)
-        return self
+        ...
 
     @declare_method(45)
     def add_children(
@@ -649,9 +520,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """
         Append multiple Entities as children of this Entity.
         """
-        for child in children:
-            child.move_to(self, after=after, before=before)
-        return self
+        ...
 
     @declare_method(46)
     def remove_child(self, child: "Entity") -> Self:
@@ -659,30 +528,17 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         Remove a child Entity from this Entity.
         The child will NOT be deleted, it will simply be detached.
         """
-        child.detach()
-        return self
+        ...
 
     @declare_method(50)
     def add_tag(self, tag: "Tag") -> "Tagging":
         """Add or get a Tagging for a Tag on this Entity."""
-        for tagging in self.get_children(Tagging):
-            if tagging.tag.id == tag.id:
-                return tagging
-        else:
-            # create new Tagging
-            tagging = Tagging(tag=tag)
-            self.add_child(tagging)
-            return tagging
+        ...
 
     @declare_method(51)
     def remove_tag(self, tag: "Tag") -> "Tagging | None":
         """Remove a Tag from this Entity."""
-        for tagging in self.get_children(Tagging):
-            if tagging.tag_ptr.id == tag.id:
-                self.remove_child(tagging)
-                return tagging
-        else:
-            return None
+        ...
 
     @declare_method(60)
     def into(self, branch: "Branch") -> "Self":

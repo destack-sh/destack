@@ -28,6 +28,7 @@ class GradientType(OptionEnum):
     LINEAR = declare_option(10, "Linear", description="A linear gradient")
     RADIAL = declare_option(11, "Radial", description="A radial gradient")
     CONIC = declare_option(12, "Conic", description="A conic gradient")
+    DIAMOND = declare_option(13, "Diamond", description="A diamond gradient")
 
 
 @declare_struct(
@@ -53,13 +54,16 @@ class Gradient(StructFrozen):
     """A gradient value."""
 
     type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True)
-    style: Optional["GradientStyle"] = declare_property(101, is_repr=True)
+    template: Optional["GradientStyle"] = declare_property(101, is_repr=True)
     angle: Optional[Float32] = declare_property(102, is_repr=True)
     stops: list[GradientStop] = declare_property(103, is_repr=True)
     center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True)
 
 
-@declare_entity(NodeType.GRADIENT_STYLE)
+@declare_entity(
+    NodeType.GRADIENT_STYLE,
+    struct_type=StructType.GRADIENT,
+)
 class GradientStyle(Style):
     """A gradient style."""
 
