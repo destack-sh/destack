@@ -35,12 +35,12 @@ from .property import (
 if TYPE_CHECKING:
     from destack import (
         Branch,
+        Icon,
         NodeReference,
         Script,
         Session,
         Snapshot,
         Tag,
-        Tagging,
         Value,
     )
 
@@ -150,8 +150,11 @@ class Entity(Node):
     Entities are always part of a Snapshot (in their Space).
 
     An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
-     where Snapshots are 'shortcuts' to certain epochs.
-     (id, definition_id) @ (branch_id, snapshot_id)
+     where Snapshots are 'shortcuts' to certain epochs:
+     (id, definition_id) @ (branch_id, snapshot_id, epoch)
+
+    Custom and context Values are keyed by name for convenience and clarity.
+    The name is normalized to a snake_case string.
     """
 
     metakind = ObjectKind.NODE
@@ -293,59 +296,61 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 """,
         tags=("tracking",),
     )
-    owned_by: Optional["Entity"] = declare_property(
-        30,
-        is_repr=True,
-        tags=("tracking",),
-    )
-    # managed_by: Optional["Entity"]
-    # nocheckin(language): authority (how do authority and runtime choice relate? Action RPC?)
-    # controlled_by, possessed_by, ...
 
-    # 40-60: Entity basics
+    # 40-80: Entity core
+    # 40-50: Entity meta
     name: str = declare_property(
         40,
         is_repr=True,
         default_factory=ValueFactory.NAME,
         tags=("entity",),
     )
-    order_key: str = declare_property(
+    icon: "Icon | None" = declare_property(
         41,
+        description="The icon of this Entity.",
+        tags=("entity",),
+    )
+    order_key: str = declare_property(
+        42,
         is_eq=False,
         is_internal=True,
         default=INTEGER_ZERO,
         description="The absolute order key of this Entity in its parent.",
         tags=("entity",),
     )
-    # key: str | None = declare_property(
-    #     42,
-    #     description="The key to uniquely identify this Entity in reconciliation. If not set, name is used.",
-    #     tags=("source",),
-    # )
-    custom_values: dict[str, "Value"] | None = declare_property(
-        45,
-        description="The custom Values of this Entity, keyed by custom Property name.",
-        tags=("entity",),
-    )
-    # context/context_values, ...?
-    script: Optional["Script"] = declare_property(
-        46,
-        description="The Script of this Entity.",
-        tags=("entity",),
-    )
-    is_extensible: bool | None = declare_property(
-        50,
-        is_internal=True,
-        is_readonly=True,
-        description="Whether this Entity can be instanced.",
-        tags=("entity",),
-    )
+    # is_extensible, is_instantiable, ...
     # base_type?
     # traits?
     # is_trait? is_abstract?
     # is_locked/is_final?
     # is_singleton?
-    # is_sleeping? (like in physics engines but more general)
+
+    # 50-60: Entity state
+    owned_by: "Entity" = declare_property(
+        50,
+        is_repr=True,
+        description="The exclusive owner of this Entity.",
+        default_factory=ValueFactory.ACTOR,
+        tags=("tracking",),
+    )
+    custom_values: dict[str, "Value"] | None = declare_property(
+        55,
+        description="The custom Values of this Entity, keyed by custom Property or Tag name.",
+        tags=("entity",),
+    )
+    context_values: dict[str, "Value"] | None = declare_property(
+        56,
+        description="The context Values provided by this Entity, keyed by context Property name.",
+        tags=("entity",),
+    )
+
+    # 60-70: Entity behavior
+    script: Optional["Script"] = declare_property(
+        60,
+        description="The Script of this Entity.",
+        tags=("entity",),
+    )
+    # key? (for reconciliation)
 
     # 80-100: provenance
     source: Optional["Script"] = declare_property(
@@ -531,12 +536,12 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         ...
 
     @declare_method(50)
-    def add_tag(self, tag: "Tag") -> "Tagging":
-        """Add or get a Tagging for a Tag on this Entity."""
+    def add_tag(self, tag: "Tag", value: "Value | None" = None) -> "Value":
+        """Add or get a Tag's value on this Entity."""
         ...
 
     @declare_method(51)
-    def remove_tag(self, tag: "Tag") -> "Tagging | None":
+    def remove_tag(self, tag: "Tag") -> "Value | None":
         """Remove a Tag from this Entity."""
         ...
 

@@ -25,7 +25,7 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack import Condition, Icon, Value
+    from destack import Condition, Value
 
 
 @declare_entity(NodeType.CUSTOM_EVENT_DEFINITION)
@@ -33,8 +33,6 @@ class CustomEventDefinition(
     Entity,
 ):
     """A CustomEvent defines a custom Event with custom Properties."""
-
-    icon: "Icon | None" = declare_property(102)
 
     is_abstract: bool = declare_property(112, default=False)
 
@@ -120,14 +118,10 @@ class CustomMessage(Message):
 class CustomEnumDefinition(Entity):
     """A CustomEnum describes a custom Enum with custom Options."""
 
-    icon: "Icon | None" = declare_property(102)
-
 
 @declare_entity(NodeType.CUSTOM_OPTION_DEFINITION)
 class CustomOptionDefinition(Entity):
     parent: Union["CustomEnumDefinition", None] = declare_property_parent()
-
-    icon: "Icon | None" = declare_property(102)
 
     value: "Value" = declare_property(110)
 
@@ -142,7 +136,6 @@ class CustomPropertyDefinition(Entity):
         100,
         description="The actual Type of this custom Property.",
     )
-    icon: "Icon | None" = declare_property(102)
 
     # relationship
     edge_type: Optional[EdgeType] = declare_property(140)

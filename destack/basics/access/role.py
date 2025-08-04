@@ -12,7 +12,7 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack import Icon
+    pass
 
 
 @declare_event(NodeType.ROLE_EVENT, is_abstract=True)
@@ -46,4 +46,3 @@ class Role(Entity):
     """A Role for Actors to take."""
 
     type: RoleType = declare_property(100, is_repr=True)
-    icon: "Icon | None" = declare_property(102)

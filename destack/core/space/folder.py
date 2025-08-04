@@ -14,7 +14,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack import Icon, Space
+    from destack import Space
 
 
 @declare_enum(EnumType.FOLDER_TYPE)
@@ -43,5 +43,4 @@ class Folder(Entity):
 
     parent: Union["Space", "Folder", None] = declare_property_parent()
     type: FolderType = declare_property(100, is_repr=True, default=FolderType.GENERAL)
-    icon: "Icon | None" = declare_property(102)
     slug: str | None = declare_property(103, is_repr=True)

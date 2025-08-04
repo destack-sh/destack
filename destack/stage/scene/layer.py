@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     Entity,
     Float32,
-    Icon,
     NodeType,
     TraitType,
     declare_entity,
@@ -22,8 +21,6 @@ if TYPE_CHECKING:
 )
 class Layer(Entity):
     """A Layer is a container for Views."""
-
-    icon: "Icon | None" = declare_property(102)
 
     # style
     is_visible: Optional[bool] = declare_property(140)

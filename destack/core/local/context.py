@@ -30,17 +30,15 @@ class Context(Handle):
     """
 
     # nocheckin(language) :Incomplete: Context to replace local 'globals'
-    #   - logging/tracing/baggage
-    #   - actor/client/client_nonce
-    #   - snapshot_ptr/branch_ptr
-    #   - custom stuff
-    #   - randomness, time, region/geolocation, ...
-    #   - mode
-    #   - theme
-
     actor: "Entity" = declare_property_runtime(401, is_repr=True)
     client: "Client" = declare_property_runtime(402, is_repr=True)
     client_nonce: UUID = declare_property_runtime(403, is_repr=True)
+    # random_seed, random_state, ...
+    # time/time_zone/time_dilation, ...
+    # environment, ...
+    # theme, ...
+    # region/geolocation, ...
+    # logging/tracing/baggage, ...
 
     def __str__(self) -> str:
         return ""

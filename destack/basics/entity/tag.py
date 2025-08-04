@@ -1,12 +1,11 @@
 from typing import (
     TYPE_CHECKING,
-    final,
 )
 
-from destack.core import Entity, NodeType, TraitType, declare_entity, declare_property
+from destack.core import Entity, NodeType, TraitType, Type, declare_entity, declare_property
 
 if TYPE_CHECKING:
-    from destack import Icon
+    pass
 
 
 @declare_entity(
@@ -14,18 +13,9 @@ if TYPE_CHECKING:
     traits=(TraitType.ORDERED,),
 )
 class Tag(Entity):
-    """A Tag to tag an Entity with (in a Tagging)."""
+    """A Tag to tag an Entity with."""
 
-    icon: "Icon | None" = declare_property(102)
-
-
-@declare_entity(
-    NodeType.TAGGING,
-    traits=(TraitType.ORDERED,),
-    is_final=True,
-)
-@final
-class Tagging(Entity):
-    """A Tagging of a Node by a Tag."""
-
-    tag: Tag = declare_property(110)
+    type: "Type | None" = declare_property(
+        100,
+        description="The designated Type of this Tag. Any if unset.",
+    )
