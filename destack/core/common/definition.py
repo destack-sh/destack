@@ -22,6 +22,7 @@ from ..builtin import (
     Object,
     ObjectKind,
     ObjectStability,
+    OptionDeclaration,
     PermissionDeclaration,
     PropertyDeclaration,
     RuntimeLanguage,
@@ -706,7 +707,7 @@ class EnumDefinition(StructFrozen):
             is_flag=declaration.is_flag,
             options=[
                 OptionDefinition.from_declaration(declaration.type, option)
-                for option in enum_cls.__members__.values()
+                for option in enum_cls.__options__
             ],
         )
 
@@ -962,13 +963,15 @@ class OptionDefinition(StructFrozen):
     taggings: list[UInt8] = declare_property(109)
 
     @classmethod
-    def from_declaration(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
+    def from_declaration(
+        cls, enum_type: EnumType, declaration: OptionDeclaration
+    ) -> "OptionDefinition":
         """Create OptionDefinition from an Enum option."""
         return cls(
-            id=option.value,
+            id=declaration.value,
             type=enum_type,
-            name=option.name,
-            description=option.__doc__,
+            name=declaration.name,
+            description=declaration.description,
         )
 
 

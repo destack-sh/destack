@@ -10,7 +10,6 @@ from .core.builtin import (
     Object,
     StructType,
 )
-from .core.utils.environment import IS_DEV, IS_TEST
 from .registry import (
     BUILTIN_CLASS_BY_NAME,
     ENUM_CLASS_BY_TYPE,
@@ -214,62 +213,61 @@ def finalize():
         object_cls.__definition__.constants = list(constants)  # type: ignore (frozen)
 
     # validate stuff
-    if IS_DEV or IS_TEST:
-        # check we have all the declared builtin objects
-        if len(EnumType) != len(ENUM_CLASS_BY_TYPE):
-            missing_enum_types = set(EnumType) - set(ENUM_CLASS_BY_TYPE.keys())
-            raise ValueError(f"missing {len(missing_enum_types)} Enums: {list(missing_enum_types)}")
-        if len(StructType) != len(STRUCT_CLASS_BY_TYPE):
-            missing_struct_types = set(StructType) - set(STRUCT_CLASS_BY_TYPE.keys())
-            raise ValueError(
-                f"missing {len(missing_struct_types)} Structs: {list(missing_struct_types)}"
-            )
-        if len(NodeType) != len(NODE_CLASS_BY_TYPE):
-            missing_node_types = set(NodeType) - set(NODE_CLASS_BY_TYPE.keys())
-            raise ValueError(f"missing {len(missing_node_types)} Nodes: {list(missing_node_types)}")
-        if len(HandleType) != len(HANDLE_CLASS_BY_TYPE):
-            missing_handle_types = set(HandleType) - set(HANDLE_CLASS_BY_TYPE.keys())
-            raise ValueError(
-                f"missing {len(missing_handle_types)} Handles: {list(missing_handle_types)}"
+    # check we have all the declared builtin objects
+    if len(EnumType) != len(ENUM_CLASS_BY_TYPE):
+        missing_enum_types = set(EnumType) - set(ENUM_CLASS_BY_TYPE.keys())
+        raise ValueError(f"missing {len(missing_enum_types)} Enums: {list(missing_enum_types)}")
+    if len(StructType) != len(STRUCT_CLASS_BY_TYPE):
+        missing_struct_types = set(StructType) - set(STRUCT_CLASS_BY_TYPE.keys())
+        raise ValueError(
+            f"missing {len(missing_struct_types)} Structs: {list(missing_struct_types)}"
+        )
+    if len(NodeType) != len(NODE_CLASS_BY_TYPE):
+        missing_node_types = set(NodeType) - set(NODE_CLASS_BY_TYPE.keys())
+        raise ValueError(f"missing {len(missing_node_types)} Nodes: {list(missing_node_types)}")
+    if len(HandleType) != len(HANDLE_CLASS_BY_TYPE):
+        missing_handle_types = set(HandleType) - set(HANDLE_CLASS_BY_TYPE.keys())
+        raise ValueError(
+            f"missing {len(missing_handle_types)} Handles: {list(missing_handle_types)}"
+        )
+
+    # check event types
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        if issubclass(node_cls, Event):
+            assert not node_cls.__declaration__.event_types, (
+                f"{node_cls.__name__} is an Event but has event types: {node_cls.__declaration__.event_types}"
             )
 
-        # check event types
-        for node_cls in NODE_CLASS_BY_TYPE.values():
-            if issubclass(node_cls, Event):
-                assert not node_cls.__declaration__.event_types, (
-                    f"{node_cls.__name__} is an Event but has event types: {node_cls.__declaration__.event_types}"
-                )
-
-        # check parent types
-        for node_cls in NODE_CLASS_BY_TYPE.values():
-            if node_cls.__declaration__.parent_property is None:
-                continue
-            # check if parent is compatible with bases
-            parent_node_types = node_cls.__declaration__.parent_property.type.node_types or ()
-            for base_cls in node_cls.__bases__:
-                if isinstance(
-                    base_parent_property := getattr(base_cls, "__parent_property__", None),
-                    PropertyDeclaration,
+    # check parent types
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        if node_cls.__declaration__.parent_property is None:
+            continue
+        # check if parent is compatible with bases
+        parent_node_types = node_cls.__declaration__.parent_property.type.node_types or ()
+        for base_cls in node_cls.__bases__:
+            if isinstance(
+                base_parent_property := getattr(base_cls, "__parent_property__", None),
+                PropertyDeclaration,
+            ):
+                base_parent_node_types = base_parent_property.type.node_types or ()
+                if (
+                    NodeType.NODE in base_parent_node_types
+                    or NodeType.ENTITY in base_parent_node_types
                 ):
-                    base_parent_node_types = base_parent_property.type.node_types or ()
-                    if (
-                        NodeType.NODE in base_parent_node_types
-                        or NodeType.ENTITY in base_parent_node_types
-                    ):
-                        continue  # covers everything
-                    missing_base_node_types: list[NodeType] = []
-                    for parent_node_type in parent_node_types:
-                        if not any(
-                            issubclass(
-                                NODE_CLASS_BY_TYPE[parent_node_type],
-                                NODE_CLASS_BY_TYPE[base_parent_node_type],
-                            )
-                            for base_parent_node_type in base_parent_node_types
-                        ):
-                            missing_base_node_types.append(parent_node_type)
-                    if missing_base_node_types:
-                        raise ValueError(
-                            f"{node_cls.__name__}.parent is not compatible with {base_cls.__name__}.parent (missing {[t.name for t in missing_base_node_types]})"
+                    continue  # covers everything
+                missing_base_node_types: list[NodeType] = []
+                for parent_node_type in parent_node_types:
+                    if not any(
+                        issubclass(
+                            NODE_CLASS_BY_TYPE[parent_node_type],
+                            NODE_CLASS_BY_TYPE[base_parent_node_type],
                         )
+                        for base_parent_node_type in base_parent_node_types
+                    ):
+                        missing_base_node_types.append(parent_node_type)
+                if missing_base_node_types:
+                    raise ValueError(
+                        f"{node_cls.__name__}.parent is not compatible with {base_cls.__name__}.parent (missing {[t.name for t in missing_base_node_types]})"
+                    )
 
     _set_finalized()

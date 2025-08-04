@@ -1,8 +1,6 @@
 import linecache
 import time
 
-_time_spent_in_exec = 0
-
 
 def execute_arbitrary_code(
     code: str,
@@ -14,7 +12,6 @@ def execute_arbitrary_code(
     """
     Executes the code, but with a name and in the cache.
     """
-    global _time_spent_in_exec
     start = time.time()
     if _debug_log:
         print("=" * 80)  # noqa: T201
@@ -30,4 +27,3 @@ def execute_arbitrary_code(
         filename,
     )
     exec(code, globals, locals)
-    _time_spent_in_exec += time.time() - start

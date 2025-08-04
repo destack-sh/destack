@@ -32,6 +32,8 @@ def _process_struct_cls(
     tags: tuple["TagDeclaration", ...],
     enum_types: tuple[EnumType, ...],
 ) -> type["Struct"]:
+    """Process a Struct class and return the processed class and its properties."""
+
     # inheritance
     inherits: list[StructType] = []
     all_enum_types: list[EnumType] = []

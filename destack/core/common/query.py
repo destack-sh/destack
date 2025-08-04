@@ -1,8 +1,7 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, final
+from typing import TYPE_CHECKING, Any, Optional, Union, final
 
 from ..builtin import (
     EnumType,
-    Node,
     OptionEnum,
     PropertyDeclaration,
     StructFrozen,
@@ -132,14 +131,6 @@ class Aggregation(StructFrozen):
     expression: Optional["Expression"] = declare_property(101, is_repr=True)
     # distinct, over, ...
 
-    @classmethod
-    def of(
-        cls: type_["Aggregation"],
-        type: AggregationType,
-        operand: Optional["Expression"] = None,
-    ) -> "Aggregation":
-        return Aggregation(type=type, expression=operand)
-
 
 #
 # Expression
@@ -166,32 +157,14 @@ class Expression(StructFrozen):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
     type: ExpressionType = declare_property(100, is_repr=True)
-    literal: Optional[Value] = declare_property(101, is_repr=True)
-    attribute: Optional[PropertyReference] = declare_property(102, is_repr=True)
+    literal: Optional["Value"] = declare_property(101, is_repr=True)
+    attribute: Optional["PropertyReference"] = declare_property(102, is_repr=True)
     condition: Optional[Condition] = declare_property(103, is_repr=True)
     aggregation: Optional[Aggregation] = declare_property(105, is_repr=True)
     # subquery?
 
     @classmethod
-    def of(cls, thing: "ExpressionIn") -> "Expression":
-        from destack.core import PropertyDeclaration, PropertyDefinition
-
-        from .value import Value
-
-        if isinstance(thing, Value):
-            return Expression(type=ExpressionType.LITERAL, literal=thing)
-        elif isinstance(thing, PropertyReference):
-            return Expression(type=ExpressionType.ATTRIBUTE, attribute=thing)
-        elif isinstance(thing, (Node, PropertyDeclaration, PropertyDefinition)):
-            return Expression(type=ExpressionType.ATTRIBUTE, attribute=PropertyReference.of(thing))
-        elif isinstance(thing, Condition):
-            return Expression(type=ExpressionType.CONDITION, condition=thing)
-        elif isinstance(thing, Aggregation):
-            return Expression(type=ExpressionType.AGGREGATION, aggregation=thing)
-        elif isinstance(thing, Expression):
-            return thing
-        else:
-            assert_never(thing)
+    def of(cls, thing: "ExpressionIn") -> "Expression": ...
 
 
 ExpressionIn = Union[
@@ -274,7 +247,7 @@ class Sort(StructFrozen):
 class Select(StructFrozen):
     """Select specific Attributes."""
 
-    attributes: list[PropertyReference] = declare_property(101, is_repr=True)
+    attributes: list["PropertyReference"] = declare_property(101, is_repr=True)
 
     @classmethod
     def of(cls, *attributes: "PropertyDeclaration | CustomPropertyDefinition") -> "Select":
@@ -357,7 +330,7 @@ class Query(StructFrozen):
         description="Name for this subquery. Should be unique within the parent Query.",
         is_repr=True,
     )
-    definition: ObjectDefinitionReference = declare_property(
+    definition: "ObjectDefinitionReference" = declare_property(
         106,
         is_repr=True,
         description="The Node definition this Query is about.",
