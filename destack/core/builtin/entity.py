@@ -6,7 +6,6 @@ from typing import (
     ClassVar,
     Optional,
     Self,
-    cast,
     dataclass_transform,
 )
 
@@ -380,25 +379,23 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @property
     def is_custom(self) -> bool:
         """Whether this Node is a custom Node."""
-        return self.definition is not None
+        ...
 
     @declare_method(11)
     @property
     def is_partial(self) -> bool:
         """Whether this Entity is a partial Entity."""
-        return False  # only set in EntityPartial
+        ...
 
     @declare_method(20)
     def delete(self):
         """Delete this Entity."""
-        assert not self.deleted_at, f"{self!r} is already deleted"
-        self._session.delete(self)
+        ...
 
     @declare_method(21)
     def restore(self):
         """Restore this deleted Entity from the trash."""
-        assert self.deleted_at, f"{self!r} is not deleted"
-        self._session.restore(self)
+        ...
 
     @declare_method(30)
     def get_children[N: Entity = Entity](
@@ -427,10 +424,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> N:
         """Gets a specific child of this Node by name, or raises an error if not found."""
-        child = self.get_child(type, name, include_deleted)
-        if child is None:
-            raise LookupError(f"no child {name} of {self!r}")
-        return cast(N, child)
+        ...
 
     @declare_method(33)
     def get_ancestors[N: Entity = Entity](

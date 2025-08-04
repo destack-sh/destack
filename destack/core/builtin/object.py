@@ -1,4 +1,3 @@
-import base64
 import inspect
 import textwrap
 from collections.abc import Mapping
@@ -39,7 +38,9 @@ from .const import (
     UNSET,
 )
 from .declaration import (
+    ActionDeclaration,
     ConstantDeclaration,
+    MethodDeclaration,
     NodeDeclaration,
     ObjectDeclaration,
     TypeDeclaration,
@@ -1364,6 +1365,9 @@ def _process_object_cls[ObjectT: Object](
             attribute.component = cls
             if attribute.original_component is UNSET:
                 attribute.original_component = cls
+        elif isinstance(attribute, (MethodDeclaration, ActionDeclaration)):
+            # methods/actions are replaced later with their callables
+            pass  # nothing to do
         else:
             raise TypeError(
                 f"{cls.__name__}.{name} is not a Property or Constant: {attribute} ({type(attribute)})"
@@ -1598,11 +1602,11 @@ class Object:
         _identity_map: Mapping[UUID, UUID] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
-        raise NotImplementedError  # generated
+        ...
 
     def hash(self, _hasher: "Hasher | None" = None) -> Int64:
         """Hash of content properties."""
-        raise NotImplementedError  # generated
+        ...
 
     def __bool__(self):
         return True  # support truthy checks for objects
@@ -1618,12 +1622,7 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Any:
         """Pack this Object into some encoded format."""
-        from destack.core.encoding.registry import get_encoder
-
-        options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = get_encoder(encoding)
-        packed_object = encoder.pack_object(self, options)
-        return packed_object
+        ...
 
     @declare_method(31)
     def pack_binary(
@@ -1633,11 +1632,7 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> None:
         """Pack this Object into the byte representation of its encoded format."""
-        from destack.core.encoding.registry import get_encoder
-
-        options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = get_encoder(encoding)
-        encoder.pack_object_binary(self, writer, options)
+        ...
 
     @declare_method(32)
     @classmethod
@@ -1649,12 +1644,7 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack an Object from some encoded format."""
-        from destack.core.encoding.registry import get_encoder
-
-        options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = get_encoder(encoding)
-        unpacked_object = encoder.unpack_object(cls.metakind, cls.metatype, value, session, options)
-        return cast(Self, unpacked_object)
+        ...
 
     @declare_method(33)
     @classmethod
@@ -1666,14 +1656,7 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack an Object from the byte representation of its encoded format."""
-        from destack.core.encoding.registry import get_encoder
-
-        options = options if options is not None else EncoderOptions.DEFAULT
-        encoder = get_encoder(encoding)
-        unpacked_object = encoder.unpack_object_binary(
-            cls.metakind, cls.metatype, reader, session, options
-        )
-        return cast(Self, unpacked_object)
+        ...
 
     @declare_method(34)
     @classmethod
@@ -1685,6 +1668,4 @@ class Object:
         options: "EncoderOptions | None" = None,
     ) -> Self:
         """Unpack an Object from a base64 encoded string."""
-        options = options if options is not None else EncoderOptions.DEFAULT
-        reader = BinaryReader(buffer=base64.b64decode(value))
-        return cls.unpack_binary(encoding, reader, session, options)
+        ...

@@ -334,11 +334,11 @@ class Node(Object):
     @declare_method(1)
     def path(self) -> str:
         """The human readable path of this Node."""
-        raise NotImplementedError  # generated
+        ...
 
     def __to_ref__(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        raise NotImplementedError  # generated
+        ...
 
     @declare_method(2)
     def to_ref(self) -> "NodeReference":

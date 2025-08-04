@@ -160,9 +160,15 @@ class Struct(Object):
     __declaration__: ClassVar["StructDeclaration"]
     __definition__: ClassVar["StructDefinition"]
 
-    def __eq__(self, other: Any):
-        """Equals the Struct contents."""
-        raise NotImplementedError  # generated
+    @declare_method(60, is_implemented=True)
+    def clone(self, **override: Any) -> Self:
+        """Clone the Struct with new values."""
+        kwargs: dict[str, Any] = {}
+        for prop in self.__properties__.values():
+            if not prop.is_runtime_only:
+                kwargs[prop.name] = getattr(self, prop.name)
+        kwargs.update(override)
+        return self.__class__(**kwargs)
 
 
 @declare_struct(
@@ -182,13 +188,3 @@ class StructFrozen(Struct):
         # frozen Structs should be immutable, but sometimes we need to break out of that
         object.__setattr__(self, "_hash", None)
         object.__setattr__(self, "_repr", None)
-
-    @declare_method(60)
-    def clone(self, **override: Any) -> Self:
-        """Clone the Struct with new values."""
-        kwargs: dict[str, Any] = {}
-        for prop in self.__properties__.values():
-            if not prop.is_runtime_only:
-                kwargs[prop.name] = getattr(self, prop.name)
-        kwargs.update(override)
-        return self.__class__(**kwargs)

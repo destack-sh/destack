@@ -1,7 +1,8 @@
 import dataclasses
+import inspect
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Self
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Self, cast
 
 from .builtin import (
     EnumType,
@@ -12,6 +13,7 @@ from .builtin import (
     StructType,
     TraitType,
 )
+from .const import UNSET
 from .hoisted import (
     ActionType,
     ConstraintType,
@@ -21,6 +23,7 @@ from .hoisted import (
     PrimitiveType,
     RuntimeLanguage,
     RuntimePlatform,
+    RuntimeType,
     ScalarType,
     TypeCardinality,
 )
@@ -73,6 +76,7 @@ class TypeDeclaration(Declaration):
     is_required: bool = True
     is_self: bool = False
     is_any: bool = False
+    is_stream: bool = False
 
     _type: Optional["Type"] = None  # cached
 
@@ -253,8 +257,62 @@ class FunctionDeclaration(Declaration):
     # content
     tags: tuple[str, ...]
 
-    languages: tuple[RuntimeLanguage, ...] | None
-    platforms: tuple[RuntimePlatform, ...] | None
+    runtimes: tuple[RuntimeType, ...]
+
+
+@dataclass(slots=True, repr=False)
+class SignatureDeclaration:
+    """Declaration of a function signature."""
+
+    input_properties: list["PropertyDeclaration"]
+    output_property: "PropertyDeclaration | None"
+
+
+def _parse_signature(
+    qualname: str,
+    func: Callable,
+    signature: inspect.Signature,
+) -> SignatureDeclaration:
+    from .property import PropertyDeclaration
+    from .type import parse_type_declaration
+
+    input_properties: list[PropertyDeclaration] = []
+    output_property: PropertyDeclaration | None = None
+
+    # process input parameters
+    for param_name, param in signature.parameters.items():
+        if param_name == "self":
+            continue
+        prop = PropertyDeclaration(
+            name=param_name,
+            py_type=param.annotation if param.annotation != inspect.Parameter.empty else type(None),
+            default_value=param.default if param.default != inspect.Parameter.empty else UNSET,
+        )
+        try:
+            prop.type = parse_type_declaration(prop.py_type, is_builtin=True)
+        except Exception as e:
+            raise ValueError(
+                f"unexpected parameter type: {qualname}.{param_name} ({prop.py_type})"
+            ) from e
+
+        input_properties.append(prop)
+
+    # process return type
+    if signature.return_annotation != inspect.Parameter.empty and (
+        signature.return_annotation is not None
+    ):
+        return_type = signature.return_annotation
+        prop = PropertyDeclaration(name="return", py_type=return_type)
+        try:
+            prop.type = parse_type_declaration(prop.py_type, is_builtin=True)
+        except Exception as e:
+            raise ValueError(f"unexpected return type: {qualname} ({prop.py_type})") from e
+        output_property = prop
+
+    return SignatureDeclaration(
+        input_properties=input_properties,
+        output_property=output_property,
+    )
 
 
 @dataclass(slots=True, repr=False)
@@ -263,11 +321,66 @@ class MethodDeclaration(FunctionDeclaration):
 
     # meta
     type: MethodType
+    is_implemented: bool
 
     # content
     input_properties: tuple["PropertyDeclaration", ...]
-    output_properties: tuple["PropertyDeclaration", ...]
-    output_is_scalar: bool
+    output_property: "PropertyDeclaration | None"
+
+
+def _process_method(
+    func: Callable | classmethod | property,
+    *,
+    id: int,
+    name: str | None,
+    tags: tuple[str, ...],
+    runtimes: tuple[RuntimeType, ...],
+    is_implemented: bool,
+    is_internal: bool,
+) -> tuple[Callable, MethodDeclaration]:
+    """
+    Process a method to create a MethodDeclaration.
+    Only one of runtimes or platforms/languages may be provided.
+    """
+
+    # unwrap class methods and properties
+    type: MethodType = MethodType.INSTANCE
+    if isinstance(func, classmethod):
+        func = func.__func__
+        type = MethodType.STATIC
+    elif isinstance(func, property):
+        func = cast(Callable, func.fget)
+        type = MethodType.PROPERTY
+
+    # parse function signature
+    signature_declaration = _parse_signature(
+        qualname=f"{func.__module__}.{func.__qualname__}",
+        func=func,
+        signature=inspect.signature(func),
+    )
+
+    # implementation must be empty
+    if len(func.__code__.co_code) > 4 and not is_implemented:  # ... is 4 bytes
+        source = inspect.getsource(func).strip()
+        raise ValueError(f"method declaration must be empty: {func.__name__}\n{source}")
+
+    declaration = MethodDeclaration(
+        id=id,
+        name=name or func.__name__,
+        description=func.__doc__ or "",
+        func=func,
+        is_implemented=is_implemented,
+        is_async=inspect.iscoroutinefunction(func),
+        is_abstract=False,
+        is_internal=is_internal,
+        tags=tags,
+        runtimes=runtimes,
+        type=type,
+        input_properties=tuple(signature_declaration.input_properties),
+        output_property=signature_declaration.output_property,
+    )
+
+    return func, declaration
 
 
 def declare_method(
@@ -276,18 +389,31 @@ def declare_method(
     name: str | None = None,
     tags: tuple[str, ...] = (),
     proxies_method: str | None = None,
-    proxies_runtime: RuntimeLanguage | None = None,
+    proxies_runtime: RuntimeType | None = None,
     type: MethodType = MethodType.INSTANCE,
     operator: FunctionOperator | None = None,
-    languages: tuple[RuntimeLanguage, ...] | None = None,
-    platforms: tuple[RuntimePlatform, ...] | None = None,
+    platforms: tuple[RuntimePlatform, ...] = (),
+    languages: tuple[RuntimeLanguage, ...] = (),
+    runtimes: tuple[RuntimeType, ...] = (),
+    is_implemented: bool = False,
     is_internal: bool = False,
 ):
     """Declare a builtin Method."""
 
     def decorate(func):
-        # nocheckin(py, language): register Functions (methods, actions/messages) on the Object
-        return func
+        func, declaration = _process_method(
+            func,
+            id=id,
+            name=name,
+            tags=tags,
+            runtimes=runtimes,
+            is_implemented=is_implemented,
+            is_internal=is_internal,
+        )
+        if TYPE_CHECKING:
+            return func
+        else:
+            return declaration
 
     return decorate
 
@@ -305,14 +431,15 @@ def declare_action(
     name: str | None = None,
     tags: tuple[str, ...] = (),
     type: ActionType = ActionType.UNARY_IN_UNARY_OUT,
-    languages: tuple[RuntimeLanguage, ...] | None = None,
-    platforms: tuple[RuntimePlatform, ...] | None = None,
+    platforms: tuple[RuntimePlatform, ...] = (),
+    languages: tuple[RuntimeLanguage, ...] = (),
+    runtimes: tuple[RuntimeType, ...] = (),
     is_internal: bool = False,
 ):
     """Declare a builtin Action."""
 
     def decorate(func):
-        return func
+        return func  # nocheckin
 
     return decorate
 

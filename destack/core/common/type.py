@@ -33,13 +33,11 @@ if TYPE_CHECKING:
 @final
 class Type(StructFrozen):
     """
-    A basic Type in the type system. Types compose like a tree (with scalars at the leaves):
+    A Type in the type system. Types compose like a tree (with scalars at the leaves):
      - Scalar: a single value (self, Type.scalar_type)
      - List: a sequence of homogeneous values (Type.value_type)
      - Tuple: a sequence of heterogeneous values (Type.element_types)
      - Map: a mapping of homogenous keys to homogeneous values (Type.key_type->Type.value_type)
-     - Literal: a constant value (self, Type.literal_value)
-     - Union: a tagged union of heterogeneous values (Type.union_types)
     """
 
     # cardinality
@@ -66,7 +64,7 @@ class Type(StructFrozen):
     # dimensions: list[UInt32] | None = declare_property(
     #     114,
     #     is_repr=True,
-    #     description="Dimensions of this Type (ndarray).",
+    #     description="Dimensions of this Type (list, tuple, map, array).",
     # )
     is_required: bool = declare_property(119, default=True)
 
@@ -136,8 +134,8 @@ class Type(StructFrozen):
             is_required=declaration.is_required,
         )
 
+    @declare_method(130, is_implemented=True)
     @classmethod
-    @declare_method(130)
     def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
         """
         Infer the Type of a value or class.
