@@ -16,7 +16,7 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack import Condition, Icon
+    from destack import Condition
 
 
 @declare_event(NodeType.TRIGGER_EVENT, is_abstract=True)
@@ -34,8 +34,6 @@ class TriggerType(OptionEnum):
 @declare_entity(NodeType.TRIGGER)
 class Trigger(Entity):
     """A Trigger is a dynamic event to run something."""
-
-    icon: "Icon | None" = declare_property(102)
 
     # when
     event: Optional[NodeType] = declare_property(110)

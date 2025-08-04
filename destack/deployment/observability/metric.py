@@ -10,14 +10,12 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack import Icon
+    pass
 
 
 @declare_entity(NodeType.METRIC, is_abstract=True)
 class Metric(Entity):
     """An Entity that represents a Metric."""
-
-    icon: "Icon | None" = declare_property(102)
 
 
 @declare_event(NodeType.MEASUREMENT_EVENT, is_abstract=True)

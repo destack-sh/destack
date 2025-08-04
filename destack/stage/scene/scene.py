@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     Entity,
     Event,
-    Icon,
     NodeType,
     TraitType,
     declare_entity,
@@ -34,4 +33,3 @@ class Scene(Entity):
     root_view: Optional["LayoutView"] = declare_property(
         200, description="The root view of the Scene."
     )
-    icon: "Icon | None" = declare_property(102)

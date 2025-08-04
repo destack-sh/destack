@@ -42,6 +42,8 @@ class EnumType(OptionEnum):
     EDGE_DIRECTION = declare_option(100_008)
     CASCADE_ACTION = declare_option(100_009)
     ENCODING = declare_option(100_010)
+    TEXT_SPAN_TYPE = declare_option(100_011)
+    ICON_TYPE = declare_option(100_012)
     # edit
     EDIT_TYPE = declare_option(100_200)
     EDIT_OPERATION = declare_option(100_201)
@@ -84,9 +86,6 @@ class EnumType(OptionEnum):
     #
 
     # entity [10_000_000]
-    FILE_TYPE = declare_option(10_000_001)
-    TEXT_SPAN_TYPE = declare_option(10_000_002)
-    ICON_TYPE = declare_option(10_000_003)
     INDEX_TYPE = declare_option(10_000_100)
     CONSTRAINT_TYPE = declare_option(10_000_200)
     MIGRATION_TYPE = declare_option(10_000_300)
@@ -160,7 +159,10 @@ class EnumType(OptionEnum):
     # paint [30_400_000]
     # ...
 
-    # style [30_500_000]
+    # document [30_500_000]
+    # ...
+
+    # style [31_000_000]
     # ...
 
     #
@@ -380,10 +382,13 @@ class TraitType(OptionEnum):
     # model [30_300_000]
     # ...
 
-    # paint [30_400_000]
+    # document [30_400_000]
     # ...
 
-    # style [30_500_000]
+    # paint [30_500_000]
+    # ...
+
+    # style [31_000_000]
     # ...
 
     #
@@ -492,7 +497,6 @@ class NodeType(OptionEnum):
     # space [1_100_000]
     SPACE = declare_option(1_100_000, "Space", description="Universal Space")
     TAG = declare_option(1_100_100, "Tag")
-    TAGGING = declare_option(1_100_200, "Tagging")
     # TRAIT?
     # FRAGMENT (multiple disjoint trees)
     # SLOT (inside tree)
@@ -513,49 +517,64 @@ class NodeType(OptionEnum):
     #
 
     # entity [10_000_000]
-    FILE = declare_option(10_000_000, "File")
-    # DIRECTORY, SYNC, ...
-    # INDEX, CONSTRAINT, MIGRATION, ...
-    # REMOTE, FOREIGN_DATA/ENTITY_WRAPPER, ...
-    # SECRET, ...
-    INDEX = declare_option(10_000_100, "Index", description="Index of an Entity")
-    CONSTRAINT = declare_option(10_000_200, "Constraint", description="Constraint of an Entity")
-    # EXPECTATION, ...
-    MIGRATION = declare_option(10_000_300, "Migration", description="Migration of an Entity")
-    MIGRATION_OPERATION = declare_option(
-        10_000_301, "Migration Operation", description="Migration Operation of an Entity"
-    )
     # custom
     CUSTOM_EVENT_DEFINITION = declare_option(
-        10_000_400, "Custom Event", description="Custom Event Definition"
+        10_000_000, "Custom Event", description="Custom Event Definition"
     )
     CUSTOM_STRUCT_DEFINITION = declare_option(
-        10_000_500,
+        10_000_100,
         "Custom Struct",
         description="Custom Struct Definition",
     )
     CUSTOM_MESSAGE_DEFINITION = declare_option(
-        10_000_600,
+        10_000_200,
         "Custom Message",
         description="Custom Message Definition",
     )
     CUSTOM_PROPERTY_DEFINITION = declare_option(
-        10_000_700,
+        10_000_300,
         "Custom Property",
         description="Custom Property Definition",
     )
     CUSTOM_ENUM_DEFINITION = declare_option(
-        10_000_800, "Custom Enum", description="Custom Enum Definition"
+        10_000_400, "Custom Enum", description="Custom Enum Definition"
     )
     CUSTOM_OPTION_DEFINITION = declare_option(
-        10_000_900,
+        10_000_500,
         "Custom Option",
         description="Custom Option Definition",
     )
     # CUSTOM_ALIAS_DEFINITION, CUSTOM_UNION_DEFINITION, ...
+    INDEX = declare_option(
+        10_010_000,
+        "Index",
+        description="Index of an Entity",
+    )
+    CONSTRAINT = declare_option(
+        10_010_100,
+        "Constraint",
+        description="Constraint of an Entity",
+    )
+    # EXPECTATION, ...
+    MIGRATION = declare_option(
+        10_010_200,
+        "Migration",
+        description="Migration of an Entity",
+    )
+    MIGRATION_OPERATION = declare_option(
+        10_010_300,
+        "Migration Operation",
+        description="Migration Operation of an Entity",
+    )
+    # file
+    FILE = declare_option(10_020_000, "File")
+    # DIRECTORY, SYNC, ...
+    # INDEX, CONSTRAINT, MIGRATION, ...
+    # REMOTE, FOREIGN_DATA/ENTITY_WRAPPER, ...
+    # SECRET, ...
 
     # logic [10_100_000]
-    MODE = declare_option(10_100_100, "Mode")
+    ENVIRONMENT = declare_option(10_100_100, "Environment")
     SCRIPT = declare_option(10_100_200, "Script")
     CUSTOM_EVENT = declare_option(10_100_300, "Signal", description="Custom Event instance")
     MEASUREMENT_EVENT = declare_option(10_100_301, "Measurement of a Metric")
@@ -571,7 +590,6 @@ class NodeType(OptionEnum):
     TIMER_RESUMED_EVENT = declare_option(10_100_804, "Timer Resumed Event")
     TIMER_COMPLETED_EVENT = declare_option(10_100_805, "Timer Completed Event")
     TIMER_CANCELLED_EVENT = declare_option(10_100_806, "Timer Cancelled Event")
-    ROUTE = declare_option(10_100_900, "Route")
     # EFFECT, ...
     # BREAKPOINT, ...
     # ROOM, TOPIC, CHANNEL, ...
@@ -598,7 +616,7 @@ class NodeType(OptionEnum):
     LOG_EVENT = declare_option(10_101_011, "Log")
 
     # intelligence [10_200_000]
-    # MODEL, FINETUNE, ...
+    # INTELLIGENCE/AI/MODEL, FINETUNE, ...
     # PROMPT, INFERENCE/COMPLETION/..., ...
     # RECOMMENDATION, ...
 
@@ -720,7 +738,6 @@ class NodeType(OptionEnum):
     # GESTURE, ...
     # CLIPBOARD, ...
     # CAMERA, SPEAKER, MICROPHONE, ...
-    # AUDIO, AUDIO_PLAYER, VIDEO, VIDEO_PLAYER, ...
 
     # animation [20_300_000]
     TRANSITION_TEMPLATE = declare_option(20_300_000, "Transition Style")
@@ -734,36 +751,43 @@ class NodeType(OptionEnum):
     #
 
     # audio [30_000_000]
+    AUDIO = declare_option(30_000_000, "Audio")
     # SOUND_SOURCE, ...
 
     # image [30_100_000]
+    IMAGE = declare_option(30_100_000, "Image")
     # ...
 
     # video [30_200_000]
+    VIDEO = declare_option(30_200_000, "Video")
     # STREAM, ...
     # ENCODING, ...
 
     # model [30_300_000]
+    MODEL = declare_option(30_300_000, "Model")
     # ...
 
-    # paint [30_400_000]
+    # document [30_400_000]
+    DOCUMENT = declare_option(30_400_000, "Document")
+    # ...
+
+    # paint [30_500_000]
     # RASTER/BITMAP, ...
     # DAB, PAINT, BRUSH, ...
     # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
     # TEXTURE, ...
 
-    # style [30_500_000]
-    THEME = declare_option(30_500_000, "Theme")
-    PALETTE = declare_option(30_500_100, "Palette")
-    STYLE = declare_option(30_500_200, "Style")
-    COLOR_STYLE = declare_option(30_500_300, "Color Style")
-    FILL_STYLE = declare_option(30_500_400, "Fill Style")
-    FONT_STYLE = declare_option(30_500_500, "Font Style")
-    BORDER_STYLE = declare_option(30_500_600, "Border Style")
-    SHADOW_STYLE = declare_option(30_500_700, "Shadow Style")
-    GRADIENT_STYLE = declare_option(30_500_800, "Gradient Style")
-    STROKE_STYLE = declare_option(30_500_900, "Stroke Style")
-    # BRUSH_STYLE, ...
+    # style [31_000_000]
+    THEME = declare_option(31_000_000, "Theme")
+    PALETTE = declare_option(31_000_100, "Palette")
+    STYLE = declare_option(31_000_200, "Style")
+    COLOR_STYLE = declare_option(31_001_000, "Color Style")
+    FILL_STYLE = declare_option(31_001_100, "Fill Style")
+    FONT_STYLE = declare_option(31_001_200, "Font Style")
+    BORDER_STYLE = declare_option(31_001_300, "Border Style")
+    SHADOW_STYLE = declare_option(31_001_400, "Shadow Style")
+    GRADIENT_STYLE = declare_option(31_001_500, "Gradient Style")
+    STROKE_STYLE = declare_option(31_001_600, "Stroke Style")
 
     #
     # STAGE
@@ -936,6 +960,13 @@ class StructType(OptionEnum):
     NODE_REFERENCE = declare_option(100_040)
     PROPERTY_REFERENCE = declare_option(100_041)
 
+    # text
+    TEXT = declare_option(100_050)
+    TEXT_SPAN = declare_option(100_051)
+
+    # icon
+    ICON = declare_option(100_060)
+
     # runtime [200_000]
     # ...
 
@@ -971,9 +1002,6 @@ class StructType(OptionEnum):
     # EXPECTATION_DEFINITION = 10_000_300
     MIGRATION_DEFINITION = declare_option(10_000_300)
     MIGRATION_OPERATION_DEFINITION = declare_option(10_000_301)
-    TEXT = declare_option(10_000_010)
-    TEXT_SPAN = declare_option(10_000_011)
-    ICON = declare_option(10_000_012)
     # custom
     CUSTOM_STRUCT = declare_option(
         10_000_500, "Custom Struct", description="Custom Struct Instance"
@@ -1056,21 +1084,24 @@ class StructType(OptionEnum):
     # model [30_300_000]
     # ...
 
-    # paint [30_400_000]
+    # document [30_400_000]
     # ...
 
-    # style [30_500_000]
-    COLOR = declare_option(30_500_000, "Color")
-    FILL = declare_option(30_500_100, "Fill")
-    FONT = declare_option(30_500_200, "Font")
-    BORDER = declare_option(30_500_300, "Border")
-    SHADOW = declare_option(30_500_400, "Shadow")
-    GRADIENT = declare_option(30_500_500, "Gradient")
-    GRADIENT_STOP = declare_option(30_500_501, "Gradient Stop")
-    STROKE = declare_option(30_500_600, "Stroke")
-    STROKE_CAP = declare_option(30_500_601, "Stroke Cap")
-    STROKE_PATH = declare_option(30_500_602, "Stroke Path")
-    STROKE_POINT = declare_option(30_500_603, "Stroke Point")
+    # paint [30_500_000]
+    # ...
+
+    # style [31_000_000]
+    COLOR = declare_option(31_001_000, "Color")
+    FILL = declare_option(31_001_100, "Fill")
+    FONT = declare_option(31_001_200, "Font")
+    BORDER = declare_option(31_001_300, "Border")
+    SHADOW = declare_option(31_001_400, "Shadow")
+    GRADIENT = declare_option(31_001_500, "Gradient")
+    GRADIENT_STOP = declare_option(31_001_501, "Gradient Stop")
+    STROKE = declare_option(31_001_600, "Stroke")
+    STROKE_CAP = declare_option(31_001_601, "Stroke Cap")
+    STROKE_PATH = declare_option(31_001_602, "Stroke Path")
+    STROKE_POINT = declare_option(31_001_603, "Stroke Point")
 
     #
     # STAGE
@@ -1219,8 +1250,9 @@ class UniverseCategory(OptionEnum):
     IMAGE = declare_option(30_100_000, "Image", description="Image and photo production")
     VIDEO = declare_option(30_200_000, "Video", description="Video production")
     MODEL = declare_option(30_300_000, "Model", description="Modeling and sculpting")
-    PAINT = declare_option(30_400_000, "Paint", description="Drawing and painting")
-    STYLE = declare_option(30_500_000, "Style", description="Appearance and theming")
+    DOCUMENT = declare_option(30_400_000, "Document", description="Document work")
+    PAINT = declare_option(30_500_000, "Paint", description="Drawing and painting")
+    STYLE = declare_option(31_000_000, "Style", description="Appearance and theming")
     # MATERIAL?, NARRATIVE, ...
 
     #

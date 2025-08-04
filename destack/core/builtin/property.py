@@ -337,6 +337,7 @@ def declare_property_parent(*, is_readonly: bool = False, description: str | Non
 def declare_property_runtime(
     id: int,
     *,
+    description: str | None = None,
     is_repr: bool = False,
     default: Any = None,
     default_factory: Callable[[], Any] | None = None,
@@ -345,6 +346,7 @@ def declare_property_runtime(
     assert 400 <= id <= 500, f"runtime property must be between 400 and 500: {id}"
     return PropertyDeclaration(
         id=id,
+        description=description,
         is_internal=True,
         is_runtime_only=True,
         is_repr=is_repr,
