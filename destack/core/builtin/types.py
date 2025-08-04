@@ -1,7 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from typing import Any
 
-from ..utils.uuid import UUID
+from ..utility import UUID
 
 # :PrimitiveType
 type Boolean = bool

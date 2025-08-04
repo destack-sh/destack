@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.core import Handle, HandleType, declare_handle, declare_property_runtime
+from ..builtin import Handle, HandleType, declare_handle, declare_property_runtime
 
 if TYPE_CHECKING:
     pass

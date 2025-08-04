@@ -83,12 +83,16 @@ _setup_env: bool = False
 
 
 def _load_dotenv(path: Path, *, override: bool = True) -> None:
-    """Loads a .env file from the given path."""
+    """Loads a .env file from the given path into `os.environ`."""
 
     for line in path.read_text().splitlines():
-        if line.startswith("#"):
+        line = line.strip()
+        if not line or line.startswith("#"):
             continue
-        key, value = line.split("=", 1)
+        line_parts = line.split("=", 1)
+        if len(line_parts) != 2:
+            raise ValueError(f"{path}: {line} is invalid")
+        key, value = line_parts
         if key in os.environ and not override:
             raise ValueError(f"{path}: {key} is already set")
         os.environ[key] = value

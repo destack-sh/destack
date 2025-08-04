@@ -12,10 +12,8 @@ from typing import (
 
 from destack.registry import NODE_CLASS_BY_TYPE
 
-from ..utils.fractional import INTEGER_ZERO, get_order_key
-from ..utils.uuid import UUID
+from ..utility import INTEGER_ZERO, UUID, get_order_key
 from .builtin import EnumType, NodeType, ObjectKind, StructType, TraitType
-from .common import UInt128, ValueFactory
 from .const import UNSET
 from .declaration import (
     ConstraintDeclaration,
@@ -25,6 +23,7 @@ from .declaration import (
     declare_method,
 )
 from .enum import OptionEnum, declare_enum, declare_option
+from .hoisted import UInt128, ValueFactory
 from .node import Node, _process_node_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -690,7 +689,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """
         Turn this Entity into its corresponding Entity in the given Branch.
         """
-        raise NotImplementedError
+        ...
 
     @declare_method(61)
     def instantiate(self, *, partial: bool = True, attach: bool = False, **override: Any) -> "Self":
@@ -699,7 +698,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         If partial is True, the new Entity will be a partial Entity with only override set.
         If attach is True, the new Entity will be attached to the current Entity's parent.
         """
-        raise NotImplementedError
+        ...
 
     @classmethod
     def partial(cls) -> "EntityPartial": ...
@@ -784,8 +783,8 @@ class EntityPartial:
 
     def set(self, key: str, value: Any):
         """Set a Property on this Entity partial."""
-        raise NotImplementedError
+        ...
 
     def unset(self, key: str):
         """Unset a Property on this Entity partial."""
-        raise NotImplementedError
+        ...

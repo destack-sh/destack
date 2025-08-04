@@ -5,11 +5,15 @@ from datetime import UTC, date, datetime, time, timedelta
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never, override
 
-from destack.core import (
+from destack.registry import (
+    BUILTIN_CLASS_BY_NAME,
+    ENUM_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+)
+
+from ...builtin import (
     UNSET,
-    UUID,
-    Casing,
-    EncoderOptions,
     Entity,
     Materialization,
     Object,
@@ -20,17 +24,16 @@ from destack.core import (
     StructType,
     TypeCardinality,
     TypeDeclaration,
+)
+from ...utility import (
+    UUID,
+    Casing,
     execute_arbitrary_code,
+    timedelta_from_isoformat,
+    timedelta_to_isoformat,
     to_casing,
 )
-from destack.registry import (
-    BUILTIN_CLASS_BY_NAME,
-    ENUM_CLASS_BY_TYPE,
-    NODE_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
-)
-
-from ...utils.time import timedelta_from_isoformat, timedelta_to_isoformat
+from ..encoder import EncoderOptions
 
 if TYPE_CHECKING:
     pass

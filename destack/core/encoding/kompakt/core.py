@@ -1,8 +1,14 @@
 from typing import TYPE_CHECKING
 
-from destack.core import BinaryReader, BinaryWriter, EncoderOptions, Object, Session
-
 if TYPE_CHECKING:
+    from destack import (
+        BinaryReader,
+        BinaryWriter,
+        EncoderOptions,
+        Object,
+        Session,
+    )
+
     from .encoder import KompaktEncoder
 
 
@@ -16,16 +22,14 @@ class KompaktObjectEncoder[T: Object = Object]:
         self,
         _encoder: "KompaktEncoder",
         _object: T,
-        _writer: BinaryWriter,
-        _options: EncoderOptions,
-    ) -> None:
-        raise NotImplementedError
+        _writer: "BinaryWriter",
+        _options: "EncoderOptions",
+    ) -> None: ...
 
     def unpack_object(
         self,
         _encoder: "KompaktEncoder",
-        _reader: BinaryReader,
-        _session: Session | None,
-        _options: EncoderOptions,
-    ) -> T:
-        raise NotImplementedError
+        _reader: "BinaryReader",
+        _session: "Session | None",
+        _options: "EncoderOptions",
+    ) -> T: ...

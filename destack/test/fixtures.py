@@ -10,7 +10,7 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack import REGION, Context, Session, Space, Universe, uuid4
+from destack import Context, Session, Space, Universe, uuid4
 from destack.graph import MemoryGraph
 from destack.test.conftest import _setup_test_env
 
@@ -43,7 +43,7 @@ def space(session: Session):
         name="Test",
         slug="test",
         owned_by=Universe.ACTOR,
-        region=REGION,
+        region=Universe.REGION,
     )
     with (
         result.space.active(),

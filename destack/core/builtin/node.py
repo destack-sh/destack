@@ -11,7 +11,7 @@ from typing import (
 
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
 
-from ..utils.uuid import UUID
+from ..utility import UUID
 from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 from .const import UNSET
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
@@ -322,7 +322,7 @@ class Node(Object):
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        raise NotImplementedError
+        ...
 
     @classmethod
     @declare_method(60)

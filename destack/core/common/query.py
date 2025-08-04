@@ -14,7 +14,7 @@ from ..builtin import (
     declare_property,
     declare_struct,
 )
-from ..utils.uuid import UUID
+from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import (

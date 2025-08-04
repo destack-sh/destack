@@ -1,12 +1,10 @@
 from typing import TYPE_CHECKING, Union
 
-from destack.core import (
+from ..builtin import (
     Entity,
     EnumType,
-    Icon,
     NodeType,
     OptionEnum,
-    Space,
     TraitType,
     declare_entity,
     declare_enum,
@@ -16,7 +14,7 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from destack import Icon, Space
 
 
 @declare_enum(EnumType.FOLDER_TYPE)

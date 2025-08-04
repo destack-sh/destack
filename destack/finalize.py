@@ -77,17 +77,17 @@ def finalize():
         TypeCardinality,
     )
 
-    BUILTIN_CLASS_BY_NAME.update(
-        {
-            cls.__name__: cls
-            for cls in chain(
-                NODE_CLASS_BY_TYPE.values(),
-                STRUCT_CLASS_BY_TYPE.values(),
-                ENUM_CLASS_BY_TYPE.values(),
-                HANDLE_CLASS_BY_TYPE.values(),
-            )
-        }
-    )
+    for cls in chain(
+        NODE_CLASS_BY_TYPE.values(),
+        STRUCT_CLASS_BY_TYPE.values(),
+        ENUM_CLASS_BY_TYPE.values(),
+        HANDLE_CLASS_BY_TYPE.values(),
+    ):
+        if cls.__name__ in BUILTIN_CLASS_BY_NAME:
+            existing_cls = BUILTIN_CLASS_BY_NAME[cls.__name__]
+            if existing_cls is not cls:
+                raise ValueError(f"duplicate class name: {cls.__name__!r}")
+        BUILTIN_CLASS_BY_NAME[cls.__name__] = cls
 
     _index_inheritance(NODE_CLASS_BY_TYPE)
     _index_inheritance(STRUCT_CLASS_BY_TYPE)

@@ -7,32 +7,6 @@ from .builtin import (
     StructType,
     TraitType,
 )
-from .common import (
-    PRIMITIVE_PY_TYPES,
-    PRIMITIVE_TYPE_BY_ANNOTATION,
-    ActionType,
-    CascadeAction,
-    ClientType,
-    ConstraintType,
-    EdgeDirection,
-    EdgeType,
-    Encoding,
-    FunctionOperator,
-    IndexType,
-    MethodType,
-    PrimitiveType,
-    PropertyZone,
-    Region,
-    RegionArea,
-    RegionContinent,
-    RoleType,
-    RuntimeLanguage,
-    RuntimePlatform,
-    ScalarType,
-    Tenancy,
-    TypeCardinality,
-    ValueFactory,
-)
 from .const import (
     ACTIVE_BRANCH,
     ACTIVE_EVENT,
@@ -80,7 +54,6 @@ from .declaration import (
     declare_constant,
     declare_method,
 )
-from .edit import EditEvent, EditOperation, EditType
 from .entity import (
     ENTITY_MATERIALIZATION_ID,
     ENTITY_MATERIALIZATION_KEY,
@@ -100,6 +73,32 @@ from .enum import (
 )
 from .event import Event, EventStatus, declare_event
 from .handle import Handle, declare_handle
+from .hoisted import (
+    PRIMITIVE_PY_TYPES,
+    PRIMITIVE_TYPE_BY_ANNOTATION,
+    ActionType,
+    CascadeAction,
+    ClientType,
+    ConstraintType,
+    EdgeDirection,
+    EdgeType,
+    Encoding,
+    FunctionOperator,
+    IndexType,
+    MethodType,
+    PrimitiveType,
+    PropertyZone,
+    Region,
+    RegionArea,
+    RegionContinent,
+    RoleType,
+    RuntimeLanguage,
+    RuntimePlatform,
+    ScalarType,
+    Tenancy,
+    TypeCardinality,
+    ValueFactory,
+)
 from .message import Message, declare_message
 from .node import Node, expand_node_inheritance, expand_node_types
 from .object import Object, _is_finalized
@@ -169,9 +168,6 @@ __all__ = [
     "Duration",
     "EdgeDirection",
     "EdgeType",
-    "EditEvent",
-    "EditOperation",
-    "EditType",
     "Encoding",
     "Entity",
     "EntityPartial",

@@ -6,8 +6,7 @@ from typing import (
     cast,
 )
 
-from ..utils.frozen import frozendict
-from ..utils.uuid import uuid4
+from ..utility import frozendict, uuid4
 
 if TYPE_CHECKING:
     from destack import (
