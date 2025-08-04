@@ -16,6 +16,7 @@ from ..builtin import (
     StructFrozen,
     StructType,
     TypeCardinality,
+    TypeDeclaration,
     UInt32,
     declare_method,
     declare_property,
@@ -110,6 +111,30 @@ class Type(StructFrozen):
     #     is_repr=True,
     #     description="Union types of this Type (if it's a union scalar).",
     # )
+
+    @classmethod
+    def from_declaration(cls, declaration: "TypeDeclaration") -> "Type":
+        """Create a Type from a TypeDeclaration."""
+        return cls(
+            # cardinality
+            cardinality=declaration.cardinality,
+            key_type=cls.from_declaration(declaration.key_type) if declaration.key_type else None,
+            value_type=cls.from_declaration(declaration.value_type)
+            if declaration.value_type
+            else None,
+            element_types=[cls.from_declaration(t) for t in declaration.element_types]
+            if declaration.element_types
+            else None,
+            # scalar
+            scalar_type=declaration.scalar_type,
+            primitive_type=declaration.primitive_type,
+            enum_type=declaration.enum_type,
+            node_types=list(declaration.node_types) if declaration.node_types else None,
+            struct_type=declaration.struct_type,
+            handle_type=declaration.handle_type,
+            # flags
+            is_required=declaration.is_required,
+        )
 
     @classmethod
     @declare_method(130)

@@ -43,14 +43,16 @@ class Border(StructFrozen):
     type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)
     color: Optional["Color"] = declare_property(101, is_repr=True)
     width: Optional["Inset2"] = declare_property(102, is_repr=True)
-    style: Optional["BorderStyle"] = declare_property(103, is_repr=True)
+    template: Optional["BorderStyle"] = declare_property(103, is_repr=True)
 
 
-@declare_entity(NodeType.BORDER_STYLE)
+@declare_entity(
+    NodeType.BORDER_STYLE,
+    struct_type=StructType.BORDER,
+)
 class BorderStyle(Style):
     """A border style."""
 
     type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)
-    color: Optional["Color"] = declare_property(200, is_repr=True)
-    width: Optional["Inset2"] = declare_property(201, is_repr=True)
-    style: Optional["BorderStyle"] = declare_property(202, is_repr=True)
+    color: Optional["Color"] = declare_property(101, is_repr=True)
+    width: Optional["Inset2"] = declare_property(102, is_repr=True)

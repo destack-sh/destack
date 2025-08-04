@@ -4,6 +4,7 @@ from destack.core import (
     EnumType,
     Float32,
     NodeType,
+    ObjectStability,
     OptionEnum,
     StructFrozen,
     StructType,
@@ -85,7 +86,12 @@ class ColorIntent(OptionEnum):
     ERROR = declare_option(13, "Error", description="An Error intent")
 
 
-@declare_struct(StructType.COLOR, frozen=True, is_final=True)
+@declare_struct(
+    StructType.COLOR,
+    stability=ObjectStability.STATIC,
+    frozen=True,
+    is_final=True,
+)
 @final
 class Color(StructFrozen):
     """A color value."""
@@ -101,7 +107,10 @@ class Color(StructFrozen):
         return Color(r=r, g=g, b=b, a=a or 1.0)
 
 
-@declare_entity(NodeType.COLOR_STYLE)
+@declare_entity(
+    NodeType.COLOR_STYLE,
+    struct_type=StructType.COLOR,
+)
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
@@ -109,14 +118,15 @@ class ColorStyle(Style):
     hue: Optional[ColorHue] = declare_property(200, is_repr=True)
     shade: Optional[ColorShade] = declare_property(201, is_repr=True)
     intent: Optional[ColorIntent] = declare_property(202, is_repr=True)
-    r: Optional[Float32] = declare_property(203, is_repr=True)
-    g: Optional[Float32] = declare_property(204, is_repr=True)
-    b: Optional[Float32] = declare_property(205, is_repr=True)
-    a: Optional[Float32] = declare_property(206, is_repr=True)
-    dark: Color | None = declare_property(207)
+    r: Float32 = declare_property(203, is_repr=True)
+    g: Float32 = declare_property(204, is_repr=True)
+    b: Float32 = declare_property(205, is_repr=True)
+    a: Float32 = declare_property(206, is_repr=True)
+    dark: "ColorStyle | None" = declare_property(207)
 
     @staticmethod
     def from_color(name: str, color: Color, dark: Color | None = None) -> "ColorStyle":
+        dark_style = ColorStyle.from_color(name, dark) if dark else None
         return ColorStyle(
             name=name,
             type=ColorType.RGB,
@@ -124,7 +134,7 @@ class ColorStyle(Style):
             g=color.g,
             b=color.b,
             a=color.a,
-            dark=dark,
+            dark=dark_style,
         )
 
     @staticmethod

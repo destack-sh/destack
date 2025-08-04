@@ -2,12 +2,14 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
+    Entity,
     EnumType,
     Float32,
     NodeType,
     OptionEnum,
     StructFrozen,
     StructType,
+    TraitType,
     declare_entity,
     declare_enum,
     declare_option,
@@ -63,7 +65,7 @@ class Effect(StructFrozen):
     """An effect value."""
 
     type: EffectType = declare_property(100, is_repr=True)
-    style: Optional["EffectStyle"] = declare_property(101, is_repr=True)
+    template: Optional["EffectTemplate"] = declare_property(101, is_repr=True)
     opacity: Optional[Float32] = declare_property(102, is_repr=True)
     offset: Optional["Vector2"] = declare_property(103, is_repr=True)
     scale: Optional[Float32] = declare_property(104, is_repr=True)
@@ -80,9 +82,13 @@ class Effect(StructFrozen):
     transition: Optional["Transition"] = declare_property(115, is_repr=True)
 
 
-@declare_entity(NodeType.EFFECT_STYLE)
-class EffectStyle(Style):
-    """An effect style."""
+@declare_entity(
+    NodeType.EFFECT_TEMPLATE,
+    struct_type=StructType.EFFECT,
+    traits=(TraitType.TEMPLATE,),
+)
+class EffectTemplate(Entity):
+    """An effect template."""
 
     type: EffectType = declare_property(100, is_repr=True)
     opacity: Optional[Float32] = declare_property(200, is_repr=True)

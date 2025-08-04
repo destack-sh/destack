@@ -17,6 +17,7 @@ from ..builtin import (
     IndexDeclaration,
     MethodDeclaration,
     MethodType,
+    Node,
     NodeDeclaration,
     NodeType,
     Object,
@@ -69,9 +70,6 @@ def resolve_tagging(
     object_cls: type_["Node | Struct"], tagging: str
 ) -> "TagDefinition | TagDeclaration":
     """Resolve a tagging to a definition."""
-    from ..builtin.node import Node
-    from ..builtin.struct import Struct
-
     for tag in object_cls.__declaration__.tags:
         if tag.name == tagging:
             return tag
@@ -255,6 +253,11 @@ class NodeDefinition(ObjectDefinition):
     self_traits: list[TraitType] = declare_property(
         135,
         description="Traits declared by this Node (directly).",
+        tags=("inheritance",),
+    )
+    struct_type: StructType | None = declare_property(
+        109,
+        description="The Struct type this Node implements (if any).",
         tags=("inheritance",),
     )
 
@@ -769,9 +772,6 @@ Whether this Property is part of the object's identity.
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
-        from ..builtin.node import Node
-        from ..builtin.struct import Struct
-
         type = prop.type.to_type()
         object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
         original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(

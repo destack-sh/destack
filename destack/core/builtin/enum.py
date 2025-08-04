@@ -47,8 +47,11 @@ class OptionDeclaration(int):
         obj.description = description
         return obj
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
     def __repr__(self) -> str:
-        return f"<{self.component.__name__} {self.name} ({self.id})>"
+        return f"{self.component.__name__}.{self.name}"
 
     @property
     def value(self) -> int:

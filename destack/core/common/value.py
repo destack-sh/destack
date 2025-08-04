@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, final
 
-from ..builtin import ObjectStability, Struct, StructType, declare_property, declare_struct
+from ..builtin import Node, ObjectStability, Struct, StructType, declare_property, declare_struct
 from .type import ScalarType, Type, TypeCardinality
 
 if TYPE_CHECKING:
@@ -51,8 +51,6 @@ class Value(Struct):
         Convert an arbitrary (legal) value to a Value.
         If Type isn't provided, it will be inferred from the value.
         """
-        from ..builtin.node import Node
-
         # infer type
         if type is None:
             if value is None:

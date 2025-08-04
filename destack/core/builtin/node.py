@@ -9,11 +9,10 @@ from typing import (
     dataclass_transform,
 )
 
-from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
+from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLASS_BY_TYPE
 
 from ..utility import UUID
 from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
-from .const import UNSET
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
 from .property import (
@@ -54,6 +53,7 @@ def _process_node_cls(
     is_frozen: bool,
     # inheritance
     traits: tuple[TraitType, ...],
+    struct_type: StructType | None,
     # content
     indexes: tuple["IndexDeclaration", ...],
     constraints: tuple["ConstraintDeclaration", ...],
@@ -116,6 +116,7 @@ def _process_node_cls(
         extended_by=[],
         traits=list(reversed(all_traits)),
         self_traits=list(all_traits),
+        struct_type=struct_type,
         # content
         properties=[],
         methods=[],
@@ -183,6 +184,25 @@ def _process_node_cls(
             if hasattr(base, "__declaration__") and base.__declaration__.is_final
         )
         raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
+    # struct type must be fully matched
+    if struct_type is not None:
+        struct_cls = STRUCT_CLASS_BY_TYPE[struct_type]
+        for struct_prop in struct_cls.__declaration__.properties:
+            if struct_prop.is_internal:
+                continue
+            node_prop = cls.__properties_by_alias__.get(struct_prop.name)
+            if node_prop is None:
+                if struct_prop.name == "template":
+                    # nocheckin: proper mechanism for "struct with partial overrides to node"
+                    #  (like Styles or TransitionTemplate or any template really..
+                    #   .. similarity to Entity partials?)
+                    continue
+                raise ValueError(f"'{cls.__name__}' has no property {struct_prop!r}")
+            if node_prop.type != struct_prop.type:
+                diff = node_prop.type.diff(struct_prop.type)
+                raise ValueError(
+                    f"'{cls.__name__}' property {node_prop!r} has type {node_prop.type!r} but {struct_prop!r} has type {struct_prop.type}\nDifferences: {diff}"
+                )
 
     return cast(type["Node"], cls)
 
@@ -198,6 +218,7 @@ def _declare_node(
     is_singleton: bool = False,
     # inheritance
     traits: tuple[TraitType, ...] = (),
+    struct_type: StructType | None = None,
     # content
     indexes: tuple["IndexDeclaration", ...] = (),
     constraints: tuple["ConstraintDeclaration", ...] = (),
@@ -226,6 +247,7 @@ def _declare_node(
             is_frozen=frozen,
             # inheritance
             traits=traits,
+            struct_type=struct_type,
             # content
             indexes=indexes,
             constraints=constraints,
@@ -288,8 +310,6 @@ class Node(Object):
         description="The Space this Node is in.",
         tags=("identity",),
     )
-    if TYPE_CHECKING:
-        space_ptr: NodeReference = UNSET
 
     # 100+ for general properties
     # ...

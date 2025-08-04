@@ -3,10 +3,10 @@ from typing import (
     final,
 )
 
-from destack.core import UNSET, Entity, NodeType, TraitType, declare_entity, declare_property
+from destack.core import Entity, NodeType, TraitType, declare_entity, declare_property
 
 if TYPE_CHECKING:
-    from destack import Icon, NodeReference
+    from destack import Icon
 
 
 @declare_entity(
@@ -29,5 +29,3 @@ class Tagging(Entity):
     """A Tagging of a Node by a Tag."""
 
     tag: Tag = declare_property(110)
-    if TYPE_CHECKING:
-        tag_ptr: NodeReference = UNSET

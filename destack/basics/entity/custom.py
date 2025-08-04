@@ -51,8 +51,6 @@ class CustomEvent(Event):
         is_readonly=True,
         description="The CustomEvent this Signal is an instance of.",
     )
-    if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None
 
     @declare_method(2)
     def to_ref(self) -> "NodeReference":

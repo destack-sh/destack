@@ -14,7 +14,7 @@ from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
 from .types import UInt128
 
 if TYPE_CHECKING:
-    from destack import Branch, Client, NodeReference, Snapshot, Space
+    from destack import Branch, Client, NodeReference, Snapshot
 
 
 @declare_enum(EnumType.EVENT_STATUS)
@@ -44,8 +44,9 @@ def declare_event(
     is_abstract: bool = False,
     is_final: bool = False,
     # inheritance
-    tags: tuple["TagDeclaration", ...] = (),
+    struct_type: StructType | None = None,
     # associations
+    tags: tuple["TagDeclaration", ...] = (),
     event_types: tuple[NodeType, ...] = (),
     enum_types: tuple[EnumType, ...] = (),
     message_types: tuple[StructType, ...] = (),
@@ -63,6 +64,7 @@ def declare_event(
             is_frozen=False,
             # inheritance
             traits=(),
+            struct_type=struct_type,
             # content
             indexes=(),
             constraints=(),
@@ -255,16 +257,6 @@ class Event(Node):
     )
 
     # 100+: content
-
-    @property
-    def parent(self) -> "Space":
-        """The Space this Event is in."""
-        return self.space
-
-    @property
-    def parent_ptr(self) -> "NodeReference":
-        """The NodeReference to the parent of this Event."""
-        return self.space_ptr
 
     @declare_method(2)
     def to_ref(self) -> "NodeReference":

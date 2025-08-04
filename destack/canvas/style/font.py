@@ -90,9 +90,9 @@ class Font(StructFrozen):
     """A font value."""
 
     type: FontType = declare_property(100, default=FontType.SANS, is_repr=True)
-    style: Optional["FontStyle"] = declare_property(101, is_repr=True)
+    template: Optional["FontStyle"] = declare_property(101, is_repr=True)
     weight: Optional[FontWeight] = declare_property(102, default=FontWeight.NORMAL, is_repr=True)
-    color: Optional[Fill] = declare_property(103, is_repr=True)
+    fill: Optional[Fill] = declare_property(103, is_repr=True)
     size: Optional[FontSize] = declare_property(104, default=FontSize.BASE, is_repr=True)
     align: Optional[TextAlign] = declare_property(105, default=TextAlign.LEFT, is_repr=True)
     line_height: Optional["Length"] = declare_property(106, is_repr=True)
@@ -105,13 +105,16 @@ class Font(StructFrozen):
     )
 
 
-@declare_entity(NodeType.FONT_STYLE)
+@declare_entity(
+    NodeType.FONT_STYLE,
+    struct_type=StructType.FONT,
+)
 class FontStyle(Style):
     """A font style."""
 
     type: FontType = declare_property(100, default=FontType.SANS, is_repr=True)
     weight: Optional[FontWeight] = declare_property(102, default=FontWeight.NORMAL, is_repr=True)
-    color: Optional[Fill] = declare_property(103, is_repr=True)
+    fill: Optional[Fill] = declare_property(103, is_repr=True)
     size: Optional[FontSize] = declare_property(104, default=FontSize.BASE, is_repr=True)
     align: Optional[TextAlign] = declare_property(105, default=TextAlign.LEFT, is_repr=True)
     line_height: Optional["Length"] = declare_property(106, is_repr=True)
