@@ -1,7 +1,4 @@
-import abc
-import asyncio
-import time
-from datetime import UTC, datetime
+from datetime import datetime
 from random import Random
 from typing import TYPE_CHECKING, final
 
@@ -37,6 +34,7 @@ class Context(Handle):
     # time/time_zone/time_dilation, ...
     # environment, ...
     # theme, ...
+    # accessibility stuff, ...
     # region/geolocation, ...
     # logging/tracing/baggage, ...
 
@@ -52,23 +50,16 @@ class Context(Handle):
             return f"<{self.__class__.__name__}>"
 
     @property
-    @abc.abstractmethod
     def random(self) -> Random:
         """Source of randomness."""
+        ...
 
-    @abc.abstractmethod
-    def time(self) -> float:
-        """Current time in seconds since the epoch."""
-        return time.time()
-
-    @abc.abstractmethod
     def now(self) -> datetime:
         """Current datetime in UTC with microsecond precision."""
-        return datetime.now(UTC)
+        ...
 
-    @abc.abstractmethod
     async def sleep(self, duration: float) -> None:
         """Sleep for a duration in seconds. Like asyncio.sleep. Timing is relative to oracle."""
-        await asyncio.sleep(duration)
+        ...
 
     # call_later, call_at

@@ -192,7 +192,7 @@ def parse_type_declaration(
     # determine scalar type
     is_self = False
     is_any = False
-    class_name = _get_class_name(py_type)
+    class_name = _get_class_name(py_type) if py_type is not type(None) else "None"
     assert class_name is not None, f"undetermined class name: {py_type!r}"
     if isinstance(py_type, (type, TypeAliasType)) and (
         primitive_t := PRIMITIVE_TYPE_BY_ANNOTATION.get(py_type)
@@ -202,6 +202,10 @@ def parse_type_declaration(
             raise ValueError(f"unspecific primitive type: {py_type!r}")
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = primitive_t
+    elif class_name == "None":
+        scalar_type = ScalarType.PRIMITIVE
+        primitive_type = PrimitiveType.NONE
+        is_required = False
     elif class_name == "Self":
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True
@@ -241,7 +245,7 @@ def parse_type_declaration(
 
 def _get_class_name(
     py_type: type | typing.ForwardRef | typing.TypeAliasType | typing._SpecialForm | str,
-) -> str | None:
+) -> str:
     if isinstance(py_type, str):
         return py_type
     elif isinstance(py_type, (type, typing.TypeAliasType)):
@@ -249,6 +253,6 @@ def _get_class_name(
     elif isinstance(py_type, typing.ForwardRef):
         return py_type.__forward_arg__
     elif isinstance(py_type, typing._SpecialForm):
-        return getattr(py_type, "__name__", None)
+        return getattr(py_type, "__name__")
     else:
         raise ValueError(f"unexpected type: {py_type!r}")

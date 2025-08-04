@@ -1,6 +1,5 @@
 from typing import (
     TYPE_CHECKING,
-    Any,
     ClassVar,
     cast,
     dataclass_transform,
@@ -160,7 +159,3 @@ class Handle(Object):
     metatype: ClassVar[HandleType]
     __declaration__: ClassVar["HandleDeclaration"]
     __definition__: ClassVar["HandleDefinition"]
-
-    def __eq__(self, other: Any):
-        """Equals the Handle contents."""
-        raise NotImplementedError  # generated

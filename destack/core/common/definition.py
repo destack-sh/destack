@@ -50,7 +50,6 @@ from .value import Value
 if TYPE_CHECKING:
     from destack.core import (
         Condition,
-        ConditionalType,
         ConstantDeclaration,
         ConstraintType,
         Handle,
@@ -58,7 +57,6 @@ if TYPE_CHECKING:
         Node,
         ObjectDefinitionReference,
         Sort,
-        SortType,
         Value,
     )
 
@@ -807,7 +805,7 @@ Whether this Property is part of the object's identity.
             is_internal=prop.is_internal,
         )
 
-    @declare_method(102)
+    @declare_method(102, is_implemented=True)
     def to_ref(self) -> PropertyReference:
         """Convert to a PropertyReference."""
         if self.object.kind == ObjectKind.NODE:
@@ -832,118 +830,82 @@ Whether this Property is part of the object's identity.
     @declare_method(110)
     def eq(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is equal to a value."""
-        from . import Condition
-
-        if value is None:
-            return self.not_exists()
-        return Condition.of(self, ConditionalType.EQUALS, value=value)
+        ...
 
     @declare_method(111)
     def neq(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is not equal to a value."""
-        from . import Condition
-
-        if value is None:
-            return self.exists()
-        return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
+        ...
 
     @declare_method(112)
     def gt(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is greater than a value."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
+        ...
 
     @declare_method(113)
     def gte(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is greater than or equal to a value."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
+        ...
 
     @declare_method(114)
     def lt(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is less than a value."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.LESS_THAN, value=value)
+        ...
 
     @declare_method(115)
     def lte(self, value: Any) -> "Condition":
         """Create a Condition that checks if this Property is less than or equal to a value."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
+        ...
 
     @declare_method(116)
     def starts_with(self, value: str) -> "Condition":
         """Create a Condition that checks if this Property starts with a value."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
+        ...
 
     @declare_method(117)
     def ends_with(self, value: str) -> "Condition":
         """Create a Condition that checks if this Property ends with a value."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
+        ...
 
     @declare_method(118)
     def in_(self, *values: Any) -> "Condition":
         """Create a Condition that checks if this Property is in a list of values."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.IN, value=values)
+        ...
 
     @declare_method(119)
     def not_in(self, *values: Any) -> "Condition":
         """Create a Condition that checks if this Property is not in a list of values."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.NOT_IN, value=values)
+        ...
 
     @declare_method(120)
     def exists(self) -> "Condition":
         """Create a Condition that checks if this Property exists."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.EXISTS)
+        ...
 
     @declare_method(121)
     def is_not_none(self) -> "Condition":
         """Create a Condition that checks if this Property is not None."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.EXISTS)
+        ...
 
     @declare_method(122)
     def not_exists(self) -> "Condition":
         """Create a Condition that checks if this Property does not exist."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
+        ...
 
     @declare_method(123)
     def is_none(self) -> "Condition":
         """Create a Condition that checks if this Property is None."""
-        from . import Condition
-
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
+        ...
 
     @declare_method(124)
     def asc(self) -> "Sort":
         """Create a Sort that sorts this Property in ascending order."""
-        from . import Sort
-
-        return Sort.of(self, SortType.ASCENDING)
+        ...
 
     @declare_method(125)
     def desc(self) -> "Sort":
         """Create a Sort that sorts this Property in descending order."""
-        from . import Sort
-
-        return Sort.of(self, SortType.DESCENDING)
+        ...
 
 
 @declare_struct(
@@ -1125,6 +1087,7 @@ class FunctionDefinition(StructFrozen):
     description: str | None = declare_property(103, is_repr=True)
     is_async: bool = declare_property(110)
     is_abstract: bool = declare_property(111)
+    is_internal: bool = declare_property(112)
 
     # availability
     platforms: list[RuntimePlatform] | None = declare_property(
