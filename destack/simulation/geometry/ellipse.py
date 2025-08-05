@@ -15,7 +15,11 @@ if TYPE_CHECKING:
     from destack import Vector2
 
 
-@declare_struct(StructType.ELLIPSE2D, frozen=True)
+@declare_struct(
+    StructType.ELLIPSE2D,
+    frozen=True,
+    into_node_types=(NodeType.ELLIPSE_SHAPE2D,),
+)
 class Ellipse2D(Form2D):
     """A Ellipse is a circle."""
 
@@ -23,7 +27,10 @@ class Ellipse2D(Form2D):
     radius: Float32 = declare_property(201, is_repr=True)
 
 
-@declare_entity(NodeType.ELLIPSE_SHAPE2D)
+@declare_entity(
+    NodeType.ELLIPSE_SHAPE2D,
+    base_struct_type=StructType.ELLIPSE2D,
+)
 class EllipseShape2D(Shape2D):
     """A EllipseShape is a shape that represents a ellipse."""
 

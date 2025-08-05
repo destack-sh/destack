@@ -41,6 +41,7 @@ class ShadowPosition(OptionEnum):
     StructType.SHADOW,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.SHADOW_STYLE,),
 )
 @final
 class Shadow(StructFrozen):
@@ -58,7 +59,7 @@ class Shadow(StructFrozen):
 
 @declare_entity(
     NodeType.SHADOW_STYLE,
-    struct_type=StructType.SHADOW,
+    base_struct_type=StructType.SHADOW,
 )
 class ShadowStyle(Style):
     """A shadow style."""

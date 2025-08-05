@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         PropertyDefinition,
         PropertyReference,
         Sort,
+        Value,
     )
 
 type_ = type
@@ -200,88 +201,146 @@ class PropertyDeclaration(Declaration):
     #
 
     def eq(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
         if value is None:
             return self.not_exists()
-        return Condition.of(self, ConditionalType.EQUALS, value=value)
+        return Condition(
+            type=ConditionalType.EQUALS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=value),
+        )
 
     def neq(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
         if value is None:
             return self.exists()
-        return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
+        return Condition(
+            type=ConditionalType.NOT_EQUALS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=value),
+        )
 
     def gt(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
+        return Condition(
+            type=ConditionalType.GREATER_THAN,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=value),
+        )
 
     def gte(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
+        return Condition(
+            type=ConditionalType.GREATER_THAN_OR_EQUALS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=value),
+        )
 
     def lt(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.LESS_THAN, value=value)
+        return Condition(
+            type=ConditionalType.LESS_THAN,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=value),
+        )
 
     def lte(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
+        return Condition(
+            type=ConditionalType.LESS_THAN_OR_EQUALS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=value),
+        )
 
     def starts_with(self, value: str) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
+        return Condition(
+            type=ConditionalType.STARTS_WITH,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(value)),
+        )
 
     def ends_with(self, value: str) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
+        return Condition(
+            type=ConditionalType.ENDS_WITH,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(value)),
+        )
 
     def in_(self, *values: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.IN, value=values)
+        return Condition(
+            type=ConditionalType.IN,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(values)),
+        )
 
     def not_in(self, *values: Any) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.NOT_IN, value=values)
+        return Condition(
+            type=ConditionalType.NOT_IN,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(values)),
+        )
 
     def exists(self) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.EXISTS)
+        return Condition(
+            type=ConditionalType.EXISTS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+        )
 
     def is_not_none(self) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.EXISTS)
+        return Condition(
+            type=ConditionalType.EXISTS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+        )
 
     def not_exists(self) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
+        return Condition(
+            type=ConditionalType.NOT_EXISTS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+        )
 
     def is_none(self) -> "Condition":
-        from destack import Condition, ConditionalType
+        from destack import Condition, ConditionalType, Expression, ExpressionType
 
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
+        return Condition(
+            type=ConditionalType.NOT_EXISTS,
+            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+        )
 
     def asc(self) -> "Sort":
-        from destack import Sort, SortType
+        from destack import Expression, ExpressionType, Sort, SortType
 
-        return Sort.of(self, SortType.ASCENDING)
+        return Sort(
+            type=SortType.ASCENDING,
+            by=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+        )
 
     def desc(self) -> "Sort":
-        from destack import Sort, SortType
+        from destack import Expression, ExpressionType, Sort, SortType
 
-        return Sort.of(self, SortType.DESCENDING)
+        return Sort(
+            type=SortType.DESCENDING,
+            by=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
+        )
 
 
 def declare_property(

@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, Any, Self, assert_never, cast, final, override
+from typing import TYPE_CHECKING, Any, Self, cast, final, override
 
 from destack.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
 
@@ -43,7 +43,7 @@ from ..builtin import (
     declare_property_runtime,
     declare_struct,
 )
-from .relation import ObjectDefinitionReference, PropertyReference, PropertyReferenceType
+from .relation import ObjectDefinitionReference, PropertyReference
 from .type import Type
 from .value import Value
 
@@ -253,11 +253,6 @@ class NodeDefinition(ObjectDefinition):
         description="Traits declared by this Node (directly).",
         tags=("inheritance",),
     )
-    struct_type: StructType | None = declare_property(
-        109,
-        description="The Struct type this Node implements (if any).",
-        tags=("inheritance",),
-    )
 
     # graph
     parent_types: list[NodeType] = declare_property(
@@ -334,6 +329,11 @@ class NodeDefinition(ObjectDefinition):
         description="The message types declared by this Node (directly).",
         tags=("associations",),
     )
+    base_struct_type: StructType | None = declare_property(
+        220,
+        description="The Struct type this Node implements (if any).",
+        tags=("inheritance",),
+    )
 
     @override
     def to_ref(self) -> "ObjectDefinitionReference":
@@ -404,6 +404,9 @@ class NodeDefinition(ObjectDefinition):
             self_event_types=list(declaration.self_event_types),
             enum_types=list(declaration.enum_types),
             self_enum_types=list(declaration.self_enum_types),
+            message_types=list(declaration.message_types),
+            self_message_types=list(declaration.self_message_types),
+            base_struct_type=declaration.base_struct_type,
         )
 
 
@@ -493,6 +496,11 @@ class StructDefinition(ObjectDefinition):
     self_enum_types: list[EnumType] = declare_property(
         211,
         description="The base enum types related to this Node (directly).",
+        tags=("associations",),
+    )
+    into_node_types: list[NodeType] = declare_property(
+        220,
+        description="The node types that this Struct can be turned into.",
         tags=("associations",),
     )
 
@@ -805,27 +813,10 @@ Whether this Property is part of the object's identity.
             is_internal=prop.is_internal,
         )
 
-    @declare_method(102, is_implemented=True)
+    @declare_method(102)
     def to_ref(self) -> PropertyReference:
         """Convert to a PropertyReference."""
-        if self.object.kind == ObjectKind.NODE:
-            return PropertyReference(
-                type=PropertyReferenceType.BUILTIN,
-                node_type=self.object.node_type,
-                id=self.id,
-            )
-        elif self.object.kind == ObjectKind.STRUCT:
-            return PropertyReference(
-                type=PropertyReferenceType.BUILTIN,
-                struct_type=self.object.struct_type,
-                id=self.id,
-            )
-        elif self.object.kind == ObjectKind.HANDLE:
-            return PropertyReference(
-                type=PropertyReferenceType.BUILTIN, handle_type=self.object.handle_type, id=self.id
-            )
-        else:
-            assert_never(self.object.kind)
+        ...
 
     @declare_method(110)
     def eq(self, value: Any) -> "Condition":

@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -72,7 +71,6 @@ def declare_entity(
     is_singleton: bool = False,
     # inheritance
     traits: tuple[TraitType, ...] = (),
-    struct_type: StructType | None = None,
     # content
     indexes: tuple["IndexDeclaration", ...] = (),
     constraints: tuple["ConstraintDeclaration", ...] = (),
@@ -87,6 +85,7 @@ def declare_entity(
     event_types: tuple[NodeType, ...] = (),
     enum_types: tuple[EnumType, ...] = (),
     message_types: tuple[StructType, ...] = (),
+    base_struct_type: StructType | None = None,
 ):
     """Register a class as a concrete Entity for the given Node type."""
 
@@ -101,7 +100,6 @@ def declare_entity(
             is_frozen=False,
             # inheritance
             traits=traits,
-            struct_type=struct_type,
             # content
             indexes=indexes,
             constraints=constraints,
@@ -116,6 +114,7 @@ def declare_entity(
             event_types=event_types,
             enum_types=enum_types,
             message_types=message_types,
+            base_struct_type=base_struct_type,
         )
         assert entity_type == NodeType.ENTITY or NodeType.ENTITY in cls.__declaration__.inherits, (
             f"Entity {cls.__name__} must inherit from Entity"
@@ -360,20 +359,18 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     )
     # ... (from script, dynamic effect, manual function, import, ...)
 
-    def set(self, key: str, value: Any):
-        """Set a Property on this Node (direct SET operations)."""
-        prop = self.__properties_by_alias__.get(key)
-        if prop is not None and not self._is_new:
-            self._session.update_set_property(self, prop, value)
-        object_set_(self, key, value)
-
-    if not TYPE_CHECKING:
-        __setattr__ = set
-
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
         ...
+
+    @declare_method(3)
+    def set(self, key: str, value: Any):
+        """Set a Property on this Node (direct SET operations)."""
+        ...
+
+    if not TYPE_CHECKING:
+        __setattr__ = set
 
     @declare_method(10)
     @property
@@ -398,49 +395,49 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         ...
 
     @declare_method(30)
-    def get_children[N: Entity = Entity](
+    def get_children(
         self,
-        type: NodeType | type[N] | None = None,
+        type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> Sequence[N]:
+    ) -> list["Entity"]:
         """Gets the children of this Entity."""
         ...
 
     @declare_method(31)
-    def get_child[N: Entity = Entity](
+    def get_child(
         self,
-        type: NodeType | type[N],
+        type: NodeType,
         name: str,
         include_deleted: bool = False,
-    ) -> N | None:
+    ) -> "Entity | None":
         """Gets a specific child of this Node by name."""
         ...
 
     @declare_method(32)
-    def child[N: Entity = Entity](
+    def child(
         self,
-        type: NodeType | type[N],
+        type: NodeType,
         name: str,
         include_deleted: bool = False,
-    ) -> N:
+    ) -> "Entity":
         """Gets a specific child of this Node by name, or raises an error if not found."""
         ...
 
     @declare_method(33)
-    def get_ancestors[N: Entity = Entity](
+    def get_ancestors(
         self,
-        type: NodeType | type[N] | None = None,
+        type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> Sequence[N]:
+    ) -> list["Entity"]:
         """Gets the ancestors of this Node."""
         ...
 
     @declare_method(34)
-    def get_descendants[N: Entity = Entity](
+    def get_descendants(
         self,
-        type: NodeType | type[N] | None = None,
+        type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> Sequence[N]:
+    ) -> list["Entity"]:
         """Gets the descendants of this Node."""
         ...
 

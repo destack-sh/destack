@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
@@ -13,14 +12,13 @@ from ..builtin import (
     Handle,
     HandleType,
     Int128,
-    PropertyDeclaration,
     declare_handle,
     declare_method,
     declare_property_runtime,
 )
 
 if TYPE_CHECKING:
-    from destack import Connection, Context, EditEvent, Graph
+    from destack import Connection, Context, EditEvent, Graph, PropertyDefinition
 
 
 @declare_handle(HandleType.SESSION)
@@ -54,7 +52,7 @@ class Session(Handle):
     @declare_method(102)
     def append(self, event: Event):
         """Appends an Event."""
-        self.pending_events.append(event)
+        ...
 
     @declare_method(103)
     def create(self, node: Entity):
@@ -67,7 +65,7 @@ class Session(Handle):
         ...
 
     @declare_method(105)
-    def update_set_property(self, node: Entity, prop: PropertyDeclaration, new_value: Any):
+    def update_set_property(self, node: Entity, prop: "PropertyDefinition", new_value: Any):
         """Set a Property on this Node (direct SET/CLEAR operations)."""
         ...
 
@@ -97,7 +95,7 @@ class Session(Handle):
         ...
 
     @declare_method(111)
-    async def commit(self) -> Sequence[Event]:
+    async def commit(self) -> list[Event]:
         """
         Commits all Events. Returns applied Events.
         """

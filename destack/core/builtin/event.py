@@ -43,8 +43,6 @@ def declare_event(
     *,
     is_abstract: bool = False,
     is_final: bool = False,
-    # inheritance
-    struct_type: StructType | None = None,
     # associations
     tags: tuple["TagDeclaration", ...] = (),
     event_types: tuple[NodeType, ...] = (),
@@ -64,7 +62,6 @@ def declare_event(
             is_frozen=False,
             # inheritance
             traits=(),
-            struct_type=struct_type,
             # content
             indexes=(),
             constraints=(),
@@ -79,6 +76,7 @@ def declare_event(
             event_types=event_types,
             enum_types=enum_types,
             message_types=message_types,
+            base_struct_type=None,
         )
 
         # validate

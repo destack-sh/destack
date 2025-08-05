@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     StructType.PATH2D,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.PATH_SHAPE2D,),
 )
 @final
 class Path2D(Form2D):
@@ -26,7 +27,10 @@ class Path2D(Form2D):
     points: list["Vector2"] = declare_property(210)
 
 
-@declare_entity(NodeType.PATH_SHAPE2D)
+@declare_entity(
+    NodeType.PATH_SHAPE2D,
+    base_struct_type=StructType.PATH2D,
+)
 class PathShape2D(Shape2D):
     """A PathShape is a shape that represents a path of multiple points."""
 

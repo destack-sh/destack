@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union, final
 from destack.core import (
     CascadeAction,
     Condition,
-    ConditionalType,
     EdgeType,
     Entity,
     Event,
@@ -11,7 +10,6 @@ from destack.core import (
     NodeReference,
     NodeType,
     Sort,
-    SortType,
     Struct,
     StructType,
     Type,
@@ -151,51 +149,72 @@ class CustomPropertyDefinition(Entity):
         description="Whether this property is read-only.",
     )
 
+    @declare_method(101)
     def eq(self, value: Any) -> Condition:
-        if value is None:
-            return self.not_exists()
-        return Condition.of(self, ConditionalType.EQUALS, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(102)
     def neq(self, value: Any) -> Condition:
-        if value is None:
-            return self.is_not_none()
-        return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(103)
     def gt(self, value: Any) -> Condition:
-        return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(104)
     def gte(self, value: Any) -> Condition:
-        return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(105)
     def lt(self, value: Any) -> Condition:
-        return Condition.of(self, ConditionalType.LESS_THAN, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(106)
     def lte(self, value: Any) -> Condition:
-        return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(107)
     def starts_with(self, value: str) -> Condition:
-        return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(108)
     def ends_with(self, value: str) -> Condition:
-        return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(109)
     def in_(self, *values: Any) -> Condition:
-        return Condition.of(self, ConditionalType.IN, value=values)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(110)
     def not_in(self, *values: Any) -> Condition:
-        return Condition.of(self, ConditionalType.NOT_IN, value=values)
+        """Compare this property to a value."""
+        ...
 
+    @declare_method(111)
     def is_not_none(self) -> Condition:
-        return Condition.of(self, ConditionalType.EXISTS)
+        """Compare this property to a value."""
+        ...
 
-    def not_exists(self) -> "Condition":
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
+    @declare_method(112)
+    def is_none(self) -> Condition:
+        """Compare this property to a value."""
+        ...
 
-    def is_none(self) -> "Condition":
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
+    @declare_method(113)
+    def asc(self) -> Sort:
+        """Compare this property to a value."""
+        ...
 
-    def asc(self) -> "Sort":
-        return Sort.of(self, SortType.ASCENDING)
-
-    def desc(self) -> "Sort":
-        return Sort.of(self, SortType.DESCENDING)
+    @declare_method(114)
+    def desc(self) -> Sort:
+        """Compare this property to a value."""
+        ...

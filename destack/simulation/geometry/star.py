@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     StructType.STAR2D,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.STAR_SHAPE2D,),
 )
 @final
 class Star2D(Form2D):
@@ -30,7 +31,10 @@ class Star2D(Form2D):
     points: Int8 = declare_property(212, is_repr=True)
 
 
-@declare_entity(NodeType.STAR_SHAPE2D)
+@declare_entity(
+    NodeType.STAR_SHAPE2D,
+    base_struct_type=StructType.STAR2D,
+)
 class StarShape2D(Shape2D):
     """A StarShape is a shape that represents a star."""
 

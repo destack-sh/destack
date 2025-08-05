@@ -2,6 +2,7 @@ from typing import final
 
 from destack.core import (
     Float32,
+    ObjectStability,
     StructFrozen,
     StructType,
     declare_property,
@@ -13,6 +14,7 @@ from destack.core import (
 
 @declare_struct(
     StructType.QUATERNION,
+    stability=ObjectStability.STATIC,
     frozen=True,
     is_final=True,
 )

@@ -48,6 +48,7 @@ class GradientStop(StructFrozen):
     StructType.GRADIENT,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.GRADIENT_STYLE,),
 )
 @final
 class Gradient(StructFrozen):
@@ -62,7 +63,7 @@ class Gradient(StructFrozen):
 
 @declare_entity(
     NodeType.GRADIENT_STYLE,
-    struct_type=StructType.GRADIENT,
+    base_struct_type=StructType.GRADIENT,
 )
 class GradientStyle(Style):
     """A gradient style."""

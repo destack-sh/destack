@@ -54,7 +54,7 @@ class Transition(StructFrozen):
 
 @declare_entity(
     NodeType.TRANSITION_TEMPLATE,
-    struct_type=StructType.TRANSITION,
+    base_struct_type=StructType.TRANSITION,
     traits=(TraitType.TEMPLATE,),
 )
 class TransitionTemplate(Entity):

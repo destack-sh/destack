@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     StructType.RECTANGLE2D,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.RECTANGLE_SHAPE2D,),
 )
 @final
 class Rectangle2D(Form2D):
@@ -30,7 +31,7 @@ class Rectangle2D(Form2D):
 
 @declare_entity(
     NodeType.RECTANGLE_SHAPE2D,
-    struct_type=StructType.RECTANGLE2D,
+    base_struct_type=StructType.RECTANGLE2D,
 )
 class RectangleShape2D(Shape2D):
     """A RectangleShape is a shape that represents a rectangle."""

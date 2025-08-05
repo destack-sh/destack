@@ -92,6 +92,7 @@ class ColorIntent(OptionEnum):
     stability=ObjectStability.STATIC,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.COLOR_STYLE,),
 )
 @final
 class Color(StructFrozen):
@@ -110,7 +111,7 @@ class Color(StructFrozen):
 
 @declare_entity(
     NodeType.COLOR_STYLE,
-    struct_type=StructType.COLOR,
+    base_struct_type=StructType.COLOR,
 )
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""

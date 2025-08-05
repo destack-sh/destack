@@ -84,6 +84,7 @@ class TextTransform(OptionEnum):
     StructType.FONT,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.FONT_STYLE,),
 )
 @final
 class Font(StructFrozen):
@@ -107,7 +108,7 @@ class Font(StructFrozen):
 
 @declare_entity(
     NodeType.FONT_STYLE,
-    struct_type=StructType.FONT,
+    base_struct_type=StructType.FONT,
 )
 class FontStyle(Style):
     """A font style."""
