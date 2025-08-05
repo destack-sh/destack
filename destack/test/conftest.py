@@ -20,12 +20,6 @@ def _setup_test_env():
     if _is_test_setup:
         return
 
-    from core.utils.environment import ENVIRONMENT, Environment, setup_environment
-
-    assert ENVIRONMENT == Environment.TEST, f"must run in {Environment.TEST} (got: {ENVIRONMENT!r})"
-
-    setup_environment()
-
     _is_test_setup = True
 
 

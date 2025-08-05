@@ -42,12 +42,7 @@ pytest==8.4.1
     # via
     #   -r destack/requirements/dev.in
     #   pytest-asyncio
-    #   pytest-env
 pytest-asyncio==1.1.0a1
-    # via -r destack/requirements/dev.in
-pytest-env==1.1.5
-    # via -r destack/requirements/dev.in
-python-dotenv==1.1.0
     # via -r destack/requirements/dev.in
 pyyaml==6.0.2
     # via pre-commit
