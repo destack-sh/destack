@@ -136,10 +136,7 @@ class StructDefinition(ObjectDefinition):
             is_abstract=declaration.is_abstract,
             # content
             properties=[prop.definition for prop in struct_cls.__properties__.values()],
-            methods=[
-                MethodDefinition.from_declaration(struct_cls, method)
-                for method in declaration.methods
-            ],
+            methods=[MethodDefinition.from_declaration(method) for method in declaration.methods],
             constants=[
                 ConstantDefinition.from_declaration(constant) for constant in declaration.constants
             ],

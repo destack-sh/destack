@@ -31,6 +31,8 @@ if TYPE_CHECKING:
         ObjectStability,
         StructType,
         TraitType,
+        UniverseCategory,
+        UniverseDomain,
     )
 
 
@@ -61,10 +63,11 @@ class ModuleDeclaration(Declaration):  # nocheckin: ModuleDeclaration/Definition
     """Declaration of a ModuleDefinition."""
 
     # meta
-    id: int
-    name: str = UNSET
-    description: str = UNSET
-    is_global: bool = False
+    name: str
+    description: str
+    domain: "UniverseDomain"
+    category: "UniverseCategory"
+    is_global: bool
 
     # content
     methods: tuple["MethodDeclaration", ...] = ()
@@ -73,6 +76,9 @@ class ModuleDeclaration(Declaration):  # nocheckin: ModuleDeclaration/Definition
     struct_types: tuple["StructType", ...] = ()
     handle_types: tuple["HandleType", ...] = ()
     enum_types: tuple["EnumType", ...] = ()
+
+    # graph
+    children: tuple["ModuleDeclaration", ...] = ()
 
 
 @dataclass(slots=True, repr=False)
@@ -402,15 +408,18 @@ def _process_method(
 
     # unwrap class methods and properties
     outer_func = func
-    type: MethodType = MethodType.INSTANCE
     if isinstance(func, classmethod):
         inner_func = func.__func__
-        type = MethodType.STATIC
+        type = MethodType.CLASS
     elif isinstance(func, property):
         inner_func = cast(Callable, func.fget)
         type = MethodType.PROPERTY
     else:
         inner_func = func
+        # highly scientific way to determine if we're in a class
+        #  (but works since all our classes are camel case)
+        is_in_class = inner_func.__qualname__.lower() != inner_func.__qualname__
+        type: MethodType = MethodType.INSTANCE if is_in_class else MethodType.STATIC
 
     # meta
     qualname = f"{inner_func.__module__}.{inner_func.__qualname__}"
@@ -477,6 +486,8 @@ def declare_method(
     """Declare a builtin Method."""
 
     def decorate(func):
+        from .hoisted import MethodType
+
         func, declaration = _process_method(
             # meta
             func,
@@ -492,6 +503,16 @@ def declare_method(
             # associations
             tags=tags,
         )
+
+        # validate
+        qualname = f"{func.__module__}.{func.__qualname__}"
+        if declaration.type in (MethodType.PROPERTY, MethodType.INSTANCE):
+            assert declaration.id < 200, f"id {declaration.id} outside range for {qualname}"
+        elif declaration.type == MethodType.CLASS:
+            assert 201 <= declaration.id < 300, f"id {declaration.id} outside range for {qualname}"
+        elif declaration.type == MethodType.STATIC:
+            assert 301 <= declaration.id < 400, f"id {declaration.id} outside range for {qualname}"
+
         if TYPE_CHECKING:
             return func
         else:

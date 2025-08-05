@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Self, final
 
 from ..builtin import (
     ActionType,
-    Object,
     StructType,
     declare_property,
     declare_struct,
@@ -32,9 +31,7 @@ class ActionDefinition(FunctionDefinition):
     output_message_type: "StructType | None" = declare_property(121)
 
     @classmethod
-    def from_declaration(
-        cls, object_cls: type_["Object"], declaration: "ActionDeclaration"
-    ) -> "Self":
+    def from_declaration(cls, declaration: "ActionDeclaration") -> "Self":
         return cls(
             # meta
             id=declaration.id,

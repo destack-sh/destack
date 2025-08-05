@@ -1,13 +1,6 @@
 from typing import TYPE_CHECKING, final
 
-from ..builtin import (
-    ModuleDeclaration,
-    ModuleType,
-    StructType,
-    UInt32,
-    declare_property,
-    declare_struct,
-)
+from ..builtin import ModuleDeclaration, StructType, declare_property, declare_struct
 from .definition import Definition
 
 if TYPE_CHECKING:
@@ -18,6 +11,8 @@ if TYPE_CHECKING:
         MethodDefinition,
         NodeType,
         StructType,
+        UniverseCategory,
+        UniverseDomain,
     )
 
 
@@ -30,8 +25,10 @@ if TYPE_CHECKING:
 class ModuleDefinition(Definition):
     """Definition of a builtin Module."""
 
-    id: UInt32 = declare_property(2, is_repr=True)
-    type: ModuleType = declare_property(100, is_repr=True)
+    # meta
+    is_global: bool = declare_property(105)
+    domain: "UniverseDomain" = declare_property(106)
+    category: "UniverseCategory" = declare_property(107)
 
     # content
     methods: list["MethodDefinition"] = declare_property(120)
@@ -41,15 +38,31 @@ class ModuleDefinition(Definition):
     handle_types: list["HandleType"] = declare_property(132)
     enum_types: list["EnumType"] = declare_property(133)
 
+    # graph
+    children: list["ModuleDefinition"] = declare_property(140)
+
     @classmethod
-    def from_declaration(
-        cls, module_type: ModuleType, declaration: ModuleDeclaration
-    ) -> "ModuleDefinition":
+    def from_declaration(cls, declaration: ModuleDeclaration) -> "ModuleDefinition":
         """Create ModuleDefinition from a ModuleDeclaration."""
+        from .constant import ConstantDefinition
+        from .method import MethodDefinition
+
         return cls(
             # meta
-            id=declaration.id,
-            type=module_type,
             name=declaration.name,
             description=declaration.description,
+            is_global=declaration.is_global,
+            domain=declaration.domain,
+            category=declaration.category,
+            # content
+            methods=[MethodDefinition.from_declaration(method) for method in declaration.methods],
+            constants=[
+                ConstantDefinition.from_declaration(constant) for constant in declaration.constants
+            ],
+            node_types=list(declaration.node_types),
+            struct_types=list(declaration.struct_types),
+            handle_types=list(declaration.handle_types),
+            enum_types=list(declaration.enum_types),
+            # graph
+            children=[ModuleDefinition.from_declaration(child) for child in declaration.children],
         )

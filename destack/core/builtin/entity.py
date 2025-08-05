@@ -15,7 +15,6 @@ from .const import UNSET
 from .declaration import (
     ConstraintDeclaration,
     IndexDeclaration,
-    ModuleDeclaration,
     PermissionDeclaration,
     TagDeclaration,
     declare_method,
@@ -29,7 +28,7 @@ from .property import (
     declare_property,
     declare_property_parent,
 )
-from .universe import EnumType, ModuleType, NodeType, ObjectKind, StructType, TraitType
+from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 
 if TYPE_CHECKING:
     from destack import (
@@ -46,8 +45,6 @@ if TYPE_CHECKING:
 
 type_ = type
 object_set_ = object.__setattr__
-
-__declaration__ = ModuleDeclaration(ModuleType.ENTITY)
 
 
 @declare_enum(EnumType.MATERIALIZATION)

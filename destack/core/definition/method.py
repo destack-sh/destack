@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Self, final
 
 from ..builtin import (
     MethodType,
-    Object,
     StructType,
     declare_property,
     declare_struct,
@@ -34,9 +33,7 @@ class MethodDefinition(FunctionDefinition):
     output_property: "PropertyDefinition | None" = declare_property(122)
 
     @classmethod
-    def from_declaration(
-        cls, object_cls: type_["Object"], declaration: "MethodDeclaration"
-    ) -> "Self":
+    def from_declaration(cls, declaration: "MethodDeclaration") -> "Self":
         return cls(
             # meta
             id=declaration.id,

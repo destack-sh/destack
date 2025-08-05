@@ -4,9 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from ..utility import frozendict, uuid7
 
 if TYPE_CHECKING:
-    from destack import (
-        Session,
-    )
+    from destack import Session
 
 
 class _Unset:

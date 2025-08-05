@@ -106,6 +106,7 @@ class UniverseCategory(OptionEnum):
     VIDEO = declare_option(30_200_000, "Video", description="Video production")
     MODEL = declare_option(30_300_000, "Model", description="Modeling and sculpting")
     PAINT = declare_option(30_400_000, "Paint", description="Drawing and painting")
+    # MUSIC, ...
     STYLE = declare_option(31_000_000, "Style", description="Appearance and theming")
     DOCUMENT = declare_option(32_000_000, "Document", description="Document processing")
     # NARRATIVE, ...
@@ -158,9 +159,8 @@ class EnumType(OptionEnum):
 
     # builtin [1]
     OBJECT_KIND = declare_option(1)
-    MODULE_TYPE = declare_option(2)
-    ENUM_TYPE = declare_option(3)
-    NODE_TYPE = declare_option(4)
+    ENUM_TYPE = declare_option(2)
+    NODE_TYPE = declare_option(3)
     STRUCT_TYPE = declare_option(5)
     TRAIT_TYPE = declare_option(6)
     HANDLE_TYPE = declare_option(7)
@@ -400,166 +400,6 @@ class EnumType(OptionEnum):
 EnumType = declare_enum(EnumType.ENUM_TYPE)(EnumType)
 UniverseDomain = declare_enum(EnumType.UNIVERSE_DOMAIN)(UniverseDomain)
 UniverseCategory = declare_enum(EnumType.UNIVERSE_CATEGORY)(UniverseCategory)
-
-
-@declare_enum(EnumType.MODULE_TYPE)
-class ModuleType(OptionEnum):
-    #
-    # CORE
-    #
-
-    # builtin [1]
-    BUILTIN = declare_option(1)
-
-    # definition [100_000]
-    DEFINITION = declare_option(100_000)
-
-    # common [200_000]
-    COMMON = declare_option(200_000)
-
-    # encoding [1_000_000]
-    ENCODING = declare_option(1_000_000)
-
-    # storage [1_100_000]
-    STORAGE = declare_option(1_100_000)
-
-    # generation [2_000_000]
-    GENERATION = declare_option(2_000_000)
-
-    # local [2_100_000]
-    LOCAL = declare_option(2_100_000)
-
-    # utility [2_200_000]
-    UTILITY = declare_option(2_200_000)
-
-    # universe [3_000_000]
-    UNIVERSE = declare_option(3_000_000)
-
-    # space [3_100_000]
-    SPACE = declare_option(3_100_000)
-
-    #
-    # BASICS
-    #
-
-    # entity [10_000_000]
-    ENTITY = declare_option(10_000_000)
-
-    # logic [10_100_000]
-    LOGIC = declare_option(10_100_000)
-
-    # intelligence [10_200_000]
-    INTELLIGENCE = declare_option(10_200_000)
-
-    # access [10_300_000]
-    ACCESS = declare_option(10_300_000)
-
-    # quality [10_400_000]
-    QUALITY = declare_option(10_400_000)
-
-    # studio [19_000_000]
-    STUDIO = declare_option(19_000_000)
-
-    #
-    # SIMULATION
-    #
-
-    # geometry [20_000_000]
-    GEOMETRY = declare_option(20_000_000)
-
-    # geography [20_100_000]
-    GEOGRAPHY = declare_option(20_100_000)
-
-    # physics [20_200_000]
-    PHYSICS = declare_option(20_200_000)
-
-    # animation [20_300_000]
-    ANIMATION = declare_option(20_300_000)
-
-    # lighting [20_500_000]
-    LIGHTING = declare_option(20_500_000)
-
-    # perception [20_600_000]
-    PERCEPTION = declare_option(20_600_000)
-
-    #
-    # IMAGINATION
-    #
-
-    # audio [30_000_000]
-    AUDIO = declare_option(30_000_000)
-
-    # image [30_100_000]
-    IMAGE = declare_option(30_100_000)
-
-    # video [30_200_000]
-    VIDEO = declare_option(30_200_000)
-
-    # model [30_300_000]
-    MODEL = declare_option(30_300_000)
-
-    # paint [30_400_000]
-    PAINT = declare_option(30_400_000)
-
-    # style [31_000_000]
-    STYLE = declare_option(31_000_000)
-
-    # document [32_000_000]
-    DOCUMENT = declare_option(32_000_000)
-
-    #
-    # PRESENTATION
-    #
-
-    # scene [40_000_000]
-    SCENE = declare_option(40_000_000)
-
-    # view [40_100_000]
-    VIEW = declare_option(40_100_000)
-
-    # rendering [40_200_000]
-    RENDERING = declare_option(40_200_000)
-
-    # camera [40_300_000]
-    CAMERA = declare_option(40_300_000)
-
-    # shaders [40_400_000]
-    SHADERS = declare_option(40_400_000)
-
-    # material [40_500_000]
-    MATERIAL = declare_option(40_500_000)
-
-    #
-    # PRODUCTION
-    #
-
-    # cloud [50_000_000]
-    CLOUD = declare_option(50_000_000)
-
-    # observability [50_100_000]
-    OBSERVABILITY = declare_option(50_100_000)
-
-    # experience [50_200_000]
-    EXPERIENCE = declare_option(50_200_000)
-
-    #
-    # DISTRIBUTION
-    #
-
-    # localization [60_000_000]
-    LOCALIZATION = declare_option(60_000_000)
-
-    # legal [60_100_000]
-    LEGAL = declare_option(60_100_000)
-
-    # social [60_200_000]
-    SOCIAL = declare_option(60_200_000)
-
-    # finance [60_300_000]
-    FINANCE = declare_option(60_300_000)
-
-    # commerce [60_400_000]
-    COMMERCE = declare_option(60_400_000)
 
 
 @declare_enum(EnumType.OBJECT_KIND)
@@ -1021,7 +861,7 @@ class NodeType(OptionEnum):
 
     # physics [20_200_000]
     # BODY2D, BODY3D, COLLIDER, ...
-    # PHYSICS_SERVICE?, ...
+    # PHYSICS_SERVICE/SYSTEM?, ...
     # BODY_EVENT, CONTACT_EVENT, COLLISION_EVENT, ...
     # RIGID_BODY, SOFT_BODY, ...
     # CLOTH, FLESH, LIQUID/FLUID, ...

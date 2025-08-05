@@ -273,12 +273,6 @@ class ScalarType(OptionEnum):
         "Union",
         description="Tagged union of heterogeneous values",
     )
-    # LITERAL = declare_option(
-    #     7,
-    #     "Literal",
-    #     description="Literal value (constant value)",
-    # )
-    # NOTE :Incomplete: unions are annoying to handle in encoders/decoders
 
 
 assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding
@@ -532,7 +526,8 @@ class MethodType(OptionEnum):
     #  (like for Context computed properties or Entity.is_partial?)
     PROPERTY = declare_option(1, "Property", description="Computed property")
     INSTANCE = declare_option(2, "Instance", description="Instance method")
-    STATIC = declare_option(3, "Static", description="Static method")
+    CLASS = declare_option(3, "Class", description="Class method")
+    STATIC = declare_option(4, "Static", description="Static method")
 
 
 @declare_enum(EnumType.ACTION_TYPE)

@@ -113,12 +113,13 @@ from .types import (
 from .universe import (
     EnumType,
     HandleType,
-    ModuleType,
     NodeType,
     ObjectKind,
     ObjectStability,
     StructType,
     TraitType,
+    UniverseCategory,
+    UniverseDomain,
 )
 
 __all__ = [
@@ -181,7 +182,6 @@ __all__ = [
     "MethodDeclaration",
     "MethodType",
     "ModuleDeclaration",
-    "ModuleType",
     "Node",
     "NodeDeclaration",
     "NodeType",
@@ -219,6 +219,8 @@ __all__ = [
     "UInt32",
     "UInt64",
     "UInt128",
+    "UniverseCategory",
+    "UniverseDomain",
     "ValueFactory",
     "_is_finalized",
     "declare_action",

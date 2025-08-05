@@ -162,13 +162,11 @@ def finalize():
         STRUCT_DEFINITION_BY_TYPE[struct_cls.metatype] = struct_definition
         struct_cls.__definition__ = struct_definition
     for handle_cls in HANDLE_CLASS_BY_TYPE.values():
-        handle_definition = HandleDefinition.from_declaration(
-            handle_cls, handle_cls.__declaration__
-        )
+        handle_definition = HandleDefinition.from_declaration(handle_cls.__declaration__)
         HANDLE_DEFINITION_BY_TYPE[handle_cls.metatype] = handle_definition
         handle_cls.__definition__ = handle_definition
     for enum_cls in ENUM_CLASS_BY_TYPE.values():
-        enum_definition = EnumDefinition.from_declaration(enum_cls, enum_cls.__declaration__)
+        enum_definition = EnumDefinition.from_declaration(enum_cls.__declaration__)
         ENUM_DEFINITION_BY_TYPE[enum_cls.metatype] = enum_definition
 
     # impute methods/actions
