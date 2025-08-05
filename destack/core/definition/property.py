@@ -19,7 +19,7 @@ from ..common import PropertyReference, Type, Value
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack.core import Condition, ObjectDefinitionReference, Sort
+    from destack import Condition, ObjectDefinitionReference, Sort
 
 type_ = type
 

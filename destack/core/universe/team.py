@@ -10,7 +10,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.core import Organization
+    from destack import Organization
 
 
 @declare_entity(

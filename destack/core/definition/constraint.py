@@ -10,7 +10,7 @@ from ..builtin import (
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack.core import ConstraintDeclaration, ConstraintType, PropertyReference
+    from destack import ConstraintDeclaration, ConstraintType, PropertyReference
 
 
 type_ = type

@@ -9,7 +9,7 @@ from ..builtin import (
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack.core import PermissionDeclaration
+    from destack import PermissionDeclaration
 
 
 @declare_struct(

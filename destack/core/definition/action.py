@@ -10,7 +10,7 @@ from ..builtin import (
 from .function import FunctionDefinition
 
 if TYPE_CHECKING:
-    from destack.core import ActionDeclaration
+    from destack import ActionDeclaration
 
 
 type_ = type

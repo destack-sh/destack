@@ -113,6 +113,7 @@ from .types import (
 from .universe import (
     EnumType,
     HandleType,
+    ModuleType,
     NodeType,
     ObjectKind,
     ObjectStability,
@@ -180,6 +181,7 @@ __all__ = [
     "MethodDeclaration",
     "MethodType",
     "ModuleDeclaration",
+    "ModuleType",
     "Node",
     "NodeDeclaration",
     "NodeType",

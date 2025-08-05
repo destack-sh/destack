@@ -13,7 +13,7 @@ from ..builtin import (
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack.core import ObjectDefinitionReference
+    from destack import ObjectDefinitionReference
 
     from .tag import TagDefinition
 

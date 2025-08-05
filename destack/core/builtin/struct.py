@@ -50,6 +50,8 @@ def _process_struct_cls(
         type=struct_type,
         id=struct_type.value,
         kind=ObjectKind.STRUCT,
+        name=cls.__name__,
+        description=cls.__doc__ or "",
         stability=stability,
         is_abstract=is_abstract,
         is_frozen=is_frozen,

@@ -10,7 +10,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.core import Space
+    from destack import Space
 
 
 @declare_entity(

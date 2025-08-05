@@ -14,7 +14,7 @@ from ..builtin import (
 from .object import ObjectDefinition
 
 if TYPE_CHECKING:
-    from destack.core import (
+    from destack import (
         ConstantDefinition,
         MethodDefinition,
         ObjectDefinitionReference,

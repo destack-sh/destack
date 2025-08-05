@@ -1545,6 +1545,8 @@ def _declare_object[ObjectT: Object](
             kind=ObjectKind.STRUCT,
             type=object_type,
             id=0,
+            name=cls_in.__name__,
+            description=cls_in.__doc__ or "",
             stability=ObjectStability.DYNAMIC,
             is_abstract=True,
             is_frozen=frozen,
