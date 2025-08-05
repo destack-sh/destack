@@ -382,7 +382,7 @@ def declare_property(
 def declare_property_parent(*, is_readonly: bool = False, description: str | None = None) -> Any:
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
-        id=3,  # NOTE: never change this id! :Encoding
+        id=3,
         edge_type=EdgeType.PARENT,
         default_value=None,
         is_internal=True,

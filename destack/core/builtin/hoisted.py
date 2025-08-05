@@ -528,6 +528,8 @@ class IndexType(OptionEnum):
 
 @declare_enum(EnumType.METHOD_TYPE)
 class MethodType(OptionEnum):
+    # nocheckin: property Method -> computed property?
+    #  (like for Context computed properties or Entity.is_partial?)
     PROPERTY = declare_option(1, "Property", description="Computed property")
     INSTANCE = declare_option(2, "Instance", description="Instance method")
     STATIC = declare_option(3, "Static", description="Static method")

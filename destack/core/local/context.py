@@ -12,7 +12,7 @@ from ..builtin import (
 from ..utility import UUID
 
 if TYPE_CHECKING:
-    from destack import Client
+    from destack import Branch, Client, Environment, Event, Snapshot, Space
 
 
 @declare_handle(HandleType.CONTEXT)
@@ -26,16 +26,37 @@ class Context(Handle):
     Context propagates across the call stack (because it propagates through Runs).
     """
 
-    # nocheckin(language) :Incomplete: Context to replace local 'globals'
+    # TODO :Incomplete: Context to replace local 'globals'
     actor: "Entity" = declare_property_runtime(401, is_repr=True)
     client: "Client" = declare_property_runtime(402, is_repr=True)
     client_nonce: UUID = declare_property_runtime(403, is_repr=True)
+    event: "Event | None" = declare_property_runtime(404, is_repr=True)
+
+    space: "Space" = declare_property_runtime(
+        410,
+        is_repr=True,
+        description="The Space we're currently in.",
+    )
+    branch: "Branch" = declare_property_runtime(
+        411,
+        is_repr=True,
+        description="The Branch we're currently in within the Space.",
+    )
+    snapshot: "Snapshot" = declare_property_runtime(
+        412,
+        is_repr=True,
+        description="The Snapshot we're currently in within the Space and Branch.",
+    )
+    environment: "Environment" = declare_property_runtime(
+        413,
+        is_repr=True,
+        description="The Environment we're currently in.",
+    )
+
     # random_seed, random_state, ...
-    # time/time_zone/time_dilation, ...
-    # environment, ...
-    # theme, ...
-    # accessibility stuff, ...
     # region/geolocation, ...
+    # time/time_zone/time_dilation, ...
+    # theme, accessibility, ...
     # logging/tracing/baggage, ...
 
     def __str__(self) -> str:
