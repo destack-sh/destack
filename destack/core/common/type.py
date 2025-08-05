@@ -59,7 +59,7 @@ class Type(StructFrozen):
     element_types: list["Type"] | None = declare_property(
         113,
         is_repr=True,
-        description="Element types of this Type (tuple).",
+        description="Element types of this Type (tuple, union).",
     )
     # dimensions: list[UInt32] | None = declare_property(
     #     114,

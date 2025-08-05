@@ -1,5 +1,6 @@
 import dataclasses
 import inspect
+import typing
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Self, cast
@@ -272,6 +273,7 @@ def _parse_signature(
     qualname: str,
     func: Callable,
     signature: inspect.Signature,
+    operator: FunctionOperator | None,
 ) -> SignatureDeclaration:
     from .property import PropertyDeclaration
     from .type import parse_type_declaration
@@ -283,13 +285,16 @@ def _parse_signature(
     for param_name, param in signature.parameters.items():
         if param_name == "self" or param_name == "cls":
             continue
+        prop_py_type = (
+            param.annotation if param.annotation != inspect.Parameter.empty else type(None)
+        )
         prop = PropertyDeclaration(
             name=param_name,
-            py_type=param.annotation if param.annotation != inspect.Parameter.empty else type(None),
+            py_type=prop_py_type,
             default_value=param.default if param.default != inspect.Parameter.empty else UNSET,
         )
         try:
-            prop.type = parse_type_declaration(prop.py_type, is_builtin=True)
+            prop.type = parse_type_declaration(prop_py_type, is_builtin=True)
         except Exception as e:
             raise ValueError(
                 f"unexpected parameter type: {qualname}.{param_name} ({prop.py_type})"
@@ -302,6 +307,9 @@ def _parse_signature(
         signature.return_annotation is not None
     ):
         return_type = signature.return_annotation
+        if operator == FunctionOperator.ITER:
+            # unwrap Iterator
+            return_type = typing.get_args(return_type)[0]
         prop = PropertyDeclaration(name="return", py_type=return_type)
         try:
             prop.type = parse_type_declaration(prop.py_type, is_builtin=True)
@@ -335,6 +343,7 @@ def _process_method(
     name: str | None,
     tags: tuple[str, ...],
     runtimes: tuple[RuntimeType, ...],
+    operator: FunctionOperator | None,
     is_implemented: bool,
     is_internal: bool,
 ) -> tuple[Callable, MethodDeclaration]:
@@ -361,6 +370,7 @@ def _process_method(
         qualname=qualname,
         func=func,
         signature=inspect.signature(func),
+        operator=operator,
     )
 
     # implementation must be empty
@@ -415,6 +425,7 @@ def declare_method(
             runtimes=runtimes,
             is_implemented=is_implemented,
             is_internal=is_internal,
+            operator=operator,
         )
         if TYPE_CHECKING:
             return func

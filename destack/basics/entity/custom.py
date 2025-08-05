@@ -61,13 +61,6 @@ class CustomStructDefinition(Entity):
     pass
 
 
-@declare_entity(NodeType.CUSTOM_MESSAGE_DEFINITION)
-class CustomMessageDefinition(CustomStructDefinition):
-    """A CustomMessage describes a custom Message with custom Properties."""
-
-    pass
-
-
 @declare_struct(StructType.CUSTOM_STRUCT, is_final=True)
 @final
 class CustomStruct(Struct):
@@ -88,6 +81,13 @@ class CustomStruct(Struct):
     def __getattr__(self, name: str) -> "Value | None":
         val = None if self.custom_values is None else self.custom_values.get(name)
         return val
+
+
+@declare_entity(NodeType.CUSTOM_MESSAGE_DEFINITION)
+class CustomMessageDefinition(CustomStructDefinition):
+    """A CustomMessage describes a custom Message with custom Properties."""
+
+    pass
 
 
 @declare_message(StructType.CUSTOM_MESSAGE, is_final=True)

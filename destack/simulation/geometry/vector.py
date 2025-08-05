@@ -1,6 +1,5 @@
-import math
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Union, final
 
 from destack.core import (
     Float32,
@@ -10,6 +9,7 @@ from destack.core import (
     RuntimeLanguage,
     StructFrozen,
     StructType,
+    UInt32,
     declare_constant,
     declare_method,
     declare_property,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 )
 @final
 class Vector2(StructFrozen):
-    """A 2D floating point Vector."""
+    """A 2D float point Vector."""
 
     ZERO = declare_constant(
         100,
@@ -63,12 +63,9 @@ class Vector2(StructFrozen):
     )
 
     @declare_method(101)
-    def add(self, other: "Vector2 | float") -> "Vector2":
+    def add(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Add a Vector2 or a scalar to a Vector2."""
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x + other.x, y=self.y + other.y)
-        else:
-            return Vector2(x=self.x + other, y=self.y + other)
+        ...
 
     @declare_method(
         102,
@@ -76,17 +73,14 @@ class Vector2(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __add__(self, other: "Vector2 | float") -> "Vector2":
+    def __add__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Add a Vector2 or a scalar to a Vector2."""
-        return self.add(other)
+        ...
 
     @declare_method(103)
-    def sub(self, other: "Vector2 | float") -> "Vector2":
+    def sub(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Subtract a Vector2 or a scalar from a Vector2."""
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x - other.x, y=self.y - other.y)
-        else:
-            return Vector2(x=self.x - other, y=self.y - other)
+        ...
 
     @declare_method(
         104,
@@ -94,17 +88,14 @@ class Vector2(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __sub__(self, other: "Vector2 | float") -> "Vector2":
+    def __sub__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Subtract a Vector2 or a scalar from a Vector2."""
-        return self.sub(other)
+        ...
 
     @declare_method(105)
-    def mul(self, other: "Vector2 | float") -> "Vector2":
+    def mul(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Multiply a Vector2 or a scalar by a Vector2."""
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x * other.x, y=self.y * other.y)
-        else:
-            return Vector2(x=self.x * other, y=self.y * other)
+        ...
 
     @declare_method(
         106,
@@ -112,17 +103,14 @@ class Vector2(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __mul__(self, other: "Vector2 | float") -> "Vector2":
+    def __mul__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Multiply a Vector2 or a scalar by a Vector2."""
-        return self.mul(other)
+        ...
 
     @declare_method(107)
-    def truediv(self, other: "Vector2 | float") -> "Vector2":
+    def truediv(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Divide a Vector2 or a scalar by a Vector2."""
-        if isinstance(other, Vector2):
-            return Vector2(x=self.x / other.x, y=self.y / other.y)
-        else:
-            return Vector2(x=self.x / other, y=self.y / other)
+        ...
 
     @declare_method(
         108,
@@ -130,14 +118,14 @@ class Vector2(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __truediv__(self, other: "Vector2 | float") -> "Vector2":
+    def __truediv__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Divide a Vector2 or a scalar by a Vector2."""
-        return self.truediv(other)
+        ...
 
     @declare_method(109)
     def abs(self) -> "Vector2":
         """Get the absolute value of a Vector2."""
-        return Vector2(x=abs(self.x), y=abs(self.y))
+        ...
 
     @declare_method(
         110,
@@ -147,12 +135,12 @@ class Vector2(StructFrozen):
     )
     def __abs__(self) -> "Vector2":
         """Get the absolute value of a Vector2."""
-        return self.abs()
+        ...
 
     @declare_method(111)
     def neg(self) -> "Vector2":
         """Negate a vector."""
-        return Vector2(x=-self.x, y=-self.y)
+        ...
 
     @declare_method(
         112,
@@ -162,7 +150,7 @@ class Vector2(StructFrozen):
     )
     def __neg__(self) -> "Vector2":
         """Negate a vector."""
-        return self.neg()
+        ...
 
     @declare_method(
         113,
@@ -170,9 +158,9 @@ class Vector2(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __radd__(self, other: "Vector2 | float") -> "Vector2":
+    def __radd__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Add a Vector2 or a scalar to a Vector2."""
-        return self.add(other)
+        ...
 
     @declare_method(
         114,
@@ -180,12 +168,9 @@ class Vector2(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rsub__(self, other: "Vector2 | float") -> "Vector2":
+    def __rsub__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Subtract a Vector2 or a scalar from a Vector2."""
-        if isinstance(other, Vector2):
-            return Vector2(x=other.x - self.x, y=other.y - self.y)
-        else:
-            return Vector2(x=other - self.x, y=other - self.y)
+        ...
 
     @declare_method(
         115,
@@ -193,9 +178,9 @@ class Vector2(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rmul__(self, other: "Vector2 | float") -> "Vector2":
+    def __rmul__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Multiply a Vector2 or a scalar by a Vector2."""
-        return self.mul(other)
+        ...
 
     @declare_method(
         116,
@@ -203,102 +188,80 @@ class Vector2(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rtruediv__(self, other: "Vector2 | float") -> "Vector2":
+    def __rtruediv__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Divide a Vector2 or a scalar by a Vector2."""
-        if isinstance(other, Vector2):
-            return Vector2(x=other.x / self.x, y=other.y / self.y)
-        else:
-            return Vector2(x=other / self.x, y=other / self.y)
+        ...
 
     @declare_method(117)
     def perp(self) -> "Vector2":
         """Get the perpendicular vector (rotated 90 degrees counterclockwise)."""
-        return Vector2(x=self.y, y=-self.x)
+        ...
 
     @declare_method(118)
-    def dot(self, other: "Vector2") -> float:
+    def dot(self, other: "Vector2") -> Float32:
         """Calculate the dot product with another vector."""
-        return self.x * other.x + self.y * other.y
+        ...
 
     @declare_method(119)
-    def magnitude(self) -> float:
+    def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        return (self.x**2 + self.y**2) ** 0.5
+        ...
 
     @declare_method(120)
-    def magnitude2(self) -> float:
+    def magnitude2(self) -> Float32:
         """Calculate the squared magnitude of the vector."""
-        return self.x**2 + self.y**2
+        ...
 
     @declare_method(121)
     def normalize(self) -> "Vector2":
         """Return a normalized (unit) vector."""
-        mag = self.magnitude()
-        if mag == 0:
-            return Vector2(x=0.0, y=0.0)
-        return Vector2(x=self.x / mag, y=self.y / mag)
+        ...
 
     @declare_method(122)
-    def distance(self, other: "Vector2") -> float:
+    def distance(self, other: "Vector2") -> Float32:
         """Calculate the distance to another vector."""
-        return (self - other).magnitude()
+        ...
 
     @declare_method(123)
-    def distance2(self, other: "Vector2") -> float:
+    def distance2(self, other: "Vector2") -> Float32:
         """Calculate the squared distance to another vector."""
-        diff = self - other
-        return diff.x**2 + diff.y**2
+        ...
 
     @declare_method(124)
-    def angle(self, other: "Vector2") -> float:
+    def angle(self, other: "Vector2") -> Float32:
         """Calculate the angle to another vector in radians."""
-
-        return math.atan2(other.y - self.y, other.x - self.x)
+        ...
 
     @declare_method(125)
-    def lerp(self, other: "Vector2", t: float) -> "Vector2":
+    def lerp(self, other: "Vector2", t: Float32) -> "Vector2":
         """Linear interpolation between this vector and another."""
-        return Vector2(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
+        ...
 
     @declare_method(126)
-    def rot_with(self, center: "Vector2", angle: float) -> "Vector2":
+    def rot_with(self, center: "Vector2", angle: Float32) -> "Vector2":
         """Rotate this vector around another point by the given angle."""
-
-        x = self.x - center.x
-        y = self.y - center.y
-        s = math.sin(angle)
-        c = math.cos(angle)
-        return Vector2(x=center.x + (x * c - y * s), y=center.y + (x * s + y * c))
+        ...
 
     @declare_method(
         127,
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[float]:
-        yield self.x
-        yield self.y
+    def __iter__(self) -> Iterator[Float32]: ...
 
     @declare_method(
         128,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: int) -> float:
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        else:
-            raise IndexError(f"index out of range: {index}")
+    def __getitem__(self, index: UInt32) -> Float32: ...
 
     @declare_method(
         129,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> int:
-        return 2
+    def __len__(self) -> UInt32: ...
 
 
 @declare_struct(
@@ -309,7 +272,7 @@ class Vector2(StructFrozen):
 )
 @final
 class Vector3(StructFrozen):
-    """A 3D floating point Vector."""
+    """A 3D float point Vector."""
 
     ZERO = declare_constant(
         100,
@@ -354,12 +317,9 @@ class Vector3(StructFrozen):
     )
 
     @declare_method(101)
-    def add(self, other: "Vector3 | float") -> "Vector3":
+    def add(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Add a Vector3 or a scalar to a Vector3."""
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x + other.x, y=self.y + other.y, z=self.z + other.z)
-        else:
-            return Vector3(x=self.x + other, y=self.y + other, z=self.z + other)
+        ...
 
     @declare_method(
         102,
@@ -367,17 +327,14 @@ class Vector3(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __add__(self, other: "Vector3 | float") -> "Vector3":
+    def __add__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Add a Vector3 or a scalar to a Vector3."""
-        return self.add(other)
+        ...
 
     @declare_method(103)
-    def sub(self, other: "Vector3 | float") -> "Vector3":
+    def sub(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Subtract a Vector3 or a scalar from a Vector3."""
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x - other.x, y=self.y - other.y, z=self.z - other.z)
-        else:
-            return Vector3(x=self.x - other, y=self.y - other, z=self.z - other)
+        ...
 
     @declare_method(
         104,
@@ -385,17 +342,14 @@ class Vector3(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __sub__(self, other: "Vector3 | float") -> "Vector3":
+    def __sub__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Subtract a Vector3 or a scalar from a Vector3."""
-        return self.sub(other)
+        ...
 
     @declare_method(105)
-    def mul(self, other: "Vector3 | float") -> "Vector3":
+    def mul(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Multiply a Vector3 or a scalar by a Vector3."""
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x * other.x, y=self.y * other.y, z=self.z * other.z)
-        else:
-            return Vector3(x=self.x * other, y=self.y * other, z=self.z * other)
+        ...
 
     @declare_method(
         106,
@@ -403,17 +357,14 @@ class Vector3(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __mul__(self, other: "Vector3 | float") -> "Vector3":
+    def __mul__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Multiply a Vector3 or a scalar by a Vector3."""
-        return self.mul(other)
+        ...
 
     @declare_method(107)
-    def truediv(self, other: "Vector3 | float") -> "Vector3":
+    def truediv(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Divide a Vector3 or a scalar by a Vector3."""
-        if isinstance(other, Vector3):
-            return Vector3(x=self.x / other.x, y=self.y / other.y, z=self.z / other.z)
-        else:
-            return Vector3(x=self.x / other, y=self.y / other, z=self.z / other)
+        ...
 
     @declare_method(
         108,
@@ -421,14 +372,14 @@ class Vector3(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __truediv__(self, other: "Vector3 | float") -> "Vector3":
+    def __truediv__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Divide a Vector3 or a scalar by a Vector3."""
-        return self.truediv(other)
+        ...
 
     @declare_method(109)
     def abs(self) -> "Vector3":
         """Get the absolute value of a Vector3."""
-        return Vector3(x=abs(self.x), y=abs(self.y), z=abs(self.z))
+        ...
 
     @declare_method(
         110,
@@ -438,12 +389,12 @@ class Vector3(StructFrozen):
     )
     def __abs__(self) -> "Vector3":
         """Get the absolute value of a Vector3."""
-        return self.abs()
+        ...
 
     @declare_method(111)
     def neg(self) -> "Vector3":
         """Negate a vector."""
-        return Vector3(x=-self.x, y=-self.y, z=-self.z)
+        ...
 
     @declare_method(
         112,
@@ -453,7 +404,7 @@ class Vector3(StructFrozen):
     )
     def __neg__(self) -> "Vector3":
         """Negate a vector."""
-        return self.neg()
+        ...
 
     @declare_method(
         113,
@@ -461,9 +412,9 @@ class Vector3(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __radd__(self, other: "Vector3 | float") -> "Vector3":
+    def __radd__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Add a Vector3 or a scalar to a Vector3."""
-        return self.add(other)
+        ...
 
     @declare_method(
         114,
@@ -471,12 +422,9 @@ class Vector3(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rsub__(self, other: "Vector3 | float") -> "Vector3":
+    def __rsub__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Subtract a Vector3 or a scalar from a Vector3."""
-        if isinstance(other, Vector3):
-            return Vector3(x=other.x - self.x, y=other.y - self.y, z=other.z - self.z)
-        else:
-            return Vector3(x=other - self.x, y=other - self.y, z=other - self.z)
+        ...
 
     @declare_method(
         115,
@@ -484,9 +432,9 @@ class Vector3(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rmul__(self, other: "Vector3 | float") -> "Vector3":
+    def __rmul__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Multiply a Vector3 or a scalar by a Vector3."""
-        return self.mul(other)
+        ...
 
     @declare_method(
         116,
@@ -494,107 +442,75 @@ class Vector3(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rtruediv__(self, other: "Vector3 | float") -> "Vector3":
+    def __rtruediv__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Divide a Vector3 or a scalar by a Vector3."""
-        if isinstance(other, Vector3):
-            return Vector3(x=other.x / self.x, y=other.y / self.y, z=other.z / self.z)
-        else:
-            return Vector3(x=other / self.x, y=other / self.y, z=other / self.z)
+        ...
 
     @declare_method(117)
-    def dot(self, other: "Vector3") -> float:
+    def dot(self, other: "Vector3") -> Float32:
         """Calculate the dot product with another vector."""
-        return self.x * other.x + self.y * other.y + self.z * other.z
+        ...
 
     @declare_method(118)
-    def magnitude(self) -> float:
+    def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        return (self.x**2 + self.y**2 + self.z**2) ** 0.5
+        ...
 
     @declare_method(119)
-    def magnitude2(self) -> float:
+    def magnitude2(self) -> Float32:
         """Calculate the squared magnitude of the vector."""
-        return self.x**2 + self.y**2 + self.z**2
+        ...
 
     @declare_method(120)
     def normalize(self) -> "Vector3":
         """Return a normalized (unit) vector."""
-        mag = self.magnitude()
-        if mag == 0:
-            return Vector3(x=0.0, y=0.0, z=0.0)
-        return Vector3(x=self.x / mag, y=self.y / mag, z=self.z / mag)
+        ...
 
     @declare_method(121)
-    def distance(self, other: "Vector3") -> float:
+    def distance(self, other: "Vector3") -> Float32:
         """Calculate the distance to another vector."""
-        return (self - other).magnitude()
+        ...
 
     @declare_method(122)
-    def distance2(self, other: "Vector3") -> float:
+    def distance2(self, other: "Vector3") -> Float32:
         """Calculate the squared distance to another vector."""
-        diff = self - other
-        return diff.x**2 + diff.y**2 + diff.z**2
+        ...
 
     @declare_method(123)
-    def angle(self, other: "Vector3") -> float:
+    def angle(self, other: "Vector3") -> Float32:
         """Calculate the angle to another vector in radians."""
-
-        dot_product = self.dot(other)
-        mag_product = self.magnitude() * other.magnitude()
-        if mag_product == 0:
-            return 0.0
-        return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
+        ...
 
     @declare_method(124)
-    def lerp(self, other: "Vector3", t: float) -> "Vector3":
+    def lerp(self, other: "Vector3", t: Float32) -> "Vector3":
         """Linear interpolation between this vector and another."""
-        return Vector3(
-            x=self.x + (other.x - self.x) * t,
-            y=self.y + (other.y - self.y) * t,
-            z=self.z + (other.z - self.z) * t,
-        )
+        ...
 
     @declare_method(125)
     def cross(self, other: "Vector3") -> "Vector3":
         """Calculate the cross product with another vector."""
-        return Vector3(
-            x=self.y * other.z - self.z * other.y,
-            y=self.z * other.x - self.x * other.z,
-            z=self.x * other.y - self.y * other.x,
-        )
+        ...
 
     @declare_method(
         126,
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[float]:
-        yield self.x
-        yield self.y
-        yield self.z
+    def __iter__(self) -> Iterator[Float32]: ...
 
     @declare_method(
         127,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: int) -> float:
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        elif index == 2:
-            return self.z
-        else:
-            raise IndexError(f"index out of range: {index}")
+    def __getitem__(self, index: UInt32) -> Float32: ...
 
     @declare_method(
         128,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> int:
-        return 3
+    def __len__(self) -> UInt32: ...
 
 
 @declare_struct(
@@ -605,7 +521,7 @@ class Vector3(StructFrozen):
 )
 @final
 class Vector4(StructFrozen):
-    """A 4D floating point Vector."""
+    """A 4D float point Vector."""
 
     ZERO = declare_constant(
         100,
@@ -660,14 +576,9 @@ class Vector4(StructFrozen):
     )
 
     @declare_method(101)
-    def add(self, other: "Vector4 | float") -> "Vector4":
+    def add(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Add a Vector4 or a scalar to a Vector4."""
-        if isinstance(other, Vector4):
-            return Vector4(
-                x=self.x + other.x, y=self.y + other.y, z=self.z + other.z, w=self.w + other.w
-            )
-        else:
-            return Vector4(x=self.x + other, y=self.y + other, z=self.z + other, w=self.w + other)
+        ...
 
     @declare_method(
         102,
@@ -675,19 +586,14 @@ class Vector4(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __add__(self, other: "Vector4 | float") -> "Vector4":
+    def __add__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Add a Vector4 or a scalar to a Vector4."""
-        return self.add(other)
+        ...
 
     @declare_method(103)
-    def sub(self, other: "Vector4 | float") -> "Vector4":
+    def sub(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Subtract a Vector4 or a scalar from a Vector4."""
-        if isinstance(other, Vector4):
-            return Vector4(
-                x=self.x - other.x, y=self.y - other.y, z=self.z - other.z, w=self.w - other.w
-            )
-        else:
-            return Vector4(x=self.x - other, y=self.y - other, z=self.z - other, w=self.w - other)
+        ...
 
     @declare_method(
         104,
@@ -695,19 +601,14 @@ class Vector4(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __sub__(self, other: "Vector4 | float") -> "Vector4":
+    def __sub__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Subtract a Vector4 or a scalar from a Vector4."""
-        return self.sub(other)
+        ...
 
     @declare_method(105)
-    def mul(self, other: "Vector4 | float") -> "Vector4":
+    def mul(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Multiply a Vector4 or a scalar by a Vector4."""
-        if isinstance(other, Vector4):
-            return Vector4(
-                x=self.x * other.x, y=self.y * other.y, z=self.z * other.z, w=self.w * other.w
-            )
-        else:
-            return Vector4(x=self.x * other, y=self.y * other, z=self.z * other, w=self.w * other)
+        ...
 
     @declare_method(
         106,
@@ -715,19 +616,14 @@ class Vector4(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __mul__(self, other: "Vector4 | float") -> "Vector4":
+    def __mul__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Multiply a Vector4 or a scalar by a Vector4."""
-        return self.mul(other)
+        ...
 
     @declare_method(107)
-    def truediv(self, other: "Vector4 | float") -> "Vector4":
+    def truediv(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Divide a Vector4 or a scalar by a Vector4."""
-        if isinstance(other, Vector4):
-            return Vector4(
-                x=self.x / other.x, y=self.y / other.y, z=self.z / other.z, w=self.w / other.w
-            )
-        else:
-            return Vector4(x=self.x / other, y=self.y / other, z=self.z / other, w=self.w / other)
+        ...
 
     @declare_method(
         108,
@@ -735,14 +631,14 @@ class Vector4(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __truediv__(self, other: "Vector4 | float") -> "Vector4":
+    def __truediv__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Divide a Vector4 or a scalar by a Vector4."""
-        return self.truediv(other)
+        ...
 
     @declare_method(109)
     def abs(self) -> "Vector4":
         """Get the absolute value of a Vector4."""
-        return Vector4(x=abs(self.x), y=abs(self.y), z=abs(self.z), w=abs(self.w))
+        ...
 
     @declare_method(
         110,
@@ -752,12 +648,12 @@ class Vector4(StructFrozen):
     )
     def __abs__(self) -> "Vector4":
         """Get the absolute value of a Vector4."""
-        return self.abs()
+        ...
 
     @declare_method(111)
     def neg(self) -> "Vector4":
         """Negate a vector."""
-        return Vector4(x=-self.x, y=-self.y, z=-self.z, w=-self.w)
+        ...
 
     @declare_method(
         112,
@@ -767,7 +663,7 @@ class Vector4(StructFrozen):
     )
     def __neg__(self) -> "Vector4":
         """Negate a vector."""
-        return self.neg()
+        ...
 
     @declare_method(
         113,
@@ -775,9 +671,9 @@ class Vector4(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __radd__(self, other: "Vector4 | float") -> "Vector4":
+    def __radd__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Add a Vector4 or a scalar to a Vector4."""
-        return self.add(other)
+        ...
 
     @declare_method(
         114,
@@ -785,14 +681,9 @@ class Vector4(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rsub__(self, other: "Vector4 | float") -> "Vector4":
+    def __rsub__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Subtract a Vector4 or a scalar from a Vector4."""
-        if isinstance(other, Vector4):
-            return Vector4(
-                x=other.x - self.x, y=other.y - self.y, z=other.z - self.z, w=other.w - self.w
-            )
-        else:
-            return Vector4(x=other - self.x, y=other - self.y, z=other - self.z, w=other - self.w)
+        ...
 
     @declare_method(
         115,
@@ -800,9 +691,9 @@ class Vector4(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rmul__(self, other: "Vector4 | float") -> "Vector4":
+    def __rmul__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Multiply a Vector4 or a scalar by a Vector4."""
-        return self.mul(other)
+        ...
 
     @declare_method(
         116,
@@ -810,104 +701,70 @@ class Vector4(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rtruediv__(self, other: "Vector4 | float") -> "Vector4":
+    def __rtruediv__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Divide a Vector4 or a scalar by a Vector4."""
-        if isinstance(other, Vector4):
-            return Vector4(
-                x=other.x / self.x, y=other.y / self.y, z=other.z / self.z, w=other.w / self.w
-            )
-        else:
-            return Vector4(x=other / self.x, y=other / self.y, z=other / self.z, w=other / self.w)
+        ...
 
     @declare_method(117)
-    def dot(self, other: "Vector4") -> float:
+    def dot(self, other: "Vector4") -> Float32:
         """Calculate the dot product with another vector."""
-        return self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
+        ...
 
     @declare_method(118)
-    def magnitude(self) -> float:
+    def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        return (self.x**2 + self.y**2 + self.z**2 + self.w**2) ** 0.5
+        ...
 
     @declare_method(119)
-    def magnitude2(self) -> float:
+    def magnitude2(self) -> Float32:
         """Calculate the squared magnitude of the vector."""
-        return self.x**2 + self.y**2 + self.z**2 + self.w**2
+        ...
 
     @declare_method(120)
     def normalize(self) -> "Vector4":
         """Return a normalized (unit) vector."""
-        mag = self.magnitude()
-        if mag == 0:
-            return Vector4(x=0.0, y=0.0, z=0.0, w=0.0)
-        return Vector4(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
+        ...
 
     @declare_method(121)
-    def distance(self, other: "Vector4") -> float:
+    def distance(self, other: "Vector4") -> Float32:
         """Calculate the distance to another vector."""
-        return (self - other).magnitude()
+        ...
 
     @declare_method(122)
-    def distance2(self, other: "Vector4") -> float:
+    def distance2(self, other: "Vector4") -> Float32:
         """Calculate the squared distance to another vector."""
-        diff = self - other
-        return diff.x**2 + diff.y**2 + diff.z**2 + diff.w**2
+        ...
 
     @declare_method(123)
-    def angle(self, other: "Vector4") -> float:
+    def angle(self, other: "Vector4") -> Float32:
         """Calculate the angle to another vector in radians."""
-
-        dot_product = self.dot(other)
-        mag_product = self.magnitude() * other.magnitude()
-        if mag_product == 0:
-            return 0.0
-        return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
+        ...
 
     @declare_method(124)
-    def lerp(self, other: "Vector4", t: float) -> "Vector4":
+    def lerp(self, other: "Vector4", t: Float32) -> "Vector4":
         """Linear interpolation between this vector and another."""
-        return Vector4(
-            x=self.x + (other.x - self.x) * t,
-            y=self.y + (other.y - self.y) * t,
-            z=self.z + (other.z - self.z) * t,
-            w=self.w + (other.w - self.w) * t,
-        )
+        ...
 
     @declare_method(
         125,
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[float]:
-        yield self.x
-        yield self.y
-        yield self.z
-        yield self.w
+    def __iter__(self) -> Iterator[Float32]: ...
 
     @declare_method(
         126,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: int) -> float:
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        elif index == 2:
-            return self.z
-        elif index == 3:
-            return self.w
-        else:
-            raise IndexError(f"index out of range: {index}")
+    def __getitem__(self, index: UInt32) -> Float32: ...
 
     @declare_method(
         127,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> int:
-        return 4
+    def __len__(self) -> UInt32: ...
 
 
 @declare_struct(
@@ -953,12 +810,9 @@ class Vector2i(StructFrozen):
     )
 
     @declare_method(101)
-    def add(self, other: "Vector2i | int") -> "Vector2i":
+    def add(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Add a Vector2i or a scalar to a Vector2i."""
-        if isinstance(other, Vector2i):
-            return Vector2i(x=self.x + other.x, y=self.y + other.y)
-        else:
-            return Vector2i(x=self.x + other, y=self.y + other)
+        ...
 
     @declare_method(
         102,
@@ -966,17 +820,14 @@ class Vector2i(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __add__(self, other: "Vector2i | int") -> "Vector2i":
+    def __add__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Add a Vector2i or a scalar to a Vector2i."""
-        return self.add(other)
+        ...
 
     @declare_method(103)
-    def sub(self, other: "Vector2i | int") -> "Vector2i":
+    def sub(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Subtract a Vector2i or a scalar from a Vector2i."""
-        if isinstance(other, Vector2i):
-            return Vector2i(x=self.x - other.x, y=self.y - other.y)
-        else:
-            return Vector2i(x=self.x - other, y=self.y - other)
+        ...
 
     @declare_method(
         104,
@@ -984,17 +835,14 @@ class Vector2i(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __sub__(self, other: "Vector2i | int") -> "Vector2i":
+    def __sub__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Subtract a Vector2i or a scalar from a Vector2i."""
-        return self.sub(other)
+        ...
 
     @declare_method(105)
-    def mul(self, other: "Vector2i | int") -> "Vector2i":
+    def mul(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Multiply a Vector2i or a scalar by a Vector2i."""
-        if isinstance(other, Vector2i):
-            return Vector2i(x=self.x * other.x, y=self.y * other.y)
-        else:
-            return Vector2i(x=self.x * other, y=self.y * other)
+        ...
 
     @declare_method(
         106,
@@ -1002,17 +850,14 @@ class Vector2i(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __mul__(self, other: "Vector2i | int") -> "Vector2i":
+    def __mul__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Multiply a Vector2i or a scalar by a Vector2i."""
-        return self.mul(other)
+        ...
 
     @declare_method(107)
-    def truediv(self, other: "Vector2i | int") -> "Vector2i":
+    def truediv(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Divide a Vector2i or a scalar by a Vector2i."""
-        if isinstance(other, Vector2i):
-            return Vector2i(x=self.x // other.x, y=self.y // other.y)
-        else:
-            return Vector2i(x=self.x // other, y=self.y // other)
+        ...
 
     @declare_method(
         108,
@@ -1020,14 +865,14 @@ class Vector2i(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __truediv__(self, other: "Vector2i | int") -> "Vector2i":
+    def __truediv__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Divide a Vector2i or a scalar by a Vector2i."""
-        return self.truediv(other)
+        ...
 
     @declare_method(109)
     def abs(self) -> "Vector2i":
         """Get the absolute value of a Vector2i."""
-        return Vector2i(x=abs(self.x), y=abs(self.y))
+        ...
 
     @declare_method(
         110,
@@ -1037,12 +882,12 @@ class Vector2i(StructFrozen):
     )
     def __abs__(self) -> "Vector2i":
         """Get the absolute value of a Vector2i."""
-        return self.abs()
+        ...
 
     @declare_method(111)
     def neg(self) -> "Vector2i":
         """Negate a vector."""
-        return Vector2i(x=-self.x, y=-self.y)
+        ...
 
     @declare_method(
         112,
@@ -1052,7 +897,7 @@ class Vector2i(StructFrozen):
     )
     def __neg__(self) -> "Vector2i":
         """Negate a vector."""
-        return self.neg()
+        ...
 
     @declare_method(
         113,
@@ -1060,9 +905,9 @@ class Vector2i(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __radd__(self, other: "Vector2i | int") -> "Vector2i":
+    def __radd__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Add a Vector2i or a scalar to a Vector2i."""
-        return self.add(other)
+        ...
 
     @declare_method(
         114,
@@ -1070,12 +915,9 @@ class Vector2i(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rsub__(self, other: "Vector2i | int") -> "Vector2i":
+    def __rsub__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Subtract a Vector2i or a scalar from a Vector2i."""
-        if isinstance(other, Vector2i):
-            return Vector2i(x=other.x - self.x, y=other.y - self.y)
-        else:
-            return Vector2i(x=other - self.x, y=other - self.y)
+        ...
 
     @declare_method(
         115,
@@ -1083,9 +925,9 @@ class Vector2i(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rmul__(self, other: "Vector2i | int") -> "Vector2i":
+    def __rmul__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Multiply a Vector2i or a scalar by a Vector2i."""
-        return self.mul(other)
+        ...
 
     @declare_method(
         116,
@@ -1093,102 +935,80 @@ class Vector2i(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rtruediv__(self, other: "Vector2i | int") -> "Vector2i":
+    def __rtruediv__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Divide a Vector2i or a scalar by a Vector2i."""
-        if isinstance(other, Vector2i):
-            return Vector2i(x=other.x // self.x, y=other.y // self.y)
-        else:
-            return Vector2i(x=other // self.x, y=other // self.y)
+        ...
 
     @declare_method(117)
     def perp(self) -> "Vector2i":
         """Get the perpendicular vector (rotated 90 degrees counterclockwise)."""
-        return Vector2i(x=self.y, y=-self.x)
+        ...
 
     @declare_method(118)
-    def dot(self, other: "Vector2i") -> int:
+    def dot(self, other: "Vector2i") -> Int32:
         """Calculate the dot product with another vector."""
-        return self.x * other.x + self.y * other.y
+        ...
 
     @declare_method(119)
-    def magnitude(self) -> float:
+    def magnitude(self) -> Int32:
         """Calculate the magnitude (length) of the vector."""
-        return (self.x**2 + self.y**2) ** 0.5
+        ...
 
     @declare_method(120)
-    def magnitude2(self) -> int:
+    def magnitude2(self) -> Int32:
         """Calculate the squared magnitude of the vector."""
-        return self.x**2 + self.y**2
+        ...
 
     @declare_method(121)
     def normalize(self) -> "Vector2":
-        """Return a normalized (unit) vector as floating point vector."""
-        mag = self.magnitude()
-        if mag == 0:
-            return Vector2(x=0.0, y=0.0)
-        return Vector2(x=self.x / mag, y=self.y / mag)
+        """Return a normalized (unit) vector as float point vector."""
+        ...
 
     @declare_method(122)
-    def distance(self, other: "Vector2i") -> float:
+    def distance(self, other: "Vector2i") -> Int32:
         """Calculate the distance to another vector."""
-        return (self - other).magnitude()
+        ...
 
     @declare_method(123)
-    def distance2(self, other: "Vector2i") -> int:
+    def distance2(self, other: "Vector2i") -> Int32:
         """Calculate the squared distance to another vector."""
-        diff = self - other
-        return diff.x**2 + diff.y**2
+        ...
 
     @declare_method(124)
-    def angle(self, other: "Vector2i") -> float:
+    def angle(self, other: "Vector2i") -> Float32:
         """Calculate the angle to another vector in radians."""
-
-        return math.atan2(other.y - self.y, other.x - self.x)
+        ...
 
     @declare_method(125)
-    def lerp(self, other: "Vector2i", t: float) -> "Vector2":
-        """Linear interpolation between this vector and another as floating point vector."""
-        return Vector2(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
+    def lerp(self, other: "Vector2i", t: Float32) -> "Vector2":
+        """Linear interpolation between this vector and another as float point vector."""
+        ...
 
     @declare_method(126)
-    def rot_with(self, center: "Vector2i", angle: float) -> "Vector2":
-        """Rotate this vector around another point by the given angle as floating point vector."""
-
-        x = self.x - center.x
-        y = self.y - center.y
-        s = math.sin(angle)
-        c = math.cos(angle)
-        return Vector2(x=center.x + (x * c - y * s), y=center.y + (x * s + y * c))
+    def rot_with(self, center: "Vector2i", angle: Float32) -> "Vector2":
+        """Rotate this vector around another point by the given angle as float point vector."""
+        ...
 
     @declare_method(
         127,
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[int]:
-        yield self.x
-        yield self.y
+    def __iter__(self) -> Iterator[Int32]: ...
 
     @declare_method(
         128,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: int) -> int:
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        else:
-            raise IndexError(f"index out of range: {index}")
+    def __getitem__(self, index: UInt32) -> Int32: ...
 
     @declare_method(
         129,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> int:
-        return 2
+    def __len__(self) -> UInt32: ...
 
 
 @declare_struct(
@@ -1244,12 +1064,9 @@ class Vector3i(StructFrozen):
     )
 
     @declare_method(101)
-    def add(self, other: "Vector3i | int") -> "Vector3i":
+    def add(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Add a Vector3i or a scalar to a Vector3i."""
-        if isinstance(other, Vector3i):
-            return Vector3i(x=self.x + other.x, y=self.y + other.y, z=self.z + other.z)
-        else:
-            return Vector3i(x=self.x + other, y=self.y + other, z=self.z + other)
+        ...
 
     @declare_method(
         102,
@@ -1257,17 +1074,14 @@ class Vector3i(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __add__(self, other: "Vector3i | int") -> "Vector3i":
+    def __add__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Add a Vector3i or a scalar to a Vector3i."""
-        return self.add(other)
+        ...
 
     @declare_method(103)
-    def sub(self, other: "Vector3i | int") -> "Vector3i":
+    def sub(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Subtract a Vector3i or a scalar from a Vector3i."""
-        if isinstance(other, Vector3i):
-            return Vector3i(x=self.x - other.x, y=self.y - other.y, z=self.z - other.z)
-        else:
-            return Vector3i(x=self.x - other, y=self.y - other, z=self.z - other)
+        ...
 
     @declare_method(
         104,
@@ -1275,17 +1089,14 @@ class Vector3i(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __sub__(self, other: "Vector3i | int") -> "Vector3i":
+    def __sub__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Subtract a Vector3i or a scalar from a Vector3i."""
-        return self.sub(other)
+        ...
 
     @declare_method(105)
-    def mul(self, other: "Vector3i | int") -> "Vector3i":
+    def mul(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Multiply a Vector3i or a scalar by a Vector3i."""
-        if isinstance(other, Vector3i):
-            return Vector3i(x=self.x * other.x, y=self.y * other.y, z=self.z * other.z)
-        else:
-            return Vector3i(x=self.x * other, y=self.y * other, z=self.z * other)
+        ...
 
     @declare_method(
         106,
@@ -1293,17 +1104,14 @@ class Vector3i(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __mul__(self, other: "Vector3i | int") -> "Vector3i":
+    def __mul__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Multiply a Vector3i or a scalar by a Vector3i."""
-        return self.mul(other)
+        ...
 
     @declare_method(107)
-    def truediv(self, other: "Vector3i | int") -> "Vector3i":
+    def truediv(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Divide a Vector3i or a scalar by a Vector3i."""
-        if isinstance(other, Vector3i):
-            return Vector3i(x=self.x // other.x, y=self.y // other.y, z=self.z // other.z)
-        else:
-            return Vector3i(x=self.x // other, y=self.y // other, z=self.z // other)
+        ...
 
     @declare_method(
         108,
@@ -1311,14 +1119,14 @@ class Vector3i(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __truediv__(self, other: "Vector3i | int") -> "Vector3i":
+    def __truediv__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Divide a Vector3i or a scalar by a Vector3i."""
-        return self.truediv(other)
+        ...
 
     @declare_method(109)
     def abs(self) -> "Vector3i":
         """Get the absolute value of a Vector3i."""
-        return Vector3i(x=abs(self.x), y=abs(self.y), z=abs(self.z))
+        ...
 
     @declare_method(
         110,
@@ -1328,12 +1136,12 @@ class Vector3i(StructFrozen):
     )
     def __abs__(self) -> "Vector3i":
         """Get the absolute value of a Vector3i."""
-        return self.abs()
+        ...
 
     @declare_method(111)
     def neg(self) -> "Vector3i":
         """Negate a vector."""
-        return Vector3i(x=-self.x, y=-self.y, z=-self.z)
+        ...
 
     @declare_method(
         112,
@@ -1343,7 +1151,7 @@ class Vector3i(StructFrozen):
     )
     def __neg__(self) -> "Vector3i":
         """Negate a vector."""
-        return self.neg()
+        ...
 
     @declare_method(
         113,
@@ -1351,9 +1159,9 @@ class Vector3i(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __radd__(self, other: "Vector3i | int") -> "Vector3i":
+    def __radd__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Add a Vector3i or a scalar to a Vector3i."""
-        return self.add(other)
+        ...
 
     @declare_method(
         114,
@@ -1361,12 +1169,9 @@ class Vector3i(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rsub__(self, other: "Vector3i | int") -> "Vector3i":
+    def __rsub__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Subtract a Vector3i or a scalar from a Vector3i."""
-        if isinstance(other, Vector3i):
-            return Vector3i(x=other.x - self.x, y=other.y - self.y, z=other.z - self.z)
-        else:
-            return Vector3i(x=other - self.x, y=other - self.y, z=other - self.z)
+        ...
 
     @declare_method(
         115,
@@ -1374,9 +1179,9 @@ class Vector3i(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rmul__(self, other: "Vector3i | int") -> "Vector3i":
+    def __rmul__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Multiply a Vector3i or a scalar by a Vector3i."""
-        return self.mul(other)
+        ...
 
     @declare_method(
         116,
@@ -1384,107 +1189,75 @@ class Vector3i(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rtruediv__(self, other: "Vector3i | int") -> "Vector3i":
+    def __rtruediv__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Divide a Vector3i or a scalar by a Vector3i."""
-        if isinstance(other, Vector3i):
-            return Vector3i(x=other.x // self.x, y=other.y // self.y, z=other.z // self.z)
-        else:
-            return Vector3i(x=other // self.x, y=other // self.y, z=other // self.z)
+        ...
 
     @declare_method(117)
-    def dot(self, other: "Vector3i") -> int:
+    def dot(self, other: "Vector3i") -> Int32:
         """Calculate the dot product with another vector."""
-        return self.x * other.x + self.y * other.y + self.z * other.z
+        ...
 
     @declare_method(118)
-    def magnitude(self) -> float:
+    def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        return (self.x**2 + self.y**2 + self.z**2) ** 0.5
+        ...
 
     @declare_method(119)
-    def magnitude2(self) -> int:
+    def magnitude2(self) -> Int32:
         """Calculate the squared magnitude of the vector."""
-        return self.x**2 + self.y**2 + self.z**2
+        ...
 
     @declare_method(120)
     def normalize(self) -> "Vector3":
-        """Return a normalized (unit) vector as floating point vector."""
-        mag = self.magnitude()
-        if mag == 0:
-            return Vector3(x=0.0, y=0.0, z=0.0)
-        return Vector3(x=self.x / mag, y=self.y / mag, z=self.z / mag)
+        """Return a normalized (unit) vector as float point vector."""
+        ...
 
     @declare_method(121)
-    def distance(self, other: "Vector3i") -> float:
+    def distance(self, other: "Vector3i") -> Float32:
         """Calculate the distance to another vector."""
-        return (self - other).magnitude()
+        ...
 
     @declare_method(122)
-    def distance2(self, other: "Vector3i") -> int:
+    def distance2(self, other: "Vector3i") -> Int32:
         """Calculate the squared distance to another vector."""
-        diff = self - other
-        return diff.x**2 + diff.y**2 + diff.z**2
+        ...
 
     @declare_method(123)
-    def angle(self, other: "Vector3i") -> float:
+    def angle(self, other: "Vector3i") -> Float32:
         """Calculate the angle to another vector in radians."""
-
-        dot_product = self.dot(other)
-        mag_product = self.magnitude() * other.magnitude()
-        if mag_product == 0:
-            return 0.0
-        return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
+        ...
 
     @declare_method(124)
-    def lerp(self, other: "Vector3i", t: float) -> "Vector3":
-        """Linear interpolation between this vector and another as floating point vector."""
-        return Vector3(
-            x=self.x + (other.x - self.x) * t,
-            y=self.y + (other.y - self.y) * t,
-            z=self.z + (other.z - self.z) * t,
-        )
+    def lerp(self, other: "Vector3i", t: Float32) -> "Vector3":
+        """Linear interpolation between this vector and another as float point vector."""
+        ...
 
     @declare_method(125)
     def cross(self, other: "Vector3i") -> "Vector3i":
         """Calculate the cross product with another vector."""
-        return Vector3i(
-            x=self.y * other.z - self.z * other.y,
-            y=self.z * other.x - self.x * other.z,
-            z=self.x * other.y - self.y * other.x,
-        )
+        ...
 
     @declare_method(
         126,
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[int]:
-        yield self.x
-        yield self.y
-        yield self.z
+    def __iter__(self) -> Iterator[Int32]: ...
 
     @declare_method(
         127,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: int) -> int:
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        elif index == 2:
-            return self.z
-        else:
-            raise IndexError(f"index out of range: {index}")
+    def __getitem__(self, index: UInt32) -> Int32: ...
 
     @declare_method(
         128,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> int:
-        return 3
+    def __len__(self) -> UInt32: ...
 
 
 @declare_struct(
@@ -1550,14 +1323,9 @@ class Vector4i(StructFrozen):
     )
 
     @declare_method(101)
-    def add(self, other: "Vector4i | int") -> "Vector4i":
+    def add(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Add a Vector4i or a scalar to a Vector4i."""
-        if isinstance(other, Vector4i):
-            return Vector4i(
-                x=self.x + other.x, y=self.y + other.y, z=self.z + other.z, w=self.w + other.w
-            )
-        else:
-            return Vector4i(x=self.x + other, y=self.y + other, z=self.z + other, w=self.w + other)
+        ...
 
     @declare_method(
         102,
@@ -1565,19 +1333,14 @@ class Vector4i(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __add__(self, other: "Vector4i | int") -> "Vector4i":
+    def __add__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Add a Vector4i or a scalar to a Vector4i."""
-        return self.add(other)
+        ...
 
     @declare_method(103)
-    def sub(self, other: "Vector4i | int") -> "Vector4i":
+    def sub(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Subtract a Vector4i or a scalar from a Vector4i."""
-        if isinstance(other, Vector4i):
-            return Vector4i(
-                x=self.x - other.x, y=self.y - other.y, z=self.z - other.z, w=self.w - other.w
-            )
-        else:
-            return Vector4i(x=self.x - other, y=self.y - other, z=self.z - other, w=self.w - other)
+        ...
 
     @declare_method(
         104,
@@ -1585,19 +1348,14 @@ class Vector4i(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __sub__(self, other: "Vector4i | int") -> "Vector4i":
+    def __sub__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Subtract a Vector4i or a scalar from a Vector4i."""
-        return self.sub(other)
+        ...
 
     @declare_method(105)
-    def mul(self, other: "Vector4i | int") -> "Vector4i":
+    def mul(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Multiply a Vector4i or a scalar by a Vector4i."""
-        if isinstance(other, Vector4i):
-            return Vector4i(
-                x=self.x * other.x, y=self.y * other.y, z=self.z * other.z, w=self.w * other.w
-            )
-        else:
-            return Vector4i(x=self.x * other, y=self.y * other, z=self.z * other, w=self.w * other)
+        ...
 
     @declare_method(
         106,
@@ -1605,21 +1363,14 @@ class Vector4i(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __mul__(self, other: "Vector4i | int") -> "Vector4i":
+    def __mul__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Multiply a Vector4i or a scalar by a Vector4i."""
-        return self.mul(other)
+        ...
 
     @declare_method(107)
-    def truediv(self, other: "Vector4i | int") -> "Vector4i":
+    def truediv(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Divide a Vector4i or a scalar by a Vector4i."""
-        if isinstance(other, Vector4i):
-            return Vector4i(
-                x=self.x // other.x, y=self.y // other.y, z=self.z // other.z, w=self.w // other.w
-            )
-        else:
-            return Vector4i(
-                x=self.x // other, y=self.y // other, z=self.z // other, w=self.w // other
-            )
+        ...
 
     @declare_method(
         108,
@@ -1627,14 +1378,14 @@ class Vector4i(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __truediv__(self, other: "Vector4i | int") -> "Vector4i":
+    def __truediv__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Divide a Vector4i or a scalar by a Vector4i."""
-        return self.truediv(other)
+        ...
 
     @declare_method(109)
     def abs(self) -> "Vector4i":
         """Get the absolute value of a Vector4i."""
-        return Vector4i(x=abs(self.x), y=abs(self.y), z=abs(self.z), w=abs(self.w))
+        ...
 
     @declare_method(
         110,
@@ -1644,12 +1395,12 @@ class Vector4i(StructFrozen):
     )
     def __abs__(self) -> "Vector4i":
         """Get the absolute value of a Vector4i."""
-        return self.abs()
+        ...
 
     @declare_method(111)
     def neg(self) -> "Vector4i":
         """Negate a vector."""
-        return Vector4i(x=-self.x, y=-self.y, z=-self.z, w=-self.w)
+        ...
 
     @declare_method(
         112,
@@ -1659,7 +1410,7 @@ class Vector4i(StructFrozen):
     )
     def __neg__(self) -> "Vector4i":
         """Negate a vector."""
-        return self.neg()
+        ...
 
     @declare_method(
         113,
@@ -1667,9 +1418,9 @@ class Vector4i(StructFrozen):
         proxies_method="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __radd__(self, other: "Vector4i | int") -> "Vector4i":
+    def __radd__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Add a Vector4i or a scalar to a Vector4i."""
-        return self.add(other)
+        ...
 
     @declare_method(
         114,
@@ -1677,14 +1428,9 @@ class Vector4i(StructFrozen):
         proxies_method="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rsub__(self, other: "Vector4i | int") -> "Vector4i":
+    def __rsub__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Subtract a Vector4i or a scalar from a Vector4i."""
-        if isinstance(other, Vector4i):
-            return Vector4i(
-                x=other.x - self.x, y=other.y - self.y, z=other.z - self.z, w=other.w - self.w
-            )
-        else:
-            return Vector4i(x=other - self.x, y=other - self.y, z=other - self.z, w=other - self.w)
+        ...
 
     @declare_method(
         115,
@@ -1692,9 +1438,9 @@ class Vector4i(StructFrozen):
         proxies_method="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rmul__(self, other: "Vector4i | int") -> "Vector4i":
+    def __rmul__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Multiply a Vector4i or a scalar by a Vector4i."""
-        return self.mul(other)
+        ...
 
     @declare_method(
         116,
@@ -1702,102 +1448,67 @@ class Vector4i(StructFrozen):
         proxies_method="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __rtruediv__(self, other: "Vector4i | int") -> "Vector4i":
+    def __rtruediv__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Divide a Vector4i or a scalar by a Vector4i."""
-        if isinstance(other, Vector4i):
-            return Vector4i(
-                x=other.x // self.x, y=other.y // self.y, z=other.z // self.z, w=other.w // self.w
-            )
-        else:
-            return Vector4i(
-                x=other // self.x, y=other // self.y, z=other // self.z, w=other // self.w
-            )
+        ...
 
     @declare_method(117)
-    def dot(self, other: "Vector4i") -> int:
+    def dot(self, other: "Vector4i") -> Int32:
         """Calculate the dot product with another vector."""
-        return self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
+        ...
 
     @declare_method(118)
-    def magnitude(self) -> float:
+    def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        return (self.x**2 + self.y**2 + self.z**2 + self.w**2) ** 0.5
+        ...
 
     @declare_method(119)
-    def magnitude2(self) -> int:
+    def magnitude2(self) -> Int32:
         """Calculate the squared magnitude of the vector."""
-        return self.x**2 + self.y**2 + self.z**2 + self.w**2
+        ...
 
     @declare_method(120)
     def normalize(self) -> "Vector4":
-        """Return a normalized (unit) vector as floating point vector."""
-        mag = self.magnitude()
-        if mag == 0:
-            return Vector4(x=0.0, y=0.0, z=0.0, w=0.0)
-        return Vector4(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
+        """Return a normalized (unit) vector as float point vector."""
+        ...
 
     @declare_method(121)
-    def distance(self, other: "Vector4i") -> float:
+    def distance(self, other: "Vector4i") -> Float32:
         """Calculate the distance to another vector."""
-        return (self - other).magnitude()
+        ...
 
     @declare_method(122)
-    def distance2(self, other: "Vector4i") -> int:
+    def distance2(self, other: "Vector4i") -> Int32:
         """Calculate the squared distance to another vector."""
-        diff = self - other
-        return diff.x**2 + diff.y**2 + diff.z**2 + diff.w**2
+        ...
 
     @declare_method(123)
-    def angle(self, other: "Vector4i") -> float:
+    def angle(self, other: "Vector4i") -> Float32:
         """Calculate the angle to another vector in radians."""
-        dot_product = self.dot(other)
-        mag_product = self.magnitude() * other.magnitude()
-        if mag_product == 0:
-            return 0.0
-        return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
+        ...
 
     @declare_method(124)
-    def lerp(self, other: "Vector4i", t: float) -> "Vector4":
-        """Linear interpolation between this vector and another as floating point vector."""
-        return Vector4(
-            x=self.x + (other.x - self.x) * t,
-            y=self.y + (other.y - self.y) * t,
-            z=self.z + (other.z - self.z) * t,
-            w=self.w + (other.w - self.w) * t,
-        )
+    def lerp(self, other: "Vector4i", t: Float32) -> "Vector4":
+        """Linear interpolation between this vector and another as float point vector."""
+        ...
 
     @declare_method(
         125,
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[int]:
-        yield self.x
-        yield self.y
-        yield self.z
-        yield self.w
+    def __iter__(self) -> Iterator[Int32]: ...
 
     @declare_method(
         126,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: int) -> int:
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        elif index == 2:
-            return self.z
-        elif index == 3:
-            return self.w
-        else:
-            raise IndexError(f"index out of range: {index}")
+    def __getitem__(self, index: UInt32) -> Int32: ...
 
     @declare_method(
         127,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> int:
-        return 4
+    def __len__(self) -> UInt32: ...

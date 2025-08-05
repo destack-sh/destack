@@ -168,7 +168,15 @@ def parse_type_declaration(
                 )
             else:
                 # general union
-                raise ValueError(f"union not yet supported: {py_type!r}")
+                element_types = tuple(
+                    parse_type_declaration(arg, is_builtin=is_builtin) for arg in non_none_types
+                )
+                return TypeDeclaration(
+                    cardinality=TypeCardinality.SCALAR,
+                    scalar_type=ScalarType.UNION,
+                    element_types=tuple(element_types),
+                    is_required=is_required,
+                )
 
     # unwrap map (dict)
     if origin is dict:
