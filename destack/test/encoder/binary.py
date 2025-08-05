@@ -11,7 +11,6 @@ def test_bool():
     writer.write_bool(True)
     writer.write_bool(False)
 
-    # Expected: 2 bytes total (1 byte per bool)
     assert len(writer.to_bytes()) == 2
 
     reader = BinaryReader(buffer=writer.to_bytes())
@@ -28,7 +27,6 @@ def test_int8():
     for value in test_values:
         writer.write_int8(value)
 
-    # Expected: 7 bytes (1 byte per int8)
     assert len(writer.to_bytes()) == 7
 
     reader = BinaryReader(buffer=writer.to_bytes())
@@ -39,7 +37,6 @@ def test_int8():
 
 def test_int16():
     """Test signed 16-bit integer variable-length encoding."""
-    # Map of value -> expected bytes with explanation
     test_cases = {
         0: 1,  # zigzag(0) = 0 -> 1 byte
         1: 1,  # zigzag(1) = 2 -> 1 byte
@@ -69,7 +66,6 @@ def test_int16():
 
 def test_int32():
     """Test signed 32-bit integer variable-length encoding."""
-    # Map of value -> expected bytes
     value_to_bytes = {
         0: 1,  # zigzag = 0
         1: 1,  # zigzag = 2
@@ -100,7 +96,6 @@ def test_int32():
 
 def test_int64():
     """Test signed 64-bit integer variable-length encoding."""
-    # Map of value -> expected bytes
     value_to_bytes = {
         0: 1,
         1: 1,
@@ -131,7 +126,6 @@ def test_int64():
 
 def test_int128():
     """Test signed 128-bit integer variable-length encoding."""
-    # Map of value -> expected bytes
     value_to_bytes = {
         0: 1,
         1: 1,
@@ -168,7 +162,6 @@ def test_uint8():
     for value in test_values:
         writer.write_uint8(value)
 
-    # Expected: 6 bytes (1 byte per uint8)
     assert len(writer.to_bytes()) == 6
 
     reader = BinaryReader(buffer=writer.to_bytes())
@@ -179,7 +172,6 @@ def test_uint8():
 
 def test_uint16():
     """Test unsigned 16-bit integer variable-length encoding."""
-    # Map of value -> expected bytes
     test_cases = {
         0: 1,  # 0 -> 1 byte
         127: 1,  # fits in 7 bits
@@ -204,7 +196,6 @@ def test_uint16():
 
 def test_uint32():
     """Test unsigned 32-bit integer variable-length encoding."""
-    # Map of value -> expected bytes
     value_to_bytes = {
         0: 1,  # 0 -> 1 byte
         127: 1,  # fits in 7 bits
@@ -234,7 +225,6 @@ def test_uint32():
 
 def test_uint64():
     """Test unsigned 64-bit integer variable-length encoding."""
-    # Map of value -> expected bytes
     value_to_bytes = {
         0: 1,
         127: 1,
@@ -264,7 +254,6 @@ def test_uint64():
 
 def test_uint128():
     """Test unsigned 128-bit integer variable-length encoding."""
-    # Map of value -> expected bytes
     value_to_bytes = {
         0: 1,
         127: 1,
@@ -504,7 +493,6 @@ def test_int_zigzag():
 
 def test_varint():
     """Test varint encoding produces expected sizes for various ranges."""
-    # Map of value -> expected bytes
     varint_sizes = {
         0: 1,  # 1 byte: 0-127
         127: 1,
