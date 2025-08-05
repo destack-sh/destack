@@ -581,6 +581,9 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot pack union: {type!r}")
         else:
             assert_never(type.scalar_type)
 
@@ -663,6 +666,9 @@ _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderO
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack Handle: {type!r}")
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot unpack union: {type!r}")
         else:
             assert_never(type.scalar_type)
 

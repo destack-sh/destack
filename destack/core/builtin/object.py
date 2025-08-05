@@ -704,6 +704,9 @@ if ({map_expr} := {source_expr}):
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             return f"{value_expr}!r"
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot get repr for union: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -913,27 +916,25 @@ if {self_source_expr} != {other_source_expr}:
                 return "{self_val} == {other_val}", True
             else:
                 assert_never(type.primitive_type)
-
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             return "{self_val} == {other_val}", True
-
         # node_reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return "{self_val}.id == {other_val}.id", False
-
         # node_value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return "{self_val}.id == {other_val}.id", False
-
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             return "{self_val}.equals({other_val})", False
-
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             return "{self_val} is {other_val}", False
-
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot get equals for union: {type!r}")
+        #
         else:
             assert_never(type.scalar_type)
 
@@ -1132,6 +1133,9 @@ if ({map_source_expr} := {source_expr}):
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot hash Handle: {type!r}")
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot hash union: {type!r}")
         else:
             assert_never(type.scalar_type)
 

@@ -160,6 +160,8 @@ class KompaktEncoder(Encoder):
                 writer.write_uint32(type.struct_type)
             elif type.scalar_type == ScalarType.HANDLE:
                 raise NotImplementedError(f"cannot pack handle: {type!r}")
+            elif type.scalar_type == ScalarType.UNION:
+                raise NotImplementedError(f"cannot pack union: {type!r}")
             else:
                 assert_never(type.scalar_type)
         # list
@@ -213,6 +215,8 @@ class KompaktEncoder(Encoder):
                 struct_type = StructType(reader.read_uint32())
             elif scalar_type == ScalarType.HANDLE:
                 raise NotImplementedError(f"cannot unpack handle: {scalar_type!r}")
+            elif scalar_type == ScalarType.UNION:
+                raise NotImplementedError(f"cannot unpack union: {scalar_type!r}")
             else:
                 assert_never(scalar_type)
         # list
@@ -444,6 +448,9 @@ class KompaktEncoder(Encoder):
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot pack union: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -556,6 +563,9 @@ class KompaktEncoder(Encoder):
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot pack union: {type!r}")
         #
         else:
             assert_never(type.scalar_type)

@@ -225,9 +225,9 @@ class TypeCardinality(OptionEnum):
     SCALAR = declare_option(1, "Scalar", description="Single value")
     LIST = declare_option(2, "List", description="Dynamic sequence of homogeneous values")
     TUPLE = declare_option(3, "Tuple", description="Fixed sequence of heterogeneous values")
-    # ARRAY/NDARRAY, "Array", "Dense multi-dimensional array of homogeneous values"
-    # SPARSE_ARRAY?, "Sparse Array", "Sparse multi-dimensional array of homogeneous values"
-    # SET?, "Set", "Set of unique values (dynamic length)"
+    # ARRAY/NDARRAY = 4, "Array", "Dense multi-dimensional array of homogeneous values"
+    # SPARSE_ARRAY = 5?, "Sparse Array", "Sparse multi-dimensional array of homogeneous values"
+    # SET = 9?, "Set", "Set of unique values"
     MAP = declare_option(10, "Map", description="Mapping of homogenous keys to homogeneous values")
 
 
@@ -268,12 +268,20 @@ class ScalarType(OptionEnum):
         "Handle",
         description="Handle (runtime-only)",
     )
-    # LITERAL = 7, "Literal", "Literal value (constant value)"
-    # UNION = 8, "Union", "Tagged union of heterogeneous values"
+    UNION = declare_option(
+        7,
+        "Union",
+        description="Tagged union of heterogeneous values",
+    )
+    # LITERAL = declare_option(
+    #     7,
+    #     "Literal",
+    #     description="Literal value (constant value)",
+    # )
     # NOTE :Incomplete: unions are annoying to handle in encoders/decoders
 
 
-assert max(ScalarType) <= 8, "ScalarType must be less than 8"  # for :Encoding
+assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding
 
 
 @declare_enum(EnumType.PRIMITIVE_TYPE)

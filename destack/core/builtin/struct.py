@@ -181,10 +181,14 @@ class Struct(Object):
 class StructFrozen(Struct):
     """An immutable Struct."""
 
-    """Cached hash of the Struct."""
-    _hash: Int32 | None = declare_property_runtime(410)
-    """Cached repr of the Struct."""
-    _repr: str | None = declare_property_runtime(411)
+    _hash: Int32 | None = declare_property_runtime(
+        410,
+        description="Cached hash of the frozen Struct.",
+    )
+    _repr: str | None = declare_property_runtime(
+        411,
+        description="Cached repr of the frozen Struct.",
+    )
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that

@@ -143,6 +143,10 @@ def _generate_value_scalar(type: Type | TypeDeclaration, value: Any) -> str:
     elif type.scalar_type == ScalarType.HANDLE:
         raise ValueError(f"unsupported value type {type.scalar_type!r}: {type!r}")
 
+    # union
+    elif type.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot generate value for union: {type!r}")
+
     #
     else:
         assert_never(type.scalar_type)

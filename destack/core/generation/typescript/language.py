@@ -168,6 +168,10 @@ def _generate_type_scalar(type: TypeDeclaration | Type, as_ptr: bool = True) -> 
     elif type.scalar_type == ScalarType.HANDLE:
         raise ValueError(f"unsupported scalar_type: {type!r}")
 
+    # union
+    elif type.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot generate type for union: {type!r}")
+
     #
     else:
         assert_never(type.scalar_type)
@@ -793,6 +797,10 @@ repr(): string {{
         elif prop.scalar_type == ScalarType.HANDLE:
             return f"{value_expr}.repr()"
 
+        # union
+        elif prop.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot get repr for union: {prop!r}")
+
         #
         else:
             assert_never(prop.scalar_type)
@@ -1172,6 +1180,10 @@ def _generate_scalar_cmp_impl(prop: TypeDeclaration) -> tuple[str, bool]:
     elif prop.scalar_type == ScalarType.HANDLE:
         return "{self_val} === {other_val}", True
 
+    # union
+    elif prop.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot get repr for union: {prop!r}")
+
     #
     else:
         assert_never(prop.scalar_type)
@@ -1337,6 +1349,10 @@ def _generate_scalar_hash_impl(type: TypeDeclaration, value_expr: str) -> str:
     # handle
     elif type.scalar_type == ScalarType.HANDLE:
         raise NotImplementedError(f"cannot hash Handle: {type!r}")
+
+    # union
+    elif type.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot hash union: {type!r}")
 
     #
     else:
@@ -1642,6 +1658,10 @@ def _get_type_dependencies(
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             pass
+
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot get type dependencies for union: {type!r}")
 
         #
         else:

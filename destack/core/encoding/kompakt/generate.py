@@ -489,6 +489,9 @@ for _ in range({key}_length):
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot pack union: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -572,6 +575,9 @@ for _ in range({key}_length):
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack Handle: {type!r}")
+        # union
+        elif type.scalar_type == ScalarType.UNION:
+            raise NotImplementedError(f"cannot unpack union: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
