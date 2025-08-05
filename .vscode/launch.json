@@ -40,6 +40,18 @@
       "env": {
         "ENVIRONMENT": "development"
       },
+    },  
+    {
+      "name": "destack.manual",
+      "type": "debugpy",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "module": "destack",
+      "args": ["manual"],
+      "justMyCode": true,
+      "env": {
+        "ENVIRONMENT": "development"
+      },
     },
   ],
 }

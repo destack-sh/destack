@@ -142,11 +142,6 @@ class ColorStyle(Style):
         ...
 
 
-#
-# Utility
-#
-
-
 @declare_method(301)
 def hex_to_rgb(hex: str) -> tuple[Float32, Float32, Float32, Float32 | None]:
     """Convert hex color string to linear-space RGB floats with optional alpha."""

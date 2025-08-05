@@ -8,6 +8,7 @@ if TYPE_CHECKING:
         Handle,
         HandleDefinition,
         HandleType,
+        ModuleDefinition,
         Node,
         NodeDefinition,
         NodeType,
@@ -33,9 +34,10 @@ HANDLE_TYPE_BY_CLASS: dict[type["Handle"], "HandleType"] = {}
 
 OBJECT_DEFINITION_REFERENCE_BY_CLASS: dict[type["Object"], "ObjectDefinitionReference"] = {}
 ENUM_DEFINITION_BY_TYPE: dict["EnumType", "EnumDefinition"] = {}
+NODE_DEFINITION_BY_TYPE: dict["NodeType", "NodeDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict["StructType", "StructDefinition"] = {}
 HANDLE_DEFINITION_BY_TYPE: dict["HandleType", "HandleDefinition"] = {}
-NODE_DEFINITION_BY_TYPE: dict["NodeType", "NodeDefinition"] = {}
+MODULE_DEFINITION_BY_NAME: dict[str, "ModuleDefinition"] = {}
 
 BUILTIN_CLASS_BY_NAME: dict[str, type["Node"] | type["Struct"] | type["Enum"] | type["Handle"]] = {}
 
