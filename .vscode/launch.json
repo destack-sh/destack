@@ -12,6 +12,7 @@
       "purpose": ["debug-test"],
       "console": "integratedTerminal",
       "env": {
+        "ENVIRONMENT": "test"
       },
       "justMyCode": false
     },

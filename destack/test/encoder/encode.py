@@ -24,11 +24,8 @@ from destack import (
     uuid4,
 )
 from destack.core.encoding.registry import get_encoder
-from destack.test.encoder.conftest import (
-    LoggingBinaryReader,
-    LoggingBinaryWriter,
-    wrap_encoder,
-)
+
+from .conftest import LoggingBinaryReader, LoggingBinaryWriter, wrap_encoder
 
 # ruff: noqa: T201
 
@@ -179,10 +176,6 @@ def test_roundtrip_query(session: Session, space: Space):
 
 def test_roundtrip_user(session: Session, space: Space):
     """Pack and unpack a User."""
-    user = User(
-        name="Florian",
-        slug="florian",
-        space_ptr=space.to_ref(),
-    )
+    user = User(name="Florian", slug="florian", space=space)
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_object(user, session, encoder, encoding)

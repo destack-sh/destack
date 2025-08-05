@@ -6,8 +6,12 @@ authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 requires-python = ">=3.13"
 
 [build-system]
-requires = ["uv_build>=0.7.13,<0.8.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["venv*", "requirements*", "*.egg-info"]
 
 [tool.uv]
 package = true
@@ -31,3 +35,4 @@ addopts = [
 ]
 markers = []
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
+

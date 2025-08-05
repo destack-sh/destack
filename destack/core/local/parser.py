@@ -68,7 +68,7 @@ class CLI:
             return
 
         # unknown command/sub-CLI
-        console.error(f"Unknown command: {first_arg}")
+        console.error(f"unknown command: `{first_arg}`")
         self.show_help()
         sys.exit(1)
 
