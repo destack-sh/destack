@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     StructType.LINE2D,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.LINE_SHAPE2D,),
 )
 @final
 class Line2D(Form2D):
@@ -27,7 +28,10 @@ class Line2D(Form2D):
     end: "Vector2" = declare_property(220, is_repr=True)
 
 
-@declare_entity(NodeType.LINE_SHAPE2D)
+@declare_entity(
+    NodeType.LINE_SHAPE2D,
+    base_struct_type=StructType.LINE2D,
+)
 class LineShape2D(Shape2D):
     """A LineShape is a shape that represents a line between two points."""
 

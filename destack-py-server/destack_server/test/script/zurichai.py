@@ -135,7 +135,7 @@ class EmailSender(Entity):
     @action
     def on_meetup_updated(self, meetup: Meetup):
         """Update Timers when meetup is updated."""
-        for timer in meetup.get_children(Timer):
+        for timer in meetup.get_children(NodeType.TIMER):
             timer.delete()
         self._create_timers(meetup)
 

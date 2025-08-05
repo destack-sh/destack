@@ -84,7 +84,7 @@ class Effect(StructFrozen):
 
 @declare_entity(
     NodeType.EFFECT_TEMPLATE,
-    struct_type=StructType.EFFECT,
+    base_struct_type=StructType.EFFECT,
     traits=(TraitType.TEMPLATE,),
 )
 class EffectTemplate(Entity):

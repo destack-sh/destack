@@ -33,6 +33,7 @@ class StrokeType(OptionEnum):
     StructType.STROKE,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.STROKE_STYLE,),
 )
 @final
 class Stroke(StructFrozen):
@@ -95,7 +96,7 @@ class StrokePath(StructFrozen):
 
 @declare_entity(
     NodeType.STROKE_STYLE,
-    struct_type=StructType.STROKE,
+    base_struct_type=StructType.STROKE,
 )
 @final
 class StrokeStyle(Style):

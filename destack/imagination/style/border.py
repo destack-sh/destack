@@ -35,6 +35,7 @@ class BorderType(OptionEnum):
     StructType.BORDER,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.BORDER_STYLE,),
 )
 @final
 class Border(StructFrozen):
@@ -48,7 +49,7 @@ class Border(StructFrozen):
 
 @declare_entity(
     NodeType.BORDER_STYLE,
-    struct_type=StructType.BORDER,
+    base_struct_type=StructType.BORDER,
 )
 class BorderStyle(Style):
     """A border style."""

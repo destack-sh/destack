@@ -11,6 +11,143 @@ if TYPE_CHECKING:
 #
 
 
+class UniverseDomain(OptionEnum):
+    """The Destack Computational Universe is organized into domains."""
+
+    CORE = declare_option(
+        1,
+        "Core",
+        description="Intrinsics: Basic atoms the rest of the Universe is built on.",
+    )
+    BASICS = declare_option(
+        10_000_000,
+        "Basics",
+        description="Scaffolding: Common Universe blocks that span domains.",
+    )
+    SIMULATION = declare_option(
+        20_000_000,
+        "Simulation",
+        description="Modeling: The Universe as a complete simulation.",
+    )
+    IMAGINATION = declare_option(
+        30_000_000,
+        "Imagination",
+        description="Imagining: The Universe as a creative canvas.",
+    )
+    PRESENTATION = declare_option(
+        40_000_000,
+        "Presentation",
+        description="Presenting: The Universe on stage.",
+    )
+    PRODUCTION = declare_option(
+        50_000_000,
+        "Production",
+        description="Operating: The Universe as a complete system.",
+    )
+    DISTRIBUTION = declare_option(
+        60_000_000,
+        "Distribution",
+        description="Distributing: Integrating the Universe with everything.",
+    )
+
+
+class UniverseCategory(OptionEnum):
+    """How the Destack Computational Universe is organized (domains > categories)."""
+
+    #
+    # CORE
+    #
+
+    BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
+    COMMON = declare_option(100_000, "Common", description="Shared definitions")
+    ENCODING = declare_option(200_000, "Encoding", description="Serialization and packing")
+    STORAGE = declare_option(300_000, "Storage", description="Graph storage and synchronization")
+    GENERATION = declare_option(400_000, "Generation", description="SDK generation")
+    LOCAL = declare_option(500_000, "Local", description="Local runtime integration")
+    UTILITY = declare_option(600_000, "Utility", description="Utility functions")
+    # ...
+    UNIVERSE = declare_option(1_000_000, "Universe", description="Global computational universe")
+    SPACE = declare_option(1_100_000, "Space", description="Spacetime organization")
+
+    #
+    # BASICS
+    #
+
+    ENTITY = declare_option(10_000_000, "Entity", description="Entity management")
+    LOGIC = declare_option(10_100_000, "Logic", description="Scripting and behavior")
+    INTELLIGENCE = declare_option(10_200_000, "Intelligence", description="Artificial intelligence")
+    ACCESS = declare_option(10_300_000, "Access", description="Access and identity")
+    QUALITY = declare_option(10_400_000, "Quality", description="Quality assurance")
+    # STREAMING, INTERNET, ...
+    STUDIO = declare_option(19_000_000, "Studio", description="Editing the Universe")
+
+    #
+    # SIMULATION
+    #
+
+    GEOMETRY = declare_option(20_000_000, "Geometry", description="Geometric representations")
+    GEOGRAPHY = declare_option(20_100_000, "Geography", description="Geographic representations")
+    PHYSICS = declare_option(20_200_000, "Physics", description="Physics simulation")
+    ANIMATION = declare_option(20_300_000, "Animation", description="Motion choreography")
+    LIGHTING = declare_option(20_500_000, "Lighting", description="Lighting and shadows")
+    PERCEPTION = declare_option(20_600_000, "Perception", description="Sensing and interaction")
+    # CHARACTER/HUMAN?, MECHANICAL, ELECTRICAL, SUBSTANCE, ...
+    # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
+
+    #
+    # IMAGINATION
+    #
+
+    AUDIO = declare_option(30_000_000, "Audio", description="Audio and sound production")
+    IMAGE = declare_option(30_100_000, "Image", description="Image and photo production")
+    VIDEO = declare_option(30_200_000, "Video", description="Video production")
+    MODEL = declare_option(30_300_000, "Model", description="Modeling and sculpting")
+    PAINT = declare_option(30_400_000, "Paint", description="Drawing and painting")
+    STYLE = declare_option(31_000_000, "Style", description="Appearance and theming")
+    DOCUMENT = declare_option(32_000_000, "Document", description="Document processing")
+    # NARRATIVE, ...
+    # ARCHITECTURE, ...
+
+    #
+    # PRESENTATION
+    #
+
+    SCENE = declare_option(40_000_000, "Scene", description="Staging and viewing")
+    VIEW = declare_option(40_100_000, "View", description="View construction")
+    RENDERING = declare_option(40_200_000, "Rendering", description="Render pipelines")
+    CAMERA = declare_option(40_300_000, "Camera", description="Camera and viewport")
+    SHADERS = declare_option(40_400_000, "Shaders", description="Shader programming")
+    MATERIAL = declare_option(40_500_000, "Material", description="Material rendering")
+    # XR, PARTICLE, ...
+
+    #
+    # PRODUCTION
+    #
+
+    CLOUD = declare_option(50_000_000, "Cloud", description="Cloud computing infrastructure")
+    OBSERVABILITY = declare_option(
+        50_100_000, "Observability", description="Telemetry on everything"
+    )
+    EXPERIENCE = declare_option(50_200_000, "Experience", description="User experience")
+    # PRINTING, ACTUATION, ROBOTICS, ...
+    # TRANSPORTATION, ENERGY, DEFENSE, ...
+    # CONSUMER/HOME, PHARMACEUTICAL, ...
+
+    #
+    # DISTRIBUTION
+    #
+
+    LOCALIZATION = declare_option(
+        60_000_000, "Localization", description="Localization and internationalization"
+    )
+    LEGAL = declare_option(60_100_000, "Legal", description="Legal, compliance and policy")
+    SOCIAL = declare_option(60_200_000, "Social", description="Interactions, reputation and trust")
+    FINANCE = declare_option(60_300_000, "Finance", description="Accounting and finance")
+    COMMERCE = declare_option(60_400_000, "Commerce", description="Billing and monetization")
+    # ACCESSIBILITY, GOVERNANCE, ...
+    # CONTENT, CRYPTO, ...
+
+
 class EnumType(OptionEnum):
     #
     # CORE
@@ -113,6 +250,9 @@ class EnumType(OptionEnum):
     # quality [10_400_000]
     # ...
 
+    # studio [19_000_000]
+    # ...
+
     #
     # SIMULATION
     #
@@ -127,11 +267,14 @@ class EnumType(OptionEnum):
     OVERFLOW = declare_option(20_000_006)
     ARROW_HEAD_TYPE = declare_option(20_000_200)
 
-    # physics [20_100_000]
+    # geography [20_100_000]
     # ...
 
-    # perception [20_200_000]
-    MOUSE_BUTTON = declare_option(20_200_000)
+    # physics [20_200_000]
+    # ...
+
+    # perception [20_600_000]
+    MOUSE_BUTTON = declare_option(20_600_000)
 
     # animation [20_300_000]
     TRANSITION_TYPE = declare_option(20_300_000)
@@ -139,6 +282,9 @@ class EnumType(OptionEnum):
     EFFECT_TYPE = declare_option(20_300_100)
     REPEAT_TYPE = declare_option(20_300_002)
     EASING = declare_option(20_300_003)
+
+    # lighting [20_500_000]
+    # ...
 
     #
     # IMAGINATION
@@ -159,10 +305,10 @@ class EnumType(OptionEnum):
     # paint [30_400_000]
     # ...
 
-    # document [30_500_000]
+    # style [31_000_000]
     # ...
 
-    # style [31_000_000]
+    # document [32_000_000]
     # ...
 
     #
@@ -175,7 +321,7 @@ class EnumType(OptionEnum):
     # view [40_100_000]
     # ...
 
-    # style [40_200_000]
+    # rendering [40_200_000]
     COLOR_TYPE = declare_option(40_200_000)
     COLOR_SHADE = declare_option(40_200_001)
     COLOR_HUE = declare_option(40_200_002)
@@ -197,13 +343,13 @@ class EnumType(OptionEnum):
     TEXT_SPLIT_TYPE = declare_option(40_200_901)
     OFFSCREEN_BEHAVIOR = declare_option(40_200_902)
 
-    # rendering [40_200_000]
+    # camera [40_300_000]
     # ...
 
-    # shaders [40_300_000]
+    # shaders [40_400_000]
     # ...
 
-    # lighting [40_400_000]
+    # material [40_500_000]
     # ...
 
     #
@@ -235,6 +381,7 @@ class EnumType(OptionEnum):
 
     # social [60_200_000]
     NOTIFICATION_STATUS = declare_option(60_200_300)
+    # ...
 
     # finance [60_300_000]
     # ...
@@ -242,15 +389,10 @@ class EnumType(OptionEnum):
     # commerce [60_400_000]
     # ...
 
-    #
-    # STUDIO
-    #
-
-    # editor [100_000_000]
-    # ...
-
 
 EnumType = declare_enum(EnumType.ENUM_TYPE)(EnumType)
+UniverseDomain = declare_enum(EnumType.UNIVERSE_DOMAIN)(UniverseDomain)
+UniverseCategory = declare_enum(EnumType.UNIVERSE_CATEGORY)(UniverseCategory)
 
 
 @declare_enum(EnumType.OBJECT_KIND)
@@ -354,16 +496,22 @@ class TraitType(OptionEnum):
     # geometry [20_000_000]
     # ...
 
-    # physics [20_100_000]
+    # geography [20_100_000]
     # ...
 
-    # perception [20_200_000]
-    INTERACTIVE = declare_option(20_200_000, "Interactive", description="Can be interacted with")
-    DRAGGABLE = declare_option(20_200_001, "Draggable", description="Can be dragged")
-    SELECTABLE = declare_option(20_200_002, "Selectable", description="Can be selected")
+    # physics [20_200_000]
+    # ...
+
+    # perception [20_600_000]
+    INTERACTIVE = declare_option(20_600_000, "Interactive", description="Can be interacted with")
+    DRAGGABLE = declare_option(20_600_001, "Draggable", description="Can be dragged")
+    SELECTABLE = declare_option(20_600_002, "Selectable", description="Can be selected")
     # ...
 
     # animation [20_300_000]
+    # ...
+
+    # lighting [20_500_000]
     # ...
 
     #
@@ -382,13 +530,13 @@ class TraitType(OptionEnum):
     # model [30_300_000]
     # ...
 
-    # document [30_400_000]
-    # ...
-
-    # paint [30_500_000]
+    # paint [30_400_000]
     # ...
 
     # style [31_000_000]
+    # ...
+
+    # document [32_000_000]
     # ...
 
     #
@@ -404,10 +552,13 @@ class TraitType(OptionEnum):
     # rendering [40_200_000]
     # ...
 
-    # shaders [40_300_000]
+    # camera [40_300_000]
     # ...
 
-    # lighting [40_400_000]
+    # shaders [40_400_000]
+    # ...
+
+    # material [40_500_000]
     # ...
 
     #
@@ -682,57 +833,59 @@ class NodeType(OptionEnum):
     PATH_SHAPE2D = declare_option(20_000_208, "Path Shape2D")
     SHAPE3D = declare_option(20_000_300, "Shape3D")
 
-    # physics [20_100_000]
-    # BODY, BODY2D, ...
+    # geography [20_100_000]
+    # ...
+
+    # physics [20_200_000]
+    # BODY2D, BODY3D, COLLIDER, ...
+    # PHYSICS_SERVICE?, ...
     # BODY_EVENT, CONTACT_EVENT, COLLISION_EVENT, ...
     # RIGID_BODY, SOFT_BODY, ...
-    # CLOTH, ...
-    # LIQUID, ...
-    # COLLIDER, ...
+    # CLOTH, FLESH, LIQUID/FLUID, ...
     # SKELETON, BONE, ...
     # JOINT, FIXED_JOINT, FREE_JOINT, SPHERICAL_JOINT, SPRING, MOTOR, ...
     # NAVIGATION, ...
 
-    # perception [20_200_000]
-    INPUT_EVENT = declare_option(20_200_000, "Input Event")
+    # perception [20_600_000]
+    INPUT_EVENT = declare_option(20_600_000, "Input Event")
     # pointer events
-    POINTER_EVENT = declare_option(20_200_100, "Pointer Event")
-    POINTER_DOWN_EVENT = declare_option(20_200_101, "Pointer Down Event")
-    POINTER_UP_EVENT = declare_option(20_200_102, "Pointer Up Event")
-    POINTER_MOVE_EVENT = declare_option(20_200_103, "Pointer Move Event")
-    POINTER_ENTER_EVENT = declare_option(20_200_104, "Pointer Enter Event")
-    POINTER_OVER_EVENT = declare_option(20_200_105, "Pointer Over Event")
-    POINTER_LEAVE_EVENT = declare_option(20_200_106, "Pointer Leave Event")
-    POINTER_LONG_PRESS_EVENT = declare_option(20_200_107, "Long Press Event")
+    POINTER_EVENT = declare_option(20_600_100, "Pointer Event")
+    POINTER_DOWN_EVENT = declare_option(20_600_101, "Pointer Down Event")
+    POINTER_UP_EVENT = declare_option(20_600_102, "Pointer Up Event")
+    POINTER_MOVE_EVENT = declare_option(20_600_103, "Pointer Move Event")
+    POINTER_ENTER_EVENT = declare_option(20_600_104, "Pointer Enter Event")
+    POINTER_OVER_EVENT = declare_option(20_600_105, "Pointer Over Event")
+    POINTER_LEAVE_EVENT = declare_option(20_600_106, "Pointer Leave Event")
+    POINTER_LONG_PRESS_EVENT = declare_option(20_600_107, "Long Press Event")
     # mouse events
-    MOUSE_EVENT = declare_option(20_200_200, "Mouse Event")
-    CLICK_EVENT = declare_option(20_200_201, "Click Event")
-    SINGLE_CLICK_EVENT = declare_option(20_200_202, "Single Click Event")
-    DOUBLE_CLICK_EVENT = declare_option(20_200_203, "Double Click Event")
-    TRIPLE_CLICK_EVENT = declare_option(20_200_204, "Triple Click Event")
-    WHEEL_EVENT = declare_option(20_200_210, "Wheel Event")
+    MOUSE_EVENT = declare_option(20_600_200, "Mouse Event")
+    CLICK_EVENT = declare_option(20_600_201, "Click Event")
+    SINGLE_CLICK_EVENT = declare_option(20_600_202, "Single Click Event")
+    DOUBLE_CLICK_EVENT = declare_option(20_600_203, "Double Click Event")
+    TRIPLE_CLICK_EVENT = declare_option(20_600_204, "Triple Click Event")
+    WHEEL_EVENT = declare_option(20_600_210, "Wheel Event")
     # key events
-    KEY_EVENT = declare_option(20_200_300, "Key Event")
-    KEY_DOWN_EVENT = declare_option(20_200_301, "Key Down Event")
-    KEY_UP_EVENT = declare_option(20_200_302, "Key Up Event")
-    KEY_PRESS_EVENT = declare_option(20_200_303, "Key Press Event")
+    KEY_EVENT = declare_option(20_600_300, "Key Event")
+    KEY_DOWN_EVENT = declare_option(20_600_301, "Key Down Event")
+    KEY_UP_EVENT = declare_option(20_600_302, "Key Up Event")
+    KEY_PRESS_EVENT = declare_option(20_600_303, "Key Press Event")
     # drag events
-    DRAG_EVENT = declare_option(20_200_400, "Drag Event")
-    DRAG_START_EVENT = declare_option(20_200_401, "Drag Start Event")
-    DRAG_END_EVENT = declare_option(20_200_402, "Drag End Event")
-    DRAG_OVER_EVENT = declare_option(20_200_403, "Drag Over Event")
-    DRAG_ENTER_EVENT = declare_option(20_200_404, "Drag Enter Event")
-    DRAG_LEAVE_EVENT = declare_option(20_200_405, "Drag Leave Event")
-    DROP_EVENT = declare_option(20_200_406, "Drop Event")
+    DRAG_EVENT = declare_option(20_600_400, "Drag Event")
+    DRAG_START_EVENT = declare_option(20_600_401, "Drag Start Event")
+    DRAG_END_EVENT = declare_option(20_600_402, "Drag End Event")
+    DRAG_OVER_EVENT = declare_option(20_600_403, "Drag Over Event")
+    DRAG_ENTER_EVENT = declare_option(20_600_404, "Drag Enter Event")
+    DRAG_LEAVE_EVENT = declare_option(20_600_405, "Drag Leave Event")
+    DROP_EVENT = declare_option(20_600_406, "Drop Event")
     # clipboard events
-    CLIPBOARD_EVENT = declare_option(20_200_500, "Clipboard Event")
-    COPY_EVENT = declare_option(20_200_501, "Copy Event")
-    CUT_EVENT = declare_option(20_200_502, "Cut Event")
-    PASTE_EVENT = declare_option(20_200_503, "Paste Event")
+    CLIPBOARD_EVENT = declare_option(20_600_500, "Clipboard Event")
+    COPY_EVENT = declare_option(20_600_501, "Copy Event")
+    CUT_EVENT = declare_option(20_600_502, "Cut Event")
+    PASTE_EVENT = declare_option(20_600_503, "Paste Event")
     # focus events
-    FOCUS_EVENT = declare_option(20_200_600, "Focus Event")
-    FOCUS_IN_EVENT = declare_option(20_200_601, "Focus In Event")
-    FOCUS_OUT_EVENT = declare_option(20_200_602, "Focus Out Event")
+    FOCUS_EVENT = declare_option(20_600_600, "Focus Event")
+    FOCUS_IN_EVENT = declare_option(20_600_601, "Focus In Event")
+    FOCUS_OUT_EVENT = declare_option(20_600_602, "Focus Out Event")
     # command
     # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
@@ -745,6 +898,12 @@ class NodeType(OptionEnum):
     # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
     # KEYFRAME_VARIANT, ...
     # RIG, ...
+
+    # lighting [20_500_000]
+    # LIGHT, LIGHT2D, ...
+    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
+    # OCCLUDER, ...
+    # ...
 
     #
     # IMAGINATION
@@ -767,11 +926,7 @@ class NodeType(OptionEnum):
     MODEL = declare_option(30_300_000, "Model")
     # ...
 
-    # document [30_400_000]
-    DOCUMENT = declare_option(30_400_000, "Document")
-    # ...
-
-    # paint [30_500_000]
+    # paint [30_400_000]
     # RASTER/BITMAP, ...
     # DAB, PAINT, BRUSH, ...
     # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
@@ -788,6 +943,10 @@ class NodeType(OptionEnum):
     SHADOW_STYLE = declare_option(31_001_400, "Shadow Style")
     GRADIENT_STYLE = declare_option(31_001_500, "Gradient Style")
     STROKE_STYLE = declare_option(31_001_600, "Stroke Style")
+
+    # document [32_000_000]
+    DOCUMENT = declare_option(32_000_000, "Document")
+    # ...
 
     #
     # PRESENTATION
@@ -830,13 +989,13 @@ class NodeType(OptionEnum):
     # rendering [40_200_000]
     # ...
 
-    # shaders [40_300_000]
+    # camera [40_300_000]
     # ...
 
-    # lighting [40_400_000]
-    # LIGHT, LIGHT2D, ...
-    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
-    # OCCLUDER, ...
+    # shaders [40_400_000]
+    # ...
+
+    # material [40_500_000]
     # ...
 
     #
@@ -1058,15 +1217,21 @@ class StructType(OptionEnum):
     PATH2D = declare_option(20_000_208, "Path")
     FORM3D = declare_option(20_000_300, "Form3D")
 
-    # physics [20_100_000]
+    # geography [20_100_000]
     # ...
 
-    # perception [20_200_000]
+    # physics [20_200_000]
+    # ...
+
+    # perception [20_600_000]
     # ...
 
     # animation [20_300_000]
     TRANSITION = declare_option(20_300_000, "Transition")
     EFFECT = declare_option(20_300_100, "Effect")
+
+    # lighting [20_500_000]
+    # ...
 
     #
     # IMAGINATION
@@ -1084,10 +1249,7 @@ class StructType(OptionEnum):
     # model [30_300_000]
     # ...
 
-    # document [30_400_000]
-    # ...
-
-    # paint [30_500_000]
+    # paint [30_400_000]
     # ...
 
     # style [31_000_000]
@@ -1103,6 +1265,9 @@ class StructType(OptionEnum):
     STROKE_PATH = declare_option(31_001_602, "Stroke Path")
     STROKE_POINT = declare_option(31_001_603, "Stroke Point")
 
+    # document [32_000_000]
+    # ...
+
     #
     # PRESENTATION
     #
@@ -1116,10 +1281,13 @@ class StructType(OptionEnum):
     # rendering [40_200_000]
     # ...
 
-    # shaders [40_300_000]
+    # camera [40_300_000]
     # ...
 
-    # lighting [40_400_000]
+    # shaders [40_400_000]
+    # ...
+
+    # material [40_500_000]
     # ...
 
     #
@@ -1181,114 +1349,4 @@ class HandleType(OptionEnum):
     GRAPH = declare_option(400_000)
     CONNECTION = declare_option(400_100)
     STREAM = declare_option(400_200)
-
-
-@declare_enum(EnumType.UNIVERSE_DOMAIN)
-class UniverseDomain(OptionEnum):
-    """The Destack Universe is organized into domains."""
-
-    CORE = declare_option(1, "Core", description="Universe intrinsics")
-    BASICS = declare_option(10_000_000, "Basics", description="Scaffolding the Universe")
-    SIMULATION = declare_option(20_000_000, "Simulation", description="Modeling the Universe")
-    IMAGINATION = declare_option(30_000_000, "Imagination", description="Imagining the Universe")
-    PRESENTATION = declare_option(40_000_000, "Presentation", description="Presenting the Universe")
-    PRODUCTION = declare_option(50_000_000, "Production", description="Operating the Universe")
-    DISTRIBUTION = declare_option(
-        60_000_000, "Distribution", description="Distributing the Universe"
-    )
-
-
-@declare_enum(EnumType.UNIVERSE_CATEGORY)
-class UniverseCategory(OptionEnum):
-    """How the Destack Universe is organized (domains > categories)."""
-
-    #
-    # CORE
-    #
-
-    BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
-    COMMON = declare_option(100_000, "Common", description="Shared definitions")
-    ENCODING = declare_option(200_000, "Encoding", description="Serialization and packing")
-    STORAGE = declare_option(300_000, "Storage", description="Graph storage and synchronization")
-    GENERATION = declare_option(400_000, "Generation", description="SDK generation")
-    LOCAL = declare_option(500_000, "Local", description="Local runtime integration")
-    UTILITY = declare_option(600_000, "Utility", description="Utility functions")
-    # ...
-    UNIVERSE = declare_option(1_000_000, "Universe", description="Global computational universe")
-    SPACE = declare_option(1_100_000, "Space", description="Spacetime organization")
-
-    #
-    # BASICS
-    #
-
-    ENTITY = declare_option(10_000_000, "Entity", description="Entity management")
-    LOGIC = declare_option(10_100_000, "Logic", description="Scripting and behavior")
-    INTELLIGENCE = declare_option(10_200_000, "Intelligence", description="Artificial intelligence")
-    ACCESS = declare_option(10_300_000, "Access", description="Access and identity")
-    QUALITY = declare_option(10_400_000, "Quality", description="Quality assurance")
-    STUDIO = declare_option(10_500_000, "Studio", description="Editing the Universe")
-    # STREAMING, INTERNET, ...
-
-    #
-    # SIMULATION
-    #
-
-    GEOMETRY = declare_option(20_000_000, "Geometry", description="Geometric representations")
-    PHYSICS = declare_option(20_100_000, "Physics", description="Physics simulation")
-    PERCEPTION = declare_option(20_200_000, "Perception", description="Sensing and interaction")
-    ANIMATION = declare_option(20_300_000, "Animation", description="Motion and time choreography")
-    # CHARACTER/HUMAN?, ...
-    # GEOGRAPHY/GEOLOCATION/MAPPING?, ...
-    # MATERIAL?, MECHANICAL, ELECTRICAL, THERMODYNAMICS, INTERSTELLAR, ...
-    # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
-
-    #
-    # IMAGINATION
-    #
-
-    AUDIO = declare_option(30_000_000, "Audio", description="Audio and sound production")
-    IMAGE = declare_option(30_100_000, "Image", description="Image and photo production")
-    VIDEO = declare_option(30_200_000, "Video", description="Video production")
-    MODEL = declare_option(30_300_000, "Model", description="Modeling and sculpting")
-    DOCUMENT = declare_option(30_400_000, "Document", description="Document work")
-    PAINT = declare_option(30_500_000, "Paint", description="Drawing and painting")
-    STYLE = declare_option(31_000_000, "Style", description="Appearance and theming")
-    # MATERIAL?, NARRATIVE, ...
-
-    #
-    # PRESENTATION
-    #
-
-    SCENE = declare_option(40_000_000, "Scene", description="Staging and viewing")
-    VIEW = declare_option(40_100_000, "View", description="View construction")
-    RENDERING = declare_option(40_200_000, "Rendering", description="Render pipelines")
-    SHADERS = declare_option(40_300_000, "Shaders", description="Shader programming")
-    LIGHTING = declare_option(40_400_000, "Lighting", description="Lighting and shadows")
-    # CAMERA/VIEWPORT, XR, PARTICLE, ...
-
-    #
-    # PRODUCTION
-    #
-
-    CLOUD = declare_option(50_000_000, "Cloud", description="Cloud computing infrastructure")
-    OBSERVABILITY = declare_option(
-        50_100_000, "Observability", description="Telemetry on everything"
-    )
-    EXPERIENCE = declare_option(50_200_000, "Experience", description="User experience")
-    # PRINTING, ACTUATION, ROBOTICS, ...
-    # TRANSPORTATION, ENERGY, DEFENSE, ...
-    # CONSUMER/HOME, PHARMACEUTICAL, ...
-
-    #
-    # DISTRIBUTION
-    #
-
-    LOCALIZATION = declare_option(
-        60_000_000, "Localization", description="Localization and internationalization"
-    )
-    LEGAL = declare_option(60_100_000, "Legal", description="Legal, compliance and policy")
-    SOCIAL = declare_option(60_200_000, "Social", description="Interactions, reputation and trust")
-    FINANCE = declare_option(60_300_000, "Finance", description="Accounting and finance")
-    COMMERCE = declare_option(60_400_000, "Commerce", description="Billing and monetization")
-    # ACCESSIBILITY, GOVERNANCE, ...
-    # CONTENT, COST, CRYPTO, ...
+    # TRANSPORT, ...?

@@ -24,11 +24,13 @@ _ALLOWED_POSTFIXES = ("MESSAGE", "REQUEST", "RESPONSE")
     frozen_default=True,
 )
 def declare_message(
+    # meta
     message_type: StructType,
     *,
     is_abstract: bool = False,
     is_final: bool = False,
     stability: ObjectStability = ObjectStability.DYNAMIC,
+    # associations
     tags: tuple["TagDeclaration", ...] = (),
     enum_types: tuple[EnumType, ...] = (),
 ):
@@ -36,14 +38,17 @@ def declare_message(
 
     def decorate(cls: type) -> type:
         cls = _process_struct_cls(
+            # meta
             cls=cast(type["StructFrozen"], cls),
             struct_type=message_type,
             stability=stability,
             is_frozen=True,
             is_abstract=is_abstract,
             is_final=is_final,
+            # associations
             tags=tags,
             enum_types=enum_types,
+            into_node_types=(),
         )
 
         # validate

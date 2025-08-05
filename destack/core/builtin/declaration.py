@@ -133,6 +133,7 @@ class StructDeclaration(ObjectDeclaration):
     # associations
     enum_types: list[EnumType]
     self_enum_types: list[EnumType]
+    into_node_types: list[NodeType]
 
 
 @dataclass(slots=True, repr=False)
@@ -144,7 +145,6 @@ class NodeDeclaration(ObjectDeclaration):
     is_singleton: bool
 
     # inheritance
-    struct_type: StructType | None
     base_type: NodeType | None
     inherits: list[NodeType]
     inherited_by: list[NodeType]
@@ -179,6 +179,7 @@ class NodeDeclaration(ObjectDeclaration):
     self_enum_types: list[EnumType]
     message_types: list[StructType]
     self_message_types: list[StructType]
+    base_struct_type: StructType | None
 
 
 @dataclass(slots=True, repr=False)
@@ -251,7 +252,6 @@ class FunctionDeclaration(Declaration):
     description: str
     func: Callable
     is_async: bool
-    is_abstract: bool
     is_internal: bool
 
     # content
@@ -261,7 +261,7 @@ class FunctionDeclaration(Declaration):
 
 
 @dataclass(slots=True, repr=False)
-class SignatureDeclaration:
+class SignatureDeclaration(Declaration):
     """Declaration of a function signature."""
 
     input_properties: list["PropertyDeclaration"]
@@ -281,7 +281,7 @@ def _parse_signature(
 
     # process input parameters
     for param_name, param in signature.parameters.items():
-        if param_name == "self":
+        if param_name == "self" or param_name == "cls":
             continue
         prop = PropertyDeclaration(
             name=param_name,
@@ -352,17 +352,24 @@ def _process_method(
         func = cast(Callable, func.fget)
         type = MethodType.PROPERTY
 
+    # meta
+    qualname = f"{func.__module__}.{func.__qualname__}"
+    is_async = inspect.iscoroutinefunction(func)
+
     # parse function signature
     signature_declaration = _parse_signature(
-        qualname=f"{func.__module__}.{func.__qualname__}",
+        qualname=qualname,
         func=func,
         signature=inspect.signature(func),
     )
 
     # implementation must be empty
-    if len(func.__code__.co_code) > 4 and not is_implemented:  # ... is 4 bytes
+    if not is_implemented and (
+        (not is_async and len(func.__code__.co_code) > 4)
+        or (is_async and len(func.__code__.co_code) > 12)
+    ):
         source = inspect.getsource(func).strip()
-        raise ValueError(f"method declaration must be empty: {func.__name__}\n{source}")
+        raise ValueError(f"abstract method declaration must be empty: {qualname}\n{source}")
 
     declaration = MethodDeclaration(
         id=id,
@@ -370,8 +377,7 @@ def _process_method(
         description=func.__doc__ or "",
         func=func,
         is_implemented=is_implemented,
-        is_async=inspect.iscoroutinefunction(func),
-        is_abstract=False,
+        is_async=is_async,
         is_internal=is_internal,
         tags=tags,
         runtimes=runtimes,

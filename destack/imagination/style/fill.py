@@ -53,6 +53,7 @@ class FillSize(OptionEnum):
     StructType.FILL,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.FILL_STYLE,),
 )
 @final
 class Fill(StructFrozen):
@@ -77,7 +78,7 @@ class Fill(StructFrozen):
 
 @declare_entity(
     NodeType.FILL_STYLE,
-    struct_type=StructType.FILL,
+    base_struct_type=StructType.FILL,
 )
 class FillStyle(Style):
     """A fill style."""

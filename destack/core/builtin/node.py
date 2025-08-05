@@ -15,19 +15,16 @@ from ..utility import UUID
 from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
-from .property import (
-    _PROPERTY_SPECIFIERS,
-    declare_property,
-    declare_property_runtime,
-)
+from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
+from .types import UInt32
 
 if TYPE_CHECKING:
     from destack import (
         Condition,
         ConstraintDeclaration,
-        ExpressionIn,
+        Expression,
         IndexDeclaration,
-        JoinIn,
+        Join,
         Node,
         NodeDefinition,
         NodeReference,
@@ -53,7 +50,6 @@ def _process_node_cls(
     is_frozen: bool,
     # inheritance
     traits: tuple[TraitType, ...],
-    struct_type: StructType | None,
     # content
     indexes: tuple["IndexDeclaration", ...],
     constraints: tuple["ConstraintDeclaration", ...],
@@ -68,6 +64,7 @@ def _process_node_cls(
     message_types: tuple[StructType, ...],
     event_types: tuple[NodeType, ...],
     enum_types: tuple[EnumType, ...],
+    base_struct_type: StructType | None,
 ) -> type["Node"]:
     assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
 
@@ -116,7 +113,7 @@ def _process_node_cls(
         extended_by=[],
         traits=list(reversed(all_traits)),
         self_traits=list(all_traits),
-        struct_type=struct_type,
+        base_struct_type=base_struct_type,
         # content
         properties=[],
         methods=[],
@@ -185,8 +182,8 @@ def _process_node_cls(
         )
         raise ValueError(f"{cls.__name__} extends final {bad_base.__name__}")
     # struct type must be fully matched
-    if struct_type is not None:
-        struct_cls = STRUCT_CLASS_BY_TYPE[struct_type]
+    if base_struct_type is not None:
+        struct_cls = STRUCT_CLASS_BY_TYPE[base_struct_type]
         for struct_prop in struct_cls.__declaration__.properties:
             if struct_prop.is_internal:
                 continue
@@ -196,7 +193,8 @@ def _process_node_cls(
                     # nocheckin: proper mechanism for "struct with partial overrides to node"
                     #  (like Styles or TransitionTemplate or any template really..
                     #   .. similarity to Entity partials?
-                    #   .. also similarity to Context overrides in Entity.context_values?)
+                    #   .. also similarity to Context overrides in Entity.context_values?
+                    #   .. also similarity to mut/non mut Structs?)
                     continue
                 raise ValueError(f"'{cls.__name__}' has no property {struct_prop!r}")
             if node_prop.type != struct_prop.type:
@@ -219,7 +217,7 @@ def _declare_node(
     is_singleton: bool = False,
     # inheritance
     traits: tuple[TraitType, ...] = (),
-    struct_type: StructType | None = None,
+    base_struct_type: StructType | None = None,
     # content
     indexes: tuple["IndexDeclaration", ...] = (),
     constraints: tuple["ConstraintDeclaration", ...] = (),
@@ -248,7 +246,7 @@ def _declare_node(
             is_frozen=frozen,
             # inheritance
             traits=traits,
-            struct_type=struct_type,
+            base_struct_type=base_struct_type,
             # content
             indexes=indexes,
             constraints=constraints,
@@ -348,11 +346,11 @@ class Node(Object):
     @classmethod
     @declare_method(60)
     def get(
-        cls: type["Self"],
+        cls,
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["JoinIn"] = None,
+        join: Optional["Join"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         """Make a get Query for this Node."""
@@ -361,16 +359,16 @@ class Node(Object):
     @classmethod
     @declare_method(61)
     def search(
-        cls: type["Self"],
+        cls,
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["JoinIn"] = None,
+        join: Optional["Join"] = None,
         having: Optional["Condition"] = None,
         sort: Optional[list["Sort"]] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
+        group_by: Optional[list["Expression"]] = None,
+        limit: Optional[UInt32] = None,
+        offset: Optional[UInt32] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         """Make a search Query for this Node."""
@@ -379,11 +377,11 @@ class Node(Object):
     @classmethod
     @declare_method(62)
     def exists(
-        cls: type["Self"],
+        cls,
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["JoinIn"] = None,
+        join: Optional["Join"] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make a count Query for this Node."""
         ...
@@ -391,13 +389,13 @@ class Node(Object):
     @classmethod
     @declare_method(63)
     def count(
-        cls: type["Self"],
+        cls,
         where: Optional["Condition"] = None,
         *,
         name: str | None = None,
-        join: Optional["JoinIn"] = None,
+        join: Optional["Join"] = None,
         sort: Optional[list["Sort"]] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
+        group_by: Optional[list["Expression"]] = None,
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make a min Query for this Node."""
@@ -406,14 +404,14 @@ class Node(Object):
     @classmethod
     @declare_method(64)
     def min(
-        cls: type["Self"],
-        expression: "ExpressionIn",
+        cls,
+        expression: "Expression",
         *,
         name: str | None = None,
-        join: Optional["JoinIn"] = None,
+        join: Optional["Join"] = None,
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
+        group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         ...
@@ -421,14 +419,14 @@ class Node(Object):
     @classmethod
     @declare_method(65)
     def max(
-        cls: type["Self"],
-        expression: "ExpressionIn",
+        cls,
+        expression: "Expression",
         *,
         name: str | None = None,
-        join: Optional["JoinIn"] = None,
+        join: Optional["Join"] = None,
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
+        group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make an average Query for this Node."""
@@ -437,14 +435,14 @@ class Node(Object):
     @classmethod
     @declare_method(66)
     def sum(
-        cls: type["Self"],
-        expression: "ExpressionIn",
+        cls,
+        expression: "Expression",
         *,
         name: str | None = None,
-        join: Optional["JoinIn"] = None,
+        join: Optional["Join"] = None,
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
+        group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         """Make an average Query for this Node."""

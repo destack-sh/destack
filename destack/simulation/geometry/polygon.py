@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     StructType.POLYGON2D,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.POLYGON_SHAPE2D,),
 )
 @final
 class Polygon2D(Form2D):
@@ -26,7 +27,10 @@ class Polygon2D(Form2D):
     points: list["Vector2"] = declare_property(210, is_repr=True)
 
 
-@declare_entity(NodeType.POLYGON_SHAPE2D)
+@declare_entity(
+    NodeType.POLYGON_SHAPE2D,
+    base_struct_type=StructType.POLYGON2D,
+)
 class PolygonShape2D(Shape2D):
     """A PolygonShape is a shape that represents a polygon."""
 

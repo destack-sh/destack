@@ -1,6 +1,5 @@
 from typing import (
     TYPE_CHECKING,
-    Any,
     ClassVar,
     Self,
     cast,
@@ -9,7 +8,7 @@ from typing import (
 
 from destack.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 
-from .builtin import EnumType, ObjectKind, ObjectStability, StructType
+from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType
 from .declaration import StructDeclaration, TagDeclaration, declare_method
 from .object import Object, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property_runtime
@@ -23,14 +22,17 @@ type_ = type
 
 
 def _process_struct_cls(
+    # meta
     cls: type["Struct"],
     struct_type: StructType,
     stability: ObjectStability,
     is_frozen: bool,
     is_abstract: bool,
     is_final: bool,
+    # associations
     tags: tuple["TagDeclaration", ...],
     enum_types: tuple[EnumType, ...],
+    into_node_types: tuple[NodeType, ...],
 ) -> type["Struct"]:
     """Process a Struct class and return the processed class and its properties."""
 
@@ -70,6 +72,7 @@ def _process_struct_cls(
         # associations
         enum_types=list(all_enum_types),
         self_enum_types=list(enum_types),
+        into_node_types=list(into_node_types),
     )
 
     # process object class
@@ -123,14 +126,17 @@ def _process_struct_cls(
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def declare_struct(
+    # meta
     struct_type: StructType,
     *,
     frozen: bool = False,
     is_abstract: bool = False,
     is_final: bool = False,
     stability: ObjectStability = ObjectStability.DYNAMIC,
+    # associations
     tags: tuple["TagDeclaration", ...] = (),
     enum_types: tuple[EnumType, ...] = (),
+    into_node_types: tuple[NodeType, ...] = (),
 ):
     """Register a class as a concrete struct for the given struct type."""
 
@@ -144,6 +150,7 @@ def declare_struct(
             is_final=is_final,
             tags=tags,
             enum_types=enum_types,
+            into_node_types=into_node_types,
         )
         return cls
 
@@ -161,14 +168,9 @@ class Struct(Object):
     __definition__: ClassVar["StructDefinition"]
 
     @declare_method(60, is_implemented=True)
-    def clone(self, **override: Any) -> Self:
+    def clone(self) -> Self:
         """Clone the Struct with new values."""
-        kwargs: dict[str, Any] = {}
-        for prop in self.__properties__.values():
-            if not prop.is_runtime_only:
-                kwargs[prop.name] = getattr(self, prop.name)
-        kwargs.update(override)
-        return self.__class__(**kwargs)
+        ...
 
 
 @declare_struct(

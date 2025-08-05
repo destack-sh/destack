@@ -7,6 +7,7 @@ from ..builtin import (
     HandleType,
     Object,
     ObjectKind,
+    UInt32,
     declare_enum,
     declare_handle,
     declare_method,
@@ -52,7 +53,7 @@ class Encoder(Handle):
     def unpack_object(
         self,
         kind: ObjectKind | None,
-        type: int | None,
+        type: UInt32 | None,
         value: Any,
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,
@@ -77,7 +78,7 @@ class Encoder(Handle):
     def unpack_object_binary(
         self,
         kind: ObjectKind | None,
-        type: int | None,
+        type: UInt32 | None,
         reader: "BinaryReader",
         session: "Session | None",
         options: EncoderOptions = EncoderOptions.DEFAULT,

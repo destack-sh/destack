@@ -29,6 +29,7 @@ class ArrowHeadType(OptionEnum):
     StructType.ARROW2D,
     frozen=True,
     is_final=True,
+    into_node_types=(NodeType.ARROW_SHAPE2D,),
 )
 @final
 class Arrow2D(Form2D):

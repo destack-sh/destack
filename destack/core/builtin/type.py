@@ -213,6 +213,9 @@ def parse_type_declaration(
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = PrimitiveType.NONE  # handled manually
         is_any = True
+    elif class_name == "Object":
+        scalar_type = ScalarType.STRUCT
+        is_any = True
     elif enum_t := resolve_enum_type(class_name):
         scalar_type = ScalarType.ENUM
         enum_type = enum_t
@@ -247,12 +250,18 @@ def _get_class_name(
     py_type: type | typing.ForwardRef | typing.TypeAliasType | typing._SpecialForm | str,
 ) -> str:
     if isinstance(py_type, str):
-        return py_type
+        name = py_type
     elif isinstance(py_type, (type, typing.TypeAliasType)):
-        return py_type.__name__
+        name = py_type.__name__
     elif isinstance(py_type, typing.ForwardRef):
-        return py_type.__forward_arg__
+        name = py_type.__forward_arg__
     elif isinstance(py_type, typing._SpecialForm):
-        return getattr(py_type, "__name__")
+        name = getattr(py_type, "__name__")
     else:
         raise ValueError(f"unexpected type: {py_type!r}")
+
+    # strip generic type parameters
+    if "[" in name:
+        name = name.split("[")[0]
+
+    return name
