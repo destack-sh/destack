@@ -1,6 +1,7 @@
 from collections import defaultdict
 from collections.abc import Mapping
 from itertools import chain
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from .core.builtin import (
@@ -10,6 +11,8 @@ from .core.builtin import (
     NodeType,
     Object,
     StructType,
+    UniverseCategory,
+    UniverseDomain,
 )
 from .registry import (
     BUILTIN_CLASS_BY_NAME,
@@ -25,7 +28,7 @@ from .registry import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from destack import ModuleDefinition
 
 
 def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
@@ -51,6 +54,25 @@ def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
                 inheriting_cls = cls_by_type[inheriting_type]
                 to_visit.extend(reversed(inheriting_cls.__declaration__.extended_by))
         object_cls.__declaration__.inherited_by = list(inherited_by_objects)
+
+
+def _index_module(path: Path, parent: "ModuleDefinition") -> "ModuleDefinition":
+    """Index a module definition."""
+    print(path)
+
+
+def _collect_modules(path: Path, parent: "ModuleDefinition"):
+    """Collect module definitions recursively from filesystem."""
+
+    module = _index_module(path, parent)
+
+    for file_path in path.iterdir():
+        if file_path.name.startswith("_"):
+            continue
+        if file_path.is_file() and file_path.suffix == ".py":
+            _index_module(file_path, module)
+        elif file_path.is_dir() and file_path.name != "venv":
+            _collect_modules(file_path, module)
 
 
 def finalize():
@@ -196,6 +218,17 @@ def finalize():
                 # replace constant with value
                 setattr(object_cls, name, attribute.value)
         object_cls.__definition__.constants = list(constants)  # type: ignore (frozen)
+
+    # collect modules
+    root_module_path = Path(__file__).parent
+    root_module = ModuleDefinition(
+        name="destack",
+        description="Destack language SDK",
+        domain=UniverseDomain.CORE,
+        category=UniverseCategory.BUILTIN,
+        is_global=False,
+    )
+    _collect_modules(root_module_path, parent=root_module)
 
     # validate stuff
     # check we have all the declared builtin objects
