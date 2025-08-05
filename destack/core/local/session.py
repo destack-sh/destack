@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -6,7 +5,6 @@ from typing import (
 )
 
 from ..builtin import (
-    ACTIVE_SESSION,
     Entity,
     Event,
     Handle,
@@ -100,16 +98,3 @@ class Session(Handle):
         Commits all Events. Returns applied Events.
         """
         ...
-
-    @asynccontextmanager
-    async def active(self):
-        """Context manager for the Session."""
-        await self.open()
-        token = ACTIVE_SESSION.set(self)
-        try:
-            try:
-                yield self
-            finally:
-                await self.close()
-        finally:
-            ACTIVE_SESSION.reset(token)

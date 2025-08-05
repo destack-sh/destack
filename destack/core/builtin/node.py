@@ -12,11 +12,11 @@ from typing import (
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLASS_BY_TYPE
 
 from ..utility import UUID
-from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
 from .types import UInt32
+from .universe import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 
 if TYPE_CHECKING:
     from destack import (

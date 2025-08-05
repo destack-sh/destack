@@ -7,11 +7,6 @@ from typing import (
     Optional,
 )
 
-from .builtin import (
-    NodeType,
-    ObjectKind,
-    StructType,
-)
 from .const import UNSET
 from .declaration import Declaration
 from .enum import OptionDeclaration
@@ -23,7 +18,12 @@ from .hoisted import (
     TypeCardinality,
     ValueFactory,
 )
-from .type import _NONE_TYPE, TypeDeclaration, parse_type_declaration
+from .type import NONE_TYPE_DECLARATION, TypeDeclaration, parse_type_declaration
+from .universe import (
+    NodeType,
+    ObjectKind,
+    StructType,
+)
 
 if TYPE_CHECKING:
     from destack import (
@@ -58,7 +58,7 @@ class PropertyDeclaration(Declaration):
 
     # type
     py_type: Any = type_(None)  # noqa: RUF009
-    type: TypeDeclaration = dataclasses.field(default_factory=lambda: _NONE_TYPE)
+    type: TypeDeclaration = dataclasses.field(default_factory=lambda: NONE_TYPE_DECLARATION)
 
     # defaults
     default_value: Any | None = None

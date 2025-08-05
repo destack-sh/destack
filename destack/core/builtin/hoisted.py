@@ -6,7 +6,6 @@ from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, TypeAliasType
 
 from ..utility import UUID
-from .builtin import EnumType
 from .enum import OptionEnum, declare_enum, declare_option
 from .types import (
     Boolean,
@@ -31,6 +30,7 @@ from .types import (
     UInt64,
     UInt128,
 )
+from .universe import EnumType
 
 if TYPE_CHECKING:
     pass

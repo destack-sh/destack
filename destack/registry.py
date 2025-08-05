@@ -17,7 +17,6 @@ if TYPE_CHECKING:
         StructDefinition,
         StructType,
         TraitType,
-        Type,
     )
 
 ENUM_CLASS_BY_TYPE: dict["EnumType", type["Enum"]] = {}
@@ -37,8 +36,6 @@ ENUM_DEFINITION_BY_TYPE: dict["EnumType", "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict["StructType", "StructDefinition"] = {}
 HANDLE_DEFINITION_BY_TYPE: dict["HandleType", "HandleDefinition"] = {}
 NODE_DEFINITION_BY_TYPE: dict["NodeType", "NodeDefinition"] = {}
-
-NODE_TYPE_SCALAR_BY_TYPE: dict["NodeType", "Type"] = {}
 
 BUILTIN_CLASS_BY_NAME: dict[str, type["Node"] | type["Struct"] | type["Enum"] | type["Handle"]] = {}
 

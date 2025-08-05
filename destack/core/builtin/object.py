@@ -23,7 +23,6 @@ from ..utility import (
     uuid4,
     uuid7,
 )
-from .builtin import NodeType, ObjectKind, ObjectStability, StructType
 from .const import (
     ACTIVE_BRANCH,
     ACTIVE_EVENT,
@@ -57,6 +56,7 @@ from .hoisted import (
 )
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property_runtime
 from .types import Int64
+from .universe import NodeType, ObjectKind, ObjectStability, StructType
 
 if TYPE_CHECKING:
     from destack import BinaryReader, BinaryWriter, EncoderOptions, Hasher, Node, Session

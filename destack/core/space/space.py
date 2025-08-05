@@ -1,9 +1,6 @@
-from collections.abc import AsyncGenerator, Generator
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple, final
 
 from ..builtin import (
-    ACTIVE_SPACE,
     ActionType,
     Entity,
     NodeType,
@@ -17,7 +14,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack import Branch, Event, Snapshot
+    from destack import Branch, Snapshot
 
 
 class CreateSpaceResult(NamedTuple):
@@ -61,10 +58,7 @@ class Space(Entity):
         type=ActionType.UNARY_IN_UNARY_OUT,
         platforms=(RuntimePlatform.SYSTEM,),
     )
-    async def append(
-        self,
-        events: "list[Event]",
-    ) -> None:
+    async def append(self) -> None:
         """Append Events to the Space."""
         ...
 
@@ -73,18 +67,6 @@ class Space(Entity):
         type=ActionType.UNARY_IN_STREAM_OUT,
         platforms=(RuntimePlatform.SYSTEM,),
     )
-    async def watch(
-        self,
-    ) -> AsyncGenerator[list["Event"], None]:
+    async def watch(self):
         """Watch for Events in the Space."""
         ...
-
-    @contextmanager
-    def active(self: "Space") -> Generator["Space", None, None]:
-        """Set this Space as the active Space."""
-        token = ACTIVE_SPACE.set(self)
-        try:
-            ACTIVE_SPACE.set(self)
-            yield self
-        finally:
-            ACTIVE_SPACE.reset(token)

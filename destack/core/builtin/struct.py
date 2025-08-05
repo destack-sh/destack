@@ -8,11 +8,11 @@ from typing import (
 
 from destack.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 
-from .builtin import EnumType, NodeType, ObjectKind, ObjectStability, StructType
 from .declaration import StructDeclaration, TagDeclaration, declare_method
 from .object import Object, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property_runtime
 from .types import Int32
+from .universe import EnumType, NodeType, ObjectKind, ObjectStability, StructType
 
 if TYPE_CHECKING:
     from destack import StructDefinition

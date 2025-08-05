@@ -7,10 +7,10 @@ from typing import (
 
 from destack.registry import HANDLE_CLASS_BY_TYPE, HANDLE_TYPE_BY_CLASS
 
-from .builtin import EnumType, HandleType, NodeType, ObjectKind, ObjectStability
 from .declaration import HandleDeclaration, TagDeclaration
 from .object import Object, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS
+from .universe import EnumType, HandleType, NodeType, ObjectKind, ObjectStability
 
 if TYPE_CHECKING:
     from destack import HandleDefinition

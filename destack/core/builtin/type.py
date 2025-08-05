@@ -6,7 +6,6 @@ from typing import (
 )
 
 from ..utility import Casing, to_casing
-from .builtin import HandleType, NodeType, StructType
 from .declaration import TypeDeclaration
 from .hoisted import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
@@ -15,6 +14,7 @@ from .hoisted import (
     ScalarType,
     TypeCardinality,
 )
+from .universe import HandleType, NodeType, StructType
 
 if TYPE_CHECKING:
     pass
@@ -67,7 +67,7 @@ def resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     return None
 
 
-_NONE_TYPE = TypeDeclaration(
+NONE_TYPE_DECLARATION = TypeDeclaration(
     cardinality=TypeCardinality.SCALAR,
     scalar_type=ScalarType.PRIMITIVE,
     primitive_type=PrimitiveType.NONE,
@@ -237,7 +237,7 @@ def parse_type_declaration(
         scalar_type = ScalarType.HANDLE
         handle_type = handle_t
     else:
-        raise ValueError(f"undetermined scalar type: {py_type!r}")
+        raise ValueError(f"undetermined scalar type: {py_type!r} ({type(py_type)})")
 
     # default: scalar
     return TypeDeclaration(

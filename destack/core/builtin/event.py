@@ -1,17 +1,14 @@
-from collections.abc import Generator
-from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, dataclass_transform
 
 from ..utility import UUID
-from .builtin import EnumType, NodeType, StructType
-from .const import ACTIVE_EVENT
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
 from .enum import OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
 from .types import UInt128
+from .universe import EnumType, NodeType, StructType
 
 if TYPE_CHECKING:
     from destack import Branch, Client, NodeReference, Snapshot
@@ -260,13 +257,3 @@ class Event(Node):
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
         ...
-
-    @contextmanager
-    def active(self) -> Generator["Event", None, None]:
-        """Set this Event as the active Event."""
-        token = ACTIVE_EVENT.set(self)
-        try:
-            ACTIVE_EVENT.set(self)
-            yield self
-        finally:
-            ACTIVE_EVENT.reset(token)
