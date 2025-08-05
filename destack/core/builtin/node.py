@@ -71,8 +71,6 @@ def _process_node_cls(
     # inheritance
     inherits: list[NodeType] = []
     all_traits: list[TraitType] = list(traits)
-    all_message_types: list[StructType] = []
-    all_enum_types: list[EnumType] = []
     all_event_types: list[NodeType] = []
     if cls.__name__ != "Node":
         for base in cls.__mro__:
@@ -82,15 +80,9 @@ def _process_node_cls(
                 for trait in base.__declaration__.traits:
                     if trait not in all_traits:
                         all_traits.append(trait)
-                for enum_type in base.__declaration__.enum_types:
-                    if enum_type not in all_enum_types:
-                        all_enum_types.append(enum_type)
                 for event_type in base.__declaration__.event_types:
                     if event_type not in all_event_types:
                         all_event_types.append(event_type)
-                for message_type in base.__declaration__.message_types:
-                    if message_type not in all_message_types:
-                        all_message_types.append(message_type)
     if NodeType.EVENT in inherits:
         is_frozen = True  # Events are always frozen
 
@@ -136,10 +128,6 @@ def _process_node_cls(
         # associations
         event_types=list(reversed(all_event_types)),
         self_event_types=list(event_types),
-        enum_types=list(reversed(all_enum_types)),
-        self_enum_types=list(enum_types),
-        message_types=list(all_message_types),
-        self_message_types=list(message_types),
     )
 
     # process class

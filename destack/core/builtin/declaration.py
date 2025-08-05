@@ -3,34 +3,35 @@ import inspect
 import typing
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Self, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Self, cast
 
 from .const import UNSET
-from .hoisted import (
-    ActionType,
-    ConstraintType,
-    FunctionOperator,
-    IndexType,
-    MethodType,
-    PrimitiveType,
-    RuntimeLanguage,
-    RuntimePlatform,
-    RuntimeType,
-    ScalarType,
-    TypeCardinality,
-)
-from .universe import (
-    EnumType,
-    HandleType,
-    NodeType,
-    ObjectKind,
-    ObjectStability,
-    StructType,
-    TraitType,
-)
 
 if TYPE_CHECKING:
     from destack import Handle, Node, Object, PropertyDeclaration, Struct, Type
+
+    from .hoisted import (
+        ActionType,
+        ConstraintType,
+        FunctionOperator,
+        IndexType,
+        MethodType,
+        PrimitiveType,
+        RuntimeLanguage,
+        RuntimePlatform,
+        RuntimeType,
+        ScalarType,
+        TypeCardinality,
+    )
+    from .universe import (
+        EnumType,
+        HandleType,
+        NodeType,
+        ObjectKind,
+        ObjectStability,
+        StructType,
+        TraitType,
+    )
 
 
 type_ = type
@@ -55,23 +56,40 @@ class Declaration:
         return f"<{self.__class__.__name__} {' '.join(props)}>"
 
 
+@dataclass(slots=True)
+class ModuleDeclaration(Declaration):  # nocheckin: ModuleDeclaration/Definitions
+    """Declaration of a ModuleDefinition."""
+
+    # meta
+    id: int
+    name: str
+    description: str
+    methods: tuple["MethodDeclaration", ...]
+
+    # content
+    node_types: tuple["NodeType", ...]
+    struct_types: tuple["StructType", ...]
+    handle_types: tuple["HandleType", ...]
+    enum_types: tuple["EnumType", ...]
+
+
 @dataclass(slots=True, repr=False)
 class TypeDeclaration(Declaration):
     """Type annotation to be turned into a Property/Type."""
 
     # cardinality
-    cardinality: TypeCardinality
+    cardinality: "TypeCardinality"
     key_type: "TypeDeclaration | None" = None
     value_type: "TypeDeclaration | None" = None
     element_types: Sequence["TypeDeclaration"] | None = None
 
     # scalar
-    scalar_type: ScalarType | None = None
-    primitive_type: PrimitiveType | None = None
-    struct_type: StructType | None = None
-    handle_type: HandleType | None = None
-    enum_type: EnumType | None = None
-    node_types: Sequence[NodeType] | None = None  # for node scalar nodes
+    scalar_type: "ScalarType | None" = None
+    primitive_type: "PrimitiveType | None" = None
+    struct_type: "StructType | None" = None
+    handle_type: "HandleType | None" = None
+    enum_type: "EnumType | None" = None
+    node_types: Sequence["NodeType"] | None = None  # for node scalar nodes
 
     # flags
     is_required: bool = True
@@ -95,10 +113,10 @@ class TypeDeclaration(Declaration):
 class ObjectDeclaration(Declaration):
     # meta
     cls: type_["Object"]
-    kind: ObjectKind | None
+    kind: "ObjectKind"
     type: int | None
     id: int
-    stability: ObjectStability
+    stability: "ObjectStability"
     is_abstract: bool
     is_frozen: bool
     is_final: bool
@@ -117,14 +135,14 @@ class ObjectDeclaration(Declaration):
 class StructDeclaration(ObjectDeclaration):
     # meta
     cls: type_["Struct"]
-    kind: Literal[ObjectKind.STRUCT]
-    type: StructType
+    kind: "ObjectKind"
+    type: "StructType"
 
     # inheritance
-    base_type: StructType | None
-    inherits: list[StructType]
-    inherited_by: list[StructType]
-    extended_by: list[StructType]
+    base_type: "StructType | None"
+    inherits: list["StructType"]
+    inherited_by: list["StructType"]
+    extended_by: list["StructType"]
 
     # content
     methods: list["MethodDeclaration"]
@@ -132,26 +150,24 @@ class StructDeclaration(ObjectDeclaration):
     tags: list["TagDeclaration"]
 
     # associations
-    enum_types: list[EnumType]
-    self_enum_types: list[EnumType]
-    into_node_types: list[NodeType]
+    into_node_types: list["NodeType"]
 
 
 @dataclass(slots=True, repr=False)
 class NodeDeclaration(ObjectDeclaration):
     # meta
     cls: type_["Node"]
-    kind: Literal[ObjectKind.NODE]
-    type: NodeType
+    kind: "ObjectKind"
+    type: "NodeType"
     is_singleton: bool
 
     # inheritance
-    base_type: NodeType | None
-    inherits: list[NodeType]
-    inherited_by: list[NodeType]
-    extended_by: list[NodeType]
-    traits: list[TraitType]
-    self_traits: list[TraitType]
+    base_type: "NodeType | None"
+    inherits: list["NodeType"]
+    inherited_by: list["NodeType"]
+    extended_by: list["NodeType"]
+    traits: list["TraitType"]
+    self_traits: list["TraitType"]
 
     # content
     indexes: list["IndexDeclaration"]
@@ -164,37 +180,33 @@ class NodeDeclaration(ObjectDeclaration):
 
     # graph
     parent_property: Optional["PropertyDeclaration"]
-    parent_types: list[NodeType]
-    child_types: list[NodeType]
-    ancestor_types: list[NodeType]
-    descendant_types: list[NodeType]
-    expected_parent_types: list[NodeType]
-    expected_child_types: list[NodeType]
-    expected_ancestor_types: list[NodeType]
-    expected_descendant_types: list[NodeType]
+    parent_types: list["NodeType"]
+    child_types: list["NodeType"]
+    ancestor_types: list["NodeType"]
+    descendant_types: list["NodeType"]
+    expected_parent_types: list["NodeType"]
+    expected_child_types: list["NodeType"]
+    expected_ancestor_types: list["NodeType"]
+    expected_descendant_types: list["NodeType"]
 
     # associations
-    event_types: list[NodeType]
-    self_event_types: list[NodeType]
-    enum_types: list[EnumType]
-    self_enum_types: list[EnumType]
-    message_types: list[StructType]
-    self_message_types: list[StructType]
-    base_struct_type: StructType | None
+    event_types: list["NodeType"]
+    self_event_types: list["NodeType"]
+    base_struct_type: "StructType | None"
 
 
 @dataclass(slots=True, repr=False)
 class HandleDeclaration(ObjectDeclaration):
     # meta
     cls: type_["Handle"]
-    kind: Literal[ObjectKind.HANDLE]
-    type: HandleType
+    kind: "ObjectKind"
+    type: "HandleType"
 
     # inheritance
-    base_type: HandleType | None
-    inherits: list[HandleType]
-    inherited_by: list[HandleType]
-    extended_by: list[HandleType]
+    base_type: "HandleType | None"
+    inherits: list["HandleType"]
+    inherited_by: list["HandleType"]
+    extended_by: list["HandleType"]
 
     # content
     properties: list["PropertyDeclaration"]
@@ -203,10 +215,8 @@ class HandleDeclaration(ObjectDeclaration):
     tags: list["TagDeclaration"]
 
     # associations
-    enum_types: list[EnumType]
-    self_enum_types: list[EnumType]
-    event_types: list[NodeType]
-    self_event_types: list[NodeType]
+    event_types: list["NodeType"]
+    self_event_types: list["NodeType"]
 
 
 @dataclass(slots=True, repr=False)
@@ -214,11 +224,11 @@ class IndexDeclaration(Declaration):
     """Declaration of an IndexDefinition."""
 
     id: int
+    type: "IndexType"
     properties: tuple[str, ...]
     cover: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
     name: str | None = None
-    type: IndexType = IndexType.BTREE
 
 
 @dataclass(slots=True, repr=False)
@@ -226,7 +236,7 @@ class ConstraintDeclaration(Declaration):
     """Declaration of a ConstraintDefinition."""
 
     id: int
-    type: ConstraintType
+    type: "ConstraintType"
     properties: tuple[str, ...]
     description: str | None = None
     name: str | None = None
@@ -256,10 +266,13 @@ class FunctionDeclaration(Declaration):
     is_async: bool
     is_internal: bool
 
+    # availability
+    platforms: tuple["RuntimePlatform", ...]
+    languages: tuple["RuntimeLanguage", ...]
+    runtimes: tuple["RuntimeType", ...]
+
     # content
     tags: tuple[str, ...]
-
-    runtimes: tuple[RuntimeType, ...]
 
 
 @dataclass(slots=True, repr=False)
@@ -271,13 +284,15 @@ class SignatureDeclaration(Declaration):
 
 
 def _get_runtimes(
-    platforms: tuple[RuntimePlatform, ...],
-    languages: tuple[RuntimeLanguage, ...],
-    runtimes: tuple[RuntimeType, ...],
-) -> tuple[RuntimeType, ...]:
+    platforms: tuple["RuntimePlatform", ...],
+    languages: tuple["RuntimeLanguage", ...],
+    runtimes: tuple["RuntimeType", ...],
+) -> tuple["RuntimeType", ...]:
     """
     Get the runtimes from the platforms and languages.
     """
+    from .hoisted import RuntimeLanguage, RuntimePlatform, RuntimeType
+
     if platforms or languages:
         if runtimes:
             raise ValueError("only one of runtimes or platforms/languages may be provided")
@@ -299,7 +314,7 @@ def _parse_signature(
     func: Callable,
     parameters: Collection[inspect.Parameter],
     return_annotation: Any,
-    operator: FunctionOperator | None,
+    operator: "FunctionOperator | None",
 ) -> SignatureDeclaration:
     from .property import PropertyDeclaration
     from .type import parse_type_declaration
@@ -349,7 +364,7 @@ class MethodDeclaration(FunctionDeclaration):
     """Declaration of a MethodDefinition."""
 
     # meta
-    type: MethodType
+    type: "MethodType"
     is_implemented: bool
 
     # content
@@ -363,16 +378,23 @@ def _process_method(
     *,
     id: int,
     name: str | None,
-    operator: FunctionOperator | None,
+    operator: "FunctionOperator | None",
     is_implemented: bool,
     is_internal: bool,
+    # availability
+    platforms: tuple["RuntimePlatform", ...],
+    languages: tuple["RuntimeLanguage", ...],
+    runtimes: tuple["RuntimeType", ...],
     # associations
     tags: tuple[str, ...],
-    runtimes: tuple[RuntimeType, ...],
 ) -> tuple[Callable, MethodDeclaration]:
     """
     Process a method to create a MethodDeclaration.
     """
+    from .hoisted import FunctionOperator, MethodType
+
+    # availability
+    all_runtimes = _get_runtimes(platforms=platforms, languages=languages, runtimes=runtimes)
 
     # unwrap class methods and properties
     outer_func = func
@@ -410,16 +432,21 @@ def _process_method(
         raise ValueError(f"abstract method declaration must be empty: {qualname}\n{source}")
 
     declaration = MethodDeclaration(
+        # meta
         id=id,
         name=name or inner_func.__name__,
         description=inner_func.__doc__ or "",
         outer_func=outer_func,
         inner_func=inner_func,
-        is_implemented=is_implemented,
         is_async=is_async,
         is_internal=is_internal,
+        is_implemented=is_implemented,
+        # availability
+        platforms=platforms,
+        languages=languages,
+        runtimes=all_runtimes,
+        # content
         tags=tags,
-        runtimes=runtimes,
         type=type,
         input_properties=tuple(signature_declaration.input_properties),
         output_property=signature_declaration.output_property,
@@ -429,33 +456,35 @@ def _process_method(
 
 
 def declare_method(
+    # meta
     id: int,
     *,
     name: str | None = None,
-    tags: tuple[str, ...] = (),
-    proxies_method: str | None = None,
-    proxies_runtime: RuntimeType | None = None,
-    type: MethodType = MethodType.INSTANCE,
-    operator: FunctionOperator | None = None,
-    platforms: tuple[RuntimePlatform, ...] = (),
-    languages: tuple[RuntimeLanguage, ...] = (),
-    runtimes: tuple[RuntimeType, ...] = (),
+    operator: "FunctionOperator | None" = None,
     is_implemented: bool = False,
     is_internal: bool = False,
+    # availability
+    platforms: tuple["RuntimePlatform", ...] = (),
+    languages: tuple["RuntimeLanguage", ...] = (),
+    runtimes: tuple["RuntimeType", ...] = (),
+    # associations
+    tags: tuple[str, ...] = (),
 ):
     """Declare a builtin Method."""
 
     def decorate(func):
-        all_runtimes = _get_runtimes(platforms=platforms, languages=languages, runtimes=runtimes)
         func, declaration = _process_method(
             # meta
             func,
             id=id,
             name=name,
             operator=operator,
-            runtimes=all_runtimes,
             is_implemented=is_implemented,
             is_internal=is_internal,
+            # availability
+            platforms=platforms,
+            languages=languages,
+            runtimes=runtimes,
             # associations
             tags=tags,
         )
@@ -474,10 +503,10 @@ class ActionDeclaration(FunctionDeclaration):
     Actions must communicate with Messages.
     """
 
-    type: ActionType
+    type: "ActionType"
 
-    input_message_type: StructType | None
-    output_message_type: StructType | None
+    input_message_type: "StructType | None"
+    output_message_type: "StructType | None"
 
 
 def _process_action(
@@ -486,16 +515,19 @@ def _process_action(
     *,
     id: int,
     name: str | None,
-    type: ActionType,
-    runtimes: tuple[RuntimeType, ...] = (),
+    type: "ActionType",
     is_internal: bool,
+    # availability
+    platforms: tuple["RuntimePlatform", ...],
+    languages: tuple["RuntimeLanguage", ...],
+    runtimes: tuple["RuntimeType", ...],
     # associations
     tags: tuple[str, ...] = (),
 ) -> tuple[Callable, ActionDeclaration]:
     """
     Process an action to create an ActionDeclaration.
     """
-
+    from .hoisted import ActionType, TypeCardinality
     from .type import parse_type_declaration
 
     # meta
@@ -558,8 +590,12 @@ def _process_action(
         inner_func=func,
         is_async=is_async,
         is_internal=is_internal,
-        tags=tags,
+        # availability
+        platforms=platforms,
+        languages=languages,
         runtimes=runtimes,
+        # content
+        tags=tags,
         type=type,
         input_message_type=input_message_type,
         output_message_type=output_message_type,
@@ -572,26 +608,29 @@ def declare_action(
     id: int,
     *,
     name: str | None = None,
-    type: ActionType,
-    platforms: tuple[RuntimePlatform, ...] = (),
-    languages: tuple[RuntimeLanguage, ...] = (),
-    runtimes: tuple[RuntimeType, ...] = (),
+    type: "ActionType",
     is_internal: bool = False,
+    # availability
+    platforms: tuple["RuntimePlatform", ...] = (),
+    languages: tuple["RuntimeLanguage", ...] = (),
+    runtimes: tuple["RuntimeType", ...] = (),
     # associations
     tags: tuple[str, ...] = (),
 ):
     """Declare a builtin Action."""
 
     def decorate(func):
-        all_runtimes = _get_runtimes(platforms=platforms, languages=languages, runtimes=runtimes)
         func, declaration = _process_action(
             # meta
             func,
             id=id,
             name=name,
             type=type,
-            runtimes=all_runtimes,
             is_internal=is_internal,
+            # availability
+            platforms=platforms,
+            languages=languages,
+            runtimes=runtimes,
             # associations
             tags=tags,
         )

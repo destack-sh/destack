@@ -146,7 +146,7 @@ def declare_enum(enum_type: "EnumType"):
                     f"option {option.name}: {option.id} is out of range for {cls.__name__}"
                 )
                 assert option.id not in options_by_id, (
-                    f"option {option.name}: {option.id} is a duplicate for {cls.__name__}"
+                    f"option {option.name}: {option.id} is a duplicate for {cls.__name__}: {options_by_id[option.id]}"
                 )
                 options_by_id[option.id] = option
         elif issubclass(cls, FlagEnum):
@@ -159,7 +159,7 @@ def declare_enum(enum_type: "EnumType"):
                     f"option {option.name}: {option.id} is not a power of 2 for {cls.__name__}"
                 )
                 assert option.id not in options_by_id, (
-                    f"option {option.name}: {option.id} is a duplicate for {cls.__name__}"
+                    f"option {option.name}: {option.id} is a duplicate for {cls.__name__}: {options_by_id[option.id]}"
                 )
                 options_by_id[option.id] = option
         else:

@@ -2,6 +2,7 @@
 
 from .builtin import *
 from .common import *
+from .definition import *
 from .encoding import *
 from .generation import *
 from .local import *

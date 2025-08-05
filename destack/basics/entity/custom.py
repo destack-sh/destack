@@ -5,6 +5,7 @@ from destack.core import (
     Condition,
     EdgeType,
     Entity,
+    Error,
     Event,
     Message,
     NodeReference,
@@ -14,6 +15,7 @@ from destack.core import (
     StructType,
     Type,
     declare_entity,
+    declare_error,
     declare_event,
     declare_message,
     declare_method,
@@ -99,6 +101,35 @@ class CustomMessage(Message):
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Message, keyed by custom Property name.",
+    )
+
+    def __getitem__(self, key: str) -> "Value":
+        val = None if self.custom_values is None else self.custom_values.get(key)
+        if val is None:
+            raise LookupError(f"{self!r} has no value for {key}")
+        return val
+
+    def __getattr__(self, name: str) -> "Value | None":
+        val = None if self.custom_values is None else self.custom_values.get(name)
+        return val
+
+
+@declare_entity(NodeType.CUSTOM_ERROR_DEFINITION)
+class CustomErrorDefinition(CustomStructDefinition):
+    """A CustomError describes a custom Error with custom Properties."""
+
+    pass
+
+
+@declare_error(StructType.CUSTOM_ERROR, is_final=True)
+@final
+class CustomError(Error):
+    """A CustomError is an instance of a custom Error with custom Values."""
+
+    definition: "CustomErrorDefinition" = declare_property(11, is_repr=True)
+    custom_values: dict[str, "Value"] | None = declare_property(
+        45,
+        description="The custom Values of this Error, keyed by custom Property name.",
     )
 
     def __getitem__(self, key: str) -> "Value":

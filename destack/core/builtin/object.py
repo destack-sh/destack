@@ -360,7 +360,7 @@ assert self._session is not None, "no active Session for {cls.__name__}"
                 return f"""\
 assert self._session is not None, "no active Session for {cls.__name__}"
 {target_expr} = self._session.remote_epoch"""
-            elif object.kind == ObjectKind.HANDLE:
+            elif object.kind in (ObjectKind.HANDLE, ObjectKind.MODULE):
                 raise NotImplementedError(f"cannot use {prop.default_factory} for {cls.__name__}")
             else:
                 assert_never(object.kind)
@@ -373,7 +373,7 @@ assert self._session is not None, "no active Session for {cls.__name__}"
                 return f"""\
 assert self._session is not None, "no active Session for {cls.__name__}"
 {target_expr} = self._session.local_epoch"""
-            elif object.kind == ObjectKind.HANDLE:
+            elif object.kind in (ObjectKind.HANDLE, ObjectKind.MODULE):
                 raise NotImplementedError(f"cannot use {prop.default_factory} for {cls.__name__}")
             else:
                 assert_never(object.kind)

@@ -42,21 +42,3 @@ EMPTY_DICT: dict[Any, Any] = frozendict()
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )
-
-
-def get_active_session() -> Optional["Session"]:
-    """Gets the currently active Session (if any)."""
-    return ACTIVE_SESSION.get()
-
-
-def active_session() -> "Session":
-    """Gets the currently active Session (error if none)."""
-    session = ACTIVE_SESSION.get()
-    assert session is not None, "no active session"
-    return session
-
-
-class DestackError(Exception):
-    """Common base class for any regular errors."""
-
-    pass
