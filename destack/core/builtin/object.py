@@ -24,11 +24,7 @@ from ..utility import (
     uuid7,
 )
 from .const import (
-    ACTIVE_BRANCH,
-    ACTIVE_EVENT,
     ACTIVE_SESSION,
-    ACTIVE_SNAPSHOT,
-    ACTIVE_SPACE,
     EMPTY_DICT,
     EPSILON,
     EPSILON_EXPONENT,
@@ -158,10 +154,6 @@ class ObjectGenerator:
         # NOTE: frozen objects can use direct assignment, mutable objects can't
         #  (because of the custom __setattr__, that would add overhead for every set)
         extra_glbls["ACTIVE_SESSION"] = ACTIVE_SESSION
-        extra_glbls["ACTIVE_SPACE"] = ACTIVE_SPACE
-        extra_glbls["ACTIVE_BRANCH"] = ACTIVE_BRANCH
-        extra_glbls["ACTIVE_SNAPSHOT"] = ACTIVE_SNAPSHOT
-        extra_glbls["ACTIVE_EVENT"] = ACTIVE_EVENT
         extra_glbls["EMPTY_LIST"] = frozenlist()
         extra_glbls["EMPTY_DICT"] = frozendict()
         extra_glbls["uuid4"] = uuid4

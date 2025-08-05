@@ -10,12 +10,7 @@ from ..utility import frozendict, uuid4
 
 if TYPE_CHECKING:
     from destack import (
-        Branch,
-        Event,
-        NodeReference,
         Session,
-        Snapshot,
-        Space,
     )
 
 
@@ -47,18 +42,6 @@ EMPTY_DICT: dict[Any, Any] = frozendict()
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )
-ACTIVE_SPACE: contextvars.ContextVar[Optional["Space"]] = contextvars.ContextVar(
-    "active_space", default=None
-)
-ACTIVE_BRANCH: contextvars.ContextVar[Optional["Branch"]] = contextvars.ContextVar(
-    "active_branch", default=None
-)
-ACTIVE_SNAPSHOT: contextvars.ContextVar[Optional["Snapshot"]] = contextvars.ContextVar(
-    "active_snapshot", default=None
-)
-ACTIVE_EVENT: contextvars.ContextVar[Optional["Event"]] = contextvars.ContextVar(
-    "active_event", default=None
-)
 
 
 def get_active_session() -> Optional["Session"]:
@@ -71,73 +54,6 @@ def active_session() -> "Session":
     session = ACTIVE_SESSION.get()
     assert session is not None, "no active session"
     return session
-
-
-def get_active_space() -> Optional["Space"]:
-    """Gets the currently active Space (if any)."""
-    return ACTIVE_SPACE.get()
-
-
-def get_active_space_ptr() -> Optional["NodeReference"]:
-    """Gets the currently active Space (if any)."""
-    space = ACTIVE_SPACE.get()
-    return space.to_ref() if space else None
-
-
-def active_space() -> "Space":
-    """Gets the currently active Space (error if none)."""
-    space = ACTIVE_SPACE.get()
-    assert space is not None, "no active space"
-    return space
-
-
-def active_space_ptr() -> "NodeReference":
-    """Gets the currently active Space (error if none)."""
-    space = ACTIVE_SPACE.get()
-    assert space is not None, "no active space"
-    return space.to_ref()
-
-
-def get_active_snapshot() -> Optional["Snapshot"]:
-    """Gets the currently active Snapshot (if any)."""
-    return ACTIVE_SNAPSHOT.get()
-
-
-def get_active_branch() -> Optional["Branch"]:
-    """Gets the currently active Branch (if any)."""
-    return ACTIVE_BRANCH.get()
-
-
-def active_branch() -> "Branch":
-    """Gets the currently active Branch (error if none)."""
-    branch = ACTIVE_BRANCH.get()
-    assert branch is not None, "no active branch"
-    return branch
-
-
-def get_active_branch_ptr() -> Optional["NodeReference"]:
-    """Gets the currently active Branch (if any)."""
-    branch = ACTIVE_BRANCH.get()
-    return branch.to_ref() if branch else None
-
-
-def active_snapshot() -> "Snapshot":
-    """Gets the currently active Snapshot (error if none)."""
-    snapshot = ACTIVE_SNAPSHOT.get()
-    assert snapshot is not None, "no active snapshot"
-    return snapshot
-
-
-def get_active_event() -> Optional["Event"]:
-    """Gets the currently active Event (if any)."""
-    return ACTIVE_EVENT.get()
-
-
-def active_event() -> "Event":
-    """Gets the currently active Event (error if none)."""
-    event = ACTIVE_EVENT.get()
-    assert event is not None, "no active event"
-    return event
 
 
 class DestackError(Exception):
