@@ -1452,3 +1452,39 @@ class Vector4i(StructFrozen):
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __len__(self) -> UInt32: ...
+
+
+@declare_method(301)
+def vector2(x: Float32, y: Float32) -> Vector2:
+    """Create a 2D float point vector."""
+    ...
+
+
+@declare_method(301)
+def vector3(x: Float32, y: Float32, z: Float32) -> Vector3:
+    """Create a 3D float point vector."""
+    ...
+
+
+@declare_method(302)
+def vector4(x: Float32, y: Float32, z: Float32, w: Float32) -> Vector4:
+    """Create a 4D float point vector."""
+    ...
+
+
+@declare_method(303)
+def vector2i(x: Int32, y: Int32) -> Vector2i:
+    """Create a 2D integer vector."""
+    ...
+
+
+@declare_method(304)
+def vector3i(x: Int32, y: Int32, z: Int32) -> Vector3i:
+    """Create a 3D integer vector."""
+    ...
+
+
+@declare_method(305)
+def vector4i(x: Int32, y: Int32, z: Int32, w: Int32) -> Vector4i:
+    """Create a 4D integer vector."""
+    ...

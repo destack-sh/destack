@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Self, final
 
 from ..builtin import (
-    Object,
     StructType,
     UInt8,
     declare_property,
@@ -34,15 +33,10 @@ class IndexDefinition(Definition):
     cover: list["PropertyReference"] = declare_property(121)
 
     @classmethod
-    def from_declaration(
-        cls, object_cls: type_["Object"], declaration: "IndexDeclaration"
-    ) -> "Self":
+    def from_declaration(cls, declaration: "IndexDeclaration") -> "Self":
         return cls(
             # meta
             id=declaration.id,
             type=declaration.type,
             name=declaration.name or "Index",
-            # content
-            properties=[object_cls.property(p).to_ref() for p in declaration.properties],
-            cover=[object_cls.property(p).to_ref() for p in declaration.cover],
         )

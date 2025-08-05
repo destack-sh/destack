@@ -13,7 +13,7 @@ from ..builtin import (
 from .object import ObjectDefinition
 
 if TYPE_CHECKING:
-    from destack import Handle, ObjectDefinitionReference
+    from destack import ObjectDefinitionReference
 
     from .constant import ConstantDefinition
     from .method import MethodDefinition
@@ -110,29 +110,27 @@ class HandleDefinition(ObjectDefinition):
         return ObjectDefinitionReference(kind=ObjectKind.HANDLE, handle_type=self.type)
 
     @classmethod
-    def from_declaration(
-        cls, handle_cls: type_["Handle"], declaration: HandleDeclaration
-    ) -> "HandleDefinition":
+    def from_declaration(cls, declaration: HandleDeclaration) -> "HandleDefinition":
         """Create HandleDefinition from a Handle class."""
         from .constant import ConstantDefinition
         from .method import MethodDefinition
+        from .property import PropertyDefinition
         from .tag import TagDefinition
 
         return cls(
             # meta
-            id=handle_cls.metatype.value,
-            type=handle_cls.metatype,
-            name=handle_cls.__name__,
-            description=handle_cls.__doc__,
+            id=declaration.id,
+            type=declaration.type,
+            name=declaration.name,
+            description=declaration.description,
             stability=declaration.stability,
             is_frozen=declaration.is_frozen,
             is_abstract=declaration.is_abstract,
             # content
-            properties=[prop.definition for prop in handle_cls.__properties__.values()],
-            methods=[
-                MethodDefinition.from_declaration(handle_cls, method)
-                for method in declaration.methods
+            properties=[
+                PropertyDefinition.from_declaration(prop) for prop in declaration.properties
             ],
+            methods=[MethodDefinition.from_declaration(method) for method in declaration.methods],
             constants=[
                 ConstantDefinition.from_declaration(constant) for constant in declaration.constants
             ],

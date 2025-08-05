@@ -38,6 +38,7 @@ class Type(StructFrozen):
      - List: a sequence of homogeneous values (Type.value_type)
      - Tuple: a sequence of heterogeneous values (Type.element_types)
      - Map: a mapping of homogenous keys to homogeneous values (Type.key_type->Type.value_type)
+     - Union: a union of heterogeneous values (Type.element_types)
     """
 
     # cardinality
@@ -99,16 +100,6 @@ class Type(StructFrozen):
         is_repr=True,
         description="Handle type of this Type (if it's a handle scalar).",
     )
-    # literal_value: Optional["Value"] = declare_property(
-    #     126,
-    #     is_repr=True,
-    #     description="Literal value of this Type (if it's a literal scalar).",
-    # )
-    # union_types: list["Type"] | None = declare_property(
-    #     127,
-    #     is_repr=True,
-    #     description="Union types of this Type (if it's a union scalar).",
-    # )
 
     @classmethod
     def from_declaration(cls, declaration: "TypeDeclaration") -> "Type":
@@ -134,7 +125,7 @@ class Type(StructFrozen):
             is_required=declaration.is_required,
         )
 
-    @declare_method(130, is_implemented=True)
+    @declare_method(201, is_implemented=True)
     @classmethod
     def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
         """

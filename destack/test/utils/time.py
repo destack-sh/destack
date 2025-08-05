@@ -1,6 +1,6 @@
 import pytest
 
-from destack.core.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
+from destack import timedelta_from_isoformat, timedelta_to_isoformat
 
 
 @pytest.mark.parametrize(

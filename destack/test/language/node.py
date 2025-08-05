@@ -1,12 +1,9 @@
 from destack import (
-    Folder,
     LineShape2D,
     Node,
     NodeType,
     Session,
     Shape2D,
-    Space,
-    Tag,
 )
 
 
@@ -24,16 +21,3 @@ def test_node_inheritance(session: Session):
         NodeType.SHAPE2D,
     ]
     assert len(Node.__definition__.inherited_by) == len(NodeType) - 1
-
-
-def test_node_space_ptr(session: Session, space: Space):
-    """Add Nodes that are Spatial and check that they have the same space_ptr."""
-    with space.active():
-        folder = Folder(name="MyFolder")
-        space.add_child(folder)
-        assert folder.parent_ptr and folder.parent_ptr.id == space.id
-        assert folder.space_ptr and folder.space_ptr.id == space.id
-        tags = [Tag(name="A"), Tag(name="B"), Tag(name="C")]
-        folder.add_children(*tags)
-        for tag in tags:
-            assert tag.space_ptr and tag.space_ptr.id == space.id

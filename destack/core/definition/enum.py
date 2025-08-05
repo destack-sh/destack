@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, cast, final
 
 from ..builtin import (
-    Enum,
     EnumDeclaration,
     EnumType,
     OptionDeclaration,
@@ -38,9 +37,7 @@ class EnumDefinition(Definition):
     options: list["OptionDefinition"] = declare_property(120)
 
     @classmethod
-    def from_declaration(
-        cls, enum_cls: type_[Enum], declaration: EnumDeclaration
-    ) -> "EnumDefinition":
+    def from_declaration(cls, declaration: EnumDeclaration) -> "EnumDefinition":
         """Create EnumDefinition from an Enum class."""
         from .option import OptionDefinition
 
@@ -54,6 +51,6 @@ class EnumDefinition(Definition):
             # content
             options=[
                 OptionDefinition.from_declaration(declaration.type, cast(OptionDeclaration, option))
-                for option in enum_cls.__options__
+                for option in declaration.options
             ],
         )

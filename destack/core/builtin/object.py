@@ -1632,7 +1632,7 @@ class Object:
         """Pack this Object into the byte representation of its encoded format."""
         ...
 
-    @declare_method(32)
+    @declare_method(201)
     @classmethod
     def unpack(
         cls,
@@ -1644,7 +1644,7 @@ class Object:
         """Unpack an Object from some encoded format."""
         ...
 
-    @declare_method(33)
+    @declare_method(202)
     @classmethod
     def unpack_binary(
         cls,
@@ -1656,7 +1656,7 @@ class Object:
         """Unpack an Object from the byte representation of its encoded format."""
         ...
 
-    @declare_method(34)
+    @declare_method(203)
     @classmethod
     def unpack_binary_base64(
         cls,

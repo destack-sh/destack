@@ -100,9 +100,9 @@ def test_roundtrip_node_reference(session: Session, space: Space):
     node_ref = NodeReference(
         type=NodeType.FOLDER,
         id=uuid4(),
-        space_id=space.id,
-        branch_id=space.branch_ptr.id,
-        snapshot_id=space.snapshot_ptr.id,
+        space_id=uuid4(),
+        branch_id=uuid4(),
+        snapshot_id=uuid4(),
     )
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_object(node_ref, session, encoder, encoding)

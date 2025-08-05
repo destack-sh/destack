@@ -244,25 +244,17 @@ class NodeDefinition(ObjectDefinition):
                 PropertyDefinition.from_declaration(prop)
                 for prop in node_cls.__properties__.values()
             ],
-            indexes=[
-                IndexDefinition.from_declaration(node_cls, index) for index in declaration.indexes
-            ],
+            indexes=[IndexDefinition.from_declaration(index) for index in declaration.indexes],
             constraints=[
-                ConstraintDefinition.from_declaration(node_cls, constraint)
+                ConstraintDefinition.from_declaration(constraint)
                 for constraint in declaration.constraints
             ],
             permissions=[
                 PermissionDefinition.from_declaration(permission)
                 for permission in declaration.permissions
             ],
-            methods=[
-                MethodDefinition.from_declaration(node_cls, method)
-                for method in declaration.methods
-            ],
-            actions=[
-                ActionDefinition.from_declaration(node_cls, action)
-                for action in declaration.actions
-            ],
+            methods=[MethodDefinition.from_declaration(method) for method in declaration.methods],
+            actions=[ActionDefinition.from_declaration(action) for action in declaration.actions],
             constants=[
                 ConstantDefinition.from_declaration(constant) for constant in declaration.constants
             ],

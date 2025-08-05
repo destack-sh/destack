@@ -8,8 +8,10 @@ from destack.core import (
     OptionEnum,
     StructFrozen,
     StructType,
+    UInt32,
     declare_entity,
     declare_enum,
+    declare_method,
     declare_option,
     declare_property,
     declare_struct,
@@ -103,10 +105,11 @@ class Color(StructFrozen):
     b: Float32 = declare_property(103, is_repr=True)
     a: Float32 = declare_property(104, is_repr=True)
 
-    @staticmethod
-    def from_hex(hex: str) -> "Color":
-        r, g, b, a = hex_to_rgb(hex)
-        return Color(r=r, g=g, b=b, a=a or 1.0)
+    @declare_method(201)
+    @classmethod
+    def from_hex(cls, hex: str) -> "Color":
+        """Create a Color from a hex string."""
+        ...
 
 
 @declare_entity(
@@ -126,26 +129,17 @@ class ColorStyle(Style):
     a: Float32 = declare_property(206, is_repr=True)
     dark: "ColorStyle | None" = declare_property(207)
 
-    @staticmethod
-    def from_color(name: str, color: Color, dark: Color | None = None) -> "ColorStyle":
-        dark_style = ColorStyle.from_color(name, dark) if dark else None
-        return ColorStyle(
-            name=name,
-            type=ColorType.RGB,
-            r=color.r,
-            g=color.g,
-            b=color.b,
-            a=color.a,
-            dark=dark_style,
-        )
+    @declare_method(201)
+    @classmethod
+    def from_color(cls, name: str, color: Color, dark: Color | None = None) -> "ColorStyle":
+        """Create a ColorStyle from a Color."""
+        ...
 
-    @staticmethod
-    def from_hex(name: str, hex: str, dark: str | None = None) -> "ColorStyle":
-        return ColorStyle.from_color(
-            name,
-            Color.from_hex(hex),
-            Color.from_hex(dark) if dark else None,
-        )
+    @declare_method(202)
+    @classmethod
+    def from_hex(cls, name: str, hex: str, dark: str | None = None) -> "ColorStyle":
+        """Create a ColorStyle from a hex string."""
+        ...
 
 
 #
@@ -153,154 +147,49 @@ class ColorStyle(Style):
 #
 
 
-def _srgb_to_linear(c: float) -> float:
-    """y-encoded sRGB → linear."""
-    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+@declare_method(301)
+def hex_to_rgb(hex: str) -> tuple[Float32, Float32, Float32, Float32 | None]:
+    """Convert hex color string to linear-space RGB floats with optional alpha."""
+    ...
 
 
-def _linear_to_srgb(c: float) -> float:
-    """linear → y-encoded sRGB."""
-    return c * 12.92 if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+@declare_method(302)
+def rgb_to_hex(r: UInt32, g: UInt32, b: UInt32, a: UInt32 | None = None) -> str:
+    """Convert 8-bit sRGB values to hex color string."""
+    ...
 
 
-def _clamp01(x: float) -> float:  # avoid tiny negatives after matrices
-    return max(0.0, min(1.0, x))
+@declare_method(303)
+def rgb_to_hsl(r: UInt32, g: UInt32, b: UInt32) -> tuple[Float32, Float32, Float32]:
+    """Convert 8-bit sRGB values to HSL color space."""
+    ...
 
 
-_SRGB_TO_XYZ = (
-    (0.4124564, 0.3575761, 0.1804375),
-    (0.2126729, 0.7151522, 0.0721750),
-    (0.0193339, 0.1191920, 0.9503041),
-)
-
-_XYZ_TO_SRGB = (
-    (3.2406, -1.5372, -0.4986),
-    (-0.9689, 1.8758, 0.0415),
-    (0.0557, -0.2040, 1.0570),
-)
-
-_P3_TO_XYZ = (
-    (0.48657095, 0.26566769, 0.19821729),
-    (0.22897456, 0.69173852, 0.07928691),
-    (0.00000000, 0.04511338, 1.04394437),
-)
-
-_XYZ_TO_P3 = (
-    (2.49349691, -0.93138362, -0.40271078),
-    (-0.82948897, 1.76266400, 0.02362468),
-    (0.03584583, -0.07617239, 0.95688452),
-)
+@declare_method(304)
+def hsl_to_rgb(h: Float32, s: Float32, l: Float32) -> tuple[Float32, Float32, Float32]:  # noqa: E741
+    """Convert HSL values to linear-space RGB floats."""
+    ...
 
 
-def hex_to_rgb(hex: str) -> tuple[float, float, float, float | None]:
-    """Hex → linear-space floats 0-1 (optional alpha)."""
-    if len(hex) == 6:
-        r = int(hex[0:2], 16) / 255.0
-        g = int(hex[2:4], 16) / 255.0
-        b = int(hex[4:6], 16) / 255.0
-        return (r, g, b, None)
-    elif len(hex) == 8:
-        r = int(hex[0:2], 16) / 255.0
-        g = int(hex[2:4], 16) / 255.0
-        b = int(hex[4:6], 16) / 255.0
-        a = int(hex[6:8], 16) / 255.0
-        return (r, g, b, a)
-    else:
-        raise ValueError(f"invalid hex color: {hex}")
+@declare_method(305)
+def rgb_to_p3(r: Float32, g: Float32, b: Float32) -> tuple[Float32, Float32, Float32]:
+    """Convert gamma-encoded sRGB to gamma-encoded Display-P3."""
+    ...
 
 
-def rgb_to_hex(r: int, g: int, b: int, a: int | None = None) -> str:
-    """8-bit sRGB → hex."""
-    if a is None:
-        return f"{r:02x}{g:02x}{b:02x}"
-    else:
-        return f"{r:02x}{g:02x}{b:02x}{a:02x}"
+@declare_method(306)
+def p3_to_rgb(rp3: Float32, gp3: Float32, bp3: Float32) -> tuple[Float32, Float32, Float32]:
+    """Convert gamma-encoded Display-P3 to gamma-encoded sRGB."""
+    ...
 
 
-def rgb_to_hsl(r: int, g: int, b: int) -> tuple[float, float, float]:
-    """8-bit sRGB → HSL (h° 0-360, s|l 0-1)."""
-    r_f, g_f, b_f = [v / 255.0 for v in (r, g, b)]
-    c_max, c_min = max(r_f, g_f, b_f), min(r_f, g_f, b_f)
-    delta = c_max - c_min
-    if delta == 0:
-        h = 0.0
-    elif c_max == r_f:
-        h = ((g_f - b_f) / delta) % 6
-    elif c_max == g_f:
-        h = (b_f - r_f) / delta + 2
-    else:
-        h = (r_f - g_f) / delta + 4
-    h *= 60.0
-    l = (c_max + c_min) / 2.0  # noqa: E741
-    s = 0.0 if delta == 0 else delta / (1.0 - abs(2.0 * l - 1.0))
-    return h, s, l
+@declare_method(307)
+def hsl_to_p3(h: Float32, s: Float32, l: Float32) -> tuple[Float32, Float32, Float32]:  # noqa: E741
+    """Convert HSL to gamma-encoded Display-P3."""
+    ...
 
 
-def hsl_to_rgb(h: float, s: float, l: float) -> tuple[float, float, float]:  # noqa: E741
-    """HSL (h° 0-360, s|l 0-1) → linear-space floats 0-1."""
-    c = (1.0 - abs(2.0 * l - 1.0)) * s
-    x = c * (1.0 - abs((h / 60.0) % 2.0 - 1.0))
-    m = l - c / 2.0
-    if 0 <= h < 60:
-        r1, g1, b1 = c, x, 0
-    elif 60 <= h < 120:
-        r1, g1, b1 = x, c, 0
-    elif 120 <= h < 180:
-        r1, g1, b1 = 0, c, x
-    elif 180 <= h < 240:
-        r1, g1, b1 = 0, x, c
-    elif 240 <= h < 300:
-        r1, g1, b1 = x, 0, c
-    else:
-        r1, g1, b1 = c, 0, x
-    return r1 + m, g1 + m, b1 + m
-
-
-def _mat_mul(
-    v: tuple[float, float, float], m: tuple[tuple[float, float, float], ...]
-) -> tuple[float, float, float]:
-    x = v[0] * m[0][0] + v[1] * m[0][1] + v[2] * m[0][2]
-    y = v[0] * m[1][0] + v[1] * m[1][1] + v[2] * m[1][2]
-    z = v[0] * m[2][0] + v[1] * m[2][1] + v[2] * m[2][2]
-    return x, y, z
-
-
-def rgb_to_p3(r: float, g: float, b: float) -> tuple[float, float, float]:
-    """y-encoded sRGB (0-1) → y-encoded Display-P3 (0-1)."""
-    # sRGB y → linear
-    rl, gl, bl = map(_srgb_to_linear, (r, g, b))
-    # linear sRGB → XYZ → linear P3
-    X, Y, Z = _mat_mul((rl, gl, bl), _SRGB_TO_XYZ)
-    rp3_l, gp3_l, bp3_l = _mat_mul((X, Y, Z), _XYZ_TO_P3)
-    # linear P3 → y; clamp
-    return (
-        _clamp01(_linear_to_srgb(rp3_l)),
-        _clamp01(_linear_to_srgb(gp3_l)),
-        _clamp01(_linear_to_srgb(bp3_l)),
-    )
-
-
-def p3_to_rgb(rp3: float, gp3: float, bp3: float) -> tuple[float, float, float]:
-    """y-encoded Display-P3 (0-1) → y-encoded sRGB (0-1)."""
-    # P3 y → linear
-    rp3_l, gp3_l, bp3_l = map(_srgb_to_linear, (rp3, gp3, bp3))
-    # linear P3 → XYZ → linear sRGB
-    X, Y, Z = _mat_mul((rp3_l, gp3_l, bp3_l), _P3_TO_XYZ)
-    r_l, g_l, b_l = _mat_mul((X, Y, Z), _XYZ_TO_SRGB)
-    # linear sRGB → y; clamp
-    return (
-        _clamp01(_linear_to_srgb(r_l)),
-        _clamp01(_linear_to_srgb(g_l)),
-        _clamp01(_linear_to_srgb(b_l)),
-    )
-
-
-def hsl_to_p3(h: float, s: float, l: float) -> tuple[float, float, float]:  # noqa: E741
-    """HSL → y-encoded Display-P3 (0-1)."""
-    return rgb_to_p3(*hsl_to_rgb(h, s, l))
-
-
-def p3_to_hsl(rp3: float, gp3: float, bp3: float) -> tuple[float, float, float]:
-    """y-encoded Display-P3 (0-1) → HSL."""
-    r, g, b = p3_to_rgb(rp3, gp3, bp3)
-    return rgb_to_hsl(int(r * 255 + 0.5), int(g * 255 + 0.5), int(b * 255 + 0.5))
+@declare_method(308)
+def p3_to_hsl(rp3: Float32, gp3: Float32, bp3: Float32) -> tuple[Float32, Float32, Float32]:
+    """Convert gamma-encoded Display-P3 to HSL."""
+    ...

@@ -1,6 +1,6 @@
 import pytest
 
-from destack.core import BASE_62_DIGITS, get_order_key
+from destack import BASE_62_DIGITS, get_order_key
 
 
 @pytest.mark.parametrize(

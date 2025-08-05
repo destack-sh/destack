@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Self, final
 
 from ..builtin import (
-    Object,
     StructType,
     UInt8,
     declare_property,
@@ -32,14 +31,10 @@ class ConstraintDefinition(Definition):
     properties: list["PropertyReference"] = declare_property(120)
 
     @classmethod
-    def from_declaration(
-        cls, object_cls: type_["Object"], declaration: "ConstraintDeclaration"
-    ) -> "Self":
+    def from_declaration(cls, declaration: "ConstraintDeclaration") -> "Self":
         return cls(
             # meta
             id=declaration.id,
             type=declaration.type,
             name=declaration.name or "Constraint",
-            # content
-            properties=[object_cls.property(p).to_ref() for p in declaration.properties],
         )
