@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from .core.builtin import (
     EnumType,
+    FunctionDeclaration,
     HandleType,
     NodeType,
     Object,
@@ -18,7 +19,6 @@ from .registry import (
     HANDLE_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
-    NODE_TYPE_SCALAR_BY_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
@@ -70,11 +70,8 @@ def finalize():
         NodeDefinition,
         ObjectDefinitionReference,
         PropertyDeclaration,
-        ScalarType,
         Struct,
         StructDefinition,
-        Type,
-        TypeCardinality,
     )
 
     for cls in chain(
@@ -186,14 +183,16 @@ def finalize():
         enum_definition = EnumDefinition.from_declaration(enum_cls, enum_cls.__declaration__)
         ENUM_DEFINITION_BY_TYPE[enum_cls.metatype] = enum_definition
 
-    # index node scalar types
-    for node_type in NodeType:
-        scalar_type = Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_VALUE,
-            node_types=[node_type],
-        )
-        NODE_TYPE_SCALAR_BY_TYPE[node_type] = scalar_type
+    # impute methods/actions
+    for object_cls in chain(
+        NODE_CLASS_BY_TYPE.values(),
+        STRUCT_CLASS_BY_TYPE.values(),
+        HANDLE_CLASS_BY_TYPE.values(),
+    ):
+        for name, attribute in object_cls.__dict__.items():
+            if isinstance(attribute, FunctionDeclaration):
+                # replace function with method/action
+                setattr(object_cls, name, attribute.outer_func)
 
     # finalize constants
     for object_cls in chain(

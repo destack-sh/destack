@@ -1,5 +1,3 @@
-from collections.abc import Generator
-from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Optional,
@@ -8,8 +6,6 @@ from typing import (
 )
 
 from ..builtin import (
-    ACTIVE_BRANCH,
-    ACTIVE_SNAPSHOT,
     Entity,
     EnumType,
     NodeType,
@@ -50,17 +46,6 @@ class Branch(Entity):
     parent: Optional["Space"] = declare_property_parent()
     type: BranchType = declare_property(100)
 
-    @contextmanager
-    def active(self) -> Generator[None, None, None]:
-        """
-        Context manager to set the active Branch to this Branch.
-        """
-        token = ACTIVE_BRANCH.set(self)
-        try:
-            yield
-        finally:
-            ACTIVE_BRANCH.reset(token)
-
 
 @declare_enum(EnumType.SNAPSHOT_TYPE)
 class SnapshotType(OptionEnum):
@@ -98,14 +83,3 @@ class Snapshot(Entity):
 
     type: SnapshotType = declare_property(100)
     status: SnapshotStatus = declare_property(110, default=SnapshotStatus.ACTIVE)
-
-    @contextmanager
-    def active(self) -> Generator[None, None, None]:
-        """
-        Context manager to set the active Snapshot to this Snapshot.
-        """
-        token = ACTIVE_SNAPSHOT.set(self)
-        try:
-            yield
-        finally:
-            ACTIVE_SNAPSHOT.reset(token)

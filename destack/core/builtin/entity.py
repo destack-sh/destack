@@ -11,7 +11,6 @@ from typing import (
 from destack.registry import NODE_CLASS_BY_TYPE
 
 from ..utility import INTEGER_ZERO, UUID
-from .builtin import EnumType, NodeType, ObjectKind, StructType, TraitType
 from .const import UNSET
 from .declaration import (
     ConstraintDeclaration,
@@ -29,6 +28,7 @@ from .property import (
     declare_property,
     declare_property_parent,
 )
+from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 
 if TYPE_CHECKING:
     from destack import (

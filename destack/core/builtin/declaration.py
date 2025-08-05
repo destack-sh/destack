@@ -1,19 +1,10 @@
 import dataclasses
 import inspect
 import typing
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Self, cast
 
-from .builtin import (
-    EnumType,
-    HandleType,
-    NodeType,
-    ObjectKind,
-    ObjectStability,
-    StructType,
-    TraitType,
-)
 from .const import UNSET
 from .hoisted import (
     ActionType,
@@ -27,6 +18,15 @@ from .hoisted import (
     RuntimeType,
     ScalarType,
     TypeCardinality,
+)
+from .universe import (
+    EnumType,
+    HandleType,
+    NodeType,
+    ObjectKind,
+    ObjectStability,
+    StructType,
+    TraitType,
 )
 
 if TYPE_CHECKING:
@@ -211,7 +211,7 @@ class HandleDeclaration(ObjectDeclaration):
 
 @dataclass(slots=True, repr=False)
 class IndexDeclaration(Declaration):
-    """Declaration of an IndexDefinition (internal use only)."""
+    """Declaration of an IndexDefinition."""
 
     id: int
     properties: tuple[str, ...]
@@ -223,7 +223,7 @@ class IndexDeclaration(Declaration):
 
 @dataclass(slots=True, repr=False)
 class ConstraintDeclaration(Declaration):
-    """Declaration of a ConstraintDefinition (internal use only)."""
+    """Declaration of a ConstraintDefinition."""
 
     id: int
     type: ConstraintType
@@ -235,7 +235,7 @@ class ConstraintDeclaration(Declaration):
 
 @dataclass(slots=True, repr=False)
 class PermissionDeclaration(Declaration):
-    """Declaration of a PermissionDefinition (internal use only)."""
+    """Declaration of a PermissionDefinition."""
 
     id: int
     name: str
@@ -245,13 +245,14 @@ class PermissionDeclaration(Declaration):
 
 @dataclass(slots=True, repr=False)
 class FunctionDeclaration(Declaration):
-    """Declaration of a FunctionDefinition (internal use only)."""
+    """Declaration of a FunctionDefinition."""
 
     # meta
     id: int
     name: str
     description: str
-    func: Callable
+    outer_func: Callable | classmethod | property
+    inner_func: Callable
     is_async: bool
     is_internal: bool
 
@@ -269,10 +270,35 @@ class SignatureDeclaration(Declaration):
     output_property: "PropertyDeclaration | None"
 
 
+def _get_runtimes(
+    platforms: tuple[RuntimePlatform, ...],
+    languages: tuple[RuntimeLanguage, ...],
+    runtimes: tuple[RuntimeType, ...],
+) -> tuple[RuntimeType, ...]:
+    """
+    Get the runtimes from the platforms and languages.
+    """
+    if platforms or languages:
+        if runtimes:
+            raise ValueError("only one of runtimes or platforms/languages may be provided")
+        if not platforms:
+            platforms = tuple(RuntimePlatform)
+        if not languages:
+            languages = tuple(RuntimeLanguage)
+        runtimes = tuple(
+            RuntimeType.__options_by_id__[platform + language]
+            for platform in platforms
+            for language in languages
+            if platform + language in RuntimeType.__options_by_id__
+        )
+    return runtimes
+
+
 def _parse_signature(
     qualname: str,
     func: Callable,
-    signature: inspect.Signature,
+    parameters: Collection[inspect.Parameter],
+    return_annotation: Any,
     operator: FunctionOperator | None,
 ) -> SignatureDeclaration:
     from .property import PropertyDeclaration
@@ -282,7 +308,8 @@ def _parse_signature(
     output_property: PropertyDeclaration | None = None
 
     # process input parameters
-    for param_name, param in signature.parameters.items():
+    for param in parameters:
+        param_name = param.name
         if param_name == "self" or param_name == "cls":
             continue
         prop_py_type = (
@@ -303,14 +330,8 @@ def _parse_signature(
         input_properties.append(prop)
 
     # process return type
-    if signature.return_annotation != inspect.Parameter.empty and (
-        signature.return_annotation is not None
-    ):
-        return_type = signature.return_annotation
-        if operator == FunctionOperator.ITER:
-            # unwrap Iterator
-            return_type = typing.get_args(return_type)[0]
-        prop = PropertyDeclaration(name="return", py_type=return_type)
+    if return_annotation != inspect.Parameter.empty and return_annotation is not None:
+        prop = PropertyDeclaration(name="return", py_type=return_annotation)
         try:
             prop.type = parse_type_declaration(prop.py_type, is_builtin=True)
         except Exception as e:
@@ -325,7 +346,7 @@ def _parse_signature(
 
 @dataclass(slots=True, repr=False)
 class MethodDeclaration(FunctionDeclaration):
-    """Declaration of a MethodDefinition (internal use only)."""
+    """Declaration of a MethodDefinition."""
 
     # meta
     type: MethodType
@@ -337,55 +358,63 @@ class MethodDeclaration(FunctionDeclaration):
 
 
 def _process_method(
+    # meta
     func: Callable | classmethod | property,
     *,
     id: int,
     name: str | None,
-    tags: tuple[str, ...],
-    runtimes: tuple[RuntimeType, ...],
     operator: FunctionOperator | None,
     is_implemented: bool,
     is_internal: bool,
+    # associations
+    tags: tuple[str, ...],
+    runtimes: tuple[RuntimeType, ...],
 ) -> tuple[Callable, MethodDeclaration]:
     """
     Process a method to create a MethodDeclaration.
-    Only one of runtimes or platforms/languages may be provided.
     """
 
     # unwrap class methods and properties
+    outer_func = func
     type: MethodType = MethodType.INSTANCE
     if isinstance(func, classmethod):
-        func = func.__func__
+        inner_func = func.__func__
         type = MethodType.STATIC
     elif isinstance(func, property):
-        func = cast(Callable, func.fget)
+        inner_func = cast(Callable, func.fget)
         type = MethodType.PROPERTY
+    else:
+        inner_func = func
 
     # meta
-    qualname = f"{func.__module__}.{func.__qualname__}"
-    is_async = inspect.iscoroutinefunction(func)
+    qualname = f"{inner_func.__module__}.{inner_func.__qualname__}"
+    is_async = inspect.iscoroutinefunction(inner_func)
 
-    # parse function signature
+    # parse method signature
+    signature = inspect.signature(inner_func)
+    signature_parameters = signature.parameters.values()
+    signature_return_annotation = signature.return_annotation
+    if operator == FunctionOperator.ITER:
+        signature_return_annotation = typing.get_args(signature_return_annotation)[0]
     signature_declaration = _parse_signature(
         qualname=qualname,
-        func=func,
-        signature=inspect.signature(func),
+        func=inner_func,
+        parameters=signature_parameters,
+        return_annotation=signature_return_annotation,
         operator=operator,
     )
 
     # implementation must be empty
-    if not is_implemented and (
-        (not is_async and len(func.__code__.co_code) > 4)
-        or (is_async and len(func.__code__.co_code) > 12)
-    ):
-        source = inspect.getsource(func).strip()
+    if not is_implemented and len(inner_func.__code__.co_code) > 12:
+        source = inspect.getsource(inner_func).strip()
         raise ValueError(f"abstract method declaration must be empty: {qualname}\n{source}")
 
     declaration = MethodDeclaration(
         id=id,
-        name=name or func.__name__,
-        description=func.__doc__ or "",
-        func=func,
+        name=name or inner_func.__name__,
+        description=inner_func.__doc__ or "",
+        outer_func=outer_func,
+        inner_func=inner_func,
         is_implemented=is_implemented,
         is_async=is_async,
         is_internal=is_internal,
@@ -396,7 +425,7 @@ def _process_method(
         output_property=signature_declaration.output_property,
     )
 
-    return func, declaration
+    return inner_func, declaration
 
 
 def declare_method(
@@ -417,15 +446,18 @@ def declare_method(
     """Declare a builtin Method."""
 
     def decorate(func):
+        all_runtimes = _get_runtimes(platforms=platforms, languages=languages, runtimes=runtimes)
         func, declaration = _process_method(
+            # meta
             func,
             id=id,
             name=name,
-            tags=tags,
-            runtimes=runtimes,
+            operator=operator,
+            runtimes=all_runtimes,
             is_implemented=is_implemented,
             is_internal=is_internal,
-            operator=operator,
+            # associations
+            tags=tags,
         )
         if TYPE_CHECKING:
             return func
@@ -437,33 +469,143 @@ def declare_method(
 
 @dataclass(slots=True, repr=False)
 class ActionDeclaration(FunctionDeclaration):
-    """Declaration of an ActionDefinition (internal use only)."""
+    """
+    Declaration of an ActionDefinition.
+    Actions must communicate with Messages.
+    """
 
     type: ActionType
 
+    input_message_type: StructType | None
+    output_message_type: StructType | None
+
+
+def _process_action(
+    # meta
+    func: Callable,
+    *,
+    id: int,
+    name: str | None,
+    type: ActionType,
+    runtimes: tuple[RuntimeType, ...] = (),
+    is_internal: bool,
+    # associations
+    tags: tuple[str, ...] = (),
+) -> tuple[Callable, ActionDeclaration]:
+    """
+    Process an action to create an ActionDeclaration.
+    """
+
+    from .type import parse_type_declaration
+
+    # meta
+    qualname = f"{func.__module__}.{func.__qualname__}"
+    is_async = inspect.iscoroutinefunction(func)
+
+    # parse action signature
+    signature = inspect.signature(func)
+    signature_parameters = signature.parameters.values()
+
+    # parse input type
+    input_message_type = None
+    for param in signature_parameters:
+        if param.name == "self" or param.name == "cls":
+            continue
+        elif param.name == "request":
+            param_py_type = param.annotation
+            if type in (ActionType.STREAM_IN_UNARY_OUT, ActionType.STREAM_IN_STREAM_OUT):
+                # strip stream type
+                param_py_type = typing.get_args(param_py_type)[0]
+            param_type = parse_type_declaration(param_py_type, is_builtin=True)
+            if param_type.cardinality != TypeCardinality.SCALAR or param_type.struct_type is None:
+                raise ValueError(
+                    f"invalid input message type: {qualname}.{param.name} ({param.annotation}->{param_type!r})"
+                )
+            input_message_type = param_type.struct_type
+        else:
+            raise ValueError(f"extraneous parameter: {qualname}.{param.name} ({param.annotation})")
+
+    # parse output type
+    signature_return_annotation = signature.return_annotation
+    output_message_type = None
+    if (
+        signature_return_annotation != inspect.Parameter.empty
+        and signature_return_annotation is not None
+    ):
+        if type in (ActionType.UNARY_IN_STREAM_OUT, ActionType.STREAM_IN_STREAM_OUT):
+            # strip stream type
+            signature_return_annotation = typing.get_args(signature_return_annotation)[0]
+        output_message_type = parse_type_declaration(signature_return_annotation, is_builtin=True)
+        if (
+            output_message_type.cardinality != TypeCardinality.SCALAR
+            or output_message_type.struct_type is None
+        ):
+            raise ValueError(
+                f"invalid output message type: {qualname}.<output> ({signature_return_annotation}->{output_message_type!r})"
+            )
+        output_message_type = output_message_type.struct_type
+
+    # implementation must be empty
+    if len(func.__code__.co_code) > 12:
+        source = inspect.getsource(func).strip()
+        raise ValueError(f"abstract action declaration must be empty: {qualname}\n{source}")
+
+    declaration = ActionDeclaration(
+        id=id,
+        name=name or func.__name__,
+        description=func.__doc__ or "",
+        outer_func=func,
+        inner_func=func,
+        is_async=is_async,
+        is_internal=is_internal,
+        tags=tags,
+        runtimes=runtimes,
+        type=type,
+        input_message_type=input_message_type,
+        output_message_type=output_message_type,
+    )
+    return func, declaration
+
 
 def declare_action(
+    # meta
     id: int,
     *,
     name: str | None = None,
-    tags: tuple[str, ...] = (),
-    type: ActionType = ActionType.UNARY_IN_UNARY_OUT,
+    type: ActionType,
     platforms: tuple[RuntimePlatform, ...] = (),
     languages: tuple[RuntimeLanguage, ...] = (),
     runtimes: tuple[RuntimeType, ...] = (),
     is_internal: bool = False,
+    # associations
+    tags: tuple[str, ...] = (),
 ):
     """Declare a builtin Action."""
 
     def decorate(func):
-        return func  # nocheckin
+        all_runtimes = _get_runtimes(platforms=platforms, languages=languages, runtimes=runtimes)
+        func, declaration = _process_action(
+            # meta
+            func,
+            id=id,
+            name=name,
+            type=type,
+            runtimes=all_runtimes,
+            is_internal=is_internal,
+            # associations
+            tags=tags,
+        )
+        if TYPE_CHECKING:
+            return func
+        else:
+            return declaration
 
     return decorate
 
 
 @dataclass(slots=True, repr=False)
 class MessageDeclaration(Declaration):
-    """Declaration of a MessageDefinition (internal use only)."""
+    """Declaration of a MessageDefinition."""
 
     id: int
     name: str
@@ -473,7 +615,7 @@ class MessageDeclaration(Declaration):
 
 @dataclass(slots=True, repr=False)
 class TagDeclaration(Declaration):
-    """Declaration of a TagDefinition (internal use only)."""
+    """Declaration of a TagDefinition."""
 
     id: int
     name: str

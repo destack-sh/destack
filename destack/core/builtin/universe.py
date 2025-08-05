@@ -91,7 +91,9 @@ class UniverseCategory(OptionEnum):
     ANIMATION = declare_option(20_300_000, "Animation", description="Motion choreography")
     LIGHTING = declare_option(20_500_000, "Lighting", description="Lighting and shadows")
     PERCEPTION = declare_option(20_600_000, "Perception", description="Sensing and interaction")
-    # CHARACTER/HUMAN?, MECHANICAL, ELECTRICAL, SUBSTANCE, ...
+    # CHARACTER/HUMAN?,
+    # LOGIC, NETWORKING, STATISTICS, ...
+    # MECHANICAL, ELECTRICAL, SUBSTANCE, ...
     # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
 
     #
@@ -412,6 +414,7 @@ class ObjectKind(OptionEnum):
         "Handle",
         description="Object with special data and logic (runtime only)",
     )
+    # nocheckin: Helpers (or some other kind of Object for anonymous (global?) methods)
 
 
 @declare_enum(EnumType.OBJECT_STABILITY)

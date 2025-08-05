@@ -1,12 +1,3 @@
-from .builtin import (
-    EnumType,
-    HandleType,
-    NodeType,
-    ObjectKind,
-    ObjectStability,
-    StructType,
-    TraitType,
-)
 from .const import (
     ACTIVE_BRANCH,
     ACTIVE_EVENT,
@@ -42,6 +33,7 @@ from .declaration import (
     ActionDeclaration,
     ConstantDeclaration,
     ConstraintDeclaration,
+    FunctionDeclaration,
     HandleDeclaration,
     IndexDeclaration,
     MethodDeclaration,
@@ -133,6 +125,15 @@ from .types import (
     UInt64,
     UInt128,
 )
+from .universe import (
+    EnumType,
+    HandleType,
+    NodeType,
+    ObjectKind,
+    ObjectStability,
+    StructType,
+    TraitType,
+)
 
 __all__ = [
     "ACTIVE_BRANCH",
@@ -180,6 +181,7 @@ __all__ = [
     "Float16",
     "Float32",
     "Float64",
+    "FunctionDeclaration",
     "FunctionOperator",
     "Handle",
     "HandleDeclaration",
