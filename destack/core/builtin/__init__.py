@@ -10,9 +10,6 @@ from .const import (
     NONCE,
     UNSET,
     VERSION,
-    DestackError,
-    active_session,
-    get_active_session,
 )
 from .declaration import (
     ActionDeclaration,
@@ -22,6 +19,7 @@ from .declaration import (
     HandleDeclaration,
     IndexDeclaration,
     MethodDeclaration,
+    ModuleDeclaration,
     NodeDeclaration,
     ObjectDeclaration,
     PermissionDeclaration,
@@ -48,6 +46,7 @@ from .enum import (
     declare_enum,
     declare_option,
 )
+from .error import Error, declare_error
 from .event import Event, EventStatus, declare_event
 from .handle import Handle, declare_handle
 from .hoisted import (
@@ -71,6 +70,7 @@ from .hoisted import (
     RoleType,
     RuntimeLanguage,
     RuntimePlatform,
+    RuntimeType,
     ScalarType,
     Tenancy,
     TypeCardinality,
@@ -146,7 +146,6 @@ __all__ = [
     "ConstraintType",
     "Date",
     "Datetime",
-    "DestackError",
     "Duration",
     "EdgeDirection",
     "EdgeType",
@@ -156,6 +155,7 @@ __all__ = [
     "Enum",
     "EnumDeclaration",
     "EnumType",
+    "Error",
     "Event",
     "EventStatus",
     "FlagEnum",
@@ -179,6 +179,7 @@ __all__ = [
     "Message",
     "MethodDeclaration",
     "MethodType",
+    "ModuleDeclaration",
     "Node",
     "NodeDeclaration",
     "NodeType",
@@ -198,6 +199,7 @@ __all__ = [
     "RoleType",
     "RuntimeLanguage",
     "RuntimePlatform",
+    "RuntimeType",
     "ScalarType",
     "String",
     "Struct",
@@ -217,11 +219,11 @@ __all__ = [
     "UInt128",
     "ValueFactory",
     "_is_finalized",
-    "active_session",
     "declare_action",
     "declare_constant",
     "declare_entity",
     "declare_enum",
+    "declare_error",
     "declare_event",
     "declare_handle",
     "declare_message",
@@ -233,6 +235,5 @@ __all__ = [
     "declare_struct",
     "expand_node_inheritance",
     "expand_node_types",
-    "get_active_session",
     "parse_type_declaration",
 ]

@@ -138,7 +138,7 @@ class PropertyDeclaration(Declaration):
     @property
     def definition(self) -> "PropertyDefinition":
         if self._definition is None:
-            from ..common import PropertyDefinition
+            from ..definition import PropertyDefinition
 
             self._definition = PropertyDefinition.from_declaration(self)
         return self._definition

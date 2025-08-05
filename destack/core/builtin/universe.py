@@ -59,15 +59,16 @@ class UniverseCategory(OptionEnum):
     #
 
     BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
-    COMMON = declare_option(100_000, "Common", description="Shared definitions")
-    ENCODING = declare_option(200_000, "Encoding", description="Serialization and packing")
-    STORAGE = declare_option(300_000, "Storage", description="Graph storage and synchronization")
-    GENERATION = declare_option(400_000, "Generation", description="SDK generation")
-    LOCAL = declare_option(500_000, "Local", description="Local runtime integration")
-    UTILITY = declare_option(600_000, "Utility", description="Utility functions")
+    DEFINITION = declare_option(100_000, "Definition", description="Builtin definitions")
+    COMMON = declare_option(200_000, "Common", description="Shared definitions")
+    ENCODING = declare_option(1_000_000, "Encoding", description="Serialization and packing")
+    STORAGE = declare_option(1_100_000, "Storage", description="Graph storage and synchronization")
+    GENERATION = declare_option(2_000_000, "Generation", description="SDK generation")
+    LOCAL = declare_option(2_100_000, "Local", description="Local runtime integration")
+    UTILITY = declare_option(2_200_000, "Utility", description="Utility functions")
     # ...
-    UNIVERSE = declare_option(1_000_000, "Universe", description="Global computational universe")
-    SPACE = declare_option(1_100_000, "Space", description="Spacetime organization")
+    UNIVERSE = declare_option(3_000_000, "Universe", description="Global computational universe")
+    SPACE = declare_option(3_100_000, "Space", description="Spacetime organization")
 
     #
     # BASICS
@@ -171,54 +172,57 @@ class EnumType(OptionEnum):
     RUNTIME_TYPE = declare_option(32)
     EVENT_STATUS = declare_option(50)
 
-    # common [100_000]
-    PRIMITIVE_TYPE = declare_option(100_000)
-    TYPE_CARDINALITY = declare_option(100_001)
-    SCALAR_TYPE = declare_option(100_002)
-    VALUE_FACTORY = declare_option(100_003)
-    PROPERTY_ZONE = declare_option(100_006)
-    EDGE_TYPE = declare_option(100_007)
-    EDGE_DIRECTION = declare_option(100_008)
-    CASCADE_ACTION = declare_option(100_009)
-    ENCODING = declare_option(100_010)
-    TEXT_SPAN_TYPE = declare_option(100_011)
-    ICON_TYPE = declare_option(100_012)
+    # definition [100_000]
+    #
+
+    # common [200_000]
+    PRIMITIVE_TYPE = declare_option(200_000)
+    TYPE_CARDINALITY = declare_option(200_001)
+    SCALAR_TYPE = declare_option(200_002)
+    VALUE_FACTORY = declare_option(200_003)
+    PROPERTY_ZONE = declare_option(200_006)
+    EDGE_TYPE = declare_option(200_007)
+    EDGE_DIRECTION = declare_option(200_008)
+    CASCADE_ACTION = declare_option(200_009)
+    ENCODING = declare_option(200_010)
+    TEXT_SPAN_TYPE = declare_option(200_011)
+    ICON_TYPE = declare_option(200_012)
     # edit
-    EDIT_TYPE = declare_option(100_200)
-    EDIT_OPERATION = declare_option(100_201)
-    PROPERTY_REFERENCE_TYPE = declare_option(100_213)
+    EDIT_TYPE = declare_option(200_200)
+    EDIT_OPERATION = declare_option(200_201)
+    PROPERTY_REFERENCE_TYPE = declare_option(200_213)
     # query
-    CONDITIONAL_TYPE = declare_option(100_300)
-    AGGREGATION_TYPE = declare_option(100_301)
-    SORT_MODE = declare_option(100_302)
-    SORT_TYPE = declare_option(100_303)
-    JOIN_TYPE = declare_option(100_304)
-    EXPRESSION_TYPE = declare_option(100_306)
-    QUERY_TYPE = declare_option(100_320)
+    CONDITIONAL_TYPE = declare_option(200_300)
+    AGGREGATION_TYPE = declare_option(200_301)
+    SORT_MODE = declare_option(200_302)
+    SORT_TYPE = declare_option(200_303)
+    JOIN_TYPE = declare_option(200_304)
+    EXPRESSION_TYPE = declare_option(200_306)
+    QUERY_TYPE = declare_option(200_320)
 
-    # encoding [200_000]
-    ENCODER_OPTIONS = declare_option(200_000)
+    # encoding [1_000_000]
+    ENCODER_OPTIONS = declare_option(1_000_000)
 
-    # storage [300_000]
+    # storage [1_100_000]
     # ...
 
-    # generation [400_000]
+    # generation [2_000_000]
     # ...
 
-    # local [500_000]
+    # local [2_100_000]
     # ...
 
-    # utility [600_000]
+    # utility [2_200_000]
     # ...
 
-    # universe [1_000_000]
-    CLIENT_TYPE = declare_option(1_000_000)
+    # universe [3_000_000]
+    CLIENT_TYPE = declare_option(3_000_200)
 
-    # space [1_100_000]
-    FOLDER_TYPE = declare_option(1_100_500)
-    BRANCH_TYPE = declare_option(1_100_300)
-    SNAPSHOT_TYPE = declare_option(1_100_400)
-    SNAPSHOT_STATUS = declare_option(1_100_401)
+    # space [3_100_000]
+    BRANCH_TYPE = declare_option(3_100_300)
+    SNAPSHOT_TYPE = declare_option(3_100_400)
+    SNAPSHOT_STATUS = declare_option(3_100_401)
+    FOLDER_TYPE = declare_option(3_100_500)
 
     #
     # BASICS
@@ -414,7 +418,11 @@ class ObjectKind(OptionEnum):
         "Handle",
         description="Object with special data and logic (runtime only)",
     )
-    # nocheckin: Helpers (or some other kind of Object for anonymous (global?) methods)
+    MODULE = declare_option(
+        4,
+        "Module",
+        description="Object with static logic (runtime only)",
+    )
 
 
 @declare_enum(EnumType.OBJECT_STABILITY)
@@ -446,28 +454,31 @@ class TraitType(OptionEnum):
     TEMPLATE = declare_option(4, "Template", description="Is a Template")
     # PAUSABLE?
 
-    # common [100_000]
+    # definition [100_000]
     # ...
 
-    # encoding [200_000]
+    # common [200_000]
     # ...
 
-    # storage [300_000]
+    # encoding [1_000_000]
     # ...
 
-    # generation [400_000]
+    # storage [1_100_000]
     # ...
 
-    # local [500_000]
+    # generation [2_000_000]
     # ...
 
-    # utility [600_000]
+    # local [2_100_000]
     # ...
 
-    # universe [1_000_000]
+    # utility [2_200_000]
     # ...
 
-    # space [1_100_000]
+    # universe [3_000_000]
+    # ...
+
+    # space [3_100_000]
     # ...
 
     #
@@ -613,57 +624,57 @@ class NodeType(OptionEnum):
     ENTITY = declare_option(2, "Entity", description="Versioned, stateful Node")
     EVENT = declare_option(3, "Event", description="Immutable datum of something happening")
 
-    # common [100_000]
+    # definition [100_000]
+    # ...
+
+    # common [200_000]
     EDIT_EVENT = declare_option(100_000, "Edit Event")
     # CHANGE_EVENT?
     # ...
 
-    # encoding [200_000]
+    # encoding [1_000_000]
     # ...
 
-    # storage [300_000]
+    # storage [1_100_000]
     # ...
 
-    # generation [400_000]
+    # generation [2_000_000]
     # ...
 
-    # local [500_000]
+    # local [2_100_000]
     # ...
 
-    # utility [600_000]
+    # utility [2_200_000]
     # ...
 
-    # universe [1_000_000]
+    # universe [3_000_000]
     UNIVERSE = declare_option(
-        1_000_000, "Universe", description="The Destack computational universe"
+        3_000_000, "Universe", description="The Destack computational universe"
     )
     # GALAXY, ...
     # HANDLE?, ...
     # user
-    USER = declare_option(1_000_100, "User")
+    USER = declare_option(3_000_100, "User")
     # FRIENDSHIP, FRIENDSHIP_INVITE, ...
-    CLIENT = declare_option(1_000_200, "Client")
+    CLIENT = declare_option(3_000_200, "Client")
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     # organization
-    ORGANIZATION = declare_option(1_000_300, "Organization")
-    TEAM = declare_option(1_000_400, "Team", description="Team in an Organization")
+    ORGANIZATION = declare_option(3_000_300, "Organization")
+    TEAM = declare_option(3_000_400, "Team", description="Team in an Organization")
 
-    # space [1_100_000]
-    SPACE = declare_option(1_100_000, "Space", description="Universal Space")
-    TAG = declare_option(1_100_100, "Tag")
+    # space [3_100_000]
+    SPACE = declare_option(3_100_000, "Space", description="Universal Space")
+    TAG = declare_option(3_100_100, "Tag")
     # TRAIT?
     # FRAGMENT (multiple disjoint trees)
     # SLOT (inside tree)
     # LINK/PORTAL (to another subtree)
-    # TIMELINE, TRACK, (KEY)FRAME, ...
-    BRANCH = declare_option(1_100_300, "Branch")
-    SNAPSHOT = declare_option(1_100_400, "Snapshot", description="Point in Space-time")
-    FOLDER = declare_option(1_100_500, "Folder", description="Sub-space of a Space")
+    BRANCH = declare_option(3_100_300, "Branch")
+    SNAPSHOT = declare_option(3_100_400, "Snapshot", description="Point in Space-time")
+    FOLDER = declare_option(3_100_500, "Folder", description="Sub-space of a Space")
     # APPLICATION (extends Folder?), ...
-    # DEPENDENCY, ...
-    # VERSION, ...
-    # HISTORY, REPLAY, ...
-    # FORK, ...
+    # DEPENDENCY, VERSION, ...
+    # HISTORY, REPLAY, TIMELINE, FORK, ...
     # LINK, PORTAL, ...
 
     #
@@ -673,28 +684,37 @@ class NodeType(OptionEnum):
     # entity [10_000_000]
     # custom
     CUSTOM_EVENT_DEFINITION = declare_option(
-        10_000_000, "Custom Event", description="Custom Event Definition"
+        10_000_000,
+        "Custom Event",
+        description="Custom Event Definition",
     )
     CUSTOM_STRUCT_DEFINITION = declare_option(
         10_000_100,
         "Custom Struct",
         description="Custom Struct Definition",
     )
+    CUSTOM_ERROR_DEFINITION = declare_option(
+        10_000_300,
+        "Custom Error",
+        description="Custom Error Definition",
+    )
     CUSTOM_MESSAGE_DEFINITION = declare_option(
         10_000_200,
         "Custom Message",
         description="Custom Message Definition",
     )
+    CUSTOM_ENUM_DEFINITION = declare_option(
+        10_000_500,
+        "Custom Enum",
+        description="Custom Enum Definition",
+    )
     CUSTOM_PROPERTY_DEFINITION = declare_option(
-        10_000_300,
+        10_001_000,
         "Custom Property",
         description="Custom Property Definition",
     )
-    CUSTOM_ENUM_DEFINITION = declare_option(
-        10_000_400, "Custom Enum", description="Custom Enum Definition"
-    )
     CUSTOM_OPTION_DEFINITION = declare_option(
-        10_000_500,
+        10_001_100,
         "Custom Option",
         description="Custom Option Definition",
     )
@@ -720,7 +740,6 @@ class NodeType(OptionEnum):
         "Migration Operation",
         description="Migration Operation of an Entity",
     )
-    # file
     FILE = declare_option(10_020_000, "File")
     # DIRECTORY, SYNC, ...
     # INDEX, CONSTRAINT, MIGRATION, ...
@@ -1066,12 +1085,12 @@ class NodeType(OptionEnum):
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
 
     # finance [60_300_000]
-    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
-    # ...
+    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, INVOICE, ...
+    # PAYMENT_METHOD, PAYOUT, REFUND, ...
 
     # commerce [60_400_000]
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ...
-    # ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
+    # ORDER, DISCOUNT, DISPUTE, ...
 
 
 @declare_enum(EnumType.STRUCT_TYPE)
@@ -1083,75 +1102,86 @@ class StructType(OptionEnum):
     # builtin [1]
     # root
     STRUCT = declare_option(1, "Struct", description="Root of all Structs")
-    MESSAGE = declare_option(2, "Message", description="Message")
+    ERROR = declare_option(2, "Error", description="Error")
+    MESSAGE = declare_option(3, "Message", description="Message")
 
-    OBJECT_DEFINITION = declare_option(10)
-    OBJECT_DEFINITION_REFERENCE = declare_option(11)
-    NODE_DEFINITION = declare_option(12)
-    STRUCT_DEFINITION = declare_option(15)
-    HANDLE_DEFINITION = declare_option(17)
-    ENUM_DEFINITION = declare_option(19)
-    PROPERTY_DEFINITION = declare_option(20)
-    CONSTANT_DEFINITION = declare_option(21)
-    OPTION_DEFINITION = declare_option(22)
-    TAG_DEFINITION = declare_option(23)
+    # definition [100_000]
+    DEFINITION = declare_option(100_000, "Definition")
+    OBJECT_DEFINITION = declare_option(100_001)
+    NODE_DEFINITION = declare_option(100_002)
+    STRUCT_DEFINITION = declare_option(100_003)
+    HANDLE_DEFINITION = declare_option(100_004)
+    ENUM_DEFINITION = declare_option(100_005)
+    PROPERTY_DEFINITION = declare_option(100_006)
+    CONSTANT_DEFINITION = declare_option(100_007)
+    OPTION_DEFINITION = declare_option(100_008)
+    TAG_DEFINITION = declare_option(100_100)
     # ALIAS_DEFINITION, UNION_DEFINITION, ...
+    INDEX_DEFINITION = declare_option(100_200)
+    CONSTRAINT_DEFINITION = declare_option(100_201)
+    MIGRATION_DEFINITION = declare_option(100_202)
+    MIGRATION_OPERATION_DEFINITION = declare_option(100_203)
+    # EXPECTATION_DEFINITION, ...
+    FUNCTION_DEFINITION = declare_option(100_300)
+    METHOD_DEFINITION = declare_option(100_301)
+    ACTION_DEFINITION = declare_option(100_302)
+    PERMISSION_DEFINITION = declare_option(100_400)
 
-    # common [100_000]
-    # ...
+    # common [120_000]
 
     # type/value
-    VALUE = declare_option(100_000)
-    TYPE = declare_option(100_001)
-    NUMBER_CONSTRAINT = declare_option(100_010)
-    STRING_CONSTRAINT = declare_option(100_011)
-    COLLECTION_CONSTRAINT = declare_option(100_012)
+    VALUE = declare_option(200_000)
+    TYPE = declare_option(200_001)
+    NUMBER_CONSTRAINT = declare_option(200_010)
+    STRING_CONSTRAINT = declare_option(200_011)
+    COLLECTION_CONSTRAINT = declare_option(200_012)
 
     # expressions
-    EXPRESSION = declare_option(100_020)
-    JOIN = declare_option(100_022)
-    AGGREGATION = declare_option(100_023)
-    CONDITION = declare_option(100_024)
-    SORT = declare_option(100_025)
-    SELECT = declare_option(100_026)
+    EXPRESSION = declare_option(200_100)
+    JOIN = declare_option(200_101)
+    AGGREGATION = declare_option(200_102)
+    CONDITION = declare_option(200_103)
+    SORT = declare_option(200_104)
+    SELECT = declare_option(200_105)
 
     # query
-    QUERY = declare_option(100_030)
+    QUERY = declare_option(200_200)
 
     # references
-    NODE_REFERENCE = declare_option(100_040)
-    PROPERTY_REFERENCE = declare_option(100_041)
+    NODE_REFERENCE = declare_option(200_300)
+    PROPERTY_REFERENCE = declare_option(200_301)
+    OBJECT_DEFINITION_REFERENCE = declare_option(200_302)
 
     # text
-    TEXT = declare_option(100_050)
-    TEXT_SPAN = declare_option(100_051)
+    TEXT = declare_option(200_400)
+    TEXT_SPAN = declare_option(200_401)
 
     # icon
-    ICON = declare_option(100_060)
+    ICON = declare_option(200_500)
 
-    # runtime [200_000]
+    # encoding [1_000_000]
     # ...
 
-    # graph [300_000]
+    # storage [1_100_000]
     # ...
 
-    # generator [400_000]
+    # generation [2_000_000]
     # ...
 
-    # cli [500_000]
+    # local [2_100_000]
     # ...
 
-    # encoder [600_000]
+    # utility [2_200_000]
     # ...
 
-    # universe [1_000_000]
-    UNIVERSE_SIGNUP_REQUEST = declare_option(1_000_000)
-    UNIVERSE_SIGNUP_RESPONSE = declare_option(1_000_001)
-    UNIVERSE_SPAWN_REQUEST = declare_option(1_000_002)
-    UNIVERSE_SPAWN_RESPONSE = declare_option(1_000_003)
+    # universe [3_000_000]
+    UNIVERSE_SIGNUP_REQUEST = declare_option(3_000_000)
+    UNIVERSE_SIGNUP_RESPONSE = declare_option(3_000_001)
+    UNIVERSE_SPAWN_REQUEST = declare_option(3_000_002)
+    UNIVERSE_SPAWN_RESPONSE = declare_option(3_000_003)
     # ...
 
-    # space [1_100_000]
+    # space [3_100_000]
     # ...
 
     #
@@ -1159,24 +1189,25 @@ class StructType(OptionEnum):
     #
 
     # entity [10_000_000]
-    INDEX_DEFINITION = declare_option(10_000_100)
-    CONSTRAINT_DEFINITION = declare_option(10_000_200)
-    # EXPECTATION_DEFINITION = 10_000_300
-    MIGRATION_DEFINITION = declare_option(10_000_300)
-    MIGRATION_OPERATION_DEFINITION = declare_option(10_000_301)
     # custom
     CUSTOM_STRUCT = declare_option(
-        10_000_500, "Custom Struct", description="Custom Struct Instance"
+        10_000_100,
+        "Custom Struct",
+        description="Custom Struct Instance",
+    )
+    CUSTOM_ERROR = declare_option(
+        10_000_200,
+        "Custom Error",
+        description="Custom Error Instance",
     )
     CUSTOM_MESSAGE = declare_option(
-        10_000_600, "Custom Message", description="Custom Message Instance"
+        10_000_300,
+        "Custom Message",
+        description="Custom Message Instance",
     )
     # ...
 
     # logic [10_100_000]
-    FUNCTION_DEFINITION = declare_option(10_100_400)
-    METHOD_DEFINITION = declare_option(10_100_500)
-    ACTION_DEFINITION = declare_option(10_100_600)
     SCHEDULE = declare_option(10_100_810)
     # ...
 
@@ -1184,7 +1215,7 @@ class StructType(OptionEnum):
     # ...
 
     # access [10_300_000]
-    PERMISSION_DEFINITION = declare_option(10_300_000)
+    # ...
 
     # quality [10_400_000]
     # ...
@@ -1336,20 +1367,20 @@ class HandleType(OptionEnum):
 
     HANDLE = declare_option(1)
 
-    # runtime [200_000]
-    SESSION = declare_option(200_000)
-    CONTEXT = declare_option(200_100)
-    LOGGER = declare_option(200_200)
-    TRACER = declare_option(200_300)
+    # encoding [1_000_000]
+    HASHER = declare_option(1_000_000)
+    ENCODER = declare_option(1_000_100)
+    BINARY_WRITER = declare_option(1_000_200)
+    BINARY_READER = declare_option(1_000_300)
 
-    # encoding [300_000]
-    HASHER = declare_option(300_000)
-    ENCODER = declare_option(300_100)
-    BINARY_WRITER = declare_option(300_200)
-    BINARY_READER = declare_option(300_300)
-
-    # storage [400_000]
-    GRAPH = declare_option(400_000)
-    CONNECTION = declare_option(400_100)
-    STREAM = declare_option(400_200)
+    # storage [1_100_000]
+    GRAPH = declare_option(1_100_000)
+    CONNECTION = declare_option(1_100_100)
+    STREAM = declare_option(1_100_200)
     # TRANSPORT, ...?
+
+    # local [2_100_000]
+    SESSION = declare_option(2_100_000)
+    CONTEXT = declare_option(2_100_100)
+    LOGGER = declare_option(2_100_200)
+    TRACER = declare_option(2_100_300)

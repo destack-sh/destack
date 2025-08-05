@@ -1,5 +1,3 @@
-from typing import Any
-
 from destack import BinaryReader, BinaryWriter, Encoder, Graph, Session
 
 # ruff: noqa: T201
@@ -62,7 +60,7 @@ class LoggingBinaryReader(BinaryReader):
         return wrapper
 
 
-def wrap_encoder(encoder: Encoder[Any]) -> Encoder[Any]:
+def wrap_encoder(encoder: Encoder) -> Encoder:
     """Wrap an encoder instance to log all method calls."""
     # dynamically wrap all public methods
     for attr_name in dir(encoder):

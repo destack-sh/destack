@@ -12,7 +12,7 @@ from .declaration import StructDeclaration, TagDeclaration, declare_method
 from .object import Object, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property_runtime
 from .types import Int32
-from .universe import EnumType, NodeType, ObjectKind, ObjectStability, StructType
+from .universe import NodeType, ObjectKind, ObjectStability, StructType
 
 if TYPE_CHECKING:
     from destack import StructDefinition
@@ -31,22 +31,17 @@ def _process_struct_cls(
     is_final: bool,
     # associations
     tags: tuple["TagDeclaration", ...],
-    enum_types: tuple[EnumType, ...],
     into_node_types: tuple[NodeType, ...],
 ) -> type["Struct"]:
     """Process a Struct class and return the processed class and its properties."""
 
     # inheritance
     inherits: list[StructType] = []
-    all_enum_types: list[EnumType] = []
     if cls.__name__ != "Struct" and cls.__name__ != "StructFrozen":
         for base in cls.__mro__:
             if issubclass(base, Struct):
                 if base.metatype not in inherits:
                     inherits.append(base.metatype)
-                for enum_type in base.__declaration__.self_enum_types:
-                    if enum_type not in all_enum_types:
-                        all_enum_types.append(enum_type)
 
     # declaration
     declaration = StructDeclaration(
@@ -70,8 +65,6 @@ def _process_struct_cls(
         constants=[],
         tags=list(tags),
         # associations
-        enum_types=list(all_enum_types),
-        self_enum_types=list(enum_types),
         into_node_types=list(into_node_types),
     )
 
@@ -135,7 +128,6 @@ def declare_struct(
     stability: ObjectStability = ObjectStability.DYNAMIC,
     # associations
     tags: tuple["TagDeclaration", ...] = (),
-    enum_types: tuple[EnumType, ...] = (),
     into_node_types: tuple[NodeType, ...] = (),
 ):
     """Register a class as a concrete struct for the given struct type."""
@@ -149,7 +141,6 @@ def declare_struct(
             is_abstract=is_abstract,
             is_final=is_final,
             tags=tags,
-            enum_types=enum_types,
             into_node_types=into_node_types,
         )
         return cls

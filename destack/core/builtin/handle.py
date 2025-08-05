@@ -10,7 +10,7 @@ from destack.registry import HANDLE_CLASS_BY_TYPE, HANDLE_TYPE_BY_CLASS
 from .declaration import HandleDeclaration, TagDeclaration
 from .object import Object, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS
-from .universe import EnumType, HandleType, NodeType, ObjectKind, ObjectStability
+from .universe import HandleType, NodeType, ObjectKind, ObjectStability
 
 if TYPE_CHECKING:
     from destack import HandleDefinition
@@ -26,21 +26,16 @@ def _process_handle_cls(
     is_abstract: bool,
     is_final: bool,
     tags: tuple["TagDeclaration", ...],
-    enum_types: tuple[EnumType, ...],
     event_types: tuple[NodeType, ...],
 ) -> type["Handle"]:
     # inheritance
     inherits: list[HandleType] = []
-    all_enum_types: list[EnumType] = []
     all_event_types: list[NodeType] = []
     if cls.__name__ != "Handle":
         for base in cls.__mro__:
             if issubclass(base, Handle):
                 if base.metatype not in inherits:
                     inherits.append(base.metatype)
-                for enum_type in base.__declaration__.enum_types:
-                    if enum_type not in all_enum_types:
-                        all_enum_types.append(enum_type)
                 for event_type in base.__declaration__.event_types:
                     if event_type not in all_event_types:
                         all_event_types.append(event_type)
@@ -67,8 +62,6 @@ def _process_handle_cls(
         constants=[],
         tags=list(tags),
         # associations
-        enum_types=list(enum_types),
-        self_enum_types=list(all_enum_types),
         event_types=list(event_types),
         self_event_types=list(all_event_types),
     )
@@ -129,7 +122,6 @@ def declare_handle(
     is_final: bool = False,
     stability: ObjectStability = ObjectStability.DYNAMIC,
     tags: tuple["TagDeclaration", ...] = (),
-    enum_types: tuple[EnumType, ...] = (),
     event_types: tuple[NodeType, ...] = (),
 ):
     """Register a class as a concrete handle for the given handle type."""
@@ -142,7 +134,6 @@ def declare_handle(
             is_abstract=is_abstract,
             is_final=is_final,
             tags=tags,
-            enum_types=enum_types,
             event_types=event_types,
         )
         return cls

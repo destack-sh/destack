@@ -66,6 +66,8 @@ class ObjectDefinitionReference(StructFrozen):
         elif self.kind == ObjectKind.HANDLE:
             assert self.handle_type is not None, f"no handle_type for {self!r}"
             return HANDLE_CLASS_BY_TYPE.get(self.handle_type)
+        elif self.kind == ObjectKind.MODULE:
+            raise NotImplementedError(f"cannot resolve ModuleDefinition reference: {self!r}")
         else:
             assert_never(self.kind)
 

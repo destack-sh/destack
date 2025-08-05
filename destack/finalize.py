@@ -70,7 +70,6 @@ def finalize():
         NodeDefinition,
         ObjectDefinitionReference,
         PropertyDeclaration,
-        Struct,
         StructDefinition,
     )
 
@@ -138,21 +137,10 @@ def finalize():
     # index Node event types
     for node_cls in NODE_CLASS_BY_TYPE.values():
         all_event_types: set[NodeType] = set()
-        all_enum_types: set[EnumType] = set()
         for base in node_cls.__bases__:
             if issubclass(base, Node) and base.__declaration__.self_event_types:
                 all_event_types.update(base.__declaration__.self_event_types)
-                all_enum_types.update(base.__declaration__.self_enum_types)
         node_cls.__declaration__.event_types = list(all_event_types)
-        node_cls.__declaration__.enum_types = list(all_enum_types)
-
-    # index Struct enum types
-    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        all_enum_types: set[EnumType] = set()
-        for base in struct_cls.__bases__:
-            if issubclass(base, Struct) and base.__declaration__.self_enum_types:
-                all_enum_types.update(base.__declaration__.self_enum_types)
-        struct_cls.__declaration__.enum_types = list(all_enum_types)
 
     # generate definition refs
     for node_cls in NODE_CLASS_BY_TYPE.values():

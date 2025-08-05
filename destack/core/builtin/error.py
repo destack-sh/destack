@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 type_ = type
 
-_ALLOWED_POSTFIXES = ("MESSAGE", "REQUEST", "RESPONSE")
+_ALLOWED_POSTFIXES = ("ERROR",)
 
 
 @dataclass_transform(
@@ -23,9 +23,9 @@ _ALLOWED_POSTFIXES = ("MESSAGE", "REQUEST", "RESPONSE")
     field_specifiers=_PROPERTY_SPECIFIERS,
     frozen_default=True,
 )
-def declare_message(
+def declare_error(
     # meta
-    message_type: StructType,
+    error_type: StructType,
     *,
     is_abstract: bool = False,
     is_final: bool = False,
@@ -33,13 +33,13 @@ def declare_message(
     # associations
     tags: tuple["TagDeclaration", ...] = (),
 ):
-    """Register a class as a concrete Message for the given Message type."""
+    """Register a class as a concrete Error for the given Error type."""
 
     def decorate(cls: type) -> type:
         cls = _process_struct_cls(
             # meta
             cls=cast(type["StructFrozen"], cls),
-            struct_type=message_type,
+            struct_type=error_type,
             stability=stability,
             is_frozen=True,
             is_abstract=is_abstract,
@@ -50,11 +50,11 @@ def declare_message(
         )
 
         # validate
-        assert (
-            message_type == StructType.MESSAGE or StructType.MESSAGE in cls.__declaration__.inherits
-        ), f"Message {cls.__name__} must inherit from Message"
-        assert any(message_type.name.endswith(suffix) for suffix in _ALLOWED_POSTFIXES), (
-            f"Message {cls.__name__} must end with one of {_ALLOWED_POSTFIXES}"
+        assert error_type == StructType.ERROR or StructType.ERROR in cls.__declaration__.inherits, (
+            f"Error {cls.__name__} must inherit from Error"
+        )
+        assert any(error_type.name.endswith(suffix) for suffix in _ALLOWED_POSTFIXES), (
+            f"Error {cls.__name__} must end with one of {_ALLOWED_POSTFIXES}"
         )
 
         return cls
@@ -62,36 +62,37 @@ def declare_message(
     return decorate
 
 
-@declare_message(
-    StructType.MESSAGE,
+@declare_error(
+    StructType.ERROR,
     is_abstract=True,
     tags=(
-        TagDeclaration(id=20, name="identity", description="Message identity"),
-        TagDeclaration(id=21, name="tracking", description="Message tracking"),
+        TagDeclaration(id=20, name="identity", description="Error identity"),
+        TagDeclaration(id=21, name="tracking", description="Error tracking"),
     ),
 )
-class Message(StructFrozen):
+class Error(StructFrozen):
     """
-    A Message contains data for communicating with Nodes via Actions.
+    An Error is a structured error message.
 
-    Because Message are as-is provided by Clients, they only contain client-authority data.
+    Errors are used to communicate failure states.
+    Like Messages, Errors are as-is provided by Clients and tagged with client-authority tracking.
     """
 
-    # 1-20: Message identity
+    # 1-20: Error identity
     id: UUID = declare_property(
         2,
         default_factory=ValueFactory.UUID7,
-        description="The universally unique identifier of this Message.",
+        description="The universally unique identifier of this Error.",
         tags=("identity",),
     )
 
-    # 20-40: Message tracking
+    # 20-40: Error tracking
     client: "Client" = declare_property(
         23,
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
-        description="The Client that created this Message (client, but verified).",
+        description="The Client that created this Error (client, but verified).",
         tags=("tracking",),
     )
     client_nonce: UUID = declare_property(
@@ -99,7 +100,7 @@ class Message(StructFrozen):
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT_NONCE,
-        description="The nonce of the Client that created this Message (client).",
+        description="The nonce of the Client that created this Error (client).",
         tags=("tracking",),
     )
     client_created_at: datetime = declare_property(
@@ -107,7 +108,7 @@ class Message(StructFrozen):
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.NOW,
-        description="The time in the Client when it created this Message (client).",
+        description="The time in the Client when it created this Error (client).",
         tags=("tracking",),
     )
     client_remote_epoch: UInt128 = declare_property(
@@ -123,6 +124,6 @@ class Message(StructFrozen):
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.LOCAL_EPOCH,
-        description="The logical time in the Client when it created this Message (client).",
+        description="The logical time in the Client when it created this Error (client).",
         tags=("tracking",),
     )
