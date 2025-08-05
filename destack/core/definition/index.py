@@ -10,7 +10,7 @@ from ..builtin import (
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack.core import IndexDeclaration, IndexType, PropertyReference
+    from destack import IndexDeclaration, IndexType, PropertyReference
 
 
 type_ = type

@@ -92,6 +92,8 @@ def _process_node_cls(
         cls=cls,
         type=node_type,
         id=node_type.value,
+        name=cls.__name__,
+        description=cls.__doc__ or "",
         kind=ObjectKind.NODE,
         stability=ObjectStability.DYNAMIC,
         is_abstract=is_abstract,

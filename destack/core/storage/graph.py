@@ -7,7 +7,7 @@ from ..builtin import Handle, HandleType, NodeType, declare_handle
 from ..utility import UUID
 
 if TYPE_CHECKING:
-    from destack.core import Entity, Event, Snapshot
+    from destack import Entity, Event, Snapshot
 
 type_ = type
 

@@ -62,15 +62,17 @@ class ModuleDeclaration(Declaration):  # nocheckin: ModuleDeclaration/Definition
 
     # meta
     id: int
-    name: str
-    description: str
-    methods: tuple["MethodDeclaration", ...]
+    name: str = UNSET
+    description: str = UNSET
+    is_global: bool = False
 
     # content
-    node_types: tuple["NodeType", ...]
-    struct_types: tuple["StructType", ...]
-    handle_types: tuple["HandleType", ...]
-    enum_types: tuple["EnumType", ...]
+    methods: tuple["MethodDeclaration", ...] = ()
+    constants: tuple["ConstantDeclaration", ...] = ()
+    node_types: tuple["NodeType", ...] = ()
+    struct_types: tuple["StructType", ...] = ()
+    handle_types: tuple["HandleType", ...] = ()
+    enum_types: tuple["EnumType", ...] = ()
 
 
 @dataclass(slots=True, repr=False)
@@ -116,6 +118,8 @@ class ObjectDeclaration(Declaration):
     kind: "ObjectKind"
     type: int | None
     id: int
+    name: str
+    description: str
     stability: "ObjectStability"
     is_abstract: bool
     is_frozen: bool

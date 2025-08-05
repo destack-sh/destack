@@ -46,6 +46,8 @@ def _process_handle_cls(
         cls=cls,
         type=handle_type,
         id=handle_type.value,
+        name=cls.__name__,
+        description=cls.__doc__ or "",
         kind=ObjectKind.HANDLE,
         stability=stability,
         is_abstract=is_abstract,

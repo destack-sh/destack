@@ -9,12 +9,15 @@ from destack.registry import ENUM_CLASS_BY_TYPE, ENUM_TYPE_BY_CLASS
 
 from ..utility import Casing, to_casing
 from .const import UNSET
+from .declaration import ModuleDeclaration
 
 if TYPE_CHECKING:
-    from destack import EnumType
+    from destack import EnumType, ModuleType
 
 
 type_ = type
+
+__declaration__ = ModuleDeclaration(ModuleType.ENUM)
 
 
 @dataclass(slots=True)

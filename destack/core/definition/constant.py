@@ -11,7 +11,7 @@ from ..common import Value
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack.core import ConstantDeclaration
+    from destack import ConstantDeclaration
 
 
 @declare_struct(

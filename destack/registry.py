@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, assert_never
 
 if TYPE_CHECKING:
-    from destack.core import (
+    from destack import (
         Enum,
         EnumDefinition,
         EnumType,

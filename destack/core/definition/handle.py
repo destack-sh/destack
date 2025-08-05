@@ -13,7 +13,7 @@ from ..builtin import (
 from .object import ObjectDefinition
 
 if TYPE_CHECKING:
-    from destack.core import Handle, ObjectDefinitionReference
+    from destack import Handle, ObjectDefinitionReference
 
     from .constant import ConstantDefinition
     from .method import MethodDefinition
