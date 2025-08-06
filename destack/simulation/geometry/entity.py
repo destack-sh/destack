@@ -19,7 +19,7 @@ class Entity2D(Entity):
     """An Entity in 2D space."""
 
     # transform
-    position: Optional["Vector2"] = declare_property(
+    position: "Vector2" = declare_property(
         110,
         tags=("transform",),
     )

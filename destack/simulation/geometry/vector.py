@@ -237,21 +237,27 @@ class Vector2(StructFrozen):
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[Float32]: ...
+    def __iter__(self) -> Iterator[Float32]:
+        """Iterate over the components of the vector (x, y)."""
+        ...
 
     @declare_method(
         128,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: UInt32) -> Float32: ...
+    def __getitem__(self, index: UInt32) -> Float32:
+        """Get the component of the vector (x, y)."""
+        ...
 
     @declare_method(
         129,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> UInt32: ...
+    def __len__(self) -> UInt32:
+        """Get the number of components of the vector (2)."""
+        ...
 
 
 @declare_struct(
@@ -476,21 +482,27 @@ class Vector3(StructFrozen):
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[Float32]: ...
+    def __iter__(self) -> Iterator[Float32]:
+        """Iterate over the components of the vector (x, y, z)."""
+        ...
 
     @declare_method(
         127,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: UInt32) -> Float32: ...
+    def __getitem__(self, index: UInt32) -> Float32:
+        """Get the component of the vector (x, y, z)."""
+        ...
 
     @declare_method(
         128,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> UInt32: ...
+    def __len__(self) -> UInt32:
+        """Get the number of components of the vector (3)."""
+        ...
 
 
 @declare_struct(
@@ -720,21 +732,27 @@ class Vector4(StructFrozen):
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[Float32]: ...
+    def __iter__(self) -> Iterator[Float32]:
+        """Iterate over the components of the vector (x, y, z)."""
+        ...
 
     @declare_method(
         126,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: UInt32) -> Float32: ...
+    def __getitem__(self, index: UInt32) -> Float32:
+        """Get the component of the vector (x, y, z)."""
+        ...
 
     @declare_method(
         127,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> UInt32: ...
+    def __len__(self) -> UInt32:
+        """Get the number of components of the vector (3)."""
+        ...
 
 
 @declare_struct(
@@ -954,21 +972,27 @@ class Vector2i(StructFrozen):
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[Int32]: ...
+    def __iter__(self) -> Iterator[Int32]:
+        """Iterate over the components of the vector (x, y, z)."""
+        ...
 
     @declare_method(
         128,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: UInt32) -> Int32: ...
+    def __getitem__(self, index: UInt32) -> Int32:
+        """Get the component of the vector (x, y, z)."""
+        ...
 
     @declare_method(
         129,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> UInt32: ...
+    def __len__(self) -> UInt32:
+        """Get the number of components of the vector (3)."""
+        ...
 
 
 @declare_struct(
@@ -1193,21 +1217,27 @@ class Vector3i(StructFrozen):
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[Int32]: ...
+    def __iter__(self) -> Iterator[Int32]:
+        """Iterate over the components of the vector (x, y, z, w)."""
+        ...
 
     @declare_method(
         127,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: UInt32) -> Int32: ...
+    def __getitem__(self, index: UInt32) -> Int32:
+        """Get the component of the vector (x, y, z, w)."""
+        ...
 
     @declare_method(
         128,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> UInt32: ...
+    def __len__(self) -> UInt32:
+        """Get the number of components of the vector (4)."""
+        ...
 
 
 @declare_struct(
@@ -1437,21 +1467,27 @@ class Vector4i(StructFrozen):
         operator=FunctionOperator.ITER,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __iter__(self) -> Iterator[Int32]: ...
+    def __iter__(self) -> Iterator[Int32]:
+        """Iterate over the components of the vector (x, y, z, w)."""
+        ...
 
     @declare_method(
         126,
         operator=FunctionOperator.GETITEM,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __getitem__(self, index: UInt32) -> Int32: ...
+    def __getitem__(self, index: UInt32) -> Int32:
+        """Get the component of the vector (x, y, z, w)."""
+        ...
 
     @declare_method(
         127,
         operator=FunctionOperator.LEN,
         languages=(RuntimeLanguage.PYTHON,),
     )
-    def __len__(self) -> UInt32: ...
+    def __len__(self) -> UInt32:
+        """Get the number of components of the vector (4)."""
+        ...
 
 
 @declare_method(301)

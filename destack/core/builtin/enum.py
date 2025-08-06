@@ -95,11 +95,19 @@ def _process_enum_cls(
     cls.__declaration__ = declaration
 
     # register options
-    options_by_id: dict[int, OptionDeclaration] = {option.id: option for option in options}
-    options_by_name: dict[str, OptionDeclaration] = {option.name: option for option in options}
+    options_by_id: dict[int, OptionDeclaration] = {}
+    options_by_alias: dict[str, OptionDeclaration] = {}
+    for option in options:
+        options_by_id[option.id] = option
+        upper_name = option.name.upper()
+        options_by_alias[upper_name] = option
+        camel_name = to_casing(option.name, Casing.CAMEL)
+        options_by_alias[camel_name] = option
+        snake_name = to_casing(option.name, Casing.SNAKE)
+        options_by_alias[snake_name] = option
     cls.__options__ = options  # type: ignore
     cls.__options_by_id__ = options_by_id  # type: ignore
-    cls.__options_by_name__ = options_by_name  # type: ignore
+    cls.__options_by_alias__ = options_by_alias  # type: ignore
 
     return cls, declaration
 
@@ -179,6 +187,17 @@ class _EnumMeta(type):  # type: ignore
     def __iter__(cls) -> Iterator[OptionDeclaration]:
         return iter(cls.__declaration__.options)  # type: ignore
 
+    def __getitem__(cls, key: int | str) -> OptionDeclaration:
+        if isinstance(key, int):
+            value = cls.__options_by_id__.get(key)  # type: ignore
+        elif isinstance(key, str):
+            value = cls.__options_by_alias__.get(key)  # type: ignore
+        else:
+            assert_never(key)
+        if value is None:
+            raise KeyError(f"option '{key}' not found in {cls.__name__}")
+        return value
+
 
 class Enum(
     # pretend this is an IntEnum for regular use
@@ -190,7 +209,7 @@ class Enum(
 
     __options__: ClassVar[list[Self]] = []
     __options_by_id__: ClassVar[dict[int, Self]] = {}
-    __options_by_name__: ClassVar[dict[str, Self]] = {}
+    __options_by_alias__: ClassVar[dict[str, Self]] = {}
 
 
 class OptionEnum(Enum):

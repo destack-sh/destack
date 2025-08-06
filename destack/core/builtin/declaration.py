@@ -31,8 +31,6 @@ if TYPE_CHECKING:
         ObjectStability,
         StructType,
         TraitType,
-        UniverseCategory,
-        UniverseDomain,
     )
 
 
@@ -56,29 +54,6 @@ class Declaration:
             if (prop_value := getattr(self, prop.name)) is not None:
                 props.append(f"{prop.name}={prop_value!r}")
         return f"<{self.__class__.__name__} {' '.join(props)}>"
-
-
-@dataclass(slots=True)
-class ModuleDeclaration(Declaration):  # nocheckin: ModuleDeclaration/Definitions
-    """Declaration of a ModuleDefinition."""
-
-    # meta
-    name: str
-    description: str
-    domain: "UniverseDomain"
-    category: "UniverseCategory"
-    is_global: bool
-
-    # content
-    methods: tuple["MethodDeclaration", ...] = ()
-    constants: tuple["ConstantDeclaration", ...] = ()
-    node_types: tuple["NodeType", ...] = ()
-    struct_types: tuple["StructType", ...] = ()
-    handle_types: tuple["HandleType", ...] = ()
-    enum_types: tuple["EnumType", ...] = ()
-
-    # graph
-    children: tuple["ModuleDeclaration", ...] = ()
 
 
 @dataclass(slots=True, repr=False)
@@ -444,11 +419,12 @@ def _process_method(
         source = inspect.getsource(inner_func).strip()
         raise ValueError(f"abstract method declaration must be empty: {qualname}\n{source}")
 
+    assert inner_func.__doc__, f"method has no docstring: {qualname}"
     declaration = MethodDeclaration(
         # meta
         id=id,
         name=name or inner_func.__name__,
-        description=inner_func.__doc__ or "",
+        description=inner_func.__doc__,
         outer_func=outer_func,
         inner_func=inner_func,
         is_async=is_async,
@@ -607,10 +583,11 @@ def _process_action(
         source = inspect.getsource(func).strip()
         raise ValueError(f"abstract action declaration must be empty: {qualname}\n{source}")
 
+    assert func.__doc__, f"action has no docstring: {qualname}"
     declaration = ActionDeclaration(
         id=id,
         name=name or func.__name__,
-        description=func.__doc__ or "",
+        description=func.__doc__,
         outer_func=func,
         inner_func=func,
         is_async=is_async,
