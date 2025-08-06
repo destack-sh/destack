@@ -49,7 +49,7 @@ from .error import Error, declare_error
 from .event import Event, EventStatus, declare_event
 from .handle import Handle, declare_handle
 from .hoisted import (
-    PRIMITIVE_PY_TYPES,
+    PRIMITIVE_PY_ANNOTATION_BY_TYPE,
     PRIMITIVE_TYPE_BY_ANNOTATION,
     ActionType,
     CascadeAction,
@@ -87,6 +87,7 @@ from .property import (
 )
 from .struct import Struct, StructFrozen, declare_struct
 from .types import (
+    Boolean,
     Bytes,
     Date,
     Datetime,
@@ -132,12 +133,13 @@ __all__ = [
     "METATYPE_PROPERTY_ID",
     "METATYPE_PROPERTY_KEY",
     "NONCE",
-    "PRIMITIVE_PY_TYPES",
+    "PRIMITIVE_PY_ANNOTATION_BY_TYPE",
     "PRIMITIVE_TYPE_BY_ANNOTATION",
     "UNSET",
     "VERSION",
     "ActionDeclaration",
     "ActionType",
+    "Boolean",
     "Bytes",
     "CascadeAction",
     "ClientType",

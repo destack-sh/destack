@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
     Entity,
@@ -79,4 +79,4 @@ class Timer(Entity):
     """A Timer."""
 
     type: TimerType = declare_property(100, is_repr=True)
-    schedule: "Schedule | None" = declare_property(110)
+    schedule: Optional["Schedule"] = declare_property(110)

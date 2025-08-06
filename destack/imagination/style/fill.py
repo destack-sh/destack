@@ -61,11 +61,11 @@ class Fill(StructFrozen):
 
     type: FillType = declare_property(100, is_repr=True)
     template: Optional["FillStyle"] = declare_property(101, is_repr=True)
-    color: Color | None = declare_property(102, is_repr=True)
+    color: Optional[Color] = declare_property(102, is_repr=True)
     gradient: Optional[Gradient] = declare_property(103, is_repr=True)
-    image: "File | None" = declare_property(104, is_repr=True)
-    position: FillPosition | None = declare_property(105, is_repr=True)
-    size: FillSize | None = declare_property(106, is_repr=True)
+    image: Optional["File"] = declare_property(104, is_repr=True)
+    position: Optional[FillPosition] = declare_property(105, is_repr=True)
+    size: Optional[FillSize] = declare_property(106, is_repr=True)
 
     @staticmethod
     def from_color(color: Color) -> "Fill":
@@ -86,9 +86,9 @@ class FillStyle(Style):
     type: FillType = declare_property(100, is_repr=True)
     color: Optional["Color"] = declare_property(101, is_repr=True)
     gradient: Optional["Gradient"] = declare_property(102, is_repr=True)
-    image: "File | None" = declare_property(103, is_repr=True)
-    position: FillPosition | None = declare_property(104, is_repr=True)
-    size: FillSize | None = declare_property(105, is_repr=True)
+    image: Optional["File"] = declare_property(103, is_repr=True)
+    position: Optional[FillPosition] = declare_property(104, is_repr=True)
+    size: Optional[FillSize] = declare_property(105, is_repr=True)
 
     @staticmethod
     def from_fill(fill: Fill) -> "FillStyle":

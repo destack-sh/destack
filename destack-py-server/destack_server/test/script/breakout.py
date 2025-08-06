@@ -21,9 +21,7 @@ from .scaffold import *  # noqa: F403
 
 @entity
 class BreakoutGame(Entity):
-    def tick(self):
-        for ball in self.get_descendants(BreakoutBall):
-            ...
+    def tick(self): ...
 
 
 # ===============================================

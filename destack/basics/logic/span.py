@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
     Event,
@@ -29,5 +29,5 @@ class SpanEvent(Event):
     end_time: datetime = declare_property(103)
     duration: timedelta = declare_property(104)
 
-    parent_span: "SpanEvent | None" = declare_property(110)
-    action: "Action | None" = declare_property(111)
+    parent_span: Optional["SpanEvent"] = declare_property(110)
+    action: Optional["Action"] = declare_property(111)

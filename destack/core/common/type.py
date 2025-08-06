@@ -1,9 +1,15 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, final
+from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, final
 
-from destack.registry import ENUM_TYPE_BY_CLASS
+from destack.registry import (
+    ENUM_CLASS_BY_TYPE,
+    ENUM_TYPE_BY_CLASS,
+    HANDLE_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+)
 
 from ..builtin import (
-    PRIMITIVE_PY_TYPES,
+    PRIMITIVE_PY_ANNOTATION_BY_TYPE,
     PRIMITIVE_TYPE_BY_ANNOTATION,
     Enum,
     EnumType,
@@ -11,6 +17,7 @@ from ..builtin import (
     HandleType,
     NodeType,
     PrimitiveType,
+    RuntimeLanguage,
     ScalarType,
     Struct,
     StructFrozen,
@@ -180,6 +187,10 @@ class CollectionConstraint(StructFrozen):
 
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]
 
+_PRIMITIVE_PY_TYPES: tuple[type, ...] = tuple(
+    t for t in PRIMITIVE_TYPE_BY_ANNOTATION if isinstance(t, type)
+)
+
 
 @declare_method(301, is_implemented=True)
 def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
@@ -231,7 +242,7 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=ScalarType.ENUM,
             enum_type=ENUM_TYPE_BY_CLASS[type(value_or_type)],
         )
-    elif isinstance(value_or_type, PRIMITIVE_PY_TYPES):
+    elif isinstance(value_or_type, _PRIMITIVE_PY_TYPES):
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.PRIMITIVE,
@@ -273,3 +284,79 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
     # parse as annotation
     type_decl = parse_type_declaration(value_or_type, is_builtin=False)
     return type_decl.to_type()
+
+
+@declare_method(
+    302,
+    is_implemented=True,
+    languages=(RuntimeLanguage.PYTHON,),
+)
+def invert_type(type: "Type") -> "Any":
+    """
+    Get the type annotation that corresponds to a Type.
+    """
+    # scalar
+    if type.cardinality == TypeCardinality.SCALAR:
+        return invert_type_scalar(type)
+    # list
+    elif type.cardinality == TypeCardinality.LIST:
+        assert type.value_type is not None, f"no value type for: {type!r}"
+        return list[invert_type(type.value_type)]
+    # tuple
+    elif type.cardinality == TypeCardinality.TUPLE:
+        assert type.element_types is not None, f"no element types for: {type!r}"
+        element_annotations = [invert_type(t) for t in type.element_types]
+        return tuple[*element_annotations]  # type: ignore
+    # map
+    elif type.cardinality == TypeCardinality.MAP:
+        assert type.key_type is not None, f"no key type for: {type!r}"
+        assert type.value_type is not None, f"no value type for: {type!r}"
+        key_annotation = invert_type(type.key_type)
+        value_annotation = invert_type(type.value_type)
+        return dict[key_annotation, value_annotation]
+    #
+    else:
+        assert_never(type.cardinality)
+
+
+def invert_type_scalar(type: "Type") -> "Any":
+    """
+    Get the Python type that corresponds to a scalar Type.
+    """
+    assert type.cardinality == TypeCardinality.SCALAR, f"not a scalar type: {type!r}"
+    assert type.scalar_type is not None, f"no scalar type for: {type!r}"
+
+    # primitive
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        assert type.primitive_type is not None, f"no primitive type for: {type!r}"
+        return PRIMITIVE_PY_ANNOTATION_BY_TYPE[type.primitive_type]
+    # enum
+    elif type.scalar_type == ScalarType.ENUM:
+        assert type.enum_type is not None, f"no enum type for: {type!r}"
+        return ENUM_CLASS_BY_TYPE[type.enum_type]
+    # node reference
+    elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        assert type.node_types is not None, f"no node types for: {type!r}"
+        if len(type.node_types) == 1:
+            return NODE_CLASS_BY_TYPE[type.node_types[0]]
+        else:
+            return Union[*tuple(NODE_CLASS_BY_TYPE[t] for t in type.node_types)]  # type: ignore
+    # node value
+    elif type.scalar_type == ScalarType.NODE_VALUE:
+        assert type.node_types is not None, f"no node types for: {type!r}"
+        return NODE_CLASS_BY_TYPE[type.node_types[0]]
+    # struct
+    elif type.scalar_type == ScalarType.STRUCT:
+        assert type.struct_type is not None, f"no struct type for: {type!r}"
+        return STRUCT_CLASS_BY_TYPE[type.struct_type]
+    # handle
+    elif type.scalar_type == ScalarType.HANDLE:
+        assert type.handle_type is not None, f"no handle type for: {type!r}"
+        return HANDLE_CLASS_BY_TYPE[type.handle_type]
+    # union
+    elif type.scalar_type == ScalarType.UNION:
+        assert type.element_types is not None, f"no element types for: {type!r}"
+        element_annotations = [invert_type_scalar(t) for t in type.element_types]
+        return Union[*element_annotations]  # type: ignore
+    else:
+        assert_never(type.scalar_type)

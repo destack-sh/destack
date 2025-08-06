@@ -77,9 +77,13 @@ class UniverseCategory(OptionEnum):
     ENTITY = declare_option(10_000_000, "Entity", description="Entity management")
     LOGIC = declare_option(10_100_000, "Logic", description="Scripting and behavior")
     INTELLIGENCE = declare_option(10_200_000, "Intelligence", description="Artificial intelligence")
-    ACCESS = declare_option(10_300_000, "Access", description="Access and identity")
+    ACCESS = declare_option(
+        10_300_000, "Access", description="Identity, authentication and authorization"
+    )
     QUALITY = declare_option(10_400_000, "Quality", description="Quality assurance")
     # STREAMING, INTERNET, ...
+    SOCIAL = declare_option(11_000_000, "Social", description="Interactions, reputation and trust")
+    FINANCE = declare_option(11_100_000, "Finance", description="Accounting and finance")
     STUDIO = declare_option(19_000_000, "Studio", description="Editing the Universe")
 
     #
@@ -145,9 +149,7 @@ class UniverseCategory(OptionEnum):
         60_000_000, "Localization", description="Localization and internationalization"
     )
     LEGAL = declare_option(60_100_000, "Legal", description="Legal, compliance and policy")
-    SOCIAL = declare_option(60_200_000, "Social", description="Interactions, reputation and trust")
-    FINANCE = declare_option(60_300_000, "Finance", description="Accounting and finance")
-    COMMERCE = declare_option(60_400_000, "Commerce", description="Billing and monetization")
+    COMMERCE = declare_option(60_200_000, "Commerce", description="Billing and monetization")
     # ACCESSIBILITY, GOVERNANCE, ...
     # CONTENT, CRYPTO, ...
 
@@ -256,6 +258,13 @@ class EnumType(OptionEnum):
     ENTITLEMENT_TYPE = declare_option(10_300_500)
 
     # quality [10_400_000]
+    # ...
+
+    # social [11_000_000]
+    NOTIFICATION_STATUS = declare_option(11_001_301)
+    # ...
+
+    # finance [11_100_000]
     # ...
 
     # studio [19_000_000]
@@ -386,14 +395,7 @@ class EnumType(OptionEnum):
     # legal [60_100_000]
     # ...
 
-    # social [60_200_000]
-    NOTIFICATION_STATUS = declare_option(60_200_300)
-    # ...
-
-    # finance [60_300_000]
-    # ...
-
-    # commerce [60_400_000]
+    # commerce [60_200_000]
     # ...
 
 
@@ -504,6 +506,19 @@ class TraitType(OptionEnum):
     # quality [10_400_000]
     # ...
 
+    # social [11_000_000]
+    STARABLE = declare_option(11_000_100, "Starable", description="Can be starred")
+    REACTABLE = declare_option(11_000_200, "Reactable", description="Can be reacted to")
+    FOLLOWABLE = declare_option(11_000_300, "Followable", description="Can be followed")
+    # RATEABLE, VOTABLE, ...
+    # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
+
+    # finance [60_300_000]
+    # ...
+
+    # finance [11_100_000]
+    # ...
+
     #
     # SIMULATION
     #
@@ -599,17 +614,7 @@ class TraitType(OptionEnum):
     # legal [60_100_000]
     # ...
 
-    # social [60_200_000]
-    STARABLE = declare_option(60_200_100, "Starable", description="Can be starred")
-    REACTABLE = declare_option(60_200_000, "Reactable", description="Can be reacted to")
-    FOLLOWABLE = declare_option(60_200_200, "Followable", description="Can be followed")
-    # RATEABLE, VOTABLE, ...
-    # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
-
-    # finance [60_300_000]
-    # ...
-
-    # commerce [60_400_000]
+    # commerce [60_200_000]
     # ...
 
 
@@ -837,6 +842,35 @@ class NodeType(OptionEnum):
     # LINT, WARNING, ERROR, ...
     # DEPRECATION, ...
 
+    # social [11_000_000]
+    STAR = declare_option(11_001_100, "Star")
+    STAR_EVENT = declare_option(11_001_101, "Star Event")
+    STAR_ADDED_EVENT = declare_option(11_001_102, "Star Added Event")
+    STAR_REMOVED_EVENT = declare_option(11_001_103, "Star Removed Event")
+    REACTION = declare_option(11_001_200, "Reaction")
+    REACTION_EVENT = declare_option(11_001_201, "Reaction Event")
+    REACTION_ADDED_EVENT = declare_option(11_001_202, "Reaction Added Event")
+    REACTION_REMOVED_EVENT = declare_option(11_001_203, "Reaction Removed Event")
+    FOLLOW = declare_option(11_001_300, "Follow")
+    FOLLOW_EVENT = declare_option(11_001_301, "Follow Event")
+    FOLLOW_ADDED_EVENT = declare_option(11_001_302, "Follow Added Event")
+    FOLLOW_REMOVED_EVENT = declare_option(11_001_303, "Follow Removed Event")
+    NOTIFICATION = declare_option(11_001_400, "Notification")
+    NOTIFICATION_EVENT = declare_option(11_001_401, "Notification Event")
+    NOTIFICATION_SENT_EVENT = declare_option(11_001_402, "Notification Sent Event")
+    NOTIFICATION_RESCINDED_EVENT = declare_option(11_001_403, "Notification Rescinded Event")
+    NOTIFICATION_READ_EVENT = declare_option(11_001_404, "Notification Read Event")
+    NOTIFICATION_DISMISSED_EVENT = declare_option(11_001_405, "Notification Dismissed Event")
+    NOTIFICATION_EXPIRED_EVENT = declare_option(11_001_406, "Notification Expired Event")
+    # FEED, FEED_ITEM, ...
+    # THREAD, MESSAGE, ...
+    # POLL, VOTE, REVIEW, RATING, RANK, ...
+    # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
+
+    # finance [11_100_000]
+    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, INVOICE, ...
+    # PAYMENT_METHOD, PAYOUT, REFUND, ...
+
     #
     # SIMULATION
     #
@@ -1060,36 +1094,7 @@ class NodeType(OptionEnum):
     # legal [60_100_000]
     # ...
 
-    # social [60_200_000]
-    REACTION = declare_option(60_200_000, "Reaction")
-    REACTION_EVENT = declare_option(60_200_001, "Reaction Event")
-    REACTION_ADDED_EVENT = declare_option(60_200_002, "Reaction Added Event")
-    REACTION_REMOVED_EVENT = declare_option(60_200_003, "Reaction Removed Event")
-    STAR = declare_option(60_200_100, "Star")
-    STAR_EVENT = declare_option(60_200_101, "Star Event")
-    STAR_ADDED_EVENT = declare_option(60_200_102, "Star Added Event")
-    STAR_REMOVED_EVENT = declare_option(60_200_103, "Star Removed Event")
-    FOLLOW = declare_option(60_200_200, "Follow")
-    FOLLOW_EVENT = declare_option(60_200_201, "Follow Event")
-    FOLLOW_ADDED_EVENT = declare_option(60_200_202, "Follow Added Event")
-    FOLLOW_REMOVED_EVENT = declare_option(60_200_203, "Follow Removed Event")
-    NOTIFICATION = declare_option(60_200_300, "Notification")
-    NOTIFICATION_EVENT = declare_option(60_200_301, "Notification Event")
-    NOTIFICATION_SENT_EVENT = declare_option(60_200_302, "Notification Sent Event")
-    NOTIFICATION_RESCINDED_EVENT = declare_option(60_200_303, "Notification Rescinded Event")
-    NOTIFICATION_READ_EVENT = declare_option(60_200_304, "Notification Read Event")
-    NOTIFICATION_DISMISSED_EVENT = declare_option(60_200_305, "Notification Dismissed Event")
-    NOTIFICATION_EXPIRED_EVENT = declare_option(60_200_306, "Notification Expired Event")
-    # FEED, FEED_ITEM, ...
-    # THREAD, MESSAGE, ...
-    # POLL, VOTE, REVIEW, RATING, RANK, ...
-    # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
-
-    # finance [60_300_000]
-    # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, INVOICE, ...
-    # PAYMENT_METHOD, PAYOUT, REFUND, ...
-
-    # commerce [60_400_000]
+    # commerce [60_200_000]
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ...
     # ORDER, DISCOUNT, DISPUTE, ...
 
@@ -1350,13 +1355,7 @@ class StructType(OptionEnum):
     # legal [60_100_000]
     # ...
 
-    # social [60_200_000]
-    # ...
-
-    # finance [60_300_000]
-    # ...
-
-    # commerce [60_400_000]
+    # commerce [60_200_000]
     # ...
 
 

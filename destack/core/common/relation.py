@@ -53,7 +53,7 @@ class ObjectDefinitionReference(StructFrozen):
     node_type: Optional[NodeType] = declare_property(102, is_repr=True)
     struct_type: Optional[StructType] = declare_property(103, is_repr=True)
     handle_type: Optional[HandleType] = declare_property(104, is_repr=True)
-    definition: "Entity | None" = declare_property(106, is_repr=True)
+    definition: Optional["Entity"] = declare_property(106, is_repr=True)
 
     @property
     def object_cls(self) -> type_[Object] | None:
@@ -152,12 +152,12 @@ class PropertyReference(StructFrozen):
     node_type: NodeType | None = declare_property(101, is_repr=True)
     struct_type: StructType | None = declare_property(103, is_repr=True)
     handle_type: HandleType | None = declare_property(104, is_repr=True)
-    id: UInt8 | None = declare_property(
+    id: Optional[UInt8] = declare_property(
         105,
         is_repr=True,
         description="id of the builtin Property",
     )
-    custom_property: "CustomPropertyDefinition | None" = declare_property(
+    custom_property: Optional["CustomPropertyDefinition"] = declare_property(
         106,
         is_repr=True,
         description="custom Property of a custom Node or Struct",
@@ -230,7 +230,7 @@ class NodeReference(StructFrozen):
         is_repr=True,
         description="The id of the Space the Node belonged to.",
     )
-    definition_id: Optional[UUID] = declare_property(
+    definition_id: UUID | None = declare_property(
         103,
         is_repr=True,
         description="The id of the Node definition.",

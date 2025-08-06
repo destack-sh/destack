@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
     Entity,
@@ -83,4 +83,4 @@ class Notification(Entity):
 
     status: NotificationStatus = declare_property(110)
 
-    text: "Text | None" = declare_property(120)
+    text: Optional["Text"] = declare_property(120)

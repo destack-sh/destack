@@ -304,7 +304,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         default_factory=ValueFactory.NAME,
         tags=("entity",),
     )
-    icon: "Icon | None" = declare_property(
+    icon: Optional["Icon"] = declare_property(
         41,
         description="The icon of this Entity.",
         tags=("entity",),
@@ -317,7 +317,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The absolute order key of this Entity in its parent.",
         tags=("entity",),
     )
-    # is_extensible, is_instantiable, ...
+    # is_locked, is_extensible, is_instantiable, ...
     # base_type?
     # traits?
     # is_trait? is_abstract?
@@ -410,7 +410,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         type: NodeType,
         name: str,
         include_deleted: bool = False,
-    ) -> "Entity | None":
+    ) -> Optional["Entity"]:
         """Gets a specific child of this Node by name."""
         ...
 
@@ -454,10 +454,10 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @declare_method(41)
     def move_to(
         self,
-        parent: "Entity | None",
+        parent: Optional["Entity"],
         *,
-        after: "Entity | None" = None,
-        before: "Entity | None" = None,
+        after: Optional["Entity"] = None,
+        before: Optional["Entity"] = None,
     ):
         """
         Move this Entity to a new parent Entity.
@@ -471,8 +471,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         self,
         sibling: "Entity",
         *,
-        after: "Entity | None" = None,
-        before: "Entity | None" = None,
+        after: Optional["Entity"] = None,
+        before: Optional["Entity"] = None,
     ) -> Self:
         """
         Add an Entity as a sibling of this Entity.
@@ -485,8 +485,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     def add_siblings(
         self,
         *siblings: "Entity",
-        after: "Entity | None" = None,
-        before: "Entity | None" = None,
+        after: Optional["Entity"] = None,
+        before: Optional["Entity"] = None,
     ) -> Self:
         """Add multiple Entities as siblings of this Entity."""
         ...
@@ -496,8 +496,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         self,
         child: "Entity",
         *,
-        after: "Entity | None" = None,
-        before: "Entity | None" = None,
+        after: Optional["Entity"] = None,
+        before: Optional["Entity"] = None,
     ) -> Self:
         """
         Append an Entity as a child of this Entity (and all its descendants).
@@ -511,8 +511,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     def add_children(
         self,
         *children: "Entity",
-        after: "Entity | None" = None,
-        before: "Entity | None" = None,
+        after: Optional["Entity"] = None,
+        before: Optional["Entity"] = None,
     ) -> Self:
         """
         Append multiple Entities as children of this Entity.
@@ -528,12 +528,12 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         ...
 
     @declare_method(50)
-    def add_tag(self, tag: "Tag", value: "Value | None" = None) -> "Value":
+    def add_tag(self, tag: "Tag", value: Optional["Value"] = None) -> "Value":
         """Add or get a Tag's value on this Entity."""
         ...
 
     @declare_method(51)
-    def remove_tag(self, tag: "Tag") -> "Value | None":
+    def remove_tag(self, tag: "Tag") -> Optional["Value"]:
         """Remove a Tag from this Entity."""
         ...
 
@@ -545,7 +545,13 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         ...
 
     @declare_method(61)
-    def instantiate(self, *, partial: bool = True, attach: bool = False, **override: Any) -> "Self":
+    def instantiate(
+        self,
+        *,
+        partial: bool = True,
+        attach: bool = False,
+        **override: Any,
+    ) -> "Self":
         """
         Instantiate this Entity into a new (partial or full) Entity.
         If partial is True, the new Entity will be a partial Entity with only override set.
@@ -588,11 +594,11 @@ class EntityPartial:
         id: UUID,
         space_ptr: "NodeReference",
         materialization: Materialization,
-        definition_ptr: "NodeReference | None",
+        definition_ptr: Optional["NodeReference"],
         branch_ptr: "NodeReference",
         snapshot_ptr: "NodeReference",
-        preceded_by_ptr: "NodeReference | None",
-        instance_ptr: "NodeReference | None",
+        preceded_by_ptr: Optional["NodeReference"],
+        instance_ptr: Optional["NodeReference"],
         _session: "Session",
         _override: dict[str, Any] | None,
     ):

@@ -147,7 +147,7 @@ class EmailSender(Entity):
                 meetup=meetup,
             )
             await email.send()
-            self.log("email.sent", membership=membership, email=email)
+            # self.log("email.sent", membership=membership, email=email)
 
     # computed effect would be cool:
     # Meetup:

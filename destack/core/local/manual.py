@@ -199,7 +199,9 @@ def _calculate_substring_score(query: str, target: str) -> int:
 
 def _render_type(type: "Type") -> str:
     """Render a type to a string."""
-    return repr(type)
+    from ...core import invert_type
+
+    return str(invert_type(type))
 
 
 def _show_definition(
@@ -268,8 +270,6 @@ def _show_node(definition: "NodeDefinition") -> None:
         )
         for prop in definition.properties:
             prop_str = f"  {prop.name}: {console.color(_render_type(prop.type), 'yellow')}"
-            if prop.description:
-                prop_str = f"  # {console.color(prop.description, 'dim')}\n{prop_str}"
             console.print(prop_str)
 
     # methods
@@ -302,8 +302,6 @@ def _show_struct(definition: "StructDefinition") -> None:
         )
         for prop in definition.properties:
             prop_str = f"  {prop.name}: {console.color(_render_type(prop.type), 'yellow')}"
-            if prop.description:
-                prop_str = f"  # {console.color(prop.description, 'dim')}\n{prop_str}"
             console.print(prop_str)
 
 
@@ -330,8 +328,6 @@ def _show_handle(definition: "HandleDefinition") -> None:
         )
         for prop in definition.properties:
             prop_str = f"  {prop.name}: {console.color(_render_type(prop.type), 'yellow')}"
-            if prop.description:
-                prop_str = f"  # {console.color(prop.description, 'dim')}\n{prop_str}"
             console.print(prop_str)
 
 
