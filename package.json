@@ -8,7 +8,7 @@
       "destack-ts",
       "destack-ts-web",
       "destack-ts-system",
-      "destack-ts-test",
+      "destack-test",
       "destack-ts-server"
     ],
     "catalog": {

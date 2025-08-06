@@ -34,7 +34,7 @@ repos:
           - --force-scope
           - --verbose
           - --scopes
-          - all,language,test,simulation,py,py-test,py-simulation,py-server,py-system,py-web,ts,ts-test,ts-simulation,ts-system,ts-web,rs,rs-test,rs-simulation,rs-system,rs-web,rs-server,cloud,proto,scripts
+          - all,language,test,simulation,py,py-simulation,py-server,py-system,py-web,ts,ts-simulation,ts-system,ts-web,rs,rs-simulation,rs-system,rs-web,rs-server,cloud,proto,scripts
           - feat
           - fix
           - chore
