@@ -676,6 +676,7 @@ class ConstantDeclaration(Declaration):
     """Declaration of a builtin Constant (may be deferred)."""
 
     id: int
+    type: "Type | None"
     value: Any | Callable[[], Any]
     is_deferred: bool
     description: str | None
@@ -688,6 +689,7 @@ def declare_constant[T](
     id: int,
     value: T | Callable[[], T],
     *,
+    type: "Type | None" = None,
     description: str | None = None,
 ) -> Any:  # replaced with T after finalization
     """Declare a builtin Constant. Constants are replaced with their value during finalization."""
@@ -697,6 +699,7 @@ def declare_constant[T](
         description=description,
         value=value,
         is_deferred=isinstance(value, Callable),
+        type=type,
         # set during class processing
         name=None,
         component=None,

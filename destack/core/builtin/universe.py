@@ -63,7 +63,9 @@ class UniverseCategory(OptionEnum):
     COMMON = declare_option(200_000, "Common", description="Shared definitions")
     ENCODING = declare_option(1_000_000, "Encoding", description="Serialization and packing")
     STORAGE = declare_option(1_100_000, "Storage", description="Graph storage and synchronization")
-    GENERATION = declare_option(2_000_000, "Generation", description="SDK generation")
+    GENERATION = declare_option(
+        2_000_000, "Generation", description="Code generation and compilation"
+    )
     LOCAL = declare_option(2_100_000, "Local", description="Local runtime integration")
     UTILITY = declare_option(2_200_000, "Utility", description="Utility functions")
     # ...
@@ -1113,17 +1115,18 @@ class StructType(OptionEnum):
     MESSAGE = declare_option(3, "Message", description="Message")
 
     # definition [100_000]
-    DEFINITION = declare_option(100_000, "Definition")
-    MODULE_DEFINITION = declare_option(100_001, "Module Definition")
-    OBJECT_DEFINITION = declare_option(100_002)
-    NODE_DEFINITION = declare_option(100_003)
-    STRUCT_DEFINITION = declare_option(100_004)
-    HANDLE_DEFINITION = declare_option(100_005)
-    ENUM_DEFINITION = declare_option(100_006)
-    PROPERTY_DEFINITION = declare_option(100_007)
-    CONSTANT_DEFINITION = declare_option(100_008)
-    OPTION_DEFINITION = declare_option(100_009)
-    TAG_DEFINITION = declare_option(100_100)
+    DEFINITION = declare_option(100_000)
+    SCHEMA_DEFINITION = declare_option(100_001)
+    MODULE_DEFINITION = declare_option(100_002)
+    OBJECT_DEFINITION = declare_option(100_003)
+    NODE_DEFINITION = declare_option(100_004)
+    STRUCT_DEFINITION = declare_option(100_005)
+    HANDLE_DEFINITION = declare_option(100_006)
+    ENUM_DEFINITION = declare_option(100_007)
+    PROPERTY_DEFINITION = declare_option(100_100)
+    CONSTANT_DEFINITION = declare_option(100_101)
+    OPTION_DEFINITION = declare_option(100_102)
+    TAG_DEFINITION = declare_option(100_103)
     # ALIAS_DEFINITION, UNION_DEFINITION, ...
     INDEX_DEFINITION = declare_option(100_200)
     CONSTRAINT_DEFINITION = declare_option(100_201)

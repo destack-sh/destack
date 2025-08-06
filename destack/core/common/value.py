@@ -53,8 +53,6 @@ class Value(Struct):
         """
         # infer type
         if type is None:
-            if value is None:
-                raise ValueError("cannot infer type for None")
             type = Type.infer(value, node_as_value=node_as_value)
         # coerce nodes into node references
         if type.scalar_type == ScalarType.NODE_REFERENCE:

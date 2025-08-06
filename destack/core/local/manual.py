@@ -42,14 +42,9 @@ class ManualContext:
 
 @cli.command()
 def manual():
-    """Interactive manual for the Destack language SDK."""
+    """Interactive manual for the Destack schema."""
     # import here to avoid circular imports at module level
-    from destack.core import VERSION
-
-    from ...finalize import finalize
-
-    # ensure definitions are loaded
-    finalize()
+    from destack import VERSION
 
     # create the REPL
     repl = create_repl(

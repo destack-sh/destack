@@ -8,6 +8,8 @@ from .distribution import *
 from .simulation import *
 from .presentation import *
 
-from .finalize import finalize
+from .finalize import finalize, SCHEMA
 
 finalize()
+
+__all__ = ["SCHEMA"]

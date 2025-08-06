@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from .core.builtin import (
+    VERSION,
     EnumType,
     FunctionDeclaration,
     HandleType,
@@ -34,7 +35,7 @@ from .registry import (
 )
 
 if TYPE_CHECKING:
-    from destack import ModuleDefinition
+    from destack import ModuleDefinition, SchemaDefinition
 
 type_ = type
 
@@ -198,8 +199,29 @@ def _index_module(
     return module
 
 
+def _make_schema() -> "SchemaDefinition":
+    """Make the actual Destack SchemaDefinition struct."""
+
+    from .core import SchemaDefinition
+    from .core.builtin.object import _is_finalized
+
+    if not _is_finalized():
+        raise RuntimeError("Destack not finalized")
+
+    return SchemaDefinition(
+        name="Destack",
+        description="The Destack specification",
+        version=VERSION,
+        nodes=list(NODE_DEFINITION_BY_TYPE.values()),
+        structs=list(STRUCT_DEFINITION_BY_TYPE.values()),
+        handles=list(HANDLE_DEFINITION_BY_TYPE.values()),
+        enums=list(ENUM_DEFINITION_BY_TYPE.values()),
+        modules=list(MODULE_DEFINITION_BY_PATH.values()),
+    )
+
+
 def finalize():
-    """Finalize the Destack language SDK."""
+    """Finalize the Destack schema."""
     from .core.builtin.object import _is_finalized, _set_finalized
 
     if _is_finalized():
@@ -371,12 +393,12 @@ def finalize():
     if len(UniverseDomain) != len(MODULE_DEFINITION_BY_DOMAIN):
         missing_domains = set(UniverseDomain) - set(MODULE_DEFINITION_BY_DOMAIN.keys())
         raise ValueError(
-            f"missing {len(missing_domains)} domains' modules: {list(missing_domains)}"
+            f"missing {len(missing_domains)} UniverseDomain modules: {list(missing_domains)}"
         )
     if len(UniverseCategory) != len(MODULE_DEFINITION_BY_CATEGORY):
         missing_categories = set(UniverseCategory) - set(MODULE_DEFINITION_BY_CATEGORY.keys())
         raise ValueError(
-            f"missing {len(missing_categories)} categories' modules: {list(missing_categories)}"
+            f"missing {len(missing_categories)} UniverseCategory modules: {list(missing_categories)}"
         )
 
     # check we have all the declared builtin objects
@@ -441,3 +463,9 @@ def finalize():
                     )
 
     _set_finalized()
+
+
+finalize()
+
+
+SCHEMA = _make_schema()

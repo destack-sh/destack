@@ -1,3 +1,3 @@
 def generate():
-    """Generate the Python SDK."""
+    """Generate the Python library."""
     pass
