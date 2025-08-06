@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Self, final
+from typing import TYPE_CHECKING, Optional, Self, final
 
 from ..builtin import (
     ActionType,
@@ -27,8 +27,8 @@ class ActionDefinition(FunctionDefinition):
     type: ActionType = declare_property(100)
 
     # content
-    input_message_type: "StructType | None" = declare_property(120)
-    output_message_type: "StructType | None" = declare_property(121)
+    input_message_type: Optional["StructType"] = declare_property(120)
+    output_message_type: Optional["StructType"] = declare_property(121)
 
     @classmethod
     def from_declaration(cls, declaration: "ActionDeclaration") -> "Self":

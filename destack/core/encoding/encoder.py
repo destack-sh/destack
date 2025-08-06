@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from ..builtin import (
     EnumType,
@@ -55,7 +55,7 @@ class Encoder(Handle):
         kind: ObjectKind | None,
         type: UInt32 | None,
         value: Any,
-        session: "Session | None",
+        session: Optional["Session"],
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         """
@@ -80,7 +80,7 @@ class Encoder(Handle):
         kind: ObjectKind | None,
         type: UInt32 | None,
         reader: "BinaryReader",
-        session: "Session | None",
+        session: Optional["Session"],
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Object:
         """
@@ -141,7 +141,7 @@ class Encoder(Handle):
         self,
         type: "Type",
         value: Any,
-        session: "Session | None",
+        session: Optional["Session"],
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a value from some encoded format."""
@@ -163,7 +163,7 @@ class Encoder(Handle):
         self,
         type: "Type",
         reader: "BinaryReader",
-        session: "Session | None",
+        session: Optional["Session"],
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a value from the byte representation of its encoded format."""

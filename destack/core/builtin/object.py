@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Optional,
     Self,
     assert_never,
     cast,
@@ -1586,7 +1587,7 @@ class Object:
     __slots__: ClassVar[tuple[str, ...]] = ()
 
     """The Session this Object is in."""
-    _session: "Session | None" = declare_property_runtime(400)
+    _session: Optional["Session"] = declare_property_runtime(400)
 
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:
@@ -1619,7 +1620,7 @@ class Object:
     def pack(
         self,
         encoding: Encoding,
-        options: "EncoderOptions | None" = None,
+        options: Optional["EncoderOptions"] = None,
     ) -> Any:
         """Pack this Object into some encoded format."""
         ...
@@ -1629,7 +1630,7 @@ class Object:
         self,
         encoding: Encoding,
         writer: "BinaryWriter",
-        options: "EncoderOptions | None" = None,
+        options: Optional["EncoderOptions"] = None,
     ) -> None:
         """Pack this Object into the byte representation of its encoded format."""
         ...
@@ -1640,8 +1641,8 @@ class Object:
         cls,
         encoding: Encoding,
         value: Any,
-        session: "Session | None",
-        options: "EncoderOptions | None" = None,
+        session: Optional["Session"] = None,
+        options: Optional["EncoderOptions"] = None,
     ) -> Self:
         """Unpack an Object from some encoded format."""
         ...
@@ -1652,8 +1653,8 @@ class Object:
         cls,
         encoding: Encoding,
         reader: "BinaryReader",
-        session: "Session | None",
-        options: "EncoderOptions | None" = None,
+        session: Optional["Session"] = None,
+        options: Optional["EncoderOptions"] = None,
     ) -> Self:
         """Unpack an Object from the byte representation of its encoded format."""
         ...
@@ -1664,8 +1665,8 @@ class Object:
         cls,
         encoding: Encoding,
         value: str,
-        session: "Session | None",
-        options: "EncoderOptions | None" = None,
+        session: Optional["Session"] = None,
+        options: Optional["EncoderOptions"] = None,
     ) -> Self:
         """Unpack an Object from a base64 encoded string."""
         ...

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Self, final
+from typing import TYPE_CHECKING, Optional, Self, final
 
 from ..builtin import (
     MethodType,
@@ -30,7 +30,7 @@ class MethodDefinition(FunctionDefinition):
 
     # content
     input_properties: list["PropertyDefinition"] = declare_property(121)
-    output_property: "PropertyDefinition | None" = declare_property(122)
+    output_property: Optional["PropertyDefinition"] = declare_property(122)
 
     @classmethod
     def from_declaration(cls, declaration: "MethodDeclaration") -> "Self":

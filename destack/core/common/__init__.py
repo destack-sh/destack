@@ -40,6 +40,7 @@ from .type import (
     StringConstraint,
     Type,
     TypeConstraint,
+    invert_type,
 )
 from .value import Value
 
@@ -82,6 +83,7 @@ __all__ = [
     "Type",
     "TypeConstraint",
     "Value",
+    "invert_type",
     "markdown_to_text",
     "text",
     "text_to_markdown",

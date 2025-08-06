@@ -413,6 +413,7 @@ assert max(PrimitiveType) < 64, "PrimitiveType must be less than 64"  # for :Enc
 
 PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     # boolean
+    type(None): PrimitiveType.NONE,
     bool: PrimitiveType.BOOLEAN,
     Boolean: PrimitiveType.BOOLEAN,
     # integer
@@ -450,7 +451,12 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     bytearray: PrimitiveType.BYTES,
     Json: PrimitiveType.JSON,
 }
-PRIMITIVE_PY_TYPES = tuple(t for t in PRIMITIVE_TYPE_BY_ANNOTATION if isinstance(t, type))
+PRIMITIVE_PY_ANNOTATION_BY_TYPE: dict[PrimitiveType, type | TypeAliasType] = {
+    v: k for k, v in PRIMITIVE_TYPE_BY_ANNOTATION.items()
+}
+if len(PRIMITIVE_PY_ANNOTATION_BY_TYPE) != len(PrimitiveType):
+    missing_types = [t for t in PrimitiveType if t not in PRIMITIVE_PY_ANNOTATION_BY_TYPE]
+    raise ValueError(f"missing primitive type annotations: {missing_types!r}")
 
 
 @declare_enum(EnumType.VALUE_FACTORY)

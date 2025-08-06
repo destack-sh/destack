@@ -356,10 +356,12 @@ class REPL:
                         self.commands[cmd_name](*args)
                     except TypeError as e:
                         console.error(f"Error: {e}")
+                        console.stacktrace(e)
                         if cmd_name in self.help_texts:
                             console.print(f"Usage: {self.help_texts[cmd_name]}", "dim")
                     except Exception as e:
                         console.error(f"Error executing '{cmd_name}': {e}")
+                        console.stacktrace(e)
                 else:
                     # try to pass the entire input to a default handler if it exists
                     if "default" in self.commands:
@@ -367,6 +369,7 @@ class REPL:
                             self.commands["default"](user_input)
                         except Exception as e:
                             console.error(f"Error: {e}")
+                            console.stacktrace(e)
                     else:
                         console.error(f"Unknown command: '{cmd_name}'")
                         console.print("Type 'help' for available commands.", "dim")

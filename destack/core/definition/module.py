@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Optional, final
 
 from ..builtin import (
     EnumType,
@@ -59,8 +59,8 @@ class ModuleDefinition(Definition):
     # meta
     type: ModuleType = declare_property(100, is_repr=True)
     path: str = declare_property(104, is_repr=True)
-    domain: "UniverseDomain | None" = declare_property(106)
-    category: "UniverseCategory | None" = declare_property(107)
+    domain: Optional["UniverseDomain"] = declare_property(106)
+    category: Optional["UniverseCategory"] = declare_property(107)
 
     # content
     methods: list["MethodDefinition"] = declare_property(120)

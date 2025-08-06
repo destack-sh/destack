@@ -1,6 +1,6 @@
 from datetime import datetime
 from random import Random
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Optional, final
 
 from ..builtin import (
     Entity,
@@ -30,7 +30,7 @@ class Context(Handle):
     actor: "Entity" = declare_property_runtime(401, is_repr=True)
     client: "Client" = declare_property_runtime(402, is_repr=True)
     client_nonce: UUID = declare_property_runtime(403, is_repr=True)
-    event: "Event | None" = declare_property_runtime(404, is_repr=True)
+    event: Optional["Event"] = declare_property_runtime(404, is_repr=True)
 
     space: "Space" = declare_property_runtime(
         410,

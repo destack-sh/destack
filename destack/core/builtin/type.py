@@ -85,40 +85,24 @@ def parse_type_declaration(
     NOTE: builtin members have some additional limitations (no unions, flat types, etc.).
     """
 
-    is_required: bool = True
-    scalar_type: ScalarType | None = None
-    primitive_type: PrimitiveType | None = None
-    enum_type: EnumType | None = None
-    struct_type: StructType | None = None
-    handle_type: HandleType | None = None
-    node_types: list[NodeType] | None = None
-
     # try to resolve
     if not isinstance(py_type, type):
         if isinstance(py_type, typing.ForwardRef):
             py_type = py_type.__forward_arg__
-        if isinstance(py_type, str):
-            if py_type.endswith(" | None"):
-                is_required = False
-                py_type = py_type[:-7]
 
     origin = typing.get_origin(py_type)
 
-    # handle Literal
-    if origin is typing.Literal:
-        raise ValueError(f"Literal not yet supported: {py_type!r}")
-
-    # unwrap list
+    # list
     if origin is list:
         element_type_arg = typing.get_args(py_type)[0]
         element_annotation = parse_type_declaration(element_type_arg, is_builtin=is_builtin)
         return TypeDeclaration(
             cardinality=TypeCardinality.LIST,
             value_type=element_annotation,
-            is_required=is_required,
+            is_required=True,
         )
 
-    # unwrap tuple
+    # tuple
     if origin is tuple:
         type_args = typing.get_args(py_type)
         if not type_args:
@@ -131,10 +115,11 @@ def parse_type_declaration(
         return TypeDeclaration(
             cardinality=TypeCardinality.TUPLE,
             element_types=element_types,
-            is_required=is_required,
+            is_required=True,
         )
 
-    # unwrap union/optional
+    # union/optional
+    is_required = True
     if origin in (typing.Union, types.UnionType):
         union_args = typing.get_args(py_type)
         is_required = not any(t is type(None) for t in union_args)
@@ -178,7 +163,7 @@ def parse_type_declaration(
                     is_required=is_required,
                 )
 
-    # unwrap map (dict)
+    # map
     if origin is dict:
         key_type_arg, value_type_arg = typing.get_args(py_type)
         key_annotation = parse_type_declaration(key_type_arg, is_builtin=is_builtin)
@@ -198,6 +183,28 @@ def parse_type_declaration(
         )
 
     # determine scalar type
+    return parse_type_declaration_scalar(
+        py_type,
+        is_builtin=is_builtin,
+        is_required=is_required,
+    )
+
+
+def parse_type_declaration_scalar(
+    py_type: type | str | typing.ForwardRef,
+    *,
+    is_builtin: bool = False,
+    is_required: bool = True,
+) -> TypeDeclaration:
+    """
+    Parses the TypeDeclaration from a given py type.
+    """
+    scalar_type: ScalarType | None = None
+    primitive_type: PrimitiveType | None = None
+    enum_type: EnumType | None = None
+    struct_type: StructType | None = None
+    handle_type: HandleType | None = None
+    node_types: list[NodeType] | None = None
     is_self = False
     is_any = False
     class_name = _get_class_name(py_type) if py_type is not type(None) else "None"

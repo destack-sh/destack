@@ -1,4 +1,5 @@
 import sys
+import traceback
 from typing import Literal
 
 # ansi color codes
@@ -106,6 +107,102 @@ def move_up(lines: int = 1) -> None:
 def clear_line() -> None:
     """Clear the current line."""
     sys.stdout.write("\x1b[2K\r")
+    sys.stdout.flush()
+
+
+def stacktrace(exc: BaseException, show_locals: bool = False) -> None:
+    """Render a formatted stacktrace for an exception."""
+    # get the traceback information
+    tb = traceback.TracebackException.from_exception(exc, capture_locals=show_locals)
+
+    # print exception header
+    exc_type = type(exc).__name__
+    exc_msg = str(exc)
+
+    sys.stdout.write("\n")
+    sys.stdout.write(color("╭─ ", "red") + color(f"{exc_type}", "bright_red", "bold"))
+    if exc_msg:
+        sys.stdout.write(color(": ", "red") + color(exc_msg, "bright_white"))
+    sys.stdout.write("\n")
+
+    # print the stack frames
+    for frame in tb.stack:
+        # file info
+        filename = frame.filename
+        lineno = frame.lineno
+        function = frame.name
+
+        # shorten long file paths to just show the relevant parts
+        if "/site-packages/" in filename:
+            # external library
+            parts = filename.split("/site-packages/")
+            short_filename = "📦 " + parts[-1]
+            file_color = "dim"
+        elif "/venv/" in filename or "/.venv/" in filename:
+            # virtual environment
+            parts = filename.split("/venv/")[-1].split("/.venv/")[-1]
+            short_filename = "🐍 " + parts
+            file_color = "dim"
+        else:
+            # project file
+            import os
+
+            try:
+                short_filename = os.path.relpath(filename)
+            except ValueError:
+                short_filename = filename
+            file_color = "cyan"
+
+        # print frame header
+        sys.stdout.write(color("│\n├─ ", "red"))
+        sys.stdout.write(color(f"{short_filename}", file_color))
+        sys.stdout.write(color(":", "gray"))
+        sys.stdout.write(color(f"{lineno}", "yellow"))
+        sys.stdout.write(color(" in ", "gray"))
+        sys.stdout.write(color(f"{function}", "bright_blue", "bold"))
+        sys.stdout.write("\n")
+
+        # print the code line if available
+        if frame.line:
+            code_line = frame.line.strip()
+            sys.stdout.write(color("│  ", "red"))
+            # simple syntax highlighting
+            import keyword
+
+            words = []
+            for word in code_line.split():
+                if keyword.iskeyword(word.rstrip("()[]{}:,.")):
+                    words.append(color(word, "magenta"))
+                elif word.startswith('"') or word.startswith("'"):
+                    words.append(color(word, "green"))
+                elif word[0].isdigit() or word in ["True", "False", "None"]:
+                    words.append(color(word, "yellow"))
+                else:
+                    words.append(word)
+            sys.stdout.write(" ".join(words))
+            sys.stdout.write("\n")
+
+        # print locals if requested
+        if show_locals and hasattr(frame, "locals") and frame.locals:
+            for var_name, var_value in frame.locals.items():
+                if not var_name.startswith("__"):
+                    sys.stdout.write(color("│    ", "red"))
+                    sys.stdout.write(color(f"{var_name}", "gray"))
+                    sys.stdout.write(color(" = ", "gray"))
+                    try:
+                        # truncate long values
+                        value_str = repr(var_value)
+                        if len(value_str) > 60:
+                            value_str = value_str[:57] + "..."
+                        sys.stdout.write(color(value_str, "dim"))
+                    except Exception:
+                        sys.stdout.write(color("<error getting value>", "dim"))
+                    sys.stdout.write("\n")
+
+    # print footer
+    sys.stdout.write(color("╰", "red"))
+    sys.stdout.write(color("─" * 50, "red"))
+    sys.stdout.write("\n\n")
     sys.stdout.flush()
 
 
