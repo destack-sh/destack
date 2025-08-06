@@ -1,6 +1,6 @@
 {
   "name": "destack-ts-server",
-  "version": "2025.08.01.22",
+  "version": "2025.08.06.1",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",

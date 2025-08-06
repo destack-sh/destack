@@ -1,0 +1,26 @@
+[package]
+name = "destack"
+description = "Destack Rust library"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "destack"
+path = "src/main.rs"
+
+[dependencies]
+ahash = { workspace = true }
+bytes = { workspace = true }
+clap = { workspace = true }
+itoa = { workspace = true }
+slab = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tmpfile = { workspace = true }
+wasm-bindgen-cli = { workspace = true }

@@ -1,5 +1,5 @@
 // see https://observablehq.com/@dgreensp/implementing-fractional-indexing
-//  (licensed as CC-0)
+//  (which is licensed as CC-0)
 // sync with fractional.py in backend
 
 // base digits in lexiographical order
