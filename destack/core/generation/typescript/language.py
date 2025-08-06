@@ -1,6 +1,7 @@
 import re
 import textwrap
 from collections import defaultdict
+from collections.abc import Collection, Sequence
 from itertools import chain
 from typing import assert_never, cast
 
@@ -30,7 +31,6 @@ from destack.core import (
     TypeCardinality,
     TypeDeclaration,
     ValueFactory,
-    expand_node_types,
     to_casing,
 )
 from destack.registry import (
@@ -62,6 +62,38 @@ from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 from .value import generate_value
 
 COLLAPSE_GENERATED_CODE = False
+
+
+def _expand_node_inheritance(types: Collection[NodeType]) -> Sequence[NodeType]:
+    """
+    Expand a collection of NodeTypes into a flat collection of NodeTypes.
+    """
+    node_types: set[NodeType] = set()
+    for typ in types:
+        node_cls = NODE_CLASS_BY_TYPE[typ]
+        node_types.update(node_cls.__definition__.inherited_by)
+        if not node_cls.__definition__.is_abstract:
+            node_types.add(typ)
+    return tuple(node_types)
+
+
+def _expand_node_types(
+    node_type: "NodeType | Collection[NodeType] | type[Node] | None",
+    expand_inheritance: bool = True,
+) -> Sequence["NodeType"]:
+    """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""
+    if node_type is None:
+        return ()
+    node_types: Sequence[NodeType] = []
+    if isinstance(node_type, type):
+        node_types.append(node_type.metatype)
+    elif isinstance(node_type, Collection):
+        node_types.extend(node_type)
+    else:
+        node_types.append(node_type)
+    if expand_inheritance:
+        node_types = _expand_node_inheritance(node_types)
+    return node_types
 
 
 def _collapse_code_maybe(code: str) -> str:
@@ -140,7 +172,7 @@ def _generate_type_scalar(type: TypeDeclaration | Type, as_ptr: bool = True) -> 
             return "NodeReference"
         if isinstance(type, Type):
             return "Node"  # don't know
-        resolved_node_types = expand_node_types(type.node_types, expand_inheritance=False)
+        resolved_node_types = _expand_node_types(type.node_types, expand_inheritance=False)
         if not resolved_node_types or len(resolved_node_types) == len(NodeType):
             if isinstance(type, PropertyDeclaration) and type.edge_type == EdgeType.PARENT:
                 return "Entity"

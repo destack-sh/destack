@@ -1603,11 +1603,11 @@ class Object:
         _identity_map: Mapping[UUID, UUID] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
-        ...
+        raise NotImplementedError
 
     def hash(self, _hasher: "Hasher | None" = None) -> Int64:
         """Hash of content properties."""
-        ...
+        raise NotImplementedError
 
     def __bool__(self):
         return True  # support truthy checks for objects
@@ -1623,7 +1623,7 @@ class Object:
         options: Optional["EncoderOptions"] = None,
     ) -> Any:
         """Pack this Object into some encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(31)
     def pack_binary(
@@ -1633,7 +1633,7 @@ class Object:
         options: Optional["EncoderOptions"] = None,
     ) -> None:
         """Pack this Object into the byte representation of its encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(201)
     @classmethod
@@ -1645,7 +1645,7 @@ class Object:
         options: Optional["EncoderOptions"] = None,
     ) -> Self:
         """Unpack an Object from some encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(202)
     @classmethod
@@ -1657,7 +1657,7 @@ class Object:
         options: Optional["EncoderOptions"] = None,
     ) -> Self:
         """Unpack an Object from the byte representation of its encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(203)
     @classmethod
@@ -1669,4 +1669,4 @@ class Object:
         options: Optional["EncoderOptions"] = None,
     ) -> Self:
         """Unpack an Object from a base64 encoded string."""
-        ...
+        raise NotImplementedError

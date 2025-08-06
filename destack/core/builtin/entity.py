@@ -363,12 +363,12 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        ...
+        raise NotImplementedError
 
     @declare_method(3)
     def set(self, key: str, value: Any):
         """Set a Property on this Node (direct SET operations)."""
-        ...
+        raise NotImplementedError
 
     if not TYPE_CHECKING:
         __setattr__ = set
@@ -377,23 +377,23 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @property
     def is_custom(self) -> bool:
         """Whether this Node is a custom Node."""
-        ...
+        raise NotImplementedError
 
     @declare_method(11)
     @property
     def is_partial(self) -> bool:
         """Whether this Entity is a partial Entity."""
-        ...
+        raise NotImplementedError
 
     @declare_method(20)
     def delete(self):
         """Delete this Entity."""
-        ...
+        raise NotImplementedError
 
     @declare_method(21)
     def restore(self):
         """Restore this deleted Entity from the trash."""
-        ...
+        raise NotImplementedError
 
     @declare_method(30)
     def get_children(
@@ -402,7 +402,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> list["Entity"]:
         """Gets the children of this Entity."""
-        ...
+        raise NotImplementedError
 
     @declare_method(31)
     def get_child(
@@ -412,7 +412,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> Optional["Entity"]:
         """Gets a specific child of this Node by name."""
-        ...
+        raise NotImplementedError
 
     @declare_method(32)
     def child(
@@ -422,7 +422,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> "Entity":
         """Gets a specific child of this Node by name, or raises an error if not found."""
-        ...
+        raise NotImplementedError
 
     @declare_method(33)
     def get_ancestors(
@@ -431,7 +431,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> list["Entity"]:
         """Gets the ancestors of this Node."""
-        ...
+        raise NotImplementedError
 
     @declare_method(34)
     def get_descendants(
@@ -440,7 +440,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         include_deleted: bool = False,
     ) -> list["Entity"]:
         """Gets the descendants of this Node."""
-        ...
+        raise NotImplementedError
 
     @declare_method(40)
     def detach(self):
@@ -449,7 +449,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         Does not delete the Entity, just removes it from its parent.
         Raises an error if it has no parent.
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(41)
     def move_to(
@@ -464,7 +464,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(42)
     def add_sibling(
@@ -479,7 +479,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(43)
     def add_siblings(
@@ -489,7 +489,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         before: Optional["Entity"] = None,
     ) -> Self:
         """Add multiple Entities as siblings of this Entity."""
-        ...
+        raise NotImplementedError
 
     @declare_method(44)
     def add_child(
@@ -505,7 +505,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(45)
     def add_children(
@@ -517,7 +517,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """
         Append multiple Entities as children of this Entity.
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(46)
     def remove_child(self, child: "Entity") -> Self:
@@ -525,24 +525,24 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         Remove a child Entity from this Entity.
         The child will NOT be deleted, it will simply be detached.
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(50)
     def add_tag(self, tag: "Tag", value: Optional["Value"] = None) -> "Value":
         """Add or get a Tag's value on this Entity."""
-        ...
+        raise NotImplementedError
 
     @declare_method(51)
     def remove_tag(self, tag: "Tag") -> Optional["Value"]:
         """Remove a Tag from this Entity."""
-        ...
+        raise NotImplementedError
 
     @declare_method(60)
     def into(self, branch: "Branch") -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Branch.
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(61)
     def instantiate(
@@ -557,10 +557,11 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         If partial is True, the new Entity will be a partial Entity with only override set.
         If attach is True, the new Entity will be attached to the current Entity's parent.
         """
-        ...
+        raise NotImplementedError
 
     @classmethod
-    def partial(cls) -> "EntityPartial": ...
+    def partial(cls) -> "EntityPartial":
+        raise NotImplementedError
 
 
 ENTITY_MATERIALIZATION_ID = Entity.property("materialization").id
@@ -642,8 +643,8 @@ class EntityPartial:
 
     def set(self, key: str, value: Any):
         """Set a Property on this Entity partial."""
-        ...
+        raise NotImplementedError
 
     def unset(self, key: str):
         """Unset a Property on this Entity partial."""
-        ...
+        raise NotImplementedError

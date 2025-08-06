@@ -82,4 +82,4 @@ class ObjectDefinition(Definition):
     @abc.abstractmethod
     def to_ref(self) -> "ObjectDefinitionReference":
         """Get a reference to this ObjectDefinition."""
-        ...
+        raise NotImplementedError

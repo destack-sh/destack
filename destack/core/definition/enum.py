@@ -1,9 +1,8 @@
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, final
 
 from ..builtin import (
     EnumDeclaration,
     EnumType,
-    OptionDeclaration,
     StructType,
     UInt8,
     UInt32,
@@ -50,7 +49,7 @@ class EnumDefinition(Definition):
             is_flag=declaration.is_flag,
             # content
             options=[
-                OptionDefinition.from_declaration(declaration.type, cast(OptionDeclaration, option))
+                OptionDefinition.from_declaration(declaration.type, option)
                 for option in declaration.options
             ],
         )

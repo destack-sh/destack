@@ -165,8 +165,6 @@ class Region(OptionEnum):
     # sa-east
     SAO_PAULO = declare_option(3_000)
 
-    ...
-
     # af-south
     CAPE_TOWN = declare_option(5_000)
 

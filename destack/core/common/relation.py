@@ -3,7 +3,6 @@ from typing import (
     Optional,
     Union,
     assert_never,
-    cast,
     final,
 )
 
@@ -111,7 +110,7 @@ class ObjectDefinitionReference(StructFrozen):
         elif isinstance(definition, type):
             if issubclass(definition, Node):
                 return ObjectDefinitionReference(
-                    kind=ObjectKind.NODE, node_type=cast(NodeType, definition.metatype)
+                    kind=ObjectKind.NODE, node_type=definition.metatype
                 )
             elif issubclass(definition, Struct):
                 return ObjectDefinitionReference(
@@ -119,7 +118,7 @@ class ObjectDefinitionReference(StructFrozen):
                 )
             elif issubclass(definition, Handle):
                 return ObjectDefinitionReference(
-                    kind=ObjectKind.HANDLE, handle_type=cast(HandleType, definition.metatype)
+                    kind=ObjectKind.HANDLE, handle_type=definition.metatype
                 )
             else:
                 assert_never(definition)
@@ -204,7 +203,7 @@ class PropertyReference(StructFrozen):
         base: "PropertyDeclaration | PropertyDefinition | CustomPropertyDefinition",
     ) -> "PropertyReference":
         """Create a PropertyReference from a PropertyDeclaration, PropertyDefinition or CustomPropertyDefinition."""
-        ...
+        raise NotImplementedError
 
 
 @declare_struct(StructType.NODE_REFERENCE, frozen=True, is_final=True)

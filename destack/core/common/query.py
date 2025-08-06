@@ -75,12 +75,12 @@ class Condition(StructFrozen):
     @declare_method(100)
     def __or__(self, right: "Condition") -> "Condition":
         """OR two Conditions."""
-        ...
+        raise NotImplementedError
 
     @declare_method(101)
     def __and__(self, right: "Condition") -> "Condition":
         """AND two Conditions."""
-        ...
+        raise NotImplementedError
 
 
 #

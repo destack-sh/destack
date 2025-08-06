@@ -34,7 +34,7 @@ class CLI:
         """Decorator to register a command."""
 
         def decorator(func: Callable):
-            cmd_name = name or func.__name__.replace("_", "-")
+            cmd_name = name or func.__name__.replace("_", "-")  # type: ignore
             self.commands[cmd_name] = CLICommand(func, cmd_name)
             return func
 
@@ -310,7 +310,7 @@ class REPL:
         """Decorator to register a REPL command."""
 
         def decorator(func: Callable):
-            cmd_name = name or func.__name__.replace("_", "-")
+            cmd_name = name or func.__name__.replace("_", "-")  # type: ignore
             self.commands[cmd_name] = func
             if help_text or func.__doc__:
                 self.help_texts[cmd_name] = help_text or (func.__doc__ or "").strip()

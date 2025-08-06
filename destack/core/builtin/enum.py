@@ -171,7 +171,7 @@ def declare_enum(enum_type: "EnumType"):
                 )
                 options_by_id[option.id] = option
         else:
-            assert_never(cls)
+            raise ValueError(f"unexpected enum type: {cls.__name__}")
 
         return cls
 
@@ -202,7 +202,7 @@ class _EnumMeta(type):  # type: ignore
 class Enum(
     # pretend this is an IntEnum for regular use
     enum.IntEnum if TYPE_CHECKING else object,
-    metaclass=type if TYPE_CHECKING else _EnumMeta,
+    metaclass=enum.EnumMeta if TYPE_CHECKING else _EnumMeta,
 ):
     metatype: ClassVar["EnumType"]  # type: ignore
     __declaration__: ClassVar[EnumDeclaration]  # type: ignore

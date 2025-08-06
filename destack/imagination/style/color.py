@@ -109,7 +109,7 @@ class Color(StructFrozen):
     @classmethod
     def from_hex(cls, hex: str) -> "Color":
         """Create a Color from a hex string."""
-        ...
+        raise NotImplementedError
 
 
 @declare_entity(
@@ -133,58 +133,58 @@ class ColorStyle(Style):
     @classmethod
     def from_color(cls, name: str, color: Color, dark: Color | None = None) -> "ColorStyle":
         """Create a ColorStyle from a Color."""
-        ...
+        raise NotImplementedError
 
     @declare_method(202)
     @classmethod
     def from_hex(cls, name: str, hex: str, dark: str | None = None) -> "ColorStyle":
         """Create a ColorStyle from a hex string."""
-        ...
+        raise NotImplementedError
 
 
 @declare_method(301)
 def hex_to_rgb(hex: str) -> tuple[Float32, Float32, Float32, Float32 | None]:
     """Convert hex color string to linear-space RGB floats with optional alpha."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(302)
 def rgb_to_hex(r: UInt32, g: UInt32, b: UInt32, a: UInt32 | None = None) -> str:
     """Convert 8-bit sRGB values to hex color string."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(303)
 def rgb_to_hsl(r: UInt32, g: UInt32, b: UInt32) -> tuple[Float32, Float32, Float32]:
     """Convert 8-bit sRGB values to HSL color space."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(304)
 def hsl_to_rgb(h: Float32, s: Float32, l: Float32) -> tuple[Float32, Float32, Float32]:  # noqa: E741
     """Convert HSL values to linear-space RGB floats."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(305)
 def rgb_to_p3(r: Float32, g: Float32, b: Float32) -> tuple[Float32, Float32, Float32]:
     """Convert gamma-encoded sRGB to gamma-encoded Display-P3."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(306)
 def p3_to_rgb(rp3: Float32, gp3: Float32, bp3: Float32) -> tuple[Float32, Float32, Float32]:
     """Convert gamma-encoded Display-P3 to gamma-encoded sRGB."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(307)
 def hsl_to_p3(h: Float32, s: Float32, l: Float32) -> tuple[Float32, Float32, Float32]:  # noqa: E741
     """Convert HSL to gamma-encoded Display-P3."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(308)
 def p3_to_hsl(rp3: Float32, gp3: Float32, bp3: Float32) -> tuple[Float32, Float32, Float32]:
     """Convert gamma-encoded Display-P3 to HSL."""
-    ...
+    raise NotImplementedError

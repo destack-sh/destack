@@ -73,14 +73,14 @@ class Context(Handle):
     @property
     def random(self) -> Random:
         """Source of randomness."""
-        ...
+        raise NotImplementedError
 
     def now(self) -> datetime:
         """Current datetime in UTC with microsecond precision."""
-        ...
+        raise NotImplementedError
 
     async def sleep(self, duration: float) -> None:
         """Sleep for a duration in seconds. Like asyncio.sleep. Timing is relative to oracle."""
-        ...
+        raise NotImplementedError
 
     # call_later, call_at

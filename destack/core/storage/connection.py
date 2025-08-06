@@ -21,7 +21,8 @@ class Connection(Handle):
 
     space_ptr: "NodeReference" = declare_property_runtime(500, is_repr=True)
 
-    async def open(self) -> None: ...
+    async def open(self) -> None:
+        raise NotImplementedError
 
     async def pull(
         self,
@@ -30,10 +31,11 @@ class Connection(Handle):
         snapshot_id: UUID | None,
     ) -> None:
         """Pull the relevant Entities and Events from the remote Graph into this Graph."""
-        ...
+        raise NotImplementedError
 
     async def push(self, events: Sequence["Event"]) -> Sequence["Event"]:
         """Push the Events to the remote Graph."""
-        ...
+        raise NotImplementedError
 
-    async def close(self) -> None: ...
+    async def close(self) -> None:
+        raise NotImplementedError

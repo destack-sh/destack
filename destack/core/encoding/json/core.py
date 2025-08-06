@@ -17,7 +17,8 @@ class JsonObjectEncoder[T: Object = Object]:
         _encoder: "JsonEncoder",
         _object: T,
         _options: "EncoderOptions",
-    ) -> dict[str, Any]: ...
+    ) -> dict[str, Any]:
+        raise NotImplementedError
 
     def unpack_object(
         self,
@@ -25,4 +26,5 @@ class JsonObjectEncoder[T: Object = Object]:
         _object_json: dict[str, Any],
         _session: "Session | None",
         _options: "EncoderOptions",
-    ) -> T: ...
+    ) -> T:
+        raise NotImplementedError

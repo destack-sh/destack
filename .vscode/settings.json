@@ -1,4 +1,6 @@
 {
+	"python.languageServer": "None",
+	"ty.diagnosticMode": "workspace",
 	"python.testing.pytestArgs": [ "destack/" ],
 	"python.testing.unittestEnabled": false,
 	"python.testing.pytestEnabled": true,
