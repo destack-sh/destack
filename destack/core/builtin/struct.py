@@ -163,7 +163,7 @@ class Struct(Object):
     @declare_method(60, is_implemented=True)
     def clone(self) -> Self:
         """Clone the Struct with new values."""
-        ...
+        raise NotImplementedError
 
 
 @declare_struct(

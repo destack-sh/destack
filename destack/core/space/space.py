@@ -60,7 +60,7 @@ class Space(Entity):
     )
     async def append(self) -> None:
         """Append Events to the Space."""
-        ...
+        raise NotImplementedError
 
     @declare_action(
         102,
@@ -69,4 +69,4 @@ class Space(Entity):
     )
     async def watch(self):
         """Watch for Events in the Space."""
-        ...
+        raise NotImplementedError

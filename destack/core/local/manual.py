@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any, assert_never
 
-from destack.registry import BUILTIN_DEFINITION_BY_NAME
+from destack.registry import (
+    BUILTIN_DEFINITION_BY_NAME,
+    ENUM_CLASS_BY_TYPE,
+    HANDLE_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+)
 
 from . import console
 from .parser import create_cli, create_repl
@@ -20,11 +26,12 @@ if TYPE_CHECKING:
         Type,
     )
 
-cli = create_cli("manual")
-
+type_ = type
 type _Definition = (
     "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition"
 )
+
+cli = create_cli("manual")
 
 
 @dataclass(slots=True)
@@ -199,9 +206,84 @@ def _calculate_substring_score(query: str, target: str) -> int:
 
 def _render_type(type: "Type") -> str:
     """Render a type to a string."""
-    from ...core import invert_type
+    from ...core import TypeCardinality
 
-    return str(invert_type(type))
+    # scalar
+    if type.cardinality == TypeCardinality.SCALAR:
+        inner_str = _render_type_scalar(type)
+    # list
+    elif type.cardinality == TypeCardinality.LIST:
+        assert type.value_type is not None
+        inner_str = f"list[{_render_type(type.value_type)}]"
+    # tuple
+    elif type.cardinality == TypeCardinality.TUPLE:
+        assert type.element_types is not None
+        element_names = [_render_type(t) for t in type.element_types]
+        inner_str = f"tuple[{', '.join(element_names)}]"
+    # map
+    elif type.cardinality == TypeCardinality.MAP:
+        assert type.key_type is not None
+        assert type.value_type is not None
+        key_name = _render_type(type.key_type)
+        value_name = _render_type(type.value_type)
+        inner_str = f"dict[{key_name}, {value_name}]"
+    else:
+        assert_never(type.cardinality)
+
+    # wrap in optional
+    if not type.is_required:
+        inner_str = f"Optional[{inner_str}]"
+
+    return inner_str
+
+
+def _render_type_scalar(type: "Type") -> str:
+    """Render a scalar type to a string."""
+    from destack.core import (
+        PRIMITIVE_PY_ANNOTATION_BY_TYPE,
+        ScalarType,
+        TypeCardinality,
+    )
+
+    assert type.cardinality == TypeCardinality.SCALAR
+    assert type.scalar_type is not None
+
+    # primitive
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        assert type.primitive_type is not None
+        return PRIMITIVE_PY_ANNOTATION_BY_TYPE[type.primitive_type].__name__
+    # enum
+    elif type.scalar_type == ScalarType.ENUM:
+        assert type.enum_type is not None
+        return ENUM_CLASS_BY_TYPE[type.enum_type].__name__
+    # node reference
+    elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        assert type.node_types is not None
+        if len(type.node_types) == 1:
+            return NODE_CLASS_BY_TYPE[type.node_types[0]].__name__
+        else:
+            node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
+            return " | ".join(node_names)
+    # node value
+    elif type.scalar_type == ScalarType.NODE_VALUE:
+        assert type.node_types is not None
+        return NODE_CLASS_BY_TYPE[type.node_types[0]].__name__
+    # struct
+    elif type.scalar_type == ScalarType.STRUCT:
+        assert type.struct_type is not None
+        return STRUCT_CLASS_BY_TYPE[type.struct_type].__name__
+    # handle
+    elif type.scalar_type == ScalarType.HANDLE:
+        assert type.handle_type is not None
+        return HANDLE_CLASS_BY_TYPE[type.handle_type].__name__
+    # union
+    elif type.scalar_type == ScalarType.UNION:
+        assert type.element_types is not None
+        element_names = [_render_type_scalar(t) for t in type.element_types]
+        return " | ".join(element_names)
+    #
+    else:
+        assert_never(type.scalar_type)
 
 
 def _show_definition(
@@ -259,9 +341,9 @@ def _show_node(definition: "NodeDefinition") -> None:
     metadata.append(("Frozen", definition.is_frozen))
     metadata.append(("Singleton", definition.is_singleton))
 
-    if metadata:
-        for key, value in metadata:
-            console.print(f"  {key}: {console.color(value, 'green')}")
+    # metadata
+    for key, value in metadata:
+        console.print(f"  {key}: {console.color(value, 'green')}")
 
     # properties
     if definition.properties:
@@ -291,9 +373,9 @@ def _show_struct(definition: "StructDefinition") -> None:
     metadata.append(("Frozen", definition.is_frozen))
     metadata.append(("Abstract", definition.is_abstract))
 
-    if metadata:
-        for key, value in metadata:
-            console.print(f"  {key}: {console.color(value, 'green')}")
+    # metadata
+    for key, value in metadata:
+        console.print(f"  {key}: {console.color(value, 'green')}")
 
     # properties
     if definition.properties:

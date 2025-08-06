@@ -363,7 +363,7 @@ class MethodDeclaration(FunctionDeclaration):
 
 def _process_method(
     # meta
-    func: Callable | classmethod | property,
+    func: Any,
     *,
     id: int,
     name: str | None,
@@ -401,7 +401,7 @@ def _process_method(
         type: MethodType = MethodType.INSTANCE if is_in_class else MethodType.STATIC
 
     # meta
-    qualname = f"{inner_func.__module__}.{inner_func.__qualname__}"
+    qualname = f"{inner_func.__module__}.{inner_func.__qualname__}"  # type: ignore
     is_async = inspect.iscoroutinefunction(inner_func)
 
     # parse method signature
@@ -419,7 +419,7 @@ def _process_method(
     )
 
     # implementation must be empty
-    if not is_implemented and len(inner_func.__code__.co_code) > 12:
+    if not is_implemented and len(inner_func.__code__.co_code) > 22:  # type: ignore
         source = inspect.getsource(inner_func).strip()
         raise ValueError(f"abstract method declaration must be empty: {qualname}\n{source}")
 
@@ -427,7 +427,7 @@ def _process_method(
     declaration = MethodDeclaration(
         # meta
         id=id,
-        name=name or inner_func.__name__,
+        name=name or inner_func.__name__,  # type: ignore
         description=inner_func.__doc__,
         outer_func=outer_func,
         inner_func=inner_func,
@@ -485,7 +485,7 @@ def declare_method(
         )
 
         # validate
-        qualname = f"{func.__module__}.{func.__qualname__}"
+        qualname = f"{func.__module__}.{func.__qualname__}"  # type: ignore
         if declaration.type in (MethodType.PROPERTY, MethodType.INSTANCE):
             assert declaration.id < 200, f"id {declaration.id} outside range for {qualname} (<200)"
         elif declaration.type == MethodType.CLASS:
@@ -540,7 +540,7 @@ def _process_action(
     from .type import parse_type_declaration
 
     # meta
-    qualname = f"{func.__module__}.{func.__qualname__}"
+    qualname = f"{func.__module__}.{func.__qualname__}"  # type: ignore
     is_async = inspect.iscoroutinefunction(func)
 
     # parse action signature
@@ -587,14 +587,14 @@ def _process_action(
         output_message_type = output_message_type.struct_type
 
     # implementation must be empty
-    if len(func.__code__.co_code) > 12:
+    if len(func.__code__.co_code) > 22:  # type: ignore
         source = inspect.getsource(func).strip()
         raise ValueError(f"abstract action declaration must be empty: {qualname}\n{source}")
 
     assert func.__doc__, f"action has no docstring: {qualname}"
     declaration = ActionDeclaration(
         id=id,
-        name=name or func.__name__,
+        name=name or func.__name__,  # type: ignore
         description=func.__doc__,
         outer_func=func,
         inner_func=func,
@@ -689,7 +689,7 @@ def declare_constant[T](
     value: T | Callable[[], T],
     *,
     description: str | None = None,
-) -> T:  # replaced with T after finalization
+) -> Any:  # replaced with T after finalization
     """Declare a builtin Constant. Constants are replaced with their value during finalization."""
 
     declaration = ConstantDeclaration(

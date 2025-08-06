@@ -47,7 +47,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Pack an Object into some encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(101)
     def unpack_object(
@@ -62,7 +62,7 @@ class Encoder(Handle):
         Unpack an Object from some encoded format.
         If type is not provided, the ObjectKind and metatype will be inferred/consumed from the value.
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(102)
     def pack_object_binary(
@@ -72,7 +72,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
         """Pack an Object into the byte representation of its encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def unpack_object_binary(
@@ -87,7 +87,7 @@ class Encoder(Handle):
         Unpack an Object from the byte representation of its encoded format.
         If type is not provided, the ObjectKind and metatype will be inferred/consumed from the value.
         """
-        ...
+        raise NotImplementedError
 
     @declare_method(110)
     def pack_type(
@@ -96,7 +96,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Pack a Type into some encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def unpack_type(
@@ -105,7 +105,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a Type from some encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(112)
     def pack_type_binary(
@@ -115,7 +115,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
         """Pack a Type into the byte representation of its encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(113)
     def unpack_type_binary(
@@ -124,7 +124,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a Type from the byte representation of its encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(120)
     def pack_value(
@@ -134,7 +134,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Pack a value into some encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(121)
     def unpack_value(
@@ -145,7 +145,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a value from some encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(122)
     def pack_value_binary(
@@ -156,7 +156,7 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> None:
         """Pack a value into the byte representation of its encoded format."""
-        ...
+        raise NotImplementedError
 
     @declare_method(123)
     def unpack_value_binary(
@@ -167,4 +167,4 @@ class Encoder(Handle):
         options: EncoderOptions = EncoderOptions.DEFAULT,
     ) -> Any:
         """Unpack a value from the byte representation of its encoded format."""
-        ...
+        raise NotImplementedError

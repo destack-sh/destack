@@ -1,3 +1,5 @@
+# type: ignore
+
 from typing import TYPE_CHECKING
 
 import pytest
@@ -21,7 +23,8 @@ from .scaffold import *  # noqa: F403
 
 @entity
 class BreakoutGame(Entity):
-    def tick(self): ...
+    def tick(self):
+        raise NotImplementedError
 
 
 # ===============================================

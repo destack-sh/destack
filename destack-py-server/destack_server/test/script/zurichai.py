@@ -1,3 +1,5 @@
+# type: ignore
+
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -51,16 +53,20 @@ class Meetup(Entity):
     ends_at: datetime | None
 
     @method
-    def do_something(self: "Meetup"): ...
+    def do_something(self: "Meetup"):
+        raise NotImplementedError
 
     @action
-    def cancel(self: "Meetup"): ...
+    def cancel(self: "Meetup"):
+        raise NotImplementedError
 
     @action
-    def start(self: "Meetup"): ...
+    def start(self: "Meetup"):
+        raise NotImplementedError
 
     @action
-    def end(self: "Meetup"): ...
+    def end(self: "Meetup"):
+        raise NotImplementedError
 
 
 @event

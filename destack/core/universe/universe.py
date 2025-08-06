@@ -1,24 +1,6 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 
-from destack.core import (
-    EPSILON,
-    EPSILON_EXPONENT,
-    VERSION,
-    ActionType,
-    Entity,
-    Message,
-    NodeReference,
-    NodeType,
-    Region,
-    RuntimePlatform,
-    StructType,
-    declare_action,
-    declare_constant,
-    declare_entity,
-    declare_message,
-    declare_property,
-)
 from destack.registry import (
     ENUM_DEFINITION_BY_TYPE,
     HANDLE_DEFINITION_BY_TYPE,
@@ -26,6 +8,27 @@ from destack.registry import (
     STRUCT_DEFINITION_BY_TYPE,
 )
 
+from ..builtin import (
+    EPSILON,
+    EPSILON_EXPONENT,
+    VERSION,
+    ActionType,
+    Entity,
+    Float64,
+    Message,
+    NodeType,
+    Region,
+    RuntimePlatform,
+    String,
+    StructType,
+    declare_action,
+    declare_constant,
+    declare_entity,
+    declare_message,
+    declare_property,
+)
+from ..common import NodeReference
+from ..definition import EnumDefinition, HandleDefinition, NodeDefinition, StructDefinition
 from ..utility import UUID
 
 if TYPE_CHECKING:
@@ -73,59 +76,59 @@ class UniverseSpawnResponse(Message):
 class Universe(Entity):
     """The Destack computational universe."""
 
-    VERSION = declare_constant(
+    VERSION: String = declare_constant(
         1,
         value=VERSION,
         description="The current version of Destack.",
     )
-    EPSILON = declare_constant(
+    EPSILON: Float64 = declare_constant(
         2,
         value=EPSILON,
         description="The float epsilon used for floating point comparisons.",
     )
-    EPISLON_EXPONENT = declare_constant(
+    EPISLON_EXPONENT: int = declare_constant(
         3,
         value=EPSILON_EXPONENT,
         description="The exponent of the epsilon used for floating point comparisons.",
     )
-    BEGINNING_OF_DATETIME = declare_constant(
+    BEGINNING_OF_DATETIME: datetime = declare_constant(
         4,
         value=datetime(1, 1, 1, tzinfo=UTC),
         description="The beginning of time (1 AD, 00:00:00 UTC).",
     )
 
-    NODES = declare_constant(
+    NODES: list[NodeDefinition] = declare_constant(
         10,
         value=lambda: list(NODE_DEFINITION_BY_TYPE.values()),
         description="All Node definitions.",
     )
-    STRUCTS = declare_constant(
+    STRUCTS: list[StructDefinition] = declare_constant(
         12,
         value=lambda: list(STRUCT_DEFINITION_BY_TYPE.values()),
         description="All Struct definitions.",
     )
-    HANDLES = declare_constant(
+    HANDLES: list[HandleDefinition] = declare_constant(
         13,
         value=lambda: list(HANDLE_DEFINITION_BY_TYPE.values()),
         description="All Handle definitions.",
     )
-    ENUMS = declare_constant(
+    ENUMS: list[EnumDefinition] = declare_constant(
         14,
         value=lambda: list(ENUM_DEFINITION_BY_TYPE.values()),
         description="All Enum definitions.",
     )
 
-    UNIVERSE_ID = declare_constant(
+    UNIVERSE_ID: UUID = declare_constant(
         100,
         value=_UNIVERSE_ID,
         description="The system Universe ID.",
     )
-    SPACE_ID = declare_constant(
+    SPACE_ID: UUID = declare_constant(
         101,
         value=_UNIVERSE_SPACE_ID,
         description="The system Space ID.",
     )
-    SPACE = declare_constant(
+    SPACE: NodeReference = declare_constant(
         102,
         description="The system Space.",
         value=lambda: NodeReference(
@@ -136,28 +139,28 @@ class Universe(Entity):
             snapshot_id=_HEAD_SNAPSHOT_ID,
         ),
     )
-    META_SNAPSHOT_ID = declare_constant(
+    META_SNAPSHOT_ID: UUID = declare_constant(
         103,
         value=_META_SNAPSHOT_ID,
         description="The 'meta' Snapshot.id, the Snapshot containing time-related Entities (like Snapshots, Branches, etc.)",
     )
-    META_BRANCH_ID = declare_constant(
+    META_BRANCH_ID: UUID = declare_constant(
         105,
         value=_META_BRANCH_ID,
         description="The 'meta' Branch.id, the Branch containing time-related Entities (like Snapshots, Branches, etc.)",
     )
-    ROOT_BRANCH_ID = declare_constant(
+    ROOT_BRANCH_ID: UUID = declare_constant(
         107,
         value=_ROOT_BRANCH_ID,
         description="The 'root' Branch.id, the Branch all other Branches originate from.",
     )
-    HEAD_SNAPSHOT_ID = declare_constant(
+    HEAD_SNAPSHOT_ID: UUID = declare_constant(
         109,
         value=_HEAD_SNAPSHOT_ID,
         description="The 'head' Snapshot.id, the current active Snapshot.",
     )
 
-    ACTOR = declare_constant(
+    ACTOR: NodeReference = declare_constant(
         120,
         description="God Himself, the creator of the Universe.",
         value=lambda: NodeReference(
@@ -168,7 +171,7 @@ class Universe(Entity):
             snapshot_id=_HEAD_SNAPSHOT_ID,
         ),
     )
-    CLIENT = declare_constant(
+    CLIENT: NodeReference = declare_constant(
         121,
         description="God's terminal, for when He needs to do something.",
         value=lambda: NodeReference(
@@ -187,7 +190,7 @@ class Universe(Entity):
     )
     async def signup(self, request: "UniverseSignupRequest") -> "UniverseSignupResponse":
         """Sign up a new user."""
-        ...
+        raise NotImplementedError
 
     @declare_action(
         101,
@@ -196,4 +199,4 @@ class Universe(Entity):
     )
     async def spawn(self, request: "UniverseSpawnRequest") -> "UniverseSpawnResponse":
         """Create a new Space with a root Branch, meta Snapshot and head Snapshot."""
-        ...
+        raise NotImplementedError

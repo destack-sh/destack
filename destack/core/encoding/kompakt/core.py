@@ -24,7 +24,8 @@ class KompaktObjectEncoder[T: Object = Object]:
         _object: T,
         _writer: "BinaryWriter",
         _options: "EncoderOptions",
-    ) -> None: ...
+    ) -> None:
+        raise NotImplementedError
 
     def unpack_object(
         self,
@@ -32,4 +33,5 @@ class KompaktObjectEncoder[T: Object = Object]:
         _reader: "BinaryReader",
         _session: "Session | None",
         _options: "EncoderOptions",
-    ) -> T: ...
+    ) -> T:
+        raise NotImplementedError

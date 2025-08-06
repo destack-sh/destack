@@ -65,7 +65,7 @@ class Vector2(StructFrozen):
     @declare_method(101)
     def add(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Add a Vector2 or a scalar to a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         102,
@@ -74,12 +74,12 @@ class Vector2(StructFrozen):
     )
     def __add__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Add a Vector2 or a scalar to a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def sub(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Subtract a Vector2 or a scalar from a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         104,
@@ -88,12 +88,12 @@ class Vector2(StructFrozen):
     )
     def __sub__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Subtract a Vector2 or a scalar from a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(105)
     def mul(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Multiply a Vector2 or a scalar by a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         106,
@@ -102,12 +102,12 @@ class Vector2(StructFrozen):
     )
     def __mul__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Multiply a Vector2 or a scalar by a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(107)
     def truediv(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Divide a Vector2 or a scalar by a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         108,
@@ -116,12 +116,12 @@ class Vector2(StructFrozen):
     )
     def __truediv__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Divide a Vector2 or a scalar by a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(109)
     def abs(self) -> "Vector2":
         """Get the absolute value of a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         110,
@@ -130,12 +130,12 @@ class Vector2(StructFrozen):
     )
     def __abs__(self) -> "Vector2":
         """Get the absolute value of a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def neg(self) -> "Vector2":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         112,
@@ -144,7 +144,7 @@ class Vector2(StructFrozen):
     )
     def __neg__(self) -> "Vector2":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         113,
@@ -153,7 +153,7 @@ class Vector2(StructFrozen):
     )
     def __radd__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Add a Vector2 or a scalar to a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         114,
@@ -162,7 +162,7 @@ class Vector2(StructFrozen):
     )
     def __rsub__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Subtract a Vector2 or a scalar from a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         115,
@@ -171,7 +171,7 @@ class Vector2(StructFrozen):
     )
     def __rmul__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Multiply a Vector2 or a scalar by a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         116,
@@ -180,57 +180,57 @@ class Vector2(StructFrozen):
     )
     def __rtruediv__(self, other: Union["Vector2", Float32]) -> "Vector2":
         """Divide a Vector2 or a scalar by a Vector2."""
-        ...
+        raise NotImplementedError
 
     @declare_method(117)
     def perp(self) -> "Vector2":
         """Get the perpendicular vector (rotated 90 degrees counterclockwise)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(118)
     def dot(self, other: "Vector2") -> Float32:
         """Calculate the dot product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(119)
     def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(120)
     def magnitude2(self) -> Float32:
         """Calculate the squared magnitude of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(121)
     def normalize(self) -> "Vector2":
         """Return a normalized (unit) vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(122)
     def distance(self, other: "Vector2") -> Float32:
         """Calculate the distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(123)
     def distance2(self, other: "Vector2") -> Float32:
         """Calculate the squared distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(124)
     def angle(self, other: "Vector2") -> Float32:
         """Calculate the angle to another vector in radians."""
-        ...
+        raise NotImplementedError
 
     @declare_method(125)
     def lerp(self, other: "Vector2", t: Float32) -> "Vector2":
         """Linear interpolation between this vector and another."""
-        ...
+        raise NotImplementedError
 
     @declare_method(126)
     def rot_with(self, center: "Vector2", angle: Float32) -> "Vector2":
         """Rotate this vector around another point by the given angle."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         127,
@@ -239,7 +239,7 @@ class Vector2(StructFrozen):
     )
     def __iter__(self) -> Iterator[Float32]:
         """Iterate over the components of the vector (x, y)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         128,
@@ -248,7 +248,7 @@ class Vector2(StructFrozen):
     )
     def __getitem__(self, index: UInt32) -> Float32:
         """Get the component of the vector (x, y)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         129,
@@ -257,7 +257,7 @@ class Vector2(StructFrozen):
     )
     def __len__(self) -> UInt32:
         """Get the number of components of the vector (2)."""
-        ...
+        raise NotImplementedError
 
 
 @declare_struct(
@@ -315,7 +315,7 @@ class Vector3(StructFrozen):
     @declare_method(101)
     def add(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Add a Vector3 or a scalar to a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         102,
@@ -324,12 +324,12 @@ class Vector3(StructFrozen):
     )
     def __add__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Add a Vector3 or a scalar to a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def sub(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Subtract a Vector3 or a scalar from a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         104,
@@ -338,12 +338,12 @@ class Vector3(StructFrozen):
     )
     def __sub__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Subtract a Vector3 or a scalar from a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(105)
     def mul(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Multiply a Vector3 or a scalar by a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         106,
@@ -352,12 +352,12 @@ class Vector3(StructFrozen):
     )
     def __mul__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Multiply a Vector3 or a scalar by a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(107)
     def truediv(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Divide a Vector3 or a scalar by a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         108,
@@ -366,12 +366,12 @@ class Vector3(StructFrozen):
     )
     def __truediv__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Divide a Vector3 or a scalar by a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(109)
     def abs(self) -> "Vector3":
         """Get the absolute value of a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         110,
@@ -380,12 +380,12 @@ class Vector3(StructFrozen):
     )
     def __abs__(self) -> "Vector3":
         """Get the absolute value of a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def neg(self) -> "Vector3":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         112,
@@ -394,7 +394,7 @@ class Vector3(StructFrozen):
     )
     def __neg__(self) -> "Vector3":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         113,
@@ -403,7 +403,7 @@ class Vector3(StructFrozen):
     )
     def __radd__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Add a Vector3 or a scalar to a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         114,
@@ -412,7 +412,7 @@ class Vector3(StructFrozen):
     )
     def __rsub__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Subtract a Vector3 or a scalar from a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         115,
@@ -421,7 +421,7 @@ class Vector3(StructFrozen):
     )
     def __rmul__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Multiply a Vector3 or a scalar by a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         116,
@@ -430,52 +430,52 @@ class Vector3(StructFrozen):
     )
     def __rtruediv__(self, other: Union["Vector3", Float32]) -> "Vector3":
         """Divide a Vector3 or a scalar by a Vector3."""
-        ...
+        raise NotImplementedError
 
     @declare_method(117)
     def dot(self, other: "Vector3") -> Float32:
         """Calculate the dot product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(118)
     def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(119)
     def magnitude2(self) -> Float32:
         """Calculate the squared magnitude of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(120)
     def normalize(self) -> "Vector3":
         """Return a normalized (unit) vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(121)
     def distance(self, other: "Vector3") -> Float32:
         """Calculate the distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(122)
     def distance2(self, other: "Vector3") -> Float32:
         """Calculate the squared distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(123)
     def angle(self, other: "Vector3") -> Float32:
         """Calculate the angle to another vector in radians."""
-        ...
+        raise NotImplementedError
 
     @declare_method(124)
     def lerp(self, other: "Vector3", t: Float32) -> "Vector3":
         """Linear interpolation between this vector and another."""
-        ...
+        raise NotImplementedError
 
     @declare_method(125)
     def cross(self, other: "Vector3") -> "Vector3":
         """Calculate the cross product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         126,
@@ -484,7 +484,7 @@ class Vector3(StructFrozen):
     )
     def __iter__(self) -> Iterator[Float32]:
         """Iterate over the components of the vector (x, y, z)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         127,
@@ -493,7 +493,7 @@ class Vector3(StructFrozen):
     )
     def __getitem__(self, index: UInt32) -> Float32:
         """Get the component of the vector (x, y, z)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         128,
@@ -502,7 +502,7 @@ class Vector3(StructFrozen):
     )
     def __len__(self) -> UInt32:
         """Get the number of components of the vector (3)."""
-        ...
+        raise NotImplementedError
 
 
 @declare_struct(
@@ -570,7 +570,7 @@ class Vector4(StructFrozen):
     @declare_method(101)
     def add(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Add a Vector4 or a scalar to a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         102,
@@ -579,12 +579,12 @@ class Vector4(StructFrozen):
     )
     def __add__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Add a Vector4 or a scalar to a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def sub(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Subtract a Vector4 or a scalar from a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         104,
@@ -593,12 +593,12 @@ class Vector4(StructFrozen):
     )
     def __sub__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Subtract a Vector4 or a scalar from a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(105)
     def mul(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Multiply a Vector4 or a scalar by a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         106,
@@ -607,12 +607,12 @@ class Vector4(StructFrozen):
     )
     def __mul__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Multiply a Vector4 or a scalar by a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(107)
     def truediv(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Divide a Vector4 or a scalar by a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         108,
@@ -621,12 +621,12 @@ class Vector4(StructFrozen):
     )
     def __truediv__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Divide a Vector4 or a scalar by a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(109)
     def abs(self) -> "Vector4":
         """Get the absolute value of a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         110,
@@ -635,12 +635,12 @@ class Vector4(StructFrozen):
     )
     def __abs__(self) -> "Vector4":
         """Get the absolute value of a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def neg(self) -> "Vector4":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         112,
@@ -649,7 +649,7 @@ class Vector4(StructFrozen):
     )
     def __neg__(self) -> "Vector4":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         113,
@@ -658,7 +658,7 @@ class Vector4(StructFrozen):
     )
     def __radd__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Add a Vector4 or a scalar to a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         114,
@@ -667,7 +667,7 @@ class Vector4(StructFrozen):
     )
     def __rsub__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Subtract a Vector4 or a scalar from a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         115,
@@ -676,7 +676,7 @@ class Vector4(StructFrozen):
     )
     def __rmul__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Multiply a Vector4 or a scalar by a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         116,
@@ -685,47 +685,47 @@ class Vector4(StructFrozen):
     )
     def __rtruediv__(self, other: Union["Vector4", Float32]) -> "Vector4":
         """Divide a Vector4 or a scalar by a Vector4."""
-        ...
+        raise NotImplementedError
 
     @declare_method(117)
     def dot(self, other: "Vector4") -> Float32:
         """Calculate the dot product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(118)
     def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(119)
     def magnitude2(self) -> Float32:
         """Calculate the squared magnitude of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(120)
     def normalize(self) -> "Vector4":
         """Return a normalized (unit) vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(121)
     def distance(self, other: "Vector4") -> Float32:
         """Calculate the distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(122)
     def distance2(self, other: "Vector4") -> Float32:
         """Calculate the squared distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(123)
     def angle(self, other: "Vector4") -> Float32:
         """Calculate the angle to another vector in radians."""
-        ...
+        raise NotImplementedError
 
     @declare_method(124)
     def lerp(self, other: "Vector4", t: Float32) -> "Vector4":
         """Linear interpolation between this vector and another."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         125,
@@ -734,7 +734,7 @@ class Vector4(StructFrozen):
     )
     def __iter__(self) -> Iterator[Float32]:
         """Iterate over the components of the vector (x, y, z)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         126,
@@ -743,7 +743,7 @@ class Vector4(StructFrozen):
     )
     def __getitem__(self, index: UInt32) -> Float32:
         """Get the component of the vector (x, y, z)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         127,
@@ -752,7 +752,7 @@ class Vector4(StructFrozen):
     )
     def __len__(self) -> UInt32:
         """Get the number of components of the vector (3)."""
-        ...
+        raise NotImplementedError
 
 
 @declare_struct(
@@ -800,7 +800,7 @@ class Vector2i(StructFrozen):
     @declare_method(101)
     def add(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Add a Vector2i or a scalar to a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         102,
@@ -809,12 +809,12 @@ class Vector2i(StructFrozen):
     )
     def __add__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Add a Vector2i or a scalar to a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def sub(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Subtract a Vector2i or a scalar from a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         104,
@@ -823,12 +823,12 @@ class Vector2i(StructFrozen):
     )
     def __sub__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Subtract a Vector2i or a scalar from a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(105)
     def mul(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Multiply a Vector2i or a scalar by a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         106,
@@ -837,12 +837,12 @@ class Vector2i(StructFrozen):
     )
     def __mul__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Multiply a Vector2i or a scalar by a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(107)
     def truediv(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Divide a Vector2i or a scalar by a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         108,
@@ -851,12 +851,12 @@ class Vector2i(StructFrozen):
     )
     def __truediv__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Divide a Vector2i or a scalar by a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(109)
     def abs(self) -> "Vector2i":
         """Get the absolute value of a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         110,
@@ -865,12 +865,12 @@ class Vector2i(StructFrozen):
     )
     def __abs__(self) -> "Vector2i":
         """Get the absolute value of a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def neg(self) -> "Vector2i":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         112,
@@ -879,7 +879,7 @@ class Vector2i(StructFrozen):
     )
     def __neg__(self) -> "Vector2i":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         113,
@@ -888,7 +888,7 @@ class Vector2i(StructFrozen):
     )
     def __radd__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Add a Vector2i or a scalar to a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         114,
@@ -897,7 +897,7 @@ class Vector2i(StructFrozen):
     )
     def __rsub__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Subtract a Vector2i or a scalar from a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         115,
@@ -906,7 +906,7 @@ class Vector2i(StructFrozen):
     )
     def __rmul__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Multiply a Vector2i or a scalar by a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         116,
@@ -915,57 +915,57 @@ class Vector2i(StructFrozen):
     )
     def __rtruediv__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
         """Divide a Vector2i or a scalar by a Vector2i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(117)
     def perp(self) -> "Vector2i":
         """Get the perpendicular vector (rotated 90 degrees counterclockwise)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(118)
     def dot(self, other: "Vector2i") -> Int32:
         """Calculate the dot product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(119)
     def magnitude(self) -> Int32:
         """Calculate the magnitude (length) of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(120)
     def magnitude2(self) -> Int32:
         """Calculate the squared magnitude of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(121)
     def normalize(self) -> "Vector2":
         """Return a normalized (unit) vector as floating point vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(122)
     def distance(self, other: "Vector2i") -> Int32:
         """Calculate the distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(123)
     def distance2(self, other: "Vector2i") -> Int32:
         """Calculate the squared distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(124)
     def angle(self, other: "Vector2i") -> Float32:
         """Calculate the angle to another vector in radians."""
-        ...
+        raise NotImplementedError
 
     @declare_method(125)
     def lerp(self, other: "Vector2i", t: Float32) -> "Vector2":
         """Linear interpolation between this vector and another as floating point vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(126)
     def rot_with(self, center: "Vector2i", angle: Float32) -> "Vector2":
         """Rotate this vector around another point by the given angle as floating point vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         127,
@@ -974,7 +974,7 @@ class Vector2i(StructFrozen):
     )
     def __iter__(self) -> Iterator[Int32]:
         """Iterate over the components of the vector (x, y, z)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         128,
@@ -983,7 +983,7 @@ class Vector2i(StructFrozen):
     )
     def __getitem__(self, index: UInt32) -> Int32:
         """Get the component of the vector (x, y, z)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         129,
@@ -992,7 +992,7 @@ class Vector2i(StructFrozen):
     )
     def __len__(self) -> UInt32:
         """Get the number of components of the vector (3)."""
-        ...
+        raise NotImplementedError
 
 
 @declare_struct(
@@ -1050,7 +1050,7 @@ class Vector3i(StructFrozen):
     @declare_method(101)
     def add(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Add a Vector3i or a scalar to a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         102,
@@ -1059,12 +1059,12 @@ class Vector3i(StructFrozen):
     )
     def __add__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Add a Vector3i or a scalar to a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def sub(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Subtract a Vector3i or a scalar from a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         104,
@@ -1073,12 +1073,12 @@ class Vector3i(StructFrozen):
     )
     def __sub__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Subtract a Vector3i or a scalar from a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(105)
     def mul(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Multiply a Vector3i or a scalar by a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         106,
@@ -1087,12 +1087,12 @@ class Vector3i(StructFrozen):
     )
     def __mul__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Multiply a Vector3i or a scalar by a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(107)
     def truediv(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Divide a Vector3i or a scalar by a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         108,
@@ -1101,12 +1101,12 @@ class Vector3i(StructFrozen):
     )
     def __truediv__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Divide a Vector3i or a scalar by a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(109)
     def abs(self) -> "Vector3i":
         """Get the absolute value of a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         110,
@@ -1115,12 +1115,12 @@ class Vector3i(StructFrozen):
     )
     def __abs__(self) -> "Vector3i":
         """Get the absolute value of a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def neg(self) -> "Vector3i":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         112,
@@ -1129,7 +1129,7 @@ class Vector3i(StructFrozen):
     )
     def __neg__(self) -> "Vector3i":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         113,
@@ -1138,7 +1138,7 @@ class Vector3i(StructFrozen):
     )
     def __radd__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Add a Vector3i or a scalar to a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         114,
@@ -1147,7 +1147,7 @@ class Vector3i(StructFrozen):
     )
     def __rsub__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Subtract a Vector3i or a scalar from a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         115,
@@ -1156,7 +1156,7 @@ class Vector3i(StructFrozen):
     )
     def __rmul__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Multiply a Vector3i or a scalar by a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         116,
@@ -1165,52 +1165,52 @@ class Vector3i(StructFrozen):
     )
     def __rtruediv__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
         """Divide a Vector3i or a scalar by a Vector3i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(117)
     def dot(self, other: "Vector3i") -> Int32:
         """Calculate the dot product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(118)
     def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(119)
     def magnitude2(self) -> Int32:
         """Calculate the squared magnitude of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(120)
     def normalize(self) -> "Vector3":
         """Return a normalized (unit) vector as floating point vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(121)
     def distance(self, other: "Vector3i") -> Float32:
         """Calculate the distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(122)
     def distance2(self, other: "Vector3i") -> Int32:
         """Calculate the squared distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(123)
     def angle(self, other: "Vector3i") -> Float32:
         """Calculate the angle to another vector in radians."""
-        ...
+        raise NotImplementedError
 
     @declare_method(124)
     def lerp(self, other: "Vector3i", t: Float32) -> "Vector3":
         """Linear interpolation between this vector and another as floating point vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(125)
     def cross(self, other: "Vector3i") -> "Vector3i":
         """Calculate the cross product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         126,
@@ -1219,7 +1219,7 @@ class Vector3i(StructFrozen):
     )
     def __iter__(self) -> Iterator[Int32]:
         """Iterate over the components of the vector (x, y, z, w)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         127,
@@ -1228,7 +1228,7 @@ class Vector3i(StructFrozen):
     )
     def __getitem__(self, index: UInt32) -> Int32:
         """Get the component of the vector (x, y, z, w)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         128,
@@ -1237,7 +1237,7 @@ class Vector3i(StructFrozen):
     )
     def __len__(self) -> UInt32:
         """Get the number of components of the vector (4)."""
-        ...
+        raise NotImplementedError
 
 
 @declare_struct(
@@ -1305,7 +1305,7 @@ class Vector4i(StructFrozen):
     @declare_method(101)
     def add(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Add a Vector4i or a scalar to a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         102,
@@ -1314,12 +1314,12 @@ class Vector4i(StructFrozen):
     )
     def __add__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Add a Vector4i or a scalar to a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def sub(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Subtract a Vector4i or a scalar from a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         104,
@@ -1328,12 +1328,12 @@ class Vector4i(StructFrozen):
     )
     def __sub__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Subtract a Vector4i or a scalar from a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(105)
     def mul(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Multiply a Vector4i or a scalar by a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         106,
@@ -1342,12 +1342,12 @@ class Vector4i(StructFrozen):
     )
     def __mul__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Multiply a Vector4i or a scalar by a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(107)
     def truediv(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Divide a Vector4i or a scalar by a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         108,
@@ -1356,12 +1356,12 @@ class Vector4i(StructFrozen):
     )
     def __truediv__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Divide a Vector4i or a scalar by a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(109)
     def abs(self) -> "Vector4i":
         """Get the absolute value of a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         110,
@@ -1370,12 +1370,12 @@ class Vector4i(StructFrozen):
     )
     def __abs__(self) -> "Vector4i":
         """Get the absolute value of a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def neg(self) -> "Vector4i":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         112,
@@ -1384,7 +1384,7 @@ class Vector4i(StructFrozen):
     )
     def __neg__(self) -> "Vector4i":
         """Negate a vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         113,
@@ -1393,7 +1393,7 @@ class Vector4i(StructFrozen):
     )
     def __radd__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Add a Vector4i or a scalar to a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         114,
@@ -1402,7 +1402,7 @@ class Vector4i(StructFrozen):
     )
     def __rsub__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Subtract a Vector4i or a scalar from a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         115,
@@ -1411,7 +1411,7 @@ class Vector4i(StructFrozen):
     )
     def __rmul__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Multiply a Vector4i or a scalar by a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         116,
@@ -1420,47 +1420,47 @@ class Vector4i(StructFrozen):
     )
     def __rtruediv__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
         """Divide a Vector4i or a scalar by a Vector4i."""
-        ...
+        raise NotImplementedError
 
     @declare_method(117)
     def dot(self, other: "Vector4i") -> Int32:
         """Calculate the dot product with another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(118)
     def magnitude(self) -> Float32:
         """Calculate the magnitude (length) of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(119)
     def magnitude2(self) -> Int32:
         """Calculate the squared magnitude of the vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(120)
     def normalize(self) -> "Vector4":
         """Return a normalized (unit) vector as floating point vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(121)
     def distance(self, other: "Vector4i") -> Float32:
         """Calculate the distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(122)
     def distance2(self, other: "Vector4i") -> Int32:
         """Calculate the squared distance to another vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(123)
     def angle(self, other: "Vector4i") -> Float32:
         """Calculate the angle to another vector in radians."""
-        ...
+        raise NotImplementedError
 
     @declare_method(124)
     def lerp(self, other: "Vector4i", t: Float32) -> "Vector4":
         """Linear interpolation between this vector and another as floating point vector."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         125,
@@ -1469,7 +1469,7 @@ class Vector4i(StructFrozen):
     )
     def __iter__(self) -> Iterator[Int32]:
         """Iterate over the components of the vector (x, y, z, w)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         126,
@@ -1478,7 +1478,7 @@ class Vector4i(StructFrozen):
     )
     def __getitem__(self, index: UInt32) -> Int32:
         """Get the component of the vector (x, y, z, w)."""
-        ...
+        raise NotImplementedError
 
     @declare_method(
         127,
@@ -1487,40 +1487,40 @@ class Vector4i(StructFrozen):
     )
     def __len__(self) -> UInt32:
         """Get the number of components of the vector (4)."""
-        ...
+        raise NotImplementedError
 
 
 @declare_method(301)
 def vector2(x: Float32, y: Float32) -> Vector2:
     """Create a 2D floating point vector."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(301)
 def vector3(x: Float32, y: Float32, z: Float32) -> Vector3:
     """Create a 3D floating point vector."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(302)
 def vector4(x: Float32, y: Float32, z: Float32, w: Float32) -> Vector4:
     """Create a 4D floating point vector."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(303)
 def vector2i(x: Int32, y: Int32) -> Vector2i:
     """Create a 2D integer vector."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(304)
 def vector3i(x: Int32, y: Int32, z: Int32) -> Vector3i:
     """Create a 3D integer vector."""
-    ...
+    raise NotImplementedError
 
 
 @declare_method(305)
 def vector4i(x: Int32, y: Int32, z: Int32, w: Int32) -> Vector4i:
     """Create a 4D integer vector."""
-    ...
+    raise NotImplementedError

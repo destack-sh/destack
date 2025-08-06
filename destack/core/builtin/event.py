@@ -256,4 +256,4 @@ class Event(Node):
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        ...
+        raise NotImplementedError

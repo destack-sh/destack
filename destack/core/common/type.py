@@ -301,7 +301,7 @@ def invert_type(type: "Type") -> "Any":
     # list
     elif type.cardinality == TypeCardinality.LIST:
         assert type.value_type is not None, f"no value type for: {type!r}"
-        return list[invert_type(type.value_type)]
+        return list[invert_type(type.value_type)]  # type: ignore
     # tuple
     elif type.cardinality == TypeCardinality.TUPLE:
         assert type.element_types is not None, f"no element types for: {type!r}"

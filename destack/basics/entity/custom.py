@@ -53,7 +53,7 @@ class CustomEvent(Event):
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        ...
+        raise NotImplementedError
 
 
 @declare_entity(NodeType.CUSTOM_STRUCT_DEFINITION)
@@ -183,69 +183,69 @@ class CustomPropertyDefinition(Entity):
     @declare_method(101)
     def eq(self, value: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(102)
     def neq(self, value: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(103)
     def gt(self, value: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(104)
     def gte(self, value: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(105)
     def lt(self, value: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(106)
     def lte(self, value: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(107)
     def starts_with(self, value: str) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(108)
     def ends_with(self, value: str) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(109)
     def in_(self, *values: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(110)
     def not_in(self, *values: Any) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(111)
     def is_not_none(self) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(112)
     def is_none(self) -> Condition:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(113)
     def asc(self) -> Sort:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError
 
     @declare_method(114)
     def desc(self) -> Sort:
         """Compare this property to a value."""
-        ...
+        raise NotImplementedError

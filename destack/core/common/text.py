@@ -478,7 +478,7 @@ def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
             new_state = _get_span_options(span)
             min_len = min(len(new_state), len(current_state))
             common = 0
-            while common < min_len and current_state[common] == new_state[common]:
+            while common < min_len and current_state[common] == new_state[common]:  # type: ignore
                 common += 1
             for flag in reversed(current_state[common:]):
                 result.append(MARKER_CLOSE[flag])

@@ -1,4 +1,3 @@
-from collections.abc import Collection, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,6 +10,7 @@ from typing import (
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLASS_BY_TYPE
 
 from ..utility import UUID
+from .const import UNSET
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
@@ -266,7 +266,7 @@ class Node(Object):
 
     # meta
     metakind: ClassVar[ObjectKind] = ObjectKind.NODE
-    metatype: ClassVar[NodeType]
+    metatype: ClassVar[NodeType] = UNSET
     __declaration__: ClassVar["NodeDeclaration"]
     __definition__: ClassVar["NodeDefinition"]
 
@@ -315,45 +315,13 @@ class Node(Object):
     @declare_method(1)
     def path(self) -> str:
         """The human readable path of this Node."""
-        ...
+        raise NotImplementedError
 
     def __to_ref__(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        ...
+        raise NotImplementedError
 
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        ...
-
-
-def expand_node_inheritance(types: Collection[NodeType]) -> Sequence[NodeType]:
-    """
-    Expand a collection of NodeTypes into a flat collection of NodeTypes.
-    """
-    node_types: set[NodeType] = set()
-    for typ in types:
-        node_cls = NODE_CLASS_BY_TYPE[typ]
-        node_types.update(node_cls.__definition__.inherited_by)
-        if not node_cls.__definition__.is_abstract:
-            node_types.add(typ)
-    return tuple(node_types)
-
-
-def expand_node_types(
-    node_type: "NodeType | Collection[NodeType] | type[Node] | None",
-    expand_inheritance: bool = True,
-) -> Sequence["NodeType"]:
-    """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""
-    if node_type is None:
-        return ()
-    node_types: Sequence[NodeType] = []
-    if isinstance(node_type, type):
-        node_types.append(node_type.metatype)
-    elif isinstance(node_type, Collection):
-        node_types.extend(node_type)
-    else:
-        node_types.append(node_type)
-    if expand_inheritance:
-        node_types = expand_node_inheritance(node_types)
-    return node_types
+        raise NotImplementedError

@@ -28,12 +28,12 @@ class Graph(Handle):
     @abc.abstractmethod
     async def open(self) -> None:
         """Open the Graph."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     async def close(self) -> None:
         """Close the Graph."""
-        ...
+        raise NotImplementedError
 
     #
     # Write
@@ -47,7 +47,7 @@ class Graph(Handle):
         epoch: int,
     ) -> "Snapshot":
         """Create a Snapshot."""
-        ...
+        raise NotImplementedError
 
     async def insert(
         self,
@@ -57,17 +57,17 @@ class Graph(Handle):
         entities: "Sequence[Entity]",
     ) -> None:
         """Insert Entities into the Graph directly."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     def append(self, events: "Sequence[Event]") -> None:
         """Append Events to the Graph. EditEvents are reflected immediately."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     def restate(self, events: "Sequence[Event]") -> None:
         """Restate Events to the Graph. EditEvents are reflected immediately."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     async def prune(
@@ -77,12 +77,12 @@ class Graph(Handle):
         snapshot_id: UUID | None,
     ) -> None:
         """Prune the Graph."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     async def commit(self) -> None:
         """Ensure Events/Entities are persisted in the Graph."""
-        ...
+        raise NotImplementedError
 
     #
     # Read
@@ -99,7 +99,7 @@ class Graph(Handle):
         before: datetime | int | None = None,
     ) -> "Sequence[Event]":
         """Seek Events from the Graph."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     def get(
@@ -111,7 +111,7 @@ class Graph(Handle):
         include_deleted: bool = False,
     ) -> Optional["Entity"]:
         """Gets an Entity by id."""
-        ...
+        raise NotImplementedError
 
     @final
     def get_or_error(
@@ -139,7 +139,7 @@ class Graph(Handle):
         include_deleted: bool = False,
     ) -> Sequence["Entity"]:
         """Collect child Entities (one level down)."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     def get_ancestors(
@@ -152,7 +152,7 @@ class Graph(Handle):
         include_deleted: bool = False,
     ) -> Sequence["Entity"]:
         """Gets the ancestors of this Entity (recursively up)."""
-        ...
+        raise NotImplementedError
 
     @abc.abstractmethod
     def get_descendants(
@@ -165,4 +165,4 @@ class Graph(Handle):
         include_deleted: bool = False,
     ) -> Sequence["Entity"]:
         """Collect descendant Entities (recursively down)."""
-        ...
+        raise NotImplementedError

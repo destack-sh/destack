@@ -75,7 +75,7 @@ from .hoisted import (
     ValueFactory,
 )
 from .message import Message, declare_message
-from .node import Node, expand_node_inheritance, expand_node_types
+from .node import Node
 from .object import Object, _is_finalized
 from .property import (
     PropertyDeclaration,
@@ -235,7 +235,5 @@ __all__ = [
     "declare_property_parent",
     "declare_property_runtime",
     "declare_struct",
-    "expand_node_inheritance",
-    "expand_node_types",
     "parse_type_declaration",
 ]
