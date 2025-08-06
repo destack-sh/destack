@@ -1,5 +1,5 @@
 {
-  "name": "destack-ts-test",
+  "name": "destack-test",
   "version": "2025.08.06.1",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
       "@destack/*": "../destack-ts/src/*",
       "@destack-system/*": "../destack-ts-system/src/*",
       "@destack-web/*": "../destack-ts-web/src/*",
-      "@destack-test/*": "../destack-ts-test/src/*"
+      "@destack-test/*": "../destack-test/src/*"
     }
   },
   "scripts": {

@@ -3,8 +3,8 @@ import { serve } from "@destack-test/cli/serve";
 import { parseArgs } from "destack";
 
 const cli = parseArgs({
-  description: "destack-ts-test CLI",
-  usage: "$ destack-ts-test <command> [options]",
+  description: "destack-test CLI",
+  usage: "$ destack-test <command> [options]",
   flags: {
     port: {
       type: "number",

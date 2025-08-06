@@ -12,7 +12,7 @@ export async function serve(options: { port: number; host: string }): Promise<vo
   clear();
 
   const statusInfo = [
-    color("destack-ts-test", "bold"),
+    color("destack-test", "bold"),
     "",
     `Status: ${color("RUNNING", "green", "bold")}`,
     `Address: ${color(`${options.host}:${options.port}`, "cyan")}`,
