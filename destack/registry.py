@@ -18,6 +18,8 @@ if TYPE_CHECKING:
         StructDefinition,
         StructType,
         TraitType,
+        UniverseCategory,
+        UniverseDomain,
     )
 
 ENUM_CLASS_BY_TYPE: dict["EnumType", type["Enum"]] = {}
@@ -37,7 +39,9 @@ ENUM_DEFINITION_BY_TYPE: dict["EnumType", "EnumDefinition"] = {}
 NODE_DEFINITION_BY_TYPE: dict["NodeType", "NodeDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict["StructType", "StructDefinition"] = {}
 HANDLE_DEFINITION_BY_TYPE: dict["HandleType", "HandleDefinition"] = {}
-MODULE_DEFINITION_BY_NAME: dict[str, "ModuleDefinition"] = {}
+MODULE_DEFINITION_BY_PATH: dict[str, "ModuleDefinition"] = {}
+MODULE_DEFINITION_BY_DOMAIN: dict["UniverseDomain", "ModuleDefinition"] = {}
+MODULE_DEFINITION_BY_CATEGORY: dict["UniverseCategory", "ModuleDefinition"] = {}
 
 BUILTIN_CLASS_BY_NAME: dict[str, type["Node"] | type["Struct"] | type["Enum"] | type["Handle"]] = {}
 

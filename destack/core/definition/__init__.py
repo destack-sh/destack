@@ -6,7 +6,7 @@ from .function import FunctionDefinition
 from .handle import HandleDefinition
 from .index import IndexDefinition
 from .method import MethodDefinition
-from .module import ModuleDefinition
+from .module import ModuleDefinition, ModuleType
 from .node import NodeDefinition
 from .object import ObjectDefinition, resolve_tagging
 from .option import OptionDefinition
@@ -25,6 +25,7 @@ __all__ = [
     "IndexDefinition",
     "MethodDefinition",
     "ModuleDefinition",
+    "ModuleType",
     "NodeDefinition",
     "ObjectDefinition",
     "OptionDefinition",

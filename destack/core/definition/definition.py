@@ -15,4 +15,4 @@ class Definition(StructFrozen):
     """A builtin Definition."""
 
     name: str = declare_property(101, is_repr=True)
-    description: str | None = declare_property(102, is_repr=True)
+    description: str | None = declare_property(102)

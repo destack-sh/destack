@@ -6,10 +6,7 @@ from destack import (
     BinaryWriter,
     Encoder,
     Encoding,
-    Folder,
     Form2D,
-    Join,
-    JoinType,
     NodeReference,
     NodeType,
     Object,
@@ -159,19 +156,6 @@ def test_roundtrip_value(session: Session, space: Space):
         for encoding, encoder in ENCODERS.items():
             _ = _do_test_roundtrip_object(value, session, encoder, encoding)
             _ = _do_test_roundtrip_value(value.type, value.value, session, encoder, encoding)
-
-
-def test_roundtrip_query(session: Session, space: Space):
-    """Pack and unpack a Query (with a custom Vlue)."""
-    query = Folder.search(
-        sort=[Folder.property("created_at").asc()],
-        limit=25,
-        Subfolder=Folder.get(
-            join=Join.of(JoinType.LEFT, on=Folder.property("created_epoch").eq(5)),
-        ),
-    )
-    for encoding, encoder in ENCODERS.items():
-        _ = _do_test_roundtrip_object(query, session, encoder, encoding)
 
 
 def test_roundtrip_user(session: Session, space: Space):

@@ -1,3 +1,4 @@
+import importlib
 from collections import defaultdict
 from collections.abc import Mapping
 from itertools import chain
@@ -20,6 +21,9 @@ from .registry import (
     ENUM_DEFINITION_BY_TYPE,
     HANDLE_CLASS_BY_TYPE,
     HANDLE_DEFINITION_BY_TYPE,
+    MODULE_DEFINITION_BY_CATEGORY,
+    MODULE_DEFINITION_BY_DOMAIN,
+    MODULE_DEFINITION_BY_PATH,
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
@@ -29,6 +33,8 @@ from .registry import (
 
 if TYPE_CHECKING:
     from destack import ModuleDefinition
+
+type_ = type
 
 
 def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
@@ -56,23 +62,133 @@ def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
         object_cls.__declaration__.inherited_by = list(inherited_by_objects)
 
 
-def _index_module(path: Path, parent: "ModuleDefinition") -> "ModuleDefinition":
-    """Index a module definition."""
-    print(path)
+_IGNORED_MODULES = (
+    "venv",
+    "test",
+    "requirements",
+    "registry",
+    "finalize",
+    "pytest_cache",
+)
+_IGNORED_MODULES_EXTENSIONS = (".pyc", ".egg-info")
 
 
-def _collect_modules(path: Path, parent: "ModuleDefinition"):
-    """Collect module definitions recursively from filesystem."""
+def _index_module(
+    path: str, file_path: Path, parent: "ModuleDefinition | None"
+) -> "ModuleDefinition":
+    """Collect ModuleDefinitions recursively from filesystem."""
 
-    module = _index_module(path, parent)
+    from .core import (
+        Enum,
+        FlagEnum,
+        Handle,
+        MethodDefinition,
+        ModuleDefinition,
+        ModuleType,
+        Node,
+        OptionEnum,
+        Struct,
+    )
 
-    for file_path in path.iterdir():
-        if file_path.name.startswith("_"):
-            continue
-        if file_path.is_file() and file_path.suffix == ".py":
-            _index_module(file_path, module)
-        elif file_path.is_dir() and file_path.name != "venv":
-            _collect_modules(file_path, module)
+    name = path.split(".")[-1]
+
+    # identify type/domain/category (if not root)
+    type: ModuleType
+    domain: UniverseDomain | None
+    category: UniverseCategory | None
+    if parent is not None:
+        domain = parent.domain
+        category = parent.category
+        if parent.domain is None:
+            type = ModuleType.DOMAIN
+            domain = UniverseDomain[name.upper()]
+        elif parent.category is None:
+            type = ModuleType.CATEGORY
+            category = UniverseCategory[name.upper()]
+        else:
+            type = ModuleType.OBJECT
+    else:
+        type = ModuleType.ROOT
+        domain = None
+        category = None
+
+    # load module
+    methods: list[MethodDefinition] = []
+    node_types: list[NodeType] = []
+    struct_types: list[StructType] = []
+    handle_types: list[HandleType] = []
+    enum_types: list[EnumType] = []
+    if file_path.is_file():
+        py_module = importlib.import_module(path)
+        for _, obj in py_module.__dict__.items():
+            if isinstance(obj, MethodDefinition):
+                methods.append(obj)
+            elif isinstance(obj, type_):
+                if issubclass(obj, Node):
+                    node_types.append(obj.metatype)
+                elif issubclass(obj, Struct):
+                    struct_types.append(obj.metatype)
+                elif issubclass(obj, Handle):
+                    handle_types.append(obj.metatype)
+                elif issubclass(obj, Enum) and obj not in (Enum, OptionEnum, FlagEnum):
+                    enum_types.append(obj.metatype)
+
+    # create module
+    module = ModuleDefinition(
+        # meta
+        type=type,
+        name=name,
+        path=path,
+        domain=domain,
+        category=category,
+        # content
+        methods=methods,
+        node_types=node_types,
+        struct_types=struct_types,
+        handle_types=handle_types,
+        enum_types=enum_types,
+        # graph
+        parent_path=parent.path if parent is not None else None,
+        children_paths=[],
+    )
+
+    # index
+    if (existing_module := MODULE_DEFINITION_BY_PATH.get(path)) is not None:
+        raise ValueError(f"duplicate module: {path} ({existing_module} != {module})")
+    MODULE_DEFINITION_BY_PATH[path] = module
+    if type == ModuleType.DOMAIN:
+        assert domain is not None, f"no domain for {path}"
+        if (existing_module := MODULE_DEFINITION_BY_DOMAIN.get(domain)) is not None:
+            raise ValueError(f"duplicate domain: {domain} ({existing_module} != {module})")
+        MODULE_DEFINITION_BY_DOMAIN[domain] = module
+    elif type == ModuleType.CATEGORY:
+        assert category is not None, f"no category for {path}"
+        if (existing_module := MODULE_DEFINITION_BY_CATEGORY.get(category)) is not None:
+            raise ValueError(f"duplicate category: {category} ({existing_module} != {module})")
+        MODULE_DEFINITION_BY_CATEGORY[category] = module
+
+    # walk children
+    if file_path.is_dir():
+        children_paths: list[str] = []
+        for child_file_path in file_path.iterdir():
+            if (
+                child_file_path.name.startswith("_")
+                or child_file_path.name.startswith(".")
+                or child_file_path.stem in _IGNORED_MODULES
+                or child_file_path.suffix in _IGNORED_MODULES_EXTENSIONS
+            ):
+                continue
+            if (child_file_path.is_file() and child_file_path.suffix == ".py") or (
+                child_file_path.is_dir()
+            ):
+                child_path = path + "." + child_file_path.stem
+                child_module = _index_module(child_path, child_file_path, module)
+                children_paths.append(child_module.path)
+
+        module.children_paths = children_paths  # type: ignore (frozen)
+        module._invalidate_frozen_cache()
+
+    return module
 
 
 def finalize():
@@ -221,32 +337,40 @@ def finalize():
 
     # collect modules
     root_module_path = Path(__file__).parent
-    root_module = ModuleDefinition(
-        name="destack",
-        description="Destack language SDK",
-        domain=UniverseDomain.CORE,
-        category=UniverseCategory.BUILTIN,
-        is_global=False,
-    )
-    _collect_modules(root_module_path, parent=root_module)
+    _ = _index_module("destack", root_module_path, parent=None)
 
-    # validate stuff
+    # check that we have a module for each domain and category
+    if len(UniverseDomain) != len(MODULE_DEFINITION_BY_DOMAIN):
+        missing_domains = set(UniverseDomain) - set(MODULE_DEFINITION_BY_DOMAIN.keys())
+        raise ValueError(
+            f"missing {len(missing_domains)} domains' modules: {list(missing_domains)}"
+        )
+    if len(UniverseCategory) != len(MODULE_DEFINITION_BY_CATEGORY):
+        missing_categories = set(UniverseCategory) - set(MODULE_DEFINITION_BY_CATEGORY.keys())
+        raise ValueError(
+            f"missing {len(missing_categories)} categories' modules: {list(missing_categories)}"
+        )
+
     # check we have all the declared builtin objects
     if len(EnumType) != len(ENUM_CLASS_BY_TYPE):
         missing_enum_types = set(EnumType) - set(ENUM_CLASS_BY_TYPE.keys())
-        raise ValueError(f"missing {len(missing_enum_types)} Enums: {list(missing_enum_types)}")
+        raise ValueError(
+            f"missing {len(missing_enum_types)} Enum declarations: {list(missing_enum_types)}"
+        )
     if len(StructType) != len(STRUCT_CLASS_BY_TYPE):
         missing_struct_types = set(StructType) - set(STRUCT_CLASS_BY_TYPE.keys())
         raise ValueError(
-            f"missing {len(missing_struct_types)} Structs: {list(missing_struct_types)}"
+            f"missing {len(missing_struct_types)} Struct declarations: {list(missing_struct_types)}"
         )
     if len(NodeType) != len(NODE_CLASS_BY_TYPE):
         missing_node_types = set(NodeType) - set(NODE_CLASS_BY_TYPE.keys())
-        raise ValueError(f"missing {len(missing_node_types)} Nodes: {list(missing_node_types)}")
+        raise ValueError(
+            f"missing {len(missing_node_types)} Node declarations: {list(missing_node_types)}"
+        )
     if len(HandleType) != len(HANDLE_CLASS_BY_TYPE):
         missing_handle_types = set(HandleType) - set(HANDLE_CLASS_BY_TYPE.keys())
         raise ValueError(
-            f"missing {len(missing_handle_types)} Handles: {list(missing_handle_types)}"
+            f"missing {len(missing_handle_types)} Handle declarations: {list(missing_handle_types)}"
         )
 
     # check event types

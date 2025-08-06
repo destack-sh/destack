@@ -95,7 +95,7 @@ class UniverseCategory(OptionEnum):
     # CHARACTER/HUMAN?,
     # LOGIC, NETWORKING, STATISTICS, ...
     # MECHANICAL, ELECTRICAL, SUBSTANCE, ...
-    # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, ...
+    # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, CIVIL, ...
 
     #
     # IMAGINATION
@@ -134,7 +134,7 @@ class UniverseCategory(OptionEnum):
     )
     EXPERIENCE = declare_option(50_200_000, "Experience", description="User experience")
     # PRINTING, ACTUATION, ROBOTICS, ...
-    # TRANSPORTATION, ENERGY, DEFENSE, ...
+    # CONSTRUCTION, TRANSPORTATION, ENERGY, DEFENSE, ...
     # CONSUMER/HOME, PHARMACEUTICAL, ...
 
     #
@@ -159,8 +159,9 @@ class EnumType(OptionEnum):
 
     # builtin [1]
     OBJECT_KIND = declare_option(1)
-    ENUM_TYPE = declare_option(2)
-    NODE_TYPE = declare_option(3)
+    MODULE_TYPE = declare_option(2)
+    ENUM_TYPE = declare_option(3)
+    NODE_TYPE = declare_option(4)
     STRUCT_TYPE = declare_option(5)
     TRAIT_TYPE = declare_option(6)
     HANDLE_TYPE = declare_option(7)
@@ -861,7 +862,7 @@ class NodeType(OptionEnum):
 
     # physics [20_200_000]
     # BODY2D, BODY3D, COLLIDER, ...
-    # PHYSICS_SERVICE/SYSTEM?, ...
+    # PHYSICS_SERVICE/SYSTEM/SIMULATOR/SERVER?, ...
     # BODY_EVENT, CONTACT_EVENT, COLLISION_EVENT, ...
     # RIGID_BODY, SOFT_BODY, ...
     # CLOTH, FLESH, LIQUID/FLUID, ...
@@ -1153,6 +1154,7 @@ class StructType(OptionEnum):
     NODE_REFERENCE = declare_option(200_300)
     PROPERTY_REFERENCE = declare_option(200_301)
     OBJECT_DEFINITION_REFERENCE = declare_option(200_302)
+    # NODE_PATH, NODE_PATH_TOKEN, ...
 
     # text
     TEXT = declare_option(200_400)
@@ -1379,7 +1381,7 @@ class HandleType(OptionEnum):
     GRAPH = declare_option(1_100_000)
     CONNECTION = declare_option(1_100_100)
     STREAM = declare_option(1_100_200)
-    # TRANSPORT, ...?
+    # TRANSPORT, CHANNEL, ...?
 
     # local [2_100_000]
     SESSION = declare_option(2_100_000)

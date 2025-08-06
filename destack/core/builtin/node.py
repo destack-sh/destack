@@ -4,7 +4,6 @@ from typing import (
     Any,
     ClassVar,
     Optional,
-    Self,
     cast,
     dataclass_transform,
 )
@@ -15,23 +14,17 @@ from ..utility import UUID
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
-from .types import UInt32
 from .universe import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
 
 if TYPE_CHECKING:
     from destack import (
-        Condition,
         ConstraintDeclaration,
-        Expression,
         IndexDeclaration,
-        Join,
         Node,
         NodeDefinition,
         NodeReference,
         PermissionDeclaration,
-        Query,
         Session,
-        Sort,
         Space,
     )
 
@@ -331,111 +324,6 @@ class Node(Object):
     @declare_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
-        ...
-
-    @classmethod
-    @declare_method(60)
-    def get(
-        cls,
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        **subqueries: "Query",
-    ) -> "Query[Self]":  # type: ignore
-        """Make a get Query for this Node."""
-        ...
-
-    @classmethod
-    @declare_method(61)
-    def search(
-        cls,
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        having: Optional["Condition"] = None,
-        sort: Optional[list["Sort"]] = None,
-        group_by: Optional[list["Expression"]] = None,
-        limit: Optional[UInt32] = None,
-        offset: Optional[UInt32] = None,
-        **subqueries: "Query",
-    ) -> "Query[Self]":  # type: ignore
-        """Make a search Query for this Node."""
-        ...
-
-    @classmethod
-    @declare_method(62)
-    def exists(
-        cls,
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-    ) -> "Query[Self]":  # type: ignore
-        """Make a count Query for this Node."""
-        ...
-
-    @classmethod
-    @declare_method(63)
-    def count(
-        cls,
-        where: Optional["Condition"] = None,
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        sort: Optional[list["Sort"]] = None,
-        group_by: Optional[list["Expression"]] = None,
-        having: Optional["Condition"] = None,
-    ) -> "Query[Self]":  # type: ignore
-        """Make a min Query for this Node."""
-        ...
-
-    @classmethod
-    @declare_method(64)
-    def min(
-        cls,
-        expression: "Expression",
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
-        having: Optional["Condition"] = None,
-        group_by: Optional[list["Expression"]] = None,
-        sort: Optional[list["Sort"]] = None,
-    ) -> "Query[Self]":  # type: ignore
-        ...
-
-    @classmethod
-    @declare_method(65)
-    def max(
-        cls,
-        expression: "Expression",
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
-        having: Optional["Condition"] = None,
-        group_by: Optional[list["Expression"]] = None,
-        sort: Optional[list["Sort"]] = None,
-    ) -> "Query[Self]":  # type: ignore
-        """Make an average Query for this Node."""
-        ...
-
-    @classmethod
-    @declare_method(66)
-    def sum(
-        cls,
-        expression: "Expression",
-        *,
-        name: str | None = None,
-        join: Optional["Join"] = None,
-        where: Optional["Condition"] = None,
-        having: Optional["Condition"] = None,
-        group_by: Optional[list["Expression"]] = None,
-        sort: Optional[list["Sort"]] = None,
-    ) -> "Query[Self]":  # type: ignore
-        """Make an average Query for this Node."""
         ...
 
 
