@@ -5,5 +5,5 @@ cli = create_cli("generate")
 
 @cli.command()
 def generate():
-    """Generate the Destack language SDK."""
+    """Generate the Destack runtimes."""
     pass

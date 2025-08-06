@@ -12,6 +12,7 @@ from .object import ObjectDefinition, resolve_tagging
 from .option import OptionDefinition
 from .permission import PermissionDefinition
 from .property import PropertyDefinition
+from .schema import SchemaDefinition
 from .struct import StructDefinition
 from .tag import TagDefinition
 
@@ -31,6 +32,7 @@ __all__ = [
     "OptionDefinition",
     "PermissionDefinition",
     "PropertyDefinition",
+    "SchemaDefinition",
     "StructDefinition",
     "TagDefinition",
     "resolve_tagging",

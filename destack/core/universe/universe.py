@@ -1,13 +1,6 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, final
 
-from destack.registry import (
-    ENUM_DEFINITION_BY_TYPE,
-    HANDLE_DEFINITION_BY_TYPE,
-    NODE_DEFINITION_BY_TYPE,
-    STRUCT_DEFINITION_BY_TYPE,
-)
-
 from ..builtin import (
     EPSILON,
     EPSILON_EXPONENT,
@@ -27,8 +20,8 @@ from ..builtin import (
     declare_message,
     declare_property,
 )
-from ..common import NodeReference
-from ..definition import EnumDefinition, HandleDefinition, NodeDefinition, StructDefinition
+from ..common import NodeReference, infer_type
+from ..definition import SchemaDefinition
 from ..utility import UUID
 
 if TYPE_CHECKING:
@@ -97,39 +90,26 @@ class Universe(Entity):
         description="The beginning of time (1 AD, 00:00:00 UTC).",
     )
 
-    NODES: list[NodeDefinition] = declare_constant(
+    SCHEMA: SchemaDefinition = declare_constant(
         10,
-        value=lambda: list(NODE_DEFINITION_BY_TYPE.values()),
-        description="All Node definitions.",
-    )
-    STRUCTS: list[StructDefinition] = declare_constant(
-        12,
-        value=lambda: list(STRUCT_DEFINITION_BY_TYPE.values()),
-        description="All Struct definitions.",
-    )
-    HANDLES: list[HandleDefinition] = declare_constant(
-        13,
-        value=lambda: list(HANDLE_DEFINITION_BY_TYPE.values()),
-        description="All Handle definitions.",
-    )
-    ENUMS: list[EnumDefinition] = declare_constant(
-        14,
-        value=lambda: list(ENUM_DEFINITION_BY_TYPE.values()),
-        description="All Enum definitions.",
+        # NOTE: Universe.SCHEMA is set later to prevent circular references in schema
+        #  (Universe.SCHEMA is a constant inside the NodeDefinition for Universe)
+        value=None,
+        type=infer_type(SchemaDefinition),
     )
 
     UNIVERSE_ID: UUID = declare_constant(
-        100,
+        20,
         value=_UNIVERSE_ID,
         description="The system Universe ID.",
     )
     SPACE_ID: UUID = declare_constant(
-        101,
+        21,
         value=_UNIVERSE_SPACE_ID,
         description="The system Space ID.",
     )
     SPACE: NodeReference = declare_constant(
-        102,
+        22,
         description="The system Space.",
         value=lambda: NodeReference(
             type=NodeType.SPACE,
@@ -140,28 +120,28 @@ class Universe(Entity):
         ),
     )
     META_SNAPSHOT_ID: UUID = declare_constant(
-        103,
+        23,
         value=_META_SNAPSHOT_ID,
         description="The 'meta' Snapshot.id, the Snapshot containing time-related Entities (like Snapshots, Branches, etc.)",
     )
     META_BRANCH_ID: UUID = declare_constant(
-        105,
+        25,
         value=_META_BRANCH_ID,
         description="The 'meta' Branch.id, the Branch containing time-related Entities (like Snapshots, Branches, etc.)",
     )
     ROOT_BRANCH_ID: UUID = declare_constant(
-        107,
+        27,
         value=_ROOT_BRANCH_ID,
         description="The 'root' Branch.id, the Branch all other Branches originate from.",
     )
     HEAD_SNAPSHOT_ID: UUID = declare_constant(
-        109,
+        29,
         value=_HEAD_SNAPSHOT_ID,
         description="The 'head' Snapshot.id, the current active Snapshot.",
     )
 
     ACTOR: NodeReference = declare_constant(
-        120,
+        40,
         description="God Himself, the creator of the Universe.",
         value=lambda: NodeReference(
             type=NodeType.ENTITY,
@@ -172,7 +152,7 @@ class Universe(Entity):
         ),
     )
     CLIENT: NodeReference = declare_constant(
-        121,
+        41,
         description="God's terminal, for when He needs to do something.",
         value=lambda: NodeReference(
             type=NodeType.CLIENT,

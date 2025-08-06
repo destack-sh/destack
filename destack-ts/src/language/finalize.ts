@@ -67,7 +67,7 @@ function _indexProperties(
   }
 }
 
-/** Finalize the Destack language SDK. */
+/** Finalize the Destack library. */
 export function finalize(): void {
   if (__isFinalized__) {
     return;

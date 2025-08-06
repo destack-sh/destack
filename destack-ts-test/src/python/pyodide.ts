@@ -22,7 +22,7 @@ async function getEnv(): Promise<{ [key: string]: string }> {
   return env;
 }
 
-/** Get the requirements for the Destack Python SDK. */
+/** Get the requirements for the Destack Python library. */
 async function getRequirements(): Promise<string[]> {
   const requirementsFile = Bun.file(`${DESTACK_PY_PATH}/requirements/requirements.in`);
   const requirementsText = await requirementsFile.text();
@@ -44,11 +44,11 @@ export async function loadPython(options?: { packages?: string[] }): Promise<Pyo
   return pyodide;
 }
 
-/** Load the Destack Python SDK. */
+/** Load the Destack Python library. */
 export async function loadDestackPython(): Promise<PyodideInterface> {
   const requirements = await getRequirements();
   const python = await loadPython({ packages: requirements });
-  // load destack python SDK
+    // load destack python library
   python.mountNodeFS("/home/pyodide/destack", DESTACK_PY_PATH);
   await python.runPythonAsync(`
 		from destack import *

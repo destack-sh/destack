@@ -152,7 +152,7 @@ def declare_struct(
 
 @declare_struct(StructType.STRUCT, is_abstract=True)
 class Struct(Object):
-    """A Struct is an ordered collection of Properties."""
+    """A Struct is a collection of Properties."""
 
     # meta
     metakind: ClassVar[ObjectKind] = ObjectKind.STRUCT
@@ -172,8 +172,6 @@ class Struct(Object):
     is_abstract=True,
 )
 class StructFrozen(Struct):
-    """An immutable Struct."""
-
     _hash: Int32 | None = declare_property_runtime(
         410,
         description="Cached hash of the frozen Struct.",

@@ -28,7 +28,7 @@ from .language import (
 
 
 def generate():
-    """Generate the Typescript SDK."""
+    """Generate the Typescript library."""
 
     # collect definitions
     definitions_by_module: dict[str, list[TypescriptDefinition]] = defaultdict(list)

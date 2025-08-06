@@ -1,7 +1,7 @@
 [project]
 name = "destack-py"
 version = "2025.08.01.22"
-description = "Destack Python SDK"
+description = "Destack Python library"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 requires-python = ">=3.13"
 
