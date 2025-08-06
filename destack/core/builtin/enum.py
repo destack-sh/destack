@@ -198,6 +198,14 @@ class _EnumMeta(type):  # type: ignore
             raise KeyError(f"option '{key}' not found in {cls.__name__}")
         return value
 
+    def __call__(cls, value: int | str) -> OptionDeclaration:
+        if isinstance(value, int):
+            return cls.__options_by_id__[value]  # type: ignore
+        elif isinstance(value, str):
+            return cls.__options_by_alias__[value]  # type: ignore
+        else:
+            assert_never(value)
+
 
 class Enum(
     # pretend this is an IntEnum for regular use

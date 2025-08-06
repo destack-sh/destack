@@ -177,7 +177,8 @@ def _process_node_cls(
                     #  (like Styles or TransitionTemplate or any template really..
                     #   .. similarity to Entity partials?
                     #   .. also similarity to Context overrides in Entity.context_values?
-                    #   .. also similarity to mut/non mut Structs?)
+                    #   .. also similarity to mut/non mut Structs?
+                    #   .. also related to (frozen-in-time) Nodes as values?)
                     continue
                 raise ValueError(f"'{cls.__name__}' has no property {struct_prop!r}")
             if node_prop.type != struct_prop.type:

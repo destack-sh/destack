@@ -963,7 +963,7 @@ def hash(self, _hasher: "Hasher | None" = None) -> Int64:
     if self._hash is not None and _hasher is None:
         return self._hash
     if _hasher is None:
-        from destack.core.runtime import Hasher
+        from destack.core import Hasher
         _hasher = Hasher()
 {textwrap.indent(hash_parts_str, " " * 4)}
     self._hash = _hasher.digest()
@@ -973,7 +973,7 @@ def hash(self, _hasher: "Hasher | None" = None) -> Int64:
             hash_impl = f"""\
 def hash(self, _hasher: "Hasher | None" = None) -> Int64:
     if _hasher is None:
-        from destack.core.runtime import Hasher
+        from destack.core import Hasher
         _hasher = Hasher()
 {textwrap.indent(hash_parts_str, " " * 4)}
     return _hasher.digest()

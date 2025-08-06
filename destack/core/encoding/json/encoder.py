@@ -2,12 +2,12 @@ import base64
 import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
-from enum import Enum
 from typing import TYPE_CHECKING, Any, assert_never, cast, override
 
 from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ...builtin import (
+    Enum,
     Json,
     NodeType,
     Object,

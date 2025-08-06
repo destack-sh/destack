@@ -1,5 +1,4 @@
 import linecache
-import time
 
 
 def execute_arbitrary_code(
@@ -12,7 +11,6 @@ def execute_arbitrary_code(
     """
     Executes the code, but with a name and in the cache.
     """
-    start = time.time()
     if _debug_log:
         print("=" * 80)  # noqa: T201
         print(filename)  # noqa: T201

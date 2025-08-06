@@ -177,7 +177,7 @@ def _find_definition(name: str, n: int = 5) -> list[_Definition]:
 
     # sort by score (lower is better) and return top suggestions
     suggestions.sort(key=itemgetter(0, 1))
-    return [s[2] for s in suggestions[:n]]
+    return [definition for score, _, definition in suggestions[:n] if score < 1000]
 
 
 def _calculate_substring_score(query: str, target: str) -> int:
