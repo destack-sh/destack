@@ -2,6 +2,11 @@
 # Meta
 #
 
+[project]
+name = "destack"
+version = "2025.08.06.1"
+description = "Universe simulation engine (i.e. insanely integrated full stack software platform)"
+
 [tool.uv]
 workspace = { members = [
 	"destack",

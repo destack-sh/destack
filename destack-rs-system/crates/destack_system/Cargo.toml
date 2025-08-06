@@ -1,0 +1,25 @@
+[package]
+name = "destack_system"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Destack system implementation"
+
+[[bin]]
+name = "destack-system"
+path = "src/main.rs"
+
+[dependencies]
+destack = { workspace = true }
+bytes = { workspace = true }
+clap = { workspace = true }
+itoa = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tmpfile = { workspace = true }
+wasm-bindgen-cli = { workspace = true }

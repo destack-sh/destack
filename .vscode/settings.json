@@ -7,4 +7,7 @@
 	"python.envFile": "${workspaceFolder}/.env.test",
 	"biome.enabled": true,
 	"biome.requireConfiguration": true,
+	"typescript.tsdk": "node_modules/typescript/lib",
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
 }

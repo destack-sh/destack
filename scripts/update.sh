@@ -39,3 +39,9 @@ source destack-py-server/venv/bin/activate && \
 # 
 
 bun i
+
+#
+# Rust
+#
+
+cargo update

@@ -28,7 +28,7 @@ def bump(revision: int | None = None):
     files_to_update = (
         "pyproject.toml",
         "package.json",
-        "destack-py/destack/language/core/builtin/const.py",
+        "destack/core/builtin/const.py",
         "destack-py-server/pyproject.toml",
         "destack-ts/package.json",
         "destack-ts-web/package.json",
