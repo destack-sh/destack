@@ -1294,6 +1294,7 @@ def _process_object_cls[ObjectT: Object](
     metakind_property = PropertyDeclaration(
         id=METAKIND_PROPERTY_ID,
         name="metakind",
+        description="The kind of the Object.",
         py_type=Any,
         type=_METAKIND_TYPE,
         is_internal=True,
@@ -1305,6 +1306,7 @@ def _process_object_cls[ObjectT: Object](
     metatype_property = PropertyDeclaration(
         id=METATYPE_PROPERTY_ID,
         name="metatype",
+        description="The type of the Object.",
         py_type=Any,
         is_internal=True,
         is_runtime_only=True,
@@ -1405,7 +1407,7 @@ def _process_object_cls[ObjectT: Object](
         prop.determine(declaration.type, is_root_node=declaration.type == NodeType.SPACE)
 
     # index properties
-    cls.__declaration__.properties = list(properties.values())
+    cls.__declaration__.properties = sorted(properties.values(), key=lambda p: p.id)
     cls.__properties__ = frozendict(properties)
     properties_by_id: dict[int, PropertyDeclaration] = {}
     properties_by_alias: dict[str, PropertyDeclaration] = {}

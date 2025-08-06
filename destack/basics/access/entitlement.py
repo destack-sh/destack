@@ -56,10 +56,8 @@ class EntitlementType(OptionEnum):
     NodeType.ENTITLEMENT,
     event_types=(NodeType.ENTITLEMENT_EVENT,),
 )
-class Entitlement(
-    Entity,
-):
-    """A Entitlement to some Actor."""
+class Entitlement(Entity):
+    """An Entitlement to some Entity."""
 
     type: EntitlementType = declare_property(100)
     expires_at: Optional[datetime] = declare_property(110)

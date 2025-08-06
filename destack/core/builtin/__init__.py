@@ -71,7 +71,6 @@ from .hoisted import (
     RuntimePlatform,
     RuntimeType,
     ScalarType,
-    Tenancy,
     TypeCardinality,
     ValueFactory,
 )
@@ -207,7 +206,6 @@ __all__ = [
     "StructFrozen",
     "StructType",
     "TagDeclaration",
-    "Tenancy",
     "Time",
     "TraitType",
     "TypeCardinality",

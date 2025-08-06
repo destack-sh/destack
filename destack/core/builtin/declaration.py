@@ -259,6 +259,10 @@ class FunctionDeclaration(Declaration):
     # content
     tags: tuple[str, ...]
 
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Call the function."""
+        return self.outer_func(*args, **kwargs)
+
 
 @dataclass(slots=True, repr=False)
 class SignatureDeclaration(Declaration):
@@ -483,11 +487,15 @@ def declare_method(
         # validate
         qualname = f"{func.__module__}.{func.__qualname__}"
         if declaration.type in (MethodType.PROPERTY, MethodType.INSTANCE):
-            assert declaration.id < 200, f"id {declaration.id} outside range for {qualname}"
+            assert declaration.id < 200, f"id {declaration.id} outside range for {qualname} (<200)"
         elif declaration.type == MethodType.CLASS:
-            assert 201 <= declaration.id < 300, f"id {declaration.id} outside range for {qualname}"
+            assert 201 <= declaration.id < 300, (
+                f"id {declaration.id} outside range for {qualname} (201-300)"
+            )
         elif declaration.type == MethodType.STATIC:
-            assert 301 <= declaration.id < 400, f"id {declaration.id} outside range for {qualname}"
+            assert 301 <= declaration.id < 400, (
+                f"id {declaration.id} outside range for {qualname} (301-400)"
+            )
 
         if TYPE_CHECKING:
             return func

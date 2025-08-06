@@ -498,12 +498,6 @@ class ClientType(OptionEnum):
     MACHINE = declare_option(10)
 
 
-@declare_enum(EnumType.TENANCY)
-class Tenancy(OptionEnum):
-    DEDICATED = declare_option(1)
-    SHARED = declare_option(2)
-
-
 @declare_enum(EnumType.CONSTRAINT_TYPE)
 class ConstraintType(OptionEnum):
     """Type of a Constraint."""

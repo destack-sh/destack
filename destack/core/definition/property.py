@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Any, cast, final
 
-from destack.registry import OBJECT_DEFINITION_REFERENCE_BY_CLASS
-
 from ..builtin import (
     CascadeAction,
     EdgeType,
@@ -19,7 +17,7 @@ from ..common import PropertyReference, Type, Value
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack import Condition, ObjectDefinitionReference, Sort
+    from destack import Condition, Sort
 
 type_ = type
 
@@ -35,12 +33,6 @@ class PropertyDefinition(Definition):
 
     id: UInt8 = declare_property(2, is_repr=True)
     type: Type = declare_property(100)
-    object: "ObjectDefinitionReference" = declare_property(
-        104, description="The object that this property is defined on."
-    )
-    original_object: "ObjectDefinitionReference" = declare_property(
-        105, description="The original object that this property was defined on."
-    )
     taggings: list[UInt8] = declare_property(109)
 
     # defaults
@@ -79,10 +71,6 @@ Whether this Property is part of the object's identity.
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
         type = prop.type.to_type()
-        object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS[prop.component]
-        original_object_ref = OBJECT_DEFINITION_REFERENCE_BY_CLASS.get(
-            prop.original_component, object_ref
-        )
         object_cls = prop.component if issubclass(prop.component, (Node, Struct)) else Node
 
         # resolve taggings locally
@@ -99,8 +87,6 @@ Whether this Property is part of the object's identity.
             name=prop.name,
             description=prop.description,
             taggings=taggings,
-            object=object_ref,
-            original_object=original_object_ref,
             # type
             type=type,
             default_value=prop.default_value,

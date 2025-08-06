@@ -10,9 +10,9 @@ from destack.core.local import console, create_cli
 cli = create_cli(help="Destack CLI")
 
 # add all CLIs in our CLI folder as sub-CLIs
-for path in Path.glob(Path(__file__).parent / "cli", "*.py"):
+for path in Path.glob(Path(__file__).parent / "core" / "local", "*.py"):
     try:
-        module = __import__(f"destack.cli.{path.stem}", fromlist=["cli"])
+        module = __import__(f"destack.core.local.{path.stem}", fromlist=["cli"])
         if hasattr(module, "cli"):
             sub_cli = module.cli
             # add as a sub-CLI to preserve hierarchy

@@ -20,7 +20,7 @@ FILE_HASH_LENGTH = 64  # 256 bits
 @declare_entity(NodeType.FILE, traits=(TraitType.RESOURCE,))
 class File(Entity):
     """
-    A generic File stored somewhere.
+    A generic File is a remote asset stored somewhere.
     """
 
     parent: Optional["Space"] = declare_property_parent()

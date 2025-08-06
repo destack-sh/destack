@@ -17,10 +17,12 @@ from .core.builtin import (
 )
 from .registry import (
     BUILTIN_CLASS_BY_NAME,
+    BUILTIN_DEFINITION_BY_NAME,
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
     HANDLE_CLASS_BY_TYPE,
     HANDLE_DEFINITION_BY_TYPE,
+    MODULE_BY_PATH,
     MODULE_DEFINITION_BY_CATEGORY,
     MODULE_DEFINITION_BY_DOMAIN,
     MODULE_DEFINITION_BY_PATH,
@@ -90,7 +92,7 @@ def _index_module(
         Struct,
     )
 
-    name = path.split(".")[-1]
+    subname = path.split(".")[-1]
 
     # identify type/domain/category (if not root)
     type: ModuleType
@@ -101,10 +103,10 @@ def _index_module(
         category = parent.category
         if parent.domain is None:
             type = ModuleType.DOMAIN
-            domain = UniverseDomain[name.upper()]
+            domain = UniverseDomain[subname.upper()]
         elif parent.category is None:
             type = ModuleType.CATEGORY
-            category = UniverseCategory[name.upper()]
+            category = UniverseCategory[subname.upper()]
         else:
             type = ModuleType.OBJECT
     else:
@@ -120,11 +122,15 @@ def _index_module(
     enum_types: list[EnumType] = []
     if file_path.is_file():
         py_module = importlib.import_module(path)
-        for _, obj in py_module.__dict__.items():
-            if isinstance(obj, MethodDefinition):
+        for obj_name, obj in py_module.__dict__.items():
+            if obj_name.startswith("_"):
+                continue  # internal object
+            elif isinstance(obj, MethodDefinition):
                 methods.append(obj)
             elif isinstance(obj, type_):
-                if issubclass(obj, Node):
+                if obj.__module__ != py_module.__name__:
+                    continue  # imported object
+                elif issubclass(obj, Node):
                     node_types.append(obj.metatype)
                 elif issubclass(obj, Struct):
                     struct_types.append(obj.metatype)
@@ -132,12 +138,13 @@ def _index_module(
                     handle_types.append(obj.metatype)
                 elif issubclass(obj, Enum) and obj not in (Enum, OptionEnum, FlagEnum):
                     enum_types.append(obj.metatype)
+        MODULE_BY_PATH[path] = py_module
 
     # create module
     module = ModuleDefinition(
         # meta
         type=type,
-        name=name,
+        name=path,
         path=path,
         domain=domain,
         category=category,
@@ -211,6 +218,7 @@ def finalize():
         StructDefinition,
     )
 
+    # index builtin classes by name
     for cls in chain(
         NODE_CLASS_BY_TYPE.values(),
         STRUCT_CLASS_BY_TYPE.values(),
@@ -223,6 +231,7 @@ def finalize():
                 raise ValueError(f"duplicate class name: {cls.__name__!r}")
         BUILTIN_CLASS_BY_NAME[cls.__name__] = cls
 
+    # index inheritance
     _index_inheritance(NODE_CLASS_BY_TYPE)
     _index_inheritance(STRUCT_CLASS_BY_TYPE)
     _index_inheritance(HANDLE_CLASS_BY_TYPE)
@@ -307,11 +316,12 @@ def finalize():
         enum_definition = EnumDefinition.from_declaration(enum_cls.__declaration__)
         ENUM_DEFINITION_BY_TYPE[enum_cls.metatype] = enum_definition
 
-    # impute methods/actions
+    # impute methods/actions in classes
     for object_cls in chain(
         NODE_CLASS_BY_TYPE.values(),
         STRUCT_CLASS_BY_TYPE.values(),
         HANDLE_CLASS_BY_TYPE.values(),
+        MODULE_BY_PATH.values(),
     ):
         for name, attribute in object_cls.__dict__.items():
             if isinstance(attribute, FunctionDeclaration):
@@ -338,6 +348,24 @@ def finalize():
     # collect modules
     root_module_path = Path(__file__).parent
     _ = _index_module("destack", root_module_path, parent=None)
+
+    # index definitions by name
+    for definition in chain(
+        NODE_DEFINITION_BY_TYPE.values(),
+        STRUCT_DEFINITION_BY_TYPE.values(),
+        HANDLE_DEFINITION_BY_TYPE.values(),
+        ENUM_DEFINITION_BY_TYPE.values(),
+        MODULE_DEFINITION_BY_PATH.values(),
+    ):
+        if (existing_definition := BUILTIN_DEFINITION_BY_NAME.get(definition.name)) is not None:
+            raise ValueError(
+                f"duplicate definition name for {definition.name!r}: {definition!r} != {existing_definition!r}"
+            )
+        BUILTIN_DEFINITION_BY_NAME[definition.name] = definition
+
+    #
+    # Validate
+    #
 
     # check that we have a module for each domain and category
     if len(UniverseDomain) != len(MODULE_DEFINITION_BY_DOMAIN):
