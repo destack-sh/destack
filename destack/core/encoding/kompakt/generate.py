@@ -557,7 +557,7 @@ for _ in range({key}_length):
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-            return f"{enum_cls.__name__}(_reader.read_uint32())"
+            return f"{enum_cls.__name__}.__options_by_id__[_reader.read_uint32()]"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -568,7 +568,7 @@ for _ in range({key}_length):
                 return "_encoder.unpack_object_binary(None, None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"

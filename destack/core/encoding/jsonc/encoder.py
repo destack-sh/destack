@@ -1,7 +1,6 @@
-from enum import Enum
 from typing import Any, cast, override
 
-from destack.core import ObjectKind, PropertyDeclaration, StructType
+from destack.core import Enum, ObjectKind, PropertyDeclaration, StructType
 
 from ..json.encoder import JsonEncoder, JsonObjectEncoder, JsonValueEncoder
 
@@ -29,4 +28,4 @@ class JsoncEncoder(JsonEncoder):
 
     @override
     def unpack_scalar_enum(self, enum_cls: type[Enum], value: Any) -> Any:
-        return enum_cls(value)
+        return enum_cls.__options_by_id__[value]

@@ -28,7 +28,6 @@ class User(Entity):
 
     last_logged_in_at: Optional[datetime] = declare_property(111)
     # last_active_at, seen_at, ...
-    is_staff: bool = declare_property(112, default=False)
 
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client

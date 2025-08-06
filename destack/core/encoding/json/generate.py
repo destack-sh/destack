@@ -105,9 +105,12 @@ class {encoder_name}(JsonObjectEncoder):
             },
         )
 
-    def generate_pack_object_metatype(self, cls: type["Object"]) -> str:
-        """Generate the metatype code for an Object."""
-        return f"_object_json['metatype'] = '{cls.metatype.name}'"
+    def generate_pack_object_type(self, cls: type["Object"]) -> str:
+        """Generate the metakind/metatype code for an Object."""
+        return f"""\
+_object_json['metakind'] = '{cls.metakind.name}'
+_object_json['metatype'] = '{cls.metatype.name}'
+"""
 
     def generate_pack_object(
         self,
@@ -118,7 +121,7 @@ class {encoder_name}(JsonObjectEncoder):
         """Generate the pack method for an Object."""
         lines: list[str] = [
             "_object_json: dict[str, Any] = {}",
-            self.generate_pack_object_metatype(cls),
+            self.generate_pack_object_type(cls),
         ]
 
         # collect properties
@@ -651,14 +654,14 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
             if struct_cls.__declaration__.is_final:
                 return f"""\
-_encoder.unpack_object({ObjectKind.STRUCT}, {type.struct_type}, {source_expr}, _session, _options)"""
+_encoder.unpack_object({ObjectKind.STRUCT.value}, {type.struct_type.value}, {source_expr}, _session, _options)"""
             else:
                 return f"""\
 _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"""\
-_encoder.unpack_object({ObjectKind.STRUCT}, {StructType.NODE_REFERENCE}, {source_expr}, _session, _options)"""
+_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_REFERENCE.value}, {source_expr}, _session, _options)"""
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return f"""\
@@ -690,6 +693,7 @@ _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderO
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},
                 locals_,
                 encoder_name,
+                _debug_log=True,
             )
             encoder_cls = locals_[encoder_name]
             encoders[node_cls.metakind, node_cls.metatype.value] = encoder_cls()

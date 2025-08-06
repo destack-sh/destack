@@ -206,13 +206,16 @@ class KompaktEncoder(Encoder):
         if cardinality == TypeCardinality.SCALAR:
             assert scalar_type is not None, f"no scalar type for {cardinality}"
             if scalar_type == ScalarType.PRIMITIVE:
-                primitive_type = PrimitiveType(reader.read_uint8())
+                primitive_type = PrimitiveType.__options_by_id__[reader.read_uint8()]
             elif scalar_type == ScalarType.ENUM:
-                enum_type = EnumType(reader.read_uint32())
+                enum_type = EnumType.__options_by_id__[reader.read_uint32()]
             elif scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-                node_types = [NodeType(reader.read_uint32()) for _ in range(reader.read_uint32())]
+                node_types = [
+                    NodeType.__options_by_id__[reader.read_uint32()]
+                    for _ in range(reader.read_uint32())
+                ]
             elif scalar_type == ScalarType.STRUCT:
-                struct_type = StructType(reader.read_uint32())
+                struct_type = StructType.__options_by_id__[reader.read_uint32()]
             elif scalar_type == ScalarType.HANDLE:
                 raise NotImplementedError(f"cannot unpack handle: {scalar_type!r}")
             elif scalar_type == ScalarType.UNION:
@@ -521,7 +524,7 @@ class KompaktEncoder(Encoder):
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             enum_value = reader.read_uint32()
-            return enum_cls(enum_value)
+            return enum_cls.__options_by_id__[enum_value]
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -654,7 +657,7 @@ class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
         _session: "Session | None",
         _options: EncoderOptions,
     ) -> NodeReference:
-        type = NodeType(_reader.read_uint32())
+        type = NodeType.__options_by_id__[_reader.read_uint32()]
         id = _reader.read_uuid()
         space_id = _reader.read_uuid()
         definition_id = _reader.read_uuid()
