@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 )
 @final
 class Vector2(StructFrozen):
-    """A 2D float point Vector."""
+    """A 2D floating point Vector."""
 
     ZERO = declare_constant(
         100,
@@ -268,7 +268,7 @@ class Vector2(StructFrozen):
 )
 @final
 class Vector3(StructFrozen):
-    """A 3D float point Vector."""
+    """A 3D floating point Vector."""
 
     ZERO = declare_constant(
         100,
@@ -513,7 +513,7 @@ class Vector3(StructFrozen):
 )
 @final
 class Vector4(StructFrozen):
-    """A 4D float point Vector."""
+    """A 4D floating point Vector."""
 
     ZERO = declare_constant(
         100,
@@ -939,7 +939,7 @@ class Vector2i(StructFrozen):
 
     @declare_method(121)
     def normalize(self) -> "Vector2":
-        """Return a normalized (unit) vector as float point vector."""
+        """Return a normalized (unit) vector as floating point vector."""
         ...
 
     @declare_method(122)
@@ -959,12 +959,12 @@ class Vector2i(StructFrozen):
 
     @declare_method(125)
     def lerp(self, other: "Vector2i", t: Float32) -> "Vector2":
-        """Linear interpolation between this vector and another as float point vector."""
+        """Linear interpolation between this vector and another as floating point vector."""
         ...
 
     @declare_method(126)
     def rot_with(self, center: "Vector2i", angle: Float32) -> "Vector2":
-        """Rotate this vector around another point by the given angle as float point vector."""
+        """Rotate this vector around another point by the given angle as floating point vector."""
         ...
 
     @declare_method(
@@ -1184,7 +1184,7 @@ class Vector3i(StructFrozen):
 
     @declare_method(120)
     def normalize(self) -> "Vector3":
-        """Return a normalized (unit) vector as float point vector."""
+        """Return a normalized (unit) vector as floating point vector."""
         ...
 
     @declare_method(121)
@@ -1204,7 +1204,7 @@ class Vector3i(StructFrozen):
 
     @declare_method(124)
     def lerp(self, other: "Vector3i", t: Float32) -> "Vector3":
-        """Linear interpolation between this vector and another as float point vector."""
+        """Linear interpolation between this vector and another as floating point vector."""
         ...
 
     @declare_method(125)
@@ -1439,7 +1439,7 @@ class Vector4i(StructFrozen):
 
     @declare_method(120)
     def normalize(self) -> "Vector4":
-        """Return a normalized (unit) vector as float point vector."""
+        """Return a normalized (unit) vector as floating point vector."""
         ...
 
     @declare_method(121)
@@ -1459,7 +1459,7 @@ class Vector4i(StructFrozen):
 
     @declare_method(124)
     def lerp(self, other: "Vector4i", t: Float32) -> "Vector4":
-        """Linear interpolation between this vector and another as float point vector."""
+        """Linear interpolation between this vector and another as floating point vector."""
         ...
 
     @declare_method(
@@ -1492,19 +1492,19 @@ class Vector4i(StructFrozen):
 
 @declare_method(301)
 def vector2(x: Float32, y: Float32) -> Vector2:
-    """Create a 2D float point vector."""
+    """Create a 2D floating point vector."""
     ...
 
 
 @declare_method(301)
 def vector3(x: Float32, y: Float32, z: Float32) -> Vector3:
-    """Create a 3D float point vector."""
+    """Create a 3D floating point vector."""
     ...
 
 
 @declare_method(302)
 def vector4(x: Float32, y: Float32, z: Float32, w: Float32) -> Vector4:
-    """Create a 4D float point vector."""
+    """Create a 4D floating point vector."""
     ...
 
 

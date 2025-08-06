@@ -49,31 +49,67 @@ class View(Entity2D):
     """A View is a 2D user interface element."""
 
     # size
-    width: Optional["Length"] = declare_property(120, tags=("size",))
-    height: Optional["Length"] = declare_property(121, tags=("size",))
-    min_width: Optional["Length"] = declare_property(122, tags=("size",))
-    min_height: Optional["Length"] = declare_property(123, tags=("size",))
-    max_width: Optional["Length"] = declare_property(124, tags=("size",))
-    max_height: Optional["Length"] = declare_property(125, tags=("size",))
+    width: Optional["Length"] = declare_property(
+        120,
+        tags=("size",),
+        description="The width of the View.",
+    )
+    height: Optional["Length"] = declare_property(
+        121,
+        tags=("size",),
+        description="The height of the View.",
+    )
+    min_width: Optional["Length"] = declare_property(
+        122,
+        tags=("size",),
+        description="The minimum width of the View.",
+    )
+    min_height: Optional["Length"] = declare_property(
+        123,
+        tags=("size",),
+        description="The minimum height of the View.",
+    )
+    max_width: Optional["Length"] = declare_property(
+        124,
+        tags=("size",),
+        description="The maximum width of the View.",
+    )
+    max_height: Optional["Length"] = declare_property(
+        125,
+        tags=("size",),
+        description="The maximum height of the View.",
+    )
 
     # visibility
-    is_visible: Optional[bool] = declare_property(130, tags=("visibility",))
-    opacity: Optional[Float32] = declare_property(131, tags=("visibility",))
+    is_visible: Optional[bool] = declare_property(
+        130,
+        tags=("visibility",),
+        description="Whether the View is visible.",
+    )
+    opacity: Optional[Float32] = declare_property(
+        131,
+        tags=("visibility",),
+        description="The opacity of the View.",
+    )
 
     # style
     fill: Optional["Fill"] = declare_property(
         140,
         tags=("style",),
+        description="The fill of the View.",
     )
     shadow: Optional["Shadow"] = declare_property(
         141,
         tags=("style",),
+        description="The shadow of the View.",
     )
     border: Optional["Border"] = declare_property(
         142,
         tags=("style",),
+        description="The border of the View.",
     )
     radius: Optional["Corner2"] = declare_property(
         143,
         tags=("style",),
+        description="The radius of the View.",
     )

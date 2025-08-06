@@ -285,3 +285,125 @@ class CLI:
 def create_cli(name: str | None = None, help: str | None = None) -> CLI:
     """Create a new CLI application."""
     return CLI(name, help)
+
+
+def create_repl(
+    prompt_text: str = "> ",
+    welcome: str | None = None,
+    exit_commands: list[str] | None = None,
+) -> "REPL":
+    """Create a new REPL (Read-Eval-Print Loop) application."""
+    return REPL(prompt_text, welcome, exit_commands or ["exit", "quit", "q"])
+
+
+@dataclass(slots=True)
+class REPL:
+    """Interactive REPL application."""
+
+    prompt_text: str = "> "
+    welcome: str | None = None
+    exit_commands: list[str] = field(default_factory=lambda: ["exit", "quit", "q"])
+    commands: dict[str, Callable] = field(default_factory=dict)
+    help_texts: dict[str, str] = field(default_factory=dict)
+
+    def command(self, name: str | None = None, help_text: str | None = None):
+        """Decorator to register a REPL command."""
+
+        def decorator(func: Callable):
+            cmd_name = name or func.__name__.replace("_", "-")
+            self.commands[cmd_name] = func
+            if help_text or func.__doc__:
+                self.help_texts[cmd_name] = help_text or (func.__doc__ or "").strip()
+            return func
+
+        return decorator
+
+    def run(self):
+        """Run the REPL loop."""
+        if self.welcome:
+            console.print(self.welcome, "green", "bold")
+            console.print("")
+
+        while True:
+            try:
+                # get user input
+                user_input = console.prompt(self.prompt_text.rstrip())
+
+                if not user_input:
+                    continue
+
+                # check for exit
+                if user_input.lower() in self.exit_commands:
+                    console.print("Goodbye!", "dim")
+                    break
+
+                # parse command and arguments
+                parts = user_input.split()
+                if not parts:
+                    continue
+
+                cmd_name = parts[0]
+                args = parts[1:]
+
+                # handle help
+                if cmd_name in ["help", "?"]:
+                    self.show_help(args[0] if args else None)
+                    continue
+
+                # find and execute command
+                if cmd_name in self.commands:
+                    try:
+                        self.commands[cmd_name](*args)
+                    except TypeError as e:
+                        console.error(f"Error: {e}")
+                        if cmd_name in self.help_texts:
+                            console.print(f"Usage: {self.help_texts[cmd_name]}", "dim")
+                    except Exception as e:
+                        console.error(f"Error executing '{cmd_name}': {e}")
+                else:
+                    # try to pass the entire input to a default handler if it exists
+                    if "default" in self.commands:
+                        try:
+                            self.commands["default"](user_input)
+                        except Exception as e:
+                            console.error(f"Error: {e}")
+                    else:
+                        console.error(f"Unknown command: '{cmd_name}'")
+                        console.print("Type 'help' for available commands.", "dim")
+
+            except KeyboardInterrupt:
+                console.print("\n" + console.color("Use 'exit' or 'quit' to leave.", "yellow"))
+            except EOFError:
+                console.print("\nGoodbye!", "dim")
+                break
+
+    def show_help(self, command: str | None = None):
+        """Show help for commands."""
+        if command and command in self.commands:
+            # show help for specific command
+            console.print(f"\n{console.color(command, 'cyan', 'bold')}")
+            if command in self.help_texts:
+                console.print(f"  {self.help_texts[command]}")
+            else:
+                console.print("  No documentation available.", "dim")
+        else:
+            # show all commands
+            console.print("\nAvailable commands:", "cyan", "bold")
+            console.print("")
+
+            # built-in commands
+            console.print(f"  {console.color('help, ?', 'yellow')}  - Show this help message")
+            exit_cmds = ", ".join(self.exit_commands)
+            console.print(f"  {console.color(exit_cmds, 'yellow')}  - Exit the program")
+
+            if self.commands:
+                console.print("")
+                # user commands
+                max_len = max(len(cmd) for cmd in self.commands if cmd != "default")
+                for cmd_name in sorted(self.commands):
+                    if cmd_name == "default":
+                        continue
+                    padding = " " * (max_len - len(cmd_name) + 2)
+                    help_text = self.help_texts.get(cmd_name, "")
+                    console.print(f"  {console.color(cmd_name, 'cyan')}{padding}{help_text}")
+        console.print("")

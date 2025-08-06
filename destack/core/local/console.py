@@ -135,3 +135,120 @@ def header(text: str, char: str = "=") -> str:
     """Create a section header."""
     line = char * len(text)
     return f"{line}\n{text}\n{line}"
+
+
+def table(rows: list[list[str]], headers: list[str] | None = None, padding: int = 2) -> str:
+    """Create a formatted table."""
+    if not rows and not headers:
+        return ""
+
+    # calculate column widths
+    all_rows = [headers] if headers else []
+    all_rows.extend(rows)
+
+    if not all_rows:
+        return ""
+
+    num_cols = len(all_rows[0])
+    col_widths = [0] * num_cols
+
+    for row in all_rows:
+        for i, cell in enumerate(row[:num_cols]):
+            col_widths[i] = max(col_widths[i], len(str(cell)))
+
+    result = []
+
+    # add headers if provided
+    if headers:
+        header_row = []
+        for i, header in enumerate(headers):
+            header_row.append(str(header).ljust(col_widths[i]))
+        result.append(" " * padding + (" " * padding).join(header_row))
+
+        # add separator
+        sep_row = []
+        for width in col_widths:
+            sep_row.append("─" * width)
+        result.append(" " * padding + (" " * padding).join(sep_row))
+
+    # add data rows
+    for row in rows:
+        data_row = []
+        for i, cell in enumerate(row[:num_cols]):
+            data_row.append(str(cell).ljust(col_widths[i]))
+        result.append(" " * padding + (" " * padding).join(data_row))
+
+    return "\n".join(result)
+
+
+def prompt(text: str, default: str | None = None) -> str:
+    """Display a prompt and get user input."""
+    prompt_text = color(text, "cyan")
+    if default:
+        prompt_text += color(f" [{default}]", "dim")
+    prompt_text += ": "
+
+    write(prompt_text)
+    try:
+        user_input = input().strip()
+        if not user_input and default:
+            return default
+        return user_input
+    except (KeyboardInterrupt, EOFError):
+        print("")  # new line after ^C
+        return ""
+
+
+def paginate(text: str, page_size: int = 20) -> None:
+    """Display text with pagination."""
+    lines = text.split("\n")
+    total_lines = len(lines)
+
+    if total_lines <= page_size:
+        # no pagination needed
+        for line in lines:
+            sys.stdout.write(line + "\n")
+        return
+
+    page_num = 0
+    while page_num * page_size < total_lines:
+        start = page_num * page_size
+        end = min(start + page_size, total_lines)
+
+        # display current page
+        for i in range(start, end):
+            sys.stdout.write(lines[i] + "\n")
+
+        # check if more pages
+        if end < total_lines:
+            remaining = total_lines - end
+            write(f"\n{color('--- More ---', 'dim')} ")
+            write(color(f"({remaining} lines remaining) ", "dim"))
+            write(color("[Enter/Space: next, q: quit] ", "yellow"))
+
+            try:
+                response = input().strip().lower()
+                if response in ["q", "quit"]:
+                    break
+                # move cursor up and clear the prompt line
+                move_up(1)
+                clear_line()
+            except (KeyboardInterrupt, EOFError):
+                print("")  # new line
+                break
+        else:
+            break
+
+        page_num += 1
+
+
+def section(title: str, content: str | None = None) -> None:
+    """Print a section with title."""
+    print("")
+    print(color("━" * 60, "dim"))
+    print(color(title, "cyan", "bold"))
+    if content:
+        print(color("━" * 60, "dim"))
+        sys.stdout.write(content + "\n")
+    else:
+        print(color("━" * 60, "dim"))
