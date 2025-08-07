@@ -22,4 +22,3 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 tmpfile = { workspace = true }
-wasm-bindgen-cli = { workspace = true }

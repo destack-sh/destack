@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, final
 from ..builtin import (
     EPSILON,
     EPSILON_EXPONENT,
+    UUID,
     VERSION,
     ActionType,
     Entity,
@@ -22,7 +23,6 @@ from ..builtin import (
 )
 from ..common import NodeReference, infer_type
 from ..definition import SchemaDefinition
-from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import Space, User

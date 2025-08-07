@@ -1,13 +1,13 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, cast, dataclass_transform
 
-from ..utility import UUID
 from .declaration import TagDeclaration
 from .hoisted import ValueFactory
 from .property import _PROPERTY_SPECIFIERS, declare_property
 from .struct import StructFrozen, _process_struct_cls
 from .types import UInt128
 from .universe import ObjectStability, StructType
+from .uuid import UUID
 
 if TYPE_CHECKING:
     from destack import Client

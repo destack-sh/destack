@@ -9,6 +9,7 @@ from typing import (
 from destack.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ..builtin import (
+    UUID,
     EnumType,
     HandleType,
     NodeType,
@@ -25,7 +26,6 @@ from ..builtin import (
     declare_property,
     declare_struct,
 )
-from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import (

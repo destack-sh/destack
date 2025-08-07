@@ -3,6 +3,7 @@ from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 from ..builtin import (
+    UUID,
     Bytes,
     Date,
     Datetime,
@@ -29,7 +30,6 @@ from ..builtin import (
     declare_property_runtime,
 )
 from ..universe import Universe
-from ..utility import UUID
 
 if TYPE_CHECKING:
     pass

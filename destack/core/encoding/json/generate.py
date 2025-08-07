@@ -12,8 +12,11 @@ from destack.registry import (
     STRUCT_CLASS_BY_TYPE,
 )
 
+from ..._utils import execute_arbitrary_code
 from ...builtin import (
     UNSET,
+    UUID,
+    Casing,
     Entity,
     Materialization,
     Object,
@@ -24,16 +27,10 @@ from ...builtin import (
     StructType,
     TypeCardinality,
     TypeDeclaration,
-)
-from ...utility import (
-    UUID,
-    Casing,
-    execute_arbitrary_code,
-    timedelta_from_isoformat,
-    timedelta_to_isoformat,
     to_casing,
 )
 from ..encoder import EncoderOptions
+from ..time import timedelta_from_isoformat, timedelta_to_isoformat
 
 if TYPE_CHECKING:
     pass

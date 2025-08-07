@@ -67,7 +67,6 @@ class UniverseCategory(OptionEnum):
         2_000_000, "Generation", description="Code generation and compilation"
     )
     LOCAL = declare_option(2_100_000, "Local", description="Local runtime integration")
-    UTILITY = declare_option(2_200_000, "Utility", description="Utility functions")
     # ...
     UNIVERSE = declare_option(3_000_000, "Universe", description="Global computational universe")
     SPACE = declare_option(3_100_000, "Space", description="Spacetime organization")
@@ -216,9 +215,6 @@ class EnumType(OptionEnum):
     # ...
 
     # local [2_100_000]
-    # ...
-
-    # utility [2_200_000]
     # ...
 
     # universe [3_000_000]
@@ -477,9 +473,6 @@ class TraitType(OptionEnum):
     # local [2_100_000]
     # ...
 
-    # utility [2_200_000]
-    # ...
-
     # universe [3_000_000]
     # ...
 
@@ -650,9 +643,6 @@ class NodeType(OptionEnum):
     # ...
 
     # local [2_100_000]
-    # ...
-
-    # utility [2_200_000]
     # ...
 
     # universe [3_000_000]
@@ -1181,9 +1171,6 @@ class StructType(OptionEnum):
     # ...
 
     # local [2_100_000]
-    # ...
-
-    # utility [2_200_000]
     # ...
 
     # universe [3_000_000]

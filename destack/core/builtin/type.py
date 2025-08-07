@@ -5,7 +5,6 @@ from typing import (
     TypeAliasType,
 )
 
-from ..utility import Casing, to_casing
 from .declaration import TypeDeclaration
 from .hoisted import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
@@ -14,6 +13,7 @@ from .hoisted import (
     ScalarType,
     TypeCardinality,
 )
+from .string import Casing, to_casing
 from .universe import HandleType, NodeType, StructType
 
 if TYPE_CHECKING:

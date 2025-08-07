@@ -1,7 +1,7 @@
 import contextvars
 from typing import TYPE_CHECKING, Any, Optional, cast
 
-from ..utility import frozendict, uuid7
+from .._utils import frozendict
 
 if TYPE_CHECKING:
     from destack import Session
@@ -24,7 +24,6 @@ METAKIND_PROPERTY_KEY = str(METAKIND_PROPERTY_ID)
 METATYPE_PROPERTY_ID = 1
 METATYPE_PROPERTY_KEY = str(METATYPE_PROPERTY_ID)
 
-NONCE = uuid7()
 UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()

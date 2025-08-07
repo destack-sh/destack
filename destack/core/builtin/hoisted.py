@@ -5,9 +5,9 @@ Hoisted declarations which belong elsewhere but are needed early in the import c
 from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, TypeAliasType
 
-from ..utility import UUID
 from .enum import OptionEnum, declare_enum, declare_option
 from .types import (
+    UUID,
     Boolean,
     Bytes,
     Date,

@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, dataclass_transform
 
-from ..utility import UUID
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
 from .enum import OptionEnum, declare_enum, declare_option
@@ -9,6 +8,7 @@ from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
 from .types import UInt128
 from .universe import EnumType, NodeType, StructType
+from .uuid import UUID
 
 if TYPE_CHECKING:
     from destack import Branch, Client, NodeReference, Snapshot

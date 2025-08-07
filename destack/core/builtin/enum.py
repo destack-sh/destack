@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, ClassVar, Self, assert_never, cast
 
 from destack.registry import ENUM_CLASS_BY_TYPE, ENUM_TYPE_BY_CLASS
 
-from ..utility import Casing, to_casing
-from .const import UNSET
+from ._const import UNSET
+from .string import Casing, to_casing
 
 if TYPE_CHECKING:
     from destack import EnumType

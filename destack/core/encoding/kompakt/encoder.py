@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, assert_never, cast, override
 from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ...builtin import (
+    UUID,
     EnumType,
     NodeType,
     Object,
@@ -14,7 +15,6 @@ from ...builtin import (
     TypeCardinality,
 )
 from ...common import NodeReference, Type, Value
-from ...utility import UUID
 from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderOptions
 from .core import KompaktObjectEncoder
 

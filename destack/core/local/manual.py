@@ -410,7 +410,7 @@ def _show_handle(definition: "HandleDefinition") -> None:
 
 def _show_module(definition: "ModuleDefinition") -> None:
     """Display Module-specific details."""
-    from ...core.utility.string import Casing, to_casing
+    from ...core.builtin import Casing, to_casing
 
     # content
     if definition.methods:

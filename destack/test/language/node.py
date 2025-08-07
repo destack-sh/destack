@@ -2,12 +2,11 @@ from destack import (
     LineShape2D,
     Node,
     NodeType,
-    Session,
     Shape2D,
 )
 
 
-def test_node_inheritance(session: Session):
+def test_node_inheritance():
     """Test the Node inheritance hierarchy."""
     assert Node.metatype == NodeType.NODE
     assert Node.__definition__.is_abstract
