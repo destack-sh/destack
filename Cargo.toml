@@ -16,9 +16,11 @@ destack = { path = "destack-rs/destack" }
 ahash = "0.8.12"
 bytes = "1.10.1"
 clap = "4.5.43"
-itoa = "1.0.15"
-slab = "0.4.10"
 tokio = "1.47.1"
 smallvec = "1.15.1"
+regex = "1.11.1"
 uuid = { version = "1.17.0", features = ["v4", "v5", "v7"] }
 # dev dependencies
+pretty_assertions = "1.4.1"
+tempfile = "3.20.0"
+wasm-bindgen-test = "0.3.50"

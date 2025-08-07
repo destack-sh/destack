@@ -16,9 +16,12 @@ path = "src/main.rs"
 destack = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
-itoa = { workspace = true }
 tokio = { workspace = true }
 smallvec = { workspace = true }
-uuid = { workspace = true }
+regex = { workspace = true }
+uuid = { workspace = true }	
 
 [dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+wasm-bindgen-test = { workspace = true }
