@@ -123,7 +123,28 @@ class StructDefinition(ObjectDefinition):
         """Create StructDefinition from a Struct class."""
         from .constant import ConstantDefinition
         from .method import MethodDefinition
+        from .property import PropertyDefinition
         from .tag import TagDefinition
+
+        properties = sorted(
+            [
+                PropertyDefinition.from_declaration(prop)
+                for prop in struct_cls.__properties__.values()
+            ],
+            key=lambda p: p.id,
+        )
+        methods = sorted(
+            [MethodDefinition.from_declaration(method) for method in declaration.methods],
+            key=lambda m: m.id,
+        )
+        constants = sorted(
+            [ConstantDefinition.from_declaration(constant) for constant in declaration.constants],
+            key=lambda c: c.id,
+        )
+        tags = sorted(
+            [TagDefinition.from_declaration(tag) for tag in declaration.tags],
+            key=lambda t: t.id,
+        )
 
         return cls(
             # meta
@@ -135,12 +156,10 @@ class StructDefinition(ObjectDefinition):
             is_immutable=declaration.is_immutable,
             is_abstract=declaration.is_abstract,
             # content
-            properties=[prop.definition for prop in struct_cls.__properties__.values()],
-            methods=[MethodDefinition.from_declaration(method) for method in declaration.methods],
-            constants=[
-                ConstantDefinition.from_declaration(constant) for constant in declaration.constants
-            ],
-            tags=[TagDefinition.from_declaration(tag) for tag in declaration.tags],
+            properties=properties,
+            methods=methods,
+            constants=constants,
+            tags=tags,
             # inheritance
             base_type=declaration.base_type,
             extended_by=list(declaration.extended_by),

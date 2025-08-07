@@ -232,7 +232,7 @@ def _render_type(type: "Type") -> str:
 
     # wrap in optional
     if not type.is_required:
-        inner_str = f"Optional[{inner_str}]"
+        inner_str = f"{inner_str} | None"
 
     return inner_str
 
@@ -347,7 +347,7 @@ def _show_properties(properties: list["PropertyDefinition"], title: str = "Prope
         for prop in properties:
             if prop.name in ("metakind", "metatype") or prop.name.startswith("_"):
                 continue
-            prop_str = f"  {console.color(prop.name, 'white')}: {console.color(_render_type(prop.type), 'yellow')}"
+            prop_str = f"  {console.color(prop.name, 'white')} ({console.color(str(prop.id), 'dim')}): {console.color(_render_type(prop.type), 'yellow')}"
             console.print(prop_str)
 
 
@@ -371,7 +371,7 @@ def _show_methods(methods: list["MethodDefinition"], title: str = "Methods") -> 
         else:
             output_signature = "None"
         console.print(
-            f"  {console.color(method.name, 'white')}{console.color('(', 'dim')}{input_signature}{console.color(')', 'dim')} {console.color('->', 'dim')} {output_signature}"
+            f"  {console.color(method.name, 'white')} ({console.color(str(method.id), 'dim')}) {console.color('(', 'dim')}{input_signature}{console.color(')', 'dim')} {console.color('->', 'dim')} {output_signature}"
         )
 
 
@@ -396,7 +396,9 @@ def _show_actions(actions: list["ActionDefinition"], title: str = "Actions") -> 
         if action.type in (ActionType.STREAM_IN_UNARY_OUT, ActionType.STREAM_IN_STREAM_OUT):
             output_type = f"Stream[{output_type}]"
         type_signature = f"{console.color(input_type, 'yellow')} {console.color('->', 'dim')} {console.color(output_type, 'yellow')}"
-        console.print(f"  {console.color(action.name, 'white')}: {type_signature}")
+        console.print(
+            f"  {console.color(action.name, 'white')} ({console.color(str(action.id), 'dim')}): {type_signature}"
+        )
 
 
 def _show_constants(constants: list["ConstantDefinition"], title: str = "Constants") -> None:
@@ -404,7 +406,7 @@ def _show_constants(constants: list["ConstantDefinition"], title: str = "Constan
     console.print("\n" + console.color(f"{title}:", "yellow"))
     for constant in constants:
         console.print(
-            f"  - {console.color(constant.name, 'white')} = {_render_value(constant.value)}"
+            f"  {console.color(constant.name, 'white')} ({console.color(str(constant.id), 'dim')}) = {_render_value(constant.value)}"
         )
 
 
@@ -487,31 +489,41 @@ def _show_module(definition: "ModuleDefinition") -> None:
         console.print("\n" + console.color("Nodes:", "yellow", "bold"))
         for node_type in definition.node_types:
             camel_name = to_casing(node_type.name, StringCasing.UPPER_CAMEL)
-            console.print(f"  - {console.color(camel_name, 'cyan')}")
+            console.print(
+                f"  {console.color(camel_name, 'cyan')} ({console.color(str(node_type.value), 'dim')})"
+            )
 
     # structs
     if definition.struct_types:
         console.print("\n" + console.color("Structs:", "yellow", "bold"))
         for struct_type in definition.struct_types:
             camel_name = to_casing(struct_type.name, StringCasing.UPPER_CAMEL)
-            console.print(f"  - {console.color(camel_name, 'cyan')}")
+            console.print(
+                f"  {console.color(camel_name, 'cyan')} ({console.color(str(struct_type.value), 'dim')})"
+            )
 
     # enums
     if definition.enum_types:
         console.print("\n" + console.color("Enums:", "yellow", "bold"))
         for enum_type in definition.enum_types:
             camel_name = to_casing(enum_type.name, StringCasing.UPPER_CAMEL)
-            console.print(f"  - {console.color(camel_name, 'cyan')}")
+            console.print(
+                f"  {console.color(camel_name, 'cyan')} ({console.color(str(enum_type.value), 'dim')})"
+            )
 
     # handles
     if definition.handle_types:
         console.print("\n" + console.color("Handles:", "yellow", "bold"))
         for handle_type in definition.handle_types:
             camel_name = to_casing(handle_type.name, StringCasing.UPPER_CAMEL)
-            console.print(f"  - {console.color(camel_name, 'cyan')}")
+            console.print(
+                f"  {console.color(camel_name, 'cyan')} ({console.color(str(handle_type.value), 'dim')})"
+            )
 
     # children
     if definition.children_paths:
         console.print(f"  Children ({len(definition.children_paths)}):")
         for child_path in definition.children_paths:
-            console.print(f"    - {console.color(child_path, 'green')}")
+            console.print(
+                f"  {console.color(child_path, 'green')} ({console.color(child_path, 'dim')})"
+            )

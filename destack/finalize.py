@@ -169,12 +169,12 @@ def _index_module(
         domain=domain,
         category=category,
         # content
-        methods=methods,
-        constants=constants,
-        node_types=node_types,
-        struct_types=struct_types,
-        handle_types=handle_types,
-        enum_types=enum_types,
+        methods=sorted(methods, key=lambda m: m.id),
+        constants=sorted(constants, key=lambda c: c.id),
+        node_types=sorted(node_types),
+        struct_types=sorted(struct_types),
+        handle_types=sorted(handle_types),
+        enum_types=sorted(enum_types),
         # graph
         parent_path=parent.path if parent is not None else None,
         children_paths=[],
