@@ -15,9 +15,11 @@ FRACTIONAL_INTEGER_ZERO = "a0"
 FRACTIONAL_INTEGER_MIN = "A00000000000000000000000000"
 FRACTIONAL_INTEGER_MAX = "aZZZZZZZZZZZZZZZZZZZZZZZZZ"
 
-declare_constant(301, FRACTIONAL_INTEGER_ZERO, name="FRACTIONAL_INTEGER_ZERO")
-declare_constant(302, FRACTIONAL_INTEGER_MIN, name="FRACTIONAL_INTEGER_MIN")
-declare_constant(303, FRACTIONAL_INTEGER_MAX, name="FRACTIONAL_INTEGER_MAX")
+__constants__ = (
+    declare_constant(301, FRACTIONAL_INTEGER_ZERO, name="FRACTIONAL_INTEGER_ZERO"),
+    declare_constant(302, FRACTIONAL_INTEGER_MIN, name="FRACTIONAL_INTEGER_MIN"),
+    declare_constant(303, FRACTIONAL_INTEGER_MAX, name="FRACTIONAL_INTEGER_MAX"),
+)
 
 
 def _get_integer_length(head: str) -> int:
@@ -75,6 +77,7 @@ def _midpoint(a: str, b: Optional[str]) -> str:
             return _BASE_95_DIGITS[digit_a] + _midpoint(a[1:], None)
 
 
+@declare_method(301, is_implemented=True)
 def increment_integer(x: str) -> Optional[str]:
     """
     Increments the given integer `x` in the given `digits` base.
@@ -106,7 +109,7 @@ def increment_integer(x: str) -> Optional[str]:
         return head + "".join(digs)
 
 
-@declare_method(301, is_implemented=True)
+@declare_method(302, is_implemented=True)
 def decrement_integer(x: str) -> Optional[str]:
     """
     Decrements the given integer `x` in the given `digits` base.
@@ -162,7 +165,7 @@ def _validate_order_key(key: str) -> None:
         raise ValueError(f"invalid order key: {key}")
 
 
-@declare_method(302, is_implemented=True)
+@declare_method(303, is_implemented=True)
 def get_order_key(a: Optional[str], b: Optional[str]) -> str:
     """
     Generates a key between the given keys `a` and `b` (inclusive) with logarithmic fraction growth.
@@ -196,7 +199,7 @@ def get_order_key(a: Optional[str], b: Optional[str]) -> str:
     return i if i < b else ia + _midpoint(fa, None)
 
 
-@declare_method(303, is_implemented=True)
+@declare_method(304, is_implemented=True)
 def get_order_keys(a: Optional[str], b: Optional[str], n: UInt32) -> list[str]:
     """
     Generates evenly spread n keys between the given keys `a` and `b` (inclusive).

@@ -9,9 +9,7 @@ from ..builtin import (
 from .function import FunctionDefinition
 
 if TYPE_CHECKING:
-    from destack import MethodDeclaration
-
-    from .property import PropertyDefinition
+    from destack import MethodDeclaration, PropertyDefinition
 
 
 type_ = type
@@ -34,6 +32,8 @@ class MethodDefinition(FunctionDefinition):
 
     @classmethod
     def from_declaration(cls, declaration: "MethodDeclaration") -> "Self":
+        from .property import PropertyDefinition
+
         return cls(
             # meta
             id=declaration.id,

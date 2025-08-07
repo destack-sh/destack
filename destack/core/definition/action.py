@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional, Self, final
 
 from ..builtin import (
     ActionType,
+    NodeType,
     StructType,
     declare_property,
     declare_struct,
@@ -29,6 +30,7 @@ class ActionDefinition(FunctionDefinition):
     # content
     input_message_type: Optional["StructType"] = declare_property(120)
     output_message_type: Optional["StructType"] = declare_property(121)
+    emits_event_types: Optional[list[NodeType]] = declare_property(122)
 
     @classmethod
     def from_declaration(cls, declaration: "ActionDeclaration") -> "Self":
@@ -47,4 +49,5 @@ class ActionDefinition(FunctionDefinition):
             # content
             input_message_type=declaration.input_message_type,
             output_message_type=declaration.output_message_type,
+            emits_event_types=declaration.emits_event_types,
         )

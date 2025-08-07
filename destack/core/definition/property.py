@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, cast, final
 
 from ..builtin import (
+    UNSET,
     CascadeAction,
     EdgeType,
     Node,
@@ -70,8 +71,15 @@ Whether this Property is part of the object's identity.
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
+        from .node import Node
+        from .struct import Struct
+
         type = prop.type.to_type()
-        object_cls = prop.component if issubclass(prop.component, (Node, Struct)) else Node
+        object_cls = (
+            prop.component
+            if isinstance(prop.component, type_) and issubclass(prop.component, (Node, Struct))
+            else Node
+        )
 
         # resolve taggings locally
         from .object import resolve_tagging
@@ -89,7 +97,9 @@ Whether this Property is part of the object's identity.
             taggings=taggings,
             # type
             type=type,
-            default_value=prop.default_value,
+            default_value=Value.wrap(prop.default_value)
+            if prop.default_value is not UNSET
+            else None,
             default_factory=prop.default_factory,
             # node
             edge_type=prop.edge_type,

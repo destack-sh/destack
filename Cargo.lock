@@ -161,6 +161,7 @@ dependencies = [
  "clap",
  "itoa",
  "slab",
+ "smallvec",
  "uuid",
 ]
 
@@ -172,6 +173,7 @@ dependencies = [
  "clap",
  "destack",
  "itoa",
+ "smallvec",
  "tokio",
  "uuid",
 ]
@@ -339,6 +341,12 @@ name = "slab"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04dc19736151f35336d325007ac991178d504a119863a2fcb3758cdb5e52c50d"
+
+[[package]]
+name = "smallvec"
+version = "1.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "strsim"

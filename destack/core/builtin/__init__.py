@@ -10,50 +10,7 @@ from ._const import (
     UNSET,
     VERSION,
 )
-from .declaration import (
-    ActionDeclaration,
-    ConstantDeclaration,
-    ConstraintDeclaration,
-    FunctionDeclaration,
-    HandleDeclaration,
-    IndexDeclaration,
-    MethodDeclaration,
-    NodeDeclaration,
-    ObjectDeclaration,
-    PermissionDeclaration,
-    StructDeclaration,
-    TagDeclaration,
-    declare_action,
-    declare_constant,
-    declare_method,
-)
-from .entity import (
-    ENTITY_MATERIALIZATION_ID,
-    ENTITY_MATERIALIZATION_KEY,
-    Entity,
-    EntityPartial,
-    Materialization,
-    declare_entity,
-)
-from .enum import (
-    Enum,
-    EnumDeclaration,
-    FlagEnum,
-    OptionDeclaration,
-    OptionEnum,
-    declare_enum,
-    declare_option,
-)
-from .error import Error, declare_error
-from .event import Event, EventStatus, declare_event
-from .fractional import (
-    FRACTIONAL_INTEGER_MAX,
-    FRACTIONAL_INTEGER_MIN,
-    FRACTIONAL_INTEGER_ZERO,
-    get_order_key,
-)
-from .handle import Handle, declare_handle
-from .hoisted import (
+from ._hoisted import (
     PRIMITIVE_PY_ANNOTATION_BY_TYPE,
     PRIMITIVE_TYPE_BY_ANNOTATION,
     ActionType,
@@ -79,6 +36,49 @@ from .hoisted import (
     TypeCardinality,
     ValueFactory,
 )
+from .casing import StringCasing, to_casing
+from .declaration import (
+    ActionDeclaration,
+    ConstantDeclaration,
+    ConstraintDeclaration,
+    FunctionDeclaration,
+    HandleDeclaration,
+    IndexDeclaration,
+    MethodDeclaration,
+    NodeDeclaration,
+    ObjectDeclaration,
+    PermissionDeclaration,
+    StructDeclaration,
+    TagDeclaration,
+    declare_action,
+    declare_constant,
+    declare_method,
+)
+from .entity import (
+    ENTITY_MATERIALIZATION_ID,
+    ENTITY_MATERIALIZATION_KEY,
+    Entity,
+    Materialization,
+    declare_entity,
+)
+from .enum import (
+    Enum,
+    EnumDeclaration,
+    FlagEnum,
+    OptionDeclaration,
+    OptionEnum,
+    declare_enum,
+    declare_option,
+)
+from .error import Error, declare_error
+from .event import Event, EventStatus, declare_event
+from .fractional import (
+    FRACTIONAL_INTEGER_MAX,
+    FRACTIONAL_INTEGER_MIN,
+    FRACTIONAL_INTEGER_ZERO,
+    get_order_key,
+)
+from .handle import Handle, declare_handle
 from .message import Message, declare_message
 from .node import Node
 from .object import Object, _is_finalized
@@ -90,7 +90,6 @@ from .property import (
     declare_property_runtime,
     parse_type_declaration,
 )
-from .string import Casing, to_casing
 from .struct import ImmutableStruct, Struct, declare_struct
 from .types import (
     Boolean,
@@ -152,7 +151,6 @@ __all__ = [
     "Boolean",
     "Bytes",
     "CascadeAction",
-    "Casing",
     "ClientType",
     "ConstantDeclaration",
     "ConstraintDeclaration",
@@ -164,7 +162,6 @@ __all__ = [
     "EdgeType",
     "Encoding",
     "Entity",
-    "EntityPartial",
     "Enum",
     "EnumDeclaration",
     "EnumType",
@@ -215,6 +212,7 @@ __all__ = [
     "RuntimeType",
     "ScalarType",
     "String",
+    "StringCasing",
     "Struct",
     "StructDeclaration",
     "StructType",

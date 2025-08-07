@@ -9,7 +9,6 @@ from destack.core import (
     EMPTY_DICT,
     EPSILON_EXPONENT,
     UNSET,
-    Casing,
     ConstantDefinition,
     EdgeType,
     Entity,
@@ -24,6 +23,7 @@ from destack.core import (
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
+    StringCasing,
     Struct,
     StructDefinition,
     StructType,
@@ -270,7 +270,7 @@ def _generate_property(
     Generate a Property definition.
     """
 
-    prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    prop_ts_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
     doc_str = _generate_multiline_doc(
         prop.description or f"{prop.original_component.__name__}.{prop_ts_name}"
     )
@@ -465,7 +465,7 @@ def _generate_init(cls: type[Object]) -> str:
     for prop in header_properties.values():
         if prop.is_runtime_only:
             continue  # computed, can't assign
-        ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
+        ts_name_in = to_casing(prop.name, StringCasing.LOWER_CAMEL)
         if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             # can be passed either as Node or NodeReference
             node_type_str = _generate_type_scalar(prop.type, as_ptr=False)
@@ -536,7 +536,7 @@ super(
         if is_parent_concrete and parent_cls is not None and prop.name in parent_cls.__properties__:
             continue  # parent has this property, don't assign
 
-        ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
+        ts_name_in = to_casing(prop.name, StringCasing.LOWER_CAMEL)
         ts_name_self = ts_name_in
         if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             ts_name_self = ts_name_in + "Ptr"
@@ -843,7 +843,7 @@ repr(): string {{
     has_required_repr_props = False
 
     for prop in repr_properties:
-        prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+        prop_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
 
         # scalar
         if prop.type.cardinality == TypeCardinality.SCALAR:
@@ -1039,7 +1039,7 @@ equals(other: any): boolean {{
 
 def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate equality check code for a single property."""
-    prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    prop_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
     if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}Ptr"
     if _is_property_tracked(prop):
@@ -1258,7 +1258,7 @@ hash(): number {{
 
 def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
     """Generate a Typescript hash method for a single property."""
-    prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    prop_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
     if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}Ptr"
     if _is_property_tracked(prop):

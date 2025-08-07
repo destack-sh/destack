@@ -16,7 +16,6 @@ from ..._utils import execute_arbitrary_code
 from ...builtin import (
     UNSET,
     UUID,
-    Casing,
     Entity,
     Materialization,
     Object,
@@ -24,6 +23,7 @@ from ...builtin import (
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
+    StringCasing,
     StructType,
     TypeCardinality,
     TypeDeclaration,
@@ -254,7 +254,7 @@ else:
 
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
         """Get the target property key for JSON."""
-        target_key = to_casing(prop.name, Casing.LOWER_CAMEL)
+        target_key = to_casing(prop.name, StringCasing.LOWER_CAMEL)
         if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             target_key += "Ptr"
         return target_key
