@@ -223,6 +223,48 @@ class NodeDefinition(ObjectDefinition):
         from .property import PropertyDefinition
         from .tag import TagDefinition
 
+        properties = sorted(
+            [
+                PropertyDefinition.from_declaration(prop)
+                for prop in node_cls.__properties__.values()
+            ],
+            key=lambda p: p.id,
+        )
+        indexes = sorted(
+            [IndexDefinition.from_declaration(index) for index in declaration.indexes],
+            key=lambda i: i.id,
+        )
+        constraints = sorted(
+            [
+                ConstraintDefinition.from_declaration(constraint)
+                for constraint in declaration.constraints
+            ],
+            key=lambda c: c.id,
+        )
+        permissions = sorted(
+            [
+                PermissionDefinition.from_declaration(permission)
+                for permission in declaration.permissions
+            ],
+            key=lambda p: p.id,
+        )
+        methods = sorted(
+            [MethodDefinition.from_declaration(method) for method in declaration.methods],
+            key=lambda m: m.id,
+        )
+        actions = sorted(
+            [ActionDefinition.from_declaration(action) for action in declaration.actions],
+            key=lambda a: a.id,
+        )
+        constants = sorted(
+            [ConstantDefinition.from_declaration(constant) for constant in declaration.constants],
+            key=lambda c: c.id,
+        )
+        tags = sorted(
+            [TagDefinition.from_declaration(tag) for tag in declaration.tags],
+            key=lambda t: t.id,
+        )
+
         return cls(
             id=node_cls.metatype.value,
             type=node_cls.metatype,
@@ -233,25 +275,14 @@ class NodeDefinition(ObjectDefinition):
             is_final=node_cls.__declaration__.is_final,
             is_singleton=node_cls.__declaration__.is_singleton,
             # content
-            properties=[
-                PropertyDefinition.from_declaration(prop)
-                for prop in node_cls.__properties__.values()
-            ],
-            indexes=[IndexDefinition.from_declaration(index) for index in declaration.indexes],
-            constraints=[
-                ConstraintDefinition.from_declaration(constraint)
-                for constraint in declaration.constraints
-            ],
-            permissions=[
-                PermissionDefinition.from_declaration(permission)
-                for permission in declaration.permissions
-            ],
-            methods=[MethodDefinition.from_declaration(method) for method in declaration.methods],
-            actions=[ActionDefinition.from_declaration(action) for action in declaration.actions],
-            constants=[
-                ConstantDefinition.from_declaration(constant) for constant in declaration.constants
-            ],
-            tags=[TagDefinition.from_declaration(tag) for tag in declaration.tags],
+            properties=properties,
+            indexes=indexes,
+            constraints=constraints,
+            permissions=permissions,
+            methods=methods,
+            actions=actions,
+            constants=constants,
+            tags=tags,
             # inheritance
             base_type=declaration.base_type,
             extended_by=list(declaration.extended_by),
