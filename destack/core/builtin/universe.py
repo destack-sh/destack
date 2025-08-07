@@ -172,6 +172,7 @@ class EnumType(OptionEnum):
     UNIVERSE_DOMAIN = declare_option(9)
     UNIVERSE_CATEGORY = declare_option(10)
     MATERIALIZATION = declare_option(14)
+    STRING_CASING = declare_option(15)
     RUNTIME_PLATFORM = declare_option(30)
     RUNTIME_LANGUAGE = declare_option(31)
     RUNTIME_TYPE = declare_option(32)
@@ -749,18 +750,19 @@ class NodeType(OptionEnum):
     SCRIPT = declare_option(10_100_200, "Script")
     CUSTOM_EVENT = declare_option(10_100_300, "Signal", description="Custom Event instance")
     MEASUREMENT_EVENT = declare_option(10_100_301, "Measurement of a Metric")
-    FUNCTION = declare_option(10_100_400, "Function")
-    METHOD = declare_option(10_100_500, "Method")
-    ACTION = declare_option(10_100_600, "Action")
-    TRIGGER = declare_option(10_100_700, "Trigger")
-    TRIGGER_EVENT = declare_option(10_100_701, "Trigger Event")
-    TIMER = declare_option(10_100_800, "Timer")
-    TIMER_EVENT = declare_option(10_100_801, "Timer Event")
-    TIMER_STARTED_EVENT = declare_option(10_100_802, "Timer Started Event")
-    TIMER_PAUSED_EVENT = declare_option(10_100_803, "Timer Paused Event")
-    TIMER_RESUMED_EVENT = declare_option(10_100_804, "Timer Resumed Event")
-    TIMER_COMPLETED_EVENT = declare_option(10_100_805, "Timer Completed Event")
-    TIMER_CANCELLED_EVENT = declare_option(10_100_806, "Timer Cancelled Event")
+    FUNCTION = declare_option(10_101_000, "Function")
+    METHOD = declare_option(10_101_100, "Method")
+    ACTION = declare_option(10_101_200, "Action")
+    # MUTATION?
+    TRIGGER = declare_option(10_102_000, "Trigger")
+    TRIGGER_EVENT = declare_option(10_102_001, "Trigger Event")
+    TIMER = declare_option(10_102_100, "Timer")
+    TIMER_EVENT = declare_option(10_102_101, "Timer Event")
+    TIMER_STARTED_EVENT = declare_option(10_102_102, "Timer Started Event")
+    TIMER_PAUSED_EVENT = declare_option(10_102_103, "Timer Paused Event")
+    TIMER_RESUMED_EVENT = declare_option(10_102_104, "Timer Resumed Event")
+    TIMER_COMPLETED_EVENT = declare_option(10_102_105, "Timer Completed Event")
+    TIMER_CANCELLED_EVENT = declare_option(10_102_106, "Timer Cancelled Event")
     # EFFECT, ...
     # BREAKPOINT, ...
     # ROOM, TOPIC, CHANNEL, ...
@@ -773,18 +775,18 @@ class NodeType(OptionEnum):
     # PREVIEW, DRAFT, ROLLOUT, ...
     # TASK, TASK_GROUP/TASK_QUEUE, ...
     # JOB, ...
-    RUN = declare_option(10_101_000, "Run")
-    RUN_EVENT = declare_option(10_101_001, "Run Event")
-    RUN_STARTED_EVENT = declare_option(10_101_002, "Run Started Event")
-    RUN_PAUSE_REQUESTED_EVENT = declare_option(10_101_003, "Run Pause Requested Event")
-    RUN_PAUSED_EVENT = declare_option(10_101_004, "Run Paused Event")
-    RUN_RESUME_REQUESTED_EVENT = declare_option(10_101_005, "Run Resume Requested Event")
-    RUN_RESUMED_EVENT = declare_option(10_101_006, "Run Resumed Event")
-    RUN_STOP_REQUESTED_EVENT = declare_option(10_101_007, "Run Stop Requested Event")
-    RUN_FAILED_EVENT = declare_option(10_101_008, "Run Failed Event")
-    RUN_COMPLETED_EVENT = declare_option(10_101_009, "Run Completed Event")
-    SPAN_EVENT = declare_option(10_101_010, "Span")
-    LOG_EVENT = declare_option(10_101_011, "Log")
+    RUN = declare_option(10_110_000, "Run")
+    RUN_EVENT = declare_option(10_110_001, "Run Event")
+    RUN_STARTED_EVENT = declare_option(10_110_002, "Run Started Event")
+    RUN_PAUSE_REQUESTED_EVENT = declare_option(10_110_003, "Run Pause Requested Event")
+    RUN_PAUSED_EVENT = declare_option(10_110_004, "Run Paused Event")
+    RUN_RESUME_REQUESTED_EVENT = declare_option(10_110_005, "Run Resume Requested Event")
+    RUN_RESUMED_EVENT = declare_option(10_110_006, "Run Resumed Event")
+    RUN_STOP_REQUESTED_EVENT = declare_option(10_110_007, "Run Stop Requested Event")
+    RUN_FAILED_EVENT = declare_option(10_110_008, "Run Failed Event")
+    RUN_COMPLETED_EVENT = declare_option(10_110_009, "Run Completed Event")
+    SPAN_EVENT = declare_option(10_110_010, "Span")
+    LOG_EVENT = declare_option(10_110_011, "Log")
 
     # intelligence [10_200_000]
     # INTELLIGENCE/AI/MODEL, FINETUNE, ...
@@ -1127,17 +1129,16 @@ class StructType(OptionEnum):
     FUNCTION_DEFINITION = declare_option(100_300)
     METHOD_DEFINITION = declare_option(100_301)
     ACTION_DEFINITION = declare_option(100_302)
+    # MUTATION_DEFINITION, ...
     PERMISSION_DEFINITION = declare_option(100_400)
 
-    # common [120_000]
-
+    # common [200_000]
     # type/value
     VALUE = declare_option(200_000)
     TYPE = declare_option(200_001)
     NUMBER_CONSTRAINT = declare_option(200_010)
     STRING_CONSTRAINT = declare_option(200_011)
     COLLECTION_CONSTRAINT = declare_option(200_012)
-
     # expressions
     EXPRESSION = declare_option(200_100)
     JOIN = declare_option(200_101)
@@ -1145,20 +1146,16 @@ class StructType(OptionEnum):
     CONDITION = declare_option(200_103)
     SORT = declare_option(200_104)
     SELECT = declare_option(200_105)
-
     # query
     QUERY = declare_option(200_200)
-
     # references
     NODE_REFERENCE = declare_option(200_300)
     PROPERTY_REFERENCE = declare_option(200_301)
     OBJECT_DEFINITION_REFERENCE = declare_option(200_302)
     # NODE_PATH, NODE_PATH_TOKEN, ...
-
     # text
     TEXT = declare_option(200_400)
     TEXT_SPAN = declare_option(200_401)
-
     # icon
     ICON = declare_option(200_500)
 

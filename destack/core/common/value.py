@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, final
 
 from ..builtin import Node, ObjectStability, Struct, StructType, declare_property, declare_struct
-from .type import ScalarType, Type, TypeCardinality
+from .type import ScalarType, Type, TypeCardinality, infer_type
 
 if TYPE_CHECKING:
     pass
@@ -53,7 +53,7 @@ class Value(Struct):
         """
         # infer type
         if type is None:
-            type = Type.infer(value, node_as_value=node_as_value)
+            type = infer_type(value, node_as_value=node_as_value)
         # coerce nodes into node references
         if type.scalar_type == ScalarType.NODE_REFERENCE:
             if type.cardinality == TypeCardinality.SCALAR and isinstance(value, Node):

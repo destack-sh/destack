@@ -5,15 +5,15 @@ from typing import (
     TypeAliasType,
 )
 
-from .declaration import TypeDeclaration
-from .hoisted import (
+from ._hoisted import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
     EnumType,
     PrimitiveType,
     ScalarType,
     TypeCardinality,
 )
-from .string import Casing, to_casing
+from .declaration import TypeDeclaration
+from .enum import _Casing, _to_casing
 from .universe import HandleType, NodeType, StructType
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ type_ = type
 
 def resolve_enum_type(class_name: str) -> EnumType | None:
     """Get the EnumType for the given enum name."""
-    enum_name = to_casing(class_name, Casing.ALL_CAPS)
+    enum_name = _to_casing(class_name, _Casing.ALL_CAPS)
     if enum_type := EnumType.__options_by_alias__.get(enum_name):
         return enum_type
     enum_name = class_name.upper()
@@ -35,7 +35,7 @@ def resolve_enum_type(class_name: str) -> EnumType | None:
 
 def resolve_struct_type(class_name: str) -> StructType | None:
     """Get the StructType for the given struct name."""
-    struct_name = to_casing(class_name, Casing.ALL_CAPS)
+    struct_name = _to_casing(class_name, _Casing.ALL_CAPS)
     if struct_type := StructType.__options_by_alias__.get(struct_name):
         return struct_type
     struct_name = class_name.upper()
@@ -46,7 +46,7 @@ def resolve_struct_type(class_name: str) -> StructType | None:
 
 def resolve_handle_type(class_name: str) -> HandleType | None:
     """Get the HandleType for the given handle name."""
-    handle_name = to_casing(class_name, Casing.ALL_CAPS)
+    handle_name = _to_casing(class_name, _Casing.ALL_CAPS)
     if handle_type := HandleType.__options_by_alias__.get(handle_name):
         return handle_type
     handle_name = class_name.upper()
@@ -57,7 +57,7 @@ def resolve_handle_type(class_name: str) -> HandleType | None:
 
 def resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     """Get the NodeType for the given node name."""
-    enum_name = to_casing(class_name, Casing.ALL_CAPS)
+    enum_name = _to_casing(class_name, _Casing.ALL_CAPS)
     if node_type := NodeType.__options_by_alias__.get(enum_name):
         return (node_type,)
     if node_type := NodeType.__options_by_alias__.get(class_name.upper()):

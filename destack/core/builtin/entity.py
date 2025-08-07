@@ -8,9 +8,8 @@ from typing import (
     dataclass_transform,
 )
 
-from destack.registry import NODE_CLASS_BY_TYPE
-
 from ._const import UNSET
+from ._hoisted import UInt128, ValueFactory
 from .declaration import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -20,7 +19,6 @@ from .declaration import (
 )
 from .enum import OptionEnum, declare_enum, declare_option
 from .fractional import FRACTIONAL_INTEGER_ZERO
-from .hoisted import UInt128, ValueFactory
 from .node import Node, _process_node_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -29,7 +27,6 @@ from .property import (
     declare_property_parent,
 )
 from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
-from .uuid import UUID
 
 if TYPE_CHECKING:
     from destack import (
@@ -37,7 +34,6 @@ if TYPE_CHECKING:
         Icon,
         NodeReference,
         Script,
-        Session,
         Snapshot,
         Tag,
         Value,
@@ -539,7 +535,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         raise NotImplementedError
 
     @declare_method(60)
-    def into(self, branch: "Branch") -> "Self":
+    def checkout(self, branch: "Branch") -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Branch.
         """
@@ -560,92 +556,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """
         raise NotImplementedError
 
-    @classmethod
-    def partial(cls) -> "EntityPartial":
-        raise NotImplementedError
-
 
 ENTITY_MATERIALIZATION_ID = Entity.property("materialization").id
 ENTITY_MATERIALIZATION_KEY = str(ENTITY_MATERIALIZATION_ID)
-
-
-class EntityPartial:
-    """
-    A partial Entity is an Entity that is not fully materialized,
-     but pretends to be a full Entity by deferring to a (chain of) other Entities.
-    """
-
-    __slots__ = (
-        "_override",
-        "_session",
-        "branch_ptr",
-        "definition_ptr",
-        "id",
-        "instance_ptr",
-        "materialization",
-        "metatype",
-        "node_cls",
-        "preceded_by_ptr",
-        "snapshot_ptr",
-        "space_ptr",
-    )
-
-    def __init__(
-        self,
-        metatype: NodeType,
-        id: UUID,
-        space_ptr: "NodeReference",
-        materialization: Materialization,
-        definition_ptr: Optional["NodeReference"],
-        branch_ptr: "NodeReference",
-        snapshot_ptr: "NodeReference",
-        preceded_by_ptr: Optional["NodeReference"],
-        instance_ptr: Optional["NodeReference"],
-        _session: "Session",
-        _override: dict[str, Any] | None,
-    ):
-        assert materialization < Materialization.FULL, (
-            f"partial Entity must be < Materialization.FULL: {materialization} (id={id})"
-        )
-        self.metatype = metatype
-        self.node_cls = NODE_CLASS_BY_TYPE.get(metatype)
-        assert self.node_cls is not None, f"no node class for {metatype}"
-        self.id = id
-        self.space_ptr = space_ptr
-        self.materialization = materialization
-        self.definition_ptr = definition_ptr
-        self.branch_ptr = branch_ptr
-        self.snapshot_ptr = snapshot_ptr
-        self.preceded_by_ptr = preceded_by_ptr
-        self.instance_ptr = instance_ptr
-        self._override = _override
-        self._session = _session
-
-    @property
-    def definition(self) -> "Entity | None":
-        """The definition of this Entity."""
-        if self.definition_ptr is None:
-            return None
-        return self._session.graph.get(
-            self.definition_ptr.id,
-            self.space_ptr.id,
-            self.branch_ptr.id,
-            self.snapshot_ptr.id,
-        )
-
-    @property
-    def is_partial(self) -> bool:
-        """Whether this Entity is a partial Entity."""
-        return True
-
-    def is_set(self, key: str) -> bool:
-        """Whether a Property is set on this Entity partial."""
-        return self._override is not None and key in self._override
-
-    def set(self, key: str, value: Any):
-        """Set a Property on this Entity partial."""
-        raise NotImplementedError
-
-    def unset(self, key: str):
-        """Unset a Property on this Entity partial."""
-        raise NotImplementedError

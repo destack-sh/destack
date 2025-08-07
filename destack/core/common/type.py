@@ -17,6 +17,7 @@ from ..builtin import (
     HandleType,
     ImmutableStruct,
     NodeType,
+    OptionDeclaration,
     PrimitiveType,
     RuntimeLanguage,
     ScalarType,
@@ -242,17 +243,26 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=ScalarType.ENUM,
             enum_type=ENUM_TYPE_BY_CLASS[type(value_or_type)],
         )
+    elif isinstance(value_or_type, OptionDeclaration):
+        return Type(
+            cardinality=TypeCardinality.SCALAR,
+            scalar_type=ScalarType.ENUM,
+            enum_type=ENUM_TYPE_BY_CLASS[value_or_type.component],
+        )
     elif isinstance(value_or_type, _PRIMITIVE_PY_TYPES):
+        primitive_type = PRIMITIVE_TYPE_BY_ANNOTATION.get(type(value_or_type))
+        if primitive_type is None:
+            raise ValueError(f"no primitive type for {type(value_or_type)!r}")
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.PRIMITIVE,
-            primitive_type=PRIMITIVE_TYPE_BY_ANNOTATION[type(value_or_type)],
+            primitive_type=primitive_type,
         )
 
     # collections
     if isinstance(value_or_type, tuple):
         # tuples are heterogeneous
-        element_types = [Type.infer(elem, node_as_value=node_as_value) for elem in value_or_type]
+        element_types = [infer_type(elem, node_as_value=node_as_value) for elem in value_or_type]
         return Type(
             cardinality=TypeCardinality.TUPLE,
             element_types=element_types,  # type: ignore
@@ -260,7 +270,7 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
     elif isinstance(value_or_type, list):
         assert value_or_type, f"cannot infer type of empty list: {value_or_type!r}"
         # lists are homogeneous - infer from first element
-        element_type = Type.infer(value_or_type[0], node_as_value=node_as_value)
+        element_type = infer_type(value_or_type[0], node_as_value=node_as_value)
         return Type(
             cardinality=TypeCardinality.LIST,
             value_type=element_type,
@@ -269,8 +279,8 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
         assert value_or_type, f"cannot infer type of empty dict: {value_or_type!r}"
         sample_key = next(iter(value_or_type))
         sample_value = value_or_type[sample_key]
-        key_type = Type.infer(sample_key, node_as_value=node_as_value)
-        value_type = Type.infer(sample_value, node_as_value=node_as_value)
+        key_type = infer_type(sample_key, node_as_value=node_as_value)
+        value_type = infer_type(sample_value, node_as_value=node_as_value)
         return Type(
             cardinality=TypeCardinality.MAP,
             key_type=key_type,

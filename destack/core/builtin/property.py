@@ -8,9 +8,7 @@ from typing import (
 )
 
 from ._const import UNSET
-from .declaration import Declaration
-from .enum import OptionDeclaration
-from .hoisted import (
+from ._hoisted import (
     CascadeAction,
     EdgeType,
     PropertyZone,
@@ -18,6 +16,8 @@ from .hoisted import (
     TypeCardinality,
     ValueFactory,
 )
+from .declaration import Declaration
+from .enum import OptionDeclaration
 from .type import NONE_TYPE_DECLARATION, TypeDeclaration, parse_type_declaration
 from .universe import (
     NodeType,

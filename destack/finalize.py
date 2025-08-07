@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from .core.builtin import (
     VERSION,
+    ActionDeclaration,
     EnumType,
     FunctionDeclaration,
     HandleType,
+    MethodDeclaration,
     NodeType,
     Object,
     StructType,
@@ -82,6 +84,8 @@ def _index_module(
     """Collect ModuleDefinitions recursively from filesystem."""
 
     from .core import (
+        ConstantDeclaration,
+        ConstantDefinition,
         Enum,
         FlagEnum,
         Handle,
@@ -121,13 +125,17 @@ def _index_module(
     struct_types: list[StructType] = []
     handle_types: list[HandleType] = []
     enum_types: list[EnumType] = []
+    constants: list[ConstantDefinition] = []
     if file_path.is_file():
         py_module = importlib.import_module(path)
+
+        # regular objects
         for obj_name, obj in py_module.__dict__.items():
             if obj_name.startswith("_"):
                 continue  # internal object
-            elif isinstance(obj, MethodDefinition):
-                methods.append(obj)
+            elif isinstance(obj, MethodDeclaration):
+                method = MethodDefinition.from_declaration(obj)
+                methods.append(method)
             elif isinstance(obj, type_):
                 if obj.__module__ != py_module.__name__:
                     continue  # imported object
@@ -139,6 +147,17 @@ def _index_module(
                     handle_types.append(obj.metatype)
                 elif issubclass(obj, Enum) and obj not in (Enum, OptionEnum, FlagEnum):
                     enum_types.append(obj.metatype)
+
+        # constants from special __constants__ attribute
+        if declared_constants := py_module.__dict__.get("__constants__"):
+            for constant in declared_constants:
+                assert isinstance(constant, ConstantDeclaration), (
+                    f"invalid constant in {path}: {constant}"
+                )
+                constant = ConstantDefinition.from_declaration(constant)
+                assert not constant._is_deferred, f"deferred constant in {path}: {constant!r}"
+                constants.append(constant)
+
         MODULE_BY_PATH[path] = py_module
 
     # create module
@@ -151,6 +170,7 @@ def _index_module(
         category=category,
         # content
         methods=methods,
+        constants=constants,
         node_types=node_types,
         struct_types=struct_types,
         handle_types=handle_types,
@@ -228,11 +248,13 @@ def finalize():
         return
 
     from .core import (
+        ActionDefinition,
         ConstantDeclaration,
         ConstantDefinition,
         EnumDefinition,
         Event,
         HandleDefinition,
+        MethodDefinition,
         Node,
         NodeDefinition,
         ObjectDefinitionReference,
@@ -338,19 +360,30 @@ def finalize():
         enum_definition = EnumDefinition.from_declaration(enum_cls.__declaration__)
         ENUM_DEFINITION_BY_TYPE[enum_cls.metatype] = enum_definition
 
-    # impute methods/actions in classes
+    # collect methods/actions from objects
     for object_cls in chain(
         NODE_CLASS_BY_TYPE.values(),
         STRUCT_CLASS_BY_TYPE.values(),
         HANDLE_CLASS_BY_TYPE.values(),
-        MODULE_BY_PATH.values(),
     ):
+        methods: list[MethodDefinition] = []
+        actions: list[ActionDefinition] = []
         for name, attribute in object_cls.__dict__.items():
             if isinstance(attribute, FunctionDeclaration):
-                # replace function with method/action
-                setattr(object_cls, name, attribute.outer_func)
+                if isinstance(attribute, MethodDeclaration):
+                    method = MethodDefinition.from_declaration(attribute)
+                    methods.append(method)
+                elif isinstance(attribute, ActionDeclaration):
+                    action = ActionDefinition.from_declaration(attribute)
+                    actions.append(action)
+                else:
+                    raise ValueError(f"unexpected function: {name!r}")
+        if methods:
+            object_cls.__definition__.methods = list(methods)  # type: ignore
+        if actions:
+            object_cls.__definition__.actions = list(actions)  # type: ignore
 
-    # finalize constants
+    # finalize constants from objects
     for object_cls in chain(
         NODE_CLASS_BY_TYPE.values(),
         STRUCT_CLASS_BY_TYPE.values(),
@@ -384,6 +417,18 @@ def finalize():
                 f"duplicate definition name for {definition.name!r}: {definition!r} != {existing_definition!r}"
             )
         BUILTIN_DEFINITION_BY_NAME[definition.name] = definition
+
+    # impute methods/actions in classes
+    for object_cls in chain(
+        NODE_CLASS_BY_TYPE.values(),
+        STRUCT_CLASS_BY_TYPE.values(),
+        HANDLE_CLASS_BY_TYPE.values(),
+        MODULE_BY_PATH.values(),
+    ):
+        for name, attribute in object_cls.__dict__.items():
+            if isinstance(attribute, FunctionDeclaration):
+                # replace function with method/action
+                setattr(object_cls, name, attribute.outer_func)
 
     #
     # Validate

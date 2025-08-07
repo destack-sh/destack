@@ -10,7 +10,7 @@ from ._const import UNSET
 if TYPE_CHECKING:
     from destack import Handle, Node, Object, PropertyDeclaration, Struct, Type
 
-    from .hoisted import (
+    from ._hoisted import (
         ActionType,
         ConstraintType,
         FunctionOperator,
@@ -280,7 +280,7 @@ def _get_runtimes(
     """
     Get the runtimes from the platforms and languages.
     """
-    from .hoisted import RuntimeLanguage, RuntimePlatform, RuntimeType
+    from ._hoisted import RuntimeLanguage, RuntimePlatform, RuntimeType
 
     if platforms or languages:
         if runtimes:
@@ -335,7 +335,7 @@ def _parse_signature(
 
     # process return type
     if return_annotation != inspect.Parameter.empty and return_annotation is not None:
-        prop = PropertyDeclaration(name="return", py_type=return_annotation)
+        prop = PropertyDeclaration(name="__return__", py_type=return_annotation)
         try:
             prop.type = parse_type_declaration(prop.py_type, is_builtin=True)
         except Exception as e:
@@ -381,7 +381,7 @@ def _process_method(
     """
     Process a method to create a MethodDeclaration.
     """
-    from .hoisted import FunctionOperator, MethodType
+    from ._hoisted import FunctionOperator, MethodType
 
     # availability
     all_runtimes = _get_runtimes(platforms=platforms, languages=languages, runtimes=runtimes)
@@ -468,7 +468,7 @@ def declare_method(
     """Declare a builtin Method."""
 
     def decorate(func):
-        from .hoisted import MethodType
+        from ._hoisted import MethodType
 
         func, declaration = _process_method(
             # meta
@@ -519,6 +519,7 @@ class ActionDeclaration(FunctionDeclaration):
 
     input_message_type: "StructType | None"
     output_message_type: "StructType | None"
+    emits_event_types: list["NodeType"] | None
 
 
 def _process_action(
@@ -529,6 +530,8 @@ def _process_action(
     name: str | None,
     type: "ActionType",
     is_internal: bool,
+    # content
+    emits_event_types: list["NodeType"] | None,
     # availability
     platforms: tuple["RuntimePlatform", ...],
     languages: tuple["RuntimeLanguage", ...],
@@ -539,7 +542,7 @@ def _process_action(
     """
     Process an action to create an ActionDeclaration.
     """
-    from .hoisted import ActionType, TypeCardinality
+    from ._hoisted import ActionType, TypeCardinality
     from .type import parse_type_declaration
 
     # meta
@@ -603,6 +606,8 @@ def _process_action(
         inner_func=func,
         is_async=is_async,
         is_internal=is_internal,
+        # content
+        emits_event_types=emits_event_types,
         # availability
         platforms=platforms,
         languages=languages,
@@ -623,6 +628,7 @@ def declare_action(
     name: str | None = None,
     type: "ActionType",
     is_internal: bool = False,
+    emits_event_types: list["NodeType"] | None = None,
     # availability
     platforms: tuple["RuntimePlatform", ...] = (),
     languages: tuple["RuntimeLanguage", ...] = (),
@@ -640,6 +646,8 @@ def declare_action(
             name=name,
             type=type,
             is_internal=is_internal,
+            # content
+            emits_event_types=emits_event_types,
             # availability
             platforms=platforms,
             languages=languages,

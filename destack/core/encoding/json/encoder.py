@@ -8,7 +8,6 @@ from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ...builtin import (
     UUID,
-    Casing,
     Enum,
     Json,
     NodeType,
@@ -17,6 +16,7 @@ from ...builtin import (
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
+    StringCasing,
     StructType,
     TypeCardinality,
     to_casing,
@@ -170,7 +170,7 @@ class JsonEncoder(Encoder):
         return unpacked_type
 
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
-        return to_casing(prop.name, Casing.LOWER_CAMEL)
+        return to_casing(prop.name, StringCasing.LOWER_CAMEL)
 
     @override
     def pack_value(

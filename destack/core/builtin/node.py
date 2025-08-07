@@ -102,10 +102,10 @@ def _process_node_cls(
         self_traits=list(all_traits),
         base_struct_type=base_struct_type,
         # content
-        properties=[],
-        methods=[],
-        actions=[],
-        constants=[],
+        properties=[],  # set in _process_object_cls
+        methods=[],  # set in finalize
+        actions=[],  # set in finalize
+        constants=[],  # set in finalize
         indexes=list(indexes),
         constraints=list(constraints),
         permissions=list(permissions),

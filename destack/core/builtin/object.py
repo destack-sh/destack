@@ -28,6 +28,15 @@ from ._const import (
     METATYPE_PROPERTY_ID,
     UNSET,
 )
+from ._hoisted import (
+    Encoding,
+    EnumType,
+    PrimitiveType,
+    ScalarType,
+    TypeCardinality,
+    ValueFactory,
+)
+from .casing import StringCasing, to_casing
 from .declaration import (
     ActionDeclaration,
     ConstantDeclaration,
@@ -38,16 +47,7 @@ from .declaration import (
     declare_method,
 )
 from .enum import OptionDeclaration
-from .hoisted import (
-    Encoding,
-    EnumType,
-    PrimitiveType,
-    ScalarType,
-    TypeCardinality,
-    ValueFactory,
-)
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property_runtime
-from .string import Casing, to_casing
 from .types import Int64
 from .universe import NodeType, ObjectKind, ObjectStability, StructType
 from .uuid import UUID, uuid4, uuid7
@@ -1393,8 +1393,8 @@ def _process_object_cls[ObjectT: Object](
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
         # index by aliases (if not runtime only)
         if not prop.is_runtime_only:
-            lower_camel_name = to_casing(prop.name, Casing.LOWER_CAMEL)
-            upper_camel_name = to_casing(prop.name, Casing.CAMEL)
+            lower_camel_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
+            upper_camel_name = to_casing(prop.name, StringCasing.UPPER_CAMEL)
             if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
                 aliases = (
                     prop.name,

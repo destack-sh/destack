@@ -18,12 +18,17 @@ from .parser import create_cli, create_repl
 
 if TYPE_CHECKING:
     from destack import (
+        ActionDefinition,
+        ConstantDefinition,
         EnumDefinition,
         HandleDefinition,
+        MethodDefinition,
         ModuleDefinition,
         NodeDefinition,
+        PropertyDefinition,
         StructDefinition,
         Type,
+        Value,
     )
 
 type_ = type
@@ -241,44 +246,55 @@ def _render_type_scalar(type: "Type") -> str:
     )
 
     assert type.cardinality == TypeCardinality.SCALAR
-    assert type.scalar_type is not None
+    assert type.scalar_type is not None, f"no scalar_type for {type!r}"
 
     # primitive
     if type.scalar_type == ScalarType.PRIMITIVE:
-        assert type.primitive_type is not None
+        assert type.primitive_type is not None, f"no primitive_type for {type!r}"
         return PRIMITIVE_PY_ANNOTATION_BY_TYPE[type.primitive_type].__name__
     # enum
     elif type.scalar_type == ScalarType.ENUM:
-        assert type.enum_type is not None
+        assert type.enum_type is not None, f"no enum_type for {type!r}"
         return ENUM_CLASS_BY_TYPE[type.enum_type].__name__
     # node reference
     elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        assert type.node_types is not None
-        if len(type.node_types) == 1:
+        if type.node_types is None:
+            return "Node"
+        elif len(type.node_types) == 1:
             return NODE_CLASS_BY_TYPE[type.node_types[0]].__name__
         else:
             node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
             return " | ".join(node_names)
     # node value
     elif type.scalar_type == ScalarType.NODE_VALUE:
-        assert type.node_types is not None
-        return NODE_CLASS_BY_TYPE[type.node_types[0]].__name__
+        if type.node_types is None:
+            return "Node"
+        elif len(type.node_types) == 1:
+            return NODE_CLASS_BY_TYPE[type.node_types[0]].__name__
+        else:
+            node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
+            return " | ".join(node_names)
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
-        assert type.struct_type is not None
+        assert type.struct_type is not None, f"no struct_type for {type!r}"
         return STRUCT_CLASS_BY_TYPE[type.struct_type].__name__
     # handle
     elif type.scalar_type == ScalarType.HANDLE:
-        assert type.handle_type is not None
+        assert type.handle_type is not None, f"no handle_type for {type!r}"
         return HANDLE_CLASS_BY_TYPE[type.handle_type].__name__
     # union
     elif type.scalar_type == ScalarType.UNION:
-        assert type.element_types is not None
+        assert type.element_types is not None, f"no element_types for {type!r}"
         element_names = [_render_type_scalar(t) for t in type.element_types]
         return " | ".join(element_names)
     #
     else:
         assert_never(type.scalar_type)
+
+
+def _render_value(value: "Value") -> str:
+    """Render a value to a string."""
+    return repr(value.value)
 
 
 def _show_definition(
@@ -324,6 +340,74 @@ def _show_definition(
     console.print("\n" + "=" * 70, "bright_cyan")
 
 
+def _show_properties(properties: list["PropertyDefinition"], title: str = "Properties") -> None:
+    """Display properties section."""
+    if properties:
+        console.print("\n" + console.color(f"{title} ({len(properties)}):", "yellow", "bold"))
+        for prop in properties:
+            if prop.name in ("metakind", "metatype") or prop.name.startswith("_"):
+                continue
+            prop_str = f"  {console.color(prop.name, 'white')}: {console.color(_render_type(prop.type), 'yellow')}"
+            console.print(prop_str)
+
+
+def _show_methods(methods: list["MethodDefinition"], title: str = "Methods") -> None:
+    """Display methods section."""
+    console.print("\n" + console.color(f"{title} ({len(methods)}):", "yellow", "bold"))
+    for method in methods:
+        input_signature_parts: list[str] = []
+        for input_property in method.input_properties:
+            input_property_str = f"{console.color(input_property.name, 'white')}: {console.color(_render_type(input_property.type), 'yellow')}"
+            if input_property.default_value is not None:
+                input_property_str = (
+                    f"{input_property_str} = {_render_value(input_property.default_value)}"
+                )
+            input_signature_parts.append(input_property_str)
+        input_signature = ", ".join(input_signature_parts)
+        if method.output_property is not None:
+            output_signature = (
+                f"{console.color(_render_type(method.output_property.type), 'yellow')}"
+            )
+        else:
+            output_signature = "None"
+        console.print(
+            f"  {console.color(method.name, 'white')}{console.color('(', 'dim')}{input_signature}{console.color(')', 'dim')} {console.color('->', 'dim')} {output_signature}"
+        )
+
+
+def _show_actions(actions: list["ActionDefinition"], title: str = "Actions") -> None:
+    """Display actions section."""
+    from ...core import ActionType, StringCasing, to_casing
+
+    console.print("\n" + console.color(f"{title} ({len(actions)}):", "yellow", "bold"))
+    for action in actions:
+        input_type = (
+            to_casing(action.input_message_type.name, StringCasing.UPPER_CAMEL)
+            if action.input_message_type
+            else "None"
+        )
+        if action.type in (ActionType.STREAM_IN_UNARY_OUT, ActionType.STREAM_IN_STREAM_OUT):
+            input_type = f"Stream[{input_type}]"
+        output_type = (
+            to_casing(action.output_message_type.name, StringCasing.UPPER_CAMEL)
+            if action.output_message_type
+            else "None"
+        )
+        if action.type in (ActionType.STREAM_IN_UNARY_OUT, ActionType.STREAM_IN_STREAM_OUT):
+            output_type = f"Stream[{output_type}]"
+        type_signature = f"{console.color(input_type, 'yellow')} {console.color('->', 'dim')} {console.color(output_type, 'yellow')}"
+        console.print(f"  {console.color(action.name, 'white')}: {type_signature}")
+
+
+def _show_constants(constants: list["ConstantDefinition"], title: str = "Constants") -> None:
+    """Display constants section."""
+    console.print("\n" + console.color(f"{title}:", "yellow"))
+    for constant in constants:
+        console.print(
+            f"  - {console.color(constant.name, 'white')} = {_render_value(constant.value)}"
+        )
+
+
 def _show_node(definition: "NodeDefinition") -> None:
     """Display Node-specific details."""
     # metadata
@@ -340,22 +424,12 @@ def _show_node(definition: "NodeDefinition") -> None:
     for key, value in metadata:
         console.print(f"  {key}: {console.color(value, 'green')}")
 
-    # properties
     if definition.properties:
-        console.print(
-            "\n" + console.color(f"Properties ({len(definition.properties)}):", "yellow", "bold")
-        )
-        for prop in definition.properties:
-            prop_str = f"  {prop.name}: {console.color(_render_type(prop.type), 'yellow')}"
-            console.print(prop_str)
-
-    # methods
+        _show_properties(definition.properties)
     if definition.methods:
-        console.print(
-            "\n" + console.color(f"Methods ({len(definition.methods)}):", "yellow", "bold")
-        )
-        for method in definition.methods:
-            console.print(f"  {console.color(method.name, 'magenta')}()")
+        _show_methods(definition.methods)
+    if definition.actions:
+        _show_actions(definition.actions)
 
 
 def _show_struct(definition: "StructDefinition") -> None:
@@ -373,14 +447,10 @@ def _show_struct(definition: "StructDefinition") -> None:
     for key, value in metadata:
         console.print(f"  {key}: {console.color(value, 'green')}")
 
-    # properties
     if definition.properties:
-        console.print(
-            "\n" + console.color(f"Properties ({len(definition.properties)}):", "yellow", "bold")
-        )
-        for prop in definition.properties:
-            prop_str = f"  {prop.name}: {console.color(_render_type(prop.type), 'yellow')}"
-            console.print(prop_str)
+        _show_properties(definition.properties)
+    if definition.methods:
+        _show_methods(definition.methods)
 
 
 def _show_enum(definition: "EnumDefinition") -> None:
@@ -399,46 +469,48 @@ def _show_enum(definition: "EnumDefinition") -> None:
 
 def _show_handle(definition: "HandleDefinition") -> None:
     """Display Handle-specific details."""
-    # properties
     if definition.properties:
-        console.print(
-            "\n" + console.color(f"Properties ({len(definition.properties)}):", "yellow", "bold")
-        )
-        for prop in definition.properties:
-            prop_str = f"  {prop.name}: {console.color(_render_type(prop.type), 'yellow')}"
-            console.print(prop_str)
+        _show_properties(definition.properties)
 
 
 def _show_module(definition: "ModuleDefinition") -> None:
     """Display Module-specific details."""
-    from ...core.builtin import Casing, to_casing
+    from ...core.builtin import StringCasing, to_casing
 
-    # content
     if definition.methods:
-        console.print("\n" + console.color("Methods:", "yellow"))
-        for method in definition.methods:
-            camel_name = to_casing(method.name, Casing.CAMEL)
-            console.print(f"  - {console.color(camel_name, 'cyan')}")
+        _show_methods(definition.methods)
+    if definition.constants:
+        _show_constants(definition.constants)
+
+    # types
     if definition.node_types:
-        console.print("\n" + console.color("Nodes:", "yellow"))
+        console.print("\n" + console.color("Nodes:", "yellow", "bold"))
         for node_type in definition.node_types:
-            camel_name = to_casing(node_type.name, Casing.CAMEL)
+            camel_name = to_casing(node_type.name, StringCasing.UPPER_CAMEL)
             console.print(f"  - {console.color(camel_name, 'cyan')}")
+
+    # structs
     if definition.struct_types:
-        console.print("\n" + console.color("Structs:", "yellow"))
+        console.print("\n" + console.color("Structs:", "yellow", "bold"))
         for struct_type in definition.struct_types:
-            camel_name = to_casing(struct_type.name, Casing.CAMEL)
+            camel_name = to_casing(struct_type.name, StringCasing.UPPER_CAMEL)
             console.print(f"  - {console.color(camel_name, 'cyan')}")
+
+    # enums
     if definition.enum_types:
-        console.print("\n" + console.color("Enums:", "yellow"))
+        console.print("\n" + console.color("Enums:", "yellow", "bold"))
         for enum_type in definition.enum_types:
-            camel_name = to_casing(enum_type.name, Casing.CAMEL)
+            camel_name = to_casing(enum_type.name, StringCasing.UPPER_CAMEL)
             console.print(f"  - {console.color(camel_name, 'cyan')}")
+
+    # handles
     if definition.handle_types:
-        console.print("\n" + console.color("Handles:", "yellow"))
+        console.print("\n" + console.color("Handles:", "yellow", "bold"))
         for handle_type in definition.handle_types:
-            camel_name = to_casing(handle_type.name, Casing.CAMEL)
+            camel_name = to_casing(handle_type.name, StringCasing.UPPER_CAMEL)
             console.print(f"  - {console.color(camel_name, 'cyan')}")
+
+    # children
     if definition.children_paths:
         console.print(f"  Children ({len(definition.children_paths)}):")
         for child_path in definition.children_paths:

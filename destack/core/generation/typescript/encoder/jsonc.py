@@ -3,13 +3,13 @@ from itertools import chain
 from typing import TYPE_CHECKING, assert_never
 
 from destack import (
-    Casing,
     Encoding,
     Node,
     Object,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
+    StringCasing,
     Struct,
     StructType,
     TypeCardinality,
@@ -161,7 +161,7 @@ def _generate_from_jsonc(cls: type["Object"]) -> str:
             continue  # set implicitly
         # regular unpacking
         unpack_code = _generate_unpack_jsonc_property(prop)
-        ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+        ts_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
         self_name = ts_name
         if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
             ts_name = ts_name + "Ptr"
@@ -198,7 +198,7 @@ def _generate_pack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
     from ..language import _is_property_tracked
 
     lines: list[str] = []
-    prop_ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    prop_ts_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
     if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         prop_ts_name = prop_ts_name + "Ptr"
     obj_jsonc = (
@@ -271,7 +271,7 @@ def _generate_pack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
 def _generate_unpack_jsonc_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
-    ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    ts_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
     if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
         ts_name = ts_name + "Ptr"
     json_key = str(prop.id)

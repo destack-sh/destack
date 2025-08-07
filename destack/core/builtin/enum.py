@@ -1,5 +1,6 @@
 import enum
 import inspect
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from sys import intern
@@ -8,7 +9,6 @@ from typing import TYPE_CHECKING, ClassVar, Self, assert_never, cast
 from destack.registry import ENUM_CLASS_BY_TYPE, ENUM_TYPE_BY_CLASS
 
 from ._const import UNSET
-from .string import Casing, to_casing
 
 if TYPE_CHECKING:
     from destack import EnumType
@@ -75,7 +75,9 @@ def _process_enum_cls(
         elif isinstance(attribute, OptionDeclaration):
             attribute.name = intern(name)
             if attribute.title is UNSET:
-                attribute.title = to_casing(attribute.name, Casing.CAMEL, allow_whitespace=True)
+                attribute.title = _to_casing(
+                    attribute.name, _Casing.UPPER_CAMEL, allow_whitespace=True
+                )
             attribute.component = cls
             options.append(attribute)
         else:
@@ -101,9 +103,9 @@ def _process_enum_cls(
         options_by_id[option.id] = option
         upper_name = option.name.upper()
         options_by_alias[upper_name] = option
-        camel_name = to_casing(option.name, Casing.CAMEL)
+        camel_name = _to_casing(option.name, _Casing.UPPER_CAMEL)
         options_by_alias[camel_name] = option
-        snake_name = to_casing(option.name, Casing.SNAKE)
+        snake_name = _to_casing(option.name, _Casing.SNAKE)
         options_by_alias[snake_name] = option
     cls.__options__ = options  # type: ignore
     cls.__options_by_id__ = options_by_id  # type: ignore
@@ -143,7 +145,7 @@ def declare_enum(enum_type: "EnumType"):
 
         # validate
         # check name
-        enum_name = to_casing(cls.__name__, Casing.ALL_CAPS)
+        enum_name = _to_casing(cls.__name__, _Casing.ALL_CAPS)
         assert enum_type.name == enum_name, f"enum name mismatch: {enum_type.name} != {enum_name}"
         # check options
         options_by_id: dict[int, OptionDeclaration] = {}
@@ -226,3 +228,78 @@ class OptionEnum(Enum):
 
 class FlagEnum(enum.IntFlag if TYPE_CHECKING else Enum):
     pass
+
+
+#
+# Casing
+#
+
+# NOTE: we define :Casing here because we use it for declaring enums
+#  (and we redefine it for export in casing.py)
+
+
+class _Casing(enum.IntEnum):  # see :Casing
+    SNAKE = 1
+    UPPER_CAMEL = 2
+    LOWER_CAMEL = 3
+    ALL_CAPS = 4
+
+
+def _strip_alpha_num(name: str) -> str:
+    # remove leading underscores
+    name = re.sub(r"^_+", "", name)
+    # remove trailing underscores
+    name = re.sub(r"_+$", "", name)
+    # remove double underscores
+    name = re.sub(r"__+", "_", name)
+    # remove leading digits
+    name = re.sub(r"^[0-9]+", "", name)
+    return name
+
+
+_CACHED_CASING: dict[tuple[str, _Casing, bool], str] = {}
+
+
+def _to_casing(name: str, casing: _Casing, allow_whitespace: bool = False) -> str:
+    """Turns a string into a valid Python identifier."""
+    key = (name, casing, allow_whitespace)
+    if key in _CACHED_CASING:
+        return _CACHED_CASING[key]
+
+    if casing == _Casing.SNAKE:  # snake_case
+        # first transform lowerUpper transitions into lower_upper
+        name = re.sub(r"(?<=[a-z])(?=[A-Z])", "_", name)
+        # turn non-alphanumeric characters into underscores
+        name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+        name = _strip_alpha_num(name)
+        name = name.lower()
+        if allow_whitespace:
+            name = name.replace("_", " ").strip()
+    elif (
+        casing == _Casing.UPPER_CAMEL or casing == _Casing.LOWER_CAMEL
+    ):  # CamelCase or lowerCamelCase
+        # if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
+        if re.match(r"^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+", name):
+            _CACHED_CASING[key] = name
+            return name
+        # ignore non-alphanumeric characters and capitalize the next character
+        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
+        # split on existing uppercase characters and spaces
+        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z])", name))
+        name = _strip_alpha_num(name).title()
+        name = name.replace("_", " ").strip() if allow_whitespace else name.replace(" ", "")
+        if casing == _Casing.LOWER_CAMEL:
+            name = name[0].lower() + name[1:]
+    elif casing == _Casing.ALL_CAPS:  # ALL_CAPS
+        # ALL_CAPS, ignore non-alphanumeric characters and capitalize the next character
+        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
+        # split on existing uppercase characters and spaces
+        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z])", name))
+        name = _strip_alpha_num(name).upper().replace(" ", "_")
+        if allow_whitespace:
+            name = name.replace("_", " ").strip()
+    else:
+        assert_never(casing)
+
+    _CACHED_CASING[key] = name
+    return name

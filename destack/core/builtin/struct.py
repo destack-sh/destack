@@ -61,9 +61,9 @@ def _process_struct_cls(
         inherited_by=[],
         extended_by=[],
         # content
-        properties=[],
-        methods=[],
-        constants=[],
+        properties=[],  # set in _process_object_cls
+        methods=[],  # set in finalize
+        constants=[],  # set in finalize
         tags=list(tags),
         # associations
         into_node_types=list(into_node_types),
