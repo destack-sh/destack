@@ -4,6 +4,29 @@
     "": {
       "name": "destack-monorepo",
     },
+    "destack-test": {
+      "name": "destack-test",
+      "dependencies": {
+        "destack": "link:destack-ts",
+        "pyodide": "catalog:",
+        "temporal-polyfill": "catalog:",
+      },
+      "devDependencies": {
+        "@babel/plugin-proposal-class-static-block": "catalog:build",
+        "@babel/plugin-proposal-decorators": "catalog:build",
+        "@babel/plugin-transform-class-static-block": "catalog:build",
+        "@babel/plugin-transform-typescript": "catalog:build",
+        "@babel/preset-typescript": "catalog:build",
+        "@biomejs/biome": "catalog:build",
+        "@types/bun": "catalog:types",
+        "@types/node": "catalog:types",
+        "fake-indexeddb": "catalog:test",
+        "fast-check": "catalog:test",
+        "jsdom": "catalog:test",
+        "mitata": "catalog:test",
+        "typescript": "catalog:build",
+      },
+    },
     "destack-ts": {
       "name": "destack",
       "dependencies": {
@@ -49,29 +72,6 @@
     },
     "destack-ts-system": {
       "name": "destack-ts-system",
-      "dependencies": {
-        "destack": "link:destack-ts",
-        "pyodide": "catalog:",
-        "temporal-polyfill": "catalog:",
-      },
-      "devDependencies": {
-        "@babel/plugin-proposal-class-static-block": "catalog:build",
-        "@babel/plugin-proposal-decorators": "catalog:build",
-        "@babel/plugin-transform-class-static-block": "catalog:build",
-        "@babel/plugin-transform-typescript": "catalog:build",
-        "@babel/preset-typescript": "catalog:build",
-        "@biomejs/biome": "catalog:build",
-        "@types/bun": "catalog:types",
-        "@types/node": "catalog:types",
-        "fake-indexeddb": "catalog:test",
-        "fast-check": "catalog:test",
-        "jsdom": "catalog:test",
-        "mitata": "catalog:test",
-        "typescript": "catalog:build",
-      },
-    },
-    "destack-ts-test": {
-      "name": "destack-ts-test",
       "dependencies": {
         "destack": "link:destack-ts",
         "pyodide": "catalog:",
@@ -488,11 +488,11 @@
 
     "destack": ["destack@workspace:destack-ts"],
 
+    "destack-test": ["destack-test@workspace:destack-test"],
+
     "destack-ts-server": ["destack-ts-server@workspace:destack-ts-server"],
 
     "destack-ts-system": ["destack-ts-system@workspace:destack-ts-system"],
-
-    "destack-ts-test": ["destack-ts-test@workspace:destack-ts-test"],
 
     "destack-ts-web": ["destack-ts-web@workspace:destack-ts-web"],
 
@@ -710,11 +710,11 @@
 
     "anymatch/picomatch": ["picomatch@2.3.1", "", {}, "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA=="],
 
+    "destack-test/destack": ["destack@link:destack-ts", {}],
+
     "destack-ts-server/destack": ["destack@link:destack-ts", {}],
 
     "destack-ts-system/destack": ["destack@link:destack-ts", {}],
-
-    "destack-ts-test/destack": ["destack@link:destack-ts", {}],
 
     "destack-ts-web/destack": ["destack@link:destack-ts", {}],
 

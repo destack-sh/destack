@@ -332,7 +332,7 @@ dependencies = [
 
 [[package]]
 name = "destack"
-version = "2025.8.1-1"
+version = "2025.8.7-0"
 dependencies = [
  "ahash",
  "bytes",
@@ -340,14 +340,13 @@ dependencies = [
  "itoa",
  "slab",
  "tmpfile",
- "tokio",
  "uuid",
  "wasm-bindgen-cli",
 ]
 
 [[package]]
 name = "destack_system"
-version = "2025.8.1-1"
+version = "2025.8.7-0"
 dependencies = [
  "bytes",
  "clap",
@@ -1455,7 +1454,9 @@ version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cf4199d1e5d15ddd86a694e4d0dffa9c323ce759fea589f00fef9d81cc1931d"
 dependencies = [
+ "getrandom 0.3.3",
  "js-sys",
+ "sha1_smol",
  "wasm-bindgen",
 ]
 

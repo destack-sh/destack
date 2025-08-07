@@ -179,6 +179,7 @@ def _process_node_cls(
                     #   .. also similarity to Context overrides in Entity.context_values?
                     #   .. also similarity to mut/non mut Structs?
                     #   .. also related to (frozen-in-time) Nodes as values?)
+                    #   .. also related to partial Node Values for animation tracks?
                     continue
                 raise ValueError(f"'{cls.__name__}' has no property {struct_prop!r}")
             if node_prop.type != struct_prop.type:
