@@ -3,8 +3,8 @@ resolver = "2"
 members = ["destack-rs/crates/*", "destack-rs-system/crates/*"]
 
 [workspace.package]
-version = "2025.8.1-1"
-edition = "2021"
+version = "2025.8.7-0"
+edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
 repository = "https://github.com/destack/destack"
@@ -14,13 +14,12 @@ rust-version = "1.88.0"
 destack = { path = "destack-rs/crates/destack" }
 # dependencies
 ahash = "0.8.12"
-anyhow = "1.0.99"
 bytes = "1.10.1"
 clap = "4.5.43"
 itoa = "1.0.15"
 slab = "0.4.10"
 tokio = "1.47.1"
-uuid = "1.17.0"
+uuid = { version = "1.17.0", features = ["v4", "v5", "v7"] }
 # dev dependencies
 tmpfile = "0.0.3"
 wasm-bindgen-cli = "0.2.100"

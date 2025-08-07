@@ -4,7 +4,7 @@
 
 [project]
 name = "destack"
-version = "2025.08.06.1"
+version = "2025.08.07.0"
 description = "Universe simulation engine (i.e. insanely integrated full stack software platform)"
 
 [tool.uv]
