@@ -13,18 +13,13 @@ from typing import (
     dataclass_transform,
 )
 
-from ..utility import (
-    UUID,
-    Casing,
+from .._utils import (
     execute_arbitrary_code,
     frozendict,
     frozenlist,
     get_superclasses,
-    to_casing,
-    uuid4,
-    uuid7,
 )
-from .const import (
+from ._const import (
     ACTIVE_SESSION,
     EMPTY_DICT,
     EPSILON,
@@ -52,8 +47,10 @@ from .hoisted import (
     ValueFactory,
 )
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property_runtime
+from .string import Casing, to_casing
 from .types import Int64
 from .universe import NodeType, ObjectKind, ObjectStability, StructType
+from .uuid import UUID, uuid4, uuid7
 
 if TYPE_CHECKING:
     from destack import BinaryReader, BinaryWriter, EncoderOptions, Hasher, Node, Session

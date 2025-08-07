@@ -3,13 +3,13 @@ from random import Random
 from typing import TYPE_CHECKING, Optional, final
 
 from ..builtin import (
+    UUID,
     Entity,
     Handle,
     HandleType,
     declare_handle,
     declare_property_runtime,
 )
-from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import Branch, Client, Environment, Event, Snapshot, Space

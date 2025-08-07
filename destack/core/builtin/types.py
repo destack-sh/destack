@@ -1,7 +1,13 @@
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..utility import UUID
+try:
+    if TYPE_CHECKING:
+        from uuid import UUID
+    else:
+        from fastuuid import UUID
+except ImportError:
+    from uuid import UUID
 
 # :PrimitiveType
 type Boolean = bool

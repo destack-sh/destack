@@ -10,8 +10,7 @@ from typing import (
 
 from destack.registry import NODE_CLASS_BY_TYPE
 
-from ..utility import INTEGER_ZERO, UUID
-from .const import UNSET
+from ._const import UNSET
 from .declaration import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -20,6 +19,7 @@ from .declaration import (
     declare_method,
 )
 from .enum import OptionEnum, declare_enum, declare_option
+from .fractional import FRACTIONAL_INTEGER_ZERO
 from .hoisted import UInt128, ValueFactory
 from .node import Node, _process_node_cls
 from .property import (
@@ -29,6 +29,7 @@ from .property import (
     declare_property_parent,
 )
 from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
+from .uuid import UUID
 
 if TYPE_CHECKING:
     from destack import (
@@ -313,7 +314,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         42,
         is_eq=False,
         is_internal=True,
-        default=INTEGER_ZERO,
+        default=FRACTIONAL_INTEGER_ZERO,
         description="The absolute order key of this Entity in its parent.",
         tags=("entity",),
     )

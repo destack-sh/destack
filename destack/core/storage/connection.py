@@ -2,12 +2,12 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from ..builtin import (
+    UUID,
     Handle,
     HandleType,
     declare_handle,
     declare_property_runtime,
 )
-from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import Event, NodeReference

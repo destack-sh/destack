@@ -30,23 +30,10 @@ def uuid7() -> UUID:
     return UUID(int=value)
 
 
-NANO_ID_LENGTH = 5
-NANO_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+from .declaration import declare_method  # noqa: E402
 
+declare_method(301, is_implemented=True, description="Generate a UUIDv4.")(uuid4)
+declare_method(302, is_implemented=True, description="Generate a UUIDv5.")(uuid5)
+declare_method(303, is_implemented=True, description="Generate a UUIDv7.")(uuid7)
 
-def to_nano_id(uuid: UUID) -> str:
-    """
-    Convert a UUID to a nano ID.
-    """
-    # use the UUID's integer value as the base for conversion
-    value = uuid.int
-    alphabet_len = len(NANO_ID_ALPHABET)
-    # convert to base-62 using the nano ID alphabet
-    result = []
-    for _ in range(NANO_ID_LENGTH):
-        result.append(NANO_ID_ALPHABET[value % alphabet_len])
-        value //= alphabet_len
-    return "".join(reversed(result))
-
-
-__all__ = ["UUID", "to_nano_id", "uuid4", "uuid5", "uuid7"]
+__all__ = ["UUID", "uuid4", "uuid5", "uuid7"]

@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, assert_never, cast, override
 from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ...builtin import (
+    UUID,
+    Casing,
     Enum,
     Json,
     NodeType,
@@ -17,10 +19,11 @@ from ...builtin import (
     ScalarType,
     StructType,
     TypeCardinality,
+    to_casing,
 )
 from ...common import Type, Value
-from ...utility import UUID, Casing, timedelta_from_isoformat, timedelta_to_isoformat, to_casing
 from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderOptions
+from ..time import timedelta_from_isoformat, timedelta_to_isoformat
 from .core import JsonObjectEncoder
 
 if TYPE_CHECKING:

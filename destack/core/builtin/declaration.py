@@ -5,7 +5,7 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Optional, Self, cast
 
-from .const import UNSET
+from ._const import UNSET
 
 if TYPE_CHECKING:
     from destack import Handle, Node, Object, PropertyDeclaration, Struct, Type
@@ -367,6 +367,7 @@ def _process_method(
     *,
     id: int,
     name: str | None,
+    description: str | None,
     operator: "FunctionOperator | None",
     is_implemented: bool,
     is_internal: bool,
@@ -423,12 +424,12 @@ def _process_method(
         source = inspect.getsource(inner_func).strip()
         raise ValueError(f"abstract method declaration must be empty: {qualname}\n{source}")
 
-    assert inner_func.__doc__, f"method has no docstring: {qualname}"
+    assert description or inner_func.__doc__, f"method has no description: {qualname}"
     declaration = MethodDeclaration(
         # meta
         id=id,
         name=name or inner_func.__name__,  # type: ignore
-        description=inner_func.__doc__,
+        description=description or inner_func.__doc__ or "",
         outer_func=outer_func,
         inner_func=inner_func,
         is_async=is_async,
@@ -453,6 +454,7 @@ def declare_method(
     id: int,
     *,
     name: str | None = None,
+    description: str | None = None,
     operator: "FunctionOperator | None" = None,
     is_implemented: bool = False,
     is_internal: bool = False,
@@ -473,6 +475,7 @@ def declare_method(
             func,
             id=id,
             name=name,
+            description=description,
             operator=operator,
             is_implemented=is_implemented,
             is_internal=is_internal,
@@ -689,6 +692,7 @@ def declare_constant[T](
     id: int,
     value: T | Callable[[], T],
     *,
+    name: str | None = None,
     type: "Type | None" = None,
     description: str | None = None,
 ) -> Any:  # replaced with T after finalization
@@ -700,8 +704,8 @@ def declare_constant[T](
         value=value,
         is_deferred=isinstance(value, Callable),
         type=type,
-        # set during class processing
-        name=None,
+        # set during class processing if in class
+        name=name,
         component=None,
         original_component=None,
     )

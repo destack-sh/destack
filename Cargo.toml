@@ -22,4 +22,3 @@ tokio = "1.47.1"
 uuid = { version = "1.17.0", features = ["v4", "v5", "v7"] }
 # dev dependencies
 tmpfile = "0.0.3"
-wasm-bindgen-cli = "0.2.100"

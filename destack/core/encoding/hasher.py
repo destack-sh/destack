@@ -3,6 +3,7 @@ from datetime import UTC
 from typing import Any
 
 from ..builtin import (
+    UUID,
     Bytes,
     Date,
     Datetime,
@@ -29,7 +30,6 @@ from ..builtin import (
     declare_property_runtime,
 )
 from ..universe import Universe
-from ..utility import UUID
 
 
 @declare_handle(HandleType.HASHER)

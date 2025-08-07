@@ -9,12 +9,12 @@ from typing import (
 
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLASS_BY_TYPE
 
-from ..utility import UUID
-from .const import UNSET
+from ._const import UNSET
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
 from .universe import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
+from .uuid import UUID
 
 if TYPE_CHECKING:
     from destack import (

@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Union, final
 
 from ..builtin import (
+    UUID,
     EnumType,
     OptionEnum,
     PropertyDeclaration,
@@ -14,7 +15,6 @@ from ..builtin import (
     declare_property,
     declare_struct,
 )
-from ..utility import UUID
 
 if TYPE_CHECKING:
     from destack import (

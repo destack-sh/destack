@@ -3,8 +3,7 @@ from collections.abc import Collection, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, final
 
-from ..builtin import Handle, HandleType, NodeType, declare_handle
-from ..utility import UUID
+from ..builtin import UUID, Handle, HandleType, NodeType, declare_handle
 
 if TYPE_CHECKING:
     from destack import Entity, Event, Snapshot

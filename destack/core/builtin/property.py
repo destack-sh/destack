@@ -7,7 +7,7 @@ from typing import (
     Optional,
 )
 
-from .const import UNSET
+from ._const import UNSET
 from .declaration import Declaration
 from .enum import OptionDeclaration
 from .hoisted import (

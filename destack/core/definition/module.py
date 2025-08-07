@@ -15,6 +15,7 @@ from .definition import Definition
 
 if TYPE_CHECKING:
     from destack import (
+        ConstantDefinition,
         MethodDefinition,
         UniverseCategory,
         UniverseDomain,
@@ -64,6 +65,7 @@ class ModuleDefinition(Definition):
 
     # content
     methods: list["MethodDefinition"] = declare_property(120)
+    constants: list["ConstantDefinition"] = declare_property(121)
     node_types: list["NodeType"] = declare_property(130)
     struct_types: list["StructType"] = declare_property(131)
     handle_types: list["HandleType"] = declare_property(132)
