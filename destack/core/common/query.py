@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, Union, final
 from ..builtin import (
     UUID,
     EnumType,
+    ImmutableStruct,
     OptionEnum,
     PropertyDeclaration,
-    StructFrozen,
     StructType,
     UInt32,
     ValueFactory,
@@ -65,7 +65,7 @@ class ConditionalType(OptionEnum):
     is_final=True,
 )
 @final
-class Condition(StructFrozen):
+class Condition(ImmutableStruct):
     """Boolean predicate (AND, =, <, etc.)."""
 
     type: ConditionalType = declare_property(100, is_repr=True)
@@ -99,7 +99,7 @@ class AggregationType(OptionEnum):
 
 
 @declare_struct(StructType.AGGREGATION, frozen=True)
-class Aggregation(StructFrozen):
+class Aggregation(ImmutableStruct):
     """Aggregation."""
 
     type: AggregationType = declare_property(100, is_repr=True)
@@ -128,7 +128,7 @@ class ExpressionType(OptionEnum):
     is_final=True,
 )
 @final
-class Expression(StructFrozen):
+class Expression(ImmutableStruct):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
     type: ExpressionType = declare_property(100, is_repr=True)
@@ -174,7 +174,7 @@ SortIn = Union[
     is_final=True,
 )
 @final
-class Sort(StructFrozen):
+class Sort(ImmutableStruct):
     """ORDER BY specification."""
 
     type: SortType = declare_property(100, is_repr=True)
@@ -193,7 +193,7 @@ class Sort(StructFrozen):
     is_final=True,
 )
 @final
-class Select(StructFrozen):
+class Select(ImmutableStruct):
     """Select specific Attributes."""
 
     attributes: list["PropertyReference"] = declare_property(101, is_repr=True)
@@ -222,7 +222,7 @@ class JoinType(OptionEnum):
     is_final=True,
 )
 @final
-class Join(StructFrozen):
+class Join(ImmutableStruct):
     """Join a Query with another Query."""
 
     type: JoinType = declare_property(100, is_repr=True)
@@ -262,7 +262,7 @@ class QueryType(OptionEnum):
     is_final=True,
 )
 @final
-class Query(StructFrozen):
+class Query(ImmutableStruct):
     """
     A Query into the supergraph about Nodes (node or scalar and potentially grouped).
     Queries may either be about Entities or Events.
@@ -336,5 +336,5 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
         if subquery.join is None:
             object.__setattr__(subquery, "join", Join.of(JoinType.CHILD))
         object.__setattr__(subquery, "name", name)
-        subquery._invalidate_frozen_cache()
+        subquery._invalidate_immutable()
     return list(subqueries.values())

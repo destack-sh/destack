@@ -2,7 +2,7 @@ import { EnumType, StructType } from "@destack/language/core/builtin/builtin";
 import type { Node } from "@destack/language/core/builtin/node";
 import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { ImmutableStruct } from "@destack/language/core/builtin/struct";
 import type { Session } from "@destack/language/core/runtime/session";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashBool, hashString } from "@destack/utils/hash";
@@ -30,7 +30,7 @@ registerEnumClass(EnumType.TEXT_SPAN_TYPE, TextSpanType);
 /**
  * A span of text with optional formatting
  */
-export class TextSpan extends StructFrozen {
+export class TextSpan extends ImmutableStruct {
   static metatype: StructType = StructType.TEXT_SPAN;
   static __isFrozen__: boolean = true;
 
@@ -233,7 +233,7 @@ registerStructClass(StructType.TEXT_SPAN, TextSpan);
 /**
  * Rich Text; a single paragraph composed of TextSpans with inline formatting.
  */
-export class Text extends StructFrozen {
+export class Text extends ImmutableStruct {
   static metatype: StructType = StructType.TEXT;
   static __isFrozen__: boolean = true;
 

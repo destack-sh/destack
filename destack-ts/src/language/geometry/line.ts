@@ -20,7 +20,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -909,7 +909,7 @@ registerNodeClass(NodeType.LINE_SHAPE2D, LineShape2D);
 /**
  * A Line is a line between two points.
  */
-export class Line2D extends StructFrozen {
+export class Line2D extends ImmutableStruct {
   static metatype: StructType = StructType.LINE2D;
   static __isFrozen__: boolean = true;
 

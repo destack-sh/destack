@@ -3,7 +3,7 @@ import { StructType } from "@destack/language/core/builtin/builtin";
 import { ScalarType, TypeCardinality } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedObjectCache } from "@destack/language/core/builtin/object";
-import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { ImmutableStruct } from "@destack/language/core/builtin/struct";
 import type { Type } from "@destack/language/core/builtin/type";
 import { toType } from "@destack/language/core/builtin/type";
 import type { Json } from "@destack/language/core/builtin/types";
@@ -16,7 +16,7 @@ import { hashString } from "@destack/utils/hash";
  * A generic Value of any Type.
  * Values are used to represent any generic or user-provided data.
  */
-export class Value extends StructFrozen {
+export class Value extends ImmutableStruct {
   static metatype: StructType = StructType.VALUE;
   static __isFrozen__: boolean = true;
 

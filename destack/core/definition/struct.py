@@ -50,7 +50,7 @@ class StructDefinition(ObjectDefinition):
         109,
         tags=("meta",),
     )
-    is_frozen: bool = declare_property(
+    is_immutable: bool = declare_property(
         110,
         description="Whether this Struct is read-only (cannot be modified).",
         tags=("meta",),
@@ -132,7 +132,7 @@ class StructDefinition(ObjectDefinition):
             name=struct_cls.__name__,
             description=struct_cls.__doc__,
             stability=declaration.stability,
-            is_frozen=declaration.is_frozen,
+            is_immutable=declaration.is_immutable,
             is_abstract=declaration.is_abstract,
             # content
             properties=[prop.definition for prop in struct_cls.__properties__.values()],

@@ -22,7 +22,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
@@ -70,7 +70,7 @@ registerEnumClass(EnumType.SPRING_TYPE, SpringType);
 /**
  * A transition value.
  */
-export class Transition extends StructFrozen {
+export class Transition extends ImmutableStruct {
   static metatype: StructType = StructType.TRANSITION;
   static __isFrozen__: boolean = true;
 

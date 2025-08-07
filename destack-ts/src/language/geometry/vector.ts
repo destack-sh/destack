@@ -1,5 +1,5 @@
 import type { Float32, Int32, PackedObjectCache, Session } from "@destack/language/core";
-import { StructFrozen, StructType } from "@destack/language/core";
+import { ImmutableStruct, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
@@ -7,7 +7,7 @@ import { hashFloat, hashInt } from "@destack/utils/hash";
 /**
  * A 2D floating point Vector.
  */
-export class Vector2 extends StructFrozen {
+export class Vector2 extends ImmutableStruct {
   static metatype: StructType = StructType.VECTOR2;
   static __isFrozen__: boolean = true;
 
@@ -262,7 +262,7 @@ registerStructClass(StructType.VECTOR2, Vector2);
 /**
  * A 3D floating point vector.
  */
-export class Vector3 extends StructFrozen {
+export class Vector3 extends ImmutableStruct {
   static metatype: StructType = StructType.VECTOR3;
   static __isFrozen__: boolean = true;
 
@@ -559,7 +559,7 @@ registerStructClass(StructType.VECTOR3, Vector3);
 /**
  * A 4D floating point vector.
  */
-export class Vector4 extends StructFrozen {
+export class Vector4 extends ImmutableStruct {
   static metatype: StructType = StructType.VECTOR4;
   static __isFrozen__: boolean = true;
 
@@ -888,7 +888,7 @@ registerStructClass(StructType.VECTOR4, Vector4);
 /**
  * A 2D integer vector.
  */
-export class Vector2i extends StructFrozen {
+export class Vector2i extends ImmutableStruct {
   static metatype: StructType = StructType.VECTOR2I;
   static __isFrozen__: boolean = true;
 
@@ -1143,7 +1143,7 @@ registerStructClass(StructType.VECTOR2I, Vector2i);
 /**
  * A 3D integer vector.
  */
-export class Vector3i extends StructFrozen {
+export class Vector3i extends ImmutableStruct {
   static metatype: StructType = StructType.VECTOR3I;
   static __isFrozen__: boolean = true;
 
@@ -1430,7 +1430,7 @@ registerStructClass(StructType.VECTOR3I, Vector3i);
 /**
  * A 4D integer vector.
  */
-export class Vector4i extends StructFrozen {
+export class Vector4i extends ImmutableStruct {
   static metatype: StructType = StructType.VECTOR4I;
   static __isFrozen__: boolean = true;
 

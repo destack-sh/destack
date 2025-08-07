@@ -15,6 +15,7 @@ from destack.core import (
     Entity,
     EnumDefinition,
     Event,
+    ImmutableStruct,
     Node,
     NodeDefinition,
     NodeType,
@@ -25,7 +26,6 @@ from destack.core import (
     ScalarType,
     Struct,
     StructDefinition,
-    StructFrozen,
     StructType,
     Type,
     TypeCardinality,
@@ -143,7 +143,7 @@ def _is_property_tracked(prop: PropertyDeclaration) -> bool:
         and not prop.is_internal
         and not prop.is_readonly
         and (prop.component.__declaration__.kind == ObjectKind.NODE)
-        and not prop.component.__declaration__.is_frozen
+        and not prop.component.__declaration__.is_immutable
     )
 
 
@@ -481,7 +481,7 @@ def _generate_init(cls: type[Object]) -> str:
         else:
             header_parts.append(f"{ts_name_in}?: {type_str}")
     header_parts.append("_session?: Session | null")
-    if issubclass(cls, StructFrozen):
+    if issubclass(cls, ImmutableStruct):
         header_parts.extend(
             (
                 "_hash?: number | null",
@@ -734,7 +734,7 @@ if (options.id == null) {{
                 f"unexpected node {cls.__name__} extends {cls.__declaration__.inherits}"
             )
     else:
-        if issubclass(cls, StructFrozen):
+        if issubclass(cls, ImmutableStruct):
             identity_str = """\
 // @ts-expect-error(readonly)
 this._hash = options._hash ?? null;
@@ -934,7 +934,7 @@ if (propertyReprs.length > 0) {{
 }}
 """
 
-    if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
+    if cls.__declaration__.is_immutable and cls.__declaration__.kind != ObjectKind.NODE:
         # cache _repr in __repr__ (frozen Struct)
         inner_repr_impl = inner_repr_impl.replace(
             "return ", "// @ts-expect-error(readonly) */\nthis._repr = "
@@ -1233,7 +1233,7 @@ def _generate_hash(cls: type[Object]) -> str:
         hash_parts.append(prop_hash_impl)
     hash_parts_str = "\n".join(hash_parts)
 
-    if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
+    if cls.__declaration__.is_immutable and cls.__declaration__.kind != ObjectKind.NODE:
         hash_impl = f"""\
 hash(): number {{
   if (this._hash != null) {{
@@ -1488,7 +1488,7 @@ def _generate_struct(definition: StructDefinition) -> str:
     # meta
     struct_meta_parts: list[str] = [
         f"static metatype: StructType = StructType.{definition.type.name};",
-        f"static __isFrozen__: boolean = {'true' if definition.is_frozen else 'false'};",
+        f"static __isFrozen__: boolean = {'true' if definition.is_immutable else 'false'};",
     ]
     struct_parts.append("\n".join(struct_meta_parts))
 
@@ -1499,7 +1499,7 @@ def _generate_struct(definition: StructDefinition) -> str:
             continue  # parent has this property, don't declare again
         prop_str = _generate_property(
             prop,
-            is_effective_readonly=definition.is_frozen,
+            is_effective_readonly=definition.is_immutable,
             is_tracked=_is_property_tracked(prop),
             is_node=False,
             is_interface=False,
@@ -1520,7 +1520,7 @@ def _generate_struct(definition: StructDefinition) -> str:
         struct_parts.append(hash_str)
 
     if definition.base_type is None or definition.base_type == StructType.STRUCT:
-        base_cls_name = "Struct" if not definition.is_frozen else "StructFrozen"
+        base_cls_name = "Struct" if not definition.is_immutable else "ImmutableStruct"
     else:
         base_cls_name = (
             STRUCT_CLASS_BY_TYPE[definition.base_type].__name__
@@ -1579,7 +1579,7 @@ def _generate_node(definition: NodeDefinition) -> str:
             continue  # parent has this property, don't declare again
         prop_str = _generate_property(
             prop,
-            is_effective_readonly=definition.is_frozen or _is_property_effective_readonly(prop),
+            is_effective_readonly=_is_property_effective_readonly(prop),
             is_tracked=_is_property_tracked(prop),
             is_node=True,
             is_interface=False,
@@ -2135,8 +2135,8 @@ def _generate_file(
     language_imports_by_module["core.builtin.trait"] = {"TraitClass"}
     language_imports_by_module["core.builtin.object"] = {"Object", "PackedObjectCache"}
     value_dependencies.add("Object")
-    language_imports_by_module["core.builtin.struct"] = {"Struct", "StructFrozen", "isStruct"}
-    value_dependencies.update(("Struct", "StructFrozen", "isStruct"))
+    language_imports_by_module["core.builtin.struct"] = {"Struct", "ImmutableStruct", "isStruct"}
+    value_dependencies.update(("Struct", "ImmutableStruct", "isStruct"))
     language_imports_by_module["registry"] = {
         "registerNodeClass",
         "registerStructClass",

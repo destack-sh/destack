@@ -21,7 +21,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -979,7 +979,7 @@ registerNodeClass(NodeType.ARROW_SHAPE2D, ArrowShape2D);
 /**
  * An Arrow is a shape that represents an arrow.
  */
-export class Arrow2D extends StructFrozen {
+export class Arrow2D extends ImmutableStruct {
   static metatype: StructType = StructType.ARROW2D;
   static __isFrozen__: boolean = true;
 

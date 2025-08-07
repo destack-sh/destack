@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, final
 from destack.core import (
     EnumType,
     Float32,
+    ImmutableStruct,
     NodeType,
     OptionEnum,
-    StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
@@ -44,7 +44,7 @@ class ShadowPosition(OptionEnum):
     into_node_types=(NodeType.SHADOW_STYLE,),
 )
 @final
-class Shadow(StructFrozen):
+class Shadow(ImmutableStruct):
     """A shadow value."""
 
     type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True)

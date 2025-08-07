@@ -1,5 +1,5 @@
 import type { Float32, PackedObjectCache, Session, UInt16 } from "@destack/language/core";
-import { EnumType, StructFrozen, StructType } from "@destack/language/core";
+import { EnumType, ImmutableStruct, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
@@ -124,7 +124,7 @@ registerEnumClass(EnumType.LENGTH_TYPE, LengthType);
 /**
  * An absolute or relative length value.
  */
-export class Length extends StructFrozen {
+export class Length extends ImmutableStruct {
   static metatype: StructType = StructType.LENGTH;
   static __isFrozen__: boolean = true;
 
@@ -221,7 +221,7 @@ registerStructClass(StructType.LENGTH, Length);
 /**
  * A 2-dimensional grid span value.
  */
-export class GridSpan2 extends StructFrozen {
+export class GridSpan2 extends ImmutableStruct {
   static metatype: StructType = StructType.GRID_SPAN2;
   static __isFrozen__: boolean = true;
 
@@ -318,7 +318,7 @@ registerStructClass(StructType.GRID_SPAN2, GridSpan2);
 /**
  * A 2-dimensional insets value (base + side overrides).
  */
-export class Inset2 extends StructFrozen {
+export class Inset2 extends ImmutableStruct {
   static metatype: StructType = StructType.INSET2;
   static __isFrozen__: boolean = true;
 
@@ -470,7 +470,7 @@ registerStructClass(StructType.INSET2, Inset2);
 /**
  * A 2-dimensional corners value (base + corner overrides).
  */
-export class Corner2 extends StructFrozen {
+export class Corner2 extends ImmutableStruct {
   static metatype: StructType = StructType.CORNER2;
   static __isFrozen__: boolean = true;
 
@@ -622,7 +622,7 @@ registerStructClass(StructType.CORNER2, Corner2);
 /**
  * A 2-dimensional axis value (base + x/y overrides).
  */
-export class Axis2 extends StructFrozen {
+export class Axis2 extends ImmutableStruct {
   static metatype: StructType = StructType.AXIS2;
   static __isFrozen__: boolean = true;
 
@@ -746,7 +746,7 @@ registerStructClass(StructType.AXIS2, Axis2);
 /**
  * A 2-dimensional position value (relative or absolute).
  */
-export class Offset2 extends StructFrozen {
+export class Offset2 extends ImmutableStruct {
   static metatype: StructType = StructType.OFFSET2;
   static __isFrozen__: boolean = true;
 
@@ -907,7 +907,7 @@ registerStructClass(StructType.OFFSET2, Offset2);
 /**
  * A 2-dimensional grid configuration value.
  */
-export class Grid2 extends StructFrozen {
+export class Grid2 extends ImmutableStruct {
   static metatype: StructType = StructType.GRID2;
   static __isFrozen__: boolean = true;
 
@@ -1064,7 +1064,7 @@ registerStructClass(StructType.GRID2, Grid2);
 /**
  * A 3-dimensional axis value (base + x/y/z overrides).
  */
-export class Axis3 extends StructFrozen {
+export class Axis3 extends ImmutableStruct {
   static metatype: StructType = StructType.AXIS3;
   static __isFrozen__: boolean = true;
 

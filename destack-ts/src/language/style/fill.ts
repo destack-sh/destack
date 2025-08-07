@@ -21,7 +21,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { File } from "@destack/language/data";
@@ -97,7 +97,7 @@ registerEnumClass(EnumType.FILL_SIZE, FillSize);
 /**
  * A fill value.
  */
-export class Fill extends StructFrozen {
+export class Fill extends ImmutableStruct {
   static metatype: StructType = StructType.FILL;
   static __isFrozen__: boolean = true;
 

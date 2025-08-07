@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
+    ImmutableStruct,
     NodeType,
-    StructFrozen,
     StructType,
     declare_entity,
     declare_property,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     frozen=True,
     is_abstract=True,
 )
-class Form2D(StructFrozen):
+class Form2D(ImmutableStruct):
     """A Form2D represents 2-dimensional geometric Shapes in the abstract."""
 
     pass
@@ -45,7 +45,7 @@ class Shape2D(Entity2D):
     frozen=True,
     is_abstract=True,
 )
-class Form3D(StructFrozen):
+class Form3D(ImmutableStruct):
     """A Form3D represents 3-dimensional geometric Shapes in the abstract."""
 
     pass

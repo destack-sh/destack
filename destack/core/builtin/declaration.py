@@ -103,7 +103,7 @@ class ObjectDeclaration(Declaration):
     description: str
     stability: "ObjectStability"
     is_abstract: bool
-    is_frozen: bool
+    is_immutable: bool
     is_final: bool
 
     # inheritance

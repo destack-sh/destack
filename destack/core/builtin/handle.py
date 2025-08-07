@@ -51,7 +51,7 @@ def _process_handle_cls(
         kind=ObjectKind.HANDLE,
         stability=stability,
         is_abstract=is_abstract,
-        is_frozen=False,
+        is_immutable=False,
         is_final=is_final,
         # inherits
         base_type=inherits[0] if inherits else None,

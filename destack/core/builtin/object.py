@@ -159,7 +159,7 @@ class ObjectGenerator:
 
         method_body_lines = []
         body_properties = {prop.name: prop for prop in declaration.properties}
-        if not declaration.is_frozen and declaration.kind == ObjectKind.NODE:
+        if not declaration.is_immutable and declaration.kind == ObjectKind.NODE:
             method_body_lines.append("__setattr__ = object.__setattr__")
             set_template_str = "__setattr__(self, '{0}', {1})"
         else:
@@ -310,14 +310,14 @@ if {self_name} is None:
                 elif prop.type.cardinality == TypeCardinality.LIST:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name} = {"[]" if not declaration.is_frozen else "EMPTY_LIST"}""")
+    {arg_name} = {"[]" if not declaration.is_immutable else "EMPTY_LIST"}""")
                 elif prop.type.cardinality == TypeCardinality.MAP:
                     method_body_lines.append(f"""\
 if {arg_name} is None:
-    {arg_name} = {"{}" if not declaration.is_frozen else "EMPTY_DICT"}""")
+    {arg_name} = {"{}" if not declaration.is_immutable else "EMPTY_DICT"}""")
 
             # regular assignment
-            if declaration.kind == ObjectKind.NODE and not declaration.is_frozen:
+            if declaration.kind == ObjectKind.NODE and not declaration.is_immutable:
                 method_body_lines.append(f"__setattr__(self, '{self_name}', {self_name})")
             else:
                 method_body_lines.append(f"self.{self_name} = {self_name}")
@@ -507,21 +507,8 @@ else:
     return f"<{cls.__name__}>"
 """
 
-        if cls.__declaration__.is_frozen and cls.__declaration__.kind != ObjectKind.NODE:
-            # cache _repr in __repr__ (frozen Struct)
-            inner_repr_impl = inner_repr_impl.replace("return ", "self._repr = ")
-            inner_repr_impl = textwrap.indent(inner_repr_impl, " " * 4)
-            inner_repr_impl = f"if self._repr is None:\n{inner_repr_impl}\nreturn self._repr"
-            inner_repr_impl = textwrap.indent(inner_repr_impl, " " * 4)
-            repr_impl = f"""\
-def __repr__(self) -> str:
-{inner_repr_impl}
-__str__ = __repr__
-"""
-        else:
-            # no cache
-            inner_repr_impl = textwrap.indent(inner_repr_impl, " " * 4)
-            repr_impl = f"""\
+        inner_repr_impl = textwrap.indent(inner_repr_impl, " " * 4)
+        repr_impl = f"""\
 def __repr__(self) -> str:
 {inner_repr_impl}
 __str__ = __repr__
@@ -954,20 +941,7 @@ if {self_source_expr} != {other_source_expr}:
             hash_parts.append(prop_hash_impl)
         hash_parts_str = "\n".join(hash_parts)
 
-        if cls.__declaration__.is_frozen and cls.__declaration__.kind == ObjectKind.STRUCT:
-            hash_impl = f"""\
-def hash(self, _hasher: "Hasher | None" = None) -> Int64:
-    if self._hash is not None and _hasher is None:
-        return self._hash
-    if _hasher is None:
-        from destack.core import Hasher
-        _hasher = Hasher()
-{textwrap.indent(hash_parts_str, " " * 4)}
-    self._hash = _hasher.digest()
-    return self._hash
-"""
-        else:
-            hash_impl = f"""\
+        hash_impl = f"""\
 def hash(self, _hasher: "Hasher | None" = None) -> Int64:
     if _hasher is None:
         from destack.core import Hasher
@@ -1549,7 +1523,7 @@ def _declare_object[ObjectT: Object](
             description=cls_in.__doc__ or "",
             stability=ObjectStability.DYNAMIC,
             is_abstract=True,
-            is_frozen=frozen,
+            is_immutable=frozen,
             is_final=False,
             # inheritance
             base_type=None,

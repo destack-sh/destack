@@ -91,7 +91,7 @@ from .property import (
     parse_type_declaration,
 )
 from .string import Casing, to_casing
-from .struct import Struct, StructFrozen, declare_struct
+from .struct import ImmutableStruct, Struct, declare_struct
 from .types import (
     Boolean,
     Bytes,
@@ -180,6 +180,7 @@ __all__ = [
     "Handle",
     "HandleDeclaration",
     "HandleType",
+    "ImmutableStruct",
     "IndexDeclaration",
     "IndexType",
     "Int8",
@@ -216,7 +217,6 @@ __all__ = [
     "String",
     "Struct",
     "StructDeclaration",
-    "StructFrozen",
     "StructType",
     "TagDeclaration",
     "Time",

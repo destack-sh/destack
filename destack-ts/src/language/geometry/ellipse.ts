@@ -20,7 +20,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -857,7 +857,7 @@ registerNodeClass(NodeType.ELLIPSE_SHAPE2D, EllipseShape2D);
 /**
  * A Ellipse is a circle.
  */
-export class Ellipse2D extends StructFrozen {
+export class Ellipse2D extends ImmutableStruct {
   static metatype: StructType = StructType.ELLIPSE2D;
   static __isFrozen__: boolean = true;
 

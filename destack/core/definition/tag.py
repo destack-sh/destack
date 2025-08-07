@@ -1,7 +1,7 @@
 from typing import final
 
 from ..builtin import (
-    StructFrozen,
+    ImmutableStruct,
     StructType,
     TagDeclaration,
     UInt8,
@@ -16,7 +16,7 @@ from ..builtin import (
     is_final=True,
 )
 @final
-class TagDefinition(StructFrozen):
+class TagDefinition(ImmutableStruct):
     """Definition of a builtin Tag to associate builtin definitions to."""
 
     id: UInt8 = declare_property(2, is_repr=True)

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, cast, dataclass_transform
 from .declaration import TagDeclaration
 from .hoisted import ValueFactory
 from .property import _PROPERTY_SPECIFIERS, declare_property
-from .struct import StructFrozen, _process_struct_cls
+from .struct import ImmutableStruct, _process_struct_cls
 from .types import UInt128
 from .universe import ObjectStability, StructType
 from .uuid import UUID
@@ -38,10 +38,10 @@ def declare_error(
     def decorate(cls: type) -> type:
         cls = _process_struct_cls(
             # meta
-            cls=cast(type["StructFrozen"], cls),
+            cls=cast(type["ImmutableStruct"], cls),
             struct_type=error_type,
             stability=stability,
-            is_frozen=True,
+            is_immutable=True,
             is_abstract=is_abstract,
             is_final=is_final,
             # associations
@@ -70,7 +70,7 @@ def declare_error(
         TagDeclaration(id=21, name="tracking", description="Error tracking"),
     ),
 )
-class Error(StructFrozen):
+class Error(ImmutableStruct):
     """
     An Error is a structured error message.
 

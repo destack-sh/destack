@@ -19,7 +19,7 @@ import {
   ObjectDefinitionType,
   PropertyReferenceType,
 } from "@destack/language/core/builtin/relation";
-import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { ImmutableStruct } from "@destack/language/core/builtin/struct";
 import {
   CheckedType,
   type CollectionConstraint,
@@ -46,7 +46,7 @@ import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 /**
  * Definition of a builtin Node.
  */
-export class NodeDefinition extends StructFrozen {
+export class NodeDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.NODE_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -944,7 +944,7 @@ registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
 /**
  * Definition of a builtin Trait.
  */
-export class TraitDefinition extends StructFrozen {
+export class TraitDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.TRAIT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -1323,7 +1323,7 @@ registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
 /**
  * Definition of a builtin Struct.
  */
-export class StructDefinition extends StructFrozen {
+export class StructDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.STRUCT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -1804,7 +1804,7 @@ registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
 /**
  * Definition of a builtin Enum.
  */
-export class EnumDefinition extends StructFrozen {
+export class EnumDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.ENUM_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -2697,7 +2697,7 @@ registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
 /**
  * Definition of a builtin Enum Option.
  */
-export class OptionDefinition extends StructFrozen {
+export class OptionDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.OPTION_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -2869,7 +2869,7 @@ registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
 /**
  * Definition of a builtin Constant.
  */
-export class ConstantDefinition extends StructFrozen {
+export class ConstantDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.CONSTANT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -3023,7 +3023,7 @@ registerStructClass(StructType.CONSTANT_DEFINITION, ConstantDefinition);
 /**
  * Definition of a builtin Tag to associate builtin definitions to.
  */
-export class TagDefinition extends StructFrozen {
+export class TagDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.TAG_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -3137,7 +3137,7 @@ registerStructClass(StructType.TAG_DEFINITION, TagDefinition);
 /**
  * Definition of a builtin Index.
  */
-export class IndexDefinition extends StructFrozen {
+export class IndexDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.INDEX_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -3317,7 +3317,7 @@ registerStructClass(StructType.INDEX_DEFINITION, IndexDefinition);
 /**
  * Definition of a builtin Constraint.
  */
-export class ConstraintDefinition extends StructFrozen {
+export class ConstraintDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.CONSTRAINT_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -3472,7 +3472,7 @@ registerStructClass(StructType.CONSTRAINT_DEFINITION, ConstraintDefinition);
 /**
  * Definition of a builtin Permission for a builtin Node.
  */
-export class PermissionDefinition extends StructFrozen {
+export class PermissionDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.PERMISSION_DEFINITION;
   static __isFrozen__: boolean = true;
 

@@ -5,7 +5,7 @@ import type { Event } from "@destack/language/core/builtin/event";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { ImmutableStruct } from "@destack/language/core/builtin/struct";
 import type { Datetime, UInt32, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
@@ -39,7 +39,7 @@ registerEnumClass(EnumType.MIGRATION_TYPE, MigrationType);
 /**
  * Definition of a builtin Migration.
  */
-export class MigrationDefinition extends StructFrozen {
+export class MigrationDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.MIGRATION_DEFINITION;
   static __isFrozen__: boolean = true;
 
@@ -153,7 +153,7 @@ registerStructClass(StructType.MIGRATION_DEFINITION, MigrationDefinition);
 /**
  * Definition of a builtin MigrationOperation.
  */
-export class MigrationOperationDefinition extends StructFrozen {
+export class MigrationOperationDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.MIGRATION_OPERATION_DEFINITION;
   static __isFrozen__: boolean = true;
 

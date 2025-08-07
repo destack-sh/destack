@@ -12,13 +12,13 @@ from ..builtin import (
     UUID,
     EnumType,
     HandleType,
+    ImmutableStruct,
     NodeType,
     Object,
     ObjectKind,
     OptionEnum,
     PropertyDeclaration,
     Struct,
-    StructFrozen,
     StructType,
     UInt8,
     declare_enum,
@@ -45,7 +45,7 @@ type_ = type
 
 @declare_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True, is_final=True)
 @final
-class ObjectDefinitionReference(StructFrozen):
+class ObjectDefinitionReference(ImmutableStruct):
     """Reference to an object "type" (builtin, custom or trait)."""
 
     kind: ObjectKind = declare_property(101, is_repr=True)
@@ -142,7 +142,7 @@ class PropertyReferenceType(OptionEnum):
     is_final=True,
 )
 @final
-class PropertyReference(StructFrozen):
+class PropertyReference(ImmutableStruct):
     """
     A reference to a builtin object's Property.
     """
@@ -208,7 +208,7 @@ class PropertyReference(StructFrozen):
 
 @declare_struct(StructType.NODE_REFERENCE, frozen=True, is_final=True)
 @final
-class NodeReference(StructFrozen):
+class NodeReference(ImmutableStruct):
     """
     A reference to a Node in spacetime.
     """

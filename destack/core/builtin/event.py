@@ -32,7 +32,9 @@ class EventStatus(OptionEnum):
 
 
 @dataclass_transform(
-    kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS, frozen_default=True
+    kw_only_default=True,
+    field_specifiers=_PROPERTY_SPECIFIERS,
+    frozen_default=True,
 )
 def declare_event(
     # meta
@@ -56,7 +58,7 @@ def declare_event(
             is_abstract=is_abstract,
             is_final=is_final,
             is_singleton=False,
-            is_frozen=False,
+            is_immutable=True,
             # inheritance
             traits=(),
             # content

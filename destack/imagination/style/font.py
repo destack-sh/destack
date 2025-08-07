@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
     EnumType,
+    ImmutableStruct,
     NodeType,
     OptionEnum,
-    StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
@@ -87,7 +87,7 @@ class TextTransform(OptionEnum):
     into_node_types=(NodeType.FONT_STYLE,),
 )
 @final
-class Font(StructFrozen):
+class Font(ImmutableStruct):
     """A font value."""
 
     type: FontType = declare_property(100, default=FontType.SANS, is_repr=True)

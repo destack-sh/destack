@@ -9,7 +9,7 @@ import type {
   NodeReference,
   PropertyReference,
 } from "@destack/language/core/builtin/relation";
-import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { isStruct, ImmutableStruct } from "@destack/language/core/builtin/struct";
 import { Type } from "@destack/language/core/builtin/type";
 import type { UInt32, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
@@ -29,7 +29,7 @@ import { uuid4 } from "@destack/utils/uuid";
 /**
  * Function
  */
-export class Function extends StructFrozen {
+export class Function extends ImmutableStruct {
   static metatype: StructType = StructType.FUNCTION;
   static __isFrozen__: boolean = true;
 
@@ -151,7 +151,7 @@ registerStructClass(StructType.FUNCTION, Function);
 /**
  * Boolean predicate (AND, =, <, etc.).
  */
-export class Condition extends StructFrozen {
+export class Condition extends ImmutableStruct {
   static metatype: StructType = StructType.CONDITION;
   static __isFrozen__: boolean = true;
 
@@ -305,7 +305,7 @@ registerStructClass(StructType.CONDITION, Condition);
 /**
  * Aggregation.
  */
-export class Aggregation extends StructFrozen {
+export class Aggregation extends ImmutableStruct {
   static metatype: StructType = StructType.AGGREGATION;
   static __isFrozen__: boolean = true;
 
@@ -411,7 +411,7 @@ registerStructClass(StructType.AGGREGATION, Aggregation);
 /**
  * Wrapper to unify any scalar / boolean / aggregate sub-tree.
  */
-export class Expression extends StructFrozen {
+export class Expression extends ImmutableStruct {
   static metatype: StructType = StructType.EXPRESSION;
   static __isFrozen__: boolean = true;
 
@@ -631,7 +631,7 @@ export type ExpressionIn =
 /**
  * ORDER BY specification.
  */
-export class Sort extends StructFrozen {
+export class Sort extends ImmutableStruct {
   static metatype: StructType = StructType.SORT;
   static __isFrozen__: boolean = true;
 
@@ -750,7 +750,7 @@ registerStructClass(StructType.SORT, Sort);
 /**
  * Select specific Attributes.
  */
-export class Select extends StructFrozen {
+export class Select extends ImmutableStruct {
   static metatype: StructType = StructType.SELECT;
   static __isFrozen__: boolean = true;
 
@@ -858,7 +858,7 @@ registerStructClass(StructType.SELECT, Select);
 /**
  * Join a Query with another Query.
  */
-export class Join extends StructFrozen {
+export class Join extends ImmutableStruct {
   static metatype: StructType = StructType.JOIN;
   static __isFrozen__: boolean = true;
 
@@ -998,7 +998,7 @@ registerStructClass(StructType.JOIN, Join);
  * A Query into the supergraph about Nodes (node or scalar and potentially grouped).
  * Queries may either be about Entities or Events.
  */
-export class Query<T extends Node = Node> extends StructFrozen {
+export class Query<T extends Node = Node> extends ImmutableStruct {
   static metatype: StructType = StructType.QUERY;
   static __isFrozen__: boolean = true;
 

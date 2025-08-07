@@ -48,7 +48,7 @@ class HandleDefinition(ObjectDefinition):
         109,
         tags=("meta",),
     )
-    is_frozen: bool = declare_property(
+    is_immutable: bool = declare_property(
         110,
         description="Whether this Handle is read-only (cannot be modified).",
         tags=("meta",),
@@ -124,7 +124,7 @@ class HandleDefinition(ObjectDefinition):
             name=declaration.name,
             description=declaration.description,
             stability=declaration.stability,
-            is_frozen=declaration.is_frozen,
+            is_immutable=declaration.is_immutable,
             is_abstract=declaration.is_abstract,
             # content
             properties=[

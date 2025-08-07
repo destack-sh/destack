@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
     EnumType,
+    ImmutableStruct,
     NodeType,
     OptionEnum,
-    StructFrozen,
     StructType,
     declare_entity,
     declare_enum,
@@ -38,7 +38,7 @@ class BorderType(OptionEnum):
     into_node_types=(NodeType.BORDER_STYLE,),
 )
 @final
-class Border(StructFrozen):
+class Border(ImmutableStruct):
     """A border value."""
 
     type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)

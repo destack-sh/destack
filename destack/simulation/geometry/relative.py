@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, final
 from destack.core import (
     EnumType,
     Float32,
+    ImmutableStruct,
     OptionEnum,
-    StructFrozen,
     StructType,
     UInt16,
     declare_enum,
@@ -91,7 +91,7 @@ class LengthType(OptionEnum):
     is_final=True,
 )
 @final
-class Length(StructFrozen):
+class Length(ImmutableStruct):
     """An absolute or relative length value."""
 
     unit: LengthType = declare_property(101, is_repr=True)
@@ -104,7 +104,7 @@ class Length(StructFrozen):
     is_final=True,
 )
 @final
-class Offset2(StructFrozen):
+class Offset2(ImmutableStruct):
     """A 2-dimensional position value (relative or absolute)."""
 
     type: Anchor = declare_property(100, is_repr=True)
@@ -120,7 +120,7 @@ class Offset2(StructFrozen):
     is_final=True,
 )
 @final
-class Inset2(StructFrozen):
+class Inset2(ImmutableStruct):
     """A 2-dimensional insets value (base + side overrides)."""
 
     base: UInt16 = declare_property(101, is_repr=True, default=0)
@@ -136,7 +136,7 @@ class Inset2(StructFrozen):
     is_final=True,
 )
 @final
-class Corner2(StructFrozen):
+class Corner2(ImmutableStruct):
     """A 2-dimensional corners value (base + corner overrides)."""
 
     base: UInt16 = declare_property(101, is_repr=True, default=0)
@@ -152,7 +152,7 @@ class Corner2(StructFrozen):
     is_final=True,
 )
 @final
-class Axis2(StructFrozen):
+class Axis2(ImmutableStruct):
     """A 2-dimensional axis value (base + x/y overrides)."""
 
     base: Float32 = declare_property(101, is_repr=True, default=0)
@@ -166,7 +166,7 @@ class Axis2(StructFrozen):
     is_final=True,
 )
 @final
-class Axis3(StructFrozen):
+class Axis3(ImmutableStruct):
     """A 3-dimensional axis value (base + x/y/z overrides)."""
 
     base: Float32 = declare_property(101, is_repr=True, default=0)
@@ -181,7 +181,7 @@ class Axis3(StructFrozen):
     is_final=True,
 )
 @final
-class Grid2(StructFrozen):
+class Grid2(ImmutableStruct):
     """A 2-dimensional grid configuration value."""
 
     columns: UInt16 = declare_property(101, is_repr=True)
@@ -197,7 +197,7 @@ class Grid2(StructFrozen):
     is_final=True,
 )
 @final
-class GridSpan2(StructFrozen):
+class GridSpan2(ImmutableStruct):
     """A 2-dimensional grid span value."""
 
     columns: UInt16 = declare_property(101, is_repr=True)

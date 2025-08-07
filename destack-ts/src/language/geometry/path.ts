@@ -20,7 +20,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -40,7 +40,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Path is a path of multiple points.
  */
-export class Path2D extends StructFrozen {
+export class Path2D extends ImmutableStruct {
   static metatype: StructType = StructType.PATH2D;
   static __isFrozen__: boolean = true;
 

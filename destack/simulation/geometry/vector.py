@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Union, final
 from destack.core import (
     Float32,
     FunctionOperator,
+    ImmutableStruct,
     Int32,
     ObjectStability,
     RuntimeLanguage,
-    StructFrozen,
     StructType,
     UInt32,
     declare_constant,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector2(StructFrozen):
+class Vector2(ImmutableStruct):
     """A 2D floating point Vector."""
 
     ZERO = declare_constant(
@@ -267,7 +267,7 @@ class Vector2(StructFrozen):
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector3(StructFrozen):
+class Vector3(ImmutableStruct):
     """A 3D floating point Vector."""
 
     ZERO = declare_constant(
@@ -512,7 +512,7 @@ class Vector3(StructFrozen):
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector4(StructFrozen):
+class Vector4(ImmutableStruct):
     """A 4D floating point Vector."""
 
     ZERO = declare_constant(
@@ -762,7 +762,7 @@ class Vector4(StructFrozen):
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector2i(StructFrozen):
+class Vector2i(ImmutableStruct):
     """A 2D integer Vector."""
 
     ZERO = declare_constant(
@@ -1002,7 +1002,7 @@ class Vector2i(StructFrozen):
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector3i(StructFrozen):
+class Vector3i(ImmutableStruct):
     """A 3D integer Vector."""
 
     ZERO = declare_constant(
@@ -1247,7 +1247,7 @@ class Vector3i(StructFrozen):
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector4i(StructFrozen):
+class Vector4i(ImmutableStruct):
     """A 4D integer Vector."""
 
     ZERO = declare_constant(

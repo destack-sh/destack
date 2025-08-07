@@ -15,12 +15,12 @@ from ..builtin import (
     EnumType,
     Float32,
     HandleType,
+    ImmutableStruct,
     NodeType,
     PrimitiveType,
     RuntimeLanguage,
     ScalarType,
     Struct,
-    StructFrozen,
     StructType,
     TypeCardinality,
     TypeDeclaration,
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 @declare_struct(StructType.TYPE, frozen=True, is_final=True)
 @final
-class Type(StructFrozen):
+class Type(ImmutableStruct):
     """
     A Type in the type system. Types compose like a tree (with scalars at the leaves):
      - Scalar: a single value (self, Type.scalar_type)
@@ -143,7 +143,7 @@ class Type(StructFrozen):
 
 
 @declare_struct(StructType.STRING_CONSTRAINT, frozen=True)
-class StringConstraint(StructFrozen):
+class StringConstraint(ImmutableStruct):
     """The constraint of a string."""
 
     regex: Optional[str] = declare_property(41)
@@ -164,7 +164,7 @@ PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]
     is_final=True,
 )
 @final
-class NumberConstraint(StructFrozen):
+class NumberConstraint(ImmutableStruct):
     """The constraint of a number."""
 
     min_value: Optional[Float32] = declare_property(41)
@@ -178,7 +178,7 @@ class NumberConstraint(StructFrozen):
     is_final=True,
 )
 @final
-class CollectionConstraint(StructFrozen):
+class CollectionConstraint(ImmutableStruct):
     """The constraint of a collection."""
 
     min_length: Optional[UInt32] = declare_property(41)

@@ -330,10 +330,10 @@ def _show_node(definition: "NodeDefinition") -> None:
     console.print("\n" + console.color("Metadata:", "yellow", "bold"))
 
     metadata = []
+    metadata.append(("Inherits", "->".join([base.name for base in definition.inherits])))
     metadata.append(("Stability", str(definition.stability)))
     metadata.append(("Abstract", definition.is_abstract))
     metadata.append(("Final", definition.is_final))
-    metadata.append(("Frozen", definition.is_frozen))
     metadata.append(("Singleton", definition.is_singleton))
 
     # metadata
@@ -364,8 +364,9 @@ def _show_struct(definition: "StructDefinition") -> None:
     console.print("\n" + console.color("Metadata:", "yellow", "bold"))
 
     metadata = []
+    metadata.append(("Inherits", "->".join([base.name for base in definition.inherits])))
     metadata.append(("Stability", str(definition.stability)))
-    metadata.append(("Frozen", definition.is_frozen))
+    metadata.append(("Immutable", definition.is_immutable))
     metadata.append(("Abstract", definition.is_abstract))
 
     # metadata
