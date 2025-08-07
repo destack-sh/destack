@@ -1,12 +1,12 @@
 [package]
 name = "destack_system"
+description = "Destack Rust system library"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Destack system implementation"
 
 [[bin]]
 name = "destack-system"
