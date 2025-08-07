@@ -21,7 +21,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Inset2 } from "@destack/language/geometry";
@@ -59,7 +59,7 @@ registerEnumClass(EnumType.BORDER_TYPE, BorderType);
 /**
  * A border value.
  */
-export class Border extends StructFrozen {
+export class Border extends ImmutableStruct {
   static metatype: StructType = StructType.BORDER;
   static __isFrozen__: boolean = true;
 

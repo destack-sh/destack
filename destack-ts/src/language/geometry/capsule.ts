@@ -21,7 +21,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -936,7 +936,7 @@ registerNodeClass(NodeType.CAPSULE_SHAPE2D, CapsuleShape2D);
 /**
  * A Capsule2D is a cylinder with a radius and height.
  */
-export class Capsule2D extends StructFrozen {
+export class Capsule2D extends ImmutableStruct {
   static metatype: StructType = StructType.CAPSULE2D;
   static __isFrozen__: boolean = true;
 

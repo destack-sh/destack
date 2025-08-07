@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 from destack.core import (
     Entity,
     EnumType,
+    ImmutableStruct,
     NodeType,
     OptionEnum,
-    StructFrozen,
     StructType,
     UInt32,
     declare_entity,
@@ -30,7 +30,7 @@ class MigrationType(OptionEnum):
 
 
 @declare_struct(StructType.MIGRATION_DEFINITION, frozen=True)
-class MigrationDefinition(StructFrozen):
+class MigrationDefinition(ImmutableStruct):
     """Definition of a builtin Migration."""
 
     type: "MigrationType" = declare_property(100, is_repr=True)
@@ -47,7 +47,7 @@ class Migration(Entity):
 
 
 @declare_struct(StructType.MIGRATION_OPERATION_DEFINITION, frozen=True)
-class MigrationOperationDefinition(StructFrozen):
+class MigrationOperationDefinition(ImmutableStruct):
     """Definition of a builtin MigrationOperation."""
 
     id: UInt32 = declare_property(2, is_repr=True)

@@ -20,7 +20,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -913,7 +913,7 @@ registerNodeClass(NodeType.RECTANGLE_SHAPE2D, RectangleShape2D);
 /**
  * A Rectangle is a rectangle.
  */
-export class Rectangle2D extends StructFrozen {
+export class Rectangle2D extends ImmutableStruct {
   static metatype: StructType = StructType.RECTANGLE2D;
   static __isFrozen__: boolean = true;
 

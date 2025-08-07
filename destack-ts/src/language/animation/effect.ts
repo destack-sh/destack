@@ -24,7 +24,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Axis3, Vector2 } from "@destack/language/geometry";
@@ -111,7 +111,7 @@ registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
 /**
  * An effect value.
  */
-export class Effect extends StructFrozen {
+export class Effect extends ImmutableStruct {
   static metatype: StructType = StructType.EFFECT;
   static __isFrozen__: boolean = true;
 

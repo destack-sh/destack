@@ -20,7 +20,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -40,7 +40,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Polygon is a list of points.
  */
-export class Polygon2D extends StructFrozen {
+export class Polygon2D extends ImmutableStruct {
   static metatype: StructType = StructType.POLYGON2D;
   static __isFrozen__: boolean = true;
 

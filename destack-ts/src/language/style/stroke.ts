@@ -24,7 +24,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Vector2 } from "@destack/language/geometry";
@@ -61,7 +61,7 @@ registerEnumClass(EnumType.STROKE_TYPE, StrokeType);
 /**
  * A Stroke.
  */
-export class Stroke extends StructFrozen {
+export class Stroke extends ImmutableStruct {
   static metatype: StructType = StructType.STROKE;
   static __isFrozen__: boolean = true;
 
@@ -268,7 +268,7 @@ registerStructClass(StructType.STROKE, Stroke);
 /**
  * A stroke cap.
  */
-export class StrokeCap extends StructFrozen {
+export class StrokeCap extends ImmutableStruct {
   static metatype: StructType = StructType.STROKE_CAP;
   static __isFrozen__: boolean = true;
 
@@ -373,7 +373,7 @@ registerStructClass(StructType.STROKE_CAP, StrokeCap);
 /**
  * A computed point in a stroke.
  */
-export class StrokePoint extends StructFrozen {
+export class StrokePoint extends ImmutableStruct {
   static metatype: StructType = StructType.STROKE_POINT;
   static __isFrozen__: boolean = true;
 
@@ -550,7 +550,7 @@ registerStructClass(StructType.STROKE_POINT, StrokePoint);
 /**
  * A stroke path.
  */
-export class StrokePath extends StructFrozen {
+export class StrokePath extends ImmutableStruct {
   static metatype: StructType = StructType.STROKE_PATH;
   static __isFrozen__: boolean = true;
 

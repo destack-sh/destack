@@ -5,7 +5,7 @@ import type { Entity } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { isNode, Node } from "@destack/language/core/builtin/node";
 import type { PackedObjectCache } from "@destack/language/core/builtin/object";
-import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { isStruct, ImmutableStruct } from "@destack/language/core/builtin/struct";
 import type { Type } from "@destack/language/core/builtin/type";
 import type { UInt8, UUID } from "@destack/language/core/builtin/types";
 import type { CustomProperty } from "@destack/language/core/common/property";
@@ -25,7 +25,7 @@ import { hashInt, hashString } from "@destack/utils/hash";
 /**
  * Reference to a Node definition.
  */
-export class NodeDefinitionReference extends StructFrozen {
+export class NodeDefinitionReference extends ImmutableStruct {
   static metatype: StructType = StructType.NODE_DEFINITION_REFERENCE;
   static __isFrozen__: boolean = true;
 
@@ -233,7 +233,7 @@ registerStructClass(StructType.NODE_DEFINITION_REFERENCE, NodeDefinitionReferenc
 /**
  * A reference to a builtin object's Property.
  */
-export class PropertyReference extends StructFrozen {
+export class PropertyReference extends ImmutableStruct {
   static metatype: StructType = StructType.PROPERTY_REFERENCE;
   static __isFrozen__: boolean = true;
 
@@ -540,7 +540,7 @@ registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
 /**
  * A reference to a Node in spacetime.
  */
-export class NodeReference extends StructFrozen {
+export class NodeReference extends ImmutableStruct {
   static metatype: StructType = StructType.NODE_REFERENCE;
   static __isFrozen__: boolean = true;
 
@@ -724,7 +724,7 @@ registerStructClass(StructType.NODE_REFERENCE, NodeReference);
 /**
  * Reference to an object "type" (builtin, custom or trait).
  */
-export class ObjectDefinitionReference extends StructFrozen {
+export class ObjectDefinitionReference extends ImmutableStruct {
   static metatype: StructType = StructType.OBJECT_DEFINITION_REFERENCE;
   static __isFrozen__: boolean = true;
 
@@ -891,7 +891,7 @@ registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionRefe
 /**
  * Reference to a Struct definition (builtin, custom or by trait).
  */
-export class StructDefinitionReference extends StructFrozen {
+export class StructDefinitionReference extends ImmutableStruct {
   static metatype: StructType = StructType.STRUCT_DEFINITION_REFERENCE;
   static __isFrozen__: boolean = true;
 

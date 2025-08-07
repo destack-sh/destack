@@ -21,7 +21,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Length } from "@destack/language/geometry";
@@ -153,7 +153,7 @@ registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
 /**
  * A font value.
  */
-export class Font extends StructFrozen {
+export class Font extends ImmutableStruct {
   static metatype: StructType = StructType.FONT;
   static __isFrozen__: boolean = true;
 

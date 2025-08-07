@@ -2,8 +2,8 @@ from typing import final
 
 from destack.core import (
     Float32,
+    ImmutableStruct,
     ObjectStability,
-    StructFrozen,
     StructType,
     declare_property,
     declare_struct,
@@ -19,7 +19,7 @@ from destack.core import (
     is_final=True,
 )
 @final
-class Quaternion(StructFrozen):
+class Quaternion(ImmutableStruct):
     """A quaternion."""
 
     x: Float32 = declare_property(

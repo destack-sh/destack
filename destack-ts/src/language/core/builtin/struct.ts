@@ -26,7 +26,7 @@ export abstract class Struct extends BuiltinObject {
 registerStructClass(StructType.STRUCT, Struct);
 
 /** A frozen Struct is a Struct that is immutable. */
-export abstract class StructFrozen extends Struct {
+export abstract class ImmutableStruct extends Struct {
   static readonly __isFrozen__: boolean = true;
 
   /** Cached hash of the Struct. */

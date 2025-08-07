@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, final
 from destack.core import (
     EnumType,
     Float32,
+    ImmutableStruct,
     NodeType,
     OptionEnum,
-    StructFrozen,
     StructType,
     UInt8,
     declare_entity,
@@ -36,7 +36,7 @@ class StrokeType(OptionEnum):
     into_node_types=(NodeType.STROKE_STYLE,),
 )
 @final
-class Stroke(StructFrozen):
+class Stroke(ImmutableStruct):
     """A Stroke."""
 
     type: StrokeType = declare_property(100)
@@ -58,7 +58,7 @@ class Stroke(StructFrozen):
 
 @declare_struct(StructType.STROKE_CAP, frozen=True, is_final=True)
 @final
-class StrokeCap(StructFrozen):
+class StrokeCap(ImmutableStruct):
     """A stroke cap."""
 
     cap: bool = declare_property(101, description="Whether to cap the stroke.")
@@ -68,7 +68,7 @@ class StrokeCap(StructFrozen):
 
 @declare_struct(StructType.STROKE_POINT, frozen=True, is_final=True)
 @final
-class StrokePoint(StructFrozen):
+class StrokePoint(ImmutableStruct):
     """A computed point in a stroke."""
 
     point: "Vector2" = declare_property(
@@ -88,7 +88,7 @@ class StrokePoint(StructFrozen):
 
 @declare_struct(StructType.STROKE_PATH, frozen=True, is_final=True)
 @final
-class StrokePath(StructFrozen):
+class StrokePath(ImmutableStruct):
     """A stroke path."""
 
     points: list[StrokePoint] = declare_property(101, is_repr=True)

@@ -1,5 +1,5 @@
 from ..builtin import (
-    StructFrozen,
+    ImmutableStruct,
     StructType,
     declare_property,
     declare_struct,
@@ -11,7 +11,7 @@ from ..builtin import (
     frozen=True,
     is_abstract=True,
 )
-class Definition(StructFrozen):
+class Definition(ImmutableStruct):
     """A builtin Definition."""
 
     name: str = declare_property(101, is_repr=True)

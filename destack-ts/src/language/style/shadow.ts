@@ -22,7 +22,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Axis2 } from "@destack/language/geometry";
@@ -72,7 +72,7 @@ registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
 /**
  * A shadow value.
  */
-export class Shadow extends StructFrozen {
+export class Shadow extends ImmutableStruct {
   static metatype: StructType = StructType.SHADOW;
   static __isFrozen__: boolean = true;
 

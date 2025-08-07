@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Optional, final
 from destack.core import (
     EnumType,
     Float32,
+    ImmutableStruct,
     NodeType,
     ObjectStability,
     OptionEnum,
-    StructFrozen,
     StructType,
     UInt32,
     declare_entity,
@@ -97,7 +97,7 @@ class ColorIntent(OptionEnum):
     into_node_types=(NodeType.COLOR_STYLE,),
 )
 @final
-class Color(StructFrozen):
+class Color(ImmutableStruct):
     """A color value."""
 
     r: Float32 = declare_property(101, is_repr=True)

@@ -61,14 +61,8 @@ class NodeDefinition(ObjectDefinition):
         description="Whether this Node cannot be extended by custom Nodes.",
         tags=("meta",),
     )
-    is_frozen: bool = declare_property(
-        112,
-        is_repr=True,
-        description="Whether this Node cannot be modified.",
-        tags=("meta",),
-    )
     is_singleton: bool = declare_property(
-        113,
+        112,
         description="Whether this Node is a singleton (only one instance can exist).",
         tags=("meta",),
     )
@@ -237,7 +231,6 @@ class NodeDefinition(ObjectDefinition):
             stability=declaration.stability,
             is_abstract=node_cls.__declaration__.is_abstract,
             is_final=node_cls.__declaration__.is_final,
-            is_frozen=node_cls.__declaration__.is_frozen,
             is_singleton=node_cls.__declaration__.is_singleton,
             # content
             properties=[

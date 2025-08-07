@@ -2,7 +2,7 @@ import { EnumType, StructType } from "@destack/language/core/builtin/builtin";
 import type { Node } from "@destack/language/core/builtin/node";
 import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { ImmutableStruct } from "@destack/language/core/builtin/struct";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { File } from "@destack/language/data";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
@@ -31,7 +31,7 @@ registerEnumClass(EnumType.ICON_TYPE, IconType);
 /**
  * An icon to be displayed in some view.
  */
-export class Icon extends StructFrozen {
+export class Icon extends ImmutableStruct {
   static metatype: StructType = StructType.ICON;
   static __isFrozen__: boolean = true;
 

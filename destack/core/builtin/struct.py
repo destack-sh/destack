@@ -10,8 +10,7 @@ from destack.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 
 from .declaration import StructDeclaration, TagDeclaration, declare_method
 from .object import Object, _process_object_cls
-from .property import _PROPERTY_SPECIFIERS, declare_property_runtime
-from .types import Int32
+from .property import _PROPERTY_SPECIFIERS
 from .universe import NodeType, ObjectKind, ObjectStability, StructType
 
 if TYPE_CHECKING:
@@ -26,7 +25,7 @@ def _process_struct_cls(
     cls: type["Struct"],
     struct_type: StructType,
     stability: ObjectStability,
-    is_frozen: bool,
+    is_immutable: bool,
     is_abstract: bool,
     is_final: bool,
     # associations
@@ -37,7 +36,7 @@ def _process_struct_cls(
 
     # inheritance
     inherits: list[StructType] = []
-    if cls.__name__ != "Struct" and cls.__name__ != "StructFrozen":
+    if cls.__name__ != "Struct" and cls.__name__ != "ImmutableStruct":
         for base in cls.__mro__:
             if issubclass(base, Struct):
                 if base.metatype not in inherits:
@@ -54,7 +53,7 @@ def _process_struct_cls(
         description=cls.__doc__ or "",
         stability=stability,
         is_abstract=is_abstract,
-        is_frozen=is_frozen,
+        is_immutable=is_immutable,
         is_final=is_final,
         # inherits
         base_type=inherits[0] if inherits else None,
@@ -75,16 +74,15 @@ def _process_struct_cls(
     cls.metatype = struct_type
 
     # register struct
-    if cls.__name__ != "StructFrozen":
-        assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
-            f"struct class {cls} is not a Struct"
+    assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
+        f"struct class {cls} is not a Struct"
+    )
+    if struct_type in STRUCT_CLASS_BY_TYPE:
+        raise ValueError(
+            f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
         )
-        if struct_type in STRUCT_CLASS_BY_TYPE:
-            raise ValueError(
-                f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
-            )
-        STRUCT_CLASS_BY_TYPE[struct_type] = cls
-        STRUCT_TYPE_BY_CLASS[cls] = struct_type
+    STRUCT_CLASS_BY_TYPE[struct_type] = cls
+    STRUCT_TYPE_BY_CLASS[cls] = struct_type
 
     # validate
     # non-abstract structs must have properties
@@ -139,7 +137,7 @@ def declare_struct(
             cls=cast(type["Struct"], cls),
             struct_type=struct_type,
             stability=stability,
-            is_frozen=frozen,
+            is_immutable=frozen,
             is_abstract=is_abstract,
             is_final=is_final,
             tags=tags,
@@ -167,21 +165,13 @@ class Struct(Object):
 
 
 @declare_struct(
-    StructType.STRUCT,
+    StructType.IMMUTABLE_STRUCT,
     frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
 )
-class StructFrozen(Struct):
-    _hash: Int32 | None = declare_property_runtime(
-        410,
-        description="Cached hash of the frozen Struct.",
-    )
-    _repr: str | None = declare_property_runtime(
-        411,
-        description="Cached repr of the frozen Struct.",
-    )
+class ImmutableStruct(Struct):
+    """An ImmutableStruct is a Struct that cannot be modified."""
 
-    def _invalidate_frozen_cache(self) -> None:
+    def _invalidate_immutable(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
-        object.__setattr__(self, "_hash", None)
-        object.__setattr__(self, "_repr", None)
+        pass

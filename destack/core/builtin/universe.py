@@ -1101,8 +1101,9 @@ class StructType(OptionEnum):
     # builtin [1]
     # root
     STRUCT = declare_option(1, "Struct", description="Root of all Structs")
-    ERROR = declare_option(2, "Error", description="Error")
-    MESSAGE = declare_option(3, "Message", description="Message")
+    IMMUTABLE_STRUCT = declare_option(2, "Immutable Struct", description="Immutable Struct")
+    ERROR = declare_option(3, "Error", description="Error")
+    MESSAGE = declare_option(4, "Message", description="Message")
 
     # definition [100_000]
     DEFINITION = declare_option(100_000)

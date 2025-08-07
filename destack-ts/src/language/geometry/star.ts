@@ -22,7 +22,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Anchor, Offset2 } from "@destack/language/geometry/relative";
@@ -42,7 +42,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Star2D is a star with a radius and height.
  */
-export class Star2D extends StructFrozen {
+export class Star2D extends ImmutableStruct {
   static metatype: StructType = StructType.STAR2D;
   static __isFrozen__: boolean = true;
 

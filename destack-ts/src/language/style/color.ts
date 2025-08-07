@@ -22,7 +22,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
@@ -40,7 +40,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A color value.
  */
-export class Color extends StructFrozen {
+export class Color extends ImmutableStruct {
   static metatype: StructType = StructType.COLOR;
   static __isFrozen__: boolean = true;
 

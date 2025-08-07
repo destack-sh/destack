@@ -21,4 +21,3 @@ slab = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-tmpfile = { workspace = true }

@@ -8,7 +8,7 @@ import {
 } from "@destack/language/core/builtin/common";
 import { isNode } from "@destack/language/core/builtin/node";
 import type { PackedObjectCache } from "@destack/language/core/builtin/object";
-import { isStruct, StructFrozen } from "@destack/language/core/builtin/struct";
+import { isStruct, ImmutableStruct } from "@destack/language/core/builtin/struct";
 import type { Float32, UInt32 } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -139,7 +139,7 @@ export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Ty
 /**
  * The constraint of a string.
  */
-export class StringConstraint extends StructFrozen {
+export class StringConstraint extends ImmutableStruct {
   static metatype: StructType = StructType.STRING_CONSTRAINT;
   static __isFrozen__: boolean = true;
 
@@ -241,7 +241,7 @@ registerStructClass(StructType.STRING_CONSTRAINT, StringConstraint);
 /**
  * The constraint of a number.
  */
-export class NumberConstraint extends StructFrozen {
+export class NumberConstraint extends ImmutableStruct {
   static metatype: StructType = StructType.NUMBER_CONSTRAINT;
   static __isFrozen__: boolean = true;
 
@@ -355,7 +355,7 @@ registerStructClass(StructType.NUMBER_CONSTRAINT, NumberConstraint);
 /**
  * The constraint of a collection.
  */
-export class CollectionConstraint extends StructFrozen {
+export class CollectionConstraint extends ImmutableStruct {
   static metatype: StructType = StructType.COLLECTION_CONSTRAINT;
   static __isFrozen__: boolean = true;
 
@@ -449,7 +449,7 @@ registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
  *  - Literal: a constant value
  *  - Union: a tagged union of heterogeneous values (declaration only)
  */
-export class Type extends StructFrozen {
+export class Type extends ImmutableStruct {
   static metatype: StructType = StructType.TYPE;
   static __isFrozen__: boolean = true;
 

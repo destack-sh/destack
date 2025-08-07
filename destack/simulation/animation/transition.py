@@ -4,9 +4,9 @@ from destack.core import (
     Entity,
     EnumType,
     Float32,
+    ImmutableStruct,
     NodeType,
     OptionEnum,
-    StructFrozen,
     StructType,
     TraitType,
     declare_entity,
@@ -37,7 +37,7 @@ class SpringType(OptionEnum):
 
 
 @declare_struct(StructType.TRANSITION, frozen=True)
-class Transition(StructFrozen):
+class Transition(ImmutableStruct):
     """A transition value."""
 
     type: TransitionType = declare_property(100, default=TransitionType.TWEEN, is_repr=True)

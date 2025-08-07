@@ -194,7 +194,7 @@ def _index_module(
                 children_paths.append(child_module.path)
 
         module.children_paths = children_paths  # type: ignore (frozen)
-        module._invalidate_frozen_cache()
+        module._invalidate_immutable()
 
     return module
 

@@ -7,7 +7,7 @@ import type { MethodCardinality, MethodType } from "@destack/language/core/built
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { PackedObjectCache } from "@destack/language/core/builtin/object";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
-import { StructFrozen } from "@destack/language/core/builtin/struct";
+import { ImmutableStruct } from "@destack/language/core/builtin/struct";
 import type { Datetime, UInt16, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
@@ -27,7 +27,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * Definition of a builtin Method.
  */
-export class MethodDefinition extends StructFrozen {
+export class MethodDefinition extends ImmutableStruct {
   static metatype: StructType = StructType.METHOD_DEFINITION;
   static __isFrozen__: boolean = true;
 

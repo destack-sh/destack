@@ -161,7 +161,6 @@ dependencies = [
  "clap",
  "itoa",
  "slab",
- "tmpfile",
  "uuid",
 ]
 
@@ -173,7 +172,6 @@ dependencies = [
  "clap",
  "destack",
  "itoa",
- "tmpfile",
  "tokio",
  "uuid",
 ]
@@ -358,12 +356,6 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
-
-[[package]]
-name = "tmpfile"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70792bb5e9b3c542ef963da937f81eb674d90e1952d9f18ddb21dbaa46b78aee"
 
 [[package]]
 name = "tokio"

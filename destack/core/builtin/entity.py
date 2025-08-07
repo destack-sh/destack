@@ -98,7 +98,7 @@ def declare_entity(
             is_abstract=is_abstract,
             is_final=is_final,
             is_singleton=is_singleton,
-            is_frozen=False,
+            is_immutable=False,
             # inheritance
             traits=traits,
             # content

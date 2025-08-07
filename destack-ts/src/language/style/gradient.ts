@@ -22,7 +22,7 @@ import {
   type Materialization,
   type Node,
   NodeType,
-  StructFrozen,
+  ImmutableStruct,
   StructType,
 } from "@destack/language/core";
 import type { Axis2 } from "@destack/language/geometry";
@@ -58,7 +58,7 @@ registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
 /**
  * A gradient stop with color and position.
  */
-export class GradientStop extends StructFrozen {
+export class GradientStop extends ImmutableStruct {
   static metatype: StructType = StructType.GRADIENT_STOP;
   static __isFrozen__: boolean = true;
 
@@ -159,7 +159,7 @@ registerStructClass(StructType.GRADIENT_STOP, GradientStop);
 /**
  * A gradient value.
  */
-export class Gradient extends StructFrozen {
+export class Gradient extends ImmutableStruct {
   static metatype: StructType = StructType.GRADIENT;
   static __isFrozen__: boolean = true;
 

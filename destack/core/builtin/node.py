@@ -40,7 +40,7 @@ def _process_node_cls(
     is_abstract: bool,
     is_final: bool,
     is_singleton: bool,
-    is_frozen: bool,
+    is_immutable: bool,
     # inheritance
     traits: tuple[TraitType, ...],
     # content
@@ -77,7 +77,7 @@ def _process_node_cls(
                     if event_type not in all_event_types:
                         all_event_types.append(event_type)
     if NodeType.EVENT in inherits:
-        is_frozen = True  # Events are always frozen
+        is_immutable = True  # Events are always frozen
 
     # declaration
     declaration = NodeDeclaration(
@@ -90,7 +90,7 @@ def _process_node_cls(
         kind=ObjectKind.NODE,
         stability=ObjectStability.DYNAMIC,
         is_abstract=is_abstract,
-        is_frozen=is_frozen,
+        is_immutable=is_immutable,
         is_final=is_final,
         is_singleton=is_singleton,
         # inherits
@@ -228,7 +228,7 @@ def _declare_node(
             is_abstract=is_abstract,
             is_final=is_final,
             is_singleton=is_singleton,
-            is_frozen=frozen,
+            is_immutable=frozen,
             # inheritance
             traits=traits,
             base_struct_type=base_struct_type,
