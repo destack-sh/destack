@@ -70,6 +70,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         102,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -84,6 +85,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         104,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -98,6 +100,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         106,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -112,6 +115,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         108,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -126,6 +130,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         110,
         operator=FunctionOperator.ABS,
+        alias_of="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector2":
@@ -140,6 +145,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         112,
         operator=FunctionOperator.NEG,
+        alias_of="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector2":
@@ -149,6 +155,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         113,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -158,6 +165,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         114,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -167,6 +175,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         115,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -176,6 +185,7 @@ class Vector2(ImmutableStruct):
     @declare_method(
         116,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: Union["Vector2", Float32]) -> "Vector2":
@@ -320,6 +330,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         102,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -334,6 +345,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         104,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -348,6 +360,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         106,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -362,6 +375,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         108,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -376,6 +390,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         110,
         operator=FunctionOperator.ABS,
+        alias_of="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector3":
@@ -390,6 +405,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         112,
         operator=FunctionOperator.NEG,
+        alias_of="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector3":
@@ -399,6 +415,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         113,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -408,6 +425,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         114,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -417,6 +435,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         115,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -426,6 +445,7 @@ class Vector3(ImmutableStruct):
     @declare_method(
         116,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: Union["Vector3", Float32]) -> "Vector3":
@@ -575,6 +595,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         102,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -589,6 +610,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         104,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -603,6 +625,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         106,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -617,6 +640,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         108,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -631,6 +655,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         110,
         operator=FunctionOperator.ABS,
+        alias_of="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector4":
@@ -645,6 +670,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         112,
         operator=FunctionOperator.NEG,
+        alias_of="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector4":
@@ -654,6 +680,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         113,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -663,6 +690,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         114,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -672,6 +700,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         115,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -681,6 +710,7 @@ class Vector4(ImmutableStruct):
     @declare_method(
         116,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: Union["Vector4", Float32]) -> "Vector4":
@@ -805,6 +835,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         102,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -819,6 +850,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         104,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -833,6 +865,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         106,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -847,6 +880,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         108,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -861,6 +895,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         110,
         operator=FunctionOperator.ABS,
+        alias_of="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector2i":
@@ -875,6 +910,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         112,
         operator=FunctionOperator.NEG,
+        alias_of="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector2i":
@@ -884,6 +920,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         113,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -893,6 +930,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         114,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -902,6 +940,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         115,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -911,6 +950,7 @@ class Vector2i(ImmutableStruct):
     @declare_method(
         116,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: Union["Vector2i", Int32]) -> "Vector2i":
@@ -1055,6 +1095,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         102,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1069,6 +1110,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         104,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1083,6 +1125,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         106,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1097,6 +1140,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         108,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1111,6 +1155,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         110,
         operator=FunctionOperator.ABS,
+        alias_of="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector3i":
@@ -1125,6 +1170,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         112,
         operator=FunctionOperator.NEG,
+        alias_of="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector3i":
@@ -1134,6 +1180,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         113,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1143,6 +1190,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         114,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1152,6 +1200,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         115,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1161,6 +1210,7 @@ class Vector3i(ImmutableStruct):
     @declare_method(
         116,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: Union["Vector3i", Int32]) -> "Vector3i":
@@ -1310,6 +1360,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         102,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __add__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
@@ -1324,6 +1375,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         104,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __sub__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
@@ -1338,6 +1390,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         106,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __mul__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
@@ -1352,6 +1405,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         108,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __truediv__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
@@ -1366,6 +1420,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         110,
         operator=FunctionOperator.ABS,
+        alias_of="abs",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __abs__(self) -> "Vector4i":
@@ -1380,6 +1435,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         112,
         operator=FunctionOperator.NEG,
+        alias_of="neg",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __neg__(self) -> "Vector4i":
@@ -1389,6 +1445,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         113,
         operator=FunctionOperator.ADD,
+        alias_of="add",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __radd__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
@@ -1398,6 +1455,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         114,
         operator=FunctionOperator.SUB,
+        alias_of="sub",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rsub__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
@@ -1407,6 +1465,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         115,
         operator=FunctionOperator.MUL,
+        alias_of="mul",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rmul__(self, other: Union["Vector4i", Int32]) -> "Vector4i":
@@ -1416,6 +1475,7 @@ class Vector4i(ImmutableStruct):
     @declare_method(
         116,
         operator=FunctionOperator.TRUEDIV,
+        alias_of="truediv",
         languages=(RuntimeLanguage.PYTHON,),
     )
     def __rtruediv__(self, other: Union["Vector4i", Int32]) -> "Vector4i":

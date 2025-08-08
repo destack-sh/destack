@@ -1,6 +1,5 @@
 import dataclasses
 import inspect
-import types
 import typing
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
@@ -251,7 +250,7 @@ class FunctionDeclaration(Declaration):
     inner_func: Callable
     is_async: bool
     is_internal: bool
-    component: type_["Object"] | type[types.ModuleType] | None
+    component: type_["Object"] | None
     original_component: type_["Object"] | None
 
     # availability
@@ -358,7 +357,7 @@ class MethodDeclaration(FunctionDeclaration):
     # meta
     type: "MethodType"
     is_implemented: bool
-    proxies_method: Optional[str]
+    alias_of: Optional[str]
 
     # content
     input_properties: tuple["PropertyDeclaration", ...]
@@ -375,7 +374,7 @@ def _process_method(
     operator: "FunctionOperator | None",
     is_implemented: bool,
     is_internal: bool,
-    proxies_method: Optional[str],
+    alias_of: Optional[str],
     # availability
     platforms: tuple["RuntimePlatform", ...],
     languages: tuple["RuntimeLanguage", ...],
@@ -440,7 +439,7 @@ def _process_method(
         is_async=is_async,
         is_internal=is_internal,
         is_implemented=is_implemented,
-        proxies_method=proxies_method,
+        alias_of=alias_of,
         component=None,
         original_component=None,
         # availability
@@ -466,7 +465,7 @@ def declare_method(
     operator: "FunctionOperator | None" = None,
     is_implemented: bool = False,
     is_internal: bool = False,
-    proxies_method: Optional[str] = None,
+    alias_of: Optional[str] = None,
     # availability
     platforms: tuple["RuntimePlatform", ...] = (),
     languages: tuple["RuntimeLanguage", ...] = (),
@@ -488,7 +487,7 @@ def declare_method(
             operator=operator,
             is_implemented=is_implemented,
             is_internal=is_internal,
-            proxies_method=proxies_method,
+            alias_of=alias_of,
             # availability
             platforms=platforms,
             languages=languages,
