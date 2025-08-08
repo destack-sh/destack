@@ -20,14 +20,19 @@ smallvec = { workspace = true }
 regex = { workspace = true }
 uuid = { workspace = true }
 thiserror = { workspace = true }
+mio = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = "0.7.9"
 
 [dev-dependencies]
+loom = { workspace = true }
 pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
 thiserror = { workspace = true }
 rstest = { workspace = true }
 tempfile = { workspace = true }
 wasm-bindgen-test = { workspace = true }
+
+[lints]
+workspace = true

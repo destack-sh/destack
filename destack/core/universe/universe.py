@@ -140,7 +140,7 @@ class Universe(Entity):
         description="The 'head' Snapshot.id, the current active Snapshot.",
     )
 
-    ACTOR: NodeReference = declare_constant(
+    GOD: NodeReference = declare_constant(
         40,
         description="God Himself, the creator of the Universe.",
         value=lambda: NodeReference(
@@ -151,7 +151,7 @@ class Universe(Entity):
             snapshot_id=_HEAD_SNAPSHOT_ID,
         ),
     )
-    CLIENT: NodeReference = declare_constant(
+    GOD_HANDSET: NodeReference = declare_constant(
         41,
         description="God's terminal, for when He needs to do something.",
         value=lambda: NodeReference(
