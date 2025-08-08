@@ -1,6 +1,6 @@
 {
   "name": "destack-ts-web",
-  "version": "2025.08.07.0",
+  "version": "2025.08.08.1",
   "private": true,
   "type": "module",
   "bun": {
@@ -29,7 +29,6 @@
     "@codemirror/state": "catalog:web",
     "@codemirror/view": "catalog:web",
     "destack": "link:destack-ts",
-    "idb": "catalog:web",
     "motion": "catalog:web",
     "pyodide": "catalog:",
     "preact": "catalog:web",

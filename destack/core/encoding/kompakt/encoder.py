@@ -195,27 +195,24 @@ class KompaktEncoder(Encoder):
         cardinality = TypeCardinality(preamble & 0b1111)
         scalar_type = ScalarType((preamble >> 4) & 0b111) if (preamble >> 4) & 0b111 else None
         is_required = bool((preamble >> 7) & 0b1)
-        key_type = None
-        value_type = None
-        element_types = None
-        node_types = None
-        struct_type = None
-        primitive_type = None
-        enum_type = None
+        key_type: Type | None = None
+        value_type: Type | None = None
+        element_types: list[Type] | None = None
+        node_types: list[NodeType] | None = None
+        struct_type: StructType | None = None
+        primitive_type: PrimitiveType | None = None
+        enum_type: EnumType | None = None
         # scalar (type folded into preamble)
         if cardinality == TypeCardinality.SCALAR:
             assert scalar_type is not None, f"no scalar type for {cardinality}"
             if scalar_type == ScalarType.PRIMITIVE:
-                primitive_type = PrimitiveType.__options_by_id__[reader.read_uint8()]
+                primitive_type = PrimitiveType(reader.read_uint8())
             elif scalar_type == ScalarType.ENUM:
-                enum_type = EnumType.__options_by_id__[reader.read_uint32()]
+                enum_type = EnumType(reader.read_uint32())
             elif scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
-                node_types = [
-                    NodeType.__options_by_id__[reader.read_uint32()]
-                    for _ in range(reader.read_uint32())
-                ]
+                node_types = [NodeType(reader.read_uint32()) for _ in range(reader.read_uint32())]
             elif scalar_type == ScalarType.STRUCT:
-                struct_type = StructType.__options_by_id__[reader.read_uint32()]
+                struct_type = StructType(reader.read_uint32())
             elif scalar_type == ScalarType.HANDLE:
                 raise NotImplementedError(f"cannot unpack handle: {scalar_type!r}")
             elif scalar_type == ScalarType.UNION:
@@ -657,7 +654,7 @@ class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
         _session: "Session | None",
         _options: EncoderOptions,
     ) -> NodeReference:
-        type = NodeType.__options_by_id__[_reader.read_uint32()]
+        type = NodeType(_reader.read_uint32())
         id = _reader.read_uuid()
         space_id = _reader.read_uuid()
         definition_id = _reader.read_uuid()

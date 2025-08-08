@@ -3,23 +3,22 @@ resolver = "2"
 members = ["destack-rs/destack", "destack-rs-system/destack_system"]
 
 [workspace.package]
-version = "2025.8.7-0"
+version = "2025.8.8-1"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
-repository = "https://github.com/destack/destack"
 rust-version = "1.88.0"
 
 [workspace.dependencies]
 destack = { path = "destack-rs/destack" }
 # dependencies
-ahash = "0.8.12"
 bytes = "1.10.1"
 clap = "4.5.43"
 tokio = "1.47.1"
 smallvec = "1.15.1"
 regex = "1.11.1"
 uuid = { version = "1.17.0", features = ["v4", "v5", "v7"] }
+io-uring = "0.7.9"
 # dev dependencies
 pretty_assertions = "1.4.1"
 tempfile = "3.20.0"

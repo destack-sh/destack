@@ -15,7 +15,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2025.08.07.0"
+VERSION = "2025.08.08.1"
 EPSILON = 1e-6
 EPSILON_EXPONENT = 6
 
@@ -29,6 +29,4 @@ EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
 
-ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
-    "active_session", default=None
-)
+ACTIVE_SESSION = contextvars.ContextVar[Optional["Session"]]("active_session", default=None)

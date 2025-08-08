@@ -1,9 +1,6 @@
 import types
 import typing
-from typing import (
-    TYPE_CHECKING,
-    TypeAliasType,
-)
+from typing import TYPE_CHECKING, TypeAliasType
 
 from ._hoisted import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
@@ -25,10 +22,10 @@ type_ = type
 def resolve_enum_type(class_name: str) -> EnumType | None:
     """Get the EnumType for the given enum name."""
     enum_name = _to_casing(class_name, _Casing.ALL_CAPS)
-    if enum_type := EnumType.__options_by_alias__.get(enum_name):
+    if enum_type := EnumType.__members__.get(enum_name):
         return enum_type
     enum_name = class_name.upper()
-    if enum_type := EnumType.__options_by_alias__.get(enum_name):
+    if enum_type := EnumType.__members__.get(enum_name):
         return enum_type
     return None
 
@@ -36,10 +33,10 @@ def resolve_enum_type(class_name: str) -> EnumType | None:
 def resolve_struct_type(class_name: str) -> StructType | None:
     """Get the StructType for the given struct name."""
     struct_name = _to_casing(class_name, _Casing.ALL_CAPS)
-    if struct_type := StructType.__options_by_alias__.get(struct_name):
+    if struct_type := StructType.__members__.get(struct_name):
         return struct_type
     struct_name = class_name.upper()
-    if struct_type := StructType.__options_by_alias__.get(struct_name):
+    if struct_type := StructType.__members__.get(struct_name):
         return struct_type
     return None
 
@@ -47,10 +44,10 @@ def resolve_struct_type(class_name: str) -> StructType | None:
 def resolve_handle_type(class_name: str) -> HandleType | None:
     """Get the HandleType for the given handle name."""
     handle_name = _to_casing(class_name, _Casing.ALL_CAPS)
-    if handle_type := HandleType.__options_by_alias__.get(handle_name):
+    if handle_type := HandleType.__members__.get(handle_name):
         return handle_type
     handle_name = class_name.upper()
-    if handle_type := HandleType.__options_by_alias__.get(handle_name):
+    if handle_type := HandleType.__members__.get(handle_name):
         return handle_type
     return None
 
@@ -58,9 +55,9 @@ def resolve_handle_type(class_name: str) -> HandleType | None:
 def resolve_node_types(class_name: str) -> tuple[NodeType, ...] | None:
     """Get the NodeType for the given node name."""
     enum_name = _to_casing(class_name, _Casing.ALL_CAPS)
-    if node_type := NodeType.__options_by_alias__.get(enum_name):
+    if node_type := NodeType.__members__.get(enum_name):
         return (node_type,)
-    if node_type := NodeType.__options_by_alias__.get(class_name.upper()):
+    if node_type := NodeType.__members__.get(class_name.upper()):
         return (node_type,)
     if class_name == "Node":
         return tuple(NodeType)
