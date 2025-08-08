@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Self, final
 
 from ..builtin import (
+    MethodDeclaration,
     MethodType,
     StructType,
     UInt16,
@@ -27,7 +28,7 @@ class MethodDefinition(FunctionDefinition):
 
     # meta
     type: MethodType = declare_property(100)
-    proxies_method: Optional[UInt16] = declare_property(120)
+    alias_of: Optional[UInt16] = declare_property(120)
 
     # content
     input_properties: list["PropertyDefinition"] = declare_property(131)
@@ -37,6 +38,18 @@ class MethodDefinition(FunctionDefinition):
     def from_declaration(cls, declaration: "MethodDeclaration") -> "Self":
         from .property import PropertyDefinition
 
+        alias_of = None
+        if declaration.alias_of:
+            assert declaration.component is not None, (
+                f"alias_of requires a component: {declaration!r}"
+            )
+            method = declaration.component.__dict__.get(declaration.alias_of)
+            if not isinstance(method, MethodDeclaration):
+                raise ValueError(
+                    f"alias_of='{declaration.alias_of}' is not a method in {declaration.component.__name__}"
+                )
+            alias_of = method.id
+
         return cls(
             # meta
             id=declaration.id,
@@ -45,7 +58,7 @@ class MethodDefinition(FunctionDefinition):
             description=declaration.description,
             is_async=declaration.is_async,
             is_internal=declaration.is_internal,
-            proxies_method=declaration.proxies_method,
+            alias_of=alias_of,
             # availability
             platforms=list(declaration.platforms),
             languages=list(declaration.languages),

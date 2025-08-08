@@ -354,24 +354,34 @@ def _show_methods(methods: list["MethodDefinition"], title: str = "Methods") -> 
     """Display methods section."""
     console.print("\n" + console.color(f"{title} ({len(methods)}):", "yellow", "bold"))
     for method in methods:
-        input_signature_parts: list[str] = []
-        for input_property in method.input_properties:
-            input_property_str = f"{console.color(input_property.name, 'white')}: {console.color(_render_type(input_property.type), 'yellow')}"
-            if input_property.default_value is not None:
-                input_property_str = (
-                    f"{input_property_str} = {_render_value(input_property.default_value)}"
-                )
-            input_signature_parts.append(input_property_str)
-        input_signature = ", ".join(input_signature_parts)
-        if method.output_property is not None:
-            output_signature = (
-                f"{console.color(_render_type(method.output_property.type), 'yellow')}"
+        # check if this method is an alias
+        if method.alias_of is not None:
+            # find the aliased method by id
+            aliased_method = next((m for m in methods if m.id == method.alias_of), None)
+            assert aliased_method is not None, f"aliased method #{method.alias_of} not found"
+            console.print(
+                f"  {console.color(method.name, 'white')} ({console.color(str(method.id), 'dim')}) {console.color('->', 'dim')} {console.color(f' = {aliased_method.name}', 'cyan')}"
             )
         else:
-            output_signature = "None"
-        console.print(
-            f"  {console.color(method.name, 'white')} ({console.color(str(method.id), 'dim')}) {console.color('(', 'dim')}{input_signature}{console.color(')', 'dim')} {console.color('->', 'dim')} {output_signature}"
-        )
+            # show normal method signature
+            input_signature_parts: list[str] = []
+            for input_property in method.input_properties:
+                input_property_str = f"{console.color(input_property.name, 'white')}: {console.color(_render_type(input_property.type), 'yellow')}"
+                if input_property.default_value is not None:
+                    input_property_str = (
+                        f"{input_property_str} = {_render_value(input_property.default_value)}"
+                    )
+                input_signature_parts.append(input_property_str)
+            input_signature = ", ".join(input_signature_parts)
+            if method.output_property is not None:
+                output_signature = (
+                    f"{console.color(_render_type(method.output_property.type), 'yellow')}"
+                )
+            else:
+                output_signature = "None"
+            console.print(
+                f"  {console.color(method.name, 'white')} ({console.color(str(method.id), 'dim')}) {console.color('(', 'dim')}{input_signature}{console.color(')', 'dim')} {console.color('->', 'dim')} {output_signature}"
+            )
 
 
 def _show_actions(actions: list["ActionDefinition"], title: str = "Actions") -> None:

@@ -1314,9 +1314,7 @@ def _process_object_cls[ObjectT: Object](
     }
     for name, attribute in list(cls.__dict__.items()):
         if (
-            name.startswith("__")
-            or type(attribute).__name__.startswith("_")
-            or inspect.ismethod(attribute)
+            inspect.ismethod(attribute)
             or inspect.isfunction(attribute)
             or isinstance(attribute, (property, classmethod, staticmethod))
             or name in ("metakind", "metatype")
@@ -1337,10 +1335,11 @@ def _process_object_cls[ObjectT: Object](
                 attribute.original_component = cls
         elif isinstance(attribute, (MethodDeclaration, ActionDeclaration)):
             # methods/actions are replaced later with their callables
+            attribute.name = intern(name)
             attribute.component = cls
             if attribute.original_component is None:
                 attribute.original_component = cls
-        else:
+        elif not name.startswith("__"):
             raise TypeError(
                 f"{cls.__name__}.{name} is not a Property or Constant: {attribute} ({type(attribute)})"
             )
