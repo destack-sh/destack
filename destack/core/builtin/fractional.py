@@ -23,6 +23,9 @@ __constants__ = (
 
 
 def _get_integer_length(head: str) -> int:
+    """
+    Gets the length of the integer part of the given order key.
+    """
     if "a" <= head <= "z":
         return ord(head) - ord("a") + 2
     elif "A" <= head <= "Z":
@@ -31,14 +34,9 @@ def _get_integer_length(head: str) -> int:
         raise ValueError(f"invalid order key head: {head}")
 
 
-def _validate_integer(int: str) -> None:
-    if len(int) != _get_integer_length(int[0]):
-        raise ValueError(f"invalid integer part of order key: {int}")
-
-
 def _midpoint(a: str, b: Optional[str]) -> str:
     """
-    Gets the midpoint between two strings, `a` and `b`, in the given `digits` base.
+    Gets the midpoint between two strings, `a` and `b` in base 95.
     `a` may be empty string, `b` is null or non-empty string.
     `a < b` lexicographically if `b` is non-null.
     No trailing zeros allowed.
@@ -80,10 +78,9 @@ def _midpoint(a: str, b: Optional[str]) -> str:
 @declare_method(301, is_implemented=True)
 def increment_integer(x: str) -> Optional[str]:
     """
-    Increments the given integer `x` in the given `digits` base.
+    Increments the given integer `x` in base 95.
     Returns `None` if the result is too large.
     """
-    _validate_integer(x)
     head, *digs = x
     carry = True
     for i in range(len(digs) - 1, -1, -1):
@@ -112,9 +109,8 @@ def increment_integer(x: str) -> Optional[str]:
 @declare_method(302, is_implemented=True)
 def decrement_integer(x: str) -> Optional[str]:
     """
-    Decrements the given integer `x` in the given `digits` base.
+    Decrements the given integer `x` in base 95.
     """
-    _validate_integer(x)
     head, *digs = x
     borrow = True
     for i in range(len(digs) - 1, -1, -1):

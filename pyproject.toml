@@ -85,10 +85,10 @@ known-first-party = ["destack"]
 #
 
 [tool.pyright]
-include = ["destack", "destack-py", "destack-py-server", "destack-py-web"]
+include = ["destack", "destack-py", "destack-py-server"]
 ignore = ["*/venv*"]
 venv = "destack-py-server/venv"
-extraPaths = ["destack", "destack-py", "destack-py-server", "destack-py-web"]
+extraPaths = ["destack", "destack-py", "destack-py-server"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true
