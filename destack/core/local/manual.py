@@ -36,7 +36,7 @@ type _Definition = (
     "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition"
 )
 
-cli = create_cli("manual")
+cli = create_cli("manual", "Interactive manual for the schema.")
 
 
 @dataclass(slots=True)
@@ -47,8 +47,7 @@ class ManualContext:
 
 @cli.command()
 def manual():
-    """Interactive manual for the Destack schema."""
-    # import here to avoid circular imports at module level
+    """Interactive manual for the schema."""
     from destack import VERSION
 
     # create the REPL

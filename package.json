@@ -1,6 +1,6 @@
 {
   "name": "destack-monorepo",
-  "version": "2025.08.07.0",
+  "version": "2025.08.08.1",
   "private": true,
   "type": "module",
   "workspaces": {
@@ -45,7 +45,6 @@
         "mitata": "^1.0.34"
       },
       "web": {
-        "idb": "^8.0.3",
         "preact": "^10.26.9",
         "motion": "^12.23.6",
         "@codemirror/autocomplete": "^6.18.6",

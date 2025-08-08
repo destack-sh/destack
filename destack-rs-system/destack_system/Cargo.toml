@@ -5,7 +5,6 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-repository.workspace = true
 rust-version.workspace = true
 
 [[bin]]
@@ -19,7 +18,8 @@ clap = { workspace = true }
 tokio = { workspace = true }
 smallvec = { workspace = true }
 regex = { workspace = true }
-uuid = { workspace = true }	
+uuid = { workspace = true }
+io-uring = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

@@ -30,7 +30,7 @@ class EnumDeclaration:
     options: list["OptionDeclaration"]
 
 
-class OptionDeclaration(int):
+class OptionDeclaration(int):  # pretend to be an enum member
     # meta
     id: int
     name: str = UNSET
@@ -110,6 +110,7 @@ def _process_enum_cls(
     cls.__options__ = options  # type: ignore
     cls.__options_by_id__ = options_by_id  # type: ignore
     cls.__options_by_alias__ = options_by_alias  # type: ignore
+    cls.__members__ = {**options_by_id, **options_by_alias}  # type: ignore
 
     return cls, declaration
 
@@ -209,17 +210,18 @@ class _EnumMeta(type):  # type: ignore
             assert_never(value)
 
 
-class Enum(
-    # pretend this is an IntEnum for regular use
+class Enum(  # type: ignore (we're just pretending to be an IntEnum, so metaclass conflict is fine)
     enum.IntEnum if TYPE_CHECKING else object,
     metaclass=enum.EnumMeta if TYPE_CHECKING else _EnumMeta,
 ):
     metatype: ClassVar["EnumType"]  # type: ignore
-    __declaration__: ClassVar[EnumDeclaration]  # type: ignore
+    __declaration__: ClassVar[EnumDeclaration]
 
     __options__: ClassVar[list[Self]] = []
     __options_by_id__: ClassVar[dict[int, Self]] = {}
     __options_by_alias__: ClassVar[dict[str, Self]] = {}
+
+    __members__: ClassVar[dict[str | int, Self]] = {}  # alias to __options_by_alias__
 
 
 class OptionEnum(Enum):
@@ -235,7 +237,7 @@ class FlagEnum(enum.IntFlag if TYPE_CHECKING else Enum):
 #
 
 # NOTE: we define :Casing here because we use it for declaring enums
-#  (and we redefine it for export in casing.py)
+#  (we declare it for export in casing.py)
 
 
 class _Casing(enum.IntEnum):  # see :Casing

@@ -14,7 +14,6 @@ from ..builtin import (
     HandleType,
     ImmutableStruct,
     NodeType,
-    Object,
     ObjectKind,
     OptionEnum,
     PropertyDeclaration,
@@ -29,9 +28,7 @@ from ..builtin import (
 
 if TYPE_CHECKING:
     from destack import (
-        CustomEventDefinition,
         CustomPropertyDefinition,
-        CustomStructDefinition,
         Entity,
         Handle,
         Node,
@@ -54,41 +51,6 @@ class ObjectDefinitionReference(ImmutableStruct):
     handle_type: Optional[HandleType] = declare_property(104, is_repr=True)
     definition: Optional["Entity"] = declare_property(106, is_repr=True)
 
-    @property
-    def object_cls(self) -> type_[Object] | None:
-        if self.kind == ObjectKind.NODE:
-            assert self.node_type is not None, f"no node_type for {self!r}"
-            return NODE_CLASS_BY_TYPE.get(self.node_type)
-        elif self.kind == ObjectKind.STRUCT:
-            assert self.struct_type is not None, f"no struct_type for {self!r}"
-            return STRUCT_CLASS_BY_TYPE.get(self.struct_type)
-        elif self.kind == ObjectKind.HANDLE:
-            assert self.handle_type is not None, f"no handle_type for {self!r}"
-            return HANDLE_CLASS_BY_TYPE.get(self.handle_type)
-        elif self.kind == ObjectKind.MODULE:
-            raise NotImplementedError(f"cannot resolve ModuleDefinition reference: {self!r}")
-        else:
-            assert_never(self.kind)
-
-    def resolve_property_maybe(self, name: str | int) -> "PropertyDeclaration | None":
-        """Resolve a Property in this definition."""
-        object_cls = self.object_cls
-        if object_cls is None:
-            raise ValueError(f"could not resolve {self!r}")
-        if isinstance(name, str):
-            return object_cls.__properties_by_alias__.get(name)
-        elif isinstance(name, int):
-            return object_cls.__properties_by_id__.get(name)
-        else:
-            assert_never(name)
-
-    def resolve_property(self, name: str) -> "PropertyDeclaration":
-        """Resolve a Property in this definition (error if not found)."""
-        resolved = self.resolve_property_maybe(name)
-        if resolved is None:
-            raise LookupError(f"could not find property {name!r} in {self!r}")
-        return resolved
-
     @classmethod
     def of(
         cls,
@@ -97,11 +59,9 @@ class ObjectDefinitionReference(ImmutableStruct):
             "type[Node]",
             "type[Struct]",
             "type[Handle]",
-            "CustomEventDefinition",
-            "CustomStructDefinition",
         ],
     ) -> "ObjectDefinitionReference":
-        from destack import CustomEventDefinition, CustomStructDefinition, Handle, Node
+        from destack import Handle, Node
 
         if isinstance(definition, NodeType):
             return ObjectDefinitionReference(kind=ObjectKind.NODE, node_type=definition)
@@ -122,8 +82,6 @@ class ObjectDefinitionReference(ImmutableStruct):
                 )
             else:
                 assert_never(definition)
-        elif isinstance(definition, (CustomEventDefinition, CustomStructDefinition)):
-            raise NotImplementedError(f"unexpected object definition reference: {definition!r}")
         else:
             assert_never(definition)
 

@@ -88,7 +88,7 @@ class JsonEncoder(Encoder):
         key: tuple[ObjectKind, int]
         if kind is None or type is None:
             metakind_key = self.get_target_property_key(METAKIND_PROPERTY)
-            metakind = self.unpack_scalar_enum(ObjectKind, value[metakind_key])
+            metakind = cast(ObjectKind, self.unpack_scalar_enum(ObjectKind, value[metakind_key]))
             if metakind == ObjectKind.NODE:
                 metatype_key = self.get_target_property_key(METATYPE_PROPERTY)
                 metatype = self.unpack_scalar_enum(NodeType, value[metatype_key])
@@ -97,8 +97,8 @@ class JsonEncoder(Encoder):
                 metatype_key = self.get_target_property_key(METATYPE_PROPERTY)
                 metatype = self.unpack_scalar_enum(StructType, value[metatype_key])
                 key = (metakind, metatype)
-            elif metakind == ObjectKind.HANDLE:
-                raise NotImplementedError(f"cannot unpack Handle: {metakind!r}")
+            elif metakind == ObjectKind.HANDLE or metakind == ObjectKind.MODULE:
+                raise NotImplementedError(f"cannot unpack {metakind!r}")
             else:
                 assert_never(metakind)
         else:
@@ -451,9 +451,9 @@ class JsonEncoder(Encoder):
         """Pack an enum value to JSON."""
         return value.name
 
-    def unpack_scalar_enum(self, enum_cls: type[Enum], value: Any) -> Any:
+    def unpack_scalar_enum[T: Enum](self, enum_cls: type[T], value: Any) -> T:
         """Unpack an enum value from JSON."""
-        return enum_cls[value]
+        return enum_cls(value)
 
     @override
     def pack_value_binary(
