@@ -10,18 +10,14 @@ from destack.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CL
 
 from ..builtin import (
     UUID,
-    EnumType,
     HandleType,
     ImmutableStruct,
     NodeType,
     ObjectKind,
-    OptionEnum,
     PropertyDeclaration,
     Struct,
     StructType,
     UInt8,
-    declare_enum,
-    declare_option,
     declare_property,
     declare_struct,
 )
@@ -86,14 +82,6 @@ class ObjectDefinitionReference(ImmutableStruct):
             assert_never(definition)
 
 
-@declare_enum(EnumType.PROPERTY_REFERENCE_TYPE)
-class PropertyReferenceType(OptionEnum):
-    """The type of a property reference."""
-
-    BUILTIN = declare_option(1)
-    CUSTOM = declare_option(2)
-
-
 @declare_struct(
     StructType.PROPERTY_REFERENCE,
     frozen=True,
@@ -105,7 +93,6 @@ class PropertyReference(ImmutableStruct):
     A reference to a builtin object's Property.
     """
 
-    type: PropertyReferenceType = declare_property(100, is_repr=True)
     node_type: NodeType | None = declare_property(101, is_repr=True)
     struct_type: StructType | None = declare_property(103, is_repr=True)
     handle_type: HandleType | None = declare_property(104, is_repr=True)
@@ -131,23 +118,17 @@ class PropertyReference(ImmutableStruct):
 
     def resolve_maybe(self) -> "PropertyDefinition | CustomPropertyDefinition | None":
         """Resolves the property reference to a Property."""
-        if self.type == PropertyReferenceType.BUILTIN:
-            if (node_type := self.node_type) is not None:
-                object_cls = NODE_CLASS_BY_TYPE[node_type]
-            elif (struct_type := self.struct_type) is not None:
-                object_cls = STRUCT_CLASS_BY_TYPE[struct_type]
-            elif (handle_type := self.handle_type) is not None:
-                object_cls = HANDLE_CLASS_BY_TYPE[handle_type]
-            else:
-                object_cls = Node
-            assert self.id is not None, f"no id for {self!r}"
-            prop = object_cls.__properties_by_id__.get(self.id)
-            return prop.definition if prop is not None else None
-        elif self.type == PropertyReferenceType.CUSTOM:
-            prop = self.custom_property
-            return prop
+        if (node_type := self.node_type) is not None:
+            object_cls = NODE_CLASS_BY_TYPE[node_type]
+        elif (struct_type := self.struct_type) is not None:
+            object_cls = STRUCT_CLASS_BY_TYPE[struct_type]
+        elif (handle_type := self.handle_type) is not None:
+            object_cls = HANDLE_CLASS_BY_TYPE[handle_type]
         else:
-            return None
+            object_cls = Node
+        assert self.id is not None, f"no id for {self!r}"
+        prop = object_cls.__properties_by_id__.get(self.id)
+        return prop.definition if prop is not None else None
 
     def resolve(self) -> "PropertyDefinition | CustomPropertyDefinition":
         """Resolves the property reference to a Property."""

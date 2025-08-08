@@ -1,7 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-Always type everything properly.
-In Python, prefer Sequence/Mapping/.. and such as return annotation.

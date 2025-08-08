@@ -10,20 +10,30 @@ from typing import (
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLASS_BY_TYPE
 
 from ._const import UNSET
+from ._hoisted import ReferenceType
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
 from .object import Object, ValueFactory, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
-from .universe import EnumType, NodeType, ObjectKind, ObjectStability, StructType, TraitType
+from .universe import (
+    EnumType,
+    NodeType,
+    ObjectKind,
+    ObjectStability,
+    StructType,
+    TraitType,
+)
 from .uuid import UUID
 
 if TYPE_CHECKING:
     from destack import (
+        Branch,
         ConstraintDeclaration,
         IndexDeclaration,
         Node,
         NodeDefinition,
         NodeReference,
         PermissionDeclaration,
+        Snapshot,
         Space,
     )
 
@@ -264,17 +274,20 @@ def _declare_node(
 class Node(Object):
     """
     A Node with some Properties and a persistent identity (its id).
-    Nodes always belong to a Space and are thus identifiable by their (space_id, id) tuple.
+
+    Nodes belong to a Space and are thus identifiable by their (space_id, id) tuple.
     """
 
-    # meta
+    """The kind of Object this is (static)."""
     metakind: ClassVar[ObjectKind] = ObjectKind.NODE
+    """The type of Node this is (static)."""
     metatype: ClassVar[NodeType] = UNSET
+    """The declaration of this Node (static)."""
     __declaration__: ClassVar["NodeDeclaration"]
+    """The definition of this Node (static)."""
     __definition__: ClassVar["NodeDefinition"]
 
     # 1-20: node identity
-    # Object.metatype: 1
     id: UUID = declare_property(
         2,
         is_internal=True,
@@ -291,8 +304,33 @@ class Node(Object):
         is_hash=False,
         is_readonly=True,
         is_identity=True,
+        reference_type=ReferenceType.THIN,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
+        tags=("identity",),
+    )
+    branch: "Branch" = declare_property(
+        6,
+        is_readonly=True,
+        is_internal=True,
+        is_eq=False,
+        is_hash=False,
+        is_identity=True,
+        reference_type=ReferenceType.THIN,
+        default_factory=ValueFactory.BRANCH,
+        description="The Branch this Node is part of.",
+        tags=("identity",),
+    )
+    snapshot: "Snapshot" = declare_property(
+        7,
+        is_readonly=True,
+        is_internal=True,
+        is_eq=False,
+        is_hash=False,
+        is_identity=True,
+        reference_type=ReferenceType.THIN,
+        default_factory=ValueFactory.SNAPSHOT,
+        description="The Snapshot this Node is part of.",
         tags=("identity",),
     )
 

@@ -34,7 +34,6 @@ if TYPE_CHECKING:
         Icon,
         NodeReference,
         Script,
-        Snapshot,
         Tag,
         Value,
     )
@@ -178,30 +177,8 @@ class Entity(Node):
         description="The definition this Entity is an instance of.",
         tags=("identity",),
     )
-    branch: "Branch" = declare_property(
-        12,
-        is_readonly=True,
-        is_internal=True,
-        is_eq=False,
-        is_hash=False,
-        is_identity=True,
-        default_factory=ValueFactory.BRANCH,
-        description="The Branch this Entity is part of.",
-        tags=("identity",),
-    )
-    snapshot: "Snapshot" = declare_property(
-        13,
-        is_readonly=True,
-        is_internal=True,
-        is_eq=False,
-        is_hash=False,
-        is_identity=True,
-        default_factory=ValueFactory.SNAPSHOT,
-        description="The Snapshot this Entity is part of.",
-        tags=("identity",),
-    )
     preceded_by: Optional[Self] = declare_property(
-        14,
+        12,
         is_readonly=True,
         is_internal=True,
         is_eq=False,
@@ -214,7 +191,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         tags=("identity",),
     )
     instance: Optional["Entity"] = declare_property(
-        15,
+        13,
         is_readonly=True,
         is_internal=True,
         is_eq=False,

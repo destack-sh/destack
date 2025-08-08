@@ -3,16 +3,21 @@
 import dataclasses
 from dataclasses import dataclass
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, assert_never
+from typing import TYPE_CHECKING, Any, Literal, assert_never
 
 from destack.registry import (
+    BUILTIN_CLASS_BY_NAME,
     BUILTIN_DEFINITION_BY_NAME,
     ENUM_CLASS_BY_TYPE,
     HANDLE_CLASS_BY_TYPE,
+    HANDLE_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
+    NODE_DEFINITION_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
+    STRUCT_DEFINITION_BY_TYPE,
 )
 
+from .._utils import get_superclasses
 from . import console
 from .parser import create_cli, create_repl
 
@@ -98,6 +103,47 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
         # display the definition
         _show_definition(definition)
 
+    @repl.command(
+        "tree",
+        "Show inheritance tree. Usage: tree <name> [--direction=up|down|both|-d up] [--full|-f]",
+    )
+    def show_tree(*args):
+        """Show inheritance tree for an Object (Node/Struct/Handle)."""
+        if not args:
+            console.error("Please provide a definition name.")
+            return
+        name = args[0]
+        # defaults
+        direction: Literal["up", "down", "both"] = "both"
+        full: bool = True  # go down all the way by default
+
+        # parse options from remaining args
+        for i, raw in enumerate(args[1:]):
+            if raw in ("--full", "-f"):
+                full = True
+            elif raw.startswith("--direction="):
+                _, val = raw.split("=", 1)
+                if val in ("up", "down", "both"):
+                    direction = val  # type: ignore[assignment]
+            elif raw in ("--direction", "-d"):
+                if i + 2 <= len(args) and args[i + 2] in ("up", "down", "both"):
+                    direction = args[i + 2]  # type: ignore[assignment]
+
+        definitions = _find_definition(name)
+        if not definitions:
+            console.error(f"Definition '{name}' not found.")
+            return
+        definition = definitions[0]
+        # if we go down, default to full subtree
+        include_subclasses = full or direction in ("down", "both")
+        tree = _render_inheritance_tree(
+            definition, direction=direction, include_subclasses=include_subclasses
+        )
+        if tree is None:
+            console.warn("Only Objects (Node/Struct/Handle) have inheritance.")
+            return
+        console.section("Inheritance Tree", tree)
+
     @repl.command("back", "Go back to the previously viewed definition")
     def go_back():
         """Navigate back in history."""
@@ -110,6 +156,40 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
 
         definition = get_builtin_definition(prev)
         _show_definition(definition)
+
+    @repl.command("up", "Show the base (parent) of the current definition")
+    def go_up():
+        """Navigate to the base of the current Object definition."""
+        if not context.current:
+            console.warn("No current definition selected.")
+            return
+        defs = _find_definition(context.current, 1)
+        if not defs:
+            console.warn("Current definition not found.")
+            return
+        parent = _get_base_definition(defs[0])
+        if parent is None:
+            console.warn("No base definition.")
+            return
+        context.history.append(context.current)
+        context.current = parent.name
+        _show_definition(parent)
+
+    @repl.command("down", "Show children (direct subclasses) of the current definition")
+    def go_down():
+        """Show direct subclasses of the current Object definition."""
+        if not context.current:
+            console.warn("No current definition selected.")
+            return
+        defs = _find_definition(context.current, 1)
+        if not defs:
+            console.warn("Current definition not found.")
+            return
+        children = _get_children_definitions(defs[0])
+        if not children:
+            console.warn("No direct subclasses.")
+            return
+        console.section("Direct Subclasses", "\n".join(d.name for d in children))
 
     @repl.command("stats", "Show statistics about all definitions")
     def show_stats():
@@ -129,7 +209,6 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
             "Handle": 0,
             "Module": 0,
         }
-
         for definition in BUILTIN_DEFINITION_BY_NAME.values():
             if isinstance(definition, NodeDefinition):
                 stats["Node"] += 1
@@ -225,7 +304,7 @@ def _render_type(type: "Type") -> str:
         assert type.value_type is not None
         key_name = _render_type(type.key_type)
         value_name = _render_type(type.value_type)
-        inner_str = f"dict[{key_name}, {value_name}]"
+        inner_str = f"map[{key_name}, {value_name}]"
     else:
         assert_never(type.cardinality)
 
@@ -317,7 +396,6 @@ def _show_definition(
     # description
     if definition.description:
         console.print("\n" + console.color("Description:", "yellow", "bold"))
-        # format description nicely
         desc_lines = definition.description.strip().split("\n")
         for line in desc_lines:
             console.print("  " + line)
@@ -339,75 +417,137 @@ def _show_definition(
     console.print("\n" + "=" * 70, "bright_cyan")
 
 
-def _show_properties(properties: list["PropertyDefinition"], title: str = "Properties") -> None:
+def _show_properties(
+    owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+    properties: list["PropertyDefinition"],
+    title: str = "Properties",
+) -> None:
     """Display properties section."""
-    if properties:
-        console.print("\n" + console.color(f"{title} ({len(properties)}):", "yellow", "bold"))
-        for prop in properties:
-            if prop.name in ("metakind", "metatype") or prop.name.startswith("_"):
-                continue
-            prop_str = f"  {console.color(prop.name, 'white')} ({console.color(str(prop.id), 'dim')}): {console.color(_render_type(prop.type), 'yellow')}"
-            console.print(prop_str)
+    console.print("\n" + console.color(f"{title} ({len(properties)}):", "yellow", "bold"))
+    rows: list[list[str]] = []
+    headers = ["ID", "Name", "Type", "Defined In", "Flags"]
+    for prop in properties:
+        if prop.name in ("metakind", "metatype") or prop.name.startswith("_"):
+            continue
+        flags: list[str] = []
+        if prop.is_identity:
+            flags.append("i")
+        if prop.is_unique:
+            flags.append("u")
+        if prop.is_readonly:
+            flags.append("r")
+        origin = _get_origin_for(owner, prop)
+        rows.append(
+            [
+                console.color(str(prop.id), "dim"),
+                console.color(prop.name, "white"),
+                console.color(_render_type(prop.type), "yellow"),
+                console.color(origin or "-", "cyan"),
+                console.color(",".join(flags) if flags else "-", "gray"),
+            ]
+        )
+    console.print(console.table(rows, headers))
 
 
-def _show_methods(methods: list["MethodDefinition"], title: str = "Methods") -> None:
-    """Display methods section."""
+def _show_methods(
+    owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+    methods: list["MethodDefinition"],
+    title: str = "Methods",
+) -> None:
+    """Display methods section formatted as a table."""
     console.print("\n" + console.color(f"{title} ({len(methods)}):", "yellow", "bold"))
+    if not methods:
+        return
+    headers = ["ID", "Name", "Inputs", "Returns", "Defined In", "Alias"]
+    rows: list[list[str]] = []
     for method in methods:
-        # check if this method is an alias
         if method.alias_of is not None:
             # find the aliased method by id
             aliased_method = next((m for m in methods if m.id == method.alias_of), None)
             assert aliased_method is not None, f"aliased method #{method.alias_of} not found"
-            console.print(
-                f"  {console.color(method.name, 'white')} ({console.color(str(method.id), 'dim')}) {console.color('->', 'dim')} {console.color(f' = {aliased_method.name}', 'cyan')}"
+            rows.append(
+                [
+                    console.color(str(method.id), "dim"),
+                    console.color(method.name, "white"),
+                    console.color("-", "gray"),
+                    console.color("-", "gray"),
+                    console.color(_get_origin_for(owner, method) or "-", "cyan"),
+                    console.color(aliased_method.name, "cyan"),
+                ]
             )
-        else:
-            # show normal method signature
-            input_signature_parts: list[str] = []
-            for input_property in method.input_properties:
-                input_property_str = f"{console.color(input_property.name, 'white')}: {console.color(_render_type(input_property.type), 'yellow')}"
-                if input_property.default_value is not None:
-                    input_property_str = (
-                        f"{input_property_str} = {_render_value(input_property.default_value)}"
-                    )
-                input_signature_parts.append(input_property_str)
-            input_signature = ", ".join(input_signature_parts)
-            if method.output_property is not None:
-                output_signature = (
-                    f"{console.color(_render_type(method.output_property.type), 'yellow')}"
-                )
-            else:
-                output_signature = "None"
-            console.print(
-                f"  {console.color(method.name, 'white')} ({console.color(str(method.id), 'dim')}) {console.color('(', 'dim')}{input_signature}{console.color(')', 'dim')} {console.color('->', 'dim')} {output_signature}"
-            )
+            continue
+
+        input_signature_parts: list[str] = []
+        for input_property in method.input_properties:
+            part = f"{console.color(input_property.name, 'white')}: {console.color(_render_type(input_property.type), 'yellow')}"
+            if input_property.default_value is not None:
+                part = f"{part} = {_render_value(input_property.default_value)}"
+            input_signature_parts.append(part)
+        inputs = (
+            ", ".join(input_signature_parts)
+            if input_signature_parts
+            else console.color("-", "gray")
+        )
+        returns = (
+            console.color(_render_type(method.output_property.type), "yellow")
+            if method.output_property is not None
+            else console.color("None", "gray")
+        )
+        rows.append(
+            [
+                console.color(str(method.id), "dim"),
+                console.color(method.name, "white"),
+                inputs,
+                returns,
+                console.color(_get_origin_for(owner, method) or "-", "cyan"),
+                console.color("-", "gray"),
+            ]
+        )
+    console.print(console.table(rows, headers))
 
 
-def _show_actions(actions: list["ActionDefinition"], title: str = "Actions") -> None:
-    """Display actions section."""
+def _show_actions(
+    owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+    actions: list["ActionDefinition"],
+    title: str = "Actions",
+) -> None:
+    """Display actions as a table with type and message IO."""
     from ...core import ActionType, StringCasing, to_casing
 
     console.print("\n" + console.color(f"{title} ({len(actions)}):", "yellow", "bold"))
+    if not actions:
+        return
+    headers = ["ID", "Name", "Type", "Input", "Output", "Defined In"]
+    rows: list[list[str]] = []
     for action in actions:
-        input_type = (
-            to_casing(action.input_message_type.name, StringCasing.UPPER_CAMEL)
-            if action.input_message_type
-            else "None"
-        )
+        # action type label
+        type_label = action.type.name if isinstance(action.type, ActionType) else str(action.type)
+
+        def fmt_msg(msg_type):
+            if msg_type is None:
+                return console.color("None", "gray")
+            return console.color(to_casing(msg_type.name, StringCasing.UPPER_CAMEL), "yellow")
+
+        input_label = fmt_msg(action.input_message_type)
+        output_label = fmt_msg(action.output_message_type)
+
         if action.type in (ActionType.STREAM_IN_UNARY_OUT, ActionType.STREAM_IN_STREAM_OUT):
-            input_type = f"Stream[{input_type}]"
-        output_type = (
-            to_casing(action.output_message_type.name, StringCasing.UPPER_CAMEL)
-            if action.output_message_type
-            else "None"
+            input_label = f"Stream[{input_label}]"
+        if action.type in (ActionType.UNARY_IN_STREAM_OUT, ActionType.STREAM_IN_STREAM_OUT):
+            output_label = f"Stream[{output_label}]"
+
+        rows.append(
+            [
+                console.color(str(action.id), "dim"),
+                console.color(action.name, "white"),
+                console.color(type_label, "cyan"),
+                input_label,
+                output_label,
+                console.color(_get_origin_for(owner, action) or "-", "cyan"),
+            ]
         )
-        if action.type in (ActionType.STREAM_IN_UNARY_OUT, ActionType.STREAM_IN_STREAM_OUT):
-            output_type = f"Stream[{output_type}]"
-        type_signature = f"{console.color(input_type, 'yellow')} {console.color('->', 'dim')} {console.color(output_type, 'yellow')}"
-        console.print(
-            f"  {console.color(action.name, 'white')} ({console.color(str(action.id), 'dim')}): {type_signature}"
-        )
+
+    console.print(console.table(rows, headers))
 
 
 def _show_constants(constants: list["ConstantDefinition"], title: str = "Constants") -> None:
@@ -435,33 +575,44 @@ def _show_node(definition: "NodeDefinition") -> None:
     for key, value in metadata:
         console.print(f"  {key}: {console.color(value, 'green')}")
 
+    # inheritance tree (object-only)
+    tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
+    if tree:
+        console.print("")
+        console.print(tree)
+
     if definition.properties:
-        _show_properties(definition.properties)
+        _show_properties(definition, definition.properties)
     if definition.methods:
-        _show_methods(definition.methods)
+        _show_methods(definition, definition.methods)
     if definition.actions:
-        _show_actions(definition.actions)
+        _show_actions(definition, definition.actions)
 
 
 def _show_struct(definition: "StructDefinition") -> None:
     """Display Struct-specific details."""
+
     # metadata
     console.print("\n" + console.color("Metadata:", "yellow", "bold"))
-
     metadata = []
     metadata.append(("Inherits", "->".join([base.name for base in definition.inherits])))
     metadata.append(("Stability", str(definition.stability)))
     metadata.append(("Immutable", definition.is_immutable))
     metadata.append(("Abstract", definition.is_abstract))
-
     # metadata
     for key, value in metadata:
         console.print(f"  {key}: {console.color(value, 'green')}")
 
+    # inheritance tree (object-only)
+    tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
+    if tree:
+        console.print("")
+        console.print(tree)
+
     if definition.properties:
-        _show_properties(definition.properties)
+        _show_properties(definition, definition.properties)
     if definition.methods:
-        _show_methods(definition.methods)
+        _show_methods(definition, definition.methods)
 
 
 def _show_enum(definition: "EnumDefinition") -> None:
@@ -481,7 +632,194 @@ def _show_enum(definition: "EnumDefinition") -> None:
 def _show_handle(definition: "HandleDefinition") -> None:
     """Display Handle-specific details."""
     if definition.properties:
-        _show_properties(definition.properties)
+        _show_properties(definition, definition.properties)
+
+    # inheritance tree (object-only)
+    tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
+    if tree:
+        console.section("Inheritance", tree)
+
+
+def _render_inheritance_tree(
+    definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+    *,
+    direction: Literal["up", "down", "both"] = "both",
+    include_subclasses: bool = False,
+) -> str | None:
+    """Build and render the inheritance tree for an Object definition.
+
+    Returns None for non-Object (e.g., Module/Enum).
+    """
+    from ...core.definition import (
+        EnumDefinition,
+        HandleDefinition,
+        ModuleDefinition,
+        NodeDefinition,
+        StructDefinition,
+    )
+
+    # only Objects have inheritance trees
+    if isinstance(definition, (ModuleDefinition, EnumDefinition)):
+        return None
+
+    # resolve per-kind helpers
+    def get_base(defn: NodeDefinition | StructDefinition | HandleDefinition):
+        if isinstance(defn, NodeDefinition):
+            base_type = defn.base_type
+            return NODE_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
+        if isinstance(defn, StructDefinition):
+            base_type = defn.base_type
+            return STRUCT_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
+        base_type = defn.base_type
+        return HANDLE_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
+
+    def get_children(defn: NodeDefinition | StructDefinition | HandleDefinition) -> list[Any]:
+        if isinstance(defn, NodeDefinition):
+            children_types = defn.extended_by
+            return [NODE_DEFINITION_BY_TYPE[t] for t in children_types]
+        if isinstance(defn, StructDefinition):
+            children_types = defn.extended_by
+            return [STRUCT_DEFINITION_BY_TYPE[t] for t in children_types]
+        children_types = defn.extended_by
+        return [HANDLE_DEFINITION_BY_TYPE[t] for t in children_types]
+
+    # collect ancestors chain up to root
+    ancestors: list[Any] = []
+    cur = definition
+    while True:
+        parent = get_base(cur)  # type: ignore[arg-type]
+        if parent is None:
+            break
+        ancestors.append(parent)
+        cur = parent
+
+    # build label map
+    def label(defn: Any) -> str:
+        # compute descendant count for this node
+        def count_desc(d: Any) -> int:
+            return len(_get_all_descendants(d))
+
+        num = count_desc(defn)
+        suffix = f" ({num})" if num > 0 else ""
+        return f"{defn.name}{suffix}"
+
+    label_by_id: dict[str, str] = {}
+    children_by_id: dict[str, list[str]] = {}
+
+    target_id = definition.name
+    label_by_id[target_id] = label(definition)
+
+    def add_edge(parent: Any, child: Any) -> None:
+        pid = parent.name
+        cid = child.name
+        label_by_id.setdefault(pid, label(parent))
+        label_by_id.setdefault(cid, label(child))
+        children_by_id.setdefault(pid, []).append(cid)
+
+    # choose root and assemble according to direction
+    if direction in ("up", "both"):
+        # stitch the ancestor chain: root -> ... -> target
+        chain = [*list(reversed(ancestors)), definition]
+        for i in range(len(chain) - 1):
+            add_edge(chain[i], chain[i + 1])
+        root_id = chain[0].name if chain else definition.name
+    else:
+        root_id = definition.name
+
+    if direction in ("down", "both"):
+        # include descendants from the target (only direct unless full=True)
+        def walk_desc(defn: Any):
+            children = get_children(defn)
+            for child in children:
+                add_edge(defn, child)
+                if include_subclasses:
+                    walk_desc(child)
+
+        walk_desc(definition)
+
+    # if we only asked for up, ensure root is the top ancestor
+    if direction == "up":
+        # nothing else to do; render the chain
+        pass
+
+    return console.render_tree(root_id, children_by_id, label_by_id, highlight_id=target_id)
+
+
+def _get_all_descendants(
+    definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+) -> list[Any]:
+    from ...core.definition import (
+        EnumDefinition,
+        ModuleDefinition,
+        NodeDefinition,
+        StructDefinition,
+    )
+
+    if isinstance(definition, (ModuleDefinition, EnumDefinition)):
+        return []
+    if isinstance(definition, NodeDefinition):
+        direct = [NODE_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
+    elif isinstance(definition, StructDefinition):
+        direct = [STRUCT_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
+    else:
+        direct = [HANDLE_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
+    all_desc: list[Any] = []
+    for child in direct:
+        all_desc.append(child)
+        all_desc.extend(_get_all_descendants(child))
+    return all_desc
+
+
+def _get_base_definition(
+    definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+):
+    from ...core.definition import (
+        EnumDefinition,
+        ModuleDefinition,
+        NodeDefinition,
+        StructDefinition,
+    )
+
+    if isinstance(definition, (ModuleDefinition, EnumDefinition)):
+        return None
+    if isinstance(definition, NodeDefinition):
+        base_type = definition.base_type
+        return NODE_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
+    if isinstance(definition, StructDefinition):
+        base_type = definition.base_type
+        return STRUCT_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
+    base_type = definition.base_type
+    return HANDLE_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
+
+
+def _get_children_definitions(
+    definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+) -> list[Any]:
+    from ...core.definition import (
+        EnumDefinition,
+        ModuleDefinition,
+        NodeDefinition,
+        StructDefinition,
+    )
+
+    if isinstance(definition, (ModuleDefinition, EnumDefinition)):
+        return []
+    if isinstance(definition, NodeDefinition):
+        return [NODE_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
+    if isinstance(definition, StructDefinition):
+        return [STRUCT_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
+    return [HANDLE_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
+
+
+def _get_origin_for(
+    owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+    attribute: "PropertyDefinition | MethodDefinition | ActionDefinition",
+) -> str | None:
+    object_cls = BUILTIN_CLASS_BY_NAME[owner.name]
+    for super_cls in reversed(list(get_superclasses(object_cls))):
+        if hasattr(super_cls, attribute.name):
+            return super_cls.__name__
+    return None
 
 
 def _show_module(definition: "ModuleDefinition") -> None:
@@ -489,7 +827,7 @@ def _show_module(definition: "ModuleDefinition") -> None:
     from ...core.builtin import StringCasing, to_casing
 
     if definition.methods:
-        _show_methods(definition.methods)
+        _show_methods(definition, definition.methods)
     if definition.constants:
         _show_constants(definition.constants)
 

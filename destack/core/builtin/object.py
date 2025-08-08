@@ -1471,7 +1471,7 @@ def __init__(self):
             )
         # computed Node properties
         for prop in properties.values():
-            if prop.edge_type is not None:
+            if prop.reference_type is not None:
                 node_property_str = _generator.generate_node_property(prop)
                 execute_arbitrary_code(
                     node_property_str, {}, cls_dict, f"{cls.__name__}.{prop.name}"
@@ -1552,15 +1552,18 @@ def _declare_object[ObjectT: Object](
 class Object:
     """The base for all intrinsic Objects."""
 
-    # Object.metakind: 0
+    """The kind of Object this is (static)."""
     metakind: ClassVar[ObjectKind] = UNSET
-    # Object.metatype: 1
+    """The type of Object this is (static)."""
     metatype: ClassVar[NodeType | StructType] = UNSET
+    """The declaration of this Object (static)."""
     __declaration__: ClassVar[ObjectDeclaration] = UNSET
 
-    # runtime index
+    """The properties of this Object (runtime)."""
     __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    """The properties of this Object by alias (runtime)."""
     __properties_by_alias__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    """The properties of this Object by id (runtime)."""
     __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
 
     __slots__: ClassVar[tuple[str, ...]] = ()

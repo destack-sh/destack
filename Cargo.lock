@@ -170,6 +170,8 @@ dependencies = [
  "bencher",
  "bytes",
  "clap",
+ "indexmap",
+ "once_cell",
  "pretty_assertions",
  "quickcheck",
  "quickcheck_macros",
@@ -179,6 +181,7 @@ dependencies = [
  "static_assertions",
  "tempfile",
  "uuid",
+ "wasm-bindgen",
  "wasm-bindgen-test",
 ]
 
@@ -192,6 +195,7 @@ dependencies = [
  "io-uring",
  "loom",
  "mio",
+ "once_cell",
  "pretty_assertions",
  "quickcheck",
  "regex",
@@ -200,6 +204,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+ "wasm-bindgen",
  "wasm-bindgen-test",
 ]
 

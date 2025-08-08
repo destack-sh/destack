@@ -70,10 +70,10 @@ import type {
   UniverseCategory,
 } from "@destack/language/core/builtin/builtin";
 import type {
-  CascadeAction,
+  ReferenceCascade,
   ClientType,
   Cloud,
-  EdgeDirection,
+  ReferenceDirection,
   EdgeType,
   Encoding,
   EnvironmentType,
@@ -719,8 +719,8 @@ export type EnumTypeMapping = {
   [EnumType.REGION_AREA]: RegionArea;
   [EnumType.REGION]: Region;
   [EnumType.EDGE_TYPE]: EdgeType;
-  [EnumType.CASCADE_ACTION]: CascadeAction;
-  [EnumType.EDGE_DIRECTION]: EdgeDirection;
+  [EnumType.REFERENCE_CASCADE]: ReferenceCascade;
+  [EnumType.EDGE_DIRECTION]: ReferenceDirection;
   [EnumType.ENCODING]: Encoding;
   [EnumType.TYPE_CARDINALITY]: TypeCardinality;
   [EnumType.SCALAR_TYPE]: ScalarType;

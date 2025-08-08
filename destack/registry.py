@@ -52,18 +52,20 @@ BUILTIN_DEFINITION_BY_NAME: dict[
 
 
 def get_object_cls(
-    object_type: "NodeType | StructType",
+    object_type: "NodeType | StructType | HandleType",
 ) -> type["Object"]:
     if isinstance(object_type, NodeType):
         return NODE_CLASS_BY_TYPE[object_type]
     elif isinstance(object_type, StructType):
         return STRUCT_CLASS_BY_TYPE[object_type]
+    elif isinstance(object_type, HandleType):
+        return HANDLE_CLASS_BY_TYPE[object_type]
     else:
         assert_never(object_type)
 
 
 def get_builtin_class(
-    destack_tgype: "NodeType | StructType | EnumType",
+    destack_tgype: "NodeType | StructType | HandleType | EnumType",
 ) -> type["Object"] | type["Enum"]:
     if isinstance(destack_tgype, NodeType):
         return NODE_CLASS_BY_TYPE[destack_tgype]
@@ -71,19 +73,23 @@ def get_builtin_class(
         return STRUCT_CLASS_BY_TYPE[destack_tgype]
     elif isinstance(destack_tgype, EnumType):
         return ENUM_CLASS_BY_TYPE[destack_tgype]
+    elif isinstance(destack_tgype, HandleType):
+        return HANDLE_CLASS_BY_TYPE[destack_tgype]
     else:
         assert_never(destack_tgype)
 
 
 def get_builtin_type(
     cls: type["Object"] | type["Enum"],
-) -> "NodeType | StructType | TraitType | EnumType":
+) -> "NodeType | StructType | HandleType | TraitType | EnumType":
     from .core import Enum, Node, Struct
 
     if issubclass(cls, (Node, Struct)):
         return cls.metatype
     elif issubclass(cls, Enum):
         return ENUM_TYPE_BY_CLASS[cls]
+    elif issubclass(cls, Handle):
+        return HANDLE_TYPE_BY_CLASS[cls]
     else:
         raise ValueError(f"invalid destack type: {cls!r}")
 

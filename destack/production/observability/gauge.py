@@ -22,4 +22,8 @@ class GaugeMetric(Metric):
 class GaugeMeasurementEvent(MeasurementEvent):
     """A Gauge Measurement."""
 
-    definition: "GaugeMetric" = declare_property(6)
+    definition: "GaugeMetric" = declare_property(
+        10,
+        is_internal=True,
+        is_readonly=True,
+    )

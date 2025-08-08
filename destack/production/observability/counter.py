@@ -22,4 +22,8 @@ class CounterMetric(Metric):
 class CounterMeasurementEvent(MeasurementEvent):
     """A Counter Measurement."""
 
-    definition: "CounterMetric" = declare_property(6)
+    definition: "CounterMetric" = declare_property(
+        10,
+        is_internal=True,
+        is_readonly=True,
+    )

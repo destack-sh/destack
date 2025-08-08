@@ -23,7 +23,7 @@ class MeasurementEvent(Event):
     """An Event that represents a Measurement."""
 
     definition: "Metric" = declare_property(
-        6,
+        10,
         is_internal=True,
         is_readonly=True,
     )

@@ -16,12 +16,7 @@ from .query import (
     SortMode,
     SortType,
 )
-from .relation import (
-    NodeReference,
-    ObjectDefinitionReference,
-    PropertyReference,
-    PropertyReferenceType,
-)
+from .relation import NodeReference, ObjectDefinitionReference, PropertyReference
 from .text import (
     Text,
     TextIn,
@@ -66,7 +61,6 @@ __all__ = [
     "NumberConstraint",
     "ObjectDefinitionReference",
     "PropertyReference",
-    "PropertyReferenceType",
     "Query",
     "QueryType",
     "Select",

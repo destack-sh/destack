@@ -1,5 +1,7 @@
+import re
 import sys
 import traceback
+from collections.abc import Iterable
 from typing import Literal
 
 # ansi color codes
@@ -56,40 +58,52 @@ def color(text: str, *styles: Color) -> str:
     return f"{codes}{text}{COLORS['reset']}"
 
 
+_CAPTURE_STACK: list[list[str]] = []
+
+
 def print(text: str, *styles: Color) -> None:
     """Print colored text to stdout."""
-    sys.stdout.write(color(text, *styles) + "\n")
+    line = color(text, *styles) + "\n"
+    sys.stdout.write(line)
     sys.stdout.flush()
 
 
 def write(text: str, *styles: Color) -> None:
     """Print text without newline."""
-    sys.stdout.write(color(text, *styles))
+    out = color(text, *styles)
+    sys.stdout.write(out)
     sys.stdout.flush()
 
 
 def error(text: str) -> None:
     """Print error to stderr."""
-    sys.stderr.write(color(text, "red") + "\n")
+    line = color(text, "red") + "\n"
+    sys.stderr.write(line)
     sys.stderr.flush()
 
 
 def warn(text: str) -> None:
     """Print warning."""
-    sys.stdout.write(color(text, "yellow") + "\n")
+    line = color(text, "yellow") + "\n"
+    sys.stdout.write(line)
     sys.stdout.flush()
 
 
 def success(text: str) -> None:
     """Print success message."""
-    sys.stdout.write(color(text, "green") + "\n")
+    line = color(text, "green") + "\n"
+    sys.stdout.write(line)
     sys.stdout.flush()
 
 
 def info(text: str) -> None:
     """Print info message."""
-    sys.stdout.write(color(text, "cyan") + "\n")
-    sys.stdout.flush()
+    line = color(text, "cyan") + "\n"
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(line)
+    else:
+        sys.stdout.write(line)
+        sys.stdout.flush()
 
 
 def clear() -> None:
@@ -234,6 +248,22 @@ def header(text: str, char: str = "=") -> str:
     return f"{line}\n{text}\n{line}"
 
 
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_RE.sub("", text)
+
+
+def _visible_len(text: str) -> int:
+    return len(_strip_ansi(text))
+
+
+def _pad_cell(cell: str, width: int) -> str:
+    pad = max(0, width - _visible_len(cell))
+    return cell + (" " * pad)
+
+
 def table(rows: list[list[str]], headers: list[str] | None = None, padding: int = 2) -> str:
     """Create a formatted table."""
     if not rows and not headers:
@@ -251,28 +281,28 @@ def table(rows: list[list[str]], headers: list[str] | None = None, padding: int 
 
     for row in all_rows:
         for i, cell in enumerate(row[:num_cols]):
-            col_widths[i] = max(col_widths[i], len(str(cell)))
+            col_widths[i] = max(col_widths[i], _visible_len(str(cell)))
 
     result = []
 
     # add headers if provided
     if headers:
-        header_row = []
+        header_row: list[str] = []
         for i, header in enumerate(headers):
-            header_row.append(str(header).ljust(col_widths[i]))
+            header_row.append(_pad_cell(str(header), col_widths[i]))
         result.append(" " * padding + (" " * padding).join(header_row))
 
         # add separator
-        sep_row = []
+        sep_row: list[str] = []
         for width in col_widths:
             sep_row.append("─" * width)
         result.append(" " * padding + (" " * padding).join(sep_row))
 
     # add data rows
     for row in rows:
-        data_row = []
+        data_row: list[str] = []
         for i, cell in enumerate(row[:num_cols]):
-            data_row.append(str(cell).ljust(col_widths[i]))
+            data_row.append(_pad_cell(str(cell), col_widths[i]))
         result.append(" " * padding + (" " * padding).join(data_row))
 
     return "\n".join(result)
@@ -285,9 +315,8 @@ def prompt(text: str, default: str | None = None) -> str:
         prompt_text += color(f" [{default}]", "dim")
     prompt_text += ": "
 
-    write(prompt_text)
     try:
-        user_input = input().strip()
+        user_input = input(prompt_text).strip()
         if not user_input and default:
             return default
         return user_input
@@ -341,11 +370,78 @@ def paginate(text: str, page_size: int = 20) -> None:
 
 def section(title: str, content: str | None = None) -> None:
     """Print a section with title."""
-    print("")
-    print(color("━" * 60, "dim"))
-    print(color(title, "cyan", "bold"))
+    lines: list[str] = []
+    lines.append("\n")
+    lines.append(color("━" * 60, "dim") + "\n")
+    lines.append(color(title, "cyan", "bold") + "\n")
     if content:
-        print(color("━" * 60, "dim"))
-        sys.stdout.write(content + "\n")
+        lines.append(color("━" * 60, "dim") + "\n")
+        lines.append(content + "\n")
     else:
-        print(color("━" * 60, "dim"))
+        lines.append(color("━" * 60, "dim") + "\n")
+    out = "".join(lines)
+    sys.stdout.write(out)
+    sys.stdout.flush()
+
+
+def render_tree(
+    root_id: str,
+    children_by_id: dict[str, list[str]],
+    label_by_id: dict[str, str],
+    highlight_id: str | None = None,
+) -> str:
+    """
+    Render a simple ASCII tree from a parent→children mapping.
+
+    The ids must be keys of `label_by_id`. Children lists define order.
+    `highlight_id` will be rendered with stronger emphasis.
+    """
+
+    def style_label(node_id: str) -> str:
+        node_label = label_by_id.get(node_id, node_id)
+        if node_id == highlight_id:
+            return color(node_label, "bright_white", "bold")
+        return color(node_label, "white")
+
+    lines: list[str] = []
+
+    def walk(node_id: str, prefix: str, is_last: bool) -> None:
+        connector = "└─ " if is_last else "├─ "
+        if prefix:
+            lines.append(prefix + connector + style_label(node_id))
+        else:
+            lines.append(style_label(node_id))
+
+        children = children_by_id.get(node_id, [])
+        # ensure deterministic order by visible label
+        children = sorted(children, key=lambda cid: _strip_ansi(label_by_id.get(cid, cid)))
+        if not children:
+            return
+
+        next_prefix = prefix + ("   " if is_last else "│  ")
+        for idx, child_id in enumerate(children):
+            walk(child_id, next_prefix, idx == len(children) - 1)
+
+    # root line
+    walk(root_id, "", True)
+    return "\n".join(lines)
+
+
+def print_tree(
+    root_id: str,
+    children_by_id: dict[str, list[str]],
+    label_by_id: dict[str, str],
+    highlight_id: str | None = None,
+) -> None:
+    """Print a tree rendered by `render_tree`."""
+    sys.stdout.write(render_tree(root_id, children_by_id, label_by_id, highlight_id) + "\n")
+    sys.stdout.flush()
+
+
+def paginate_if_needed(render: Iterable[str] | str, page_size: int = 25) -> None:
+    # deprecated: direct print is preferred in manual
+    text = "".join(render) if not isinstance(render, str) else render
+    if text and not text.endswith("\n"):
+        text += "\n"
+    sys.stdout.write(text)
+    sys.stdout.flush()

@@ -2,10 +2,10 @@ from typing import TYPE_CHECKING, Any, cast, final
 
 from ..builtin import (
     UNSET,
-    CascadeAction,
-    EdgeType,
     Node,
     PropertyDeclaration,
+    ReferenceCascade,
+    ReferenceType,
     Struct,
     StructType,
     UInt8,
@@ -41,8 +41,8 @@ class PropertyDefinition(Definition):
     default_factory: ValueFactory | None = declare_property(121)
 
     # relationships
-    edge_type: EdgeType | None = declare_property(130)
-    cascade: CascadeAction | None = declare_property(131)
+    reference_type: ReferenceType | None = declare_property(130)
+    reference_cascade: ReferenceCascade | None = declare_property(131)
 
     # property flags
     is_identity: bool = declare_property(
@@ -102,8 +102,8 @@ Whether this Property is part of the object's identity.
             else None,
             default_factory=prop.default_factory,
             # node
-            edge_type=prop.edge_type,
-            cascade=prop.cascade,
+            reference_type=prop.reference_type,
+            reference_cascade=prop.reference_cascade,
             # flags
             is_identity=prop.is_identity,
             is_unique=prop.is_unique,

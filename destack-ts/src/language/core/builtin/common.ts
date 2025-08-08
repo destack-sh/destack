@@ -237,9 +237,9 @@ registerEnumClass(EnumType.EDGE_TYPE, EdgeType);
 
 /* ==== DESTACK_GENERATED_START:ENUM:109 ==== */
 /**
- * CascadeAction
+ * ReferenceCascade
  */
-export enum CascadeAction {
+export enum ReferenceCascade {
   RESTRICT = 1,
   CASCADE = 2,
   SET_NULL = 3,
@@ -248,14 +248,14 @@ export enum CascadeAction {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.CASCADE_ACTION, CascadeAction);
+registerEnumClass(EnumType.REFERENCE_CASCADE, ReferenceCascade);
 /* ==== DESTACK_GENERATED_END:ENUM:109 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
 /**
- * EdgeDirection
+ * ReferenceDirection
  */
-export enum EdgeDirection {
+export enum ReferenceDirection {
   PARENT = 1,
   CHILD = 2,
   DEFINITION = 10,
@@ -266,7 +266,7 @@ export enum EdgeDirection {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.EDGE_DIRECTION, EdgeDirection);
+registerEnumClass(EnumType.EDGE_DIRECTION, ReferenceDirection);
 /* ==== DESTACK_GENERATED_END:ENUM:108 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:100 ==== */

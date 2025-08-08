@@ -1,5 +1,5 @@
 import { NodeType, StructType } from "@destack/language/core/builtin/builtin";
-import type { CascadeAction, EdgeType, PropertyZone } from "@destack/language/core/builtin/common";
+import type { ReferenceCascade, EdgeType, PropertyZone } from "@destack/language/core/builtin/common";
 import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, type Materialization } from "@destack/language/core/builtin/entity";
 import type { Event } from "@destack/language/core/builtin/event";
@@ -354,7 +354,7 @@ export class CustomProperty extends Entity {
     return this._edgeType;
   }
   set edgeType(value: EdgeType | null) {
-    const prop = (this.constructor as NodeClass).__properties__["edge_type"];
+    const prop = (this.constructor as NodeClass).__properties__["reference_type"];
     this._session.updateSetProperty(this, prop, value);
     this._edgeType = value;
   }
@@ -366,15 +366,15 @@ export class CustomProperty extends Entity {
   /**
    * CustomProperty.cascade
    */
-  get cascade(): CascadeAction | null {
+  get cascade(): ReferenceCascade | null {
     return this._cascade;
   }
-  set cascade(value: CascadeAction | null) {
+  set cascade(value: ReferenceCascade | null) {
     const prop = (this.constructor as NodeClass).__properties__["cascade"];
     this._session.updateSetProperty(this, prop, value);
     this._cascade = value;
   }
-  _cascade: CascadeAction | null;
+  _cascade: ReferenceCascade | null;
 
   /**
    * Whether this property must have a unique value.
@@ -453,7 +453,7 @@ export class CustomProperty extends Entity {
     icon?: Icon | null;
     zone?: PropertyZone;
     edgeType?: EdgeType | null;
-    cascade?: CascadeAction | null;
+    cascade?: ReferenceCascade | null;
     isUnique?: boolean | null;
     isReadonly?: boolean | null;
     isMain?: boolean | null;
