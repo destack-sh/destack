@@ -28,14 +28,14 @@ class FunctionDefinition(Definition):
 
     # availability
     platforms: list[RuntimePlatform] | None = declare_property(
-        130,
+        140,
         description="The platforms this Method is available on (all if empty).",
     )
     languages: list[RuntimeLanguage] | None = declare_property(
-        131,
+        141,
         description="The languages this Method is available in (all if empty).",
     )
     runtimes: list[RuntimeType] | None = declare_property(
-        132,
+        142,
         description="The runtimes this Method is available in (all if empty).",
     )

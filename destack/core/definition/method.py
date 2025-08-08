@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Self, final
 from ..builtin import (
     MethodType,
     StructType,
+    UInt16,
     declare_property,
     declare_struct,
 )
@@ -24,11 +25,13 @@ type_ = type
 class MethodDefinition(FunctionDefinition):
     """Definition of a builtin Method."""
 
+    # meta
     type: MethodType = declare_property(100)
+    proxies_method: Optional[UInt16] = declare_property(120)
 
     # content
-    input_properties: list["PropertyDefinition"] = declare_property(121)
-    output_property: Optional["PropertyDefinition"] = declare_property(122)
+    input_properties: list["PropertyDefinition"] = declare_property(131)
+    output_property: Optional["PropertyDefinition"] = declare_property(132)
 
     @classmethod
     def from_declaration(cls, declaration: "MethodDeclaration") -> "Self":
@@ -42,6 +45,7 @@ class MethodDefinition(FunctionDefinition):
             description=declaration.description,
             is_async=declaration.is_async,
             is_internal=declaration.is_internal,
+            proxies_method=declaration.proxies_method,
             # availability
             platforms=list(declaration.platforms),
             languages=list(declaration.languages),

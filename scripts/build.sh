@@ -28,7 +28,7 @@ rm -rf destack-py/destack/store/static/destack-web
 cp -r destack-ts-web/dist destack-py/destack/store/static/destack-web
 
 # push Docker image with retries
-push_with_retry() {
+_push_docker_image_with_retry() {
   local tag=$1
   local max_attempts=3
   local attempt=1
@@ -47,28 +47,35 @@ push_with_retry() {
   return 1
 }
 
-# build all images
-# image names and their corresponding Dockerfiles
-IMAGES=("destack-system" "destack-machine-runtime")
-DOCKERFILES=("destack-infra/docker/Dockerfile.system" "destack-infra/docker/Dockerfile.machine-runtime")
+# build and push docker images
+_build_and_push_docker_images() {
+  # image names and their corresponding Dockerfiles
+  IMAGES=("destack-system" "destack-machine-runtime")
+  DOCKERFILES=("destack-infra/docker/Dockerfile.system" "destack-infra/docker/Dockerfile.machine-runtime")
 
-for i in "${!IMAGES[@]}"; do
-  IMAGE="${IMAGES[$i]}"
-  DOCKERFILE="${DOCKERFILES[$i]}"
-  docker build . \
-    --platform linux/arm64 \
-    -f "$DOCKERFILE" \
-    -t symbolx/$IMAGE:latest \
-    -t symbolx/$IMAGE:$GIT_COMMIT \
-    -t symbolx/$IMAGE:$VERSION \
-    -t ghcr.io/symbolx/$IMAGE:latest \
-    -t ghcr.io/symbolx/$IMAGE:$GIT_COMMIT \
-    -t ghcr.io/symbolx/$IMAGE:$VERSION \
-    --build-arg GIT_COMMIT=$GIT_COMMIT \
-    --build-arg VERSION=$VERSION
+  for i in "${!IMAGES[@]}"; do
+    IMAGE="${IMAGES[$i]}"
+    DOCKERFILE="${DOCKERFILES[$i]}"
+    docker build . \
+      --platform linux/arm64 \
+      -f "$DOCKERFILE" \
+      -t symbolx/$IMAGE:latest \
+      -t symbolx/$IMAGE:$GIT_COMMIT \
+      -t symbolx/$IMAGE:$VERSION \
+      -t ghcr.io/symbolx/$IMAGE:latest \
+      -t ghcr.io/symbolx/$IMAGE:$GIT_COMMIT \
+      -t ghcr.io/symbolx/$IMAGE:$VERSION \
+      --build-arg GIT_COMMIT=$GIT_COMMIT \
+      --build-arg VERSION=$VERSION
 
-  # push to GHCR with retry logic
-  push_with_retry "ghcr.io/symbolx/$IMAGE:latest"
-  push_with_retry "ghcr.io/symbolx/$IMAGE:$GIT_COMMIT"
-  push_with_retry "ghcr.io/symbolx/$IMAGE:$VERSION"
-done
+    # push to GHCR with retry logic
+    _push_docker_image_with_retry "ghcr.io/symbolx/$IMAGE:latest"
+    _push_docker_image_with_retry "ghcr.io/symbolx/$IMAGE:$GIT_COMMIT"
+    _push_docker_image_with_retry "ghcr.io/symbolx/$IMAGE:$VERSION"
+  done
+}
+
+# build docker images unless --no-docker flag is passed
+if [[ "$*" != *"--no-docker"* ]]; then
+  _build_and_push_docker_images()
+fi

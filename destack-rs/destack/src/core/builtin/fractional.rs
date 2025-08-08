@@ -11,17 +11,28 @@ pub const FRACTIONAL_INTEGER_MIN: &str = "A00000000000000000000000000";
 /// maximum representable integer for fractional indexing
 pub const FRACTIONAL_INTEGER_MAX: &str = "aZZZZZZZZZZZZZZZZZZZZZZZZZ";
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum FractionalError {
-    #[error("invalid order key head: {head}")]
     InvalidOrderKeyHead { head: char },
-    #[error("trailing zero")]
     TrailingZero,
-    #[error("invalid order key: {key}")]
     InvalidOrderKey { key: String },
-    #[error("{a} >= {b}")]
     InvalidComparison { a: String, b: String },
 }
+
+impl std::fmt::Display for FractionalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FractionalError::InvalidOrderKeyHead { head } => {
+                write!(f, "invalid order key head: {head}")
+            }
+            FractionalError::TrailingZero => write!(f, "trailing zero"),
+            FractionalError::InvalidOrderKey { key } => write!(f, "invalid order key: {key}"),
+            FractionalError::InvalidComparison { a, b } => write!(f, "{a} >= {b}"),
+        }
+    }
+}
+
+impl std::error::Error for FractionalError {}
 
 /// Gets the length of the integer part of the given order key
 fn _get_integer_length(head: char) -> Result<usize, FractionalError> {

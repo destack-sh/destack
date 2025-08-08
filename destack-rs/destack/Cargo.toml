@@ -16,7 +16,6 @@ bytes = { workspace = true }
 clap = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
-thiserror = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
