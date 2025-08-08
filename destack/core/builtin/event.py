@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union, dataclass_transform
+from typing import TYPE_CHECKING, Optional, dataclass_transform
 
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
@@ -11,7 +11,7 @@ from .universe import EnumType, NodeType, StructType
 from .uuid import UUID
 
 if TYPE_CHECKING:
-    from destack import Branch, Client, NodeReference, Snapshot
+    from destack import Client, NodeReference
 
 
 @declare_enum(EnumType.EVENT_STATUS)
@@ -109,52 +109,15 @@ class Event(Node):
     """
 
     # 10-20: Event identity
-    definition: Union["Entity", None] = declare_property(
-        11,
+    definition: Optional["Entity"] = declare_property(
+        10,
         is_internal=True,
         is_readonly=True,
         is_identity=True,
         description="The definition this Event is an instance of.",
         tags=("identity",),
     )
-    branch: "Branch" = declare_property(
-        12,
-        is_readonly=True,
-        is_internal=True,
-        is_identity=True,
-        default_factory=ValueFactory.BRANCH,
-        description="The Branch this Event originated from.",
-        tags=("identity",),
-    )
-    snapshot: "Snapshot" = declare_property(
-        13,
-        is_readonly=True,
-        is_internal=True,
-        is_identity=True,
-        default_factory=ValueFactory.SNAPSHOT,
-        description="The Snapshot this Event originated from.",
-        tags=("identity",),
-    )
-    preceded_by: Optional["Event"] = declare_property(
-        14,
-        is_eq=False,
-        is_hash=False,
-        is_readonly=True,
-        is_internal=True,
-        is_identity=True,
-        description="The previous Event that this Event follows.",
-        tags=("identity",),
-    )
-    caused_by: Optional["Event"] = declare_property(
-        15,
-        is_eq=False,
-        is_hash=False,
-        is_readonly=True,
-        is_internal=True,
-        is_identity=True,
-        description="The Event that caused this Event (if any).",
-        tags=("identity",),
-    )
+
     # 20-40: Event tracking
     created_at: datetime = declare_property(
         20,
@@ -252,7 +215,16 @@ class Event(Node):
         description="The status of the Event (system).",
         tags=("tracking", "system"),
     )
-
+    caused_by: Optional["Event"] = declare_property(
+        31,
+        is_eq=False,
+        is_hash=False,
+        is_readonly=True,
+        is_internal=True,
+        is_identity=True,
+        description="The Event that caused this Event (if any).",
+        tags=("identity",),
+    )
     # 100+: content
 
     @declare_method(2)

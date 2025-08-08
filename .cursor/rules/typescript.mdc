@@ -1,0 +1,7 @@
+---
+description:
+globs: *.ts,*.tsx,*.js,*.jsx
+alwaysApply: false
+---
+Always type everything properly.
+Avoid using as any or similar casts.

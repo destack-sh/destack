@@ -23,7 +23,7 @@ import {
   BranchType,
   type Capsule2D,
   type CapsuleShape2D,
-  CascadeAction,
+  ReferenceCascade,
   type CheckedType,
   type Client,
   ClientType,
@@ -2337,7 +2337,7 @@ export function loadEncoders(): void {
         objectJson["edgeType"] = EdgeType[object._edgeType];
       }
       if (object._cascade != null) {
-        objectJson["cascade"] = CascadeAction[object._cascade];
+        objectJson["cascade"] = ReferenceCascade[object._cascade];
       }
       if (object._isUnique != null) {
         objectJson["isUnique"] = object._isUnique;
@@ -2364,7 +2364,7 @@ export function loadEncoders(): void {
         edgeTypeValue != undefined ? (EdgeType[edgeTypeValue] as any) : undefined;
       const cascadeValue = objectJson["cascade"];
       const unpackedCascade =
-        cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : undefined;
+        cascadeValue != undefined ? (ReferenceCascade[cascadeValue] as any) : undefined;
       const isUniqueValue = objectJson["isUnique"];
       const unpackedIsUnique = isUniqueValue != undefined ? isUniqueValue : undefined;
       const isReadonlyValue = objectJson["isReadonly"];
@@ -20554,7 +20554,7 @@ export function loadEncoders(): void {
         objectJson["edgeType"] = EdgeType[object.edgeType];
       }
       if (object.cascade != null) {
-        objectJson["cascade"] = CascadeAction[object.cascade];
+        objectJson["cascade"] = ReferenceCascade[object.cascade];
       }
       objectJson["isIdentity"] = object.isIdentity;
       objectJson["isUnique"] = object.isUnique;
@@ -20590,7 +20590,7 @@ export function loadEncoders(): void {
         edgeTypeValue != undefined ? (EdgeType[edgeTypeValue] as any) : undefined;
       const cascadeValue = objectJson["cascade"];
       const unpackedCascade =
-        cascadeValue != undefined ? (CascadeAction[cascadeValue] as any) : undefined;
+        cascadeValue != undefined ? (ReferenceCascade[cascadeValue] as any) : undefined;
       const defaultValueValue = objectJson["defaultValue"];
       const unpackedDefaultValue =
         defaultValueValue != undefined

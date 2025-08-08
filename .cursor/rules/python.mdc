@@ -1,0 +1,7 @@
+---
+globs: *.py
+alwaysApply: false
+---
+Always type everything properly.
+Avoid getattr/hasattr.
+Prefer Sequence/Mapping/.. and such as return annotation.

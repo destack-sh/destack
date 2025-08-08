@@ -9,9 +9,9 @@ from typing import (
 
 from ._const import UNSET
 from ._hoisted import (
-    CascadeAction,
-    EdgeType,
     PropertyZone,
+    ReferenceCascade,
+    ReferenceType,
     ScalarType,
     TypeCardinality,
     ValueFactory,
@@ -66,8 +66,8 @@ class PropertyDeclaration(Declaration):
     default_factory_callable: Callable[[], Any] | None = None  # only for runtime properties
 
     # relationships
-    edge_type: EdgeType | None = None
-    cascade: CascadeAction | None = None
+    reference_type: ReferenceType | None = None
+    reference_cascade: ReferenceCascade | None = None
 
     # flags
     is_identity: bool = False
@@ -109,20 +109,16 @@ class PropertyDeclaration(Declaration):
         """A pointer to this Property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            from ..common import PropertyReference, PropertyReferenceType
+            from ..common import PropertyReference
 
             assert self.component is not None, f"{self!r} has no component"
             assert self.id is not None, f"{self!r} has no id"
             metatype = getattr(self.component, "metatype", None)
 
             if self.component.__declaration__.kind == ObjectKind.NODE:
-                ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN, node_type=metatype, id=self.id
-                )
+                ref = PropertyReference(node_type=metatype, id=self.id)
             else:
-                ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN, struct_type=metatype, id=self.id
-                )
+                ref = PropertyReference(struct_type=metatype, id=self.id)
             self._ref = ref
 
         return self._ref
@@ -183,8 +179,8 @@ class PropertyDeclaration(Declaration):
         if not self.type.is_required and self.default_value is UNSET:
             self.default_value = None
         # default to regular node references
-        if self.type.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
-            self.edge_type = EdgeType.REGULAR
+        if self.type.scalar_type == ScalarType.NODE_REFERENCE and self.reference_type is None:
+            self.reference_type = ReferenceType.REGULAR
         # references get a _ptr property (which is wired/stored)
         if (
             self.type.value_type is not None
@@ -349,8 +345,8 @@ def declare_property(
     description: str | None = None,
     default: Any = UNSET,
     default_factory: ValueFactory | None = None,
-    edge_type: EdgeType | None = None,
-    cascade: CascadeAction | None = None,
+    reference_type: ReferenceType | None = None,
+    reference_cascade: ReferenceCascade | None = None,
     is_internal: bool = False,
     is_repr: bool = False,
     is_hash: bool = True,
@@ -366,8 +362,8 @@ def declare_property(
         description=description,
         default_value=default,
         default_factory=default_factory,
-        edge_type=edge_type,
-        cascade=cascade,
+        reference_type=reference_type,
+        reference_cascade=reference_cascade,
         is_internal=is_internal,
         is_repr=is_repr,
         is_hash=is_hash,
@@ -383,12 +379,12 @@ def declare_property_parent(*, is_readonly: bool = False, description: str | Non
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
         id=3,
-        edge_type=EdgeType.PARENT,
+        reference_type=ReferenceType.REGULAR,
         default_value=None,
         is_internal=True,
         is_eq=False,
         is_readonly=is_readonly,
-        cascade=CascadeAction.CASCADE,
+        reference_cascade=ReferenceCascade.CASCADE,
         description=description,
     )
 

@@ -152,10 +152,13 @@ def declare_struct(
 class Struct(Object):
     """A Struct is a collection of Properties."""
 
-    # meta
+    """The kind of Object this is (static)."""
     metakind: ClassVar[ObjectKind] = ObjectKind.STRUCT
+    """The type of Struct this is (static)."""
     metatype: ClassVar[StructType]
+    """The declaration of this Struct (static)."""
     __declaration__: ClassVar["StructDeclaration"]
+    """The definition of this Struct (static)."""
     __definition__: ClassVar["StructDefinition"]
 
     @declare_method(60, is_implemented=True)

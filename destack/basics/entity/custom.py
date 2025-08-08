@@ -1,15 +1,15 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, final
 
 from destack.core import (
-    CascadeAction,
     Condition,
-    EdgeType,
     Entity,
     Error,
     Event,
     Message,
     NodeReference,
     NodeType,
+    ReferenceCascade,
+    ReferenceType,
     Sort,
     Struct,
     StructType,
@@ -44,7 +44,7 @@ class CustomEvent(Event):
     """
 
     definition: "CustomEventDefinition" = declare_property(
-        11,
+        10,
         is_internal=True,
         is_readonly=True,
         description="The CustomEvent this Signal is an instance of.",
@@ -167,8 +167,8 @@ class CustomPropertyDefinition(Entity):
     )
 
     # relationship
-    edge_type: Optional[EdgeType] = declare_property(140)
-    cascade: Optional[CascadeAction] = declare_property(141)
+    reference_type: Optional[ReferenceType] = declare_property(140)
+    cascade: Optional[ReferenceCascade] = declare_property(141)
 
     # property flags
     is_unique: bool | None = declare_property(

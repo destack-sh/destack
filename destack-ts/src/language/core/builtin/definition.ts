@@ -1,6 +1,6 @@
 import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/builtin";
 import {
-  type CascadeAction,
+  type ReferenceCascade,
   type EdgeType,
   type GraphDomain,
   PrimitiveType,
@@ -2048,7 +2048,7 @@ export class PropertyDefinition extends CheckedType {
   /**
    * PropertyDefinition.cascade
    */
-  readonly cascade: CascadeAction | null;
+  readonly cascade: ReferenceCascade | null;
 
   /**
    * Whether this Property is part of the object's identity.
@@ -2127,7 +2127,7 @@ export class PropertyDefinition extends CheckedType {
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
     edgeType?: EdgeType | null;
-    cascade?: CascadeAction | null;
+    cascade?: ReferenceCascade | null;
     isIdentity: boolean;
     isUnique: boolean;
     isReadonly: boolean;

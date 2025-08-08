@@ -186,16 +186,16 @@ class EnumType(OptionEnum):
     SCALAR_TYPE = declare_option(200_002)
     VALUE_FACTORY = declare_option(200_003)
     PROPERTY_ZONE = declare_option(200_006)
-    EDGE_TYPE = declare_option(200_007)
-    EDGE_DIRECTION = declare_option(200_008)
-    CASCADE_ACTION = declare_option(200_009)
-    ENCODING = declare_option(200_010)
-    TEXT_SPAN_TYPE = declare_option(200_011)
-    ICON_TYPE = declare_option(200_012)
+    REFERENCE_TYPE = declare_option(200_010)
+    REFERENCE_DIRECTION = declare_option(200_011)
+    REFERENCE_CASCADE = declare_option(200_012)
+    ENCODING = declare_option(200_020)
+    # text
+    TEXT_SPAN_TYPE = declare_option(200_100)
+    ICON_TYPE = declare_option(200_110)
     # edit
     EDIT_TYPE = declare_option(200_200)
     EDIT_OPERATION = declare_option(200_201)
-    PROPERTY_REFERENCE_TYPE = declare_option(200_213)
     # query
     CONDITIONAL_TYPE = declare_option(200_300)
     AGGREGATION_TYPE = declare_option(200_301)

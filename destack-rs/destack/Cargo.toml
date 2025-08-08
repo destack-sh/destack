@@ -14,9 +14,12 @@ path = "src/main.rs"
 [dependencies]
 bytes = { workspace = true }
 clap = { workspace = true }
+indexmap = { workspace = true }
+once_cell = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
 uuid = { workspace = true }
+wasm-bindgen = { workspace = true }
 
 [dev-dependencies]
 bencher = "0.1.5"

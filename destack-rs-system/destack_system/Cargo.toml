@@ -12,14 +12,16 @@ name = "destack-system"
 path = "src/main.rs"
 
 [dependencies]
-destack = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
-tokio = { workspace = true }
-smallvec = { workspace = true }
-regex = { workspace = true }
-uuid = { workspace = true }
+destack = { workspace = true }
 mio = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
+smallvec = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+wasm-bindgen = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = "0.7.9"

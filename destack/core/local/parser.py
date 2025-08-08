@@ -1,4 +1,5 @@
 import inspect
+import readline
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -328,6 +329,9 @@ class REPL:
             try:
                 # get user input
                 user_input = console.prompt(self.prompt_text.rstrip())
+                # push into history so up/down navigation works
+                if user_input:
+                    readline.add_history(user_input)
 
                 if not user_input:
                     continue

@@ -3,5 +3,5 @@ description:
 globs: 
 alwaysApply: false
 ---
-Performance matters a lot and we care.
-Don't over-optimize when it makes code harder to read, but some consideration up-front is important.
+Performance is critical across the board.
+Don't over-optimize when it makes code harder to read, but consideration up-front is important.

@@ -14,18 +14,21 @@ destack = { path = "destack-rs/destack" }
 # dependencies
 bytes = "1.10.1"
 clap = "4.5.43"
-tokio = "1.47.1"
-smallvec = "1.15.1"
-regex = "1.11.1"
-uuid = { version = "1.17.0", features = ["v4", "v5", "v7"] }
+indexmap = "2.10.0"
 mio = "1.0.4"
+once_cell = "1.21.3"
+regex = "1.11.1"
+smallvec = "1.15.1"
+tokio = "1.47.1"
+uuid = { version = "1.17.0", features = ["v4", "v5", "v7"] }
+wasm-bindgen = "0.2.100"
 # dev-dependencies
+loom = "0.7.2"
 pretty_assertions = "1.4.1"
+quickcheck = "1.0.3"
+rstest = "0.26.1"
 tempfile = "3.20.0"
 wasm-bindgen-test = "0.3.50"
-rstest = "0.26.1"
-quickcheck = "1.0.3"
-loom = "0.7.2"
 
 [workspace.lints.rust]
 missing_debug_implementations = "warn"

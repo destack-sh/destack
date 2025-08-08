@@ -22,4 +22,8 @@ class HistogramMetric(Metric):
 class HistogramMeasurementEvent(MeasurementEvent):
     """A Histogram Measurement."""
 
-    definition: "HistogramMetric" = declare_property(6)
+    definition: "HistogramMetric" = declare_property(
+        10,
+        is_internal=True,
+        is_readonly=True,
+    )

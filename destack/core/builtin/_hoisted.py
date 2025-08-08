@@ -182,27 +182,33 @@ class Region(OptionEnum):
     SYDNEY = declare_option(7_000)
 
 
-@declare_enum(EnumType.EDGE_TYPE)
-class EdgeType(OptionEnum):
-    PARENT = declare_option(1)
-    REGULAR = declare_option(5)
+@declare_enum(EnumType.REFERENCE_TYPE)
+class ReferenceType(OptionEnum):
+    REGULAR = declare_option(
+        1,
+        description="Fat reference (NodeReference)",
+    )
+    THIN = declare_option(
+        2,
+        description="Thin reference (only id)",
+    )
 
 
-@declare_enum(EnumType.CASCADE_ACTION)
-class CascadeAction(OptionEnum):
-    RESTRICT = declare_option(1)
-    CASCADE = declare_option(2)
-    SET_NULL = declare_option(3)
-    # SET_DEFAULT, NONE, ...
-
-
-@declare_enum(EnumType.EDGE_DIRECTION)
-class EdgeDirection(OptionEnum):
+@declare_enum(EnumType.REFERENCE_DIRECTION)
+class ReferenceDirection(OptionEnum):
     PARENT = declare_option(1)
     CHILD = declare_option(2)
     DEFINITION = declare_option(10)
     INSTANCE = declare_option(11)
     SIDE = declare_option(20)
+
+
+@declare_enum(EnumType.REFERENCE_CASCADE)
+class ReferenceCascade(OptionEnum):
+    RESTRICT = declare_option(1)
+    CASCADE = declare_option(2)
+    SET_NULL = declare_option(3)
+    # SET_DEFAULT, NONE, ...
 
 
 @declare_enum(EnumType.ENCODING)

@@ -1,4 +1,0 @@
----
-alwaysApply: true
----
-Private functions, classes and structs should have a leading _ prefix in every language.
