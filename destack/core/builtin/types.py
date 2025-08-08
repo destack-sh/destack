@@ -33,6 +33,7 @@ type Time = time
 type Duration = timedelta
 # string
 type String = str
+type Character = str
 # type UUID = UUID
 type Bytes = bytes
 type Json = Any
@@ -61,6 +62,7 @@ __all__ = [  # noqa: RUF022
     "Duration",
     # string
     "String",
+    "Character",
     "UUID",
     "Bytes",
     "Json",

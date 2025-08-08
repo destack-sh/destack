@@ -94,6 +94,7 @@ from .struct import ImmutableStruct, Struct, declare_struct
 from .types import (
     Boolean,
     Bytes,
+    Character,
     Date,
     Datetime,
     Duration,
@@ -151,6 +152,7 @@ __all__ = [
     "Boolean",
     "Bytes",
     "CascadeAction",
+    "Character",
     "ClientType",
     "ConstantDeclaration",
     "ConstraintDeclaration",

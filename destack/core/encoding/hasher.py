@@ -5,6 +5,7 @@ from typing import Any
 from ..builtin import (
     UUID,
     Bytes,
+    Character,
     Date,
     Datetime,
     Duration,
@@ -299,6 +300,16 @@ class Hasher(Handle):
         """
         encoded = value.encode("utf-8")
         self.hash_bytes(encoded)
+
+    # PrimitiveType.CHARACTER
+    @declare_method(153, is_implemented=True)
+    def hash_character(self, value: Character) -> None:
+        """
+        Hash a single Unicode code point as fixed 4 bytes (UTF-32 LE).
+        """
+        if len(value) != 1:
+            raise ValueError(f"character must be length 1, got {len(value)}: {value!r}")
+        self._mix_bytes(struct.pack("<I", ord(value)))
 
     # PrimitiveType.UUID
     @declare_method(151, is_implemented=True)

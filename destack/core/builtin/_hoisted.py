@@ -10,6 +10,7 @@ from .types import (
     UUID,
     Boolean,
     Bytes,
+    Character,
     Date,
     Datetime,
     Duration,
@@ -389,26 +390,31 @@ class PrimitiveType(OptionEnum):
         "String",
         description="Plain text",
     )
-    # nocheckin: PrimitiveType.CHARACTER?
-    UUID = declare_option(
+    CHARACTER = declare_option(
         51,
+        "Character",
+        description="Single character",
+    )
+    UUID = declare_option(
+        55,
         "UUID",
         description="Universally unique identifier (UUID4 or UUID7, 16 bytes)",
     )
     BYTES = declare_option(
-        52,
+        56,
         "Bytes",
         description="Binary data (arbitrary bytes)",
     )
     # VECTOR?
     JSON = declare_option(
-        55,
+        557,
         "JSON",
         description="JSON (arbitrary JSON data)",
     )
 
 
-assert max(PrimitiveType) < 64, "PrimitiveType must be less than 64"  # for :Encoding
+# number of primitive kinds must fit into 6 bits for compact encoding
+assert len(PrimitiveType) < 64, "PrimitiveType count must be less than 64"  # for :Encoding
 
 
 PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
@@ -445,6 +451,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     # string
     str: PrimitiveType.STRING,
     String: PrimitiveType.STRING,
+    Character: PrimitiveType.CHARACTER,
     UUID: PrimitiveType.UUID,
     bytes: PrimitiveType.BYTES,
     Bytes: PrimitiveType.BYTES,

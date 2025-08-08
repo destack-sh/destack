@@ -403,6 +403,28 @@ def test_string():
     assert reader.remaining == 0
 
 
+def test_character():
+    """Test fixed-width character encoding and decoding (4 bytes per char)."""
+    test_chars = [
+        "A",  # ASCII
+        "é",  # Latin-1
+        "世",  # BMP
+        "🌍",  # non-BMP (surrogate pair / astral)
+        "\u0000",  # null
+    ]
+
+    writer = BinaryWriter()
+    for ch in test_chars:
+        writer.write_character(ch)
+
+    assert len(writer.to_bytes()) == 4 * len(test_chars)
+
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_chars:
+        assert reader.read_character() == expected
+    assert reader.remaining == 0
+
+
 def test_bytes():
     """Test bytes encoding with length prefix."""
     # Map of bytes -> expected bytes
@@ -442,6 +464,7 @@ def test_mixed_types():
         (lambda: writer.write_float64(math.e), 8),  # 8 bytes
         (lambda: writer.write_string("test string"), 12),  # 12 bytes (1 + 11)
         (lambda: writer.write_bytes(b"\x01\x02\x03"), 4),  # 4 bytes (1 + 3)
+        (lambda: writer.write_character("Z"), 4),  # 4 bytes
     ]
 
     for write_op, _ in operations:
@@ -464,6 +487,7 @@ def test_mixed_types():
     assert reader.read_float64() == pytest.approx(math.e)
     assert reader.read_string() == "test string"
     assert reader.read_bytes() == b"\x01\x02\x03"
+    assert reader.read_character() == "Z"
     assert reader.remaining == 0
 
 

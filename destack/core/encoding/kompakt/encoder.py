@@ -423,6 +423,8 @@ class KompaktEncoder(Encoder):
                 writer.write_bytes(value)
             elif type.primitive_type == PrimitiveType.STRING:
                 writer.write_string(value)
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                writer.write_character(value)
             elif type.primitive_type == PrimitiveType.JSON:
                 writer.write_json(value)
             else:
@@ -512,6 +514,8 @@ class KompaktEncoder(Encoder):
                 return reader.read_bytes()
             elif type.primitive_type == PrimitiveType.STRING:
                 return reader.read_string()
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                return reader.read_character()
             elif type.primitive_type == PrimitiveType.JSON:
                 return reader.read_json()
             else:
