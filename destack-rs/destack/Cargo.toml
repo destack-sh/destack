@@ -16,9 +16,12 @@ bytes = { workspace = true }
 clap = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
+thiserror = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
+quickcheck = { workspace = true }
+rstest = { workspace = true }
 tempfile = { workspace = true }
 wasm-bindgen-test = { workspace = true }

@@ -1557,6 +1557,7 @@ class Object:
 
     __slots__: ClassVar[tuple[str, ...]] = ()
 
+    # nocheckin: remove Object._session?
     """The Session this Object is in."""
     _session: Optional["Session"] = declare_property_runtime(400)
 
