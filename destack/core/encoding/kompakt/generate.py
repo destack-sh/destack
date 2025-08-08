@@ -461,6 +461,8 @@ for _ in range({key}_length):
                 return f"_writer.write_duration({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
                 return f"_writer.write_string({source_expr})"
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                return f"_writer.write_character({source_expr})"
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"_writer.write_uuid({source_expr})"
             elif type.primitive_type == PrimitiveType.BYTES:
@@ -545,6 +547,8 @@ for _ in range({key}_length):
                 return "_reader.read_duration()"
             elif type.primitive_type == PrimitiveType.STRING:
                 return "_reader.read_string()"
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                return "_reader.read_character()"
             elif type.primitive_type == PrimitiveType.UUID:
                 return "_reader.read_uuid()"
             elif type.primitive_type == PrimitiveType.BYTES:

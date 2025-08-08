@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from ..builtin import (
     UUID,
     Bytes,
+    Character,
     Date,
     Datetime,
     Duration,
@@ -263,6 +264,17 @@ class BinaryWriter(Handle):
         """
         encoded = value.encode("utf-8")
         self.write_bytes(encoded)
+
+    # PrimitiveType.CHARACTER
+    @declare_method(153, is_implemented=True)
+    def write_character(self, value: Character) -> None:
+        """
+        Write a single Unicode code point as fixed 4 bytes (UTF-32 LE).
+        Size: 4 bytes.
+        """
+        if len(value) != 1:
+            raise BinaryError(f"character must be length 1, got {len(value)}: {value!r}")
+        self.buffer.extend(struct.pack("<I", ord(value)))
 
     # PrimitiveType.UUID
     @declare_method(151, is_implemented=True)
@@ -617,6 +629,19 @@ class BinaryReader(Handle):
         Size: 1-5 bytes (length) + string length in bytes.
         """
         return self.read_bytes().decode("utf-8")
+
+    # PrimitiveType.CHARACTER
+    @declare_method(153, is_implemented=True)
+    def read_character(self) -> Character:
+        """
+        Read a single Unicode code point encoded as fixed 4 bytes (UTF-32 LE).
+        Size: 4 bytes.
+        """
+        if self.pos + 4 > len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+        codepoint = struct.unpack("<I", self.buffer[self.pos : self.pos + 4])[0]
+        self.pos += 4
+        return chr(codepoint)
 
     # PrimitiveType.UUID
     @declare_method(151, is_implemented=True)

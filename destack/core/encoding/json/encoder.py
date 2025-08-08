@@ -318,6 +318,8 @@ class JsonEncoder(Encoder):
                 return timedelta_to_isoformat(value)
             elif type.primitive_type == PrimitiveType.STRING:
                 return value
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                return value
             elif type.primitive_type == PrimitiveType.UUID:
                 return str(value)
             elif type.primitive_type == PrimitiveType.BYTES:
@@ -401,6 +403,8 @@ class JsonEncoder(Encoder):
             elif type.primitive_type == PrimitiveType.DURATION:
                 return timedelta_from_isoformat(value)
             elif type.primitive_type == PrimitiveType.STRING:
+                return value
+            elif type.primitive_type == PrimitiveType.CHARACTER:
                 return value
             elif type.primitive_type == PrimitiveType.UUID:
                 return UUID(value)

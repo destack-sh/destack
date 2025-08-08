@@ -115,6 +115,8 @@ class ObjectGenerator:
         # header
         if properties_in_order:
             method_header_lines = ["def __init__(self, *"]
+            # explicit session kw-only arg first
+            method_header_lines.append("_session=None")
             # first add properties without defaults that are not managed
             for prop in required_properties:
                 method_header_lines.append(prop.name)
@@ -146,7 +148,7 @@ class ObjectGenerator:
             method_header_lines.append(")")
             method_header = ", ".join(method_header_lines)
         else:
-            method_header = "def __init__(self)"
+            method_header = "def __init__(self, *, _session=None)"
 
         # body
         # NOTE: frozen objects can use direct assignment, mutable objects can't
@@ -658,6 +660,8 @@ if ({map_expr} := {source_expr}):
                 return f"{value_expr}!r"
             elif type.primitive_type == PrimitiveType.STRING:
                 return f"{value_expr}!r"
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                return f"{value_expr}!r"
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"str({value_expr})"
             elif type.primitive_type == PrimitiveType.BYTES:
@@ -885,6 +889,7 @@ if {self_source_expr} != {other_source_expr}:
                 return "{self_val} == {other_val}", True
             elif type.primitive_type in (
                 PrimitiveType.STRING,
+                PrimitiveType.CHARACTER,
                 PrimitiveType.UUID,
                 PrimitiveType.BYTES,
             ):
@@ -1074,6 +1079,8 @@ if ({map_source_expr} := {source_expr}):
                 return f"{hasher_expr}.hash_duration({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
                 return f"{hasher_expr}.hash_string({source_expr})"
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                return f"{hasher_expr}.hash_character({source_expr})"
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"{hasher_expr}.hash_uuid({source_expr})"
             elif type.primitive_type == PrimitiveType.BYTES:
