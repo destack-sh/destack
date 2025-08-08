@@ -20,8 +20,14 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+bencher = "0.1.5"
 pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
+quickcheck_macros = "1.1.0"
 rstest = { workspace = true }
+static_assertions = "1.1.0"
 tempfile = { workspace = true }
 wasm-bindgen-test = { workspace = true }
+
+[lints]
+workspace = true

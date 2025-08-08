@@ -14,13 +14,13 @@ pub const FRACTIONAL_INTEGER_MAX: &str = "aZZZZZZZZZZZZZZZZZZZZZZZZZ";
 #[derive(thiserror::Error, Debug)]
 pub enum FractionalError {
     #[error("invalid order key head: {head}")]
-    InvalidOrderKeyHead { head: char},
-	#[error("trailing zero")]
-	TrailingZero,
-	#[error("invalid order key: {key}")]
-	InvalidOrderKey { key: String },
-	#[error("{a} >= {b}")]
-	InvalidComparison { a: String, b: String },
+    InvalidOrderKeyHead { head: char },
+    #[error("trailing zero")]
+    TrailingZero,
+    #[error("invalid order key: {key}")]
+    InvalidOrderKey { key: String },
+    #[error("{a} >= {b}")]
+    InvalidComparison { a: String, b: String },
 }
 
 /// Gets the length of the integer part of the given order key
@@ -94,13 +94,9 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
     };
 
     if digit_b - digit_a > 1 {
-        // midpoint digit
-        let mid_digit = (digit_a + digit_b) / 2; // equivalent to int(0.5 + 0.5*(a+b)) for integers
-        Ok(_BASE_95_DIGITS
-            .chars()
-            .nth(mid_digit)
-            .unwrap()
-            .to_string())
+        // midpoint digit (round half up)
+        let mid_digit = (digit_a + digit_b + 1) / 2; // equivalent to int(0.5 + 0.5*(a+b)) for integers
+        Ok(_BASE_95_DIGITS.chars().nth(mid_digit).unwrap().to_string())
     } else {
         // first digits are consecutive
         if let Some(bv) = b {
@@ -121,9 +117,12 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
 
 /// Gets the integer part of the given order key
 fn _get_integer_part(key: &str) -> Result<String, FractionalError> {
-    let head = key.chars().next().ok_or_else(|| FractionalError::InvalidOrderKey {
-        key: key.to_string(),
-    })?;
+    let head = key
+        .chars()
+        .next()
+        .ok_or_else(|| FractionalError::InvalidOrderKey {
+            key: key.to_string(),
+        })?;
     let integer_part_length = _get_integer_length(head)?;
     if integer_part_length > key.len() {
         return Err(FractionalError::InvalidOrderKey {
@@ -244,6 +243,7 @@ pub fn decrement_integer(x: &str) -> Option<String> {
 
 /// Generates a key between the given keys `a` and `b` (inclusive) with logarithmic fraction growth
 pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, FractionalError> {
+    // validate
     if let Some(av) = a {
         _validate_order_key(av)?;
     }
@@ -252,7 +252,10 @@ pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, Fractio
     }
     if let (Some(av), Some(bv)) = (a, b) {
         if av >= bv {
-            return Err(FractionalError::InvalidComparison { a: av.to_string(), b: bv.to_string() });
+            return Err(FractionalError::InvalidComparison {
+                a: av.to_string(),
+                b: bv.to_string(),
+            });
         }
     }
 
@@ -302,7 +305,11 @@ pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, Fractio
 }
 
 /// Generates evenly spread `n` keys between the given keys `a` and `b` (inclusive)
-pub fn get_order_keys(a: Option<&str>, b: Option<&str>, n: u32) -> Result<Vec<String>, FractionalError> {
+pub fn get_order_keys(
+    a: Option<&str>,
+    b: Option<&str>,
+    n: u32,
+) -> Result<Vec<String>, FractionalError> {
     if n == 0 {
         return Ok(vec![]);
     }
@@ -340,4 +347,102 @@ pub fn get_order_keys(a: Option<&str>, b: Option<&str>, n: u32) -> Result<Vec<St
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    fn assert_ok(a: Option<&str>, b: Option<&str>, expected: &str) {
+        let result = get_order_key(a, b);
+        match result {
+            Ok(actual) => assert_eq!(actual, expected, "case ({:?}, {:?})", a, b),
+            Err(e) => panic!(
+                "expected Ok({}), got error {:?} for case ({:?}, {:?})",
+                expected, e, a, b
+            ),
+        }
+    }
+
+    fn assert_err(a: Option<&str>, b: Option<&str>, expected_err: &str) {
+        let result = get_order_key(a, b);
+        match expected_err {
+            "InvalidOrderKey" => assert!(
+                matches!(result, Err(FractionalError::InvalidOrderKey { .. })),
+                "expected InvalidOrderKey for case ({:?}, {:?}), got {:?}",
+                a,
+                b,
+                result
+            ),
+            "InvalidComparison" => assert!(
+                matches!(result, Err(FractionalError::InvalidComparison { .. })),
+                "expected InvalidComparison for case ({:?}, {:?}), got {:?}",
+                a,
+                b,
+                result
+            ),
+            other => panic!("unknown expected error kind: {}", other),
+        }
+    }
+
+    macro_rules! fractional_ok_case {
+        ($name:ident, $a:expr, $b:expr, $expected:expr) => {
+            #[test]
+            fn $name() {
+                assert_ok($a, $b, $expected);
+            }
+        };
+    }
+
+    macro_rules! fractional_err_case {
+        ($name:ident, $a:expr, $b:expr, $err:expr) => {
+            #[test]
+            fn $name() {
+                assert_err($a, $b, $err);
+            }
+        };
+    }
+
+    fractional_ok_case!(case_none_none_is_a0, None, None, "a0");
+    fractional_ok_case!(case_none_a0, None, Some("a0"), "a/");
+    fractional_ok_case!(case_a0_none, Some("a0"), None, "a1");
+    fractional_ok_case!(case_a0_a1, Some("a0"), Some("a1"), "a0P");
+    fractional_ok_case!(case_a0v_a1, Some("a0V"), Some("a1"), "a0k");
+    fractional_ok_case!(case_zz_a0, Some("Zz"), Some("a0"), "Z{");
+    fractional_ok_case!(case_zz_a1, Some("Zz"), Some("a1"), "Z{");
+    fractional_ok_case!(case_none_y00, None, Some("Y00"), "Y//");
+    fractional_ok_case!(case_bzz_none, Some("bzz"), None, "bz{");
+    fractional_ok_case!(case_a0_a0v, Some("a0"), Some("a0V"), "a0<");
+    fractional_ok_case!(case_a0_a0g, Some("a0"), Some("a0G"), "a05");
+    fractional_ok_case!(case_b125_b129, Some("b125"), Some("b129"), "b127");
+    fractional_ok_case!(case_a0_a1v, Some("a0"), Some("a1V"), "a1");
+    fractional_ok_case!(case_zz_a01, Some("Zz"), Some("a01"), "Z{");
+    fractional_ok_case!(case_none_a0v, None, Some("a0V"), "a0");
+    fractional_ok_case!(case_none_b999, None, Some("b999"), "b99");
+    fractional_ok_case!(
+        case_none_a_min_plus_one,
+        None,
+        Some("A000000000000000000000000001"),
+        "A00000000000000000000000000*"
+    );
+    fractional_ok_case!(
+        case_zs_many_y_none,
+        Some("zzzzzzzzzzzzzzzzzzzzzzzzzzy"),
+        None,
+        "zzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    );
+    fractional_ok_case!(
+        case_zs_many_none,
+        Some("zzzzzzzzzzzzzzzzzzzzzzzzzzz"),
+        None,
+        "zzzzzzzzzzzzzzzzzzzzzzzzzz{"
+    );
+
+    fractional_err_case!(
+        case_none_a_min,
+        None,
+        Some("A00000000000000000000000000"),
+        "InvalidOrderKey"
+    );
+    fractional_err_case!(case_a00_none, Some("a00"), None, "InvalidOrderKey");
+    fractional_err_case!(case_a00_a1, Some("a00"), Some("a1"), "InvalidOrderKey");
+    fractional_err_case!(case_zero_one, Some("0"), Some("1"), "InvalidOrderKey");
+    fractional_err_case!(case_a1_a0, Some("a1"), Some("a0"), "InvalidComparison");
+}

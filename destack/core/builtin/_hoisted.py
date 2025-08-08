@@ -211,6 +211,7 @@ class Encoding(OptionEnum):
     JSON = declare_option(1, "JSON", description="JSON encoding")
     JSONC = declare_option(2, "JSONC", description="Constant-keyed JSON encoding")
     KOMPAKT = declare_option(3, "KOMPAKT", description="Kompakt encoding")
+    # C_ABI?
 
 
 assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding

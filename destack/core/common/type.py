@@ -75,6 +75,7 @@ class Type(ImmutableStruct):
     #     is_repr=True,
     #     description="Dimensions of this Type (list, tuple, map, array).",
     # )
+    # generic_over?
     is_required: bool = declare_property(119, default=True)
 
     # scalar
