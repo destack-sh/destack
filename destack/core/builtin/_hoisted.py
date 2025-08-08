@@ -389,6 +389,7 @@ class PrimitiveType(OptionEnum):
         "String",
         description="Plain text",
     )
+    # nocheckin: PrimitiveType.CHARACTER?
     UUID = declare_option(
         51,
         "UUID",

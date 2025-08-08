@@ -176,10 +176,9 @@ class EnumType(OptionEnum):
     RUNTIME_PLATFORM = declare_option(30)
     RUNTIME_LANGUAGE = declare_option(31)
     RUNTIME_TYPE = declare_option(32)
-    EVENT_STATUS = declare_option(50)
+    EVENT_STATUS = declare_option(40)
 
     # definition [100_000]
-    #
 
     # common [200_000]
     PRIMITIVE_TYPE = declare_option(200_000)
@@ -1106,6 +1105,9 @@ class StructType(OptionEnum):
     IMMUTABLE_STRUCT = declare_option(2, "Immutable Struct", description="Immutable Struct")
     ERROR = declare_option(3, "Error", description="Error")
     MESSAGE = declare_option(4, "Message", description="Message")
+
+    # error [10_000]
+    FRACTIONAL_INTEGER_ERROR = declare_option(10_000)
 
     # definition [100_000]
     DEFINITION = declare_option(100_000)

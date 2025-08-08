@@ -47,7 +47,7 @@ from .declaration import (
     declare_method,
 )
 from .enum import OptionDeclaration
-from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property_runtime
+from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration
 from .types import Int64
 from .universe import NodeType, ObjectKind, ObjectStability, StructType
 from .uuid import UUID, uuid4, uuid7
@@ -189,7 +189,6 @@ class ObjectGenerator:
                 body_properties.pop("client_local_epoch")
             else:
                 raise NotImplementedError(f"unexpected node {cls.__name__}")
-            body_properties.pop("_session")
             body_properties.pop("_ref")
             body_properties.pop("_is_new")
             method_body_lines.append(f"""\
@@ -198,7 +197,6 @@ if _session is None:
     _session = ACTIVE_SESSION.get()
     if _session is None:
         raise RuntimeError("no active session for {cls.__name__}")
-{set_template_str.format("_session", "_session")}
 
 # node identity
 if id is None:
@@ -206,25 +204,25 @@ if id is None:
             if NodeType.ENTITY in declaration.inherits:
                 method_body_lines.append("""\
     id = uuid4()
-    _now = self._session.context.now()
+    _now = _session.context.now()
     created_at = _now
-    created_epoch = self._session.remote_epoch
-    created_by_ptr = self._session.context.actor_ptr
+    created_epoch = _session.remote_epoch
+    created_by_ptr = _session.context.actor_ptr
     updated_at = _now
-    updated_epoch = self._session.remote_epoch
-    updated_by_ptr = self._session.context.actor_ptr
+    updated_epoch = _session.remote_epoch
+    updated_by_ptr = _session.context.actor_ptr
 """)
             elif NodeType.EVENT in declaration.inherits:
                 method_body_lines.append("""\
     id = uuid7()
-    _now = self._session.context.now()
-    created_epoch = self._session.remote_epoch
+    _now = _session.context.now()
+    created_epoch = _session.remote_epoch
     created_at = _now
-    created_by_ptr = self._session.context.actor_ptr
-    client_ptr = self._session.context.client_ptr
-    client_nonce = self._session.context.client_nonce
-    client_remote_epoch = self._session.remote_epoch
-    client_local_epoch = self._session.local_epoch
+    created_by_ptr = _session.context.actor_ptr
+    client_ptr = _session.context.client_ptr
+    client_nonce = _session.context.client_nonce
+    client_remote_epoch = _session.remote_epoch
+    client_local_epoch = _session.local_epoch
     client_created_at = _now
 """)
             else:
@@ -323,8 +321,10 @@ if {arg_name} is None:
                 method_body_lines.append(f"self.{self_name} = {self_name}")
 
         method_body = "\n".join(method_body_lines) or "pass"
+        if len(method_body.splitlines()) < 2:
+            method_body += "\npass"  # just in case we don't have any real lines
         method_body = textwrap.indent(method_body, " " * 4)
-        init_str = f"{method_header}:\n{method_body or 'pass'}"
+        init_str = f"{method_header}:\n{method_body}"
         return init_str, extra_glbls
 
     def generate_prop_default(
@@ -344,20 +344,20 @@ if {arg_name} is None:
         elif prop.default_factory == ValueFactory.NOW:
             if cls.__declaration__.kind == ObjectKind.NODE:
                 return f"""\
-{target_expr} = self._session.context.now()"""
+{target_expr} = _session.context.now()"""
             else:
                 return f"""\
-assert self._session is not None, "no active Session for {cls.__name__}"
-{target_expr} = self._session.context.now()"""
+assert _session is not None, "no active Session for {cls.__name__}"
+{target_expr} = _session.context.now()"""
         elif prop.default_factory == ValueFactory.REMOTE_EPOCH:
             assert object.kind is not None, f"unexpected declaration: {object!r}"
             if object.kind == ObjectKind.NODE:
                 return f"""\
-{target_expr} = self._session.remote_epoch"""
+{target_expr} = _session.remote_epoch"""
             elif object.kind == ObjectKind.STRUCT:
                 return f"""\
-assert self._session is not None, "no active Session for {cls.__name__}"
-{target_expr} = self._session.remote_epoch"""
+assert _session is not None, "no active Session for {cls.__name__}"
+{target_expr} = _session.remote_epoch"""
             elif object.kind in (ObjectKind.HANDLE, ObjectKind.MODULE):
                 raise NotImplementedError(f"cannot use {prop.default_factory} for {cls.__name__}")
             else:
@@ -366,24 +366,24 @@ assert self._session is not None, "no active Session for {cls.__name__}"
             assert object.kind is not None, f"unexpected declaration: {object!r}"
             if object.kind == ObjectKind.NODE:
                 return f"""\
-{target_expr} = self._session.local_epoch"""
+{target_expr} = _session.local_epoch"""
             elif object.kind == ObjectKind.STRUCT:
                 return f"""\
-assert self._session is not None, "no active Session for {cls.__name__}"
-{target_expr} = self._session.local_epoch"""
+assert _session is not None, "no active Session for {cls.__name__}"
+{target_expr} = _session.local_epoch"""
             elif object.kind in (ObjectKind.HANDLE, ObjectKind.MODULE):
                 raise NotImplementedError(f"cannot use {prop.default_factory} for {cls.__name__}")
             else:
                 assert_never(object.kind)
         elif prop.default_factory == ValueFactory.ACTOR:
             return f"""\
-{target_expr}_ptr = self._session.context.actor_ptr"""
+{target_expr}_ptr = _session.context.actor_ptr"""
         elif prop.default_factory == ValueFactory.CLIENT:
             return f"""\
-{target_expr}_ptr = self._session.context.client_ptr"""
+{target_expr}_ptr = _session.context.client_ptr"""
         elif prop.default_factory == ValueFactory.CLIENT_NONCE:
             return f"""\
-{target_expr} = self._session.context.client_nonce"""
+{target_expr} = _session.context.client_nonce"""
         elif prop.default_factory == ValueFactory.REGION:
             return f"""\
 {target_expr} = REGION"""
@@ -1199,7 +1199,7 @@ def _path_key(self) -> str:
 def {prop.name}(self: "Object") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
-        return self._session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
+        return _session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
     else:
         return None
 """
@@ -1209,9 +1209,9 @@ def {prop.name}(self: "Object") -> "Node | None":
 def {prop.name}(self: "Object") -> "Node | None":
     node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
-        if self._session is None:
+        if _session is None:
             return None
-        return self._session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
+        return _session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
     else:
         return None
 """
@@ -1333,11 +1333,13 @@ def _process_object_cls[ObjectT: Object](
             # constants are replaced with their value during finalization
             attribute.name = intern(name)
             attribute.component = cls
-            if attribute.original_component is UNSET:
+            if attribute.original_component is None:
                 attribute.original_component = cls
         elif isinstance(attribute, (MethodDeclaration, ActionDeclaration)):
             # methods/actions are replaced later with their callables
-            pass  # nothing to do
+            attribute.component = cls
+            if attribute.original_component is None:
+                attribute.original_component = cls
         else:
             raise TypeError(
                 f"{cls.__name__}.{name} is not a Property or Constant: {attribute} ({type(attribute)})"
@@ -1556,10 +1558,6 @@ class Object:
     __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
 
     __slots__: ClassVar[tuple[str, ...]] = ()
-
-    # nocheckin: remove Object._session?
-    """The Session this Object is in."""
-    _session: Optional["Session"] = declare_property_runtime(400)
 
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:

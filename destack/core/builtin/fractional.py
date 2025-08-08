@@ -5,7 +5,10 @@
 from typing import Optional, cast
 
 from .declaration import declare_constant, declare_method
+from .error import Error, declare_error
+from .property import declare_property
 from .types import UInt32
+from .universe import StructType
 
 _BASE_95_DIGITS = (
     "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
@@ -20,6 +23,17 @@ __constants__ = (
     declare_constant(302, FRACTIONAL_INTEGER_MIN, name="FRACTIONAL_INTEGER_MIN"),
     declare_constant(303, FRACTIONAL_INTEGER_MAX, name="FRACTIONAL_INTEGER_MAX"),
 )
+
+
+@declare_error(StructType.FRACTIONAL_INTEGER_ERROR)
+class FractionalIntegerError(Error):
+    """
+    An Error raised when a fractional integer operation fails.
+    """
+
+    head: str | None = declare_property(110, is_repr=True)
+    a: str | None = declare_property(111, is_repr=True)
+    b: str | None = declare_property(112, is_repr=True)
 
 
 def _get_integer_length(head: str) -> int:

@@ -2,7 +2,3 @@ pub mod core;
 
 #[cfg(test)]
 mod test;
-
-pub fn hello() -> &'static str {
-    "Hello from Destack!"
-}

@@ -49,6 +49,6 @@ class Logger(Handle):
         raise NotImplementedError
 
     @declare_method(106)
-    def critical(self, name: str, **kwargs) -> "LogEvent":
-        """Log a critical event with additional custom Values."""
+    def panic(self, name: str, **kwargs) -> "LogEvent":
+        """Log a panic event with additional custom Values."""
         raise NotImplementedError

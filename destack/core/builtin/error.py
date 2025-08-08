@@ -70,7 +70,7 @@ def declare_error(
         TagDeclaration(id=21, name="tracking", description="Error tracking"),
     ),
 )
-class Error(ImmutableStruct):
+class Error(ImmutableStruct, Exception):
     """
     An Error is a structured error message.
 
@@ -127,3 +127,5 @@ class Error(ImmutableStruct):
         description="The logical time in the Client when it created this Error (client).",
         tags=("tracking",),
     )
+
+    description: str | None = declare_property(103, is_repr=True)

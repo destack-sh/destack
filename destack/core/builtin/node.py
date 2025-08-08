@@ -24,7 +24,6 @@ if TYPE_CHECKING:
         NodeDefinition,
         NodeReference,
         PermissionDeclaration,
-        Session,
         Space,
     )
 
@@ -180,6 +179,8 @@ def _process_node_cls(
                     #   .. also similarity to mut/non mut Structs?
                     #   .. also related to (frozen-in-time) Nodes as values?)
                     #   .. also related to partial Node Values for animation tracks?
+                    #   if this were a separate Struct/BaseSturct we could do a custom Encoder
+                    #   instead of stuffing it into materialization logic?)
                     continue
                 raise ValueError(f"'{cls.__name__}' has no property {struct_prop!r}")
             if node_prop.type != struct_prop.type:
@@ -298,8 +299,6 @@ class Node(Object):
     # 100+ for general properties
     # ...
 
-    """The Session this Node is in."""
-    _session: "Session" = declare_property_runtime(400)
     """The cached reference to this Node instance."""
     _ref: Optional["NodeReference"] = declare_property_runtime(401, default=None)
     """Whether this Node is new."""
