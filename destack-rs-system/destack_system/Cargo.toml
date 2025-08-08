@@ -36,3 +36,4 @@ wasm-bindgen-test = { workspace = true }
 
 [lints]
 workspace = true
+

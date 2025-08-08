@@ -188,9 +188,10 @@ class ReferenceType(OptionEnum):
         1,
         description="Fat reference (NodeReference)",
     )
+    # nocheckin: handle ReferenceType.THIN (NodeReference.id only)
     THIN = declare_option(
         2,
-        description="Thin reference (only id)",
+        description="Thin reference (NodeReference.id, internal use only)",
     )
 
 

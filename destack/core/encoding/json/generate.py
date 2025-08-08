@@ -547,6 +547,8 @@ else:
                 return f"timedelta_to_isoformat({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
                 return source_expr
+            elif type.primitive_type == PrimitiveType.CHARACTER:
+                return f"str({source_expr})"
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"str({source_expr})"
             elif type.primitive_type == PrimitiveType.BYTES:
@@ -631,6 +633,8 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
             elif type.primitive_type == PrimitiveType.DURATION:
                 return f"timedelta_from_isoformat({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
+                return source_expr
+            elif type.primitive_type == PrimitiveType.CHARACTER:
                 return source_expr
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"UUID({source_expr})"
