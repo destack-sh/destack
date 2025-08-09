@@ -8,7 +8,6 @@
       "name": "destack-test",
       "dependencies": {
         "destack": "link:destack-ts",
-        "pyodide": "catalog:",
         "temporal-polyfill": "catalog:",
       },
       "devDependencies": {
@@ -51,7 +50,6 @@
       "name": "destack-ts-server",
       "dependencies": {
         "destack": "link:destack-ts",
-        "pyodide": "catalog:",
         "temporal-polyfill": "catalog:",
       },
       "devDependencies": {
@@ -74,7 +72,6 @@
       "name": "destack-ts-system",
       "dependencies": {
         "destack": "link:destack-ts",
-        "pyodide": "catalog:",
         "temporal-polyfill": "catalog:",
       },
       "devDependencies": {
@@ -106,7 +103,6 @@
         "@codemirror/view": "catalog:web",
         "destack": "link:destack-ts",
         "motion": "catalog:web",
-        "pyodide": "catalog:",
         "temporal-polyfill": "catalog:",
       },
       "devDependencies": {
@@ -135,7 +131,6 @@
     },
   },
   "catalog": {
-    "pyodide": "^0.28.0",
     "temporal-polyfill": "^0.3.0",
   },
   "catalogs": {
@@ -559,8 +554,6 @@
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
     "pure-rand": ["pure-rand@7.0.1", "", {}, "sha512-oTUZM/NAZS8p7ANR3SHh30kXB+zK2r2BPcEn/awJIbOvq82WoMN4p62AWWp3Hhw50G0xMsw1mhIBLqHw64EcNQ=="],
-
-    "pyodide": ["pyodide@0.28.0", "", { "dependencies": { "ws": "^8.5.0" } }, "sha512-QML/Gh8eu50q5zZKLNpW6rgS0XUdK+94OSL54AUSKV8eJAxgwZrMebqj+CyM0EbF3EUX8JFJU3ryaxBViHammQ=="],
 
     "react": ["react@19.1.0", "", {}, "sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg=="],
 

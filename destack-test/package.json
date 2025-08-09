@@ -25,7 +25,6 @@
   },
   "dependencies": {
     "destack": "link:destack-ts",
-    "pyodide": "catalog:",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {

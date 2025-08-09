@@ -30,7 +30,6 @@
     "@codemirror/view": "catalog:web",
     "destack": "link:destack-ts",
     "motion": "catalog:web",
-    "pyodide": "catalog:",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
