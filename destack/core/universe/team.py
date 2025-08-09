@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from ..builtin import (
     Entity,
@@ -6,11 +6,10 @@ from ..builtin import (
     TraitType,
     declare_entity,
     declare_property,
-    declare_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack import Organization
+    pass
 
 
 @declare_entity(
@@ -22,5 +21,4 @@ class Team(Entity):
     An Team with Users and Teams.
     """
 
-    parent: Optional["Organization"] = declare_property_parent()
     slug: str = declare_property(102, is_repr=True)

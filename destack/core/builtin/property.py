@@ -375,20 +375,6 @@ def declare_property(
     )
 
 
-def declare_property_parent(*, is_readonly: bool = False, description: str | None = None) -> Any:
-    """The parent of a node, must be of one of the given types."""
-    return PropertyDeclaration(
-        id=3,
-        reference_type=ReferenceType.REGULAR,
-        default_value=None,
-        is_internal=True,
-        is_eq=False,
-        is_readonly=is_readonly,
-        reference_cascade=ReferenceCascade.CASCADE,
-        description=description,
-    )
-
-
 def declare_property_runtime(
     id: int,
     *,
@@ -414,6 +400,5 @@ def declare_property_runtime(
 
 _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     declare_property,
-    declare_property_parent,
     declare_property_runtime,
 )

@@ -39,7 +39,7 @@ class Space(Entity):
     """
 
     space: "Space" = declare_property(
-        5,
+        3,
         is_internal=True,
         is_readonly=True,
         default_factory=ValueFactory.SELF,

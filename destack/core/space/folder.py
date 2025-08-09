@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from ..builtin import (
     Entity,
@@ -10,11 +10,10 @@ from ..builtin import (
     declare_enum,
     declare_option,
     declare_property,
-    declare_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack import Space
+    pass
 
 
 @declare_enum(EnumType.FOLDER_TYPE)
@@ -41,6 +40,5 @@ class FolderType(OptionEnum):
 class Folder(Entity):
     """A Folder is a sub-space of a Space."""
 
-    parent: Union["Space", "Folder", None] = declare_property_parent()
     type: FolderType = declare_property(100, is_repr=True, default=FolderType.GENERAL)
     slug: str | None = declare_property(103, is_repr=True)

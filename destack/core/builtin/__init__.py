@@ -88,7 +88,6 @@ from .property import (
     PropertyDeclaration,
     TypeDeclaration,
     declare_property,
-    declare_property_parent,
     declare_property_runtime,
     parse_type_declaration,
 )
@@ -247,7 +246,6 @@ __all__ = [
     "declare_method",
     "declare_option",
     "declare_property",
-    "declare_property_parent",
     "declare_property_runtime",
     "declare_struct",
     "get_order_key",

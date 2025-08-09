@@ -7,11 +7,10 @@ from ..builtin import (
     TraitType,
     declare_entity,
     declare_property,
-    declare_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack import Space
+    pass
 
 
 @declare_entity(
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
 class User(Entity):
     """A User is a human using Destack."""
 
-    parent: Optional["Space"] = declare_property_parent()
     slug: str = declare_property(102, is_repr=True)
 
     last_logged_in_at: Optional[datetime] = declare_property(111)

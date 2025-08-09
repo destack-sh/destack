@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.core import (
     Entity,
@@ -7,11 +7,10 @@ from destack.core import (
     UInt64,
     declare_entity,
     declare_property,
-    declare_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack import File, Space
+    from destack import File
 
 
 FILE_HASH_LENGTH = 64  # 256 bits
@@ -22,8 +21,6 @@ class File(Entity):
     """
     A generic File is a remote asset stored somewhere.
     """
-
-    parent: Optional["Space"] = declare_property_parent()
 
     # meta
     mime_type: str | None = declare_property(120, is_repr=True)

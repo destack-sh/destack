@@ -1,7 +1,5 @@
 from typing import (
     TYPE_CHECKING,
-    Optional,
-    Union,
     final,
 )
 
@@ -15,11 +13,10 @@ from ..builtin import (
     declare_enum,
     declare_option,
     declare_property,
-    declare_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack import Space
+    pass
 
 
 @declare_enum(EnumType.BRANCH_TYPE)
@@ -40,10 +37,8 @@ class BranchType(OptionEnum):
 class Branch(Entity):
     """
     A Branch is a version of a Snapshot.
-
     """
 
-    parent: Optional["Space"] = declare_property_parent()
     type: BranchType = declare_property(100)
 
 
@@ -78,8 +73,6 @@ class Snapshot(Entity):
     To avoid breaking the universe, Snapshots cannot themselves be part of any other Snapshot.
      (Technically, Snapshots are part of themselves.)
     """
-
-    parent: Union["Space", None] = declare_property_parent(is_readonly=True)
 
     type: SnapshotType = declare_property(100)
     status: SnapshotStatus = declare_property(110, default=SnapshotStatus.ACTIVE)

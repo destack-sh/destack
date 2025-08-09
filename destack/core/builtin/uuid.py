@@ -32,8 +32,8 @@ def uuid7() -> UUID:
 
 from .declaration import declare_method  # noqa: E402
 
-declare_method(301, is_implemented=True, description="Generate a UUIDv4.")(uuid4)
-declare_method(302, is_implemented=True, description="Generate a UUIDv5.")(uuid5)
-declare_method(303, is_implemented=True, description="Generate a UUIDv7.")(uuid7)
+uuid4 = declare_method(301, is_implemented=True, description="Generate a UUIDv4.")(uuid4)
+uuid5 = declare_method(302, is_implemented=True, description="Generate a UUIDv5.")(uuid5)
+uuid7 = declare_method(303, is_implemented=True, description="Generate a UUIDv7.")(uuid7)
 
 __all__ = ["UUID", "uuid4", "uuid5", "uuid7"]
