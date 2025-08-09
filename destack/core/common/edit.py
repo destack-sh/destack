@@ -4,13 +4,16 @@ from ..builtin import (
     Entity,
     EnumType,
     Event,
+    ImmutableStruct,
     NodeType,
     OptionEnum,
+    StructType,
     UInt8,
     declare_enum,
     declare_event,
     declare_option,
     declare_property,
+    declare_struct,
 )
 
 if TYPE_CHECKING:
@@ -30,10 +33,11 @@ class EditType(OptionEnum):
     MOVE = declare_option(11, description="Move an Entity to a new parent Entity (or detach)")
     DELETE = declare_option(20, description="Delete an Entity (and its descendants)")
     RESTORE = declare_option(21, description="Restore a deleted Entity (and its descendants)")
+    # TODO :Incomplete: EditType.CHECK/ASSERT (for transaction/change safety)
 
 
-@declare_enum(EnumType.EDIT_OPERATION)
-class EditOperation(OptionEnum):
+@declare_enum(EnumType.EDIT_OPERATION_TYPE)
+class EditOperationType(OptionEnum):
     """The update operation to perform on a Node."""
 
     # direct
@@ -56,23 +60,14 @@ class EditOperation(OptionEnum):
     # BITMAP_INSERT, BITMAP_DELETE, ...
 
 
-@declare_event(NodeType.EDIT_EVENT)
-class EditEvent(Event):
+@declare_struct(StructType.EDIT_OPERATION, frozen=True)
+class EditOperation(ImmutableStruct):
     """A recorded Edit of an Entity."""
 
-    # NOTE :Incomplete: would be cool to support custom EditTypes/Operations/Events somehow...
-
-    # change: Optional[ChangeEvent]? (bigger ChangeEvent this is a part of)
-
-    # forward
-    type: "EditType" = declare_property(100, is_repr=True, description="The type of Edit.")
-    node: "Entity" = declare_property(101, is_repr=True, description="The Entity being edited.")
-    operation: Optional["EditOperation"] = declare_property(
-        102, is_repr=True, description="The specific Edit operation."
-    )
+    type: "EditOperationType" = declare_property(100, description="The type of Edit operation.")
+    # TODO :Incomplete: EditOperation.path?
     property_id: Optional[UInt8] = declare_property(
         103,
-        is_repr=True,
         description="""\
 The id of the builtin Property being edited.
 If it's a custom Property, this just refers to Entity.custom_values.
@@ -96,4 +91,30 @@ If it's a custom Property, this just refers to Entity.custom_values.
     # EditEvent.attribute/key is same
     reverse_value: Optional["Value"] = declare_property(
         210, description="The value of the reverse Edit."
+    )
+
+
+@declare_event(NodeType.EDIT_EVENT)
+class EditEvent(Event):
+    """A recorded Edit of an Entity."""
+
+    # NOTE :Incomplete: would be cool to support custom EditTypes/Operations/Events somehow...
+
+    # change: Optional[ChangeEvent]? (bigger ChangeEvent this is a part of)
+
+    # forward
+    type: "EditType" = declare_property(100, is_repr=True, description="The type of Edit.")
+    node: "Entity" = declare_property(101, is_repr=True, description="The Entity being edited.")
+    value: Optional["Value"] = declare_property(
+        110,
+        is_repr=True,
+        description="The full Node (for create/upsert).",
+    )
+    reverse_value: Optional["Value"] = declare_property(
+        111,
+        description="The reverse value (for delete/restore).",
+    )
+    operations: Optional[list["EditOperation"]] = declare_property(
+        112,
+        description="The update operations (for update/move).",
     )

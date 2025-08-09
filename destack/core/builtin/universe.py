@@ -195,7 +195,7 @@ class EnumType(OptionEnum):
     ICON_TYPE = declare_option(200_110)
     # edit
     EDIT_TYPE = declare_option(200_200)
-    EDIT_OPERATION = declare_option(200_201)
+    EDIT_OPERATION_TYPE = declare_option(200_201)
     # query
     CONDITIONAL_TYPE = declare_option(200_300)
     AGGREGATION_TYPE = declare_option(200_301)
@@ -629,7 +629,7 @@ class NodeType(OptionEnum):
     # ...
 
     # common [200_000]
-    EDIT_EVENT = declare_option(100_000, "Edit Event")
+    EDIT_EVENT = declare_option(201_000, "Edit Event")
     # CHANGE_EVENT?
     # ...
 
@@ -1160,6 +1160,8 @@ class StructType(OptionEnum):
     TEXT_SPAN = declare_option(200_401)
     # icon
     ICON = declare_option(200_500)
+    # edit
+    EDIT_OPERATION = declare_option(201_100)
 
     # encoding [1_000_000]
     # ...
