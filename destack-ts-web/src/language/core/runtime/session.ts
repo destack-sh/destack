@@ -1,5 +1,4 @@
 import type { ReactiveGraph } from "@destack-web/language/core/runtime/graph";
-import { batch } from "@preact/signals";
 import { type EditEvent, type Entity, Session } from "destack";
 
 /** A reactive variant of Session. */
@@ -38,13 +37,11 @@ export class ReactiveSession extends Session {
   }
 
   override _onFlush(): void {
-    batch(() => {
-      for (const node of this._dirtyEntities.values()) {
-        if ("touch" in node._session.graph) {
-          (node._session.graph as ReactiveGraph).touch(node.id);
-        }
+    for (const node of this._dirtyEntities.values()) {
+      if ("touch" in node._session.graph) {
+        (node._session.graph as ReactiveGraph).touch(node.id);
       }
-    });
+    }
     this._dirtyEntities.clear();
   }
 

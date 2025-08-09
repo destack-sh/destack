@@ -1,7 +1,8 @@
+// @ts-nocheck
 import { dirname, join } from "node:path";
 import { fileURLToPath, URL } from "node:url";
-import preact from "@preact/preset-vite";
 import { defineConfig } from "vite";
+import babel from "vite-plugin-babel";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import tsconfigPaths from "vite-tsconfig-paths";
 
@@ -20,17 +21,16 @@ export function viteStaticCopyPyodide() {
 }
 
 // https://vitejs.dev/config/
-const defaultConfig = defineConfig(() => ({
+const defaultConfig = defineConfig({
   logLevel: "info",
   optimizeDeps: { exclude: ["pyodide", "destack"] },
   plugins: [
-    preact({
-      babel: {
-        presets: [
-          ["@babel/preset-typescript", { allowDeclareFields: true }],
-        ],
+    babel({
+      babelConfig: {
         compact: true,
+        presets: [["@babel/preset-typescript", { allowDeclareFields: true }]],
         plugins: [
+          ["@babel/plugin-transform-typescript", { allowDeclareFields: true }],
           ["@babel/plugin-proposal-decorators", { version: "2023-11" }],
         ],
       },
@@ -63,5 +63,5 @@ const defaultConfig = defineConfig(() => ({
       },
     },
   },
-}));
+});
 export default defaultConfig;

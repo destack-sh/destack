@@ -13,7 +13,7 @@ type_ = type
 @declare_handle(HandleType.GRAPH, is_abstract=True)
 class Graph(Handle):
     """
-    A Graph is a collection of Nodes from one or multiple Spaces (across time).
+    A Graph stores Nodes from one or multiple Spaces (across time).
     """
 
     def __repr__(self):
