@@ -1,4 +1,4 @@
-from .edit import EditEvent, EditOperation, EditType
+from .edit import EditEvent, EditOperation, EditOperationType, EditType
 from .icon import Icon, IconType
 from .query import (
     Aggregation,
@@ -50,6 +50,7 @@ __all__ = [
     "ConditionalType",
     "EditEvent",
     "EditOperation",
+    "EditOperationType",
     "EditType",
     "Expression",
     "ExpressionType",
