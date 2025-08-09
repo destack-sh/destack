@@ -29,14 +29,14 @@ class ChangeType(OptionEnum):
     UPSERT = declare_option(
         21, description="Upsert an Entity (create if not exists, update if exists)"
     )
-    # INSTANTIATE, MATERIALIZE, ...?
     UPDATE = declare_option(30, description="Update an existing Entity")
     MOVE = declare_option(31, description="Move an Entity to a new parent Entity (or detach)")
     DELETE = declare_option(40, description="Delete an Entity (and its descendants)")
     RESTORE = declare_option(41, description="Restore a deleted Entity (and its descendants)")
+    # INSTANTIATE, MATERIALIZE, ...?
 
 
-assert max(ChangeType) < 32, "ChangeType must be less than 32"  # :Encoding
+assert max(ChangeType) < 64, "ChangeType must be less than 8"  # for :Encoding
 
 
 @declare_enum(EnumType.EDIT_OPERATION_TYPE)
@@ -65,11 +65,14 @@ class EditOperationType(OptionEnum):
 
 @declare_struct(StructType.EDIT_OPERATION, frozen=True)
 class EditOperation(ImmutableStruct):
-    """A recorded Edit of an Entity."""
+    """A specific Edit of an Entity."""
 
-    type: "EditOperationType" = declare_property(100, description="The type of Edit operation.")
+    type: "EditOperationType" = declare_property(
+        100,
+        description="The type of EditOperation.",
+    )
     # TODO :Incomplete: EditOperation.path?
-    property_id: Optional[UInt8] = declare_property(
+    property_id: UInt8 = declare_property(
         103,
         description="""\
 The id of the builtin Property being edited.
@@ -103,11 +106,16 @@ class ChangeEvent(Event):
 
     # NOTE :Incomplete: would be cool to support custom ChangeTypes/Operations/Events somehow...
 
-    # change: Optional[ChangeEvent]? (bigger ChangeEvent this is a part of)
-
-    # forward
+    # meta
     type: "ChangeType" = declare_property(100, is_repr=True, description="The type of Change.")
     node: "Entity" = declare_property(101, is_repr=True, description="The Entity being edited.")
+    change: Optional["ChangeEvent"] = declare_property(
+        102,
+        description="The ChangeEvent this Change is a part of.",
+    )
+    # depends_on: Optional["ChangeEvent"]? (skip this Change if the depends_on ChangeEvent failed)
+
+    # content
     value: Optional["Value"] = declare_property(
         110,
         is_repr=True,
@@ -121,3 +129,4 @@ class ChangeEvent(Event):
         112,
         description="The update operations (for update/move).",
     )
+    # predicate (for conditional ChangeEvent)?

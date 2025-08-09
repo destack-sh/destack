@@ -269,8 +269,25 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
 """,
         tags=("tracking",),
     )
+    owned_by: "Entity" = declare_property(
+        30,
+        is_repr=True,
+        description="The exclusive owner of this Entity (the authority on access).",
+        default_factory=ValueFactory.ACTOR,
+        tags=("tracking",),
+    )
+    managed_by: "Entity" = declare_property(
+        31,
+        is_repr=True,
+        description="The exclusive manager of this Entity (the authority on state).",
+        default_factory=ValueFactory.ACTOR,
+        tags=("tracking",),
+    )
 
-    # 40-80: Entity core
+    #
+    # 40-100: Entity core
+    #
+
     # 40-50: Entity meta
     name: str = declare_property(
         40,
@@ -299,20 +316,13 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # is_singleton?
 
     # 50-60: Entity state
-    owned_by: "Entity" = declare_property(
-        50,
-        is_repr=True,
-        description="The exclusive owner of this Entity.",
-        default_factory=ValueFactory.ACTOR,
-        tags=("tracking",),
-    )
     custom_values: dict[str, "Value"] | None = declare_property(
-        55,
+        50,
         description="The custom Values of this Entity, keyed by custom Property or Tag name.",
         tags=("entity",),
     )
     context_values: dict[str, "Value"] | None = declare_property(
-        56,
+        51,
         description="The context Values provided by this Entity, keyed by context Property name.",
         tags=("entity",),
     )
@@ -325,13 +335,13 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     )
     # key? (for reconciliation)
 
-    # 80-100: provenance
-    source: Optional["Script"] = declare_property(
-        80,
-        is_internal=True,
-        description="The Script that defines this Node.",
-        tags=("source",),
-    )
+    # 80-100: Entity provenance
+    # source: Optional["Script"] = declare_property(
+    #     80,
+    #     is_internal=True,
+    #     description="The Script that defines this Node.",
+    #     tags=("source",),
+    # )
     # ... (from script, dynamic effect, manual function, import, ...)
 
     @declare_method(2)

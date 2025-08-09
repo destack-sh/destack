@@ -29,7 +29,7 @@ from ...builtin import (
     TypeDeclaration,
     to_casing,
 )
-from ..encoder import EncoderOptions
+from ..encoder import EncoderFlag
 from ..time import timedelta_from_isoformat, timedelta_to_isoformat
 
 if TYPE_CHECKING:
@@ -98,7 +98,7 @@ class {encoder_name}(JsonObjectEncoder):
                 "Self": cls,
                 "cls": cls,
                 "Object": Object,
-                "EncoderOptions": EncoderOptions,
+                "EncoderOptions": EncoderFlag,
             },
         )
 

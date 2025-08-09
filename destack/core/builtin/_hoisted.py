@@ -5,7 +5,7 @@ Hoisted declarations which belong elsewhere but are needed early in the import c
 from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, TypeAliasType
 
-from .enum import OptionEnum, declare_enum, declare_option
+from .enum import FlagEnum, OptionEnum, declare_enum, declare_option
 from .types import (
     UUID,
     Boolean,
@@ -219,7 +219,33 @@ class Encoding(OptionEnum):
     JSON = declare_option(1, "JSON", description="JSON encoding")
     JSONC = declare_option(2, "JSONC", description="Constant-keyed JSON encoding")
     KOMPAKT = declare_option(3, "KOMPAKT", description="Kompakt encoding")
-    # C_ABI?
+    # KONSTANT, ...
+    # C?
+
+
+@declare_enum(EnumType.ENCODER_FLAG)
+class EncoderFlag(FlagEnum):
+    """Flags for Encoders."""
+
+    DEFAULT = declare_option(0)
+    # whether to omit the metatype of the object (if possible)
+    OMIT_METATYPE = declare_option(1)
+    # whether to omit the key of properties (if possible)
+    # OMIT_KEY = declare_optiouiltn(1 << 1)
+    # whether to omit the type of the value (if possible)
+    # OMIT_TYPE = declare_option(1 << 2)
+    # whether to omit None values (if possible)
+    OMIT_NONE = declare_option(1 << 3)
+    # whether to unwrap Values (if possible)
+    UNWRAP_VALUE = declare_option(1 << 4)
+
+
+@declare_enum(EnumType.ENCODER_STABILITY)
+class EncoderStability(OptionEnum):
+    """Stability of an Encoder's encoded format."""
+
+    DYNAMIC = declare_option(1, "Dynamic", description="Can handle version drift")
+    STATIC = declare_option(7, "Static", description="Assumes identical versions")
 
 
 assert len(Encoding) < 8, "Encoding must be less than 8"  # for :Encoding

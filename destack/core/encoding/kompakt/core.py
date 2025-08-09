@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from destack import (
         BinaryReader,
         BinaryWriter,
-        EncoderOptions,
+        EncoderFlag,
         Object,
         Session,
     )
@@ -23,7 +23,7 @@ class KompaktObjectEncoder[T: Object = Object]:
         _encoder: "KompaktEncoder",
         _object: T,
         _writer: "BinaryWriter",
-        _options: "EncoderOptions",
+        _options: "EncoderFlag",
     ) -> None:
         raise NotImplementedError
 
@@ -32,6 +32,6 @@ class KompaktObjectEncoder[T: Object = Object]:
         _encoder: "KompaktEncoder",
         _reader: "BinaryReader",
         _session: "Session | None",
-        _options: "EncoderOptions",
+        _options: "EncoderFlag",
     ) -> T:
         raise NotImplementedError

@@ -22,7 +22,7 @@ from ...builtin import (
     to_casing,
 )
 from ...common import Type, Value
-from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderOptions
+from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderFlag
 from ..time import timedelta_from_isoformat, timedelta_to_isoformat
 from .core import JsonObjectEncoder
 
@@ -58,7 +58,7 @@ class JsonEncoder(Encoder):
     def pack_object(
         self,
         object: Object,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> dict[str, Any]:
         # object
         type = (object.metakind, object.metatype)
@@ -66,7 +66,7 @@ class JsonEncoder(Encoder):
         assert encoder is not None, f"no JsonObjectEncoder for {type!r}"
         packed_object = encoder.pack_object(self, object, options)
         # metatype
-        if not options & EncoderOptions.OMIT_METATYPE:
+        if not options & EncoderFlag.OMIT_METATYPE:
             metakind_key = self.get_target_property_key(METAKIND_PROPERTY)
             metatype_key = self.get_target_property_key(METATYPE_PROPERTY)
             packed_object[metakind_key] = self.pack_scalar_enum(ObjectKind, object.metakind)
@@ -82,7 +82,7 @@ class JsonEncoder(Encoder):
         type: int | None,
         value: Json,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Object:
         # key
         key: tuple[ObjectKind, int]
@@ -113,7 +113,7 @@ class JsonEncoder(Encoder):
         self,
         object: Object,
         writer: BinaryWriter,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         object_packed = self.pack_object(object, options)
         writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
@@ -125,7 +125,7 @@ class JsonEncoder(Encoder):
         type: int | None,
         reader: BinaryReader,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Object:
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return self.unpack_object(kind, type, value_decoded, session, options)
@@ -134,7 +134,7 @@ class JsonEncoder(Encoder):
     def pack_type(
         self,
         type: Type,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Json:
         return self.pack_object(type, options)
 
@@ -142,7 +142,7 @@ class JsonEncoder(Encoder):
     def unpack_type(
         self,
         value: Json,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Type:
         unpacked_type = self.unpack_object(ObjectKind.STRUCT, StructType.TYPE, value, None, options)
         assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
@@ -153,7 +153,7 @@ class JsonEncoder(Encoder):
         self,
         type: Type,
         writer: BinaryWriter,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         self.pack_object_binary(type, writer, options)
 
@@ -161,7 +161,7 @@ class JsonEncoder(Encoder):
     def unpack_type_binary(
         self,
         reader: BinaryReader,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Type:
         unpacked_type = self.unpack_object_binary(
             ObjectKind.STRUCT, StructType.TYPE, reader, None, options
@@ -177,11 +177,11 @@ class JsonEncoder(Encoder):
         self,
         type: Type,
         value: Any,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Json:
         if value is None:
             return None
-        inner_options = options & EncoderOptions.OMIT_NONE
+        inner_options = options & EncoderFlag.OMIT_NONE
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             return self.pack_scalar_value(type, value, options)
@@ -220,11 +220,11 @@ class JsonEncoder(Encoder):
         type: Type,
         value: Json,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:
         if value is None:
             return None
-        inner_options = options & EncoderOptions.OMIT_NONE
+        inner_options = options & EncoderFlag.OMIT_NONE
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             return self.unpack_scalar_value(type, value, session, inner_options)
@@ -271,7 +271,7 @@ class JsonEncoder(Encoder):
         self,
         type: Type,
         value: Any,
-        options: EncoderOptions,
+        options: EncoderFlag,
     ) -> Any:
         """Pack a scalar value to JSON."""
         assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
@@ -340,13 +340,13 @@ class JsonEncoder(Encoder):
             if struct_cls.__declaration__.is_final:
                 return self.pack_object(value, options)
             else:
-                return self.pack_object(value, options & ~EncoderOptions.OMIT_METATYPE)
+                return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return self.pack_object(value, options)
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            return self.pack_object(value, options & ~EncoderOptions.OMIT_METATYPE)
+            return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
@@ -362,7 +362,7 @@ class JsonEncoder(Encoder):
         type: Type,
         value: Any,
         session: "Session | None",
-        options: EncoderOptions,
+        options: EncoderFlag,
     ) -> Any:
         """Unpack a scalar value from JSON."""
         assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
@@ -427,7 +427,7 @@ class JsonEncoder(Encoder):
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
             return self.unpack_object(
-                None, None, value, session, options & ~EncoderOptions.OMIT_METATYPE
+                None, None, value, session, options & ~EncoderFlag.OMIT_METATYPE
             )
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
@@ -439,7 +439,7 @@ class JsonEncoder(Encoder):
                 )
             else:
                 return self.unpack_object(
-                    None, None, value, session, options & ~EncoderOptions.OMIT_METATYPE
+                    None, None, value, session, options & ~EncoderFlag.OMIT_METATYPE
                 )
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
@@ -465,7 +465,7 @@ class JsonEncoder(Encoder):
         type: Type,
         value: Any,
         writer: BinaryWriter,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         writer.write_bytes(json.dumps(self.pack_value(type, value, options)).encode("utf-8"))
 
@@ -475,7 +475,7 @@ class JsonEncoder(Encoder):
         type: Type,
         reader: BinaryReader,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:
         value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
         return self.unpack_value(type, value_decoded, session, options)
@@ -489,7 +489,7 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         self,
         _encoder: "JsonEncoder",
         _object: Value,
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> dict[str, Any]:
         type_key = _encoder.get_target_property_key(VALUE_TYPE_PROPERTY)
         value_key = _encoder.get_target_property_key(VALUE_VALUE_PROPERTY)
@@ -504,7 +504,7 @@ class JsonValueEncoder(JsonObjectEncoder[Value]):
         _encoder: "JsonEncoder",
         _object_json: dict[str, Any],
         _session: "Session | None",
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> Value:
         type_key = _encoder.get_target_property_key(VALUE_TYPE_PROPERTY)
         value_key = _encoder.get_target_property_key(VALUE_VALUE_PROPERTY)

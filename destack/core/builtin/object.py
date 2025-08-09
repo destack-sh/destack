@@ -53,7 +53,7 @@ from .universe import NodeType, ObjectKind, ObjectStability, StructType
 from .uuid import UUID, uuid4, uuid7
 
 if TYPE_CHECKING:
-    from destack import BinaryReader, BinaryWriter, EncoderOptions, Hasher, Node, Session
+    from destack import BinaryReader, BinaryWriter, EncoderFlag, Hasher, Node, Session
 
 
 __is_finalized__ = False
@@ -1599,7 +1599,7 @@ class Object:
     def pack(
         self,
         encoding: Encoding,
-        options: Optional["EncoderOptions"] = None,
+        options: Optional["EncoderFlag"] = None,
     ) -> Any:
         """Pack this Object into some encoded format."""
         raise NotImplementedError
@@ -1609,7 +1609,7 @@ class Object:
         self,
         encoding: Encoding,
         writer: "BinaryWriter",
-        options: Optional["EncoderOptions"] = None,
+        options: Optional["EncoderFlag"] = None,
     ) -> None:
         """Pack this Object into the byte representation of its encoded format."""
         raise NotImplementedError
@@ -1621,7 +1621,7 @@ class Object:
         encoding: Encoding,
         value: Any,
         session: Optional["Session"] = None,
-        options: Optional["EncoderOptions"] = None,
+        options: Optional["EncoderFlag"] = None,
     ) -> Self:
         """Unpack an Object from some encoded format."""
         raise NotImplementedError
@@ -1633,7 +1633,7 @@ class Object:
         encoding: Encoding,
         reader: "BinaryReader",
         session: Optional["Session"] = None,
-        options: Optional["EncoderOptions"] = None,
+        options: Optional["EncoderFlag"] = None,
     ) -> Self:
         """Unpack an Object from the byte representation of its encoded format."""
         raise NotImplementedError
@@ -1645,7 +1645,7 @@ class Object:
         encoding: Encoding,
         value: str,
         session: Optional["Session"] = None,
-        options: Optional["EncoderOptions"] = None,
+        options: Optional["EncoderFlag"] = None,
     ) -> Self:
         """Unpack an Object from a base64 encoded string."""
         raise NotImplementedError

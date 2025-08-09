@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any
 from ...builtin import Object
 
 if TYPE_CHECKING:
-    from .encoder import EncoderOptions, JsonEncoder, Session
+    from .encoder import EncoderFlag, JsonEncoder, Session
 
 
 type_ = type
@@ -16,7 +16,7 @@ class JsonObjectEncoder[T: Object = Object]:
         self,
         _encoder: "JsonEncoder",
         _object: T,
-        _options: "EncoderOptions",
+        _options: "EncoderFlag",
     ) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -25,6 +25,6 @@ class JsonObjectEncoder[T: Object = Object]:
         _encoder: "JsonEncoder",
         _object_json: dict[str, Any],
         _session: "Session | None",
-        _options: "EncoderOptions",
+        _options: "EncoderFlag",
     ) -> T:
         raise NotImplementedError

@@ -8,7 +8,7 @@ from destack.core import (
     UUID,
     BinaryReader,
     BinaryWriter,
-    EncoderOptions,
+    EncoderFlag,
     Encoding,
     Entity,
     Materialization,
@@ -112,7 +112,7 @@ class {encoder_name}(KompaktObjectEncoder):
                 "Object": Object,
                 "Encoding": Encoding,
                 "Session": Session,
-                "EncoderOptions": EncoderOptions,
+                "EncoderOptions": EncoderFlag,
             },
         )
 

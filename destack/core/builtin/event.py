@@ -99,13 +99,15 @@ def declare_event(
 )  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine here)
 class Event(Node):
     """
-    An Event is an immutable datum of something happening to an Entity.
+    An Event is an immutable* datum of something happening to an Entity.
 
     Events are proposed by Clients, then approved or discarded by the system.
-    All Events are stored, even rejected ones.
-    The system Event log is append-only and immutable.
+    All Events are stored in an append-only immutable* log, even rejected ones.
 
     The client_* data is as-is provided by Clients, and can not be verified by the system.
+
+    *=immutable except for Event.status, which is set by the authoritative system
+       and propagated to all Clients (who then restate their own Events and derived Entities).
     """
 
     # 10-20: Event identity

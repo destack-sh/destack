@@ -16,8 +16,10 @@ bytes = { workspace = true }
 clap = { workspace = true }
 indexmap = { workspace = true }
 once_cell = { workspace = true }
+parking_lot = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
+sysinfo = { workspace = true }
 uuid = { workspace = true }
 wasm-bindgen = { workspace = true }
 

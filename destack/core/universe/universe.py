@@ -64,7 +64,11 @@ class UniverseSpawnResponse(Message):
     space: "Space" = declare_property(101)
 
 
-@declare_entity(NodeType.UNIVERSE, is_final=True, is_singleton=True)
+@declare_entity(
+    NodeType.UNIVERSE,
+    is_final=True,
+    is_singleton=True,
+)
 @final
 class Universe(Entity):
     """The Destack computational universe."""
