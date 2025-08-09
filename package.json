@@ -12,8 +12,7 @@
       "destack-ts-server"
     ],
     "catalog": {
-      "temporal-polyfill": "^0.3.0",
-      "pyodide": "^0.28.0"
+      "temporal-polyfill": "^0.3.0"
     },
     "catalogs": {
       "build": {
