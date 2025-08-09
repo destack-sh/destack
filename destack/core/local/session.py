@@ -16,7 +16,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack import Connection, Context, EditEvent, Graph, PropertyDefinition
+    from destack import ChangeEvent, Connection, Context, Graph, PropertyDefinition
 
 
 @declare_handle(HandleType.SESSION)
@@ -68,7 +68,7 @@ class Session(Handle):
         raise NotImplementedError
 
     @declare_method(106)
-    def update(self, node: Entity, edit: "EditEvent"):
+    def update(self, node: Entity, edit: "ChangeEvent"):
         """Updates an Entity."""
         raise NotImplementedError
 

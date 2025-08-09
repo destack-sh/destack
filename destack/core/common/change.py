@@ -20,20 +20,23 @@ if TYPE_CHECKING:
     from destack import Value
 
 
-@declare_enum(EnumType.EDIT_TYPE)
-class EditType(OptionEnum):
-    """The type of Edit."""
+@declare_enum(EnumType.CHANGE_TYPE)
+class ChangeType(OptionEnum):
+    """The type of Change."""
 
-    CREATE = declare_option(1, description="Create a new Entity")
+    # TODO :Incomplete: ChangeType.CHECK/ASSERT (for transaction/change safety, also BEGIN/END/...?)
+    CREATE = declare_option(20, description="Create a new Entity")
     UPSERT = declare_option(
-        2, description="Upsert an Entity (create if not exists, update if exists)"
+        21, description="Upsert an Entity (create if not exists, update if exists)"
     )
     # INSTANTIATE, MATERIALIZE, ...?
-    UPDATE = declare_option(10, description="Update an existing Entity")
-    MOVE = declare_option(11, description="Move an Entity to a new parent Entity (or detach)")
-    DELETE = declare_option(20, description="Delete an Entity (and its descendants)")
-    RESTORE = declare_option(21, description="Restore a deleted Entity (and its descendants)")
-    # TODO :Incomplete: EditType.CHECK/ASSERT (for transaction/change safety)
+    UPDATE = declare_option(30, description="Update an existing Entity")
+    MOVE = declare_option(31, description="Move an Entity to a new parent Entity (or detach)")
+    DELETE = declare_option(40, description="Delete an Entity (and its descendants)")
+    RESTORE = declare_option(41, description="Restore a deleted Entity (and its descendants)")
+
+
+assert max(ChangeType) < 32, "ChangeType must be less than 32"  # :Encoding
 
 
 @declare_enum(EnumType.EDIT_OPERATION_TYPE)
@@ -94,16 +97,16 @@ If it's a custom Property, this just refers to Entity.custom_values.
     )
 
 
-@declare_event(NodeType.EDIT_EVENT)
-class EditEvent(Event):
-    """A recorded Edit of an Entity."""
+@declare_event(NodeType.CHANGE_EVENT)
+class ChangeEvent(Event):
+    """A Change in the state of the system (like editing an Entity)."""
 
-    # NOTE :Incomplete: would be cool to support custom EditTypes/Operations/Events somehow...
+    # NOTE :Incomplete: would be cool to support custom ChangeTypes/Operations/Events somehow...
 
     # change: Optional[ChangeEvent]? (bigger ChangeEvent this is a part of)
 
     # forward
-    type: "EditType" = declare_property(100, is_repr=True, description="The type of Edit.")
+    type: "ChangeType" = declare_property(100, is_repr=True, description="The type of Change.")
     node: "Entity" = declare_property(101, is_repr=True, description="The Entity being edited.")
     value: Optional["Value"] = declare_property(
         110,
