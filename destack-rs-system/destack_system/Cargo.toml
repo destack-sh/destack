@@ -17,8 +17,10 @@ clap = { workspace = true }
 destack = { workspace = true }
 mio = { workspace = true }
 once_cell = { workspace = true }
+parking_lot = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
+sysinfo = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 wasm-bindgen = { workspace = true }

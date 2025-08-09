@@ -15,7 +15,7 @@ from ...builtin import (
     TypeCardinality,
 )
 from ...common import NodeReference, Type, Value
-from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderOptions
+from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderFlag
 from .core import KompaktObjectEncoder
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class KompaktEncoder(Encoder):
     def pack_object(
         self,
         object: Object,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> bytes:
         writer = BinaryWriter()
         object_bytes = writer.to_bytes()
@@ -65,7 +65,7 @@ class KompaktEncoder(Encoder):
         type: int | None,
         value: bytes,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Object:
         reader = BinaryReader(buffer=value)
         object = self.unpack_object_binary(kind, type, reader, session, options)
@@ -76,10 +76,10 @@ class KompaktEncoder(Encoder):
         self,
         object: Object,
         writer: BinaryWriter,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         # metatype
-        if not options & EncoderOptions.OMIT_METATYPE:
+        if not options & EncoderFlag.OMIT_METATYPE:
             writer.write_uint8(object.metakind)
             writer.write_uint32(object.metatype)
         # object
@@ -95,7 +95,7 @@ class KompaktEncoder(Encoder):
         type: int | None,
         reader: BinaryReader,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Object:
         # metatype
         if kind is None or type is None:
@@ -113,7 +113,7 @@ class KompaktEncoder(Encoder):
     def pack_type(
         self,
         type: Type,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> bytes:
         writer = BinaryWriter()
         self.pack_type_binary(type, writer, options)
@@ -124,7 +124,7 @@ class KompaktEncoder(Encoder):
     def unpack_type(
         self,
         value: bytes,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Type:
         reader = BinaryReader(buffer=value)
         type = self.unpack_type_binary(reader, options)
@@ -135,7 +135,7 @@ class KompaktEncoder(Encoder):
         self,
         type: Type,
         writer: BinaryWriter,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         # preamble (4 bits cardinality, 3 bits scalar type, 1 bit is_required)
         writer.write_uint8(
@@ -188,7 +188,7 @@ class KompaktEncoder(Encoder):
     def unpack_type_binary(
         self,
         reader: BinaryReader,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Type:
         # preamble (4 bits cardinality, 3 bits scalar type, 1 bit is_required)
         preamble = reader.read_uint8()
@@ -254,7 +254,7 @@ class KompaktEncoder(Encoder):
         self,
         type: Type,
         value: Any,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:
         writer = BinaryWriter()
         self.pack_value_binary(type, value, writer, options)
@@ -267,7 +267,7 @@ class KompaktEncoder(Encoder):
         type: Type,
         value: Any,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:
         reader = BinaryReader(buffer=value)
         return self.unpack_value_binary(type, reader, session, options)
@@ -278,20 +278,18 @@ class KompaktEncoder(Encoder):
         type: Type,
         value: Any,
         writer: BinaryWriter,
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            self.pack_scalar_value_binary(
-                type, value, writer, options | EncoderOptions.OMIT_METATYPE
-            )
+            self.pack_scalar_value_binary(type, value, writer, options | EncoderFlag.OMIT_METATYPE)
         # list
         elif type.cardinality == TypeCardinality.LIST:
             assert type.value_type is not None, f"no value type for {type!r}"
             writer.write_uint32(len(value))
             for item in value:
                 self.pack_value_binary(
-                    type.value_type, item, writer, options | EncoderOptions.OMIT_METATYPE
+                    type.value_type, item, writer, options | EncoderFlag.OMIT_METATYPE
                 )
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
@@ -299,7 +297,7 @@ class KompaktEncoder(Encoder):
             writer.write_uint32(len(value))
             for item, element_type in zip(value, type.element_types):
                 self.pack_value_binary(
-                    element_type, item, writer, options | EncoderOptions.OMIT_METATYPE
+                    element_type, item, writer, options | EncoderFlag.OMIT_METATYPE
                 )
         # map
         elif type.cardinality == TypeCardinality.MAP:
@@ -308,10 +306,10 @@ class KompaktEncoder(Encoder):
             writer.write_uint32(len(value))
             for key, val in value.items():
                 self.pack_value_binary(
-                    type.key_type, key, writer, options | EncoderOptions.OMIT_METATYPE
+                    type.key_type, key, writer, options | EncoderFlag.OMIT_METATYPE
                 )
                 self.pack_value_binary(
-                    type.value_type, val, writer, options | EncoderOptions.OMIT_METATYPE
+                    type.value_type, val, writer, options | EncoderFlag.OMIT_METATYPE
                 )
         #
         else:
@@ -323,12 +321,12 @@ class KompaktEncoder(Encoder):
         type: Type,
         reader: BinaryReader,
         session: "Session | None",
-        options: EncoderOptions = EncoderOptions.DEFAULT,
+        options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
             return self.unpack_scalar_value_binary(
-                type, reader, session, options | EncoderOptions.OMIT_METATYPE
+                type, reader, session, options | EncoderFlag.OMIT_METATYPE
             )
         # list
         elif type.cardinality == TypeCardinality.LIST:
@@ -336,7 +334,7 @@ class KompaktEncoder(Encoder):
             length = reader.read_uint32()
             return [
                 self.unpack_value_binary(
-                    type.value_type, reader, session, options | EncoderOptions.OMIT_METATYPE
+                    type.value_type, reader, session, options | EncoderFlag.OMIT_METATYPE
                 )
                 for _ in range(length)
             ]
@@ -346,7 +344,7 @@ class KompaktEncoder(Encoder):
             length = reader.read_uint32()
             return tuple(
                 self.unpack_value_binary(
-                    element_type, reader, session, options | EncoderOptions.OMIT_METATYPE
+                    element_type, reader, session, options | EncoderFlag.OMIT_METATYPE
                 )
                 for element_type in type.element_types
             )
@@ -357,9 +355,9 @@ class KompaktEncoder(Encoder):
             length = reader.read_uint32()
             return {
                 self.unpack_value_binary(
-                    type.key_type, reader, session, options | EncoderOptions.OMIT_METATYPE
+                    type.key_type, reader, session, options | EncoderFlag.OMIT_METATYPE
                 ): self.unpack_value_binary(
-                    type.value_type, reader, session, options | EncoderOptions.OMIT_METATYPE
+                    type.value_type, reader, session, options | EncoderFlag.OMIT_METATYPE
                 )
                 for _ in range(length)
             }
@@ -372,7 +370,7 @@ class KompaktEncoder(Encoder):
         type: Type,
         value: Any,
         writer: BinaryWriter,
-        options: EncoderOptions,
+        options: EncoderFlag,
     ) -> None:
         assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
         assert type.scalar_type is not None, f"no scalar type for {type!r}"
@@ -435,18 +433,18 @@ class KompaktEncoder(Encoder):
             writer.write_uint32(value)
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            self.pack_object_binary(value, writer, options | EncoderOptions.OMIT_METATYPE)
+            self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
-            self.pack_object_binary(value, writer, options & ~EncoderOptions.OMIT_METATYPE)
+            self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
             if struct_cls.__declaration__.is_final:
-                self.pack_object_binary(value, writer, options | EncoderOptions.OMIT_METATYPE)
+                self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
             else:
-                self.pack_object_binary(value, writer, options & ~EncoderOptions.OMIT_METATYPE)
+                self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
@@ -462,7 +460,7 @@ class KompaktEncoder(Encoder):
         type: Type,
         reader: BinaryReader,
         session: "Session | None",
-        options: EncoderOptions,
+        options: EncoderFlag,
     ) -> Any:
         """Unpack a scalar value from binary."""
         assert type.cardinality == TypeCardinality.SCALAR, f"expected scalar type, got {type!r}"
@@ -536,7 +534,7 @@ class KompaktEncoder(Encoder):
                     type.struct_type,
                     reader,
                     session,
-                    options | EncoderOptions.OMIT_METATYPE,
+                    options | EncoderFlag.OMIT_METATYPE,
                 )
             else:
                 return self.unpack_object_binary(
@@ -544,7 +542,7 @@ class KompaktEncoder(Encoder):
                     None,
                     reader,
                     session,
-                    options & ~EncoderOptions.OMIT_METATYPE,
+                    options & ~EncoderFlag.OMIT_METATYPE,
                 )
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
@@ -553,7 +551,7 @@ class KompaktEncoder(Encoder):
                 StructType.NODE_REFERENCE,
                 reader,
                 session,
-                options | EncoderOptions.OMIT_METATYPE,
+                options | EncoderFlag.OMIT_METATYPE,
             )
         # node value
         elif type.scalar_type == ScalarType.NODE_VALUE:
@@ -562,7 +560,7 @@ class KompaktEncoder(Encoder):
                 None,
                 reader,
                 session,
-                options | EncoderOptions.OMIT_METATYPE,
+                options | EncoderFlag.OMIT_METATYPE,
             )
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
@@ -584,7 +582,7 @@ class KompaktTypeEncoder(KompaktObjectEncoder[Type]):
         _encoder: "KompaktEncoder",
         _object: Type,
         _writer: BinaryWriter,
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> None:
         _encoder.pack_type_binary(_object, _writer, _options)
 
@@ -594,7 +592,7 @@ class KompaktTypeEncoder(KompaktObjectEncoder[Type]):
         _encoder: "KompaktEncoder",
         _reader: BinaryReader,
         _session: "Session | None",
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> Type:
         return _encoder.unpack_type_binary(_reader, _options)
 
@@ -608,11 +606,11 @@ class KompaktValueEncoder(KompaktObjectEncoder[Value]):
         _encoder: "KompaktEncoder",
         _object: Value,
         _writer: BinaryWriter,
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> None:
         _encoder.pack_type_binary(_object.type, _writer, _options)
         _encoder.pack_value_binary(
-            _object.type, _object.value, _writer, _options | EncoderOptions.OMIT_METATYPE
+            _object.type, _object.value, _writer, _options | EncoderFlag.OMIT_METATYPE
         )
 
     @override
@@ -621,11 +619,11 @@ class KompaktValueEncoder(KompaktObjectEncoder[Value]):
         _encoder: "KompaktEncoder",
         _reader: BinaryReader,
         _session: "Session | None",
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> Value:
         type = _encoder.unpack_type_binary(_reader, _options)
         value = _encoder.unpack_value_binary(
-            type, _reader, _session, _options | EncoderOptions.OMIT_METATYPE
+            type, _reader, _session, _options | EncoderFlag.OMIT_METATYPE
         )
         return Value(type=type, value=value)
 
@@ -639,7 +637,7 @@ class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
         _encoder: "KompaktEncoder",
         _object: NodeReference,
         _writer: BinaryWriter,
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> None:
         _writer.write_uint32(_object.type)
         _writer.write_uuid(_object.id)
@@ -656,7 +654,7 @@ class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
         _encoder: "KompaktEncoder",
         _reader: BinaryReader,
         _session: "Session | None",
-        _options: EncoderOptions,
+        _options: EncoderFlag,
     ) -> NodeReference:
         type = NodeType(_reader.read_uint32())
         id = _reader.read_uuid()

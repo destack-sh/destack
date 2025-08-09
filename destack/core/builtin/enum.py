@@ -128,6 +128,9 @@ def declare_option(id: int, title: str | None = None, *, description: str | None
     return cast(int, declaration)  # pretend it's an int for enum type annotation
 
 
+_ALLOWED_FLAG_POSTFIXES = ("FLAG", "OPTION")
+
+
 def declare_enum(enum_type: "EnumType"):
     """Register a builtin Enum."""
 
@@ -148,6 +151,12 @@ def declare_enum(enum_type: "EnumType"):
         # check name
         enum_name = _to_casing(cls.__name__, _Casing.ALL_CAPS)
         assert enum_type.name == enum_name, f"enum name mismatch: {enum_type.name} != {enum_name}"
+        # flag enum must end in Flag or Option
+        if issubclass(cls, FlagEnum):
+            assert enum_name.endswith(tuple(_ALLOWED_FLAG_POSTFIXES)), (
+                f"flag enum {cls.__name__} must end with one of {_ALLOWED_FLAG_POSTFIXES}"
+            )
+
         # check options
         options_by_id: dict[int, OptionDeclaration] = {}
         if issubclass(cls, OptionEnum):

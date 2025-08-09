@@ -7,6 +7,6 @@ from .definition import *
 from .encoding import *
 from .generation import *
 from .local import *
+from .persistence import *
 from .space import *
-from .storage import *
 from .universe import *

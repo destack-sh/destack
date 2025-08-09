@@ -1,12 +1,11 @@
 import abc
-from collections.abc import Collection
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, final
 
-from ..builtin import UUID, Handle, HandleType, NodeType, declare_handle
+from ..builtin import UUID, Entity, Event, Handle, HandleType, NodeType, declare_handle
 
 if TYPE_CHECKING:
-    from destack import Entity, Event, Snapshot
+    from destack import Snapshot
 
 type_ = type
 
@@ -53,18 +52,18 @@ class Graph(Handle):
         space_id: UUID,
         branch_id: UUID | None,
         snapshot_id: UUID | None,
-        entities: "list[Entity]",
+        entities: list[Entity],
     ) -> None:
         """Insert Entities into the Graph directly."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def append(self, events: "list[Event]") -> None:
+    def append(self, events: list[Event]) -> None:
         """Append Events to the Graph. EditEvents are reflected immediately."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def restate(self, events: "list[Event]") -> None:
+    def restate(self, events: list[Event]) -> None:
         """Restate Events to the Graph. EditEvents are reflected immediately."""
         raise NotImplementedError
 
@@ -93,10 +92,10 @@ class Graph(Handle):
         space_id: UUID,
         branch_id: UUID | None,
         snapshot_id: UUID | None,
-        type: NodeType | Collection[NodeType] | None = None,
+        type: NodeType | list[NodeType] | None = None,
         after: datetime | int | None = None,
         before: datetime | int | None = None,
-    ) -> "list[Event]":
+    ) -> list[Event]:
         """Seek Events from the Graph."""
         raise NotImplementedError
 
@@ -136,7 +135,7 @@ class Graph(Handle):
         snapshot_id: UUID,
         type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> list["Entity"]:
+    ) -> list[Entity]:
         """Collect child Entities (one level down)."""
         raise NotImplementedError
 
@@ -149,7 +148,7 @@ class Graph(Handle):
         snapshot_id: UUID,
         type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> list["Entity"]:
+    ) -> list[Entity]:
         """Gets the ancestors of this Entity (recursively up)."""
         raise NotImplementedError
 
@@ -162,6 +161,6 @@ class Graph(Handle):
         snapshot_id: UUID,
         type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> list["Entity"]:
+    ) -> list[Entity]:
         """Collect descendant Entities (recursively down)."""
         raise NotImplementedError

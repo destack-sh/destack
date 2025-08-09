@@ -579,6 +579,7 @@ def _show_node(definition: "NodeDefinition") -> None:
     tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
     if tree:
         console.print("")
+        console.print("\n" + console.color("Inheritance Tree (immediate):", "yellow", "bold"))
         console.print(tree)
 
     if definition.properties:
@@ -607,6 +608,7 @@ def _show_struct(definition: "StructDefinition") -> None:
     tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
     if tree:
         console.print("")
+        console.print("\n" + console.color("Inheritance Tree (immediate):", "yellow", "bold"))
         console.print(tree)
 
     if definition.properties:
@@ -633,11 +635,10 @@ def _show_handle(definition: "HandleDefinition") -> None:
     """Display Handle-specific details."""
     if definition.properties:
         _show_properties(definition, definition.properties)
-
-    # inheritance tree (object-only)
-    tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
-    if tree:
-        console.section("Inheritance", tree)
+    if definition.methods:
+        _show_methods(definition, definition.methods)
+    if definition.constants:
+        _show_constants(definition.constants)
 
 
 def _render_inheritance_tree(

@@ -5,6 +5,7 @@ from destack.core import (
     ImmutableStruct,
     ObjectStability,
     StructType,
+    declare_constant,
     declare_property,
     declare_struct,
 )
@@ -21,6 +22,17 @@ from destack.core import (
 @final
 class Quaternion(ImmutableStruct):
     """A quaternion."""
+
+    ZERO = declare_constant(
+        100,
+        value=lambda: Quaternion(x=0.0, y=0.0, z=0.0, w=0.0),
+        description="The zero quaternion.",
+    )
+    IDENTITY = declare_constant(
+        101,
+        value=lambda: Quaternion(x=0.0, y=0.0, z=0.0, w=1.0),
+        description="The identity quaternion.",
+    )
 
     x: Float32 = declare_property(
         101,

@@ -62,7 +62,9 @@ class UniverseCategory(OptionEnum):
     DEFINITION = declare_option(100_000, "Definition", description="Builtin definitions")
     COMMON = declare_option(200_000, "Common", description="Shared definitions")
     ENCODING = declare_option(1_000_000, "Encoding", description="Serialization and packing")
-    STORAGE = declare_option(1_100_000, "Storage", description="Graph storage and synchronization")
+    PERSISTENCE = declare_option(
+        1_100_000, "Persistence", description="Storage and synchronization"
+    )
     GENERATION = declare_option(
         2_000_000, "Generation", description="Code generation and compilation"
     )
@@ -82,9 +84,10 @@ class UniverseCategory(OptionEnum):
         10_300_000, "Access", description="Identity, authentication and authorization"
     )
     QUALITY = declare_option(10_400_000, "Quality", description="Quality assurance")
-    # STREAMING, INTERNET, ...
+    # STORAGE/STREAMING/SYNC,
     SOCIAL = declare_option(11_000_000, "Social", description="Interactions, reputation and trust")
     FINANCE = declare_option(11_100_000, "Finance", description="Accounting and finance")
+    # INTERNET, ...
     STUDIO = declare_option(19_000_000, "Studio", description="Editing the Universe")
 
     #
@@ -189,7 +192,6 @@ class EnumType(OptionEnum):
     REFERENCE_TYPE = declare_option(200_010)
     REFERENCE_DIRECTION = declare_option(200_011)
     REFERENCE_CASCADE = declare_option(200_012)
-    ENCODING = declare_option(200_020)
     # text
     TEXT_SPAN_TYPE = declare_option(200_100)
     ICON_TYPE = declare_option(200_110)
@@ -206,9 +208,11 @@ class EnumType(OptionEnum):
     QUERY_TYPE = declare_option(200_320)
 
     # encoding [1_000_000]
-    ENCODER_OPTIONS = declare_option(1_000_000)
+    ENCODING = declare_option(1_000_000)
+    ENCODER_FLAG = declare_option(1_000_001)
+    ENCODER_STABILITY = declare_option(1_000_002)
 
-    # storage [1_100_000]
+    # persistence [1_100_000]
     # ...
 
     # generation [2_000_000]
@@ -464,7 +468,7 @@ class TraitType(OptionEnum):
     # encoding [1_000_000]
     # ...
 
-    # storage [1_100_000]
+    # persistence [1_100_000]
     # ...
 
     # generation [2_000_000]
@@ -629,13 +633,13 @@ class NodeType(OptionEnum):
     # ...
 
     # common [200_000]
-    CHANGE_EVENT = declare_option(201_000, "Edit Event")
+    CHANGE_EVENT = declare_option(201_000, "Change Event")
     # ...
 
     # encoding [1_000_000]
     # ...
 
-    # storage [1_100_000]
+    # persistence [1_100_000]
     # ...
 
     # generation [2_000_000]
@@ -771,8 +775,7 @@ class NodeType(OptionEnum):
     # PLATFORM_VARIANT, STATE_VARIANT, ...
     # RELEASE, DEPLOYMENT, ...
     # PREVIEW, DRAFT, ROLLOUT, ...
-    # TASK, TASK_GROUP/TASK_QUEUE, ...
-    # JOB, ...
+    # TASK, TASK_GROUP/TASK_QUEUE, JOB, ...
     RUN = declare_option(10_110_000, "Run")
     RUN_EVENT = declare_option(10_110_001, "Run Event")
     RUN_STARTED_EVENT = declare_option(10_110_002, "Run Started Event")
@@ -969,8 +972,7 @@ class NodeType(OptionEnum):
 
     # video [30_200_000]
     VIDEO = declare_option(30_200_000, "Video")
-    # STREAM, ...
-    # ENCODING, ...
+    # VIDEO_STREAM, ...
 
     # model [30_300_000]
     MODEL = declare_option(30_300_000, "Model")
@@ -1165,7 +1167,7 @@ class StructType(OptionEnum):
     # encoding [1_000_000]
     # ...
 
-    # storage [1_100_000]
+    # persistence [1_100_000]
     # ...
 
     # generation [2_000_000]
@@ -1367,7 +1369,7 @@ class HandleType(OptionEnum):
     BINARY_WRITER = declare_option(1_000_200)
     BINARY_READER = declare_option(1_000_300)
 
-    # storage [1_100_000]
+    # persistence [1_100_000]
     GRAPH = declare_option(1_100_000)
     CONNECTION = declare_option(1_100_100)
     STREAM = declare_option(1_100_200)

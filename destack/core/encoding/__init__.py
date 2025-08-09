@@ -1,5 +1,5 @@
 from .binary import BinaryReader, BinaryWriter
-from .encoder import Encoder, EncoderOptions
+from .encoder import Encoder, EncoderFlag
 from .hasher import Hasher
 from .json import JsonEncoder
 from .jsonc import JsoncEncoder
@@ -9,7 +9,7 @@ __all__ = [
     "BinaryReader",
     "BinaryWriter",
     "Encoder",
-    "EncoderOptions",
+    "EncoderFlag",
     "Hasher",
     "JsonEncoder",
     "JsoncEncoder",
