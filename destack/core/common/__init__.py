@@ -1,4 +1,4 @@
-from .edit import EditEvent, EditOperation, EditOperationType, EditType
+from .change import ChangeEvent, ChangeType, EditOperation, EditOperationType
 from .icon import Icon, IconType
 from .query import (
     Aggregation,
@@ -45,13 +45,13 @@ __all__ = [
     "AggregationType",
     "Branch",
     "BranchType",
+    "ChangeEvent",
+    "ChangeType",
     "CollectionConstraint",
     "Condition",
     "ConditionalType",
-    "EditEvent",
     "EditOperation",
     "EditOperationType",
-    "EditType",
     "Expression",
     "ExpressionType",
     "Icon",

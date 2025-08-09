@@ -1,5 +1,5 @@
 import abc
-from collections.abc import Collection, Sequence
+from collections.abc import Collection
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, final
 
@@ -53,18 +53,18 @@ class Graph(Handle):
         space_id: UUID,
         branch_id: UUID | None,
         snapshot_id: UUID | None,
-        entities: "Sequence[Entity]",
+        entities: "list[Entity]",
     ) -> None:
         """Insert Entities into the Graph directly."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def append(self, events: "Sequence[Event]") -> None:
+    def append(self, events: "list[Event]") -> None:
         """Append Events to the Graph. EditEvents are reflected immediately."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def restate(self, events: "Sequence[Event]") -> None:
+    def restate(self, events: "list[Event]") -> None:
         """Restate Events to the Graph. EditEvents are reflected immediately."""
         raise NotImplementedError
 
@@ -96,7 +96,7 @@ class Graph(Handle):
         type: NodeType | Collection[NodeType] | None = None,
         after: datetime | int | None = None,
         before: datetime | int | None = None,
-    ) -> "Sequence[Event]":
+    ) -> "list[Event]":
         """Seek Events from the Graph."""
         raise NotImplementedError
 
@@ -136,7 +136,7 @@ class Graph(Handle):
         snapshot_id: UUID,
         type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> Sequence["Entity"]:
+    ) -> list["Entity"]:
         """Collect child Entities (one level down)."""
         raise NotImplementedError
 
@@ -149,7 +149,7 @@ class Graph(Handle):
         snapshot_id: UUID,
         type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> Sequence["Entity"]:
+    ) -> list["Entity"]:
         """Gets the ancestors of this Entity (recursively up)."""
         raise NotImplementedError
 
@@ -162,6 +162,6 @@ class Graph(Handle):
         snapshot_id: UUID,
         type: NodeType | None = None,
         include_deleted: bool = False,
-    ) -> Sequence["Entity"]:
+    ) -> list["Entity"]:
         """Collect descendant Entities (recursively down)."""
         raise NotImplementedError

@@ -123,7 +123,7 @@ def declare_entity(
 @declare_entity(
     NodeType.ENTITY,
     is_abstract=True,
-    event_types=(NodeType.EDIT_EVENT,),
+    event_types=(NodeType.CHANGE_EVENT,),
     permissions=(PermissionDeclaration(id=20, name="create", description="Create (or Upsert)"),),
     tags=(
         TagDeclaration(id=20, name="entity", description="Entity"),
