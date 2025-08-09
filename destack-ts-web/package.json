@@ -31,7 +31,6 @@
     "destack": "link:destack-ts",
     "motion": "catalog:web",
     "pyodide": "catalog:",
-    "preact": "catalog:web",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
@@ -46,7 +45,6 @@
     "@types/bun": "catalog:types",
     "@types/jsdom": "catalog:types",
     "@types/node": "catalog:types",
-    "@preact/preset-vite": "catalog:build",
     "buffer": "catalog:web",
     "fake-indexeddb": "catalog:test",
     "fast-check": "catalog:test",

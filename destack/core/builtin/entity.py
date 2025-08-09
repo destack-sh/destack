@@ -284,10 +284,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         tags=("tracking",),
     )
 
-    #
-    # 40-100: Entity core
-    #
-
     # 40-50: Entity meta
     name: str = declare_property(
         40,

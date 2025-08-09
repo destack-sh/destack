@@ -77,6 +77,6 @@ class BreakoutWall(Entity2D):
     width: Int8
     height: Int8
 
-    # computed effect:
+    # computed effect?:
     # BreakoutWall:
     #  -> <RectangleCollider2D :width=width :height=height>

@@ -51,6 +51,7 @@ class RuntimeLanguage(OptionEnum):
     PYTHON = declare_option(1)
     TYPESCRIPT = declare_option(2)
     RUST = declare_option(3)
+    # GPU/CUDA/GLSL?
 
 
 @declare_enum(EnumType.RUNTIME_PLATFORM)
