@@ -298,7 +298,7 @@ class Node(Object):
         tags=("identity",),
     )
     space: "Space" = declare_property(
-        5,
+        3,
         is_internal=True,
         is_eq=False,
         is_hash=False,
@@ -310,7 +310,7 @@ class Node(Object):
         tags=("identity",),
     )
     branch: "Branch" = declare_property(
-        6,
+        4,
         is_readonly=True,
         is_internal=True,
         is_eq=False,
@@ -322,7 +322,7 @@ class Node(Object):
         tags=("identity",),
     )
     snapshot: "Snapshot" = declare_property(
-        7,
+        5,
         is_readonly=True,
         is_internal=True,
         is_eq=False,

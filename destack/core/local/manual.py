@@ -816,7 +816,9 @@ def _get_origin_for(
     owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
     attribute: "PropertyDefinition | MethodDefinition | ActionDefinition",
 ) -> str | None:
-    object_cls = BUILTIN_CLASS_BY_NAME[owner.name]
+    object_cls = BUILTIN_CLASS_BY_NAME.get(owner.name)
+    if object_cls is None:
+        return None
     for super_cls in reversed(list(get_superclasses(object_cls))):
         if hasattr(super_cls, attribute.name):
             return super_cls.__name__

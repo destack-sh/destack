@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
     Entity,
@@ -12,7 +12,6 @@ from destack.core import (
     declare_event,
     declare_option,
     declare_property,
-    declare_property_parent,
 )
 
 if TYPE_CHECKING:
@@ -135,7 +134,6 @@ class Run(Entity):
     Run of an Action.
     """
 
-    parent: Union["Action", "Run", None] = declare_property_parent()
     action: "Action" = declare_property(111)
     status: RunStatus = declare_property(112, is_repr=True)
     duration: Optional[timedelta] = declare_property(

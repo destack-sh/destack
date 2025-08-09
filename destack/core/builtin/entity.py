@@ -18,14 +18,8 @@ from .declaration import (
     declare_method,
 )
 from .enum import OptionEnum, declare_enum, declare_option
-from .fractional import FRACTIONAL_INTEGER_ZERO
 from .node import Node, _process_node_cls
-from .property import (
-    _PROPERTY_SPECIFIERS,
-    PropertyDeclaration,
-    declare_property,
-    declare_property_parent,
-)
+from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property
 from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 
 if TYPE_CHECKING:
@@ -127,7 +121,9 @@ def declare_entity(
     permissions=(PermissionDeclaration(id=20, name="create", description="Create (or Upsert)"),),
     tags=(
         TagDeclaration(id=20, name="entity", description="Entity"),
-        TagDeclaration(id=21, name="source", description="Source"),
+        TagDeclaration(id=21, name="custom", description="Custom"),
+        TagDeclaration(id=22, name="behavior", description="Behavior"),
+        TagDeclaration(id=23, name="provenance", description="Provenance"),
         TagDeclaration(id=30, name="visibility", description="Visibility"),
         TagDeclaration(id=31, name="style", description="style"),
         TagDeclaration(id=32, name="transform", description="Transform"),
@@ -154,10 +150,6 @@ class Entity(Node):
 
     metakind = ObjectKind.NODE
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
-
-    parent: Optional["Entity"] = declare_property_parent(
-        description="The parent of this Entity. Most Entities can be attached to any other Entity."
-    )
 
     # 1-20: identity
     materialization: Materialization = declare_property(
@@ -201,7 +193,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         tags=("identity",),
     )
 
-    # 20-40: Entity tracking
+    # 20-40: tracking
     created_at: datetime = declare_property(
         20,
         is_internal=True,
@@ -284,24 +276,29 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         tags=("tracking",),
     )
 
-    # 40-50: Entity meta
-    name: str = declare_property(
+    # 40-50: entity
+    parent: Optional["Entity"] = declare_property(
         40,
+        description="The parent of this Entity. Most Entities can be attached to any other Entity.",
+        tags=("entity",),
+    )
+    name: str = declare_property(
+        41,
         is_repr=True,
+        description="The name of this Entity.",
         default_factory=ValueFactory.NAME,
         tags=("entity",),
     )
     icon: Optional["Icon"] = declare_property(
-        41,
+        42,
         description="The icon of this Entity.",
         tags=("entity",),
     )
-    order_key: str = declare_property(
-        42,
+    order_key: str | None = declare_property(
+        43,
         is_eq=False,
         is_internal=True,
-        default=FRACTIONAL_INTEGER_ZERO,
-        description="The absolute order key of this Entity in its parent.",
+        description="The absolute order of this Entity (in its parent, as a fractional integer).",
         tags=("entity",),
     )
     # is_locked, is_extensible, is_instantiable, ...
@@ -311,33 +308,28 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # is_locked/is_final?
     # is_singleton?
 
-    # 50-60: Entity state
+    # 50-60: custom
     custom_values: dict[str, "Value"] | None = declare_property(
         50,
         description="The custom Values of this Entity, keyed by custom Property or Tag name.",
-        tags=("entity",),
+        tags=("custom",),
     )
     context_values: dict[str, "Value"] | None = declare_property(
         51,
         description="The context Values provided by this Entity, keyed by context Property name.",
-        tags=("entity",),
+        tags=("custom",),
     )
 
-    # 60-70: Entity behavior
+    # 60-70: behavior
     script: Optional["Script"] = declare_property(
         60,
         description="The Script of this Entity.",
-        tags=("entity",),
+        tags=("behavior",),
     )
-    # key? (for reconciliation)
 
-    # 80-100: Entity provenance
-    # source: Optional["Script"] = declare_property(
-    #     80,
-    #     is_internal=True,
-    #     description="The Script that defines this Node.",
-    #     tags=("source",),
-    # )
+    # 70-80: provenance
+    # source: Optional["Script"]?
+    # key? (for reconciliation)
     # ... (from script, dynamic effect, manual function, import, ...)
 
     @declare_method(2)

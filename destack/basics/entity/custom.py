@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, final
+from typing import TYPE_CHECKING, Any, Optional, final
 
 from destack.core import (
     Condition,
@@ -20,7 +20,6 @@ from destack.core import (
     declare_message,
     declare_method,
     declare_property,
-    declare_property_parent,
     declare_struct,
 )
 
@@ -150,8 +149,6 @@ class CustomEnumDefinition(Entity):
 
 @declare_entity(NodeType.CUSTOM_OPTION_DEFINITION)
 class CustomOptionDefinition(Entity):
-    parent: Union["CustomEnumDefinition", None] = declare_property_parent()
-
     value: "Value" = declare_property(110)
 
 
