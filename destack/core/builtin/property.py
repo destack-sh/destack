@@ -145,7 +145,11 @@ class PropertyDeclaration(Declaration):
 
         # parse annotation
         try:
-            self.type = parse_type_declaration(self.py_type, is_builtin=True)
+            self.type = parse_type_declaration(
+                self.py_type,
+                reference_type=self.reference_type,
+                is_builtin=True,
+            )
         except Exception as e:
             raise ValueError(
                 f"unexpected type: {self.component.__name__}.{self.name} ({self.py_type})"

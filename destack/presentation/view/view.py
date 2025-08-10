@@ -12,11 +12,14 @@ from destack.simulation.geometry import Entity2D
 
 if TYPE_CHECKING:
     from destack import (
+        Anchor,
         Border,
         Corner2,
         Fill,
         Length,
+        Offset2,
         Shadow,
+        Vector2,
         View,
     )
 
@@ -48,35 +51,52 @@ class ViewEvent(Event):
 class View(Entity2D):
     """A View is a 2D user interface element."""
 
-    # size
+    # transform
+    origin: Optional["Vector2"] = declare_property(
+        115,
+        tags=("transform",),
+        description="The origin of the Entity in 2D space.",
+    )
+    anchor: Optional["Anchor"] = declare_property(
+        116,
+        tags=("transform",),
+        description="The anchor of the Entity in 2D space.",
+    )
+    offset: Optional["Offset2"] = declare_property(
+        117,
+        tags=("transform",),
+        description="The offset of the Entity in 2D space.",
+    )
+
+    # dimensions
     width: Optional["Length"] = declare_property(
         120,
-        tags=("size",),
+        tags=("dimensions",),
         description="The width of the View.",
     )
     height: Optional["Length"] = declare_property(
         121,
-        tags=("size",),
+        tags=("dimensions",),
         description="The height of the View.",
     )
     min_width: Optional["Length"] = declare_property(
         122,
-        tags=("size",),
+        tags=("dimensions",),
         description="The minimum width of the View.",
     )
     min_height: Optional["Length"] = declare_property(
         123,
-        tags=("size",),
+        tags=("dimensions",),
         description="The minimum height of the View.",
     )
     max_width: Optional["Length"] = declare_property(
         124,
-        tags=("size",),
+        tags=("dimensions",),
         description="The maximum width of the View.",
     )
     max_height: Optional["Length"] = declare_property(
         125,
-        tags=("size",),
+        tags=("dimensions",),
         description="The maximum height of the View.",
     )
 

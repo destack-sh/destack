@@ -482,12 +482,15 @@ for _ in range({key}_length):
                 return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
             else:
                 return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            return f"_writer.write_uuid({source_expr})"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
@@ -570,18 +573,21 @@ for _ in range({key}_length):
                 return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, _reader, _session, _options)"
             else:
                 return "_encoder.unpack_object_binary(None, None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            return "UUID(_reader.read_uuid())"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot unpack Handle: {type!r}")
+            raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot unpack union: {type!r}")
+            raise NotImplementedError(f"cannot unpack UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)

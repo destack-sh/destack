@@ -31,6 +31,8 @@ class ChangeType(OptionEnum):
     )
     UPDATE = declare_option(30, description="Update an existing Entity")
     MOVE = declare_option(31, description="Move an Entity to a new parent Entity (or detach)")
+    # REPLACE? (replace existing Entity with a new one, update descendants)
+    # MORPH? (change type, but same Entity)
     DELETE = declare_option(40, description="Delete an Entity (and its descendants)")
     RESTORE = declare_option(41, description="Restore a deleted Entity (and its descendants)")
     # INSTANTIATE, MATERIALIZE, ...?

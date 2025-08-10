@@ -284,7 +284,7 @@ def _calculate_substring_score(query: str, target: str) -> int:
 
 def _render_type(type: "Type") -> str:
     """Render a type to a string."""
-    from ...core import TypeCardinality
+    from destack.core import TypeCardinality
 
     # scalar
     if type.cardinality == TypeCardinality.SCALAR:
@@ -310,18 +310,14 @@ def _render_type(type: "Type") -> str:
 
     # wrap in optional
     if not type.is_required:
-        inner_str = f"{inner_str} | None"
+        inner_str = f"{inner_str}?"
 
     return inner_str
 
 
 def _render_type_scalar(type: "Type") -> str:
     """Render a scalar type to a string."""
-    from destack.core import (
-        PRIMITIVE_PY_ANNOTATION_BY_TYPE,
-        ScalarType,
-        TypeCardinality,
-    )
+    from destack.core import PRIMITIVE_PY_ANNOTATION_BY_TYPE, ScalarType, TypeCardinality
 
     assert type.cardinality == TypeCardinality.SCALAR
     assert type.scalar_type is not None, f"no scalar_type for {type!r}"
@@ -334,17 +330,8 @@ def _render_type_scalar(type: "Type") -> str:
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum_type for {type!r}"
         return ENUM_CLASS_BY_TYPE[type.enum_type].__name__
-    # node reference
-    elif type.scalar_type == ScalarType.NODE_REFERENCE:
-        if type.node_types is None:
-            return "Node"
-        elif len(type.node_types) == 1:
-            return NODE_CLASS_BY_TYPE[type.node_types[0]].__name__
-        else:
-            node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
-            return " | ".join(node_names)
     # node value
-    elif type.scalar_type == ScalarType.NODE_VALUE:
+    elif type.scalar_type == ScalarType.NODE:
         if type.node_types is None:
             return "Node"
         elif len(type.node_types) == 1:
@@ -352,6 +339,21 @@ def _render_type_scalar(type: "Type") -> str:
         else:
             node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
             return " | ".join(node_names)
+    # node reference
+    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
+        if type.node_types is None:
+            node_str = "Node"
+        elif len(type.node_types) == 1:
+            node_str = NODE_CLASS_BY_TYPE[type.node_types[0]].__name__
+        else:
+            node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
+            node_str = " | ".join(node_names)
+        if type.scalar_type == ScalarType.NODE_ID:
+            return f"->{node_str}.id"
+        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+            return f"->{node_str}"
+        else:
+            assert_never(type.scalar_type)
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"

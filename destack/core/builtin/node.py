@@ -146,10 +146,10 @@ def _process_node_cls(
     # validate
     # check for too many nullable properties (for :Encoding)
     nullable_properties = [p for p in cls.__properties__.values() if not p.type.is_required]
-    assert len(nullable_properties) <= 64, f"Node {cls.__name__} has too many nullable properties"
+    assert len(nullable_properties) < 64, f"Node {cls.__name__} has too many nullable properties"
     # check for too many properties (for :Encoding)
     wired_properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
-    assert len(wired_properties) <= 128, f"Node {cls.__name__} has too many wired properties"
+    assert len(wired_properties) < 128, f"Node {cls.__name__} has too many wired properties"
     # non-abstract nodes must have properties
     if not is_abstract and not any(
         not prop.is_runtime_only for prop in cls.__declaration__.properties
@@ -182,15 +182,16 @@ def _process_node_cls(
             node_prop = cls.__properties_by_alias__.get(struct_prop.name)
             if node_prop is None:
                 if struct_prop.name == "template":
-                    # nocheckin: proper mechanism for "struct with partial overrides to node"
+                    # nocheckin: proper mechanism for "struct with partial overrides to node/struct"
                     #  (like Styles or TransitionTemplate or any template really..
+                    #   .. similarity to Offset2/Inset2/... with base and overrides?
                     #   .. similarity to Entity partials?
                     #   .. also similarity to Context overrides in Entity.context_values?
                     #   .. also similarity to mut/non mut Structs?
                     #   .. also related to (frozen-in-time) Nodes as values?)
                     #   .. also related to partial Node Values for animation tracks?
-                    #   if this were a separate Struct/BaseSturct we could do a custom Encoder
-                    #   instead of stuffing it into materialization logic?)
+                    #   .. if this were a separate Struct we could do a custom Encoder
+                    #       instead of stuffing it into materialization logic?)
                     continue
                 raise ValueError(f"'{cls.__name__}' has no property {struct_prop!r}")
             if node_prop.type != struct_prop.type:

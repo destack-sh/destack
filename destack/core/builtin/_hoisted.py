@@ -189,7 +189,6 @@ class ReferenceType(OptionEnum):
         1,
         description="Fat reference (NodeReference)",
     )
-    # nocheckin: handle ReferenceType.THIN (NodeReference.id only)
     THIN = declare_option(
         2,
         description="Thin reference (NodeReference.id, internal use only)",
@@ -282,34 +281,39 @@ class ScalarType(OptionEnum):
         "Enum",
         description="Enum value (enumeration of options)",
     )
-    NODE_REFERENCE = declare_option(
+    NODE = declare_option(
         3,
+        "Node",
+        description="Node as a value (Node)",
+    )
+    NODE_REFERENCE = declare_option(
+        4,
         "Node Reference",
         description="Reference to a Node (NodeReference)",
     )
-    NODE_VALUE = declare_option(
-        4,
-        "Node Value",
-        description="Value of a Node",
+    NODE_ID = declare_option(
+        5,
+        "Node ID",
+        description="Reference to a Node (NodeReference.id, internal use only)",
     )
     STRUCT = declare_option(
-        5,
+        6,
         "Struct",
         description="Struct value (structured data)",
     )
     HANDLE = declare_option(
-        6,
+        7,
         "Handle",
         description="Handle (runtime-only)",
     )
     UNION = declare_option(
-        7,
+        8,
         "Union",
         description="Tagged union of heterogeneous values",
     )
 
 
-assert max(ScalarType) < 8, "ScalarType must be less than 8"  # for :Encoding
+assert max(ScalarType) < 16, "ScalarType must be less than 16"  # for :Encoding
 
 
 @declare_enum(EnumType.PRIMITIVE_TYPE)

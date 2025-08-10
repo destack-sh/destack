@@ -19,6 +19,7 @@ from ..builtin import (
     NodeType,
     OptionDeclaration,
     PrimitiveType,
+    ReferenceType,
     RuntimeLanguage,
     ScalarType,
     Struct,
@@ -41,11 +42,13 @@ if TYPE_CHECKING:
 @final
 class Type(ImmutableStruct):
     """
-    A Type in the type system. Types compose like a tree (with scalars at the leaves):
+    A Type in the type system.
+    Types compose like a tree with scalars at the leaves:
      - Scalar: a single value (self, Type.scalar_type)
-     - List: a sequence of homogeneous values (Type.value_type)
-     - Tuple: a sequence of heterogeneous values (Type.element_types)
-     - Map: a mapping of homogenous keys to homogeneous values (Type.key_type->Type.value_type)
+     - List: a dynamic sequence of homogeneous values (Type.value_type)
+     - Tuple: a fixed sequence of heterogeneous values (Type.element_types)
+     - Array: a fixed n-dimensional sequence of homogeneous values (Type.dimensions * Type.dimensions)
+     - Map: a dynamic mapping of homogenous keys to homogeneous values (Type.key_type->Type.value_type)
      - Union: a union of heterogeneous values (Type.element_types)
     """
 
@@ -70,11 +73,11 @@ class Type(ImmutableStruct):
         is_repr=True,
         description="Element types of this Type (tuple, union).",
     )
-    # dimensions: list[UInt32] | None = declare_property(
-    #     114,
-    #     is_repr=True,
-    #     description="Dimensions of this Type (list, tuple, map, array).",
-    # )
+    dimensions: list[UInt32] | None = declare_property(
+        114,
+        is_repr=True,
+        description="Dimensions of this Type (list, tuple, map, array).",
+    )
     # generic_over?
     is_required: bool = declare_property(119, default=True)
 
@@ -136,12 +139,14 @@ class Type(ImmutableStruct):
 
     @declare_method(201, is_implemented=True)
     @classmethod
-    def infer(cls, value_or_type: Any, node_as_value: bool = False) -> "Type":
+    def infer(
+        cls, value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.REGULAR
+    ) -> "Type":
         """
         Infer the Type of a value or class.
         For values, we try to infer the most specific Type that can represent the value.
         """
-        return infer_type(value_or_type, node_as_value)
+        return infer_type(value_or_type, reference_type)
 
 
 @declare_struct(StructType.STRING_CONSTRAINT, frozen=True)
@@ -195,7 +200,9 @@ _PRIMITIVE_PY_TYPES: tuple[type, ...] = tuple(
 
 
 @declare_method(301, is_implemented=True)
-def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
+def infer_type(
+    value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.REGULAR
+) -> "Type":
     """
     Infer the Type of a value or class.
     For values, we try to infer the most specific Type that can represent the value.
@@ -221,9 +228,17 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             node_types=[value_or_type.type],
         )
     elif isinstance(value_or_type, Node):
+        if reference_type == ReferenceType.REGULAR:
+            scalar_type = ScalarType.NODE
+        elif reference_type == ReferenceType.THIN:
+            scalar_type = ScalarType.NODE_ID
+        elif reference_type is None:
+            scalar_type = ScalarType.NODE
+        else:
+            assert_never(reference_type)
         return Type(
             cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_VALUE if node_as_value else ScalarType.NODE_REFERENCE,
+            scalar_type=scalar_type,
             node_types=[value_or_type.metatype],
         )
     elif isinstance(value_or_type, Struct):
@@ -263,7 +278,7 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
     # collections
     if isinstance(value_or_type, tuple):
         # tuples are heterogeneous
-        element_types = [infer_type(elem, node_as_value=node_as_value) for elem in value_or_type]
+        element_types = [infer_type(elem, reference_type=reference_type) for elem in value_or_type]
         return Type(
             cardinality=TypeCardinality.TUPLE,
             element_types=element_types,  # type: ignore
@@ -271,7 +286,7 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
     elif isinstance(value_or_type, list):
         assert value_or_type, f"cannot infer type of empty list: {value_or_type!r}"
         # lists are homogeneous - infer from first element
-        element_type = infer_type(value_or_type[0], node_as_value=node_as_value)
+        element_type = infer_type(value_or_type[0], reference_type=reference_type)
         return Type(
             cardinality=TypeCardinality.LIST,
             value_type=element_type,
@@ -280,8 +295,8 @@ def infer_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
         assert value_or_type, f"cannot infer type of empty dict: {value_or_type!r}"
         sample_key = next(iter(value_or_type))
         sample_value = value_or_type[sample_key]
-        key_type = infer_type(sample_key, node_as_value=node_as_value)
-        value_type = infer_type(sample_value, node_as_value=node_as_value)
+        key_type = infer_type(sample_key, reference_type=reference_type)
+        value_type = infer_type(sample_value, reference_type=reference_type)
         return Type(
             cardinality=TypeCardinality.MAP,
             key_type=key_type,
@@ -345,17 +360,17 @@ def invert_type_scalar(type: "Type") -> "Any":
     elif type.scalar_type == ScalarType.ENUM:
         assert type.enum_type is not None, f"no enum type for: {type!r}"
         return ENUM_CLASS_BY_TYPE[type.enum_type]
+    # node
+    elif type.scalar_type == ScalarType.NODE:
+        assert type.node_types is not None, f"no node types for: {type!r}"
+        return NODE_CLASS_BY_TYPE[type.node_types[0]]
     # node reference
-    elif type.scalar_type == ScalarType.NODE_REFERENCE:
+    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
         assert type.node_types is not None, f"no node types for: {type!r}"
         if len(type.node_types) == 1:
             return NODE_CLASS_BY_TYPE[type.node_types[0]]
         else:
             return Union[*tuple(NODE_CLASS_BY_TYPE[t] for t in type.node_types)]  # type: ignore
-    # node value
-    elif type.scalar_type == ScalarType.NODE_VALUE:
-        assert type.node_types is not None, f"no node types for: {type!r}"
-        return NODE_CLASS_BY_TYPE[type.node_types[0]]
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct type for: {type!r}"

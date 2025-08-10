@@ -673,12 +673,15 @@ if ({map_expr} := {source_expr}):
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             return f"{value_expr}.name"
-        # node_reference
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return f"{value_expr}!r"
+        # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"{value_expr}!r"
-        # node_value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return f"{value_expr}!r"
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            raise NotImplementedError(f"cannot get repr for NODE_ID: {type!r}")
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             return f"{value_expr}!r"
@@ -687,7 +690,7 @@ if ({map_expr} := {source_expr}):
             return f"{value_expr}!r"
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot get repr for union: {type!r}")
+            raise NotImplementedError(f"cannot get repr for UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -806,7 +809,7 @@ if {self_source_expr} is not None:
             if type.scalar_type in (
                 ScalarType.STRUCT,
                 ScalarType.NODE_REFERENCE,
-                ScalarType.NODE_VALUE,
+                ScalarType.NODE,
             ):
                 # maps with complex values need key-by-key comparison
                 value_cmp = self.generate_equals_value(
@@ -901,12 +904,15 @@ if {self_source_expr} != {other_source_expr}:
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             return "{self_val} == {other_val}", True
-        # node_reference
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return "{self_val}.id == {other_val}.id", False
+        # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return "{self_val}.id == {other_val}.id", False
-        # node_value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return "{self_val}.id == {other_val}.id", False
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            raise NotImplementedError(f"cannot get equals for NODE_ID: {type!r}")
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             return "{self_val}.equals({other_val})", False
@@ -915,7 +921,7 @@ if {self_source_expr} != {other_source_expr}:
             return "{self_val} is {other_val}", False
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot get equals for union: {type!r}")
+            raise NotImplementedError(f"cannot get equals for UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -1095,18 +1101,21 @@ if ({map_source_expr} := {source_expr}):
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
+        # node
+        elif type.scalar_type == ScalarType.NODE:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            raise NotImplementedError(f"cannot hash NODE_ID: {type!r}")
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot hash Handle: {type!r}")
+            raise NotImplementedError(f"cannot hash HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot hash union: {type!r}")
+            raise NotImplementedError(f"cannot hash UNION: {type!r}")
         else:
             assert_never(type.scalar_type)
 
@@ -1403,7 +1412,7 @@ def _process_object_cls[ObjectT: Object](
         if not prop.is_runtime_only:
             lower_camel_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
             upper_camel_name = to_casing(prop.name, StringCasing.UPPER_CAMEL)
-            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+            if prop.type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
                 aliases = (
                     prop.name,
                     prop.name + "_ptr",
@@ -1481,14 +1490,21 @@ def __init__(self):
     cls_dict.pop("__dict__", None)
     cls_dict.pop("__weakref__", None)
     if not declaration.is_abstract:  # (only define actual slots in leaf, otherwise slots clash)
+        slots: list[str] = []
         for prop in properties.values():
+            if prop.is_static:
+                continue  # ignore static properties
+            # remove properties from cls_dict (so we can have slots)
             if isinstance(cls_dict.get(prop.name), PropertyDeclaration):
                 cls_dict.pop(prop.name, None)
-        cls_dict["__slots__"] = tuple(
-            p.name if p.type.scalar_type != ScalarType.NODE_REFERENCE else f"{p.name}_ptr"
-            for p in properties.values()
-            if not p.is_static
-        )
+            # gather slots
+            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+                slots.append(f"{prop.name}_ptr")
+            elif prop.type.scalar_type == ScalarType.NODE_ID:
+                slots.append(f"{prop.name}_id")
+            else:
+                slots.append(prop.name)
+        cls_dict["__slots__"] = tuple(slots)
     else:
         cls_dict["__slots__"] = ()
 
