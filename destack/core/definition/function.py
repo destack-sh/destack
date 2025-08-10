@@ -12,7 +12,6 @@ from .definition import Definition
 
 @declare_struct(
     StructType.FUNCTION_DEFINITION,
-    frozen=True,
     is_abstract=True,
 )
 class FunctionDefinition(Definition):

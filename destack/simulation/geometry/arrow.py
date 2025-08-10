@@ -27,7 +27,6 @@ class ArrowHeadType(OptionEnum):
 
 @declare_struct(
     StructType.ARROW2D,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.ARROW_SHAPE2D,),
 )

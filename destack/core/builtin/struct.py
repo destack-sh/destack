@@ -165,16 +165,3 @@ class Struct(Object):
     def clone(self) -> Self:
         """Clone the Struct with new values."""
         raise NotImplementedError
-
-
-@declare_struct(
-    StructType.IMMUTABLE_STRUCT,
-    frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
-    is_abstract=True,
-)
-class ImmutableStruct(Struct):  # nocheckin: remove ImmutableStruct?
-    """An ImmutableStruct is a Struct that cannot be modified."""
-
-    def _invalidate_immutable(self) -> None:
-        # frozen Structs should be immutable, but sometimes we need to break out of that
-        pass

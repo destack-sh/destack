@@ -13,7 +13,6 @@ from .definition import Definition
 
 @declare_struct(
     StructType.OPTION_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final

@@ -28,7 +28,6 @@ type_ = type
 
 @declare_struct(
     StructType.STRUCT_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final

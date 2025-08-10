@@ -25,7 +25,6 @@ from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 if TYPE_CHECKING:
     from destack import (
         Branch,
-        Icon,
         NodeReference,
         Script,
         Tag,
@@ -289,11 +288,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         default_factory=ValueFactory.NAME,
         tags=("entity",),
     )
-    icon: Optional["Icon"] = declare_property(
-        42,
-        description="The icon of this Entity.",
-        tags=("entity",),
-    )
     order_key: str | None = declare_property(
         43,
         is_eq=False,
@@ -301,6 +295,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The absolute order of this Entity (in its parent, as a fractional integer).",
         tags=("entity",),
     )
+    # icon: Optional["Icon"]?
     # is_locked, is_extensible, is_instantiable, ...
     # base_type?
     # traits?

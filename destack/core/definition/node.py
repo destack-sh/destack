@@ -31,7 +31,6 @@ type_ = type
 
 @declare_struct(
     StructType.NODE_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final

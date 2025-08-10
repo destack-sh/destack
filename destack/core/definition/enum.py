@@ -20,7 +20,6 @@ type_ = type
 
 @declare_struct(
     StructType.ENUM_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final

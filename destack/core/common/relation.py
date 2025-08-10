@@ -11,7 +11,6 @@ from destack.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CL
 from ..builtin import (
     UUID,
     HandleType,
-    ImmutableStruct,
     NodeType,
     ObjectKind,
     PropertyDeclaration,
@@ -36,9 +35,9 @@ if TYPE_CHECKING:
 type_ = type
 
 
-@declare_struct(StructType.OBJECT_DEFINITION_REFERENCE, frozen=True, is_final=True)
+@declare_struct(StructType.OBJECT_DEFINITION_REFERENCE, is_final=True)
 @final
-class ObjectDefinitionReference(ImmutableStruct):
+class ObjectDefinitionReference(Struct):
     """Reference to an object "type" (builtin, custom or trait)."""
 
     kind: ObjectKind = declare_property(101, is_repr=True)
@@ -84,11 +83,10 @@ class ObjectDefinitionReference(ImmutableStruct):
 
 @declare_struct(
     StructType.PROPERTY_REFERENCE,
-    frozen=True,
     is_final=True,
 )
 @final
-class PropertyReference(ImmutableStruct):
+class PropertyReference(Struct):
     """
     A reference to a builtin object's Property.
     """
@@ -145,9 +143,9 @@ class PropertyReference(ImmutableStruct):
         raise NotImplementedError
 
 
-@declare_struct(StructType.NODE_REFERENCE, frozen=True, is_final=True)
+@declare_struct(StructType.NODE_REFERENCE, is_final=True)
 @final
-class NodeReference(ImmutableStruct):
+class NodeReference(Struct):
     """
     A reference to a Node in spacetime.
     """

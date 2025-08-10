@@ -25,7 +25,6 @@ type_ = type
 
 @declare_struct(
     StructType.PROPERTY_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final
@@ -69,6 +68,7 @@ Whether this Property is part of the object's identity.
     is_internal: bool = declare_property(146)
     is_static: bool = declare_property(147)
     is_runtime_only: bool = declare_property(148)
+    is_interned: bool = declare_property(149)
 
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -116,6 +116,7 @@ Whether this Property is part of the object's identity.
             is_internal=prop.is_internal,
             is_static=prop.is_static,
             is_runtime_only=prop.is_runtime_only,
+            is_interned=prop.is_interned,
         )
 
     @declare_method(102)

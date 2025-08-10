@@ -213,8 +213,7 @@ def _index_module(
                 child_module = _index_module(child_path, child_file_path, module)
                 children_paths.append(child_module.path)
 
-        module.children_paths = children_paths  # type: ignore (frozen)
-        module._invalidate_immutable()
+        module.children_paths = children_paths
 
     return module
 
@@ -398,7 +397,7 @@ def finalize():
                 constants.append(constant)
                 # replace constant with value
                 setattr(object_cls, name, attribute.value)
-        object_cls.__definition__.constants = list(constants)  # type: ignore (frozen)
+        object_cls.__definition__.constants = list(constants)
 
     # collect modules
     root_module_path = Path(__file__).parent

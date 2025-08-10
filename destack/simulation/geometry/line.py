@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.LINE2D,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.LINE_SHAPE2D,),
 )

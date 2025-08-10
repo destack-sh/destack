@@ -19,7 +19,6 @@ type_ = type
 
 @declare_struct(
     StructType.METHOD_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final
