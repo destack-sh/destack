@@ -1,14 +1,6 @@
 import secrets
 import time
-from typing import TYPE_CHECKING
-
-try:
-    if TYPE_CHECKING:
-        from uuid import UUID, uuid4, uuid5
-    else:
-        from fastuuid import UUID, uuid4, uuid5
-except ImportError:
-    from uuid import UUID, uuid4, uuid5
+from uuid import UUID, uuid4, uuid5
 
 _time_ns = time.time_ns
 _token_bytes = secrets.token_bytes

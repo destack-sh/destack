@@ -103,10 +103,13 @@ def test_roundtrip_vector3():
 
 def test_roundtrip_type():
     """Pack and unpack a Type."""
+    # nocheckin: fix Kompakt type encoding with new 4 bit scalar type
     for type in (
         Type.infer(bool),
         Type.infer(17),
         Type.infer(dict[str, Value]),
+        Type.infer(int | str),
+        Type.infer(Value | str | None),
         Type.infer([Vector3(x=1.0, y=2.0, z=3.0)]),
     ):
         for encoding, encoder in ENCODERS.items():

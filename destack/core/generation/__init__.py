@@ -1,7 +1,3 @@
-def generate():
-    """Generate all the derived things."""
-    from .python import generate as generate_python
-    from .typescript import generate as generate_typescript
+from .layout import ObjectSize, ObjectSizer, PythonObjectSizer
 
-    generate_python()
-    generate_typescript()
+__all__ = ["ObjectSize", "ObjectSizer", "PythonObjectSizer"]

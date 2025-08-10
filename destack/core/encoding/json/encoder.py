@@ -352,10 +352,10 @@ class JsonEncoder(Encoder):
             return str(value.id)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot pack Handle: {type!r}")
+            raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot pack union: {type!r}")
+            raise NotImplementedError(f"cannot pack UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -449,10 +449,10 @@ class JsonEncoder(Encoder):
                 )
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot unpack Handle: {type!r}")
+            raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot unpack union: {type!r}")
+            raise NotImplementedError(f"cannot unpack UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)

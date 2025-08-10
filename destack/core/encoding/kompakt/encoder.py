@@ -163,9 +163,9 @@ class KompaktEncoder(Encoder):
                 assert type.struct_type is not None, f"no struct type for {type!r}"
                 writer.write_uint32(type.struct_type)
             elif type.scalar_type == ScalarType.HANDLE:
-                raise NotImplementedError(f"cannot pack handle: {type!r}")
+                raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
             elif type.scalar_type == ScalarType.UNION:
-                raise NotImplementedError(f"cannot pack union: {type!r}")
+                raise NotImplementedError(f"cannot pack UNION: {type!r}")
             else:
                 assert_never(type.scalar_type)
         # list
@@ -218,9 +218,9 @@ class KompaktEncoder(Encoder):
             elif scalar_type == ScalarType.STRUCT:
                 struct_type = StructType(reader.read_uint32())
             elif scalar_type == ScalarType.HANDLE:
-                raise NotImplementedError(f"cannot unpack handle: {scalar_type!r}")
+                raise NotImplementedError(f"cannot unpack HANDLE: {scalar_type!r}")
             elif scalar_type == ScalarType.UNION:
-                raise NotImplementedError(f"cannot unpack union: {scalar_type!r}")
+                raise NotImplementedError(f"cannot unpack UNION: {scalar_type!r}")
             else:
                 assert_never(scalar_type)
         # list
@@ -454,10 +454,10 @@ class KompaktEncoder(Encoder):
                 self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot pack Handle: {type!r}")
+            raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot pack union: {type!r}")
+            raise NotImplementedError(f"cannot pack UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
@@ -574,10 +574,10 @@ class KompaktEncoder(Encoder):
             return reader.read_uuid()
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot unpack Handle: {type!r}")
+            raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot pack union: {type!r}")
+            raise NotImplementedError(f"cannot pack UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)
