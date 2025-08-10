@@ -43,7 +43,6 @@
         "mitata": "^1.0.34"
       },
       "web": {
-        "motion": "^12.23.6",
         "@codemirror/autocomplete": "^6.18.6",
         "@codemirror/commands": "^6.8.1",
         "@codemirror/lang-python": "^6.2.1",
