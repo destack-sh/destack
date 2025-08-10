@@ -168,18 +168,13 @@ class NodeReference(ImmutableStruct):
         is_repr=True,
         description="The id of the Space the Node belonged to.",
     )
-    definition_id: UUID | None = declare_property(
-        103,
-        is_repr=True,
-        description="The id of the Node definition.",
-    )
     branch_id: UUID = declare_property(
-        104,
+        103,
         is_repr=True,
         description="The id of the Branch the Node belonged to (when it was referenced).",
     )
     snapshot_id: UUID = declare_property(
-        105,
+        104,
         is_repr=True,
         description="The id of the Snapshot the Node belonged to (when it was referenced).",
     )

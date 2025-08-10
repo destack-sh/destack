@@ -58,7 +58,13 @@ class ManualContext:
 @cli.command()
 def manual():
     """Interactive manual for the schema."""
-    from destack import VERSION, PythonObjectSizer
+    from destack import (
+        VERSION,
+        KompaktObjectSizer,
+        PythonObjectSizer,
+        RustObjectSizer,
+        TypeScriptObjectSizer,
+    )
 
     # create the REPL
     repl = create_repl(
@@ -73,14 +79,14 @@ Type 'help' for available commands.""",
 
     # current context for navigation
     context = ManualContext(
-        memory_sizer=PythonObjectSizer(),
-        packed_sizer=PythonObjectSizer(),
+        memory_sizer=RustObjectSizer(),
+        packed_sizer=KompaktObjectSizer(),
         sizers={
-            "Memory": PythonObjectSizer(),
-            "Packed": PythonObjectSizer(),
-            "Rust": PythonObjectSizer(),
+            "Memory": RustObjectSizer(),
+            "Packed": KompaktObjectSizer(),
+            "Rust": RustObjectSizer(),
+            "JavaScript": TypeScriptObjectSizer(),
             "Python": PythonObjectSizer(),
-            "JavaScript": PythonObjectSizer(),
         },
     )
 

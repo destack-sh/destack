@@ -1,3 +1,3 @@
-from .generate import generate
+from .layout import PythonObjectSizer
 
-__all__ = ["generate"]
+__all__ = ["PythonObjectSizer"]

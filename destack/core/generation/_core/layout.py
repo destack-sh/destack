@@ -1,10 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, NamedTuple
 
-from ..definition import NodeDefinition, StructDefinition
-
 if TYPE_CHECKING:
-    from destack import Type
+    from destack import NodeDefinition, StructDefinition, Type
 
 
 class ObjectSize(NamedTuple):

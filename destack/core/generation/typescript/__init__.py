@@ -1,3 +1,3 @@
-from .generate import generate
+from .layout import TypeScriptObjectSizer
 
-__all__ = ["generate"]
+__all__ = ["TypeScriptObjectSizer"]
