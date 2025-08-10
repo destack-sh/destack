@@ -1,18 +1,17 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.core import (
     ImmutableStruct,
     NodeType,
     StructType,
     declare_entity,
-    declare_property,
     declare_struct,
 )
 
 from .entity import Entity2D, Entity3D
 
 if TYPE_CHECKING:
-    from destack import Stroke
+    pass
 
 
 @declare_struct(
@@ -33,11 +32,7 @@ class Form2D(ImmutableStruct):
 class Shape2D(Entity2D):
     """A Shape2D represents 2-dimensional geometric Shapes situated in space."""
 
-    stroke: Optional["Stroke"] = declare_property(
-        180,
-        is_repr=True,
-        tags=("style",),
-    )
+    pass
 
 
 @declare_struct(
@@ -58,8 +53,4 @@ class Form3D(ImmutableStruct):
 class Shape3D(Entity3D):
     """A Shape3D represents 3-dimensional geometric Shapes situated in space."""
 
-    stroke: Optional["Stroke"] = declare_property(
-        180,
-        is_repr=True,
-        tags=("style",),
-    )
+    pass

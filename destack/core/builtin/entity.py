@@ -127,7 +127,7 @@ def declare_entity(
         TagDeclaration(id=30, name="visibility", description="Visibility"),
         TagDeclaration(id=31, name="style", description="style"),
         TagDeclaration(id=32, name="transform", description="Transform"),
-        TagDeclaration(id=33, name="size", description="Size"),
+        TagDeclaration(id=33, name="dimensions", description="Dimensions"),
         TagDeclaration(id=34, name="layout", description="Layout"),
     ),
 )
@@ -178,7 +178,7 @@ class Entity(Node):
         is_identity=True,
         description="""\
 The previous Entity this Entity is based on (from the base Branch, if any).
-This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
+We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
 """,
         tags=("identity",),
     )

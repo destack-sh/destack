@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, final
 
 from ..builtin import Node, ObjectStability, Struct, StructType, declare_property, declare_struct
-from .type import ScalarType, Type, TypeCardinality, infer_type
+from .type import ReferenceType, ScalarType, Type, TypeCardinality, infer_type
 
 if TYPE_CHECKING:
     pass
@@ -45,7 +45,7 @@ class Value(Struct):
         cls,
         value: Any,
         type: "Type | None" = None,
-        node_as_value: bool = False,
+        reference_type: ReferenceType | None = ReferenceType.REGULAR,
     ) -> "Value":
         """
         Convert an arbitrary (legal) value to a Value.
@@ -53,7 +53,7 @@ class Value(Struct):
         """
         # infer type
         if type is None:
-            type = infer_type(value, node_as_value=node_as_value)
+            type = infer_type(value, reference_type=reference_type)
         # coerce nodes into node references
         if type.scalar_type == ScalarType.NODE_REFERENCE:
             if type.cardinality == TypeCardinality.SCALAR and isinstance(value, Node):

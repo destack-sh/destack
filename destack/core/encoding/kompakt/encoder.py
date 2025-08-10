@@ -137,7 +137,7 @@ class KompaktEncoder(Encoder):
         writer: BinaryWriter,
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
-        # preamble (4 bits cardinality, 3 bits scalar type, 1 bit is_required)
+        # preamble (4 bits cardinality, 4 bits scalar type, 1 bit is_required)
         writer.write_uint8(
             type.cardinality | ((type.scalar_type or 0) << 4) | (type.is_required << 7)
         )
@@ -150,7 +150,11 @@ class KompaktEncoder(Encoder):
             elif type.scalar_type == ScalarType.ENUM:
                 assert type.enum_type is not None, f"no enum type for {type!r}"
                 writer.write_uint32(type.enum_type)
-            elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
+            elif type.scalar_type in (
+                ScalarType.NODE,
+                ScalarType.NODE_REFERENCE,
+                ScalarType.NODE_ID,
+            ):
                 assert type.node_types is not None, f"no node types for {type!r}"
                 writer.write_uint32(len(type.node_types))
                 for node_type in type.node_types:
@@ -209,7 +213,7 @@ class KompaktEncoder(Encoder):
                 primitive_type = PrimitiveType(reader.read_uint8())
             elif scalar_type == ScalarType.ENUM:
                 enum_type = EnumType(reader.read_uint32())
-            elif scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE):
+            elif scalar_type in (ScalarType.NODE, ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
                 node_types = [NodeType(reader.read_uint32()) for _ in range(reader.read_uint32())]
             elif scalar_type == ScalarType.STRUCT:
                 struct_type = StructType(reader.read_uint32())
@@ -431,12 +435,15 @@ class KompaktEncoder(Encoder):
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             writer.write_uint32(value)
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            writer.write_uuid(value.id)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -544,6 +551,15 @@ class KompaktEncoder(Encoder):
                     session,
                     options & ~EncoderFlag.OMIT_METATYPE,
                 )
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return self.unpack_object_binary(
+                None,
+                None,
+                reader,
+                session,
+                options | EncoderFlag.OMIT_METATYPE,
+            )
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return self.unpack_object_binary(
@@ -553,18 +569,12 @@ class KompaktEncoder(Encoder):
                 session,
                 options | EncoderFlag.OMIT_METATYPE,
             )
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return self.unpack_object_binary(
-                None,
-                None,
-                reader,
-                session,
-                options | EncoderFlag.OMIT_METATYPE,
-            )
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            return reader.read_uuid()
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot pack Handle: {type!r}")
+            raise NotImplementedError(f"cannot unpack Handle: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
             raise NotImplementedError(f"cannot pack union: {type!r}")

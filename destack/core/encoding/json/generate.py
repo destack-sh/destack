@@ -572,20 +572,23 @@ _encoder.pack_object({source_expr}, _options)"""
             else:
                 return f"""\
 _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return f"""\
+_encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"""\
 _encoder.pack_object({source_expr}, _options)"""
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return f"""\
-_encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            return f"str({source_expr})"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot pack Handle: {type!r}")
+            raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot pack union: {type!r}")
+            raise NotImplementedError(f"cannot pack UNION: {type!r}")
         else:
             assert_never(type.scalar_type)
 
@@ -659,20 +662,23 @@ _encoder.unpack_object({ObjectKind.STRUCT.value}, {type.struct_type.value}, {sou
             else:
                 return f"""\
 _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return f"""\
+_encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return f"""\
 _encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_REFERENCE.value}, {source_expr}, _session, _options)"""
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return f"""\
-_encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            return f"UUID({source_expr})"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot unpack Handle: {type!r}")
+            raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot unpack union: {type!r}")
+            raise NotImplementedError(f"cannot unpack UNION: {type!r}")
         else:
             assert_never(type.scalar_type)
 
@@ -694,7 +700,6 @@ _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderO
                 {**BUILTIN_CLASS_BY_NAME, **extra_glbls},
                 locals_,
                 encoder_name,
-                _debug_log=True,
             )
             encoder_cls = locals_[encoder_name]
             encoders[node_cls.metakind, node_cls.metatype.value] = encoder_cls()

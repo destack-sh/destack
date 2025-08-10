@@ -1,11 +1,12 @@
 import types
 import typing
-from typing import TYPE_CHECKING, TypeAliasType
+from typing import TYPE_CHECKING, TypeAliasType, assert_never
 
 from ._hoisted import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
     EnumType,
     PrimitiveType,
+    ReferenceType,
     ScalarType,
     TypeCardinality,
 )
@@ -75,6 +76,7 @@ NONE_TYPE_DECLARATION = TypeDeclaration(
 def parse_type_declaration(
     py_type: type | str | typing.ForwardRef,
     *,
+    reference_type: ReferenceType | None = ReferenceType.REGULAR,
     is_builtin: bool = False,
 ) -> TypeDeclaration:
     """
@@ -182,6 +184,7 @@ def parse_type_declaration(
     # determine scalar type
     return parse_type_declaration_scalar(
         py_type,
+        reference_type=reference_type,
         is_builtin=is_builtin,
         is_required=is_required,
     )
@@ -190,6 +193,7 @@ def parse_type_declaration(
 def parse_type_declaration_scalar(
     py_type: type | str | typing.ForwardRef,
     *,
+    reference_type: ReferenceType | None = ReferenceType.REGULAR,
     is_builtin: bool = False,
     is_required: bool = True,
 ) -> TypeDeclaration:
@@ -219,6 +223,7 @@ def parse_type_declaration_scalar(
         primitive_type = PrimitiveType.NONE
         is_required = False
     elif class_name == "Self":
+        # Self is only valid for Nodes
         scalar_type = ScalarType.NODE_REFERENCE
         is_self = True
     elif class_name == "Any":
@@ -226,7 +231,7 @@ def parse_type_declaration_scalar(
         primitive_type = PrimitiveType.NONE  # handled manually
         is_any = True
     elif class_name == "Object":
-        scalar_type = ScalarType.STRUCT
+        scalar_type = ScalarType.STRUCT  # need to pick something
         is_any = True
     elif enum_t := resolve_enum_type(class_name):
         scalar_type = ScalarType.ENUM
@@ -235,7 +240,14 @@ def parse_type_declaration_scalar(
         scalar_type = ScalarType.STRUCT
         struct_type = struct_t
     elif node_t := resolve_node_types(class_name):
-        scalar_type = ScalarType.NODE_REFERENCE
+        if reference_type == ReferenceType.REGULAR:
+            scalar_type = ScalarType.NODE_REFERENCE
+        elif reference_type == ReferenceType.THIN:
+            scalar_type = ScalarType.NODE_ID
+        elif reference_type is None:
+            scalar_type = ScalarType.NODE
+        else:
+            assert_never(reference_type)
         node_types = list(node_t)
     elif handle_t := resolve_handle_type(class_name):
         scalar_type = ScalarType.HANDLE

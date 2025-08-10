@@ -341,12 +341,15 @@ class JsonEncoder(Encoder):
                 return self.pack_object(value, options)
             else:
                 return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
         # node reference
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
             return self.pack_object(value, options)
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
-            return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            return str(value.id)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack Handle: {type!r}")
@@ -424,11 +427,14 @@ class JsonEncoder(Encoder):
             return self.unpack_object(
                 ObjectKind.STRUCT, StructType.NODE_REFERENCE, value, session, options
             )
-        # node value
-        elif type.scalar_type == ScalarType.NODE_VALUE:
+        # node
+        elif type.scalar_type == ScalarType.NODE:
             return self.unpack_object(
                 None, None, value, session, options & ~EncoderFlag.OMIT_METATYPE
             )
+        # node id
+        elif type.scalar_type == ScalarType.NODE_ID:
+            return UUID(value)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
