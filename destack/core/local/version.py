@@ -54,7 +54,6 @@ def bump(revision: int | None = None):
         "destack-ts-web/package.json",
         "destack-ts-server/package.json",
         "destack-ts-system/package.json",
-        "destack-test/package.json",
         "destack-ts/src/language/core/builtin/const.ts",
         "destack-ts-web/src/utils/globals.ts",
     )

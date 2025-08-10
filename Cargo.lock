@@ -352,6 +352,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_test"
+version = "2025.8.8-1"
+dependencies = [
+ "bytes",
+ "clap",
+ "criterion",
+ "destack",
+ "destack_system",
+ "indexmap",
+ "once_cell",
+ "parking_lot",
+ "pretty_assertions",
+ "regex",
+ "rstest",
+ "smallvec",
+ "static_assertions",
+ "tempfile",
+ "uuid",
+]
+
+[[package]]
 name = "diff"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -422,6 +422,7 @@ class PrimitiveType(OptionEnum):
         "Duration",
         description="Duration (microsecond precision, 00:00:00.000000 to 9999-12-31 23:59:59.999999)",
     )
+    # DATETIME_WITH_ZONE, TIME_WITH_ZONE, ...
     # string
     STRING = declare_option(
         50,
