@@ -20,14 +20,6 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@codemirror/autocomplete": "catalog:web",
-    "@codemirror/commands": "catalog:web",
-    "@codemirror/lang-python": "catalog:web",
-    "@codemirror/language": "catalog:web",
-    "@codemirror/lint": "catalog:web",
-    "@codemirror/search": "catalog:web",
-    "@codemirror/state": "catalog:web",
-    "@codemirror/view": "catalog:web",
     "destack": "link:destack-ts",
     "temporal-polyfill": "catalog:"
   },
@@ -43,7 +35,6 @@
     "@types/bun": "catalog:types",
     "@types/jsdom": "catalog:types",
     "@types/node": "catalog:types",
-    "buffer": "catalog:web",
     "fake-indexeddb": "catalog:test",
     "fast-check": "catalog:test",
     "jsdom": "catalog:test",

@@ -41,19 +41,7 @@
         "jsdom": "^26.1.0",
         "fake-indexeddb": "^6.0.1",
         "mitata": "^1.0.34"
-      },
-      "web": {
-        "@codemirror/autocomplete": "^6.18.6",
-        "@codemirror/commands": "^6.8.1",
-        "@codemirror/lang-python": "^6.2.1",
-        "@codemirror/language": "^6.11.2",
-        "@codemirror/lint": "^6.8.5",
-        "@codemirror/search": "^6.5.11",
-        "@codemirror/state": "^6.5.2",
-        "@codemirror/view": "^6.38.1",
-        "buffer": "^6.0.3"
-      },
-      "dev": {}
+      }
     }
   },
   "engines": {
