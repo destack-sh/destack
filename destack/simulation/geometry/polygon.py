@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.POLYGON2D,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.POLYGON_SHAPE2D,),
 )

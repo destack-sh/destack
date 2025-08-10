@@ -1,7 +1,7 @@
 from typing import final
 
 from ..builtin import (
-    ImmutableStruct,
+    Struct,
     StructType,
     TagDeclaration,
     UInt8,
@@ -12,11 +12,10 @@ from ..builtin import (
 
 @declare_struct(
     StructType.TAG_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final
-class TagDefinition(ImmutableStruct):
+class TagDefinition(Struct):
     """Definition of a builtin Tag to associate builtin definitions to."""
 
     id: UInt8 = declare_property(2, is_repr=True)

@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
     EnumType,
-    ImmutableStruct,
     NodeType,
     OptionEnum,
+    Struct,
     StructType,
     declare_entity,
     declare_enum,
@@ -51,12 +51,11 @@ class FillSize(OptionEnum):
 
 @declare_struct(
     StructType.FILL,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.FILL_STYLE,),
 )
 @final
-class Fill(ImmutableStruct):
+class Fill(Struct):
     """A fill value."""
 
     type: FillType = declare_property(100, is_repr=True)

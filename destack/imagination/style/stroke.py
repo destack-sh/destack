@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, final
 from destack.core import (
     EnumType,
     Float32,
-    ImmutableStruct,
     NodeType,
     OptionEnum,
+    Struct,
     StructType,
     UInt8,
     declare_entity,
@@ -31,12 +31,11 @@ class StrokeType(OptionEnum):
 
 @declare_struct(
     StructType.STROKE,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.STROKE_STYLE,),
 )
 @final
-class Stroke(ImmutableStruct):
+class Stroke(Struct):
     """A Stroke."""
 
     type: StrokeType = declare_property(100)
@@ -56,9 +55,9 @@ class Stroke(ImmutableStruct):
     end: Optional["StrokeCap"] = declare_property(111, description="The end cap configuration.")
 
 
-@declare_struct(StructType.STROKE_CAP, frozen=True, is_final=True)
+@declare_struct(StructType.STROKE_CAP, is_final=True)
 @final
-class StrokeCap(ImmutableStruct):
+class StrokeCap(Struct):
     """A stroke cap."""
 
     cap: bool = declare_property(101, description="Whether to cap the stroke.")
@@ -66,9 +65,9 @@ class StrokeCap(ImmutableStruct):
     easing: "Easing" = declare_property(103, description="The easing function for taper.")
 
 
-@declare_struct(StructType.STROKE_POINT, frozen=True, is_final=True)
+@declare_struct(StructType.STROKE_POINT, is_final=True)
 @final
-class StrokePoint(ImmutableStruct):
+class StrokePoint(Struct):
     """A computed point in a stroke."""
 
     point: "Vector2" = declare_property(
@@ -86,9 +85,9 @@ class StrokePoint(ImmutableStruct):
     radius: Float32 = declare_property(107, description="The computed radius at this point.")
 
 
-@declare_struct(StructType.STROKE_PATH, frozen=True, is_final=True)
+@declare_struct(StructType.STROKE_PATH, is_final=True)
 @final
-class StrokePath(ImmutableStruct):
+class StrokePath(Struct):
     """A stroke path."""
 
     points: list[StrokePoint] = declare_property(101, is_repr=True)

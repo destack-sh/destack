@@ -4,9 +4,9 @@ from ..builtin import (
     Entity,
     EnumType,
     Event,
-    ImmutableStruct,
     NodeType,
     OptionEnum,
+    Struct,
     StructType,
     UInt8,
     declare_enum,
@@ -68,8 +68,8 @@ class EditOperationType(OptionEnum):
     # BITMAP_INSERT, BITMAP_DELETE, ...
 
 
-@declare_struct(StructType.EDIT_OPERATION, frozen=True)
-class EditOperation(ImmutableStruct):
+@declare_struct(StructType.EDIT_OPERATION)
+class EditOperation(Struct):
     """A specific Edit of an Entity."""
 
     type: "EditOperationType" = declare_property(

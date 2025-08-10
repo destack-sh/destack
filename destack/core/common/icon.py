@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
     EnumType,
-    ImmutableStruct,
     OptionEnum,
+    Struct,
     StructType,
     declare_enum,
     declare_option,
@@ -27,8 +27,8 @@ class IconType(OptionEnum):
     FILE_URL = declare_option(11)
 
 
-@declare_struct(StructType.ICON, frozen=True)
-class Icon(ImmutableStruct):
+@declare_struct(StructType.ICON)
+class Icon(Struct):
     """An icon to be displayed in some view."""
 
     type: IconType = declare_property(100)

@@ -5,9 +5,9 @@ from destack.core import (
     Entity,
     EnumType,
     Float32,
-    ImmutableStruct,
     NodeType,
     OptionEnum,
+    Struct,
     StructType,
     TraitType,
     declare_entity,
@@ -60,8 +60,8 @@ class OffscreenBehavior(OptionEnum):
     PAUSE = declare_option(2, description="Pause the animation")
 
 
-@declare_struct(StructType.EFFECT, frozen=True)
-class Effect(ImmutableStruct):
+@declare_struct(StructType.EFFECT)
+class Effect(Struct):
     """An effect value."""
 
     type: EffectType = declare_property(100, is_repr=True)

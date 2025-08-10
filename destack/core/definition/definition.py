@@ -1,5 +1,5 @@
 from ..builtin import (
-    ImmutableStruct,
+    Struct,
     StructType,
     declare_property,
     declare_struct,
@@ -8,10 +8,9 @@ from ..builtin import (
 
 @declare_struct(
     StructType.DEFINITION,
-    frozen=True,
     is_abstract=True,
 )
-class Definition(ImmutableStruct):
+class Definition(Struct):
     """A builtin Definition."""
 
     name: str = declare_property(101, is_repr=True)

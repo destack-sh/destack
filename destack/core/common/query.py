@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, Union, final
 from ..builtin import (
     UUID,
     EnumType,
-    ImmutableStruct,
     OptionEnum,
     PropertyDeclaration,
+    Struct,
     StructType,
     UInt32,
     ValueFactory,
@@ -61,11 +61,10 @@ class ConditionalType(OptionEnum):
 
 @declare_struct(
     StructType.CONDITION,
-    frozen=True,
     is_final=True,
 )
 @final
-class Condition(ImmutableStruct):
+class Condition(Struct):
     """Boolean predicate (AND, =, <, etc.)."""
 
     type: ConditionalType = declare_property(100, is_repr=True)
@@ -98,8 +97,8 @@ class AggregationType(OptionEnum):
     AVERAGE = declare_option(6)
 
 
-@declare_struct(StructType.AGGREGATION, frozen=True)
-class Aggregation(ImmutableStruct):
+@declare_struct(StructType.AGGREGATION)
+class Aggregation(Struct):
     """Aggregation."""
 
     type: AggregationType = declare_property(100, is_repr=True)
@@ -124,11 +123,10 @@ class ExpressionType(OptionEnum):
 
 @declare_struct(
     StructType.EXPRESSION,
-    frozen=True,
     is_final=True,
 )
 @final
-class Expression(ImmutableStruct):
+class Expression(Struct):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
     type: ExpressionType = declare_property(100, is_repr=True)
@@ -170,11 +168,10 @@ SortIn = Union[
 
 @declare_struct(
     StructType.SORT,
-    frozen=True,
     is_final=True,
 )
 @final
-class Sort(ImmutableStruct):
+class Sort(Struct):
     """ORDER BY specification."""
 
     type: SortType = declare_property(100, is_repr=True)
@@ -189,11 +186,10 @@ class Sort(ImmutableStruct):
 
 @declare_struct(
     StructType.SELECT,
-    frozen=True,
     is_final=True,
 )
 @final
-class Select(ImmutableStruct):
+class Select(Struct):
     """Select specific Attributes."""
 
     attributes: list["PropertyReference"] = declare_property(101, is_repr=True)
@@ -218,11 +214,10 @@ class JoinType(OptionEnum):
 
 @declare_struct(
     StructType.JOIN,
-    frozen=True,
     is_final=True,
 )
 @final
-class Join(ImmutableStruct):
+class Join(Struct):
     """Join a Query with another Query."""
 
     type: JoinType = declare_property(100, is_repr=True)
@@ -258,11 +253,10 @@ class QueryType(OptionEnum):
 
 @declare_struct(
     StructType.QUERY,
-    frozen=True,
     is_final=True,
 )
 @final
-class Query(ImmutableStruct):
+class Query(Struct):
     """
     A Query into the supergraph about Nodes (node or scalar and potentially grouped).
     Queries may either be about Entities or Events.
@@ -328,13 +322,3 @@ class Query(ImmutableStruct):
         description="Offset the results.",
     )
     # count?
-
-
-def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
-    """Turn Queries into subqueries with default names & parent joins."""
-    for name, subquery in subqueries.items():
-        if subquery.join is None:
-            object.__setattr__(subquery, "join", Join.of(JoinType.CHILD))
-        object.__setattr__(subquery, "name", name)
-        subquery._invalidate_immutable()
-    return list(subqueries.values())

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, cast, dataclass_transform
 from ._hoisted import ValueFactory
 from .declaration import TagDeclaration
 from .property import _PROPERTY_SPECIFIERS, declare_property
-from .struct import ImmutableStruct, _process_struct_cls
+from .struct import Struct, _process_struct_cls
 from .types import UInt128
 from .universe import ObjectStability, StructType
 from .uuid import UUID
@@ -21,7 +21,6 @@ _ALLOWED_POSTFIXES = ("MESSAGE", "REQUEST", "RESPONSE")
 @dataclass_transform(
     kw_only_default=True,
     field_specifiers=_PROPERTY_SPECIFIERS,
-    frozen_default=True,
 )
 def declare_message(
     # meta
@@ -38,7 +37,7 @@ def declare_message(
     def decorate(cls: type) -> type:
         cls = _process_struct_cls(
             # meta
-            cls=cast(type["ImmutableStruct"], cls),
+            cls=cast(type["Struct"], cls),
             struct_type=message_type,
             stability=stability,
             is_immutable=True,
@@ -70,7 +69,7 @@ def declare_message(
         TagDeclaration(id=21, name="tracking", description="Message tracking"),
     ),
 )
-class Message(ImmutableStruct):
+class Message(Struct):
     """
     A Message contains data for communicating with Nodes via Actions.
 

@@ -1103,9 +1103,8 @@ class StructType(OptionEnum):
     # builtin [1]
     # root
     STRUCT = declare_option(1, "Struct", description="Root of all Structs")
-    IMMUTABLE_STRUCT = declare_option(2, "Immutable Struct", description="Immutable Struct")
-    ERROR = declare_option(3, "Error", description="Error")
-    MESSAGE = declare_option(4, "Message", description="Message")
+    ERROR = declare_option(2, "Error", description="Error")
+    MESSAGE = declare_option(3, "Message", description="Message")
 
     # error [10_000]
     FRACTIONAL_INTEGER_ERROR = declare_option(10_000)

@@ -79,6 +79,7 @@ class PropertyDeclaration(Declaration):
     is_static: bool = False  # set automatically at runtime
     is_runtime_only: bool = False  # only set at runtime
     is_readonly: bool = False  # can only be set once (at init time)
+    is_interned: bool = False  # should be interned at runtime
 
     _ref: Optional["PropertyReference"] = None
     _definition: Optional["PropertyDefinition"] = None

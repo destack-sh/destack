@@ -11,7 +11,6 @@ from .struct import StructDefinition
 
 @declare_struct(
     StructType.SCHEMA_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final

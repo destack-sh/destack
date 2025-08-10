@@ -34,7 +34,6 @@ class EventStatus(OptionEnum):
 @dataclass_transform(
     kw_only_default=True,
     field_specifiers=_PROPERTY_SPECIFIERS,
-    frozen_default=True,
 )
 def declare_event(
     # meta
@@ -96,7 +95,7 @@ def declare_event(
         TagDeclaration(id=20, name="system", description="System authority"),
         TagDeclaration(id=21, name="client", description="Client authority"),
     ),
-)  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine here)
+)
 class Event(Node):
     """
     An Event is an immutable* datum of something happening to an Entity.

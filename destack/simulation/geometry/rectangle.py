@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.RECTANGLE2D,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.RECTANGLE_SHAPE2D,),
 )

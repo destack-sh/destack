@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Union, final
 from destack.core import (
     Float32,
     FunctionOperator,
-    ImmutableStruct,
     Int32,
     ObjectStability,
     RuntimeLanguage,
+    Struct,
     StructType,
     UInt32,
     declare_constant,
@@ -22,12 +22,11 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.VECTOR2,
-    frozen=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector2(ImmutableStruct):
+class Vector2(Struct):
     """A 2D floating point Vector."""
 
     ZERO = declare_constant(
@@ -272,12 +271,11 @@ class Vector2(ImmutableStruct):
 
 @declare_struct(
     StructType.VECTOR3,
-    frozen=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector3(ImmutableStruct):
+class Vector3(Struct):
     """A 3D floating point Vector."""
 
     ZERO = declare_constant(
@@ -527,12 +525,11 @@ class Vector3(ImmutableStruct):
 
 @declare_struct(
     StructType.VECTOR4,
-    frozen=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector4(ImmutableStruct):
+class Vector4(Struct):
     """A 4D floating point Vector."""
 
     ZERO = declare_constant(
@@ -787,12 +784,11 @@ class Vector4(ImmutableStruct):
 
 @declare_struct(
     StructType.VECTOR2I,
-    frozen=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector2i(ImmutableStruct):
+class Vector2i(Struct):
     """A 2D integer Vector."""
 
     ZERO = declare_constant(
@@ -1037,12 +1033,11 @@ class Vector2i(ImmutableStruct):
 
 @declare_struct(
     StructType.VECTOR3I,
-    frozen=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector3i(ImmutableStruct):
+class Vector3i(Struct):
     """A 3D integer Vector."""
 
     ZERO = declare_constant(
@@ -1292,12 +1287,11 @@ class Vector3i(ImmutableStruct):
 
 @declare_struct(
     StructType.VECTOR4I,
-    frozen=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class Vector4i(ImmutableStruct):
+class Vector4i(Struct):
     """A 4D integer Vector."""
 
     ZERO = declare_constant(

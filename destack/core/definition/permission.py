@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.PERMISSION_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final

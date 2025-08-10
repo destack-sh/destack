@@ -91,7 +91,7 @@ from .property import (
     declare_property_runtime,
     parse_type_declaration,
 )
-from .struct import ImmutableStruct, Struct, declare_struct
+from .struct import Struct, declare_struct
 from .types import (
     Boolean,
     Bytes,
@@ -179,7 +179,6 @@ __all__ = [
     "Handle",
     "HandleDeclaration",
     "HandleType",
-    "ImmutableStruct",
     "IndexDeclaration",
     "IndexType",
     "Int8",
@@ -218,6 +217,7 @@ __all__ = [
     "ScalarType",
     "String",
     "StringCasing",
+    "Struct",
     "Struct",
     "StructDeclaration",
     "StructType",

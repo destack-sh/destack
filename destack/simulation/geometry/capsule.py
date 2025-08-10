@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.CAPSULE2D,
-    frozen=True,
     into_node_types=(NodeType.CAPSULE_SHAPE2D,),
 )
 class Capsule2D(Form2D):

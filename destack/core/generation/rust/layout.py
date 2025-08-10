@@ -232,7 +232,7 @@ class KompaktObjectSizer(ObjectSizer):
 
     DATE_RANGE = (1, 5)  # days varint
     TIME_RANGE = (1, 6)  # micros since midnight
-    DATETIME_RANGE = (6, 10)  # micros zigzag varint
+    DATETIME_RANGE = (1, 10)  # micros zigzag varint
     DURATION_RANGE = (1, 10)  # micros zigzag varint
 
     @override

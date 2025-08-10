@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.ELLIPSE2D,
-    frozen=True,
     into_node_types=(NodeType.ELLIPSE_SHAPE2D,),
 )
 class Ellipse2D(Form2D):

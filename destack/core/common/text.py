@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Any, Optional, assert_never
 
 from ..builtin import (
     EnumType,
-    ImmutableStruct,
     Node,
     OptionEnum,
+    Struct,
     StructType,
     declare_enum,
     declare_option,
@@ -29,8 +29,8 @@ class TextSpanType(OptionEnum):
     EQUATION = declare_option(20, description="TeX equation")
 
 
-@declare_struct(StructType.TEXT_SPAN, frozen=True)
-class TextSpan(ImmutableStruct):
+@declare_struct(StructType.TEXT_SPAN)
+class TextSpan(Struct):
     """A span of text with optional formatting"""
 
     type: TextSpanType = declare_property(100, default=TextSpanType.TEXT)
@@ -57,8 +57,8 @@ class TextSpan(ImmutableStruct):
         return TextSpan(type=TextSpanType.HARD_BREAK)
 
 
-@declare_struct(StructType.TEXT, frozen=True)
-class Text(ImmutableStruct):
+@declare_struct(StructType.TEXT)
+class Text(Struct):
     """
     Rich Text; a single paragraph composed of TextSpans with inline formatting.
     """

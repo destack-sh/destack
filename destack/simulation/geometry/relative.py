@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, final
 from destack.core import (
     EnumType,
     Float32,
-    ImmutableStruct,
     OptionEnum,
+    Struct,
     StructType,
     UInt16,
     declare_enum,
@@ -87,11 +87,10 @@ class LengthType(OptionEnum):
 
 @declare_struct(
     StructType.LENGTH,
-    frozen=True,
     is_final=True,
 )
 @final
-class Length(ImmutableStruct):
+class Length(Struct):
     """An absolute or relative length value."""
 
     unit: LengthType = declare_property(101, is_repr=True)
@@ -100,11 +99,10 @@ class Length(ImmutableStruct):
 
 @declare_struct(
     StructType.OFFSET2,
-    frozen=True,
     is_final=True,
 )
 @final
-class Offset2(ImmutableStruct):
+class Offset2(Struct):
     """A 2-dimensional position value (relative or absolute)."""
 
     type: Anchor = declare_property(100, is_repr=True)
@@ -116,11 +114,10 @@ class Offset2(ImmutableStruct):
 
 @declare_struct(
     StructType.INSET2,
-    frozen=True,
     is_final=True,
 )
 @final
-class Inset2(ImmutableStruct):
+class Inset2(Struct):
     """A 2-dimensional insets value (base + side overrides)."""
 
     base: UInt16 = declare_property(101, is_repr=True, default=0)
@@ -132,11 +129,10 @@ class Inset2(ImmutableStruct):
 
 @declare_struct(
     StructType.CORNER2,
-    frozen=True,
     is_final=True,
 )
 @final
-class Corner2(ImmutableStruct):
+class Corner2(Struct):
     """A 2-dimensional corners value (base + corner overrides)."""
 
     base: UInt16 = declare_property(101, is_repr=True, default=0)
@@ -148,11 +144,10 @@ class Corner2(ImmutableStruct):
 
 @declare_struct(
     StructType.AXIS2,
-    frozen=True,
     is_final=True,
 )
 @final
-class Axis2(ImmutableStruct):
+class Axis2(Struct):
     """A 2-dimensional axis value (base + x/y overrides)."""
 
     base: Float32 = declare_property(101, is_repr=True, default=0)
@@ -162,11 +157,10 @@ class Axis2(ImmutableStruct):
 
 @declare_struct(
     StructType.AXIS3,
-    frozen=True,
     is_final=True,
 )
 @final
-class Axis3(ImmutableStruct):
+class Axis3(Struct):
     """A 3-dimensional axis value (base + x/y/z overrides)."""
 
     base: Float32 = declare_property(101, is_repr=True, default=0)
@@ -177,11 +171,10 @@ class Axis3(ImmutableStruct):
 
 @declare_struct(
     StructType.GRID2,
-    frozen=True,
     is_final=True,
 )
 @final
-class Grid2(ImmutableStruct):
+class Grid2(Struct):
     """A 2-dimensional grid configuration value."""
 
     columns: UInt16 = declare_property(101, is_repr=True)
@@ -193,11 +186,10 @@ class Grid2(ImmutableStruct):
 
 @declare_struct(
     StructType.GRID_SPAN2,
-    frozen=True,
     is_final=True,
 )
 @final
-class GridSpan2(ImmutableStruct):
+class GridSpan2(Struct):
     """A 2-dimensional grid span value."""
 
     columns: UInt16 = declare_property(101, is_repr=True)

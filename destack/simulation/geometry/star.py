@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 @declare_struct(
     StructType.STAR2D,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.STAR_SHAPE2D,),
 )

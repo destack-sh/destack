@@ -40,7 +40,6 @@ def resolve_tagging(
 
 @declare_struct(
     StructType.OBJECT_DEFINITION,
-    frozen=True,
     is_abstract=True,
     tags=(
         TagDeclaration(

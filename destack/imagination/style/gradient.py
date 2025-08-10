@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, final
 from destack.core import (
     EnumType,
     Float32,
-    ImmutableStruct,
     NodeType,
     OptionEnum,
+    Struct,
     StructType,
     declare_entity,
     declare_enum,
@@ -33,11 +33,10 @@ class GradientType(OptionEnum):
 
 @declare_struct(
     StructType.GRADIENT_STOP,
-    frozen=True,
     is_final=True,
 )
 @final
-class GradientStop(ImmutableStruct):
+class GradientStop(Struct):
     """A gradient stop with color and position."""
 
     color: Optional["Color"] = declare_property(101, is_repr=True)
@@ -46,12 +45,11 @@ class GradientStop(ImmutableStruct):
 
 @declare_struct(
     StructType.GRADIENT,
-    frozen=True,
     is_final=True,
     into_node_types=(NodeType.GRADIENT_STYLE,),
 )
 @final
-class Gradient(ImmutableStruct):
+class Gradient(Struct):
     """A gradient value."""
 
     type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True)

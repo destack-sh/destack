@@ -15,7 +15,6 @@ from ..builtin import (
     EnumType,
     Float32,
     HandleType,
-    ImmutableStruct,
     NodeType,
     OptionDeclaration,
     PrimitiveType,
@@ -38,16 +37,16 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@declare_struct(StructType.TYPE, frozen=True, is_final=True)
+@declare_struct(StructType.TYPE, is_final=True)
 @final
-class Type(ImmutableStruct):
+class Type(Struct):
     """
     A Type in the type system.
     Types compose like a tree with scalars at the leaves:
      - Scalar: a single value (self, Type.scalar_type)
      - List: a dynamic sequence of homogeneous values (Type.value_type)
      - Tuple: a fixed sequence of heterogeneous values (Type.element_types)
-     - Array: a fixed n-dimensional sequence of homogeneous values (Type.dimensions * Type.dimensions)
+     - Array: a fixed n-dimensional sequence of homogeneous values (Type.value_type * Type.dimensions)
      - Map: a dynamic mapping of homogenous keys to homogeneous values (Type.key_type->Type.value_type)
      - Union: a union of heterogeneous values (Type.element_types)
     """
@@ -73,10 +72,15 @@ class Type(ImmutableStruct):
         is_repr=True,
         description="Element types of this Type (tuple, union).",
     )
-    dimensions: list[UInt32] | None = declare_property(
+    length: Optional[UInt32] = declare_property(
         114,
         is_repr=True,
-        description="Dimensions of this Type (list, tuple, map, array).",
+        description="Length of this Type (string primitive, list, tuple).",
+    )
+    dimensions: list[UInt32] | None = declare_property(
+        115,
+        is_repr=True,
+        description="Multiple dimensions of this Type (array).",
     )
     # generic_over?
     is_required: bool = declare_property(119, default=True)
@@ -149,8 +153,8 @@ class Type(ImmutableStruct):
         return infer_type(value_or_type, reference_type)
 
 
-@declare_struct(StructType.STRING_CONSTRAINT, frozen=True)
-class StringConstraint(ImmutableStruct):
+@declare_struct(StructType.STRING_CONSTRAINT)
+class StringConstraint(Struct):
     """The constraint of a string."""
 
     regex: Optional[str] = declare_property(41)
@@ -167,11 +171,10 @@ PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]
 
 @declare_struct(
     StructType.NUMBER_CONSTRAINT,
-    frozen=True,
     is_final=True,
 )
 @final
-class NumberConstraint(ImmutableStruct):
+class NumberConstraint(Struct):
     """The constraint of a number."""
 
     min_value: Optional[Float32] = declare_property(41)
@@ -181,11 +184,10 @@ class NumberConstraint(ImmutableStruct):
 
 @declare_struct(
     StructType.COLLECTION_CONSTRAINT,
-    frozen=True,
     is_final=True,
 )
 @final
-class CollectionConstraint(ImmutableStruct):
+class CollectionConstraint(Struct):
     """The constraint of a collection."""
 
     min_length: Optional[UInt32] = declare_property(41)

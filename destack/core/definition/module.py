@@ -50,7 +50,6 @@ class ModuleType(OptionEnum):
 
 @declare_struct(
     StructType.MODULE_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final

@@ -17,7 +17,6 @@ type_ = type
 
 @declare_struct(
     StructType.INDEX_DEFINITION,
-    frozen=True,
     is_final=True,
 )
 @final
