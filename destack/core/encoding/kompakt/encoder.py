@@ -652,9 +652,6 @@ class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
         _writer.write_uint32(_object.type)
         _writer.write_uuid(_object.id)
         _writer.write_uuid(_object.space_id)
-        _writer.write_uuid(
-            _object.definition_id if _object.definition_id is not None else _UUID_NULL
-        )
         _writer.write_uuid(_object.branch_id)
         _writer.write_uuid(_object.snapshot_id)
 
@@ -669,16 +666,12 @@ class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
         type = NodeType(_reader.read_uint32())
         id = _reader.read_uuid()
         space_id = _reader.read_uuid()
-        definition_id = _reader.read_uuid()
-        if definition_id == _UUID_NULL:
-            definition_id = None
         branch_id = _reader.read_uuid()
         snapshot_id = _reader.read_uuid()
         return NodeReference(
             type=type,
             id=id,
             space_id=space_id,
-            definition_id=definition_id,
             branch_id=branch_id,
             snapshot_id=snapshot_id,
         )

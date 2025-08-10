@@ -258,7 +258,7 @@ class TypeCardinality(OptionEnum):
     SCALAR = declare_option(1, "Scalar", description="Single value")
     LIST = declare_option(2, "List", description="Dynamic sequence of homogeneous values")
     TUPLE = declare_option(3, "Tuple", description="Fixed sequence of heterogeneous values")
-    # ARRAY/NDARRAY = 4, "Array", "Dense multi-dimensional array of homogeneous values"
+    # ARRAY = 4, "Array", "Dense multi-dimensional array of homogeneous values"
     # SPARSE_ARRAY = 5?, "Sparse Array", "Sparse multi-dimensional array of homogeneous values"
     # SET = 9?, "Set", "Set of unique values"
     MAP = declare_option(10, "Map", description="Mapping of homogenous keys to homogeneous values")

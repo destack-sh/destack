@@ -172,7 +172,7 @@ class Struct(Object):
     frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
 )
-class ImmutableStruct(Struct):
+class ImmutableStruct(Struct):  # nocheckin: remove ImmutableStruct?
     """An ImmutableStruct is a Struct that cannot be modified."""
 
     def _invalidate_immutable(self) -> None:
