@@ -106,7 +106,7 @@ class ObjectGenerator:
             and p.default_value is UNSET
             and p.default_factory is None
             and p.default_factory_callable is None
-            and not p.is_internal
+            and not p.is_managed
             and p.type.cardinality == TypeCardinality.SCALAR
             and p.type.scalar_type
             != ScalarType.NODE_REFERENCE  # passed either as node or node_ptr, defer check
@@ -1285,10 +1285,9 @@ def _process_object_cls[ObjectT: Object](
         description="The kind of the Object.",
         py_type=Any,
         type=_METAKIND_TYPE,
-        is_internal=True,
+        is_managed=True,
         is_runtime_only=True,
         is_static=True,
-        is_identity=True,
         component=cls,
     )
     metatype_property = PropertyDeclaration(
@@ -1296,10 +1295,9 @@ def _process_object_cls[ObjectT: Object](
         name="metatype",
         description="The type of the Object.",
         py_type=Any,
-        is_internal=True,
+        is_managed=True,
         is_runtime_only=True,
         is_static=True,
-        is_identity=True,
         type=_METATYPE_TYPE,
         component=cls,
     )

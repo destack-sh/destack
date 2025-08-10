@@ -28,6 +28,7 @@ def _process_struct_cls(
     is_immutable: bool,
     is_abstract: bool,
     is_final: bool,
+    is_interned: bool,
     # associations
     tags: tuple["TagDeclaration", ...],
     into_node_types: tuple[NodeType, ...],
@@ -55,6 +56,7 @@ def _process_struct_cls(
         is_abstract=is_abstract,
         is_immutable=is_immutable,
         is_final=is_final,
+        is_interned=is_interned,
         # inherits
         base_type=inherits[0] if inherits else None,
         inherits=list(reversed(inherits)),
@@ -85,6 +87,9 @@ def _process_struct_cls(
     STRUCT_TYPE_BY_CLASS[cls] = struct_type
 
     # validate
+    # interned structs must be immutable
+    if is_interned and not is_immutable:
+        raise ValueError(f"{cls.__name__} is interned but not immutable")
     # non-abstract structs must have properties
     if not is_abstract and not any(
         not prop.is_runtime_only for prop in cls.__declaration__.properties
@@ -122,10 +127,11 @@ def declare_struct(
     # meta
     struct_type: StructType,
     *,
-    frozen: bool = False,
+    stability: ObjectStability = ObjectStability.DYNAMIC,
+    is_immutable: bool = False,
     is_abstract: bool = False,
     is_final: bool = False,
-    stability: ObjectStability = ObjectStability.DYNAMIC,
+    is_interned: bool = False,
     # associations
     tags: tuple["TagDeclaration", ...] = (),
     into_node_types: tuple[NodeType, ...] = (),
@@ -137,9 +143,10 @@ def declare_struct(
             cls=cast(type["Struct"], cls),
             struct_type=struct_type,
             stability=stability,
-            is_immutable=frozen,
+            is_immutable=is_immutable,
             is_abstract=is_abstract,
             is_final=is_final,
+            is_interned=is_interned,
             tags=tags,
             into_node_types=into_node_types,
         )

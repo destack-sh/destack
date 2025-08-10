@@ -56,7 +56,7 @@ class MethodDefinition(FunctionDefinition):
             name=declaration.name,
             description=declaration.description,
             is_async=declaration.is_async,
-            is_internal=declaration.is_internal,
+            is_managed=declaration.is_managed,
             alias_of=alias_of,
             # availability
             platforms=list(declaration.platforms),

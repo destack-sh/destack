@@ -40,7 +40,7 @@ class Space(Entity):
 
     space: "Space" = declare_property(
         3,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.SELF,
         description="The Space this Node is in.",

@@ -124,15 +124,9 @@ _object_json['metatype'] = '{cls.metatype.name}'
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
-        if is_entity:
-            set_properties = [p for p in properties if p.is_identity]
-            maybe_set_properties = [p for p in properties if not p.is_identity]
-        else:
-            set_properties = properties
-            maybe_set_properties = []
 
         # pack always set properties
-        for prop in set_properties:
+        for prop in properties:
             prop_name = self.get_source_property_name(prop)
             pack_code = self.generate_pack_value(
                 prop.type,
@@ -142,34 +136,6 @@ _object_json['metatype'] = '{cls.metatype.name}'
                 can_omit_none=True,
             )
             lines.append(pack_code)
-
-        # pack partial properties
-        if is_entity and maybe_set_properties:
-            maybe_set_lines: list[str] = []
-            set_lines: list[str] = []
-            for prop in maybe_set_properties:
-                prop_name = self.get_source_property_name(prop)
-                pack_code = self.generate_pack_value(
-                    prop.type,
-                    key=f"_{prop_name}",
-                    source_expr=f"_object.{prop_name}",
-                    target_expr=f"_object_json['{self.get_target_property_key(prop)}']",
-                    can_omit_none=False,
-                )
-                set_lines.append(pack_code)
-                maybe_set_lines.append(f"""\
-if _object.is_set("{prop.name}"):
-{textwrap.indent(pack_code, " " * 4)}
-""")
-
-            maybe_set_code = "\n".join(maybe_set_lines)
-            set_code = "\n".join(set_lines)
-            lines.append(f"""\
-if _object.is_partial:
-{textwrap.indent(maybe_set_code, " " * 4)}
-else:
-{textwrap.indent(set_code, " " * 4)}
-""")
 
         lines.append("return _object_json")
         return "\n".join(lines)
@@ -188,15 +154,9 @@ else:
         # collect properties
         properties = [p for p in cls.__properties__.values() if not p.is_runtime_only]
         properties.sort(key=lambda p: p.id or 0)
-        if is_entity:
-            set_properties = [p for p in properties if p.is_identity]
-            maybe_set_properties = [p for p in properties if not p.is_identity]
-        else:
-            set_properties = properties
-            maybe_set_properties = []
 
         # unpack always set properties
-        for prop in set_properties:
+        for prop in properties:
             prop_name = self.get_source_property_name(prop)
             unpack_code = self.generate_unpack_value(
                 prop.type,
@@ -206,36 +166,6 @@ else:
             )
             lines.append(unpack_code)
             assignments.append(f"{prop_name}=_unpacked_{prop_name}")
-
-        # unpack partial properties
-        if is_entity and maybe_set_properties:
-            maybe_set_lines: list[str] = []
-            set_lines: list[str] = []
-            for prop in maybe_set_properties:
-                prop_name = self.get_source_property_name(prop)
-                unpack_code = self.generate_unpack_value(
-                    prop.type,
-                    key=f"_{prop_name}",
-                    source_expr=f'_object_json.get("{self.get_target_property_key(prop)}")',
-                    target_expr=f"_unpacked_{prop_name}",
-                )
-                set_lines.append(unpack_code)
-                maybe_set_lines.append(f"""\
-if "{self.get_target_property_key(prop)}" in _object_json:
-{textwrap.indent(unpack_code, " " * 4)}
-else:
-    _unpacked_{prop_name} = UNSET
-""")
-                assignments.append(f"{prop_name}=_unpacked_{prop_name}")
-
-            maybe_set_code = "\n".join(maybe_set_lines)
-            set_code = "\n".join(set_lines)
-            lines.append(f"""\
-if _is_partial:
-{textwrap.indent(maybe_set_code, " " * 4)}
-else:
-{textwrap.indent(set_code, " " * 4)}
-""")
 
         lines.append(f"return {cls.__name__}(")
         for assignment in assignments:

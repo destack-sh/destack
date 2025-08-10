@@ -177,7 +177,7 @@ def _process_node_cls(
     if base_struct_type is not None:
         struct_cls = STRUCT_CLASS_BY_TYPE[base_struct_type]
         for struct_prop in struct_cls.__declaration__.properties:
-            if struct_prop.is_internal:
+            if struct_prop.is_managed:
                 continue
             node_prop = cls.__properties_by_alias__.get(struct_prop.name)
             if node_prop is None:
@@ -188,7 +188,7 @@ def _process_node_cls(
                     #   .. similarity to Entity partials?
                     #   .. also similarity to Context overrides in Entity.context_values?
                     #   .. also similarity to mut/non mut Structs?
-                    #   .. also related to (frozen-in-time) Nodes as values?)
+                    #   .. also related to (frozen-in-time) Structs & Nodes as values?)
                     #   .. also related to partial Node Values for animation tracks?
                     #   .. if this were a separate Struct we could do a custom Encoder
                     #       instead of stuffing it into materialization logic?)
@@ -291,20 +291,18 @@ class Node(Object):
     # 1-20: node identity
     id: UUID = declare_property(
         2,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_readonly=True,
-        is_identity=True,
         description="The universally unique identifier of this Node.",
         tags=("identity",),
     )
     space: "Space" = declare_property(
         3,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
         is_readonly=True,
-        is_identity=True,
         reference_type=ReferenceType.THIN,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
@@ -313,10 +311,9 @@ class Node(Object):
     branch: "Branch" = declare_property(
         4,
         is_readonly=True,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
-        is_identity=True,
         reference_type=ReferenceType.THIN,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Node is part of.",
@@ -325,10 +322,9 @@ class Node(Object):
     snapshot: "Snapshot" = declare_property(
         5,
         is_readonly=True,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
-        is_identity=True,
         reference_type=ReferenceType.THIN,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Node is part of.",

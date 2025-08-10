@@ -24,6 +24,6 @@ class GaugeMeasurementEvent(MeasurementEvent):
 
     definition: "GaugeMetric" = declare_property(
         10,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
     )

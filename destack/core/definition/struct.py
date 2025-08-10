@@ -59,6 +59,11 @@ class StructDefinition(ObjectDefinition):
         description="Whether this Struct is abstract (cannot be instantiated directly).",
         tags=("meta",),
     )
+    is_interned: bool = declare_property(
+        112,
+        description="Whether this Struct is interned (managed as a constant pool in core).",
+        tags=("meta",),
+    )
 
     # content
     properties: list["PropertyDefinition"] = declare_property(
@@ -152,8 +157,9 @@ class StructDefinition(ObjectDefinition):
             name=struct_cls.__name__,
             description=struct_cls.__doc__,
             stability=declaration.stability,
-            is_immutable=declaration.is_immutable,
             is_abstract=declaration.is_abstract,
+            is_immutable=declaration.is_immutable,
+            is_interned=declaration.is_interned,
             # content
             properties=properties,
             methods=methods,

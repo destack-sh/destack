@@ -30,7 +30,7 @@ class User(Entity):
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     #  (multiple auth methods, multiple connected accounts, etc.)
-    email: str | None = declare_property(130, is_unique=True)
+    email: str | None = declare_property(130)
     password_salt: Optional[bytes] = declare_property(131, is_eq=False)
     password_hash: Optional[bytes] = declare_property(132, is_eq=False)
     # challenges?

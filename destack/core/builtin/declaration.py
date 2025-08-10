@@ -128,6 +128,7 @@ class StructDeclaration(ObjectDeclaration):
     inherits: list["StructType"]
     inherited_by: list["StructType"]
     extended_by: list["StructType"]
+    is_interned: bool
 
     # content
     methods: list["MethodDeclaration"]
@@ -249,7 +250,7 @@ class FunctionDeclaration(Declaration):
     outer_func: Callable | classmethod | property
     inner_func: Callable
     is_async: bool
-    is_internal: bool
+    is_managed: bool
     component: type_["Object"] | None
     original_component: type_["Object"] | None
 
@@ -373,7 +374,7 @@ def _process_method(
     description: str | None,
     operator: "FunctionOperator | None",
     is_implemented: bool,
-    is_internal: bool,
+    is_managed: bool,
     alias_of: Optional[str],
     # availability
     platforms: tuple["RuntimePlatform", ...],
@@ -437,7 +438,7 @@ def _process_method(
         outer_func=outer_func,
         inner_func=inner_func,
         is_async=is_async,
-        is_internal=is_internal,
+        is_managed=is_managed,
         is_implemented=is_implemented,
         alias_of=alias_of,
         component=None,
@@ -464,7 +465,7 @@ def declare_method(
     description: str | None = None,
     operator: "FunctionOperator | None" = None,
     is_implemented: bool = False,
-    is_internal: bool = False,
+    is_managed: bool = False,
     alias_of: Optional[str] = None,
     # availability
     platforms: tuple["RuntimePlatform", ...] = (),
@@ -486,7 +487,7 @@ def declare_method(
             description=description,
             operator=operator,
             is_implemented=is_implemented,
-            is_internal=is_internal,
+            is_managed=is_managed,
             alias_of=alias_of,
             # availability
             platforms=platforms,
@@ -538,7 +539,7 @@ def _process_action(
     id: int,
     name: str | None,
     type: "ActionType",
-    is_internal: bool,
+    is_managed: bool,
     # content
     emits_event_types: list["NodeType"] | None,
     # availability
@@ -614,7 +615,7 @@ def _process_action(
         outer_func=func,
         inner_func=func,
         is_async=is_async,
-        is_internal=is_internal,
+        is_managed=is_managed,
         component=None,
         original_component=None,
         # content
@@ -638,7 +639,7 @@ def declare_action(
     *,
     name: str | None = None,
     type: "ActionType",
-    is_internal: bool = False,
+    is_managed: bool = False,
     emits_event_types: list["NodeType"] | None = None,
     # availability
     platforms: tuple["RuntimePlatform", ...] = (),
@@ -656,7 +657,7 @@ def declare_action(
             id=id,
             name=name,
             type=type,
-            is_internal=is_internal,
+            is_managed=is_managed,
             # content
             emits_event_types=emits_event_types,
             # availability

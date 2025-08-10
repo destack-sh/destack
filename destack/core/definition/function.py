@@ -20,7 +20,7 @@ class FunctionDefinition(Definition):
     # meta
     id: UInt16 = declare_property(2, is_repr=True)
     is_async: bool = declare_property(110)
-    is_internal: bool = declare_property(112)
+    is_managed: bool = declare_property(112)
 
     # content
     # ...

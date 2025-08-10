@@ -22,7 +22,7 @@ class Client(Entity):
     type: ClientType = declare_property(100, is_repr=True)
 
     # status
-    access_token: Optional[str] = declare_property(120, is_unique=True)
+    access_token: Optional[str] = declare_property(120)
     seen_at: Optional[datetime] = declare_property(121)
     logged_in_at: Optional[datetime] = declare_property(122)
 
