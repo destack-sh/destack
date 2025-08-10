@@ -493,10 +493,10 @@ for _ in range({key}_length):
             return f"_writer.write_uuid({source_expr})"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
-            raise NotImplementedError(f"cannot pack Handle: {type!r}")
+            raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
-            raise NotImplementedError(f"cannot pack union: {type!r}")
+            raise NotImplementedError(f"cannot pack UNION: {type!r}")
         #
         else:
             assert_never(type.scalar_type)

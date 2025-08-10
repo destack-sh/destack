@@ -61,6 +61,9 @@ class EditOperationType(OptionEnum):
     # text
     # TEXT_INSERT, TEXT_DELETE, TEXT_REPLACE, TEXT_FORMAT, ...
 
+    # flag
+    # FLAG_SET, FLAG_UNSET, ...
+
     # bitmap
     # BITMAP_INSERT, BITMAP_DELETE, ...
 
@@ -73,7 +76,7 @@ class EditOperation(ImmutableStruct):
         100,
         description="The type of EditOperation.",
     )
-    # TODO :Incomplete: EditOperation.path?
+    # TODO :Incomplete: EditOperation.path? (for editing nested stuff)
     property_id: UInt8 = declare_property(
         103,
         description="""\

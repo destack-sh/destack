@@ -30,6 +30,8 @@ if TYPE_CHECKING:
         MethodDefinition,
         ModuleDefinition,
         NodeDefinition,
+        ObjectSize,
+        ObjectSizer,
         PropertyDefinition,
         StructDefinition,
         Type,
@@ -46,6 +48,9 @@ cli = create_cli("manual", "Interactive manual for the schema.")
 
 @dataclass(slots=True)
 class ManualContext:
+    memory_sizer: "ObjectSizer"
+    packed_sizer: "ObjectSizer"
+    sizers: dict[str, "ObjectSizer"]
     current: str | None = None
     history: list[str] = dataclasses.field(default_factory=list)
 
@@ -53,7 +58,7 @@ class ManualContext:
 @cli.command()
 def manual():
     """Interactive manual for the schema."""
-    from destack import VERSION
+    from destack import VERSION, PythonObjectSizer
 
     # create the REPL
     repl = create_repl(
@@ -67,7 +72,17 @@ Type 'help' for available commands.""",
     )
 
     # current context for navigation
-    context = ManualContext()
+    context = ManualContext(
+        memory_sizer=PythonObjectSizer(),
+        packed_sizer=PythonObjectSizer(),
+        sizers={
+            "Memory": PythonObjectSizer(),
+            "Packed": PythonObjectSizer(),
+            "Rust": PythonObjectSizer(),
+            "Python": PythonObjectSizer(),
+            "JavaScript": PythonObjectSizer(),
+        },
+    )
 
     # register commands
     _register_commands(repl, context)
@@ -101,7 +116,7 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
         context.current = name
 
         # display the definition
-        _show_definition(definition)
+        _show_definition(definition, context)
 
     @repl.command(
         "tree",
@@ -155,7 +170,7 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
         context.current = prev
 
         definition = get_builtin_definition(prev)
-        _show_definition(definition)
+        _show_definition(definition, context)
 
     @repl.command("up", "Show the base (parent) of the current definition")
     def go_up():
@@ -173,7 +188,7 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
             return
         context.history.append(context.current)
         context.current = parent.name
-        _show_definition(parent)
+        _show_definition(parent, context)
 
     @repl.command("down", "Show children (direct subclasses) of the current definition")
     def go_down():
@@ -282,6 +297,16 @@ def _calculate_substring_score(query: str, target: str) -> int:
     return 1000 + abs(len(target) - len(query))
 
 
+def _render_size(size: "ObjectSize") -> str:
+    """Render a size to a string."""
+    if size.max_size is None:
+        return f"{size.min_size}B.."
+    elif size.min_size == size.max_size:
+        return f"{size.min_size}B"
+    else:
+        return f"{size.min_size}B..{size.max_size}B"
+
+
 def _render_type(type: "Type") -> str:
     """Render a type to a string."""
     from destack.core import TypeCardinality
@@ -379,6 +404,7 @@ def _render_value(value: "Value") -> str:
 
 def _show_definition(
     definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
+    context: ManualContext,
 ) -> None:
     """Display a definition with full details."""
     from ...core.definition import (
@@ -404,15 +430,15 @@ def _show_definition(
 
     # type-specific information
     if isinstance(definition, NodeDefinition):
-        _show_node(definition)
+        _show_node(definition, context)
     elif isinstance(definition, StructDefinition):
-        _show_struct(definition)
+        _show_struct(definition, context)
     elif isinstance(definition, EnumDefinition):
-        _show_enum(definition)
+        _show_enum(definition, context)
     elif isinstance(definition, HandleDefinition):
-        _show_handle(definition)
+        _show_handle(definition, context)
     elif isinstance(definition, ModuleDefinition):
-        _show_module(definition)
+        _show_module(definition, context)
     else:
         assert_never(definition)
 
@@ -422,15 +448,15 @@ def _show_definition(
 def _show_properties(
     owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
     properties: list["PropertyDefinition"],
-    title: str = "Properties",
+    title: str,
+    context: ManualContext,
 ) -> None:
     """Display properties section."""
-    console.print("\n" + console.color(f"{title} ({len(properties)}):", "yellow", "bold"))
+    instance_properties = [p for p in properties if not p.is_static and not p.is_runtime_only]
+    console.print("\n" + console.color(f"{title} ({len(instance_properties)}):", "yellow", "bold"))
     rows: list[list[str]] = []
-    headers = ["ID", "Name", "Type", "Defined In", "Flags"]
-    for prop in properties:
-        if prop.name in ("metakind", "metatype") or prop.name.startswith("_"):
-            continue
+    headers = ["ID", "Name", "Type", "Memory", "Packed", "Defined In", "Flags"]
+    for prop in instance_properties:
         flags: list[str] = []
         if prop.is_identity:
             flags.append("i")
@@ -444,6 +470,8 @@ def _show_properties(
                 console.color(str(prop.id), "dim"),
                 console.color(prop.name, "white"),
                 console.color(_render_type(prop.type), "yellow"),
+                console.color(_render_size(context.memory_sizer.size_type(prop.type)), "green"),
+                console.color(_render_size(context.packed_sizer.size_type(prop.type)), "green"),
                 console.color(origin or "-", "cyan"),
                 console.color(",".join(flags) if flags else "-", "gray"),
             ]
@@ -454,7 +482,8 @@ def _show_properties(
 def _show_methods(
     owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
     methods: list["MethodDefinition"],
-    title: str = "Methods",
+    title: str,
+    context: ManualContext,
 ) -> None:
     """Display methods section formatted as a table."""
     console.print("\n" + console.color(f"{title} ({len(methods)}):", "yellow", "bold"))
@@ -511,7 +540,8 @@ def _show_methods(
 def _show_actions(
     owner: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
     actions: list["ActionDefinition"],
-    title: str = "Actions",
+    title: str,
+    context: ManualContext,
 ) -> None:
     """Display actions as a table with type and message IO."""
     from ...core import ActionType, StringCasing, to_casing
@@ -552,7 +582,11 @@ def _show_actions(
     console.print(console.table(rows, headers))
 
 
-def _show_constants(constants: list["ConstantDefinition"], title: str = "Constants") -> None:
+def _show_constants(
+    constants: list["ConstantDefinition"],
+    title: str,
+    context: ManualContext,
+) -> None:
     """Display constants section."""
     console.print("\n" + console.color(f"{title}:", "yellow"))
     for constant in constants:
@@ -561,38 +595,57 @@ def _show_constants(constants: list["ConstantDefinition"], title: str = "Constan
         )
 
 
-def _show_node(definition: "NodeDefinition") -> None:
+def _show_size(definition: "StructDefinition | NodeDefinition", context: ManualContext) -> None:
+    """Display size information."""
+
+    # metadata size
+    console.print(
+        f"  Memory: {console.color(_render_size(context.memory_sizer.size_object(definition)), 'green')}"
+    )
+    console.print(
+        f"  Packed: {console.color(_render_size(context.packed_sizer.size_object(definition)), 'green')}"
+    )
+
+    # specific sizers
+    console.print("\n" + console.color("Sizes:", "yellow", "bold"))
+    for name, sizer in context.sizers.items():
+        console.print(
+            f"  {console.color(name, 'cyan')}: {console.color(_render_size(sizer.size_object(definition)), 'green')}"
+        )
+
+
+def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
     """Display Node-specific details."""
     # metadata
     console.print("\n" + console.color("Metadata:", "yellow", "bold"))
-
     metadata = []
     metadata.append(("Inherits", "->".join([base.name for base in definition.inherits])))
     metadata.append(("Stability", str(definition.stability)))
     metadata.append(("Abstract", definition.is_abstract))
     metadata.append(("Final", definition.is_final))
     metadata.append(("Singleton", definition.is_singleton))
-
-    # metadata
     for key, value in metadata:
         console.print(f"  {key}: {console.color(value, 'green')}")
+    _show_size(definition, context)
 
     # inheritance tree (object-only)
     tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
     if tree:
         console.print("")
-        console.print("\n" + console.color("Inheritance Tree (immediate):", "yellow", "bold"))
+        console.print("\n" + console.color("Inheritance:", "yellow", "bold"))
         console.print(tree)
 
     if definition.properties:
-        _show_properties(definition, definition.properties)
+        _show_properties(definition, definition.properties, "Properties", context)
     if definition.methods:
-        _show_methods(definition, definition.methods)
+        _show_methods(definition, definition.methods, "Methods", context)
     if definition.actions:
-        _show_actions(definition, definition.actions)
+        _show_actions(definition, definition.actions, "Actions", context)
+    if definition.constants:
+        _show_constants(definition.constants, "Constants", context)
 
 
-def _show_struct(definition: "StructDefinition") -> None:
+def _show_struct(definition: "StructDefinition", context: ManualContext) -> None:
     """Display Struct-specific details."""
 
     # metadata
@@ -602,24 +655,24 @@ def _show_struct(definition: "StructDefinition") -> None:
     metadata.append(("Stability", str(definition.stability)))
     metadata.append(("Immutable", definition.is_immutable))
     metadata.append(("Abstract", definition.is_abstract))
-    # metadata
     for key, value in metadata:
         console.print(f"  {key}: {console.color(value, 'green')}")
+    _show_size(definition, context)
 
     # inheritance tree (object-only)
     tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
     if tree:
         console.print("")
-        console.print("\n" + console.color("Inheritance Tree (immediate):", "yellow", "bold"))
+        console.print("\n" + console.color("Inheritance:", "yellow", "bold"))
         console.print(tree)
 
     if definition.properties:
-        _show_properties(definition, definition.properties)
+        _show_properties(definition, definition.properties, "Properties", context)
     if definition.methods:
-        _show_methods(definition, definition.methods)
+        _show_methods(definition, definition.methods, "Methods", context)
 
 
-def _show_enum(definition: "EnumDefinition") -> None:
+def _show_enum(definition: "EnumDefinition", context: ManualContext) -> None:
     """Display Enum-specific details."""
     # options
     if definition.options:
@@ -633,14 +686,14 @@ def _show_enum(definition: "EnumDefinition") -> None:
             console.print(opt_str)
 
 
-def _show_handle(definition: "HandleDefinition") -> None:
+def _show_handle(definition: "HandleDefinition", context: ManualContext) -> None:
     """Display Handle-specific details."""
     if definition.properties:
-        _show_properties(definition, definition.properties)
+        _show_properties(definition, definition.properties, "Properties", context)
     if definition.methods:
-        _show_methods(definition, definition.methods)
+        _show_methods(definition, definition.methods, "Methods", context)
     if definition.constants:
-        _show_constants(definition.constants)
+        _show_constants(definition.constants, "Constants", context)
 
 
 def _render_inheritance_tree(
@@ -827,14 +880,14 @@ def _get_origin_for(
     return None
 
 
-def _show_module(definition: "ModuleDefinition") -> None:
+def _show_module(definition: "ModuleDefinition", context: ManualContext) -> None:
     """Display Module-specific details."""
     from ...core.builtin import StringCasing, to_casing
 
     if definition.methods:
-        _show_methods(definition, definition.methods)
+        _show_methods(definition, definition.methods, "Methods", context)
     if definition.constants:
-        _show_constants(definition.constants)
+        _show_constants(definition.constants, "Constants", context)
 
     # types
     if definition.node_types:
