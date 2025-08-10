@@ -29,7 +29,6 @@
     "@codemirror/state": "catalog:web",
     "@codemirror/view": "catalog:web",
     "destack": "link:destack-ts",
-    "motion": "catalog:web",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
