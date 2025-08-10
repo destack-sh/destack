@@ -44,7 +44,7 @@ class CustomEvent(Event):
 
     definition: "CustomEventDefinition" = declare_property(
         10,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         description="The CustomEvent this Signal is an instance of.",
     )
@@ -168,10 +168,6 @@ class CustomPropertyDefinition(Entity):
     cascade: Optional[ReferenceCascade] = declare_property(141)
 
     # property flags
-    is_unique: bool | None = declare_property(
-        201,
-        description="Whether this property must have a unique value.",
-    )
     is_readonly: bool | None = declare_property(
         202,
         description="Whether this property is read-only.",

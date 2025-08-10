@@ -44,31 +44,39 @@ class PropertyDefinition(Definition):
     reference_cascade: ReferenceCascade | None = declare_property(131)
 
     # property flags
-    is_identity: bool = declare_property(
-        140,
-        is_repr=True,
-        description="""\
-Whether this Property is part of the object's identity.
- (And thus is always required, in every instance including partials; only for Nodes.)
-""",
-    )
-    is_unique: bool = declare_property(
-        141,
-        is_repr=True,
-        description="Whether this Property must have a unique value.",
-    )
     is_readonly: bool = declare_property(
         142,
         is_repr=True,
         description="Whether this Property is read-only.",
     )
-    is_repr: bool = declare_property(143)
-    is_hash: bool = declare_property(144)
-    is_eq: bool = declare_property(145)
-    is_internal: bool = declare_property(146)
-    is_static: bool = declare_property(147)
-    is_runtime_only: bool = declare_property(148)
-    is_interned: bool = declare_property(149)
+    is_repr: bool = declare_property(
+        143,
+        description="Whether this Property is included in the object's string representation.",
+    )
+    is_hash: bool = declare_property(
+        144,
+        description="Whether this Property is included in the object's hash.",
+    )
+    is_eq: bool = declare_property(
+        145,
+        description="Whether this Property is included in the object's equality check.",
+    )
+    is_managed: bool = declare_property(
+        146,
+        description="Whether this Property is internally managed by the system.",
+    )
+    is_static: bool = declare_property(
+        147,
+        description="Whether this Property is static (only exists once per object).",
+    )
+    is_runtime_only: bool = declare_property(
+        148,
+        description="Whether this Property is only set at runtime (is not wired).",
+    )
+    is_interned: bool = declare_property(
+        149,
+        description="Whether this Property is interned (stored in a shared pool).",
+    )
 
     @classmethod
     def from_declaration(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -107,13 +115,11 @@ Whether this Property is part of the object's identity.
             reference_type=prop.reference_type,
             reference_cascade=prop.reference_cascade,
             # flags
-            is_identity=prop.is_identity,
-            is_unique=prop.is_unique,
             is_readonly=prop.is_readonly,
             is_repr=prop.is_repr,
             is_hash=prop.is_hash,
             is_eq=prop.is_eq,
-            is_internal=prop.is_internal,
+            is_managed=prop.is_managed,
             is_static=prop.is_static,
             is_runtime_only=prop.is_runtime_only,
             is_interned=prop.is_interned,

@@ -153,28 +153,25 @@ class Entity(Node):
     # 1-20: identity
     materialization: Materialization = declare_property(
         10,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
-        is_identity=True,
         default=Materialization.ROOT,
         tags=("identity",),
     )
     definition: Optional["Entity"] = declare_property(
         11,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
-        is_identity=True,
         description="The definition this Entity is an instance of.",
         tags=("identity",),
     )
     preceded_by: Optional[Self] = declare_property(
         12,
         is_readonly=True,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
-        is_identity=True,
         description="""\
 The previous Entity this Entity is based on (from the base Branch, if any).
 We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
@@ -184,10 +181,9 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     instance: Optional["Entity"] = declare_property(
         13,
         is_readonly=True,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
-        is_identity=True,
         description="The (root) Entity that is being instantiated.",
         tags=("identity",),
     )
@@ -195,7 +191,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     # 20-40: tracking
     created_at: datetime = declare_property(
         20,
-        is_internal=True,
+        is_managed=True,
         is_hash=False,
         is_eq=False,
         is_readonly=True,
@@ -205,7 +201,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     )
     created_epoch: UInt128 = declare_property(
         21,
-        is_internal=True,
+        is_managed=True,
         is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.REMOTE_EPOCH,
@@ -214,7 +210,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     )
     created_by: "Entity" = declare_property(
         22,
-        is_internal=True,
+        is_managed=True,
         is_hash=False,
         is_eq=False,
         is_readonly=True,
@@ -224,7 +220,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     )
     updated_at: datetime = declare_property(
         23,
-        is_internal=True,
+        is_managed=True,
         is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.NOW,
@@ -233,7 +229,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     )
     updated_epoch: UInt128 = declare_property(
         24,
-        is_internal=True,
+        is_managed=True,
         is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.REMOTE_EPOCH,
@@ -242,7 +238,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     )
     updated_by: "Entity" = declare_property(
         25,
-        is_internal=True,
+        is_managed=True,
         is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.ACTOR,
@@ -251,7 +247,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
     )
     deleted_at: Optional[datetime] = declare_property(
         26,
-        is_internal=True,
+        is_managed=True,
         is_hash=False,
         is_eq=False,
         description="""\
@@ -284,6 +280,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     name: str = declare_property(
         41,
         is_repr=True,
+        is_interned=True,
         description="The name of this Entity.",
         default_factory=ValueFactory.NAME,
         tags=("entity",),
@@ -291,7 +288,8 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     order_key: str | None = declare_property(
         43,
         is_eq=False,
-        is_internal=True,
+        is_interned=True,
+        is_managed=True,
         description="The absolute order of this Entity (in its parent, as a fractional integer).",
         tags=("entity",),
     )

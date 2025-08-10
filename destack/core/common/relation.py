@@ -143,7 +143,12 @@ class PropertyReference(Struct):
         raise NotImplementedError
 
 
-@declare_struct(StructType.NODE_REFERENCE, is_final=True)
+@declare_struct(
+    StructType.NODE_REFERENCE,
+    is_immutable=True,
+    is_interned=True,
+    is_final=True,
+)
 @final
 class NodeReference(Struct):
     """

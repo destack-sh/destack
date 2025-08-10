@@ -47,11 +47,6 @@ class HandleDefinition(ObjectDefinition):
         109,
         tags=("meta",),
     )
-    is_immutable: bool = declare_property(
-        110,
-        description="Whether this Handle is read-only (cannot be modified).",
-        tags=("meta",),
-    )
     is_abstract: bool = declare_property(
         111,
         description="Whether this Handle is abstract (cannot be instantiated directly).",
@@ -123,7 +118,6 @@ class HandleDefinition(ObjectDefinition):
             name=declaration.name,
             description=declaration.description,
             stability=declaration.stability,
-            is_immutable=declaration.is_immutable,
             is_abstract=declaration.is_abstract,
             # content
             properties=[

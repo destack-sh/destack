@@ -41,7 +41,7 @@ class ActionDefinition(FunctionDefinition):
             name=declaration.name,
             description=declaration.description,
             is_async=declaration.is_async,
-            is_internal=declaration.is_internal,
+            is_managed=declaration.is_managed,
             # availability
             platforms=list(declaration.platforms),
             languages=list(declaration.languages),

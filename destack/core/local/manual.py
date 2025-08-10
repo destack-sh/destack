@@ -306,11 +306,11 @@ def _calculate_substring_score(query: str, target: str) -> int:
 def _render_size(size: "ObjectSize") -> str:
     """Render a size to a string."""
     if size.max_size is None:
-        return f"{size.min_size}B.."
+        return f"{size.min_size}.."
     elif size.min_size == size.max_size:
-        return f"{size.min_size}B"
+        return f"{size.min_size}"
     else:
-        return f"{size.min_size}B..{size.max_size}B"
+        return f"{size.min_size}..{size.max_size}"
 
 
 def _render_type(type: "Type") -> str:
@@ -464,12 +464,18 @@ def _show_properties(
     headers = ["ID", "Name", "Type", "Memory", "Packed", "Defined In", "Flags"]
     for prop in instance_properties:
         flags: list[str] = []
-        if prop.is_identity:
-            flags.append("i")
-        if prop.is_unique:
-            flags.append("u")
         if prop.is_readonly:
             flags.append("r")
+        if prop.is_managed:
+            flags.append("m")
+        if prop.is_interned:
+            flags.append("i")
+        if prop.is_repr:
+            flags.append("r")
+        if prop.is_eq:
+            flags.append("e")
+        if prop.is_hash:
+            flags.append("h")
         origin = _get_origin_for(owner, prop)
         rows.append(
             [
@@ -479,7 +485,7 @@ def _show_properties(
                 console.color(_render_size(context.memory_sizer.size_type(prop.type)), "green"),
                 console.color(_render_size(context.packed_sizer.size_type(prop.type)), "green"),
                 console.color(origin or "-", "cyan"),
-                console.color(",".join(flags) if flags else "-", "gray"),
+                console.color("".join(flags) if flags else "", "gray"),
             ]
         )
     console.print(console.table(rows, headers))
@@ -659,7 +665,6 @@ def _show_struct(definition: "StructDefinition", context: ManualContext) -> None
     metadata = []
     metadata.append(("Inherits", "->".join([base.name for base in definition.inherits])))
     metadata.append(("Stability", str(definition.stability)))
-    metadata.append(("Immutable", definition.is_immutable))
     metadata.append(("Abstract", definition.is_abstract))
     for key, value in metadata:
         console.print(f"  {key}: {console.color(value, 'green')}")

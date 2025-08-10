@@ -24,6 +24,6 @@ class CounterMeasurementEvent(MeasurementEvent):
 
     definition: "CounterMetric" = declare_property(
         10,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
     )

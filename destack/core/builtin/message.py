@@ -43,6 +43,7 @@ def declare_message(
             is_immutable=True,
             is_abstract=is_abstract,
             is_final=is_final,
+            is_interned=False,
             # associations
             tags=tags,
             into_node_types=(),
@@ -87,7 +88,7 @@ class Message(Struct):
     # 20-40: Message tracking
     client: "Client" = declare_property(
         23,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
         description="The Client that created this Message (client, but verified).",
@@ -95,7 +96,7 @@ class Message(Struct):
     )
     client_nonce: UUID = declare_property(
         24,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT_NONCE,
         description="The nonce of the Client that created this Message (client).",
@@ -103,7 +104,7 @@ class Message(Struct):
     )
     client_created_at: datetime = declare_property(
         25,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.NOW,
         description="The time in the Client when it created this Message (client).",
@@ -111,7 +112,7 @@ class Message(Struct):
     )
     client_remote_epoch: UInt128 = declare_property(
         26,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time last seen from the system in the Client for this space (client).",
@@ -119,7 +120,7 @@ class Message(Struct):
     )
     client_local_epoch: UInt128 = declare_property(
         27,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.LOCAL_EPOCH,
         description="The logical time in the Client when it created this Message (client).",

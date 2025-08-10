@@ -43,6 +43,7 @@ def declare_error(
             is_immutable=True,
             is_abstract=is_abstract,
             is_final=is_final,
+            is_interned=False,
             # associations
             tags=tags,
             into_node_types=(),
@@ -88,7 +89,7 @@ class Error(Struct, Exception):
     # 20-40: Error tracking
     client: "Client" = declare_property(
         23,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
         description="The Client that created this Error (client, but verified).",
@@ -96,7 +97,7 @@ class Error(Struct, Exception):
     )
     client_nonce: UUID = declare_property(
         24,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT_NONCE,
         description="The nonce of the Client that created this Error (client).",
@@ -104,7 +105,7 @@ class Error(Struct, Exception):
     )
     client_created_at: datetime = declare_property(
         25,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.NOW,
         description="The time in the Client when it created this Error (client).",
@@ -112,7 +113,7 @@ class Error(Struct, Exception):
     )
     client_remote_epoch: UInt128 = declare_property(
         26,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time last seen from the system in the Client for this space (client).",
@@ -120,7 +121,7 @@ class Error(Struct, Exception):
     )
     client_local_epoch: UInt128 = declare_property(
         27,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.LOCAL_EPOCH,
         description="The logical time in the Client when it created this Error (client).",

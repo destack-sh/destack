@@ -16,18 +16,17 @@ if TYPE_CHECKING:
 
 @declare_enum(EnumType.EVENT_STATUS)
 class EventStatus(OptionEnum):
-    """The (forever) status of an Event."""
+    """The consensus status of an Event."""
 
-    # client
+    # pending
     PENDING = declare_option(1, description="Pending application on client")
     STAGED = declare_option(2, description="Optimistically staged on client")
-    # PREDICTED, SUPERSEDED, ...
-    # system hot
+    # PREDICTED, SUPERSEDED, RESCINDED, ...
+    # conclusive
     APPROVED = declare_option(10, description="Successfully applied in system")
     SKIPPED = declare_option(11, description="Skipped and ignored in system")
     FAILED = declare_option(12, description="Could not apply in system")
     REJECTED = declare_option(13, description="Denied by the system")
-    # system cold
     # COMPACTED, ...
 
 
@@ -112,9 +111,8 @@ class Event(Node):
     # 10-20: Event identity
     definition: Optional["Entity"] = declare_property(
         10,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
-        is_identity=True,
         description="The definition this Event is an instance of.",
         tags=("identity",),
     )
@@ -122,7 +120,7 @@ class Event(Node):
     # 20-40: Event tracking
     created_at: datetime = declare_property(
         20,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
         is_readonly=True,
@@ -132,7 +130,7 @@ class Event(Node):
     )
     created_epoch: UInt128 = declare_property(
         21,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
         is_repr=True,
@@ -143,7 +141,7 @@ class Event(Node):
     )
     created_by: "Entity" = declare_property(
         22,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
         is_repr=False,
@@ -154,7 +152,7 @@ class Event(Node):
     )
     client: "Client" = declare_property(
         23,
-        is_internal=True,
+        is_managed=True,
         is_eq=False,
         is_hash=False,
         is_repr=True,
@@ -168,7 +166,7 @@ class Event(Node):
         is_eq=False,
         is_hash=False,
         is_repr=False,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT_NONCE,
         description="The nonce of the Client that created this Event (client).",
@@ -179,7 +177,7 @@ class Event(Node):
         is_eq=False,
         is_hash=False,
         is_repr=False,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.NOW,
         description="The time in the Client when it created this Event (client).",
@@ -190,7 +188,7 @@ class Event(Node):
         is_eq=False,
         is_hash=False,
         is_repr=True,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time last seen from the system in the Client for this space (client).",
@@ -201,7 +199,7 @@ class Event(Node):
         is_eq=False,
         is_hash=False,
         is_repr=True,
-        is_internal=True,
+        is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.LOCAL_EPOCH,
         description="The logical time in the Client when it created this Event (client).",
@@ -221,8 +219,7 @@ class Event(Node):
         is_eq=False,
         is_hash=False,
         is_readonly=True,
-        is_internal=True,
-        is_identity=True,
+        is_managed=True,
         description="The Event that caused this Event (if any).",
         tags=("identity",),
     )

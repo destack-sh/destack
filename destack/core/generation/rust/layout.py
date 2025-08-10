@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, assert_never, override
 
 from destack.registry import STRUCT_DEFINITION_BY_TYPE
 
-from ...builtin import PrimitiveType, ScalarType, StructType, TypeCardinality
+from ...builtin import PrimitiveType, ScalarType, TypeCardinality
 from ...definition import NodeDefinition, StructDefinition
 from .._core import ObjectSize, ObjectSizer
 
@@ -57,6 +57,9 @@ class RustObjectSizer(ObjectSizer):
     # uuid size
     UUID_SIZE = 16
 
+    # interned sizes
+    INTERNED_KEY_SIZE = 8
+
     @override
     def size_object(self, object: "StructDefinition | NodeDefinition") -> ObjectSize:
         """Get the estimated size of an object instance in bytes."""
@@ -64,8 +67,11 @@ class RustObjectSizer(ObjectSizer):
         for prop in object.properties:
             if prop.is_static or prop.is_runtime_only:
                 continue
-            min_size, max_size = self.size_type(prop.type, include_reference=False)
-            total_max_size += max_size or min_size
+            if prop.is_interned:
+                prop_size = ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
+            else:
+                prop_size = self.size_type(prop.type, include_reference=False)
+            total_max_size += prop_size.max_size or prop_size.min_size
         # max size = min size
         return ObjectSize(total_max_size, total_max_size)
 
@@ -170,7 +176,7 @@ class RustObjectSizer(ObjectSizer):
             return ObjectSize(8, 8)  # reference?
         # node reference as struct
         elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_REFERENCE])
+            return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
         # node id (uuid)
         elif type.scalar_type == ScalarType.NODE_ID:
             return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)

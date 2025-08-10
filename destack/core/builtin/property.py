@@ -70,16 +70,15 @@ class PropertyDeclaration(Declaration):
     reference_cascade: ReferenceCascade | None = None
 
     # flags
-    is_identity: bool = False
-    is_unique: bool = False  # unique in DB
     is_repr: bool = False  # included in Object.__repr__
     is_hash: bool = True  # included in Object.__hash__
     is_eq: bool = True  # included in Object.equals check
-    is_internal: bool = False  # managed internally by the system
+    is_managed: bool = False  # managed internally by the system
     is_static: bool = False  # set automatically at runtime
-    is_runtime_only: bool = False  # only set at runtime
     is_readonly: bool = False  # can only be set once (at init time)
+    is_runtime_only: bool = False  # only set at runtime
     is_interned: bool = False  # should be interned at runtime
+    is_boxed: bool = False  # should be boxed at runtime
 
     _ref: Optional["PropertyReference"] = None
     _definition: Optional["PropertyDefinition"] = None
@@ -352,13 +351,12 @@ def declare_property(
     default_factory: ValueFactory | None = None,
     reference_type: ReferenceType | None = None,
     reference_cascade: ReferenceCascade | None = None,
-    is_internal: bool = False,
+    is_managed: bool = False,
     is_repr: bool = False,
     is_hash: bool = True,
     is_eq: bool = True,
-    is_identity: bool = False,
-    is_unique: bool = False,
     is_readonly: bool = False,
+    is_interned: bool = False,
     tags: tuple[str, ...] = (),
 ) -> Any:
     assert id < 256, f"id must be less than 256: {id}"  # for :Encoding
@@ -369,13 +367,12 @@ def declare_property(
         default_factory=default_factory,
         reference_type=reference_type,
         reference_cascade=reference_cascade,
-        is_internal=is_internal,
+        is_managed=is_managed,
         is_repr=is_repr,
         is_hash=is_hash,
         is_eq=is_eq,
-        is_identity=is_identity,
-        is_unique=is_unique,
         is_readonly=is_readonly,
+        is_interned=is_interned,
         tags=tags,
     )
 
@@ -393,7 +390,7 @@ def declare_property_runtime(
     return PropertyDeclaration(
         id=id,
         description=description,
-        is_internal=True,
+        is_managed=True,
         is_runtime_only=True,
         is_repr=is_repr,
         is_hash=False,
