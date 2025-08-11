@@ -9,7 +9,7 @@ from destack import (
     Form2D,
     KompaktBinaryReader,
     KompaktBinaryWriter,
-    NodeLocation,
+    NodeSpatialReference,
     NodeType,
     Object,
     Rectangle2D,
@@ -86,8 +86,8 @@ def _do_test_roundtrip_value(type: Type, value: Any, encoder: Encoder, encoding:
 
 
 def test_roundtrip_node_locations():
-    """Pack and unpack a NodeLocation."""
-    node_ref = NodeLocation(
+    """Pack and unpack a NodeSpatial."""
+    node_ref = NodeSpatialReference(
         type=NodeType.FOLDER,
         id=uuid4(),
         space_id=uuid4(),

@@ -1149,9 +1149,9 @@ class StructType(OptionEnum):
     # query
     QUERY = declare_option(200_200)
     # references
-    NODE_IDENTITY = declare_option(200_300)
-    NODE_LOCATION = declare_option(200_301)
-    NODE_MOMENT = declare_option(200_302)
+    NODE_IDENTITY_REFERENCE = declare_option(200_300)
+    NODE_SPATIAL_REFERENCE = declare_option(200_301)
+    NODE_TEMPORAL_REFERENCE = declare_option(200_302)
     # NODE_PATH, NODE_PATH_TOKEN, ...
     OBJECT_DEFINITION_REFERENCE = declare_option(200_350)
     PROPERTY_REFERENCE = declare_option(200_360)

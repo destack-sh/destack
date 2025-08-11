@@ -22,7 +22,7 @@ from ..builtin import (
     declare_message,
     declare_property,
 )
-from ..common import NodeLocation, infer_type
+from ..common import NodeSpatialReference, infer_type
 from ..definition import SchemaDefinition
 
 if TYPE_CHECKING:
@@ -119,10 +119,10 @@ class Universe(Entity):
         value=_UNIVERSE_SPACE_ID,
         description="The system Space ID.",
     )
-    SPACE: NodeLocation = declare_constant(
+    SPACE: NodeSpatialReference = declare_constant(
         22,
         description="The system Space.",
-        value=lambda: NodeLocation(
+        value=lambda: NodeSpatialReference(
             type=NodeType.SPACE,
             id=_UNIVERSE_SPACE_ID,
             space_id=_UNIVERSE_SPACE_ID,
@@ -149,19 +149,19 @@ class Universe(Entity):
         description="The 'head' Snapshot.id, the current active Snapshot.",
     )
 
-    GOD: NodeLocation = declare_constant(
+    GOD: NodeSpatialReference = declare_constant(
         40,
         description="God Himself, the creator of the Universe.",
-        value=lambda: NodeLocation(
+        value=lambda: NodeSpatialReference(
             type=NodeType.ENTITY,
             id=_UNIVERSE_ACTOR_ID,
             space_id=_UNIVERSE_SPACE_ID,
         ),
     )
-    GOD_HANDSET: NodeLocation = declare_constant(
+    GOD_HANDSET: NodeSpatialReference = declare_constant(
         41,
         description="God's terminal, for when He needs to do something.",
-        value=lambda: NodeLocation(
+        value=lambda: NodeSpatialReference(
             type=NodeType.CLIENT,
             id=_UNIVERSE_CLIENT_ID,
             space_id=_UNIVERSE_SPACE_ID,

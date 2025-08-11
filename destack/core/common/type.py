@@ -225,12 +225,12 @@ def infer_type(
     elif isinstance(value_or_type, Node):
         if reference_type == ReferenceType.MOMENT:
             scalar_type = ScalarType.NODE
-        elif reference_type == ReferenceType.UNTYPED_IDENTITY:
-            scalar_type = ScalarType.NODE_UNTYPED_IDENTITY
+        elif reference_type == ReferenceType.RAW:
+            scalar_type = ScalarType.NODE_RAW
         elif reference_type == ReferenceType.IDENTITY:
             scalar_type = ScalarType.NODE_IDENTITY
         elif reference_type == ReferenceType.LOCATION:
-            scalar_type = ScalarType.NODE_LOCATION
+            scalar_type = ScalarType.NODE_SPATIAL
         elif reference_type is None:
             scalar_type = ScalarType.NODE
         else:
@@ -365,10 +365,10 @@ def invert_type_scalar(type: "Type") -> "Any":
         return NODE_CLASS_BY_TYPE[type.node_types[0]]
     # node reference
     elif type.scalar_type in (
-        ScalarType.NODE_UNTYPED_IDENTITY,
+        ScalarType.NODE_RAW,
         ScalarType.NODE_IDENTITY,
-        ScalarType.NODE_LOCATION,
-        ScalarType.NODE_MOMENT,
+        ScalarType.NODE_SPATIAL,
+        ScalarType.NODE_TEMPORAL,
     ):
         assert type.node_types is not None, f"no node types for: {type!r}"
         if len(type.node_types) == 1:

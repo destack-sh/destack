@@ -49,7 +49,7 @@ cli = create_cli("manual", "Interactive manual for the schema.")
 @dataclass(slots=True)
 class ManualContext:
     memory_sizer: "ObjectSizer"
-    packed_sizer: "ObjectSizer"
+    kompakt_sizer: "ObjectSizer"
     sizers: dict[str, "ObjectSizer"]
     current: str | None = None
     history: list[str] = dataclasses.field(default_factory=list)
@@ -80,10 +80,10 @@ Type 'help' for available commands.""",
     # current context for navigation
     context = ManualContext(
         memory_sizer=RustObjectSizer(),
-        packed_sizer=KompaktObjectSizer(),
+        kompakt_sizer=KompaktObjectSizer(),
         sizers={
             "Memory": RustObjectSizer(),
-            "Packed": KompaktObjectSizer(),
+            "Kompakt": KompaktObjectSizer(),
             "Rust": RustObjectSizer(),
             "JavaScript": TypeScriptObjectSizer(),
             "Python": PythonObjectSizer(),
@@ -158,7 +158,7 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
         # if we go down, default to full subtree
         include_subclasses = full or direction in ("down", "both")
         tree = _render_inheritance_tree(
-            definition, direction=direction, include_subclasses=include_subclasses
+            definition, context=context, direction=direction, include_subclasses=include_subclasses
         )
         if tree is None:
             console.warn("Only Objects (Node/Struct/Handle) have inheritance.")
@@ -303,14 +303,37 @@ def _calculate_substring_score(query: str, target: str) -> int:
     return 1000 + abs(len(target) - len(query))
 
 
-def _render_size(size: "ObjectSize") -> str:
+def _render_size(size: "ObjectSize", show_instances_per_bytes: int | None = None) -> str:
     """Render a size to a string."""
     if size.max_size is None:
-        return f"{size.min_size}.."
+        base = f"{size.min_size}.."
     elif size.min_size == size.max_size:
-        return f"{size.min_size}"
+        base = f"{size.min_size}"
     else:
-        return f"{size.min_size}..{size.max_size}"
+        base = f"{size.min_size}..{size.max_size}"
+
+    # calculate how many instances fit in show_size_per_bytes
+    if show_instances_per_bytes is not None:
+        count_max = show_instances_per_bytes // size.min_size
+        if size.max_size is None:
+            count_str = f"<{count_max}"
+        elif size.min_size == size.max_size:
+            count_str = f"={count_max}"
+        else:
+            count_min = show_instances_per_bytes // size.max_size
+            count_str = f"{count_min}..{count_max}"
+
+        # format bytes with appropriate units
+        if show_instances_per_bytes >= (1024 * 1024):
+            bytes_str = f"{show_instances_per_bytes / (1024 * 1024):.2f}MB"
+        elif show_instances_per_bytes >= 1024:
+            bytes_str = f"{show_instances_per_bytes / 1024:.2f}KB"
+        else:
+            bytes_str = f"{show_instances_per_bytes}B"
+
+        base = f"{base} ({count_str} per {bytes_str})"
+
+    return base
 
 
 def _render_type(type: "Type") -> str:
@@ -372,10 +395,10 @@ def _render_type_scalar(type: "Type") -> str:
             return " | ".join(node_names)
     # node reference
     elif type.scalar_type in (
-        ScalarType.NODE_MOMENT,
-        ScalarType.NODE_UNTYPED_IDENTITY,
+        ScalarType.NODE_RAW,
         ScalarType.NODE_IDENTITY,
-        ScalarType.NODE_LOCATION,
+        ScalarType.NODE_SPATIAL,
+        ScalarType.NODE_TEMPORAL,
     ):
         if type.node_types is None:
             node_str = "Node"
@@ -384,7 +407,8 @@ def _render_type_scalar(type: "Type") -> str:
         else:
             node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
             node_str = " | ".join(node_names)
-        return f"->{node_str}[{type.scalar_type.name}]"
+        reference_type_name = type.scalar_type.name.split("_")[-1][0]
+        return f"->{node_str}[{reference_type_name}]"
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"
@@ -464,7 +488,7 @@ def _show_properties(
     instance_properties = [p for p in properties if not p.is_static and not p.is_runtime_only]
     console.print("\n" + console.color(f"{title} ({len(instance_properties)}):", "yellow", "bold"))
     rows: list[list[str]] = []
-    headers = ["ID", "Name", "Type", "Memory", "Packed", "Defined In", "Flags"]
+    headers = ["ID", "Name", "Type", "Memory", "Kompakt", "Defined In", "Flags"]
     for prop in instance_properties:
         flags: list[str] = []
         if prop.is_readonly:
@@ -485,8 +509,8 @@ def _show_properties(
                 console.color(str(prop.id), "dim"),
                 console.color(prop.name, "white"),
                 console.color(_render_type(prop.type), "yellow"),
-                console.color(_render_size(context.memory_sizer.size_type(prop.type)), "green"),
-                console.color(_render_size(context.packed_sizer.size_type(prop.type)), "green"),
+                console.color(_render_size(context.memory_sizer.size_property(prop)), "green"),
+                console.color(_render_size(context.kompakt_sizer.size_property(prop)), "green"),
                 console.color(origin or "-", "cyan"),
                 console.color("|".join(flags) if flags else "", "gray"),
             ]
@@ -613,19 +637,21 @@ def _show_constants(
 def _show_size(definition: "StructDefinition | NodeDefinition", context: ManualContext) -> None:
     """Display size information."""
 
+    one_mb = 1024 * 1024
+
     # metadata size
     console.print(
-        f"  Memory: {console.color(_render_size(context.memory_sizer.size_object(definition)), 'green')}"
+        f"  Memory: {console.color(_render_size(context.memory_sizer.size_object(definition), show_instances_per_bytes=one_mb), 'green')}"
     )
     console.print(
-        f"  Packed: {console.color(_render_size(context.packed_sizer.size_object(definition)), 'green')}"
+        f"  Kompakt: {console.color(_render_size(context.kompakt_sizer.size_object(definition), show_instances_per_bytes=one_mb), 'green')}"
     )
 
     # specific sizers
     console.print("\n" + console.color("Sizes:", "yellow", "bold"))
     for name, sizer in context.sizers.items():
         console.print(
-            f"  {console.color(name, 'cyan')}: {console.color(_render_size(sizer.size_object(definition)), 'green')}"
+            f"  {console.color(name, 'cyan')}: {console.color(_render_size(sizer.size_object(definition), show_instances_per_bytes=one_mb), 'green')}"
         )
 
 
@@ -644,7 +670,9 @@ def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
     _show_size(definition, context)
 
     # inheritance tree (object-only)
-    tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
+    tree = _render_inheritance_tree(
+        definition, context=context, direction="both", include_subclasses=False
+    )
     if tree:
         console.print("")
         console.print("\n" + console.color("Inheritance:", "yellow", "bold"))
@@ -674,7 +702,9 @@ def _show_struct(definition: "StructDefinition", context: ManualContext) -> None
     _show_size(definition, context)
 
     # inheritance tree (object-only)
-    tree = _render_inheritance_tree(definition, direction="both", include_subclasses=False)
+    tree = _render_inheritance_tree(
+        definition, context=context, direction="both", include_subclasses=False
+    )
     if tree:
         console.print("")
         console.print("\n" + console.color("Inheritance:", "yellow", "bold"))
@@ -714,7 +744,8 @@ def _render_inheritance_tree(
     definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
     *,
     direction: Literal["up", "down", "both"] = "both",
-    include_subclasses: bool = False,
+    include_subclasses: bool,
+    context: ManualContext,
 ) -> str | None:
     """Build and render the inheritance tree for an Object definition.
 
@@ -771,7 +802,18 @@ def _render_inheritance_tree(
 
         num = count_desc(defn)
         suffix = f" ({num})" if num > 0 else ""
-        return f"{defn.name}{suffix}"
+
+        # add per-level size deltas for Structs/Nodes
+        inc_str = ""
+        if isinstance(defn, (NodeDefinition, StructDefinition)):
+            parent = get_base(defn)
+            if parent is not None and isinstance(parent, (NodeDefinition, StructDefinition)):
+                mem_def = context.memory_sizer.size_object(defn)
+                mem_par = context.memory_sizer.size_object(parent)
+                mem_inc = max(0, mem_def.min_size - mem_par.min_size)
+                inc_str = f" [+{mem_inc}B]"
+
+        return f"{defn.name}{suffix}{inc_str}"
 
     label_by_id: dict[str, str] = {}
     children_by_id: dict[str, list[str]] = {}
@@ -796,8 +838,9 @@ def _render_inheritance_tree(
     else:
         root_id = definition.name
 
+    # include descendants from the target (only direct unless include_subclasses=True)
     if direction in ("down", "both"):
-        # include descendants from the target (only direct unless full=True)
+
         def walk_desc(defn: Any):
             children = get_children(defn)
             for child in children:
@@ -807,17 +850,15 @@ def _render_inheritance_tree(
 
         walk_desc(definition)
 
-    # if we only asked for up, ensure root is the top ancestor
-    if direction == "up":
-        # nothing else to do; render the chain
-        pass
-
     return console.render_tree(root_id, children_by_id, label_by_id, highlight_id=target_id)
 
 
 def _get_all_descendants(
     definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
-) -> list[Any]:
+) -> list[
+    "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition"
+]:
+    """Get all descendants of a definition."""
     from ...core.definition import (
         EnumDefinition,
         ModuleDefinition,
@@ -833,7 +874,9 @@ def _get_all_descendants(
         direct = [STRUCT_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
     else:
         direct = [HANDLE_DEFINITION_BY_TYPE[t] for t in definition.extended_by]
-    all_desc: list[Any] = []
+    all_desc: list[
+        EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition
+    ] = []
     for child in direct:
         all_desc.append(child)
         all_desc.extend(_get_all_descendants(child))
@@ -843,6 +886,7 @@ def _get_all_descendants(
 def _get_base_definition(
     definition: "EnumDefinition | HandleDefinition | ModuleDefinition | NodeDefinition | StructDefinition",
 ):
+    """Get the base definition of a definition."""
     from ...core.definition import (
         EnumDefinition,
         ModuleDefinition,

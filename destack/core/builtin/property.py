@@ -183,12 +183,12 @@ class PropertyDeclaration(Declaration):
         if not self.type.is_required and self.default_value is UNSET:
             self.default_value = None
         # default to regular node references
-        if self.type.scalar_type == ScalarType.NODE_MOMENT and self.reference_type is None:
+        if self.type.scalar_type == ScalarType.NODE_TEMPORAL and self.reference_type is None:
             self.reference_type = ReferenceType.MOMENT
         # references get a _ptr property (which is wired/stored)
         if (
             self.type.value_type is not None
-            and self.type.value_type.scalar_type == ScalarType.NODE_MOMENT
+            and self.type.value_type.scalar_type == ScalarType.NODE_TEMPORAL
         ):
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert (

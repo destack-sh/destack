@@ -156,7 +156,7 @@ def parse_type_declaration(
                 # union of node types
                 return TypeDeclaration(
                     cardinality=TypeCardinality.SCALAR,
-                    scalar_type=ScalarType.NODE_MOMENT,
+                    scalar_type=ScalarType.NODE_TEMPORAL,
                     node_types=tuple(all_node_types),
                     is_required=is_required,
                 )
@@ -247,7 +247,7 @@ def parse_type_declaration_scalar(
         is_required = False
     elif class_name == "Self":
         # Self is only valid for Nodes
-        scalar_type = ScalarType.NODE_MOMENT
+        scalar_type = ScalarType.NODE_TEMPORAL
         is_self = True
     elif class_name == "Any":
         scalar_type = ScalarType.PRIMITIVE
@@ -264,14 +264,14 @@ def parse_type_declaration_scalar(
         struct_type = struct_t
     elif node_t := resolve_node_types(class_name):
         assert reference_type is not None, f"no reference type specified for {py_type!r}"
-        if reference_type == ReferenceType.UNTYPED_IDENTITY:
-            scalar_type = ScalarType.NODE_UNTYPED_IDENTITY
+        if reference_type == ReferenceType.RAW:
+            scalar_type = ScalarType.NODE_RAW
         elif reference_type == ReferenceType.IDENTITY:
             scalar_type = ScalarType.NODE_IDENTITY
         elif reference_type == ReferenceType.MOMENT:
-            scalar_type = ScalarType.NODE_MOMENT
+            scalar_type = ScalarType.NODE_TEMPORAL
         elif reference_type == ReferenceType.LOCATION:
-            scalar_type = ScalarType.NODE_LOCATION
+            scalar_type = ScalarType.NODE_SPATIAL
         elif reference_type == "value":
             scalar_type = ScalarType.NODE
         else:

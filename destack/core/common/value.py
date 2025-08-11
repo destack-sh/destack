@@ -55,7 +55,7 @@ class Value(Struct):
         if type is None:
             type = infer_type(value, reference_type=reference_type)
         # coerce nodes into node references
-        if type.scalar_type == ScalarType.NODE_MOMENT:
+        if type.scalar_type == ScalarType.NODE_TEMPORAL:
             if type.cardinality == TypeCardinality.SCALAR and isinstance(value, Node):
                 value = value.to_ref()
             elif type.cardinality == TypeCardinality.LIST and value:

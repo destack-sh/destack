@@ -123,7 +123,7 @@ class ChangeEvent(Event):
     change: Optional["ChangeEvent"] = declare_property(
         102,
         is_repr=True,
-        reference_type=ReferenceType.UNTYPED_IDENTITY,
+        reference_type=ReferenceType.RAW,
         description="The ChangeEvent this Change is a part of.",
     )
     # depends_on: Optional["ChangeEvent"]? (skip this Change if the depends_on ChangeEvent failed)

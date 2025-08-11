@@ -18,9 +18,9 @@ from .query import (
     SortType,
 )
 from .relation import (
-    NodeIdentity,
-    NodeLocation,
-    NodeMoment,
+    NodeIdentityReference,
+    NodeSpatialReference,
+    NodeTemporalReference,
     ObjectDefinitionReference,
     PropertyReference,
 )
@@ -65,9 +65,9 @@ __all__ = [
     "IconType",
     "Join",
     "JoinType",
-    "NodeIdentity",
-    "NodeLocation",
-    "NodeMoment",
+    "NodeIdentityReference",
+    "NodeSpatialReference",
+    "NodeTemporalReference",
     "NumberConstraint",
     "ObjectDefinitionReference",
     "PropertyReference",

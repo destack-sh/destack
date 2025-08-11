@@ -19,7 +19,7 @@ from ..builtin import (
     Struct,
     StructType,
     UInt8,
-    UInt128,
+    UInt64,
     declare_property,
     declare_struct,
 )
@@ -152,35 +152,31 @@ class PropertyReference(Struct):
 
 
 @declare_struct(
-    StructType.NODE_IDENTITY,
+    StructType.NODE_IDENTITY_REFERENCE,
     is_immutable=True,
     is_interned=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class NodeIdentity(Struct):
+class NodeIdentityReference(Struct):
     """
     A reference to a Node in an unknown space.
     """
 
     type: NodeType = declare_property(100, is_repr=True)
-    id: UUID = declare_property(
-        101,
-        is_repr=True,
-        is_interned=True,
-    )
+    id: UUID = declare_property(101, is_repr=True)
 
 
 @declare_struct(
-    StructType.NODE_LOCATION,
+    StructType.NODE_SPATIAL_REFERENCE,
     is_immutable=True,
     is_interned=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class NodeLocation(Struct):
+class NodeSpatialReference(Struct):
     """
     A reference to a Node in space.
     """
@@ -204,14 +200,14 @@ class NodeLocation(Struct):
 
 
 @declare_struct(
-    StructType.NODE_MOMENT,
+    StructType.NODE_TEMPORAL_REFERENCE,
     is_immutable=True,
     is_interned=True,
     is_final=True,
     stability=ObjectStability.STATIC,
 )
 @final
-class NodeMoment(Struct):
+class NodeTemporalReference(Struct):
     """
     A reference to a Node in spacetime.
     """
@@ -242,7 +238,7 @@ class NodeMoment(Struct):
         is_repr=True,
         description="The id of the Snapshot the Node belonged to (when it was referenced).",
     )
-    epoch: UInt128 = declare_property(
+    epoch: UInt64 = declare_property(
         105,
         is_repr=True,
         description="The logical time the Node belonged to (when it was referenced).",

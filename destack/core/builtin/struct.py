@@ -90,6 +90,12 @@ def _process_struct_cls(
     # interned structs must be immutable
     if is_interned and not is_immutable:
         raise ValueError(f"{cls.__name__} is interned but not immutable")
+    # interned structs cannot have interned properties
+    if is_interned and any(prop.is_interned for prop in cls.__declaration__.properties):
+        interned_props = [prop for prop in cls.__declaration__.properties if prop.is_interned]
+        raise ValueError(
+            f"{cls.__name__} is interned but also has interned properties: {interned_props}"
+        )
     # non-abstract structs must have properties
     if not is_abstract and not any(
         not prop.is_runtime_only for prop in cls.__declaration__.properties

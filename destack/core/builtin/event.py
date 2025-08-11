@@ -7,11 +7,11 @@ from .entity import Entity
 from .enum import OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
-from .types import UInt8, UInt64, UInt128
+from .types import UInt8, UInt64
 from .universe import EnumType, NodeType, StructType
 
 if TYPE_CHECKING:
-    from destack import Client, NodeLocation
+    from destack import Client, NodeSpatialReference
 
 
 @declare_enum(EnumType.EVENT_STATUS)
@@ -129,7 +129,7 @@ class Event(Node):
         description="The time this Event was created (system).",
         tags=("tracking", "system"),
     )
-    created_epoch: UInt128 = declare_property(
+    created_epoch: UInt64 = declare_property(
         21,
         is_managed=True,
         is_eq=False,
@@ -186,7 +186,7 @@ class Event(Node):
         description="The time in the Client when it created this Event (client).",
         tags=("tracking", "client"),
     )
-    client_remote_epoch: UInt128 = declare_property(
+    client_remote_epoch: UInt64 = declare_property(
         26,
         is_eq=False,
         is_hash=False,
@@ -230,6 +230,6 @@ class Event(Node):
     # 100+: content
 
     @declare_method(2)
-    def to_ref(self) -> "NodeLocation":
+    def to_ref(self) -> "NodeSpatialReference":
         """Gets a reference to this Node."""
         raise NotImplementedError

@@ -152,10 +152,10 @@ class KompaktEncoder(Encoder):
             # node
             elif type.scalar_type in (
                 ScalarType.NODE,
-                ScalarType.NODE_UNTYPED_IDENTITY,
+                ScalarType.NODE_RAW,
                 ScalarType.NODE_IDENTITY,
-                ScalarType.NODE_LOCATION,
-                ScalarType.NODE_MOMENT,
+                ScalarType.NODE_SPATIAL,
+                ScalarType.NODE_TEMPORAL,
             ):
                 assert type.node_types is not None, f"no node types for {type!r}"
                 writer.write_uint32(len(type.node_types))
@@ -221,10 +221,10 @@ class KompaktEncoder(Encoder):
             # node
             elif scalar_type in (
                 ScalarType.NODE,
-                ScalarType.NODE_UNTYPED_IDENTITY,
+                ScalarType.NODE_RAW,
                 ScalarType.NODE_IDENTITY,
-                ScalarType.NODE_LOCATION,
-                ScalarType.NODE_MOMENT,
+                ScalarType.NODE_SPATIAL,
+                ScalarType.NODE_TEMPORAL,
             ):
                 node_types = [NodeType(reader.read_uint32()) for _ in range(reader.read_uint32())]
             # struct
@@ -452,16 +452,16 @@ class KompaktEncoder(Encoder):
         elif type.scalar_type == ScalarType.NODE:
             self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             writer.write_uuid(value.id)
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # node reference (moment)
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
@@ -560,31 +560,31 @@ class KompaktEncoder(Encoder):
                 options | EncoderFlag.OMIT_METATYPE,
             )
         # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return self.unpack_object_binary(
                 ObjectKind.STRUCT,
-                StructType.NODE_MOMENT,
+                StructType.NODE_TEMPORAL_REFERENCE,
                 reader,
                 session,
                 options | EncoderFlag.OMIT_METATYPE,
             )
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return reader.read_uuid()
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return self.unpack_object_binary(
                 ObjectKind.STRUCT,
-                StructType.NODE_IDENTITY,
+                StructType.NODE_IDENTITY_REFERENCE,
                 reader,
                 session,
                 options | EncoderFlag.OMIT_METATYPE,
             )
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return self.unpack_object_binary(
                 ObjectKind.STRUCT,
-                StructType.NODE_LOCATION,
+                StructType.NODE_SPATIAL_REFERENCE,
                 reader,
                 session,
                 options | EncoderFlag.OMIT_METATYPE,

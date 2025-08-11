@@ -46,7 +46,7 @@ class KompaktEncoderGenerator:
     def get_source_property_name(self, prop: PropertyDeclaration) -> str:
         """Get the name of a property."""
         source_name = prop.name
-        if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+        if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
             source_name += "_ptr"
         return source_name
 
@@ -478,16 +478,16 @@ for _ in range({key}_length):
         elif type.scalar_type == ScalarType.NODE:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return f"_writer.write_uuid({source_expr})"
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
         # node reference (moment)
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
@@ -575,17 +575,17 @@ for _ in range({key}_length):
         elif type.scalar_type == ScalarType.NODE:
             return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return "UUID(_reader.read_uuid())"
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_LOCATION.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_SPATIAL_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node reference (moment)
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_TEMPORAL_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"

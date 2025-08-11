@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, assert_never, override
 from destack.registry import STRUCT_DEFINITION_BY_TYPE
 
 from ...builtin import PrimitiveType, ScalarType, StructType, TypeCardinality
-from ...definition import NodeDefinition, StructDefinition
+from ...definition import NodeDefinition, PropertyDefinition, StructDefinition
 from .._core import ObjectSize, ObjectSizer
 
 if TYPE_CHECKING:
@@ -31,38 +31,54 @@ class PythonObjectSizer(ObjectSizer):
     DICT_EMPTY_SIZE = 64
 
     @override
-    def size_object(self, object: "StructDefinition | NodeDefinition") -> ObjectSize:
+    def size_object(
+        self,
+        object: "StructDefinition | NodeDefinition",
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated size of an object in bytes."""
         total_min_size = self.OBJECT_BASE_SIZE
         total_max_size = self.OBJECT_BASE_SIZE
+        path = (*_path, object.type) if isinstance(object, StructDefinition) else _path
         for prop in object.properties:
             if prop.is_static or prop.is_runtime_only:
                 continue
-            min_size, max_size = self.size_type(
-                prop.type,
-                include_reference=False,
-            )
-            total_min_size += min_size + self.POINTER_SIZE
-            total_max_size += (max_size or min_size) + self.POINTER_SIZE
+            prop_size = self.size_property(prop, include_reference=True, _path=path)
+            total_min_size += prop_size.min_size
+            total_max_size += prop_size.max_size or prop_size.min_size
         return ObjectSize(total_min_size, total_max_size)
 
     @override
-    def size_type(self, type: "Type", include_reference: bool = True) -> ObjectSize:
+    def size_property(
+        self,
+        property: "PropertyDefinition",
+        include_reference: bool = True,
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
+        return self.size_type(property.type, include_reference=include_reference, _path=_path)
+
+    @override
+    def size_type(
+        self,
+        type: "Type",
+        include_reference: bool = True,
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated size of a Type's value in bytes."""
 
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            size = self.size_type_scalar(type)
+            size = self.size_type_scalar(type, _path=_path)
         # list
         elif type.cardinality == TypeCardinality.LIST:
             # list object only, no elements yet
             size = ObjectSize(self.LIST_EMPTY_SIZE, None)
         # tuple
         elif type.cardinality == TypeCardinality.TUPLE:
-            assert type.element_types is not None, f"no element types for {type!r}"
             # tuple object + refs + element sizes
+            assert type.element_types is not None, f"no element types for {type!r}"
             base = self.TUPLE_BASE_SIZE + self.POINTER_SIZE * len(type.element_types)
-            elem_sizes = [self.size_type(t) for t in type.element_types]
+            elem_sizes = [self.size_type(t, _path=_path) for t in type.element_types]
             min_size = base + sum(s.min_size for s in elem_sizes)
             # any unbounded makes tuple unbounded
             if any(s.max_size is None for s in elem_sizes):
@@ -84,15 +100,19 @@ class PythonObjectSizer(ObjectSizer):
 
         # add pointer overhead if requested
         if include_reference:
-            size = ObjectSize(
+            return ObjectSize(
                 size.min_size + self.POINTER_SIZE,
                 (size.max_size or size.min_size) + self.POINTER_SIZE,
             )
-
-        return size
+        else:
+            return size
 
     @override
-    def size_type_scalar(self, type: "Type") -> ObjectSize:
+    def size_type_scalar(
+        self,
+        type: "Type",
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated size of a scalar type EXCLUDING the reference to it (no pointers)."""
         assert type.scalar_type is not None, f"no scalar type for {type!r}"
         # primitive
@@ -163,32 +183,35 @@ class PythonObjectSizer(ObjectSizer):
             # references in memory, also just pointers
             return ObjectSize(0, 0)
         # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             # treat as struct
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_MOMENT])
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_TEMPORAL_REFERENCE])
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             # UUID object
             return ObjectSize(self.UUID_OBJECT_SIZE, self.UUID_OBJECT_SIZE)
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             # treat as struct
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY])
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY_REFERENCE])
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             # treat as struct
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_LOCATION])
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_SPATIAL_REFERENCE])
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[type.struct_type])
+            if type.struct_type in _path:
+                return ObjectSize(0, 0)  # circular self reference
+            else:
+                return self.size_object(STRUCT_DEFINITION_BY_TYPE[type.struct_type], _path=_path)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot size HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
             assert type.element_types is not None, f"no element types for {type!r}"
-            elem_sizes = [self.size_type_scalar(t) for t in type.element_types]
+            elem_sizes = [self.size_type_scalar(t, _path=_path) for t in type.element_types]
             min_size = min(s.min_size for s in elem_sizes) if elem_sizes else 0
             # max is unknown if any is unbounded
             if any(s.max_size is None for s in elem_sizes):
