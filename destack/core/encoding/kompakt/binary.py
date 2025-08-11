@@ -36,7 +36,7 @@ class BinaryError(ValueError):
 
 
 class KompaktBinaryWriter(BinaryWriter):
-    """Write binary primitive values using Kompakt encoding."""
+    """Write binary primitive values using KOMPAKT encoding."""
 
     @override
     def to_bytes(self) -> Bytes:
@@ -326,7 +326,7 @@ class KompaktBinaryWriter(BinaryWriter):
 
 
 class KompaktBinaryReader(BinaryReader):
-    """Read binary primitive values using Kompakt encoding."""
+    """Read binary primitive values using KOMPAKT encoding."""
 
     @override
     def read_bool(self) -> bool:

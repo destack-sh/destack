@@ -312,7 +312,7 @@ class KompaktObjectSizer(ObjectSizer):
         elif type.cardinality == TypeCardinality.TUPLE:
             assert type.element_types is not None, f"no element types for {type!r}"
             length = len(type.element_types)
-            base = self._varint_size(length)
+            base = self._estimate_varint_size(length)
             elem_sizes = [self.size_type(t, _path=_path) for t in type.element_types]
             min_size = base + sum(s.min_size for s in elem_sizes)
             if any(s.max_size is None for s in elem_sizes):
@@ -444,7 +444,7 @@ class KompaktObjectSizer(ObjectSizer):
         else:
             assert_never(type.scalar_type)
 
-    def _varint_size(self, value: int) -> int:
+    def _estimate_varint_size(self, value: int) -> int:
         """Get the number of bytes to encode an unsigned integer as varint."""
         assert value >= 0, f"varint value must be non-negative: {value!r}"
         if value < 0x80:
@@ -457,3 +457,160 @@ class KompaktObjectSizer(ObjectSizer):
             return 4
         else:
             return 5
+
+
+class FlottObjectSizer(KompaktObjectSizer):
+    """
+    Estimate the encoded size in bytes for Flott binary format.
+    Flott uses fixed-width integers and fixed 4-byte length prefixes (no varints).
+    """
+
+    # override integer sizes to be fixed-width
+    INT16_RANGE = (2, 2)
+    INT32_RANGE = (4, 4)
+    INT64_RANGE = (8, 8)
+    INT128_RANGE = (16, 16)
+    UINT16_RANGE = (2, 2)
+    UINT32_RANGE = (4, 4)
+    UINT64_RANGE = (8, 8)
+    UINT128_RANGE = (16, 16)
+
+    # time-like primitives are fixed 8 bytes in Flott
+    DATETIME_RANGE = (8, 8)
+    DATE_RANGE = (8, 8)
+    TIME_RANGE = (8, 8)
+    DURATION_RANGE = (8, 8)
+
+    @override
+    def size_type(
+        self,
+        type: "Type",
+        include_reference: bool = True,
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
+        """Get the estimated encoded size of a Type's value in Flott bytes."""
+
+        if type.cardinality == TypeCardinality.SCALAR:
+            size = self.size_type_scalar(type, _path=_path)
+        elif type.cardinality == TypeCardinality.LIST:
+            # fixed 4-byte length prefix + elements
+            size = ObjectSize(4, None)
+        elif type.cardinality == TypeCardinality.TUPLE:
+            assert type.element_types is not None, f"no element types for {type!r}"
+            base = 4  # fixed u32 length prefix in Flott
+            elem_sizes = [self.size_type(t, _path=_path) for t in type.element_types]
+            min_size = base + sum(s.min_size for s in elem_sizes)
+            if any(s.max_size is None for s in elem_sizes):
+                max_size: int | None = None
+            else:
+                max_size = base + sum(s.max_size or 0 for s in elem_sizes)
+            size = ObjectSize(min_size, max_size)
+        elif type.cardinality == TypeCardinality.MAP:
+            # fixed 4-byte length prefix + entries
+            size = ObjectSize(4, None)
+        else:
+            assert_never(type.cardinality)
+
+        if not type.is_required:
+            size = ObjectSize(0, size.max_size or size.min_size)
+
+        return size
+
+    @override
+    def size_type_scalar(
+        self,
+        type: "Type",
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
+        """Get the estimated encoded size of a scalar Type in Flott bytes."""
+        assert type.scalar_type is not None, f"no scalar type for {type!r}"
+
+        if type.scalar_type == ScalarType.PRIMITIVE:
+            assert type.primitive_type is not None, f"no primitive type for {type!r}"
+            primitive = type.primitive_type
+            if primitive == PrimitiveType.NONE:
+                return ObjectSize(0, 0)
+            elif primitive == PrimitiveType.BOOLEAN:
+                return ObjectSize(self.BOOL_SIZE, self.BOOL_SIZE)
+            elif primitive == PrimitiveType.INT8:
+                return ObjectSize(self.INT8_SIZE, self.INT8_SIZE)
+            elif primitive == PrimitiveType.INT16:
+                return ObjectSize(*self.INT16_RANGE)
+            elif primitive == PrimitiveType.INT32:
+                return ObjectSize(*self.INT32_RANGE)
+            elif primitive == PrimitiveType.INT64:
+                return ObjectSize(*self.INT64_RANGE)
+            elif primitive == PrimitiveType.INT128:
+                return ObjectSize(*self.INT128_RANGE)
+            elif primitive == PrimitiveType.UINT8:
+                return ObjectSize(self.UINT8_SIZE, self.UINT8_SIZE)
+            elif primitive == PrimitiveType.UINT16:
+                return ObjectSize(*self.UINT16_RANGE)
+            elif primitive == PrimitiveType.UINT32:
+                return ObjectSize(*self.UINT32_RANGE)
+            elif primitive == PrimitiveType.UINT64:
+                return ObjectSize(*self.UINT64_RANGE)
+            elif primitive == PrimitiveType.UINT128:
+                return ObjectSize(*self.UINT128_RANGE)
+            elif primitive == PrimitiveType.FLOAT16:
+                return ObjectSize(self.FLOAT16_SIZE, self.FLOAT16_SIZE)
+            elif primitive == PrimitiveType.FLOAT32:
+                return ObjectSize(self.FLOAT32_SIZE, self.FLOAT32_SIZE)
+            elif primitive == PrimitiveType.FLOAT64:
+                return ObjectSize(self.FLOAT64_SIZE, self.FLOAT64_SIZE)
+            elif primitive == PrimitiveType.DATETIME:
+                return ObjectSize(*self.DATETIME_RANGE)
+            elif primitive == PrimitiveType.DATE:
+                return ObjectSize(*self.DATE_RANGE)
+            elif primitive == PrimitiveType.TIME:
+                return ObjectSize(*self.TIME_RANGE)
+            elif primitive == PrimitiveType.DURATION:
+                return ObjectSize(*self.DURATION_RANGE)
+            elif primitive == PrimitiveType.UUID:
+                return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
+            elif primitive == PrimitiveType.BYTES:
+                # fixed 4-byte length prefix + payload
+                return ObjectSize(4, None)
+            elif primitive == PrimitiveType.STRING:
+                # fixed 4-byte length prefix + payload
+                return ObjectSize(4, None)
+            elif primitive == PrimitiveType.CHARACTER:
+                return ObjectSize(self.CHARACTER_SIZE, self.CHARACTER_SIZE)
+            elif primitive == PrimitiveType.JSON:
+                # tag still 1 byte; nested values vary
+                return ObjectSize(1, None)
+            else:
+                assert_never(primitive)
+        elif type.scalar_type == ScalarType.ENUM:
+            # enums encoded as fixed u32 in Flott
+            return ObjectSize(4, 4)
+        elif type.scalar_type == ScalarType.NODE:
+            # encoded as object; unknown size
+            return ObjectSize(0, None)
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_TEMPORAL_REFERENCE])
+        elif type.scalar_type == ScalarType.NODE_RAW:
+            return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY_REFERENCE])
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_SPATIAL_REFERENCE])
+        elif type.scalar_type == ScalarType.STRUCT:
+            assert type.struct_type is not None, f"no struct type for {type!r}"
+            if type.struct_type in _path:
+                return ObjectSize(0, 0)
+            else:
+                return self.size_object(STRUCT_DEFINITION_BY_TYPE[type.struct_type])
+        elif type.scalar_type == ScalarType.HANDLE:
+            raise NotImplementedError(f"cannot size HANDLE: {type!r}")
+        elif type.scalar_type == ScalarType.UNION:
+            assert type.element_types is not None, f"no element types for {type!r}"
+            elem_sizes = [self.size_type_scalar(t, _path=_path) for t in type.element_types]
+            min_size = min((s.min_size for s in elem_sizes), default=0)
+            if any(s.max_size is None for s in elem_sizes):
+                max_size: int | None = None
+            else:
+                max_size = max((s.max_size or 0 for s in elem_sizes), default=0)
+            return ObjectSize(min_size, max_size)
+        else:
+            assert_never(type.scalar_type)

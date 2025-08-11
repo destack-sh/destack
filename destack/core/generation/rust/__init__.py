@@ -1,3 +1,3 @@
-from .layout import KompaktObjectSizer, RustObjectSizer
+from .layout import FlottObjectSizer, KompaktObjectSizer, RustObjectSizer
 
-__all__ = ["KompaktObjectSizer", "RustObjectSizer"]
+__all__ = ["FlottObjectSizer", "KompaktObjectSizer", "RustObjectSizer"]
