@@ -27,7 +27,7 @@ class PythonObjectSizer(ObjectSizer):
     - optional values (is_required=False) have min_size=0
     """
 
-    # python object overhead sizes
+    # object/collection base overheads (engine dependent)
     POINTER_SIZE = 8
     OBJECT_BASE_SIZE = 16
     TUPLE_BASE_SIZE = 40

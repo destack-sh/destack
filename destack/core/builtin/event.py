@@ -194,6 +194,7 @@ class Event(Node):
         description="The logical time last seen from the system in the Client for this space (client).",
         tags=("tracking", "client"),
     )
+    # nocheckin: merge all client_local_epochs into .ids (strict monotonic uuid7?)
     client_local_epoch: UInt128 = declare_property(
         27,
         is_eq=False,

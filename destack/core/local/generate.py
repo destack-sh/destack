@@ -5,6 +5,6 @@ cli = create_cli("generate", "Generate the libraries.")
 
 @cli.command()
 def generate():
-    """Generate the libraries and runtimes."""
+    """Generate the libraries / runtimes."""
     # nocheckin(all): generate libraries
     pass

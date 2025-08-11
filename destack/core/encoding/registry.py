@@ -11,14 +11,12 @@ def _generate_encoder(encoding: Encoding) -> Encoder:
         from .json.encoder import JsonEncoder
 
         encoder = JsonEncoder.generate()
-    elif encoding == Encoding.JSONC:
-        from .jsonc.encoder import JsoncEncoder
-
-        encoder = JsoncEncoder.generate()
     elif encoding == Encoding.KOMPAKT:
         from .kompakt.encoder import KompaktEncoder
 
         encoder = KompaktEncoder.generate()
+    elif encoding == Encoding.BREIT:
+        raise NotImplementedError("Breit encoding is not implemented yet")
     else:
         assert_never(encoding)
 

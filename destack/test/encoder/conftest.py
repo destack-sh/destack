@@ -11,53 +11,32 @@ _SILENCE_TYPES = (
 )
 
 
-class LoggingBinaryWriter(BinaryWriter):
-    """A BinaryWriter that logs all writes to stdout."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        # dynamically wrap all write_* methods
-        for attr_name in dir(self):
-            if attr_name.startswith("write_"):
-                original_method = getattr(self, attr_name)
-                if callable(original_method):
-                    setattr(
-                        self,
-                        attr_name,
-                        self._make_write_logging_wrapper(attr_name, original_method),
-                    )
-
-    def _make_write_logging_wrapper(self, method_name: str, original_method):
-        def wrapper(*args, **kwargs):
-            print(method_name, *(a for a in args if not isinstance(a, _SILENCE_TYPES)))
-            return original_method(*args, **kwargs)
-
-        return wrapper
-
-
-class LoggingBinaryReader(BinaryReader):
-    """A BinaryReader that logs all reads to stdout."""
-
-    def __init__(self, buffer: bytes) -> None:
-        super().__init__(buffer=buffer)
-        # dynamically wrap all read_* and peek_* methods
-        for attr_name in dir(self):
-            if attr_name.startswith(("read_", "peek_")):
-                original_method = getattr(self, attr_name)
-                if callable(original_method):
-                    setattr(
-                        self, attr_name, self._make_read_logging_wrapper(attr_name, original_method)
-                    )
-
-    def _make_read_logging_wrapper(self, method_name: str, original_method):
-        def wrapper(*args, **kwargs):
-            result = original_method(*args, **kwargs)
-            print(
-                method_name, *(a for a in args if not isinstance(a, _SILENCE_TYPES)), "->", result
+def wrap_binary_writer(writer: BinaryWriter) -> BinaryWriter:
+    """Wrap a binary writer instance to log all method calls."""
+    # dynamically wrap all write_* methods
+    for attr_name in dir(writer):
+        if attr_name.startswith("write_") and callable(getattr(writer, attr_name)):
+            original_method = getattr(writer, attr_name)
+            setattr(
+                writer,
+                attr_name,
+                _make_logging_wrapper(attr_name, original_method),
             )
-            return result
+    return writer
 
-        return wrapper
+
+def wrap_binary_reader(reader: BinaryReader) -> BinaryReader:
+    """Wrap a binary reader instance to log all method calls."""
+    # dynamically wrap all read_* and peek_* methods
+    for attr_name in dir(reader):
+        if attr_name.startswith(("read_", "peek_")) and callable(getattr(reader, attr_name)):
+            original_method = getattr(reader, attr_name)
+            setattr(
+                reader,
+                attr_name,
+                _make_logging_wrapper(attr_name, original_method),
+            )
+    return reader
 
 
 def wrap_encoder(encoder: Encoder) -> Encoder:

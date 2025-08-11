@@ -53,7 +53,7 @@ from .universe import NodeType, ObjectKind, ObjectStability, StructType
 from .uuid import UUID, uuid4, uuid7
 
 if TYPE_CHECKING:
-    from destack import BinaryReader, BinaryWriter, EncoderFlag, Hasher, Node, Session
+    from destack import BinaryReader, BinaryWriter, EncoderFlag, MemoryHasher, Node, Session
 
 
 __is_finalized__ = False
@@ -953,10 +953,10 @@ if {self_source_expr} != {other_source_expr}:
         hash_parts_str = "\n".join(hash_parts)
 
         hash_impl = f"""\
-def hash(self, _hasher: "Hasher | None" = None) -> Int64:
+def hash(self, _hasher: "Hasher | None" = None) -> "Int64":
     if _hasher is None:
-        from destack.core import Hasher
-        _hasher = Hasher()
+        from destack.core import MemoryHasher
+        _hasher = MemoryHasher()
 {textwrap.indent(hash_parts_str, " " * 4)}
     return _hasher.digest()
 """
@@ -1598,7 +1598,7 @@ class Object:
         """Checks if the content of the two objects is equal (recursively)."""
         raise NotImplementedError
 
-    def hash(self, _hasher: "Hasher | None" = None) -> Int64:
+    def hash(self, _hasher: "MemoryHasher | None" = None) -> Int64:
         """Hash of content properties."""
         raise NotImplementedError
 

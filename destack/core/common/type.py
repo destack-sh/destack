@@ -143,7 +143,7 @@ class Type(Struct):
 
     @declare_method(201, is_implemented=True)
     @classmethod
-    def infer(
+    def of(
         cls, value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.REGULAR
     ) -> "Type":
         """

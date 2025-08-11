@@ -1,5 +1,5 @@
 import gzip
-from typing import Any
+from typing import Any, Callable
 
 from destack import (
     BinaryReader,
@@ -7,6 +7,8 @@ from destack import (
     Encoder,
     Encoding,
     Form2D,
+    KompaktBinaryReader,
+    KompaktBinaryWriter,
     NodeReference,
     NodeType,
     Object,
@@ -18,7 +20,7 @@ from destack import (
 )
 from destack.core.encoding.registry import get_encoder
 
-from .conftest import LoggingBinaryReader, LoggingBinaryWriter, wrap_encoder
+from .conftest import wrap_binary_reader, wrap_binary_writer, wrap_encoder
 
 # ruff: noqa: T201
 
@@ -26,13 +28,15 @@ _LOG_ENCODE = False
 _LOG_RESULT = True
 
 ENCODERS = {encoding: get_encoder(encoding) for encoding in Encoding}
+_make_reader: Callable[[bytes], BinaryReader]
+_make_writer: Callable[[], BinaryWriter]
 if _LOG_ENCODE:
     ENCODERS = {encoding: wrap_encoder(encoder) for encoding, encoder in ENCODERS.items()}
-    _BinaryWriter = LoggingBinaryWriter
-    _BinaryReader = LoggingBinaryReader
+    _make_writer = lambda: wrap_binary_writer(KompaktBinaryWriter())
+    _make_reader = lambda buffer: wrap_binary_reader(KompaktBinaryReader(buffer=buffer))
 else:
-    _BinaryWriter = BinaryWriter
-    _BinaryReader = BinaryReader
+    _make_writer = KompaktBinaryWriter
+    _make_reader = lambda buffer: KompaktBinaryReader(buffer=buffer)
 
 
 def _do_test_roundtrip_object(obj: Object, encoder: Encoder, encoding: Encoding) -> bytes:
@@ -42,7 +46,7 @@ def _do_test_roundtrip_object(obj: Object, encoder: Encoder, encoding: Encoding)
         print(f" -> {encoding.name}")
         print("-" * 80)
 
-    writer = _BinaryWriter()
+    writer = _make_writer()
     encoder.pack_object_binary(obj, writer)
     packed_obj_bytes = writer.to_bytes()
     packed_obj_bytes_gzip = gzip.compress(packed_obj_bytes)
@@ -51,7 +55,7 @@ def _do_test_roundtrip_object(obj: Object, encoder: Encoder, encoding: Encoding)
         print(f"-> HASH: {obj.hash()}")
         print("-" * 80)
 
-    reader = _BinaryReader(buffer=packed_obj_bytes)
+    reader = _make_reader(packed_obj_bytes)
     unpacked_obj = encoder.unpack_object_binary(None, None, reader, None)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
@@ -65,7 +69,7 @@ def _do_test_roundtrip_value(type: Type, value: Any, encoder: Encoder, encoding:
         print(f" -> {encoding.name}")
         print("-" * 80)
 
-    writer = _BinaryWriter()
+    writer = _make_writer()
     encoder.pack_value_binary(type, value, writer)
     packed_value_bytes = writer.to_bytes()
     packed_value_bytes_gzip = gzip.compress(packed_value_bytes)
@@ -73,7 +77,7 @@ def _do_test_roundtrip_value(type: Type, value: Any, encoder: Encoder, encoding:
         print(f"-> BYTES: {len(packed_value_bytes)} ({len(packed_value_bytes_gzip)} gzip)")
         print("-" * 80)
 
-    reader = _BinaryReader(buffer=packed_value_bytes)
+    reader = _make_reader(packed_value_bytes)
     unpacked_value_bytes = encoder.unpack_value_binary(type, reader, None)
     assert unpacked_value_bytes == value, f"{unpacked_value_bytes!r} != {value!r}"
     if _LOG_RESULT:
@@ -105,12 +109,12 @@ def test_roundtrip_type():
     """Pack and unpack a Type."""
     # nocheckin: fix Kompakt type encoding with new 4 bit scalar type
     for type in (
-        Type.infer(bool),
-        Type.infer(17),
-        Type.infer(dict[str, Value]),
-        Type.infer(int | str),
-        Type.infer(Value | str | None),
-        Type.infer([Vector3(x=1.0, y=2.0, z=3.0)]),
+        Type.of(bool),
+        Type.of(17),
+        Type.of(dict[str, Value]),
+        Type.of(int | str),
+        Type.of(Value | str | None),
+        Type.of([Vector3(x=1.0, y=2.0, z=3.0)]),
     ):
         for encoding, encoder in ENCODERS.items():
             _ = _do_test_roundtrip_object(type, encoder, encoding)
@@ -119,7 +123,7 @@ def test_roundtrip_type():
 def test_roundtrip_vector3_list():
     """Pack and unpack a Vector3 list."""
     vectors = [Vector3(x=i * 0.1, y=i * 0.2, z=i * 0.3) for i in range(3)]
-    type = Type.infer(vectors)
+    type = Type.of(vectors)
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_value(type, vectors, encoder, encoding)
 
@@ -128,7 +132,7 @@ def test_roundtrip_vector3_list_compact():
     """Pack and unpack a Vector3 list with Kompakt."""
     num_vectors = 10
     vectors = [Vector3(x=i * 0.1, y=i * 0.2, z=i * 0.3) for i in range(num_vectors)]
-    type = Type.infer(vectors)
+    type = Type.of(vectors)
     vectors_bytes = _do_test_roundtrip_value(
         type, vectors, ENCODERS[Encoding.KOMPAKT], Encoding.KOMPAKT
     )
@@ -140,11 +144,11 @@ def test_roundtrip_vector3_list_compact():
 def test_roundtrip_value():
     """Pack and unpack a Value."""
     for value in (
-        Value.wrap(1),
-        Value.wrap(Vector3(x=1.0, y=2.0, z=3.0)),
-        Value.wrap((2, True, "Hello")),
-        Value.wrap(Rectangle2D(width=1.0, height=2.0)),
-        Value.wrap(Rectangle2D(width=1.0, height=2.0), type=Type.infer(Form2D)),
+        Value.of(1),
+        Value.of(Vector3(x=1.0, y=2.0, z=3.0)),
+        Value.of((2, True, "Hello")),
+        Value.of(Rectangle2D(width=1.0, height=2.0)),
+        Value.of(Rectangle2D(width=1.0, height=2.0), type=Type.of(Form2D)),
     ):
         for encoding, encoder in ENCODERS.items():
             _ = _do_test_roundtrip_object(value, encoder, encoding)

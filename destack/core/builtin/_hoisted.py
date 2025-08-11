@@ -185,6 +185,7 @@ class Region(OptionEnum):
 
 @declare_enum(EnumType.REFERENCE_TYPE)
 class ReferenceType(OptionEnum):
+    # nocheckin: add more ReferenceTypes, make them regular (identity, location, "instance", ..?)
     REGULAR = declare_option(
         1,
         description="Fat reference (NodeReference)",
@@ -195,30 +196,13 @@ class ReferenceType(OptionEnum):
     )
 
 
-@declare_enum(EnumType.REFERENCE_DIRECTION)
-class ReferenceDirection(OptionEnum):
-    PARENT = declare_option(1)
-    CHILD = declare_option(2)
-    DEFINITION = declare_option(10)
-    INSTANCE = declare_option(11)
-    SIDE = declare_option(20)
-
-
-@declare_enum(EnumType.REFERENCE_CASCADE)
-class ReferenceCascade(OptionEnum):
-    RESTRICT = declare_option(1)
-    CASCADE = declare_option(2)
-    SET_NULL = declare_option(3)
-    # SET_DEFAULT, NONE, ...
-
-
 @declare_enum(EnumType.ENCODING)
 class Encoding(OptionEnum):
     """Encoding scheme."""
 
     JSON = declare_option(1, "JSON", description="JSON encoding")
-    JSONC = declare_option(2, "JSONC", description="Constant-keyed JSON encoding")
-    KOMPAKT = declare_option(3, "KOMPAKT", description="Kompakt encoding")
+    KOMPAKT = declare_option(3, "KOMPAKT", description="Kompakt encoding (optimized for size)")
+    # BREIT = declare_option(4, "BREIT", description="Breit encoding (optimized for speed)")
     # KONSTANT, ...
     # C?
 
@@ -327,59 +311,92 @@ class PrimitiveType(OptionEnum):
     BOOLEAN = declare_option(
         2,
         "Boolean",
-        description="Boolean flag (True or False)",
+        description="""\
+Boolean flag (True or False, 1 byte)
+Range: False, True
+""",
     )
     # integer
     INT8 = declare_option(
         3,
         "Int8",
-        description="8-bit signed integer (-2^7 to 2^7-1)",
+        description="""\
+8-bit signed integer
+Range: -2^7 to 2^7-1
+""",
     )
     INT16 = declare_option(
         4,
         "Int16",
-        description="16-bit signed integer (-2^15 to 2^15-1)",
+        description="""\
+16-bit signed integer
+Range: -2^15 to 2^15-1
+""",
     )
     INT32 = declare_option(
         5,
         "Int32",
-        description="32-bit signed integer (-2^31 to 2^31-1)",
+        description="""\
+32-bit signed integer
+Range: -2^31 to 2^31-1
+""",
     )
     INT64 = declare_option(
         6,
         "Int64",
-        description="64-bit signed integer (-2^63 to 2^63-1)",
+        description="""\
+64-bit signed integer
+Range: -2^63 to 2^63-1
+""",
     )
     INT128 = declare_option(
         7,
         "Int128",
-        description="128-bit signed integer (-2^127 to 2^127-1)",
+        description="""\
+128-bit signed integer
+Range: -2^127 to 2^127-1
+""",
     )
     # INT256, ...
     UINT8 = declare_option(
         10,
         "UInt8",
-        description="8-bit unsigned integer (0 to 2^8-1)",
+        description="""\
+8-bit unsigned integer
+Range: 0 to 2^8-1
+""",
     )
     UINT16 = declare_option(
         11,
         "UInt16",
-        description="16-bit unsigned integer (0 to 2^16-1)",
+        description="""\
+16-bit unsigned integer
+Range: 0 to 2^16-1
+""",
     )
     UINT32 = declare_option(
         12,
         "UInt32",
-        description="32-bit unsigned integer (0 to 2^32-1)",
+        description="""\
+32-bit unsigned integer
+Range: 0 to 2^32-1
+""",
     )
     UINT64 = declare_option(
         13,
         "UInt64",
-        description="64-bit unsigned integer (0 to 2^64-1)",
+        description="""\
+64-bit unsigned integer
+Range: 0 to 2^64-1
+""",
     )
     UINT128 = declare_option(
         14,
         "UInt128",
-        description="128-bit unsigned integer (0 to 2^128-1)",
+        description="""\
+128-bit unsigned integer
+Range: 0 to 2^128-1
+""",
     )
     # UINT256, ...
     # float
@@ -387,17 +404,26 @@ class PrimitiveType(OptionEnum):
     FLOAT16 = declare_option(
         22,
         "Float16",
-        description="16-bit half-precision float (±2^14)",
+        description="""\
+16-bit half-precision float
+Range: ±2^-14 to ±2^15-1
+""",
     )
     FLOAT32 = declare_option(
         23,
         "Float32",
-        description="32-bit single-precision float (±2^127)",
+        description="""\
+32-bit single-precision float
+Range: ±2^-126 to ±2^127-1
+""",
     )
     FLOAT64 = declare_option(
         24,
         "Float64",
-        description="64-bit double-precision float (±2^1023)",
+        description="""\
+64-bit double-precision float
+Range: ±2^-1022 to ±2^1023-1
+""",
     )
     # COMPLEX16, COMPLEX32, COMPLEX64, ...
     # DECIMAL, ...
@@ -405,50 +431,77 @@ class PrimitiveType(OptionEnum):
     DATETIME = declare_option(
         40,
         "Datetime",
-        description="Datetime (microsecond precision, UTC, 0001-01-01 to 9999-12-31)",
+        description="""\
+Datetime in signed 64-bit microsecond precision since epoch (UTC)
+Range: ±292,277 years
+""",
     )
     DATE = declare_option(
         41,
         "Date",
-        description="Date (day precision, 0001-01-01 to 9999-12-31)",
+        description="""\
+Date in signed 64-bit day precision since epoch
+Range: ±2.525x10^16 days
+""",
     )
     TIME = declare_option(
         42,
         "Time",
-        description="Time (microsecond precision, 00:00:00.000000 to 23:59:59.999999)",
+        description="""\
+Time in unsigned 64-bit nanosecond precision
+Range: 00:00:00.000000000 to 23:59:59.999999999
+""",
     )
     DURATION = declare_option(
         43,
         "Duration",
-        description="Duration (microsecond precision, 00:00:00.000000 to 9999-12-31 23:59:59.999999)",
+        description="""\
+Duration in signed 64-bit nanosecond precision
+Range: ±292.277 years
+""",
     )
     # DATETIME_WITH_ZONE, TIME_WITH_ZONE, ...
     # string
     STRING = declare_option(
         50,
         "String",
-        description="Plain text",
+        description="""\
+Plain text (UTF-8, 32-bit variable length)
+Range: 0 to 2^32-1
+""",
     )
     CHARACTER = declare_option(
         51,
         "Character",
-        description="Single character",
+        description="""\
+Single character (UTF-8, 32-bit)
+Range: 0 to 2^32-1
+""",
     )
     UUID = declare_option(
         55,
         "UUID",
-        description="Universally unique identifier (UUID4 or UUID7, 16 bytes)",
+        description="""\
+Universally unique identifier (UUID4, UUID5 or UUID7, 128-bit)
+Range: 0 to 2^128-1
+""",
     )
     BYTES = declare_option(
         56,
         "Bytes",
-        description="Binary data (arbitrary bytes)",
+        description="""\
+Binary data (32-bit variable length)
+Range: 0 to 2^32-1
+""",
     )
     # VECTOR?
     JSON = declare_option(
         557,
         "JSON",
-        description="JSON (arbitrary JSON data)",
+        description="""\
+JSON (32-bit variable length)
+Range: 0 to 2^32-1
+""",
     )
 
 
