@@ -2,10 +2,14 @@ from datetime import datetime
 from pathlib import Path
 
 from .. import VERSION
-from . import console
-from .parser import create_cli
+from . import _console
+from ._parser import create_cli
 
-cli = create_cli("version", "Mark new versions.")
+cli = create_cli(
+    "version",
+    aliases=["v", "ver"],
+    help="Mark new versions.",
+)
 
 
 def _to_semver(calver: str) -> str:
@@ -41,7 +45,7 @@ def bump(revision: int | None = None):
 
     new_version = today.strftime("%Y.%m.%d") + "." + str(revision)
     new_version_semver = _to_semver(new_version)
-    console.print(f"Version: {current_version} -> {new_version}", "bright_yellow")
+    _console.print(f"Version: {current_version} -> {new_version}", "bright_yellow")
 
     # check that version is in all files first
     files_to_update = (

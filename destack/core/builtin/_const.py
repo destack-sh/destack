@@ -15,7 +15,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2025.08.08.1"
+VERSION = "2025.08.11.1"
 EPSILON = 1e-6
 EPSILON_EXPONENT = 6
 
