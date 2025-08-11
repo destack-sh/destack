@@ -29,7 +29,7 @@ class MouseButton(OptionEnum):
 class MouseEvent(PointerEvent):
     """A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse."""
 
-    button: MouseButton = declare_property(130, is_repr=True)
+    button: MouseButton = declare_property(130, is_repr=True, tag=None)
 
 
 @declare_event(NodeType.CLICK_EVENT, is_abstract=True)
@@ -64,4 +64,4 @@ class TripleClickEvent(ClickEvent):
 class WheelEvent(MouseEvent):
     """A WheelEvent is a MouseEvent when a wheel is scrolled."""
 
-    delta: "Vector2" = declare_property(140)
+    delta: "Vector2" = declare_property(140, tag=None)

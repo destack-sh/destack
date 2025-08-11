@@ -3,7 +3,7 @@ import inspect
 import typing
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Optional, Self, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Self
 
 from ._const import UNSET
 
@@ -405,8 +405,7 @@ def _process_method(
         inner_func = func.__func__
         type = MethodType.CLASS
     elif isinstance(func, property):
-        inner_func = cast(Callable, func.fget)
-        type = MethodType.PROPERTY
+        raise ValueError(f"properties cannot be declared as methods: {func}")
     else:
         inner_func = func
         # highly scientific way to determine if we're in a class
@@ -507,7 +506,7 @@ def declare_method(
 
         # validate
         qualname = f"{func.__module__}.{func.__qualname__}"  # type: ignore
-        if declaration.type in (MethodType.PROPERTY, MethodType.INSTANCE):
+        if declaration.type == MethodType.INSTANCE:
             assert declaration.id < 200, f"id {declaration.id} outside range for {qualname} (<200)"
         elif declaration.type == MethodType.CLASS:
             assert 201 <= declaration.id < 300, (
@@ -700,6 +699,7 @@ class TagDeclaration(Declaration):
     id: int
     name: str
     description: str
+    is_internal: bool = False
 
 
 @dataclass(slots=True, repr=False)

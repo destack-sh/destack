@@ -90,8 +90,8 @@ class LengthType(OptionEnum):
 class Length(Struct):
     """An absolute or relative length value."""
 
-    unit: LengthType = declare_property(101, is_repr=True)
-    value: Int16 = declare_property(102, is_repr=True)
+    unit: LengthType = declare_property(101, is_repr=True, tag=None)
+    value: Int16 = declare_property(102, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -102,11 +102,11 @@ class Length(Struct):
 class Offset2(Struct):
     """A 2-dimensional position value (relative or absolute)."""
 
-    type: Anchor = declare_property(100, is_repr=True)
-    top: Length | None = declare_property(101, is_repr=True)
-    left: Length | None = declare_property(102, is_repr=True)
-    width: Length | None = declare_property(103, is_repr=True)
-    height: Length | None = declare_property(104, is_repr=True)
+    type: Anchor = declare_property(100, is_repr=True, tag=None)
+    top: Length = declare_property(101, is_repr=True, tag=None)
+    left: Length = declare_property(102, is_repr=True, tag=None)
+    width: Length = declare_property(103, is_repr=True, tag=None)
+    height: Length = declare_property(104, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -117,11 +117,10 @@ class Offset2(Struct):
 class Inset2(Struct):
     """A 2-dimensional insets value (base + side overrides)."""
 
-    base: Int16 = declare_property(101, is_repr=True, default=0)
-    top: Int16 | None = declare_property(102, is_repr=True)
-    left: Int16 | None = declare_property(103, is_repr=True)
-    right: Int16 | None = declare_property(104, is_repr=True)
-    bottom: Int16 | None = declare_property(105, is_repr=True)
+    top: Int16 = declare_property(102, is_repr=True, tag=None)
+    left: Int16 = declare_property(103, is_repr=True, tag=None)
+    right: Int16 = declare_property(104, is_repr=True, tag=None)
+    bottom: Int16 = declare_property(105, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -132,11 +131,10 @@ class Inset2(Struct):
 class Corner2(Struct):
     """A 2-dimensional corners value (base + corner overrides)."""
 
-    base: Int16 = declare_property(101, is_repr=True, default=0)
-    top_left: Int16 | None = declare_property(102, is_repr=True)
-    top_right: Int16 | None = declare_property(103, is_repr=True)
-    bottom_left: Int16 | None = declare_property(104, is_repr=True)
-    bottom_right: Int16 | None = declare_property(105, is_repr=True)
+    top_left: Int16 = declare_property(102, is_repr=True, tag=None)
+    top_right: Int16 = declare_property(103, is_repr=True, tag=None)
+    bottom_left: Int16 = declare_property(104, is_repr=True, tag=None)
+    bottom_right: Int16 = declare_property(105, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -147,9 +145,8 @@ class Corner2(Struct):
 class Axis2(Struct):
     """A 2-dimensional axis value (base + x/y overrides)."""
 
-    base: Int16 = declare_property(101, is_repr=True, default=0)
-    x: Int16 | None = declare_property(102, is_repr=True)
-    y: Int16 | None = declare_property(103, is_repr=True)
+    x: Int16 = declare_property(102, is_repr=True, tag=None)
+    y: Int16 = declare_property(103, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -160,10 +157,9 @@ class Axis2(Struct):
 class Axis3(Struct):
     """A 3-dimensional axis value (base + x/y/z overrides)."""
 
-    base: Int16 = declare_property(101, is_repr=True, default=0)
-    x: Int16 | None = declare_property(102, is_repr=True)
-    y: Int16 | None = declare_property(103, is_repr=True)
-    z: Int16 | None = declare_property(104, is_repr=True)
+    x: Int16 = declare_property(102, is_repr=True, tag=None)
+    y: Int16 = declare_property(103, is_repr=True, tag=None)
+    z: Int16 = declare_property(104, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -174,11 +170,11 @@ class Axis3(Struct):
 class Grid2(Struct):
     """A 2-dimensional grid configuration value."""
 
-    columns: Int16 = declare_property(101, is_repr=True)
-    rows: Int16 = declare_property(102, is_repr=True)
-    column_width: Length | None = declare_property(103, is_repr=True)
-    column_min_width: Length | None = declare_property(104, is_repr=True)
-    row_height: Length | None = declare_property(105, is_repr=True)
+    columns: Int16 = declare_property(101, is_repr=True, tag=None)
+    rows: Int16 = declare_property(102, is_repr=True, tag=None)
+    column_width: Length | None = declare_property(103, is_repr=True, tag=None)
+    column_min_width: Length | None = declare_property(104, is_repr=True, tag=None)
+    row_height: Length | None = declare_property(105, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -189,5 +185,5 @@ class Grid2(Struct):
 class GridSpan2(Struct):
     """A 2-dimensional grid span value."""
 
-    columns: Int16 = declare_property(101, is_repr=True)
-    rows: Int16 = declare_property(102, is_repr=True)
+    columns: Int16 = declare_property(101, is_repr=True, tag=None)
+    rows: Int16 = declare_property(102, is_repr=True, tag=None)

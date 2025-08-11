@@ -1,11 +1,9 @@
-from typing import TYPE_CHECKING, Any, cast, final
+from typing import TYPE_CHECKING, Any, final
 
 from ..builtin import (
     UNSET,
-    Node,
     PropertyDeclaration,
     ReferenceType,
-    Struct,
     StructType,
     UInt8,
     ValueFactory,
@@ -30,50 +28,58 @@ type_ = type
 class PropertyDefinition(Definition):
     """Definition of a builtin Property."""
 
-    id: UInt8 = declare_property(2, is_repr=True)
-    type: Type = declare_property(100)
-    taggings: list[UInt8] = declare_property(109)
+    id: UInt8 = declare_property(2, is_repr=True, tag=None)
+    type: Type = declare_property(100, tag=None)
+    tag: UInt8 | None = declare_property(109, tag=None)
 
     # defaults
-    default_value: Value | None = declare_property(120)
-    default_factory: ValueFactory | None = declare_property(121)
+    default_value: Value | None = declare_property(120, tag=None)
+    default_factory: ValueFactory | None = declare_property(121, tag=None)
 
     # relationships
-    reference_type: ReferenceType | None = declare_property(130)
+    reference_type: ReferenceType | None = declare_property(130, tag=None)
 
     # property flags
     is_readonly: bool = declare_property(
         142,
         is_repr=True,
         description="Whether this Property is read-only.",
+        tag=None,
     )
     is_repr: bool = declare_property(
         143,
         description="Whether this Property is included in the object's string representation.",
+        tag=None,
     )
     is_hash: bool = declare_property(
         144,
         description="Whether this Property is included in the object's hash.",
+        tag=None,
     )
     is_eq: bool = declare_property(
         145,
         description="Whether this Property is included in the object's equality check.",
+        tag=None,
     )
     is_managed: bool = declare_property(
         146,
         description="Whether this Property is internally managed by the system.",
+        tag=None,
     )
     is_static: bool = declare_property(
         147,
         description="Whether this Property is static (only exists once per object).",
+        tag=None,
     )
     is_runtime_only: bool = declare_property(
         148,
         description="Whether this Property is only set at runtime (is not wired).",
+        tag=None,
     )
     is_interned: bool = declare_property(
         149,
         description="Whether this Property is interned (stored in a shared pool).",
+        tag=None,
     )
 
     @classmethod
@@ -92,17 +98,12 @@ class PropertyDefinition(Definition):
         # resolve taggings locally
         from .object import resolve_tagging
 
-        taggings = [
-            resolve_tagging(cast(type_["Node"] | type_["Struct"], object_cls), tag).id
-            for tag in prop.tags
-        ]
-
         return cls(
             # meta
             id=prop.id,
             name=prop.name,
             description=prop.description,
-            taggings=taggings,
+            tag=resolve_tagging(object_cls, prop.tag).id if prop.tag else None,
             # type
             type=type,
             default_value=Value.of(prop.default_value) if prop.default_value is not UNSET else None,

@@ -11,5 +11,11 @@ from .input import InputView
 class NumberInputView(InputView):
     """A general number input View."""
 
-    value: Optional[Float64] = declare_property(250)
-    placeholder: Optional[str] = declare_property(251)
+    value: Optional[Float64] = declare_property(
+        250,
+        tag=None,
+    )
+    placeholder: Optional[str] = declare_property(
+        251,
+        tag=None,
+    )

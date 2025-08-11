@@ -12,5 +12,12 @@ if TYPE_CHECKING:
 class Index(Entity):
     """Index of an Entity for faster querying."""
 
-    type: IndexType = declare_property(100, is_repr=True)
-    properties: list["PropertyReference"] = declare_property(105)
+    type: IndexType = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
+    properties: list["PropertyReference"] = declare_property(
+        105,
+        tag=None,
+    )

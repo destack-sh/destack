@@ -36,63 +36,63 @@ class HandleDefinition(ObjectDefinition):
     type: HandleType = declare_property(
         100,
         is_repr=True,
-        tags=("meta",),
+        tag="meta",
     )
     stability: ObjectStability = declare_property(
         105,
         description="The stability of this Handle (how its definition is expected to change).",
-        tags=("meta",),
+        tag="meta",
     )
-    taggings: list[UInt8] = declare_property(
+    tag: UInt8 | None = declare_property(
         109,
-        tags=("meta",),
+        tag="meta",
     )
     is_abstract: bool = declare_property(
         111,
         description="Whether this Handle is abstract (cannot be instantiated directly).",
-        tags=("meta",),
+        tag="meta",
     )
 
     # content
     properties: list["PropertyDefinition"] = declare_property(
         120,
         description="All properties of this Handle.",
-        tags=("content",),
+        tag="content",
     )
     methods: list["MethodDefinition"] = declare_property(
         125,
         description="All methods of this Handle (excluding actions).",
-        tags=("content",),
+        tag="content",
     )
     constants: list["ConstantDefinition"] = declare_property(
         128,
-        tags=("content",),
+        tag="content",
     )
     tags: list["TagDefinition"] = declare_property(
         129,
-        tags=("content",),
+        tag="content",
     )
 
     # inheritance
     base_type: HandleType | None = declare_property(
         130,
         description="The base type this Handle extends (directly).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     extended_by: list[HandleType] = declare_property(
         131,
         description="Handles that extend this Handle type (directly).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     inherits: list[HandleType] = declare_property(
         132,
         description="Handles that this Handle inherits.",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     inherited_by: list[HandleType] = declare_property(
         133,
         description="Handles that inherit this Handle type.",
-        tags=("inheritance",),
+        tag="inheritance",
     )
 
     # associations

@@ -23,6 +23,12 @@ class Layer(Entity):
     """A Layer is a container for Views."""
 
     # style
-    is_visible: Optional[bool] = declare_property(140)
-    opacity: Optional[Float32] = declare_property(141)
+    is_visible: Optional[bool] = declare_property(
+        140,
+        tag=None,
+    )
+    opacity: Optional[Float32] = declare_property(
+        141,
+        tag=None,
+    )
     # parallax?

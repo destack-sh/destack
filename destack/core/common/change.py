@@ -76,6 +76,7 @@ class EditOperation(Struct):
     type: "EditOperationType" = declare_property(
         100,
         description="The type of EditOperation.",
+        tag=None,
     )
     # TODO :Incomplete: EditOperation.path? (for editing nested stuff)
     property_id: UInt8 = declare_property(
@@ -84,25 +85,36 @@ class EditOperation(Struct):
 The id of the builtin Property being edited.
 If it's a custom Property, this just refers to Entity.custom_values.
 """,
+        tag=None,
     )
     custom_property_name: str | None = declare_property(
-        104, is_repr=True, description="The name of the custom Property being edited."
+        104,
+        is_repr=True,
+        description="The name of the custom Property being edited.",
+        tag=None,
     )
     key: Optional["Value"] = declare_property(
-        105, is_repr=True, description="The key being edited."
+        105,
+        is_repr=True,
+        description="The key being edited.",
+        tag=None,
     )
     # path?
-    value: Optional["Value"] = declare_property(120)
+    value: Optional["Value"] = declare_property(120, tag=None)
 
     # reverse
     # EditEvent.type in reverse is derivable
     # EditEvent.node is same
     reverse_operation: Optional["EditOperation"] = declare_property(
-        202, description="The specific reverse Edit operation."
+        202,
+        description="The specific reverse Edit operation.",
+        tag=None,
     )
     # EditEvent.attribute/key is same
     reverse_value: Optional["Value"] = declare_property(
-        210, description="The value of the reverse Edit."
+        210,
+        description="The value of the reverse Edit.",
+        tag=None,
     )
 
 
@@ -113,18 +125,25 @@ class ChangeEvent(Event):
     # NOTE :Incomplete: would be cool to support custom ChangeTypes/Operations/Events somehow...
 
     # meta
-    type: "ChangeType" = declare_property(100, is_repr=True, description="The type of Change.")
+    type: "ChangeType" = declare_property(
+        100,
+        is_repr=True,
+        description="The type of Change.",
+        tag=None,
+    )
     node: "Entity" = declare_property(
         101,
         is_repr=True,
         reference_type=ReferenceType.IDENTITY,
         description="The Entity being edited.",
+        tag=None,
     )
     change: Optional["ChangeEvent"] = declare_property(
         102,
         is_repr=True,
         reference_type=ReferenceType.RAW,
         description="The ChangeEvent this Change is a part of.",
+        tag=None,
     )
     # depends_on: Optional["ChangeEvent"]? (skip this Change if the depends_on ChangeEvent failed)
 
@@ -133,13 +152,16 @@ class ChangeEvent(Event):
         110,
         is_repr=True,
         description="The full Node (for create/upsert).",
+        tag=None,
     )
     reverse_value: Optional["Value"] = declare_property(
         111,
         description="The reverse value (for delete/restore).",
+        tag=None,
     )
     operations: Optional[list["EditOperation"]] = declare_property(
         112,
         description="The update operations (for update/move).",
+        tag=None,
     )
     # predicate (for conditional ChangeEvent)?

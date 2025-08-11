@@ -10,4 +10,4 @@ class Audio(File):
     An Audio File.
     """
 
-    duration: timedelta = declare_property(129)
+    duration: timedelta = declare_property(129, tag=None)

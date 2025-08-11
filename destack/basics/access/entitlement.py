@@ -24,10 +24,12 @@ class EntitlementEvent(Event):
     entitlement: "Entitlement" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     target: "Entity" = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -66,9 +68,16 @@ class EntitlementType(OptionEnum):
 class Entitlement(Entity):
     """An Entitlement to some Entity."""
 
-    type: EntitlementType = declare_property(100)
-    expires_at: Optional[datetime] = declare_property(110)
+    type: EntitlementType = declare_property(
+        100,
+        tag=None,
+    )
+    expires_at: Optional[datetime] = declare_property(
+        110,
+        tag=None,
+    )
     target: "Entity" = declare_property(
         111,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )

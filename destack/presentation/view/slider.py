@@ -11,4 +11,7 @@ from .input import InputView
 class SliderInputView(InputView):
     """A slider input View."""
 
-    value: Optional[Float64] = declare_property(250)
+    value: Optional[Float64] = declare_property(
+        250,
+        tag=None,
+    )

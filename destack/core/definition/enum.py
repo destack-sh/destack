@@ -26,13 +26,13 @@ type_ = type
 class EnumDefinition(Definition):
     """Definition of a builtin Enum."""
 
-    id: UInt32 = declare_property(2, is_repr=True)
-    type: EnumType = declare_property(100, is_repr=True)
-    taggings: list[UInt8] = declare_property(109)
-    is_flag: bool = declare_property(110)
+    id: UInt32 = declare_property(2, is_repr=True, tag=None)
+    type: EnumType = declare_property(100, is_repr=True, tag=None)
+    taggings: list[UInt8] = declare_property(109, tag=None)
+    is_flag: bool = declare_property(110, tag=None)
 
     # content
-    options: list["OptionDefinition"] = declare_property(120)
+    options: list["OptionDefinition"] = declare_property(120, tag=None)
 
     @classmethod
     def from_declaration(cls, declaration: EnumDeclaration) -> "EnumDefinition":

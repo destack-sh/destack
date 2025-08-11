@@ -21,4 +21,4 @@ class Team(Entity):
     An Team with Users and Teams.
     """
 
-    slug: str = declare_property(102, is_repr=True)
+    slug: str = declare_property(102, is_repr=True, tag=None)

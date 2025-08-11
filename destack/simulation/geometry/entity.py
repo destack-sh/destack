@@ -4,6 +4,7 @@ from destack.core import (
     Entity,
     Float32,
     NodeType,
+    TagDeclaration,
     declare_entity,
     declare_property,
 )
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
 @declare_entity(
     NodeType.ENTITY2D,
     is_abstract=True,
+    tags=(TagDeclaration(id=110, name="transform", description="Transform"),),
 )
 class Entity2D(Entity):
     """An Entity in 2D space."""
@@ -22,25 +24,26 @@ class Entity2D(Entity):
     # transform
     position: "Vector2" = declare_property(
         110,
-        tags=("transform",),
         description="The position of the Entity in 2D space.",
+        tag="transform",
     )
     scale: "Vector2" = declare_property(
         111,
-        tags=("transform",),
         description="The scale of the Entity in 2D space.",
+        tag="transform",
     )
     rotation: Float32 = declare_property(
         112,
-        tags=("transform",),
         default=0.0,
         description="The rotation of the Entity in 2D space.",
+        tag="transform",
     )
 
 
 @declare_entity(
     NodeType.ENTITY3D,
     is_abstract=True,
+    tags=(TagDeclaration(id=110, name="transform", description="Transform"),),
 )
 class Entity3D(Entity):
     """An Entity in 3D space."""
@@ -48,16 +51,16 @@ class Entity3D(Entity):
     # transform
     position: "Vector3" = declare_property(
         110,
-        tags=("transform",),
         description="The position of the Entity in 3D space.",
+        tag="transform",
     )
     scale: "Vector3" = declare_property(
         111,
-        tags=("transform",),
         description="The scale of the Entity in 3D space.",
+        tag="transform",
     )
     rotation: "Quaternion" = declare_property(
         112,
-        tags=("transform",),
         description="The rotation of the Entity in 3D space.",
+        tag="transform",
     )

@@ -25,12 +25,12 @@ class ActionDefinition(FunctionDefinition):
     """Definition of a builtin Action."""
 
     # meta
-    type: ActionType = declare_property(100)
+    type: ActionType = declare_property(100, tag=None)
 
     # content
-    input_message_type: Optional["StructType"] = declare_property(130)
-    output_message_type: Optional["StructType"] = declare_property(131)
-    emits_event_types: Optional[list[NodeType]] = declare_property(132)
+    input_message_type: Optional["StructType"] = declare_property(130, tag=None)
+    output_message_type: Optional["StructType"] = declare_property(131, tag=None)
+    emits_event_types: Optional[list[NodeType]] = declare_property(132, tag=None)
 
     @classmethod
     def from_declaration(cls, declaration: "ActionDeclaration") -> "Self":

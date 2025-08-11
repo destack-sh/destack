@@ -51,5 +51,9 @@ class Snapshot(Entity):
      (Technically, Snapshots are part of themselves.)
     """
 
-    type: SnapshotType = declare_property(100)
-    status: SnapshotStatus = declare_property(110, default=SnapshotStatus.ACTIVE)
+    type: SnapshotType = declare_property(100, tag=None)
+    status: SnapshotStatus = declare_property(
+        110,
+        default=SnapshotStatus.ACTIVE,
+        tag=None,
+    )

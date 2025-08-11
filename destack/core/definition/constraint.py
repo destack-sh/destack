@@ -23,11 +23,11 @@ type_ = type
 class ConstraintDefinition(Definition):
     """Definition of a builtin Constraint."""
 
-    id: UInt8 = declare_property(2, is_repr=True)
-    type: "ConstraintType" = declare_property(100, is_repr=True)
+    id: UInt8 = declare_property(2, is_repr=True, tag=None)
+    type: "ConstraintType" = declare_property(100, is_repr=True, tag=None)
 
     # content
-    properties: list["PropertyReference"] = declare_property(120)
+    properties: list["PropertyReference"] = declare_property(120, tag=None)
 
     @classmethod
     def from_declaration(cls, declaration: "ConstraintDeclaration") -> "Self":

@@ -83,7 +83,7 @@ class Error(Struct, Exception):
         2,
         default_factory=ValueFactory.UUID7,
         description="The universally unique identifier of this Error.",
-        tags=("identity",),
+        tag="identity",
     )
 
     # 20-40: Error tracking
@@ -94,7 +94,7 @@ class Error(Struct, Exception):
         default_factory=ValueFactory.CLIENT,
         reference_type=ReferenceType.LOCATION,
         description="The Client that created this Error (client, but verified).",
-        tags=("tracking",),
+        tag="tracking",
     )
     client_nonce: UInt8 = declare_property(
         24,
@@ -102,7 +102,7 @@ class Error(Struct, Exception):
         is_readonly=True,
         default_factory=ValueFactory.CLIENT_NONCE,
         description="The nonce of the Client that created this Error (client).",
-        tags=("tracking",),
+        tag="tracking",
     )
     client_created_at: datetime = declare_property(
         25,
@@ -110,7 +110,7 @@ class Error(Struct, Exception):
         is_readonly=True,
         default_factory=ValueFactory.NOW,
         description="The time in the Client when it created this Error (client).",
-        tags=("tracking",),
+        tag="tracking",
     )
     client_remote_epoch: UInt64 = declare_property(
         26,
@@ -118,7 +118,7 @@ class Error(Struct, Exception):
         is_readonly=True,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time last seen from the system in the Client for this space (client).",
-        tags=("tracking",),
+        tag="tracking",
     )
     client_local_epoch: UInt64 = declare_property(
         27,
@@ -126,7 +126,11 @@ class Error(Struct, Exception):
         is_readonly=True,
         default_factory=ValueFactory.LOCAL_EPOCH,
         description="The logical time in the Client when it created this Error (client).",
-        tags=("tracking",),
+        tag="tracking",
     )
 
-    description: str | None = declare_property(103, is_repr=True)
+    description: str | None = declare_property(
+        103,
+        is_repr=True,
+        tag=None,
+    )

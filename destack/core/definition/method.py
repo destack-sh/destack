@@ -26,12 +26,12 @@ class MethodDefinition(FunctionDefinition):
     """Definition of a builtin Method."""
 
     # meta
-    type: MethodType = declare_property(100)
-    alias_of: Optional[UInt16] = declare_property(120)
+    type: MethodType = declare_property(100, tag=None)
+    alias_of: Optional[UInt16] = declare_property(120, tag=None)
 
     # content
-    input_properties: list["PropertyDefinition"] = declare_property(131)
-    output_property: Optional["PropertyDefinition"] = declare_property(132)
+    input_properties: list["PropertyDefinition"] = declare_property(131, tag=None)
+    output_property: Optional["PropertyDefinition"] = declare_property(132, tag=None)
 
     @classmethod
     def from_declaration(cls, declaration: "MethodDeclaration") -> "Self":

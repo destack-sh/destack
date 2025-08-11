@@ -31,7 +31,11 @@ class CustomEventDefinition(
 ):
     """A CustomEvent defines a custom Event with custom Properties."""
 
-    is_abstract: bool = declare_property(112, default=False)
+    is_abstract: bool = declare_property(
+        112,
+        default=False,
+        tag=None,
+    )
 
 
 @declare_event(NodeType.CUSTOM_EVENT, is_abstract=True)
@@ -46,6 +50,7 @@ class CustomEvent(Event):
         is_readonly=True,
         reference_type=ReferenceType.LOCATION,
         description="The CustomEvent this Signal is an instance of.",
+        tag=None,
     )
 
 
@@ -65,10 +70,12 @@ class CustomStruct(Struct):
         11,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Struct, keyed by custom Property name.",
+        tag=None,
     )
 
     def __getitem__(self, key: str) -> "Value":
@@ -98,10 +105,12 @@ class CustomMessage(Message):
         11,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Message, keyed by custom Property name.",
+        tag=None,
     )
 
     def __getitem__(self, key: str) -> "Value":
@@ -131,10 +140,12 @@ class CustomError(Error):
         11,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Error, keyed by custom Property name.",
+        tag=None,
     )
 
     def __getitem__(self, key: str) -> "Value":
@@ -155,7 +166,10 @@ class CustomEnumDefinition(Entity):
 
 @declare_entity(NodeType.CUSTOM_OPTION_DEFINITION)
 class CustomOptionDefinition(Entity):
-    value: "Value" = declare_property(110)
+    value: "Value" = declare_property(
+        110,
+        tag=None,
+    )
 
 
 @declare_entity(NodeType.CUSTOM_PROPERTY_DEFINITION)
@@ -167,12 +181,14 @@ class CustomPropertyDefinition(Entity):
     type: "Type" = declare_property(
         100,
         description="The actual Type of this custom Property.",
+        tag=None,
     )
 
     # property flags
     is_readonly: bool | None = declare_property(
         202,
         description="Whether this property is read-only.",
+        tag=None,
     )
 
     @declare_method(101)

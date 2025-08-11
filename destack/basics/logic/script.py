@@ -16,5 +16,8 @@ if TYPE_CHECKING:
 class Script(Entity):
     """A Script."""
 
-    code: str = declare_property(110)
+    code: str = declare_property(
+        110,
+        tag=None,
+    )
     # type, language, code, ...

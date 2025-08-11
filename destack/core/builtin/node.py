@@ -185,9 +185,8 @@ def _process_node_cls(
                     #  (like Styles or TransitionTemplate or any template really..
                     #   .. similarity to Offset2/Inset2/... with base and overrides?
                     #   .. similarity to Entity partials?
-                    #    .. just a generic ScalarType.PARTIAL? (or PARTIAL_STRUCT/PARTIAL_NODE?)
+                    #    .. generic ScalarType.PARTIAL? (or PARTIAL_STRUCT/PARTIAL_NODE?)
                     #   .. also similarity to Context overrides in Entity.context_values?
-                    #   .. also similarity to mut/non mut Structs?
                     #   .. also related to (frozen-in-time) Structs & Nodes as values?)
                     #   .. also related to partial Node Values for animation tracks?
                     #   .. if this were a separate Struct we could do a custom Encoder
@@ -296,7 +295,7 @@ class Node(Object):
         is_readonly=True,
         is_interned=True,
         description="The universally unique identifier of this Node.",
-        tags=("identity",),
+        tag="identity",
     )
     space: "Space" = declare_property(
         3,
@@ -307,7 +306,7 @@ class Node(Object):
         reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
-        tags=("identity",),
+        tag="identity",
     )
     branch: "Branch" = declare_property(
         4,
@@ -318,7 +317,7 @@ class Node(Object):
         reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Node is part of.",
-        tags=("identity",),
+        tag="identity",
     )
     snapshot: "Snapshot" = declare_property(
         5,
@@ -329,7 +328,7 @@ class Node(Object):
         reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Node is part of.",
-        tags=("identity",),
+        tag="identity",
     )
 
     # 100+ for general properties

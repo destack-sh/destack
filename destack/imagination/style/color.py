@@ -100,10 +100,10 @@ class ColorIntent(OptionEnum):
 class Color(Struct):
     """A color value."""
 
-    r: Float32 = declare_property(101, is_repr=True)
-    g: Float32 = declare_property(102, is_repr=True)
-    b: Float32 = declare_property(103, is_repr=True)
-    a: Float32 = declare_property(104, is_repr=True)
+    r: Float32 = declare_property(101, is_repr=True, tag=None)
+    g: Float32 = declare_property(102, is_repr=True, tag=None)
+    b: Float32 = declare_property(103, is_repr=True, tag=None)
+    a: Float32 = declare_property(104, is_repr=True, tag=None)
 
     @declare_method(201)
     @classmethod
@@ -119,17 +119,18 @@ class Color(Struct):
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
-    type: ColorType = declare_property(100, is_repr=True)
-    hue: Optional[ColorHue] = declare_property(200, is_repr=True)
-    shade: Optional[ColorShade] = declare_property(201, is_repr=True)
-    intent: Optional[ColorIntent] = declare_property(202, is_repr=True)
-    r: Float32 = declare_property(203, is_repr=True)
-    g: Float32 = declare_property(204, is_repr=True)
-    b: Float32 = declare_property(205, is_repr=True)
-    a: Float32 = declare_property(206, is_repr=True)
+    type: ColorType = declare_property(100, is_repr=True, tag=None)
+    hue: Optional[ColorHue] = declare_property(200, is_repr=True, tag=None)
+    shade: Optional[ColorShade] = declare_property(201, is_repr=True, tag=None)
+    intent: Optional[ColorIntent] = declare_property(202, is_repr=True, tag=None)
+    r: Float32 = declare_property(203, is_repr=True, tag=None)
+    g: Float32 = declare_property(204, is_repr=True, tag=None)
+    b: Float32 = declare_property(205, is_repr=True, tag=None)
+    a: Float32 = declare_property(206, is_repr=True, tag=None)
     dark: Optional["ColorStyle"] = declare_property(
         207,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
     @declare_method(201)

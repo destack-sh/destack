@@ -37,19 +37,23 @@ class Quaternion(Struct):
         101,
         is_repr=True,
         description="The x-coordinate of the Vector4.",
+        tag=None,
     )
     y: Float32 = declare_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector4.",
+        tag=None,
     )
     z: Float32 = declare_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector4.",
+        tag=None,
     )
     w: Float32 = declare_property(
         104,
         is_repr=True,
         description="The w-coordinate of the Vector4.",
+        tag=None,
     )

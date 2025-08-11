@@ -17,13 +17,13 @@ if TYPE_CHECKING:
 class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
-    position: "Vector2" = declare_property(110, is_repr=True)
-    pressure: Float32 | None = declare_property(111, is_repr=True)
+    position: "Vector2" = declare_property(110, is_repr=True, tag=None)
+    pressure: Float32 | None = declare_property(111, is_repr=True, tag=None)
 
-    shift_key: bool = declare_property(120)
-    alt_key: bool = declare_property(121)
-    ctrl_key: bool = declare_property(122)
-    meta_key: bool = declare_property(123)
+    shift_key: bool = declare_property(120, tag=None)
+    alt_key: bool = declare_property(121, tag=None)
+    ctrl_key: bool = declare_property(122, tag=None)
+    meta_key: bool = declare_property(123, tag=None)
 
 
 @declare_event(NodeType.POINTER_DOWN_EVENT)

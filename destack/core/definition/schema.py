@@ -18,11 +18,11 @@ class SchemaDefinition(Definition):
     """Definition of the entire Destack Schema ("language definition")."""
 
     # meta
-    version: str = declare_property(108)
+    version: str = declare_property(108, tag=None)
 
     # content
-    modules: list[ModuleDefinition] = declare_property(120)
-    nodes: list[NodeDefinition] = declare_property(121)
-    structs: list[StructDefinition] = declare_property(122)
-    handles: list[HandleDefinition] = declare_property(123)
-    enums: list[EnumDefinition] = declare_property(124)
+    modules: list[ModuleDefinition] = declare_property(120, tag=None)
+    nodes: list[NodeDefinition] = declare_property(121, tag=None)
+    structs: list[StructDefinition] = declare_property(122, tag=None)
+    handles: list[HandleDefinition] = declare_property(123, tag=None)
+    enums: list[EnumDefinition] = declare_property(124, tag=None)

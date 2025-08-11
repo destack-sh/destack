@@ -38,80 +38,80 @@ class StructDefinition(ObjectDefinition):
     type: StructType = declare_property(
         100,
         is_repr=True,
-        tags=("meta",),
+        tag="meta",
     )
     stability: ObjectStability = declare_property(
         105,
         description="The stability of this Struct (how its definition is expected to change).",
-        tags=("meta",),
+        tag="meta",
     )
     taggings: list[UInt8] = declare_property(
         109,
-        tags=("meta",),
+        tag="meta",
     )
     is_immutable: bool = declare_property(
         110,
         description="Whether this Struct is read-only (cannot be modified).",
-        tags=("meta",),
+        tag="meta",
     )
     is_abstract: bool = declare_property(
         111,
         description="Whether this Struct is abstract (cannot be instantiated directly).",
-        tags=("meta",),
+        tag="meta",
     )
     is_interned: bool = declare_property(
         112,
         description="Whether this Struct is interned (managed as a constant pool in core).",
-        tags=("meta",),
+        tag="meta",
     )
 
     # content
     properties: list["PropertyDefinition"] = declare_property(
         120,
         description="All properties of this Struct.",
-        tags=("content",),
+        tag="content",
     )
     methods: list["MethodDefinition"] = declare_property(
         125,
         description="All methods of this Struct (excluding actions).",
-        tags=("content",),
+        tag="content",
     )
     constants: list["ConstantDefinition"] = declare_property(
         128,
-        tags=("content",),
+        tag="content",
     )
     tags: list["TagDefinition"] = declare_property(
         129,
-        tags=("content",),
+        tag="content",
     )
 
     # inheritance
     base_type: StructType | None = declare_property(
         130,
         description="The base type this Struct extends (directly).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     extended_by: list[StructType] = declare_property(
         131,
         description="Structs that extend this Struct type (directly).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     inherits: list[StructType] = declare_property(
         132,
         description="Structs that this Struct inherits.",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     inherited_by: list[StructType] = declare_property(
         133,
         description="Structs that inherit this Struct type.",
-        tags=("inheritance",),
+        tag="inheritance",
     )
 
     # associations
     into_node_types: list[NodeType] = declare_property(
         220,
         description="The node types that this Struct can be turned into.",
-        tags=("associations",),
+        tag="associations",
     )
 
     @override

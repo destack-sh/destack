@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class PermissionDefinition(Definition):
     """Definition of a builtin Permission for a builtin Node."""
 
-    id: UInt8 = declare_property(2, is_repr=True)
+    id: UInt8 = declare_property(2, is_repr=True, tag=None)
 
     @classmethod
     def from_declaration(cls, declaration: "PermissionDeclaration") -> "Self":

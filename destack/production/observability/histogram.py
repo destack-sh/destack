@@ -27,4 +27,5 @@ class HistogramMeasurementEvent(MeasurementEvent):
         is_managed=True,
         is_readonly=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )

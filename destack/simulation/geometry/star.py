@@ -25,9 +25,9 @@ if TYPE_CHECKING:
 class Star2D(Form2D):
     """A Star2D is a star with a radius and height."""
 
-    center: "Vector2" = declare_property(210, is_repr=True)
-    radius: Float32 = declare_property(211, is_repr=True)
-    points: Int8 = declare_property(212, is_repr=True)
+    center: "Vector2" = declare_property(210, is_repr=True, tag=None)
+    radius: Float32 = declare_property(211, is_repr=True, tag=None)
+    points: Int8 = declare_property(212, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -37,6 +37,6 @@ class Star2D(Form2D):
 class StarShape2D(Shape2D):
     """A StarShape is a shape that represents a star."""
 
-    center: "Vector2" = declare_property(210, is_repr=True)
-    radius: Float32 = declare_property(211, is_repr=True)
-    points: Int8 = declare_property(212, is_repr=True)
+    center: "Vector2" = declare_property(210, is_repr=True, tag=None)
+    radius: Float32 = declare_property(211, is_repr=True, tag=None)
+    points: Int8 = declare_property(212, is_repr=True, tag=None)

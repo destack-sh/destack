@@ -19,11 +19,11 @@ from .definition import Definition
 class OptionDefinition(Definition):
     """Definition of a builtin Enum Option."""
 
-    id: UInt8 = declare_property(2, is_repr=True)
-    type: EnumType = declare_property(100, is_repr=True)
-    taggings: list[UInt8] = declare_property(109)
+    id: UInt8 = declare_property(2, is_repr=True, tag=None)
+    type: EnumType = declare_property(100, is_repr=True, tag=None)
+    taggings: list[UInt8] = declare_property(109, tag=None)
 
-    is_internal: bool = declare_property(110, default=False)
+    is_internal: bool = declare_property(110, default=False, tag=None)
 
     @classmethod
     def from_declaration(

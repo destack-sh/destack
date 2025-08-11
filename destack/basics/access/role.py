@@ -23,10 +23,12 @@ class RoleEvent(Event):
     role: "Role" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     actor: "Entity" = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -52,4 +54,8 @@ class RoleUnassignedEvent(RoleEvent):
 class Role(Entity):
     """A Role for Actors to take."""
 
-    type: RoleType = declare_property(100, is_repr=True)
+    type: RoleType = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )

@@ -54,7 +54,7 @@ class PropertyDeclaration(Declaration):
     description: str | None = None
     component: type_["Object"] = UNSET  # builtin object component
     original_component: type_["Object"] = UNSET  # original component (first in chain)
-    tags: tuple[str, ...] = ()
+    tag: str | None = None
 
     # type
     py_type: Any = type_(None)  # noqa: RUF009
@@ -346,6 +346,7 @@ class PropertyDeclaration(Declaration):
 def declare_property(
     id: int,
     *,
+    tag: str | None,
     description: str | None = None,
     default: Any = UNSET,
     default_factory: ValueFactory | None = None,
@@ -356,7 +357,6 @@ def declare_property(
     is_eq: bool = True,
     is_readonly: bool = False,
     is_interned: bool = False,
-    tags: tuple[str, ...] = (),
 ) -> Any:
     assert id < 256, f"id must be less than 256: {id}"  # for :Encoding
     return PropertyDeclaration(
@@ -372,7 +372,7 @@ def declare_property(
         is_eq=is_eq,
         is_readonly=is_readonly,
         is_interned=is_interned or reference_type is not None,  # references are always interned
-        tags=tags,
+        tag=tag,
     )
 
 

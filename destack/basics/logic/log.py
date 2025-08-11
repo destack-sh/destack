@@ -33,10 +33,15 @@ class LogEvent(Event):
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property name.",
+        tag=None,
     )
 
     name: str = declare_property(
         101,
         is_interned=True,
+        tag=None,
     )
-    level: LogLevel = declare_property(110)
+    level: LogLevel = declare_property(
+        110,
+        tag=None,
+    )

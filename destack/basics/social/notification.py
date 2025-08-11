@@ -37,6 +37,7 @@ class NotificationEvent(Event):
     notification: "Notification" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -83,8 +84,8 @@ class NotificationExpiredEvent(NotificationEvent):
 class Notification(Entity):
     """A Notification is a message about something."""
 
-    title: str = declare_property(101)
+    title: str = declare_property(101, tag=None)
 
-    status: NotificationStatus = declare_property(110)
+    status: NotificationStatus = declare_property(110, tag=None)
 
-    text: Optional["Text"] = declare_property(120)
+    text: Optional["Text"] = declare_property(120, tag=None)

@@ -67,9 +67,9 @@ class ConditionalType(OptionEnum):
 class Condition(Struct):
     """Boolean predicate (AND, =, <, etc.)."""
 
-    type: ConditionalType = declare_property(100, is_repr=True)
-    left: "Expression" = declare_property(101, is_repr=True)
-    right: Optional["Expression"] = declare_property(102, is_repr=True)
+    type: ConditionalType = declare_property(100, is_repr=True, tag=None)
+    left: "Expression" = declare_property(101, is_repr=True, tag=None)
+    right: Optional["Expression"] = declare_property(102, is_repr=True, tag=None)
 
     @declare_method(100)
     def __or__(self, right: "Condition") -> "Condition":
@@ -101,8 +101,8 @@ class AggregationType(OptionEnum):
 class Aggregation(Struct):
     """Aggregation."""
 
-    type: AggregationType = declare_property(100, is_repr=True)
-    expression: Optional["Expression"] = declare_property(101, is_repr=True)
+    type: AggregationType = declare_property(100, is_repr=True, tag=None)
+    expression: Optional["Expression"] = declare_property(101, is_repr=True, tag=None)
     # distinct, over, ...
 
 
@@ -129,11 +129,11 @@ class ExpressionType(OptionEnum):
 class Expression(Struct):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
-    type: ExpressionType = declare_property(100, is_repr=True)
-    literal: Optional["Value"] = declare_property(101, is_repr=True)
-    attribute: Optional["PropertyReference"] = declare_property(102, is_repr=True)
-    condition: Optional[Condition] = declare_property(103, is_repr=True)
-    aggregation: Optional[Aggregation] = declare_property(105, is_repr=True)
+    type: ExpressionType = declare_property(100, is_repr=True, tag=None)
+    literal: Optional["Value"] = declare_property(101, is_repr=True, tag=None)
+    attribute: Optional["PropertyReference"] = declare_property(102, is_repr=True, tag=None)
+    condition: Optional[Condition] = declare_property(103, is_repr=True, tag=None)
+    aggregation: Optional[Aggregation] = declare_property(105, is_repr=True, tag=None)
     # subquery?
 
 
@@ -174,9 +174,9 @@ SortIn = Union[
 class Sort(Struct):
     """ORDER BY specification."""
 
-    type: SortType = declare_property(100, is_repr=True)
-    by: Expression = declare_property(101, is_repr=True)
-    mode: Optional[SortMode] = declare_property(102, is_repr=True)
+    type: SortType = declare_property(100, is_repr=True, tag=None)
+    by: Expression = declare_property(101, is_repr=True, tag=None)
+    mode: Optional[SortMode] = declare_property(102, is_repr=True, tag=None)
 
 
 #
@@ -192,7 +192,7 @@ class Sort(Struct):
 class Select(Struct):
     """Select specific Attributes."""
 
-    attributes: list["PropertyReference"] = declare_property(101, is_repr=True)
+    attributes: list["PropertyReference"] = declare_property(101, is_repr=True, tag=None)
 
     @classmethod
     def of(cls, *attributes: "PropertyDeclaration | CustomPropertyDefinition") -> "Select":
@@ -220,10 +220,10 @@ class JoinType(OptionEnum):
 class Join(Struct):
     """Join a Query with another Query."""
 
-    type: JoinType = declare_property(100, is_repr=True)
+    type: JoinType = declare_property(100, is_repr=True, tag=None)
     # query_name?
-    recursive: bool = declare_property(102, default=False, is_repr=True)  # for tree joins
-    on: Optional[Condition] = declare_property(103, is_repr=True)
+    recursive: bool = declare_property(102, default=False, is_repr=True, tag=None)  # for tree joins
+    on: Optional[Condition] = declare_property(103, is_repr=True, tag=None)
 
     @classmethod
     def of(
@@ -263,22 +263,27 @@ class Query(Struct):
     """
 
     # meta
-    id: UUID = declare_property(2, default_factory=ValueFactory.UUID4)
-    type: QueryType = declare_property(100, is_repr=True, description="The type of Query.")
+    id: UUID = declare_property(2, default_factory=ValueFactory.UUID4, tag=None)
+    type: QueryType = declare_property(
+        100, is_repr=True, description="The type of Query.", tag=None
+    )
     name: str = declare_property(
         105,
         description="Name for this subquery. Should be unique within the parent Query.",
         is_repr=True,
+        tag=None,
     )
     definition: "ObjectDefinitionReference" = declare_property(
         106,
         is_repr=True,
         description="The Node definition this Query is about.",
+        tag=None,
     )
     subqueries: list["Query"] = declare_property(
         109,
         is_repr=True,
         description="Subqueries of this Query (if any).",
+        tag=None,
     )
 
     # content
@@ -286,28 +291,31 @@ class Query(Struct):
         110,
         is_repr=True,
         description="How to join this Query to the parent Query (if any).",
+        tag=None,
     )
     select: Optional[Select] = declare_property(
         111,
         is_repr=True,
         description="What to select from the Query.",
+        tag=None,
     )
     where: Optional[Condition] = declare_property(
-        112, is_repr=True, description="Filter the Query."
+        112, is_repr=True, description="Filter the Query.", tag=None
     )
     having: Optional[Condition] = declare_property(
-        113, is_repr=True, description="Filter the Query groups (for grouped Queries)."
+        113, is_repr=True, description="Filter the Query groups (for grouped Queries).", tag=None
     )
     group_by: list[Expression] | None = declare_property(
-        114, is_repr=True, description="Discriminator for grouped Queries."
+        114, is_repr=True, description="Discriminator for grouped Queries.", tag=None
     )
     aggregation: Optional[Aggregation] = declare_property(
-        115, is_repr=True, description="Aggregate the Query."
+        115, is_repr=True, description="Aggregate the Query.", tag=None
     )
     sort: list[Sort] | None = declare_property(
         116,
         is_repr=True,
         description="How to sort the Query results.",
+        tag=None,
     )
 
     # pagination
@@ -315,10 +323,12 @@ class Query(Struct):
         120,
         is_repr=True,
         description="Limit the number of results.",
+        tag=None,
     )
     offset: Optional[UInt32] = declare_property(
         121,
         is_repr=True,
         description="Offset the results.",
+        tag=None,
     )
     # count?

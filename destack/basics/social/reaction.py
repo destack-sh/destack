@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 class Reaction(Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""
 
-    content: str = declare_property(101, is_repr=True)
+    content: str = declare_property(101, is_repr=True, tag=None)
 
 
 @declare_event(NodeType.REACTION_EVENT)
@@ -39,8 +39,9 @@ class ReactionEvent(Event):
     reaction: "Reaction" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    content: str = declare_property(102)
+    content: str = declare_property(102, tag=None)
 
 
 @declare_event(NodeType.REACTION_ADDED_EVENT)

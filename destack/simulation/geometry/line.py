@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 class Line2D(Form2D):
     """A Line is a line between two points."""
 
-    start: "Vector2" = declare_property(210, is_repr=True)
-    end: "Vector2" = declare_property(220, is_repr=True)
+    start: "Vector2" = declare_property(210, is_repr=True, tag=None)
+    end: "Vector2" = declare_property(220, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -34,5 +34,5 @@ class Line2D(Form2D):
 class LineShape2D(Shape2D):
     """A LineShape is a shape that represents a line between two points."""
 
-    start: "Vector2" = declare_property(200, is_repr=True)
-    end: "Vector2" = declare_property(210, is_repr=True)
+    start: "Vector2" = declare_property(200, is_repr=True, tag=None)
+    end: "Vector2" = declare_property(210, is_repr=True, tag=None)

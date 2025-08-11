@@ -23,21 +23,25 @@ class SpanEvent(Event):
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Entity, keyed by custom Property name.",
+        tag=None,
     )
 
     name: str = declare_property(
         101,
         is_interned=True,
+        tag=None,
     )
-    start_time: datetime = declare_property(102)
-    end_time: datetime = declare_property(103)
-    duration: timedelta = declare_property(104)
+    start_time: datetime = declare_property(102, tag=None)
+    end_time: datetime = declare_property(103, tag=None)
+    duration: timedelta = declare_property(104, tag=None)
 
     parent_span: Optional["SpanEvent"] = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     action: Optional["Action"] = declare_property(
         111,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )

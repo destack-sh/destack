@@ -12,5 +12,12 @@ if TYPE_CHECKING:
 class Constraint(Entity):
     """Constraint of an Entity that must be satisfied."""
 
-    type: ConstraintType = declare_property(100, is_repr=True)
-    properties: list["PropertyReference"] = declare_property(105)
+    type: ConstraintType = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
+    properties: list["PropertyReference"] = declare_property(
+        105,
+        tag=None,
+    )

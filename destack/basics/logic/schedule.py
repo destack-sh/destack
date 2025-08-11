@@ -61,22 +61,22 @@ class ScheduleFrequency(OptionEnum):
 class Schedule(Struct):
     """The time-based schedule of something (compatible with rrule)."""
 
-    frequency: ScheduleFrequency = declare_property(101)
-    interval: UInt32 = declare_property(102, default=1)
-    start: datetime | None = declare_property(110)
-    end: datetime | None = declare_property(111)
-    count: UInt32 | None = declare_property(112)
-    week_start: DayOfWeek | None = declare_property(113)
-    by_set_pos: list[UInt32] | None = declare_property(114)
-    by_month: list[Month] | None = declare_property(115)
-    by_month_day: list[UInt8] | None = declare_property(116)
-    by_year_day: list[UInt16] | None = declare_property(117)
-    by_easter: list[UInt8] | None = declare_property(118)
-    by_week_no: list[UInt8] | None = declare_property(119)
-    by_week_day: list[DayOfWeek] | None = declare_property(120)
-    by_hour: list[UInt8] | None = declare_property(121)
-    by_minute: list[UInt8] | None = declare_property(122)
-    by_second: list[UInt8] | None = declare_property(123)
+    frequency: ScheduleFrequency = declare_property(101, tag=None)
+    interval: UInt32 = declare_property(102, default=1, tag=None)
+    start: datetime | None = declare_property(110, tag=None)
+    end: datetime | None = declare_property(111, tag=None)
+    count: UInt32 | None = declare_property(112, tag=None)
+    week_start: DayOfWeek | None = declare_property(113, tag=None)
+    by_set_pos: list[UInt32] | None = declare_property(114, tag=None)
+    by_month: list[Month] | None = declare_property(115, tag=None)
+    by_month_day: list[UInt8] | None = declare_property(116, tag=None)
+    by_year_day: list[UInt16] | None = declare_property(117, tag=None)
+    by_easter: list[UInt8] | None = declare_property(118, tag=None)
+    by_week_no: list[UInt8] | None = declare_property(119, tag=None)
+    by_week_day: list[DayOfWeek] | None = declare_property(120, tag=None)
+    by_hour: list[UInt8] | None = declare_property(121, tag=None)
+    by_minute: list[UInt8] | None = declare_property(122, tag=None)
+    by_second: list[UInt8] | None = declare_property(123, tag=None)
 
     @staticmethod
     def every(

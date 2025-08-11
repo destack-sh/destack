@@ -119,15 +119,10 @@ def declare_entity(
     event_types=(NodeType.CHANGE_EVENT,),
     permissions=(PermissionDeclaration(id=20, name="create", description="Create (or Upsert)"),),
     tags=(
-        TagDeclaration(id=20, name="entity", description="Entity"),
+        TagDeclaration(id=20, name="tree", description="Tree"),
         TagDeclaration(id=21, name="custom", description="Custom"),
         TagDeclaration(id=22, name="behavior", description="Behavior"),
         TagDeclaration(id=23, name="provenance", description="Provenance"),
-        TagDeclaration(id=30, name="visibility", description="Visibility"),
-        TagDeclaration(id=31, name="style", description="style"),
-        TagDeclaration(id=32, name="transform", description="Transform"),
-        TagDeclaration(id=33, name="dimensions", description="Dimensions"),
-        TagDeclaration(id=34, name="layout", description="Layout"),
     ),
 )
 class Entity(Node):
@@ -137,7 +132,7 @@ class Entity(Node):
 
     Updates to Entities are made through Events.
     Entities are always part of a Snapshot (in their Space).
-     (Technically, Entities are just a temporary materialization of the Event graph.)
+     (Technically, Entities are just a temporary materialization of the Event stream.)
 
     An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
      where Snapshots are 'shortcuts' to certain epochs:
@@ -157,7 +152,7 @@ class Entity(Node):
         is_eq=False,
         is_hash=False,
         default=Materialization.ROOT,
-        tags=("identity",),
+        tag="identity",
     )
     definition: Optional["Entity"] = declare_property(
         11,
@@ -165,7 +160,7 @@ class Entity(Node):
         is_readonly=True,
         reference_type=ReferenceType.LOCATION,
         description="The definition this Entity is an instance of.",
-        tags=("identity",),
+        tag="identity",
     )
     # preceded_by?
     instance: Optional["Entity"] = declare_property(
@@ -176,7 +171,7 @@ class Entity(Node):
         is_hash=False,
         reference_type=ReferenceType.LOCATION,
         description="The (root) Entity that is being instantiated.",
-        tags=("identity",),
+        tag="identity",
     )
 
     # 20-40: tracking
@@ -188,7 +183,7 @@ class Entity(Node):
         is_readonly=True,
         default_factory=ValueFactory.NOW,
         description="The time this Entity was created (system time).",
-        tags=("tracking",),
+        tag="tracking",
     )
     created_epoch: UInt64 = declare_property(
         21,
@@ -197,7 +192,7 @@ class Entity(Node):
         is_eq=False,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time this Entity was created (system time).",
-        tags=("tracking",),
+        tag="tracking",
     )
     created_by: "Entity" = declare_property(
         22,
@@ -208,7 +203,7 @@ class Entity(Node):
         default_factory=ValueFactory.ACTOR,
         reference_type=ReferenceType.LOCATION,
         description="The Actor that created this Entity.",
-        tags=("tracking",),
+        tag="tracking",
     )
     updated_at: datetime = declare_property(
         23,
@@ -217,7 +212,7 @@ class Entity(Node):
         is_eq=False,
         default_factory=ValueFactory.NOW,
         description="The time this Entity was last updated (system time).",
-        tags=("tracking",),
+        tag="tracking",
     )
     updated_epoch: UInt64 = declare_property(
         24,
@@ -226,7 +221,7 @@ class Entity(Node):
         is_eq=False,
         default_factory=ValueFactory.REMOTE_EPOCH,
         description="The logical time this Entity was last updated (system time).",
-        tags=("tracking",),
+        tag="tracking",
     )
     updated_by: "Entity" = declare_property(
         25,
@@ -236,7 +231,7 @@ class Entity(Node):
         default_factory=ValueFactory.ACTOR,
         reference_type=ReferenceType.LOCATION,
         description="The Actor that last updated this Entity.",
-        tags=("tracking",),
+        tag="tracking",
     )
     deleted_at: Optional[datetime] = declare_property(
         26,
@@ -247,7 +242,7 @@ class Entity(Node):
 The time this Entity was last deleted (system time, if it's is currently deleted).
 Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
 """,
-        tags=("tracking",),
+        tag="tracking",
     )
     owned_by: "Entity" = declare_property(
         30,
@@ -255,7 +250,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The exclusive owner of this Entity (the authority on access).",
         reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.ACTOR,
-        tags=("tracking",),
+        tag="tracking",
     )
     managed_by: "Entity" = declare_property(
         31,
@@ -263,15 +258,15 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The exclusive manager of this Entity (the authority on state).",
         reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.ACTOR,
-        tags=("tracking",),
+        tag="tracking",
     )
 
-    # 40-50: entity
+    # 40-50: tree
     parent: Optional["Entity"] = declare_property(
         40,
         reference_type=ReferenceType.LOCATION,
         description="The parent of this Entity. Most Entities can be attached to any other Entity.",
-        tags=("entity",),
+        tag="tree",
     )
     name: str = declare_property(
         41,
@@ -279,7 +274,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         is_interned=True,
         description="The name of this Entity.",
         default_factory=ValueFactory.NAME,
-        tags=("entity",),
+        tag="tree",
     )
     order_key: str | None = declare_property(
         43,
@@ -287,22 +282,22 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         is_interned=True,
         is_managed=True,
         description="The absolute order of this Entity (in its parent, as a fractional integer).",
-        tags=("entity",),
+        tag="tree",
     )
     # icon: Optional["Icon"]?
+
+    # 50-60: custom
+    custom_values: dict[str, "Value"] | None = declare_property(
+        50,
+        description="The custom Values of this Entity, keyed by custom Property or Tag name.",
+        tag="custom",
+    )
     # is_locked, is_extensible, is_instantiable, ...
     # base_type?
     # traits?
     # is_trait? is_abstract?
     # is_locked/is_final?
     # is_singleton?
-
-    # 50-60: custom
-    custom_values: dict[str, "Value"] | None = declare_property(
-        50,
-        description="The custom Values of this Entity, keyed by custom Property or Tag name.",
-        tags=("custom",),
-    )
     # context_values?
 
     # 60-70: behavior
@@ -310,7 +305,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         60,
         description="The Script of this Entity.",
         reference_type=ReferenceType.LOCATION,
-        tags=("behavior",),
+        tag="behavior",
     )
 
     # 70-80: provenance
@@ -326,21 +321,6 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     @declare_method(3)
     def set(self, key: str, value: Any):
         """Set a Property on this Node (direct SET operations)."""
-        raise NotImplementedError
-
-    if not TYPE_CHECKING:
-        __setattr__ = set
-
-    @declare_method(10)
-    @property
-    def is_custom(self) -> bool:
-        """Whether this Node is a custom Node."""
-        raise NotImplementedError
-
-    @declare_method(11)
-    @property
-    def is_partial(self) -> bool:
-        """Whether this Entity is a partial Entity."""
         raise NotImplementedError
 
     @declare_method(20)

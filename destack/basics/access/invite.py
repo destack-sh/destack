@@ -22,14 +22,17 @@ class InviteEvent(Event):
     invite: "Invite" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     joinable: "Entity" = declare_property(
         102,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     member: "Entity" = declare_property(
         103,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -40,8 +43,12 @@ class InviteSentEvent(InviteEvent):
     role: "Role" = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    role_type: "RoleType" = declare_property(111)
+    role_type: "RoleType" = declare_property(
+        111,
+        tag=None,
+    )
 
 
 @declare_event(NodeType.INVITE_RESCINDED_EVENT)
@@ -58,8 +65,12 @@ class InviteAcceptedEvent(InviteEvent):
     role: "Role" = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    role_type: "RoleType" = declare_property(111)
+    role_type: "RoleType" = declare_property(
+        111,
+        tag=None,
+    )
 
 
 @declare_event(NodeType.INVITE_REJECTED_EVENT)
@@ -80,9 +91,11 @@ class Invite(Entity):
     member: "Entity" = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     role: Optional["Role"] = declare_property(
         111,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    role_type: Optional["RoleType"] = declare_property(112)
+    role_type: Optional["RoleType"] = declare_property(112, tag=None)

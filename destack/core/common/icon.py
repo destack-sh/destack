@@ -32,15 +32,16 @@ class IconType(OptionEnum):
 class Icon(Struct):
     """An icon to be displayed in some view."""
 
-    type: IconType = declare_property(100)
+    type: IconType = declare_property(100, tag=None)
     # content
-    emoji: str | None = declare_property(101)
-    fa_name: str | None = declare_property(102)
-    vsc_name: str | None = declare_property(103)
+    emoji: str | None = declare_property(101, tag=None)
+    fa_name: str | None = declare_property(102, tag=None)
+    vsc_name: str | None = declare_property(103, tag=None)
     file: Optional["File"] = declare_property(
         104,
         reference_type=ReferenceType.IDENTITY,
+        tag=None,
     )
-    file_url: str | None = declare_property(105)
+    file_url: str | None = declare_property(105, tag=None)
     # style
-    color: Optional["Color"] = declare_property(110)
+    color: Optional["Color"] = declare_property(110, tag=None)
