@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.core import NodeType, declare_entity, declare_event, declare_property
+from destack.core import NodeType, ReferenceType, declare_entity, declare_event, declare_property
 
 from .metric import MeasurementEvent, Metric
 
@@ -26,4 +26,5 @@ class CounterMeasurementEvent(MeasurementEvent):
         10,
         is_managed=True,
         is_readonly=True,
+        reference_type=ReferenceType.LOCATION,
     )

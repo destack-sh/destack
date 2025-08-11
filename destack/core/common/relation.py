@@ -13,10 +13,13 @@ from ..builtin import (
     HandleType,
     NodeType,
     ObjectKind,
+    ObjectStability,
     PropertyDeclaration,
+    ReferenceType,
     Struct,
     StructType,
     UInt8,
+    UInt128,
     declare_property,
     declare_struct,
 )
@@ -44,7 +47,11 @@ class ObjectDefinitionReference(Struct):
     node_type: Optional[NodeType] = declare_property(102, is_repr=True)
     struct_type: Optional[StructType] = declare_property(103, is_repr=True)
     handle_type: Optional[HandleType] = declare_property(104, is_repr=True)
-    definition: Optional["Entity"] = declare_property(106, is_repr=True)
+    definition: Optional["Entity"] = declare_property(
+        106,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
 
     @classmethod
     def of(
@@ -102,6 +109,7 @@ class PropertyReference(Struct):
     custom_property: Optional["CustomPropertyDefinition"] = declare_property(
         106,
         is_repr=True,
+        reference_type=ReferenceType.LOCATION,
         description="custom Property of a custom Node or Struct",
     )
 
@@ -144,13 +152,66 @@ class PropertyReference(Struct):
 
 
 @declare_struct(
-    StructType.NODE_REFERENCE,
+    StructType.NODE_IDENTITY,
     is_immutable=True,
     is_interned=True,
     is_final=True,
+    stability=ObjectStability.STATIC,
 )
 @final
-class NodeReference(Struct):
+class NodeIdentity(Struct):
+    """
+    A reference to a Node in an unknown space.
+    """
+
+    type: NodeType = declare_property(100, is_repr=True)
+    id: UUID = declare_property(
+        101,
+        is_repr=True,
+        is_interned=True,
+    )
+
+
+@declare_struct(
+    StructType.NODE_LOCATION,
+    is_immutable=True,
+    is_interned=True,
+    is_final=True,
+    stability=ObjectStability.STATIC,
+)
+@final
+class NodeLocation(Struct):
+    """
+    A reference to a Node in space.
+    """
+
+    # identity
+    type: NodeType = declare_property(
+        100,
+        is_repr=True,
+        description="The type of the Node.",
+    )
+    id: UUID = declare_property(
+        101,
+        is_repr=True,
+        description="The unique id of the Node.",
+    )
+    space_id: UUID = declare_property(
+        102,
+        is_repr=True,
+        description="The id of the Space the Node belonged to.",
+    )
+
+
+@declare_struct(
+    StructType.NODE_MOMENT,
+    is_immutable=True,
+    is_interned=True,
+    is_final=True,
+    stability=ObjectStability.STATIC,
+)
+@final
+class NodeMoment(Struct):
     """
     A reference to a Node in spacetime.
     """
@@ -181,8 +242,8 @@ class NodeReference(Struct):
         is_repr=True,
         description="The id of the Snapshot the Node belonged to (when it was referenced).",
     )
-    # epoch? (but then we would have to re-create NodeReferences every time the Node is updated)
-
-    def to_ref(self) -> "NodeReference":
-        """Get this NodeReference (for convenience)."""
-        return self
+    epoch: UInt128 = declare_property(
+        105,
+        is_repr=True,
+        description="The logical time the Node belonged to (when it was referenced).",
+    )

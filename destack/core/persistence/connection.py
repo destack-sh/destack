@@ -6,11 +6,10 @@ from ..builtin import (
     Handle,
     HandleType,
     declare_handle,
-    declare_property_runtime,
 )
 
 if TYPE_CHECKING:
-    from destack import Event, NodeReference
+    from destack import Event
 
 
 @declare_handle(HandleType.CONNECTION)
@@ -18,8 +17,6 @@ class Connection(Handle):
     """
     A connection between a local and a remote Graph.
     """
-
-    space_ptr: "NodeReference" = declare_property_runtime(500, is_repr=True)
 
     async def open(self) -> None:
         raise NotImplementedError

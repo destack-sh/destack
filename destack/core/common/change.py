@@ -6,6 +6,7 @@ from ..builtin import (
     Event,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     UInt8,
@@ -113,9 +114,16 @@ class ChangeEvent(Event):
 
     # meta
     type: "ChangeType" = declare_property(100, is_repr=True, description="The type of Change.")
-    node: "Entity" = declare_property(101, is_repr=True, description="The Entity being edited.")
+    node: "Entity" = declare_property(
+        101,
+        is_repr=True,
+        reference_type=ReferenceType.IDENTITY,
+        description="The Entity being edited.",
+    )
     change: Optional["ChangeEvent"] = declare_property(
         102,
+        is_repr=True,
+        reference_type=ReferenceType.UNTYPED_IDENTITY,
         description="The ChangeEvent this Change is a part of.",
     )
     # depends_on: Optional["ChangeEvent"]? (skip this Change if the depends_on ChangeEvent failed)

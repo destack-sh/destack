@@ -4,6 +4,7 @@ from destack.core import (
     EnumType,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     declare_entity,
@@ -18,7 +19,7 @@ from .gradient import Gradient
 from .style import Style
 
 if TYPE_CHECKING:
-    from destack import File
+    from destack import Image
 
 
 @declare_enum(EnumType.FILL_TYPE)
@@ -59,10 +60,18 @@ class Fill(Struct):
     """A fill value."""
 
     type: FillType = declare_property(100, is_repr=True)
-    template: Optional["FillStyle"] = declare_property(101, is_repr=True)
+    template: Optional["FillStyle"] = declare_property(
+        101,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     color: Optional[Color] = declare_property(102, is_repr=True)
     gradient: Optional[Gradient] = declare_property(103, is_repr=True)
-    image: Optional["File"] = declare_property(104, is_repr=True)
+    image: Optional["Image"] = declare_property(
+        104,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     position: Optional[FillPosition] = declare_property(105, is_repr=True)
     size: Optional[FillSize] = declare_property(106, is_repr=True)
 
@@ -85,7 +94,11 @@ class FillStyle(Style):
     type: FillType = declare_property(100, is_repr=True)
     color: Optional["Color"] = declare_property(101, is_repr=True)
     gradient: Optional["Gradient"] = declare_property(102, is_repr=True)
-    image: Optional["File"] = declare_property(103, is_repr=True)
+    image: Optional["Image"] = declare_property(
+        103,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     position: Optional[FillPosition] = declare_property(104, is_repr=True)
     size: Optional[FillSize] = declare_property(105, is_repr=True)
 

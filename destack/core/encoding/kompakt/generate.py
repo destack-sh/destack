@@ -46,7 +46,7 @@ class KompaktEncoderGenerator:
     def get_source_property_name(self, prop: PropertyDeclaration) -> str:
         """Get the name of a property."""
         source_name = prop.name
-        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_MOMENT:
             source_name += "_ptr"
         return source_name
 
@@ -486,11 +486,17 @@ for _ in range({key}_length):
         elif type.scalar_type == ScalarType.NODE:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return f"_writer.write_uuid({source_expr})"
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
@@ -577,11 +583,17 @@ for _ in range({key}_length):
         elif type.scalar_type == ScalarType.NODE:
             return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return "UUID(_reader.read_uuid())"
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_LOCATION.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")

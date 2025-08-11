@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, cast, dataclass_transform
 
-from ._hoisted import ValueFactory
+from ._hoisted import ReferenceType, ValueFactory
 from .declaration import TagDeclaration
 from .property import _PROPERTY_SPECIFIERS, declare_property
 from .struct import Struct, _process_struct_cls
-from .types import UInt128
+from .types import UInt8, UInt64, UInt128
 from .universe import ObjectStability, StructType
 from .uuid import UUID
 
@@ -91,10 +91,11 @@ class Message(Struct):
         is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
+        reference_type=ReferenceType.LOCATION,
         description="The Client that created this Message (client, but verified).",
         tags=("tracking",),
     )
-    client_nonce: UUID = declare_property(
+    client_nonce: UInt8 = declare_property(
         24,
         is_managed=True,
         is_readonly=True,
@@ -118,7 +119,7 @@ class Message(Struct):
         description="The logical time last seen from the system in the Client for this space (client).",
         tags=("tracking",),
     )
-    client_local_epoch: UInt128 = declare_property(
+    client_local_epoch: UInt64 = declare_property(
         27,
         is_managed=True,
         is_readonly=True,

@@ -14,7 +14,7 @@ from ...builtin import (
     StructType,
     TypeCardinality,
 )
-from ...common import NodeReference, Type, Value
+from ...common import Type, Value
 from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderFlag
 from .core import KompaktObjectEncoder
 
@@ -41,9 +41,6 @@ class KompaktEncoder(Encoder):
         )
         encoders[ObjectKind.STRUCT, StructType.VALUE] = cast(
             KompaktObjectEncoder, KompaktValueEncoder()
-        )
-        encoders[ObjectKind.STRUCT, StructType.NODE_REFERENCE] = cast(
-            KompaktObjectEncoder, KompaktNodeReferenceEncoder()
         )
         encoders.update(generator.generate(omit=list(encoders.keys())))
         return cls(encoders)
@@ -152,8 +149,10 @@ class KompaktEncoder(Encoder):
                 writer.write_uint32(type.enum_type)
             elif type.scalar_type in (
                 ScalarType.NODE,
-                ScalarType.NODE_REFERENCE,
-                ScalarType.NODE_ID,
+                ScalarType.NODE_MOMENT,
+                ScalarType.NODE_UNTYPED_IDENTITY,
+                ScalarType.NODE_IDENTITY,
+                ScalarType.NODE_LOCATION,
             ):
                 assert type.node_types is not None, f"no node types for {type!r}"
                 writer.write_uint32(len(type.node_types))
@@ -213,7 +212,13 @@ class KompaktEncoder(Encoder):
                 primitive_type = PrimitiveType(reader.read_uint8())
             elif scalar_type == ScalarType.ENUM:
                 enum_type = EnumType(reader.read_uint32())
-            elif scalar_type in (ScalarType.NODE, ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
+            elif scalar_type in (
+                ScalarType.NODE,
+                ScalarType.NODE_MOMENT,
+                ScalarType.NODE_UNTYPED_IDENTITY,
+                ScalarType.NODE_IDENTITY,
+                ScalarType.NODE_LOCATION,
+            ):
                 node_types = [NodeType(reader.read_uint32()) for _ in range(reader.read_uint32())]
             elif scalar_type == ScalarType.STRUCT:
                 struct_type = StructType(reader.read_uint32())
@@ -439,11 +444,17 @@ class KompaktEncoder(Encoder):
         elif type.scalar_type == ScalarType.NODE:
             self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             writer.write_uuid(value.id)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -561,17 +572,35 @@ class KompaktEncoder(Encoder):
                 options | EncoderFlag.OMIT_METATYPE,
             )
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return self.unpack_object_binary(
                 ObjectKind.STRUCT,
-                StructType.NODE_REFERENCE,
+                StructType.NODE_MOMENT,
                 reader,
                 session,
                 options | EncoderFlag.OMIT_METATYPE,
             )
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return reader.read_uuid()
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return self.unpack_object_binary(
+                ObjectKind.STRUCT,
+                StructType.NODE_IDENTITY,
+                reader,
+                session,
+                options | EncoderFlag.OMIT_METATYPE,
+            )
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return self.unpack_object_binary(
+                ObjectKind.STRUCT,
+                StructType.NODE_LOCATION,
+                reader,
+                session,
+                options | EncoderFlag.OMIT_METATYPE,
+            )
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")
@@ -636,42 +665,3 @@ class KompaktValueEncoder(KompaktObjectEncoder[Value]):
             type, _reader, _session, _options | EncoderFlag.OMIT_METATYPE
         )
         return Value(type=type, value=value)
-
-
-class KompaktNodeReferenceEncoder(KompaktObjectEncoder[NodeReference]):
-    """More compact NodeReference Kompakt encoding (because it's so heavily used)."""
-
-    @override
-    def pack_object(
-        self,
-        _encoder: "KompaktEncoder",
-        _object: NodeReference,
-        _writer: BinaryWriter,
-        _options: EncoderFlag,
-    ) -> None:
-        _writer.write_uint32(_object.type)
-        _writer.write_uuid(_object.id)
-        _writer.write_uuid(_object.space_id)
-        _writer.write_uuid(_object.branch_id)
-        _writer.write_uuid(_object.snapshot_id)
-
-    @override
-    def unpack_object(
-        self,
-        _encoder: "KompaktEncoder",
-        _reader: BinaryReader,
-        _session: "Session | None",
-        _options: EncoderFlag,
-    ) -> NodeReference:
-        type = NodeType(_reader.read_uint32())
-        id = _reader.read_uuid()
-        space_id = _reader.read_uuid()
-        branch_id = _reader.read_uuid()
-        snapshot_id = _reader.read_uuid()
-        return NodeReference(
-            type=type,
-            id=id,
-            space_id=space_id,
-            branch_id=branch_id,
-            snapshot_id=snapshot_id,
-        )

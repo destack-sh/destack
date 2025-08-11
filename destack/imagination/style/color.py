@@ -6,6 +6,7 @@ from destack.core import (
     NodeType,
     ObjectStability,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     UInt32,
@@ -126,7 +127,10 @@ class ColorStyle(Style):
     g: Float32 = declare_property(204, is_repr=True)
     b: Float32 = declare_property(205, is_repr=True)
     a: Float32 = declare_property(206, is_repr=True)
-    dark: Optional["ColorStyle"] = declare_property(207)
+    dark: Optional["ColorStyle"] = declare_property(
+        207,
+        reference_type=ReferenceType.LOCATION,
+    )
 
     @declare_method(201)
     @classmethod

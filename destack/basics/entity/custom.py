@@ -6,8 +6,8 @@ from destack.core import (
     Error,
     Event,
     Message,
-    NodeReference,
     NodeType,
+    ReferenceType,
     Sort,
     Struct,
     StructType,
@@ -44,13 +44,9 @@ class CustomEvent(Event):
         10,
         is_managed=True,
         is_readonly=True,
+        reference_type=ReferenceType.LOCATION,
         description="The CustomEvent this Signal is an instance of.",
     )
-
-    @declare_method(2)
-    def to_ref(self) -> "NodeReference":
-        """Gets a reference to this Node."""
-        raise NotImplementedError
 
 
 @declare_entity(NodeType.CUSTOM_STRUCT_DEFINITION)
@@ -65,7 +61,11 @@ class CustomStructDefinition(Entity):
 class CustomStruct(Struct):
     """A CustomStruct is a generic instance of a custom Struct with custom Values."""
 
-    definition: "CustomStructDefinition" = declare_property(11, is_repr=True)
+    definition: "CustomStructDefinition" = declare_property(
+        11,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Struct, keyed by custom Property name.",
@@ -94,7 +94,11 @@ class CustomMessageDefinition(CustomStructDefinition):
 class CustomMessage(Message):
     """A CustomMessage is an instance of a custom Message with custom Values."""
 
-    definition: "CustomMessageDefinition" = declare_property(11, is_repr=True)
+    definition: "CustomMessageDefinition" = declare_property(
+        11,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Message, keyed by custom Property name.",
@@ -123,7 +127,11 @@ class CustomErrorDefinition(CustomStructDefinition):
 class CustomError(Error):
     """A CustomError is an instance of a custom Error with custom Values."""
 
-    definition: "CustomErrorDefinition" = declare_property(11, is_repr=True)
+    definition: "CustomErrorDefinition" = declare_property(
+        11,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     custom_values: dict[str, "Value"] | None = declare_property(
         45,
         description="The custom Values of this Error, keyed by custom Property name.",

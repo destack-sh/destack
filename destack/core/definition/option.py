@@ -23,6 +23,8 @@ class OptionDefinition(Definition):
     type: EnumType = declare_property(100, is_repr=True)
     taggings: list[UInt8] = declare_property(109)
 
+    is_internal: bool = declare_property(110, default=False)
+
     @classmethod
     def from_declaration(
         cls, enum_type: EnumType, declaration: OptionDeclaration
@@ -34,4 +36,5 @@ class OptionDefinition(Definition):
             type=enum_type,
             name=declaration.name,
             description=declaration.description,
+            is_internal=declaration.is_internal,
         )

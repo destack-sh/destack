@@ -4,6 +4,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     TraitType,
     declare_entity,
     declare_event,
@@ -18,7 +19,10 @@ if TYPE_CHECKING:
 class SceneEvent(Event):
     """A Event regarding a Scene."""
 
-    scene: "Scene" = declare_property(101)
+    scene: "Scene" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_entity(
@@ -31,5 +35,7 @@ class Scene(Entity):
     """A Scene contains some interactive part of a Stage."""
 
     root_view: Optional["LayoutView"] = declare_property(
-        200, description="The root view of the Scene."
+        200,
+        reference_type=ReferenceType.LOCATION,
+        description="The root view of the Scene.",
     )

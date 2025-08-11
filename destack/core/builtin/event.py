@@ -1,17 +1,17 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, dataclass_transform
 
+from ._hoisted import ReferenceType
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
 from .enum import OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
-from .types import UInt128
+from .types import UInt8, UInt64, UInt128
 from .universe import EnumType, NodeType, StructType
-from .uuid import UUID
 
 if TYPE_CHECKING:
-    from destack import Client, NodeReference
+    from destack import Client, NodeLocation
 
 
 @declare_enum(EnumType.EVENT_STATUS)
@@ -113,6 +113,7 @@ class Event(Node):
         10,
         is_managed=True,
         is_readonly=True,
+        reference_type=ReferenceType.LOCATION,
         description="The definition this Event is an instance of.",
         tags=("identity",),
     )
@@ -147,6 +148,7 @@ class Event(Node):
         is_repr=False,
         is_readonly=True,
         default_factory=ValueFactory.ACTOR,
+        reference_type=ReferenceType.LOCATION,
         description="The Actor that created this Event.",
         tags=("tracking",),
     )
@@ -157,11 +159,12 @@ class Event(Node):
         is_hash=False,
         is_repr=True,
         is_readonly=True,
+        reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.CLIENT,
         description="The Client that created this Event (client, but verified).",
         tags=("tracking", "client"),
     )
-    client_nonce: UUID = declare_property(
+    client_nonce: UInt8 = declare_property(
         24,
         is_eq=False,
         is_hash=False,
@@ -194,8 +197,7 @@ class Event(Node):
         description="The logical time last seen from the system in the Client for this space (client).",
         tags=("tracking", "client"),
     )
-    # nocheckin: merge all client_local_epochs into .ids (strict monotonic uuid7?)
-    client_local_epoch: UInt128 = declare_property(
+    client_local_epoch: UInt64 = declare_property(
         27,
         is_eq=False,
         is_hash=False,
@@ -221,12 +223,13 @@ class Event(Node):
         is_hash=False,
         is_readonly=True,
         is_managed=True,
+        reference_type=ReferenceType.LOCATION,
         description="The Event that caused this Event (if any).",
         tags=("identity",),
     )
     # 100+: content
 
     @declare_method(2)
-    def to_ref(self) -> "NodeReference":
+    def to_ref(self) -> "NodeLocation":
         """Gets a reference to this Node."""
         raise NotImplementedError

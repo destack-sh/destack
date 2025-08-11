@@ -9,7 +9,7 @@ from typing import (
 )
 
 from ._const import UNSET
-from ._hoisted import UInt128, ValueFactory
+from ._hoisted import ReferenceType, UInt128, ValueFactory
 from .declaration import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -25,7 +25,7 @@ from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 if TYPE_CHECKING:
     from destack import (
         Branch,
-        NodeReference,
+        NodeLocation,
         Script,
         Tag,
         Value,
@@ -163,27 +163,18 @@ class Entity(Node):
         11,
         is_managed=True,
         is_readonly=True,
+        reference_type=ReferenceType.LOCATION,
         description="The definition this Entity is an instance of.",
         tags=("identity",),
     )
-    preceded_by: Optional[Self] = declare_property(
-        12,
-        is_readonly=True,
-        is_managed=True,
-        is_eq=False,
-        is_hash=False,
-        description="""\
-The previous Entity this Entity is based on (from the base Branch, if any).
-We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
-""",
-        tags=("identity",),
-    )
+    # preceded_by?
     instance: Optional["Entity"] = declare_property(
         13,
         is_readonly=True,
         is_managed=True,
         is_eq=False,
         is_hash=False,
+        reference_type=ReferenceType.LOCATION,
         description="The (root) Entity that is being instantiated.",
         tags=("identity",),
     )
@@ -215,6 +206,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
         is_eq=False,
         is_readonly=True,
         default_factory=ValueFactory.ACTOR,
+        reference_type=ReferenceType.LOCATION,
         description="The Actor that created this Entity.",
         tags=("tracking",),
     )
@@ -242,6 +234,7 @@ We maintain this invariant: `Entity.preceded_by.branch == Entity.branch.preceded
         is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.ACTOR,
+        reference_type=ReferenceType.LOCATION,
         description="The Actor that last updated this Entity.",
         tags=("tracking",),
     )
@@ -260,6 +253,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         30,
         is_repr=True,
         description="The exclusive owner of this Entity (the authority on access).",
+        reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.ACTOR,
         tags=("tracking",),
     )
@@ -267,6 +261,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         31,
         is_repr=True,
         description="The exclusive manager of this Entity (the authority on state).",
+        reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.ACTOR,
         tags=("tracking",),
     )
@@ -274,6 +269,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # 40-50: entity
     parent: Optional["Entity"] = declare_property(
         40,
+        reference_type=ReferenceType.LOCATION,
         description="The parent of this Entity. Most Entities can be attached to any other Entity.",
         tags=("entity",),
     )
@@ -317,6 +313,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     script: Optional["Script"] = declare_property(
         60,
         description="The Script of this Entity.",
+        reference_type=ReferenceType.LOCATION,
         tags=("behavior",),
     )
 
@@ -326,7 +323,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # ... (from script, dynamic effect, manual function, import, ...)
 
     @declare_method(2)
-    def to_ref(self) -> "NodeReference":
+    def to_ref(self) -> "NodeLocation":
         """Gets a reference to this Node."""
         raise NotImplementedError
 

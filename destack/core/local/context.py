@@ -3,10 +3,10 @@ from random import Random
 from typing import TYPE_CHECKING, Optional, final
 
 from ..builtin import (
-    UUID,
     Entity,
     Handle,
     HandleType,
+    UInt8,
     declare_handle,
     declare_property_runtime,
 )
@@ -29,7 +29,7 @@ class Context(Handle):
     # TODO :Incomplete: Context to replace local 'globals'
     actor: "Entity" = declare_property_runtime(401, is_repr=True)
     client: "Client" = declare_property_runtime(402, is_repr=True)
-    client_nonce: UUID = declare_property_runtime(403, is_repr=True)
+    client_nonce: UInt8 = declare_property_runtime(403, is_repr=True)
     event: Optional["Event"] = declare_property_runtime(404, is_repr=True)
 
     space: "Space" = declare_property_runtime(

@@ -4,6 +4,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     TraitType,
     declare_entity,
     declare_event,
@@ -18,16 +19,28 @@ if TYPE_CHECKING:
 class MembershipEvent(Event):
     """A Event regarding a Membership."""
 
-    membership: "Membership" = declare_property(101)
-    joinable: "Entity" = declare_property(102)
-    member: "Entity" = declare_property(103)
+    membership: "Membership" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
+    joinable: "Entity" = declare_property(
+        102,
+        reference_type=ReferenceType.LOCATION,
+    )
+    member: "Entity" = declare_property(
+        103,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.MEMBERSHIP_JOINED_EVENT)
 class MembershipJoinedEvent(MembershipEvent):
     """A Event regarding a Membership Join."""
 
-    role: "Role" = declare_property(110)
+    role: "Role" = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
     role_type: "RoleType" = declare_property(111)
 
 
@@ -46,6 +59,12 @@ class MembershipLeftEvent(MembershipEvent):
 class Membership(Entity):
     """A Membership of a Actor in a Joinable."""
 
-    member: "Entity" = declare_property(110)
-    role: Optional["Role"] = declare_property(111)
+    member: "Entity" = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
+    role: Optional["Role"] = declare_property(
+        111,
+        reference_type=ReferenceType.LOCATION,
+    )
     role_type: Optional["RoleType"] = declare_property(112)

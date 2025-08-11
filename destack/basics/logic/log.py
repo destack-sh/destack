@@ -35,5 +35,8 @@ class LogEvent(Event):
         description="The custom Values of this Entity, keyed by custom Property name.",
     )
 
-    name: str = declare_property(101)
+    name: str = declare_property(
+        101,
+        is_interned=True,
+    )
     level: LogLevel = declare_property(110)

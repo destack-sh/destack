@@ -345,10 +345,16 @@ class JsonEncoder(Encoder):
         elif type.scalar_type == ScalarType.NODE:
             return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return self.pack_object(value, options)
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
             return self.pack_object(value, options)
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return str(value)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return str(value.id)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
@@ -423,9 +429,9 @@ class JsonEncoder(Encoder):
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return self.unpack_scalar_enum(enum_cls, value)
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return self.unpack_object(
-                ObjectKind.STRUCT, StructType.NODE_REFERENCE, value, session, options
+                ObjectKind.STRUCT, StructType.NODE_MOMENT, value, session, options
             )
         # node
         elif type.scalar_type == ScalarType.NODE:
@@ -433,8 +439,18 @@ class JsonEncoder(Encoder):
                 None, None, value, session, options & ~EncoderFlag.OMIT_METATYPE
             )
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return UUID(value)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return self.unpack_object(
+                ObjectKind.STRUCT, StructType.NODE_IDENTITY, value, session, options
+            )
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return self.unpack_object(
+                ObjectKind.STRUCT, StructType.NODE_LOCATION, value, session, options
+            )
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"

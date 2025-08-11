@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
     UUID,
@@ -7,6 +7,7 @@ from destack.core import (
     Event,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Value,
     declare_entity,
     declare_enum,
@@ -23,7 +24,10 @@ if TYPE_CHECKING:
 class TriggerEvent(Event):
     """A TriggerEvent is an Event that corresponds to a Trigger."""
 
-    trigger: "Trigger" = declare_property(101)
+    trigger: "Trigger" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_enum(EnumType.TRIGGER_TYPE)
@@ -43,5 +47,8 @@ class Trigger(Entity):
     #  (only trigger if containing View? is active, no backfill)
 
     # what
-    target: Union["Entity", None] = declare_property(120)
+    target: Optional["Entity"] = declare_property(
+        120,
+        reference_type=ReferenceType.LOCATION,
+    )
     arguments: dict[UUID, Value] = declare_property(121)

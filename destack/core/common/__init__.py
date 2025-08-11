@@ -1,3 +1,4 @@
+from .branch import Branch, BranchType
 from .change import ChangeEvent, ChangeType, EditOperation, EditOperationType
 from .icon import Icon, IconType
 from .query import (
@@ -16,7 +17,14 @@ from .query import (
     SortMode,
     SortType,
 )
-from .relation import NodeReference, ObjectDefinitionReference, PropertyReference
+from .relation import (
+    NodeIdentity,
+    NodeLocation,
+    NodeMoment,
+    ObjectDefinitionReference,
+    PropertyReference,
+)
+from .snapshot import Snapshot, SnapshotStatus, SnapshotType
 from .text import (
     Text,
     TextIn,
@@ -28,7 +36,6 @@ from .text import (
     title,
     to_text,
 )
-from .time import Branch, BranchType, Snapshot, SnapshotStatus, SnapshotType
 from .type import (
     CollectionConstraint,
     NumberConstraint,
@@ -58,7 +65,9 @@ __all__ = [
     "IconType",
     "Join",
     "JoinType",
-    "NodeReference",
+    "NodeIdentity",
+    "NodeLocation",
+    "NodeMoment",
     "NumberConstraint",
     "ObjectDefinitionReference",
     "PropertyReference",

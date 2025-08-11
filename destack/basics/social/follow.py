@@ -6,6 +6,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     TraitType,
     declare_entity,
     declare_event,
@@ -35,7 +36,10 @@ class Follow(Entity):
 
 @declare_event(NodeType.FOLLOW_EVENT)
 class FollowEvent(Event):
-    follow: "Follow" = declare_property(101)
+    follow: "Follow" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.FOLLOW_ADDED_EVENT)

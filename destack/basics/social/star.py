@@ -6,6 +6,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     TraitType,
     declare_entity,
     declare_event,
@@ -33,7 +34,10 @@ class Star(Entity):
 
 @declare_event(NodeType.STAR_EVENT)
 class StarEvent(Event):
-    star: "Star" = declare_property(101)
+    star: "Star" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.STAR_ADDED_EVENT)

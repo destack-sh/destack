@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from ..builtin import (
     EnumType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     declare_enum,
@@ -36,7 +37,10 @@ class Icon(Struct):
     emoji: str | None = declare_property(101)
     fa_name: str | None = declare_property(102)
     vsc_name: str | None = declare_property(103)
-    file: Optional["File"] = declare_property(104)
+    file: Optional["File"] = declare_property(
+        104,
+        reference_type=ReferenceType.IDENTITY,
+    )
     file_url: str | None = declare_property(105)
     # style
     color: Optional["Color"] = declare_property(110)
