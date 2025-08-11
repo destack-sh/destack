@@ -48,11 +48,11 @@ class RustObjectSizer(ObjectSizer):
     FLOAT32_SIZE = 4
     FLOAT64_SIZE = 8
 
-    # chrono sizes (approximations requested)
-    NAIVE_DATE_TIME_SIZE = 12
-    NAIVE_DATE_SIZE = 4
-    NAIVE_TIME_SIZE = 12
-    DURATION_SIZE = 12
+    # datetime sizes
+    DATETIME_SIZE = 8
+    DATE_SIZE = 8
+    TIME_SIZE = 8
+    DURATION_SIZE = 8
 
     # uuid size
     UUID_SIZE = 16
@@ -148,11 +148,11 @@ class RustObjectSizer(ObjectSizer):
             elif type.primitive_type == PrimitiveType.FLOAT64:
                 return ObjectSize(self.FLOAT64_SIZE, self.FLOAT64_SIZE)
             elif type.primitive_type == PrimitiveType.DATETIME:
-                return ObjectSize(self.NAIVE_DATE_TIME_SIZE, self.NAIVE_DATE_TIME_SIZE)
+                return ObjectSize(self.DATETIME_SIZE, self.DATETIME_SIZE)
             elif type.primitive_type == PrimitiveType.DATE:
-                return ObjectSize(self.NAIVE_DATE_SIZE, self.NAIVE_DATE_SIZE)
+                return ObjectSize(self.DATE_SIZE, self.DATE_SIZE)
             elif type.primitive_type == PrimitiveType.TIME:
-                return ObjectSize(self.NAIVE_TIME_SIZE, self.NAIVE_TIME_SIZE)
+                return ObjectSize(self.TIME_SIZE, self.TIME_SIZE)
             elif type.primitive_type == PrimitiveType.DURATION:
                 return ObjectSize(self.DURATION_SIZE, self.DURATION_SIZE)
             elif type.primitive_type == PrimitiveType.UUID:
@@ -236,10 +236,10 @@ class KompaktObjectSizer(ObjectSizer):
     UINT64_RANGE = (1, 10)
     UINT128_RANGE = (1, 19)
 
-    DATE_RANGE = (1, 5)  # days varint
-    TIME_RANGE = (1, 6)  # micros since midnight
     DATETIME_RANGE = (1, 10)  # micros zigzag varint
-    DURATION_RANGE = (1, 10)  # micros zigzag varint
+    DATE_RANGE = (1, 5)  # days varint
+    TIME_RANGE = (1, 6)  # nanos since midnight
+    DURATION_RANGE = (1, 10)  # nanos zigzag varint
 
     @override
     def size_object(self, object: "StructDefinition | NodeDefinition") -> ObjectSize:

@@ -21,22 +21,22 @@ class TypeScriptObjectSizer(ObjectSizer):
     - collections (arrays, tuples, maps) and objects are references
     """
 
-    # js reference/pointer size (engine dependent, assume 64-bit)
+    # js reference/pointer size (engine dependent)
     POINTER_SIZE = 8
 
-    # object/collection base overheads (very rough, engine dependent)
+    # object/collection base overheads (engine dependent)
     OBJECT_BASE_SIZE = 16
     ARRAY_BASE_SIZE = 24
     TUPLE_BASE_SIZE = 24
     MAP_BASE_SIZE = 32
 
-    # primitive payload sizes
+    # primitive sizes
     NUMBER_SIZE = 8
     BOOLEAN_SIZE = 1
     STRING_EMPTY_SIZE = 0  # UTF-16, dynamic payload; empty string is 0
     BYTES_EMPTY_SIZE = 0  # ArrayBuffer length 0
 
-    # temporal approximations
+    # datetime sizes
     TEMPORAL_INSTANT_SIZE = 16
     TEMPORAL_DATE_SIZE = 12
     TEMPORAL_TIME_SIZE = 16

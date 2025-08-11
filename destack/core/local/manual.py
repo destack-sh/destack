@@ -421,10 +421,13 @@ def _show_definition(
         StructDefinition,
     )
 
+    definition_cls = BUILTIN_CLASS_BY_NAME[definition.name]
+
     # header
     console.print("")
     console.print("=" * 70, "bright_cyan")
     console.print(f"{definition.name} [{definition.__class__.__name__}]", "bright_cyan", "bold")
+    console.print(f"{definition_cls.__module__}", "bright_cyan")
     console.print("=" * 70, "bright_cyan")
 
     # description
@@ -465,17 +468,17 @@ def _show_properties(
     for prop in instance_properties:
         flags: list[str] = []
         if prop.is_readonly:
-            flags.append("r")
+            flags.append("ro")
         if prop.is_managed:
-            flags.append("m")
+            flags.append("ma")
         if prop.is_interned:
-            flags.append("i")
+            flags.append("in")
         if prop.is_repr:
-            flags.append("r")
+            flags.append("re")
         if prop.is_eq:
-            flags.append("e")
+            flags.append("eq")
         if prop.is_hash:
-            flags.append("h")
+            flags.append("ha")
         origin = _get_origin_for(owner, prop)
         rows.append(
             [
@@ -485,7 +488,7 @@ def _show_properties(
                 console.color(_render_size(context.memory_sizer.size_type(prop.type)), "green"),
                 console.color(_render_size(context.packed_sizer.size_type(prop.type)), "green"),
                 console.color(origin or "-", "cyan"),
-                console.color("".join(flags) if flags else "", "gray"),
+                console.color("|".join(flags) if flags else "", "gray"),
             ]
         )
     console.print(console.table(rows, headers))

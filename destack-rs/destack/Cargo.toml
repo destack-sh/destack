@@ -13,11 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 bytes = { workspace = true }
-chrono = "0.4.41"
-clap = { workspace = true }
-indexmap = { workspace = true }
 once_cell = { workspace = true }
-parking_lot = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
 sysinfo = { workspace = true }
@@ -29,9 +25,7 @@ criterion = { workspace = true }
 pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
-rstest = { workspace = true }
 static_assertions = { workspace = true }
-tempfile = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 
 [lints]

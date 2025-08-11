@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, final
+from typing import TYPE_CHECKING, Any, final
 
 from destack.core import (
     Condition,
@@ -8,8 +8,6 @@ from destack.core import (
     Message,
     NodeReference,
     NodeType,
-    ReferenceCascade,
-    ReferenceType,
     Sort,
     Struct,
     StructType,
@@ -162,10 +160,6 @@ class CustomPropertyDefinition(Entity):
         100,
         description="The actual Type of this custom Property.",
     )
-
-    # relationship
-    reference_type: Optional[ReferenceType] = declare_property(140)
-    cascade: Optional[ReferenceCascade] = declare_property(141)
 
     # property flags
     is_readonly: bool | None = declare_property(

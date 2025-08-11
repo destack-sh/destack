@@ -75,6 +75,8 @@ ignore = [
 	"SIM114",
 	# repeated list append
 	"FURB113",
+	# assign a lambda expression, use a def
+	"E731",
 ]
 
 [tool.ruff.lint.isort]

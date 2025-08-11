@@ -1,9 +1,8 @@
 from .binary import BinaryReader, BinaryWriter
 from .encoder import Encoder, EncoderFlag
-from .hasher import Hasher
+from .hasher import Hasher, MemoryHasher
 from .json import JsonEncoder
-from .jsonc import JsoncEncoder
-from .kompakt import KompaktEncoder
+from .kompakt import KompaktBinaryReader, KompaktBinaryWriter, KompaktEncoder
 
 __all__ = [
     "BinaryReader",
@@ -12,6 +11,8 @@ __all__ = [
     "EncoderFlag",
     "Hasher",
     "JsonEncoder",
-    "JsoncEncoder",
+    "KompaktBinaryReader",
+    "KompaktBinaryWriter",
     "KompaktEncoder",
+    "MemoryHasher",
 ]

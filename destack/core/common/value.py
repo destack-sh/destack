@@ -37,11 +37,11 @@ class Value(Struct):
         return self.value
 
     def set(self, value: Any):
-        self.type = Type.infer(value)
+        self.type = Type.of(value)
         self.value = value
 
     @classmethod
-    def wrap(
+    def of(
         cls,
         value: Any,
         type: "Type | None" = None,

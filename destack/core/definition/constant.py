@@ -40,6 +40,6 @@ class ConstantDefinition(Definition):
             name=declaration.name,
             description=declaration.description,
             # content
-            value=Value.wrap(declaration.value),
+            value=Value.of(declaration.value),
             _is_deferred=declaration.is_deferred,
         )

@@ -11,18 +11,13 @@ rust-version.workspace = true
 destack = { workspace = true }
 destack_system = { workspace = true }
 bytes = { workspace = true }
-clap = { workspace = true }
-indexmap = { workspace = true }
 once_cell = { workspace = true }
-parking_lot = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
 uuid = { workspace = true }
 criterion = { workspace = true }
 pretty_assertions = { workspace = true }
-rstest = { workspace = true }
 static_assertions = { workspace = true }
-tempfile = { workspace = true }
 
 [lints]
 workspace = true

@@ -10,7 +10,6 @@ from typing import (
 from ._const import UNSET
 from ._hoisted import (
     PropertyZone,
-    ReferenceCascade,
     ReferenceType,
     ScalarType,
     TypeCardinality,
@@ -67,7 +66,6 @@ class PropertyDeclaration(Declaration):
 
     # relationships
     reference_type: ReferenceType | None = None
-    reference_cascade: ReferenceCascade | None = None
 
     # flags
     is_repr: bool = False  # included in Object.__repr__
@@ -264,7 +262,7 @@ class PropertyDeclaration(Declaration):
         return Condition(
             type=ConditionalType.STARTS_WITH,
             left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(value)),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(value)),
         )
 
     def ends_with(self, value: str) -> "Condition":
@@ -273,7 +271,7 @@ class PropertyDeclaration(Declaration):
         return Condition(
             type=ConditionalType.ENDS_WITH,
             left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(value)),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(value)),
         )
 
     def in_(self, *values: Any) -> "Condition":
@@ -282,7 +280,7 @@ class PropertyDeclaration(Declaration):
         return Condition(
             type=ConditionalType.IN,
             left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(values)),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(values)),
         )
 
     def not_in(self, *values: Any) -> "Condition":
@@ -291,7 +289,7 @@ class PropertyDeclaration(Declaration):
         return Condition(
             type=ConditionalType.NOT_IN,
             left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.wrap(values)),
+            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(values)),
         )
 
     def exists(self) -> "Condition":
@@ -350,7 +348,6 @@ def declare_property(
     default: Any = UNSET,
     default_factory: ValueFactory | None = None,
     reference_type: ReferenceType | None = None,
-    reference_cascade: ReferenceCascade | None = None,
     is_managed: bool = False,
     is_repr: bool = False,
     is_hash: bool = True,
@@ -366,7 +363,6 @@ def declare_property(
         default_value=default,
         default_factory=default_factory,
         reference_type=reference_type,
-        reference_cascade=reference_cascade,
         is_managed=is_managed,
         is_repr=is_repr,
         is_hash=is_hash,

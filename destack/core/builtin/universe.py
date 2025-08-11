@@ -190,8 +190,6 @@ class EnumType(OptionEnum):
     VALUE_FACTORY = declare_option(200_003)
     PROPERTY_ZONE = declare_option(200_006)
     REFERENCE_TYPE = declare_option(200_010)
-    REFERENCE_DIRECTION = declare_option(200_011)
-    REFERENCE_CASCADE = declare_option(200_012)
     # text
     TEXT_SPAN_TYPE = declare_option(200_100)
     ICON_TYPE = declare_option(200_110)

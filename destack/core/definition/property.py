@@ -4,7 +4,6 @@ from ..builtin import (
     UNSET,
     Node,
     PropertyDeclaration,
-    ReferenceCascade,
     ReferenceType,
     Struct,
     StructType,
@@ -41,7 +40,6 @@ class PropertyDefinition(Definition):
 
     # relationships
     reference_type: ReferenceType | None = declare_property(130)
-    reference_cascade: ReferenceCascade | None = declare_property(131)
 
     # property flags
     is_readonly: bool = declare_property(
@@ -107,13 +105,10 @@ class PropertyDefinition(Definition):
             taggings=taggings,
             # type
             type=type,
-            default_value=Value.wrap(prop.default_value)
-            if prop.default_value is not UNSET
-            else None,
+            default_value=Value.of(prop.default_value) if prop.default_value is not UNSET else None,
             default_factory=prop.default_factory,
             # node
             reference_type=prop.reference_type,
-            reference_cascade=prop.reference_cascade,
             # flags
             is_readonly=prop.is_readonly,
             is_repr=prop.is_repr,
