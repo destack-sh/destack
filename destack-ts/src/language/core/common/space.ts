@@ -120,13 +120,13 @@ export abstract class Universe extends Entity {
    * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   abstract get parent(): Entity | null;
-  declare readonly parentPtr: NodeReference | null;
+  declare readonly parentRef: NodeReference | null;
 
   /**
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference;
+  declare readonly spaceRef: NodeReference;
 
   /**
    * Entity.materialization
@@ -137,32 +137,32 @@ export abstract class Universe extends Entity {
    * The definition this Entity is an instance of.
    */
   abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
+  declare readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Entity is part of.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference;
+  declare readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference;
+  declare readonly snapshotRef: NodeReference;
 
   /**
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): Universe | null;
-  declare readonly precededByPtr: NodeReference | null;
+  declare readonly precededByRef: NodeReference | null;
 
   /**
    * The (root) Entity that is being instantiated.
    */
   abstract get instance(): Entity | null;
-  declare readonly instancePtr: NodeReference | null;
+  declare readonly instanceRef: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -178,7 +178,7 @@ export abstract class Universe extends Entity {
    * The Actor that created this Entity.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference;
+  declare readonly createdByRef: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -194,7 +194,7 @@ export abstract class Universe extends Entity {
    * The Actor that last updated this Entity.
    */
   abstract get updatedBy(): Entity | null;
-  declare readonly updatedByPtr: NodeReference;
+  declare readonly updatedByRef: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -211,8 +211,8 @@ export abstract class Universe extends Entity {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedByPtr(): NodeReference | null;
-  abstract set ownedByPtr(value: NodeReference | null);
+  abstract get ownedByRef(): NodeReference | null;
+  abstract set ownedByRef(value: NodeReference | null);
 
   /**
    * Entity.name
@@ -245,8 +245,8 @@ export abstract class Universe extends Entity {
   /**
    * The Script of this Entity.
    */
-  abstract get scriptPtr(): NodeReference | null;
-  abstract set scriptPtr(value: NodeReference | null);
+  abstract get scriptRef(): NodeReference | null;
+  abstract set scriptRef(value: NodeReference | null);
 
   /**
    * Whether this Entity can be instanced.
@@ -257,7 +257,7 @@ export abstract class Universe extends Entity {
    * The Script that defines this Node.
    */
   abstract get source(): Script | null;
-  declare readonly sourcePtr: NodeReference | null;
+  declare readonly sourceRef: NodeReference | null;
 
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
@@ -286,25 +286,25 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.parentRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  readonly parentRef: NodeReference | null;
 
   /**
    * The Space this Node is in.
    */
   get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | null;
+    const nodeRef: NodeReference | null = this.spaceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Space | null;
     }
     return null;
   }
-  readonly spacePtr: NodeReference;
+  readonly spaceRef: NodeReference;
 
   /**
    * Entity.materialization
@@ -315,62 +315,62 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.definitionRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Entity is part of.
    */
   get branch(): Branch | null {
-    const nodePtr: NodeReference | null = this.branchPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Branch | null;
+    const nodeRef: NodeReference | null = this.branchRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Branch | null;
     }
     return null;
   }
-  readonly branchPtr: NodeReference;
+  readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Snapshot | null;
+    const nodeRef: NodeReference | null = this.snapshotRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Snapshot | null;
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference;
+  readonly snapshotRef: NodeReference;
 
   /**
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Space | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | null;
+    const nodeRef: NodeReference | null = this.precededByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Space | null;
     }
     return null;
   }
-  readonly precededByPtr: NodeReference | null;
+  readonly precededByRef: NodeReference | null;
 
   /**
    * The (root) Entity that is being instantiated.
    */
   get instance(): Entity | null {
-    const nodePtr: NodeReference | null = this.instancePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.instanceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly instancePtr: NodeReference | null;
+  readonly instanceRef: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -386,13 +386,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * The Actor that created this Entity.
    */
   get createdBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.createdByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference;
+  readonly createdByRef: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -408,13 +408,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * The Actor that last updated this Entity.
    */
   get updatedBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.updatedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference;
+  readonly updatedByRef: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -427,31 +427,31 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * Entity.ownedBy
    */
   get ownedBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.ownedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
   set ownedBy(node: Entity | null) {
     if (node === null) {
-      this.ownedByPtr = null;
+      this.ownedByRef = null;
     } else {
-      this.ownedByPtr = node.toRef();
+      this.ownedByRef = node.toRef();
     }
   }
   /**
    * Entity.ownedBy
    */
-  get ownedByPtr(): NodeReference | null {
-    return this._ownedByPtr;
+  get ownedByRef(): NodeReference | null {
+    return this._ownedByRef;
   }
-  set ownedByPtr(value: NodeReference | null) {
+  set ownedByRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["owned_by"];
     this._session.updateSetProperty(this, prop, value);
-    this._ownedByPtr = value;
+    this._ownedByRef = value;
   }
-  _ownedByPtr: NodeReference | null;
+  _ownedByRef: NodeReference | null;
 
   /**
    * Entity.name
@@ -494,31 +494,31 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * The Script of this Entity.
    */
   get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Script | null;
+    const nodeRef: NodeReference | null = this.scriptRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Script | null;
     }
     return null;
   }
   set script(node: Script | null) {
     if (node === null) {
-      this.scriptPtr = null;
+      this.scriptRef = null;
     } else {
-      this.scriptPtr = node.toRef();
+      this.scriptRef = node.toRef();
     }
   }
   /**
    * The Script of this Entity.
    */
-  get scriptPtr(): NodeReference | null {
-    return this._scriptPtr;
+  get scriptRef(): NodeReference | null {
+    return this._scriptRef;
   }
-  set scriptPtr(value: NodeReference | null) {
+  set scriptRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["script"];
     this._session.updateSetProperty(this, prop, value);
-    this._scriptPtr = value;
+    this._scriptRef = value;
   }
-  _scriptPtr: NodeReference | null;
+  _scriptRef: NodeReference | null;
 
   /**
    * Whether this Entity can be instanced.
@@ -529,13 +529,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * The Script that defines this Node.
    */
   get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Script | null;
+    const nodeRef: NodeReference | null = this.sourceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Script | null;
     }
     return null;
   }
-  readonly sourcePtr: NodeReference | null;
+  readonly sourceRef: NodeReference | null;
 
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
@@ -573,31 +573,31 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * Space.handle
    */
   get handle(): Handle | null {
-    const nodePtr: NodeReference | null = this.handlePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Handle | null;
+    const nodeRef: NodeReference | null = this.handleRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Handle | null;
     }
     return null;
   }
   set handle(node: Handle | null) {
     if (node === null) {
-      this.handlePtr = null;
+      this.handleRef = null;
     } else {
-      this.handlePtr = node.toRef();
+      this.handleRef = node.toRef();
     }
   }
   /**
    * Space.handle
    */
-  get handlePtr(): NodeReference | null {
-    return this._handlePtr;
+  get handleRef(): NodeReference | null {
+    return this._handleRef;
   }
-  set handlePtr(value: NodeReference | null) {
+  set handleRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["handle"];
     this._session.updateSetProperty(this, prop, value);
-    this._handlePtr = value;
+    this._handleRef = value;
   }
-  _handlePtr: NodeReference | null;
+  _handleRef: NodeReference | null;
 
   /**
    * Space.region
@@ -662,7 +662,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_parent != null && _parent.constructor.name !== "NodeReference") {
       _parent = (_parent as Node).toRef();
     }
-    this.parentPtr = _parent as NodeReference | null;
+    this.parentRef = _parent as NodeReference | null;
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
@@ -673,7 +673,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_space == null) {
       throw new Error(`Space.space is required`);
     }
-    this.spacePtr = _space as NodeReference;
+    this.spaceRef = _space as NodeReference;
     let _materialization = options.materialization ?? null;
     if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
@@ -686,7 +686,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition as NodeReference | null;
+    this.definitionRef = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
@@ -701,7 +701,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_branch == null) {
       throw new Error(`Space.branch is required`);
     }
-    this.branchPtr = _branch as NodeReference;
+    this.branchRef = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
@@ -716,24 +716,24 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_snapshot == null) {
       throw new Error(`Space.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot as NodeReference;
+    this.snapshotRef = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
     if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy as NodeReference | null;
+    this.precededByRef = _precededBy as NodeReference | null;
     let _instance = options.instance ?? null;
     if (_instance != null && _instance.constructor.name !== "NodeReference") {
       _instance = (_instance as Node).toRef();
     }
-    this.instancePtr = _instance as NodeReference | null;
+    this.instanceRef = _instance as NodeReference | null;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.constructor.name !== "NodeReference") {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this._ownedByPtr = _ownedBy as NodeReference | null;
+    this._ownedByRef = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
     if (_name == null) {
       _name = "Space";
@@ -759,14 +759,14 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_script != null && _script.constructor.name !== "NodeReference") {
       _script = (_script as Node).toRef();
     }
-    this._scriptPtr = _script as NodeReference | null;
+    this._scriptRef = _script as NodeReference | null;
     let _isExtensible = options.isExtensible ?? null;
     this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.constructor.name !== "NodeReference") {
       _source = (_source as Node).toRef();
     }
-    this.sourcePtr = _source as NodeReference | null;
+    this.sourceRef = _source as NodeReference | null;
     let _key = options.key ?? null;
     this._key = _key;
     let _slug = options.slug;
@@ -778,7 +778,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (_handle != null && _handle.constructor.name !== "NodeReference") {
       _handle = (_handle as Node).toRef();
     }
-    this._handlePtr = _handle as NodeReference | null;
+    this._handleRef = _handle as NodeReference | null;
     let _region = options.region;
     if (_region == null) {
       throw new Error(`Space.region is required`);
@@ -791,10 +791,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = this._session.actorPtr;
+      this.createdByRef = this._session.actorRef;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = this._session.actorPtr;
+      this.updatedByRef = this._session.actorRef;
     } else {
       if (
         options.createdAt == null ||
@@ -806,12 +806,12 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
-      this.createdByPtr =
-        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
+      this.createdByRef =
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorRef;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
-      this.updatedByPtr =
-        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorPtr;
+      this.updatedByRef =
+        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorRef;
     }
   }
 
@@ -819,22 +819,22 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!(this.spaceRef.id === other.spaceRef.id)) {
       return false;
     }
     if (!(this._slug === other._slug)) {
       return false;
     }
-    if (!(this._handlePtr?.id === other._handlePtr?.id)) {
+    if (!(this._handleRef?.id === other._handleRef?.id)) {
       return false;
     }
     if (!(this._region === other._region)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.definitionRef?.id === other.definitionRef?.id)) {
       return false;
     }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+    if (!(this._ownedByRef?.id === other._ownedByRef?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -843,13 +843,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+    if (!(this._scriptRef?.id === other._scriptRef?.id)) {
       return false;
     }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+    if (!(this.sourceRef?.id === other.sourceRef?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
@@ -861,27 +861,27 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spaceRef.id)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
-    if (this._handlePtr != null) {
-      h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
+    if (this._handleRef != null) {
+      h = (h * 31 + hashString(this._handleRef.id)) & 0xffffffff;
     }
     h = (h * 31 + this._region) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    if (this.parentRef != null) {
+      h = (h * 31 + hashString(this.parentRef.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.definitionRef != null) {
+      h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdByRef.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.updatedByRef.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByRef != null) {
+      h = (h * 31 + hashString(this._ownedByRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
@@ -891,14 +891,14 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._scriptRef != null) {
+      h = (h * 31 + hashString(this._scriptRef.id)) & 0xffffffff;
     }
     if (this.isExtensible != null) {
       h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    if (this.sourceRef != null) {
+      h = (h * 31 + hashString(this.sourceRef.id)) & 0xffffffff;
     }
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
@@ -914,8 +914,8 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       type: NodeType.SPACE,
       id: this.id,
       spaceId: this.id,
-      branchId: this.branchPtr.id,
-      snapshotId: this.snapshotPtr.id,
+      branchId: this.branchRef.id,
+      snapshotId: this.snapshotRef.id,
       _session: this._session,
     });
   }
@@ -962,18 +962,18 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
 
     const { session, id, name, slug, region, ownedBy } = options;
 
-    let ownedByPtr: NodeReference;
+    let ownedByRef: NodeReference;
     if (ownedBy instanceof Entity) {
-      ownedByPtr = ownedBy.__toRef__();
+      ownedByRef = ownedBy.__toRef__();
     } else {
-      ownedByPtr = ownedBy;
+      ownedByRef = ownedBy;
     }
 
     const spaceId = id ?? uuid4();
     const epoch = session.remoteEpoch;
     const now = Temporal.Now.zonedDateTimeISO("UTC");
 
-    const spacePtr = new _NodeReference({
+    const spaceRef = new _NodeReference({
       type: NodeType.SPACE,
       id: spaceId,
       spaceId,
@@ -982,7 +982,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     });
 
     // snapshots/branches live in the meta Branch/Snapshot
-    const metaBranchPtr = new _NodeReference({
+    const metaBranchRef = new _NodeReference({
       type: NodeType.BRANCH,
       id: Universe.META_BRANCH_ID,
       spaceId,
@@ -990,7 +990,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       snapshotId: Universe.META_SNAPSHOT_ID,
     });
 
-    const metaSnapshotPtr = new _NodeReference({
+    const metaSnapshotRef = new _NodeReference({
       type: NodeType.SNAPSHOT,
       id: Universe.META_SNAPSHOT_ID,
       spaceId,
@@ -998,7 +998,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       snapshotId: Universe.META_SNAPSHOT_ID,
     });
 
-    const rootBranchPtr = new _NodeReference({
+    const rootBranchRef = new _NodeReference({
       type: NodeType.BRANCH,
       id: Universe.ROOT_BRANCH_ID,
       spaceId,
@@ -1006,7 +1006,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       snapshotId: Universe.META_SNAPSHOT_ID,
     });
 
-    const headSnapshotPtr = new _NodeReference({
+    const headSnapshotRef = new _NodeReference({
       type: NodeType.SNAPSHOT,
       id: Universe.HEAD_SNAPSHOT_ID,
       spaceId,
@@ -1018,78 +1018,78 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       id: Universe.META_BRANCH_ID,
       type: BranchType.ROOT,
       name: "Meta",
-      space: spacePtr,
-      snapshot: metaSnapshotPtr,
-      branch: metaBranchPtr,
+      space: spaceRef,
+      snapshot: metaSnapshotRef,
+      branch: metaBranchRef,
       createdEpoch: epoch,
       createdAt: now,
-      createdBy: ownedByPtr,
+      createdBy: ownedByRef,
       updatedEpoch: epoch,
       updatedAt: now,
-      updatedBy: ownedByPtr,
+      updatedBy: ownedByRef,
     });
 
     const metaSnapshot = new _Snapshot({
       id: Universe.META_SNAPSHOT_ID,
       name: "Meta",
-      space: spacePtr,
-      branch: metaBranchPtr,
-      snapshot: metaSnapshotPtr,
+      space: spaceRef,
+      branch: metaBranchRef,
+      snapshot: metaSnapshotRef,
       createdEpoch: epoch,
       createdAt: now,
-      createdBy: ownedByPtr,
+      createdBy: ownedByRef,
       updatedEpoch: epoch,
       updatedAt: now,
-      updatedBy: ownedByPtr,
+      updatedBy: ownedByRef,
       type: SnapshotType.FULL,
     });
 
     const headSnapshot = new _Snapshot({
       id: Universe.HEAD_SNAPSHOT_ID,
       name: "Head",
-      space: spacePtr,
-      branch: metaBranchPtr,
-      snapshot: metaSnapshotPtr,
+      space: spaceRef,
+      branch: metaBranchRef,
+      snapshot: metaSnapshotRef,
       createdEpoch: epoch,
       createdAt: now,
-      createdBy: ownedByPtr,
+      createdBy: ownedByRef,
       updatedEpoch: epoch,
       updatedAt: now,
-      updatedBy: ownedByPtr,
+      updatedBy: ownedByRef,
       type: SnapshotType.FULL,
     });
 
     const rootBranch = new _Branch({
       id: Universe.ROOT_BRANCH_ID,
       name: "Root",
-      space: spacePtr,
-      snapshot: metaSnapshotPtr,
+      space: spaceRef,
+      snapshot: metaSnapshotRef,
       createdEpoch: epoch,
       createdAt: now,
-      createdBy: ownedByPtr,
+      createdBy: ownedByRef,
       updatedEpoch: epoch,
       updatedAt: now,
-      updatedBy: ownedByPtr,
+      updatedBy: ownedByRef,
       type: BranchType.ROOT,
-      branch: metaBranchPtr,
+      branch: metaBranchRef,
     });
 
     // space lives in the root Branch at head Snapshot
     const space = new _Space({
       id: spaceId,
-      space: spacePtr,
-      branch: rootBranchPtr,
-      snapshot: headSnapshotPtr,
+      space: spaceRef,
+      branch: rootBranchRef,
+      snapshot: headSnapshotRef,
       name,
       slug,
       region,
       createdEpoch: epoch,
       createdAt: now,
-      createdBy: ownedByPtr,
+      createdBy: ownedByRef,
       updatedEpoch: epoch,
       updatedAt: now,
-      updatedBy: ownedByPtr,
-      ownedBy: ownedByPtr,
+      updatedBy: ownedByRef,
+      ownedBy: ownedByRef,
     });
 
     session.create(space);

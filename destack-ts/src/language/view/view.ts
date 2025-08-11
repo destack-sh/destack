@@ -29,37 +29,37 @@ export abstract class ViewEvent extends Event {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference;
+  declare readonly spaceRef: NodeReference;
 
   /**
    * The definition this Event is an instance of.
    */
   abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
+  declare readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference;
+  declare readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference;
+  declare readonly snapshotRef: NodeReference;
 
   /**
    * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
-  declare readonly precededByPtr: NodeReference | null;
+  declare readonly precededByRef: NodeReference | null;
 
   /**
    * The Event that caused this Event (if any).
    */
   abstract get causedBy(): Event | null;
-  declare readonly causedByPtr: NodeReference | null;
+  declare readonly causedByRef: NodeReference | null;
 
   /**
    * The time this Event was created (system).
@@ -75,13 +75,13 @@ export abstract class ViewEvent extends Event {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference;
+  declare readonly createdByRef: NodeReference;
 
   /**
    * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference;
+  declare readonly clientRef: NodeReference;
 
   /**
    * The nonce of the Client that created this Event (client).
@@ -107,7 +107,7 @@ export abstract class ViewEvent extends Event {
    * ViewEvent.node
    */
   abstract get node(): View | null;
-  declare readonly nodePtr: NodeReference;
+  declare readonly nodeRef: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -127,13 +127,13 @@ export abstract class View extends Entity2D {
    * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   abstract get parent(): Entity | null;
-  declare readonly parentPtr: NodeReference | null;
+  declare readonly parentRef: NodeReference | null;
 
   /**
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference;
+  declare readonly spaceRef: NodeReference;
 
   /**
    * Entity.materialization
@@ -144,32 +144,32 @@ export abstract class View extends Entity2D {
    * The definition this Entity is an instance of.
    */
   abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
+  declare readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Entity is part of.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference;
+  declare readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference;
+  declare readonly snapshotRef: NodeReference;
 
   /**
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): View | null;
-  declare readonly precededByPtr: NodeReference | null;
+  declare readonly precededByRef: NodeReference | null;
 
   /**
    * The (root) Entity that is being instantiated.
    */
   abstract get instance(): Entity | null;
-  declare readonly instancePtr: NodeReference | null;
+  declare readonly instanceRef: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -185,7 +185,7 @@ export abstract class View extends Entity2D {
    * The Actor that created this Entity.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference;
+  declare readonly createdByRef: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -201,7 +201,7 @@ export abstract class View extends Entity2D {
    * The Actor that last updated this Entity.
    */
   abstract get updatedBy(): Entity | null;
-  declare readonly updatedByPtr: NodeReference;
+  declare readonly updatedByRef: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -218,8 +218,8 @@ export abstract class View extends Entity2D {
   /**
    * Entity.ownedBy
    */
-  abstract get ownedByPtr(): NodeReference | null;
-  abstract set ownedByPtr(value: NodeReference | null);
+  abstract get ownedByRef(): NodeReference | null;
+  abstract set ownedByRef(value: NodeReference | null);
 
   /**
    * Entity.name
@@ -252,8 +252,8 @@ export abstract class View extends Entity2D {
   /**
    * The Script of this Entity.
    */
-  abstract get scriptPtr(): NodeReference | null;
-  abstract set scriptPtr(value: NodeReference | null);
+  abstract get scriptRef(): NodeReference | null;
+  abstract set scriptRef(value: NodeReference | null);
 
   /**
    * Whether this Entity can be instanced.
@@ -264,7 +264,7 @@ export abstract class View extends Entity2D {
    * The Script that defines this Node.
    */
   abstract get source(): Script | null;
-  declare readonly sourcePtr: NodeReference | null;
+  declare readonly sourceRef: NodeReference | null;
 
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.

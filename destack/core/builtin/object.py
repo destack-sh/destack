@@ -108,7 +108,7 @@ class ObjectGenerator:
             and not p.is_managed
             and p.type.cardinality == TypeCardinality.SCALAR
             and p.type.scalar_type
-            != ScalarType.NODE_TEMPORAL  # passed either as node or node_ptr, defer check
+            != ScalarType.NODE_TEMPORAL  # passed either as node or node_ref, defer check
         ]
 
         # header
@@ -142,7 +142,7 @@ class ObjectGenerator:
                     default_str = default_name
                 method_header_lines.append(f"{prop.name}={default_str}")
                 if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-                    method_header_lines.append(f"{prop.name}_ptr=None")
+                    method_header_lines.append(f"{prop.name}_ref=None")
 
             method_header_lines.append(")")
             method_header = ", ".join(method_header_lines)
@@ -207,10 +207,10 @@ if id is None:
     _now = _session.context.now()
     created_at = _now
     created_epoch = _session.remote_epoch
-    created_by_ptr = _session.context.actor_ptr
+    created_by_ref = _session.context.actor_ref
     updated_at = _now
     updated_epoch = _session.remote_epoch
-    updated_by_ptr = _session.context.actor_ptr
+    updated_by_ref = _session.context.actor_ref
 """)
             elif NodeType.EVENT in declaration.inherits:
                 method_body_lines.append("""\
@@ -218,8 +218,8 @@ if id is None:
     _now = _session.context.now()
     created_epoch = _session.remote_epoch
     created_at = _now
-    created_by_ptr = _session.context.actor_ptr
-    client_ptr = _session.context.client_ptr
+    created_by_ref = _session.context.actor_ref
+    client_ref = _session.context.client_ref
     client_nonce = _session.context.client_nonce
     client_remote_epoch = _session.remote_epoch
     client_local_epoch = _session.local_epoch
@@ -238,17 +238,17 @@ else:
                 method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
-{set_template_str.format("created_by_ptr", "created_by_ptr")}
+{set_template_str.format("created_by_ref", "created_by_ref")}
 {set_template_str.format("updated_at", "updated_at")}
 {set_template_str.format("updated_epoch", "updated_epoch")}
-{set_template_str.format("updated_by_ptr", "updated_by_ptr")}
+{set_template_str.format("updated_by_ref", "updated_by_ref")}
 """)
             elif NodeType.EVENT in declaration.inherits:
                 method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
-{set_template_str.format("created_by_ptr", "created_by_ptr")}
-{set_template_str.format("client_ptr", "client_ptr")}
+{set_template_str.format("created_by_ref", "created_by_ref")}
+{set_template_str.format("client_ref", "client_ref")}
 {set_template_str.format("client_nonce", "client_nonce")}
 {set_template_str.format("client_created_at", "client_created_at")}
 {set_template_str.format("client_remote_epoch", "client_remote_epoch")}
@@ -274,10 +274,10 @@ else:
             self_name = (
                 prop.name
                 if prop.type.scalar_type != ScalarType.NODE_TEMPORAL
-                else f"{prop.name}_ptr"
+                else f"{prop.name}_ref"
             )
 
-            # cast node to node_ptr
+            # cast node to node_ref
             if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
                 method_body_lines.append(f"""\
 if {arg_name} is not None:
@@ -377,10 +377,10 @@ assert _session is not None, "no active Session for {cls.__name__}"
                 assert_never(object.kind)
         elif prop.default_factory == ValueFactory.ACTOR:
             return f"""\
-{target_expr}_ptr = _session.context.actor_ptr"""
+{target_expr}_ref = _session.context.actor_ref"""
         elif prop.default_factory == ValueFactory.CLIENT:
             return f"""\
-{target_expr}_ptr = _session.context.client_ptr"""
+{target_expr}_ref = _session.context.client_ref"""
         elif prop.default_factory == ValueFactory.CLIENT_NONCE:
             return f"""\
 {target_expr} = _session.context.client_nonce"""
@@ -455,7 +455,7 @@ __str__ = __repr__
         for prop in repr_properties:
             source_prop_name = prop.name
             if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-                source_prop_name = f"{prop.name}_ptr"
+                source_prop_name = f"{prop.name}_ref"
             source_expr = f"self.{source_prop_name}"
             target_expr = f"_{source_prop_name}_repr"
             repr_impl = self.generate_repr_value(
@@ -717,7 +717,7 @@ if ({map_expr} := {source_expr}):
         for i, prop in enumerate(eq_properties):
             prop_name = prop.name
             if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-                prop_name = f"{prop_name}_ptr"
+                prop_name = f"{prop_name}_ref"
             self_source_expr = f"self.{prop_name}"
             other_source_expr = f"other.{prop_name}"
             cmp_str = self.generate_equals_value(
@@ -954,7 +954,7 @@ if {self_source_expr} != {other_source_expr}:
         for prop in hash_properties:
             prop_name = prop.name
             if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-                prop_name = f"{prop_name}_ptr"
+                prop_name = f"{prop_name}_ref"
             source_expr = f"self.{prop_name}"
             prop_hash_impl = self.generate_hash_value(
                 prop.type, f"_{prop_name}", source_expr, "_hasher"
@@ -1229,9 +1229,9 @@ def _path_key(self) -> str:
             getter = f"""\
 @property
 def {prop.name}(self: "Object") -> "Node | None":
-    node_ptr: NodeReference | None = self.{prop.name}_ptr
-    if node_ptr is not None:
-        return _session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
+    node_ref: NodeReference | None = self.{prop.name}_ref
+    if node_ref is not None:
+        return _session.graph.get(node_ref.id, node_ref.space_id, node_ref.branch_id, node_ref.snapshot_id)
     else:
         return None
 """
@@ -1239,11 +1239,11 @@ def {prop.name}(self: "Object") -> "Node | None":
             getter = f"""\
 @property
 def {prop.name}(self: "Object") -> "Node | None":
-    node_ptr: NodeReference | None = self.{prop.name}_ptr
-    if node_ptr is not None:
+    node_ref: NodeReference | None = self.{prop.name}_ref
+    if node_ref is not None:
         if _session is None:
             return None
-        return _session.graph.get(node_ptr.id, node_ptr.space_id, node_ptr.branch_id, node_ptr.snapshot_id)
+        return _session.graph.get(node_ref.id, node_ref.space_id, node_ref.branch_id, node_ref.snapshot_id)
     else:
         return None
 """
@@ -1253,18 +1253,18 @@ def {prop.name}(self: "Object") -> "Node | None":
 @{prop.name}.setter
 def {prop.name}(self: "Object", value: "Node | None"):
     if value is None:
-        self.set("{prop.name}_ptr", None)
+        self.set("{prop.name}_ref", None)
     else:
-        self.set("{prop.name}_ptr", value.to_ref())
+        self.set("{prop.name}_ref", value.to_ref())
 """
         else:
             setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "Object", value: "Node | None"):
     if value is None:
-        self.{prop.name}_ptr = None
+        self.{prop.name}_ref = None
     else:
-        self.{prop.name}_ptr = value.to_ref()
+        self.{prop.name}_ref = value.to_ref()
 """
 
         return getter + "\n\n" + setter
@@ -1427,17 +1427,18 @@ def _process_object_cls[ObjectT: Object](
             lower_camel_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
             upper_camel_name = to_casing(prop.name, StringCasing.UPPER_CAMEL)
             if prop.type.scalar_type in (
-                ScalarType.NODE_TEMPORAL,
                 ScalarType.NODE_RAW,
                 ScalarType.NODE_IDENTITY,
+                ScalarType.NODE_TEMPORAL,
+                ScalarType.NODE_SPATIAL,
             ):
                 aliases = (
                     prop.name,
-                    prop.name + "_ptr",
+                    prop.name + "_ref",
                     lower_camel_name,
-                    lower_camel_name + "Ptr",
+                    lower_camel_name + "Ref",
                     upper_camel_name,
-                    upper_camel_name + "Ptr",
+                    upper_camel_name + "Ref",
                 )
             else:
                 aliases = (prop.name, lower_camel_name, upper_camel_name)
@@ -1517,13 +1518,13 @@ def __init__(self):
                 cls_dict.pop(prop.name, None)
             # gather slots
             if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-                slots.append(f"{prop.name}_ptr")
+                slots.append(f"{prop.name}_ref")
             elif prop.type.scalar_type == ScalarType.NODE_RAW:
                 slots.append(f"{prop.name}_id")
             elif prop.type.scalar_type == ScalarType.NODE_IDENTITY:
-                slots.append(f"{prop.name}_ptr")
+                slots.append(f"{prop.name}_ref")
             elif prop.type.scalar_type == ScalarType.NODE_SPATIAL:
-                slots.append(f"{prop.name}_ptr")
+                slots.append(f"{prop.name}_ref")
             else:
                 slots.append(prop.name)
         cls_dict["__slots__"] = tuple(slots)

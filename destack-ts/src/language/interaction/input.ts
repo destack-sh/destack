@@ -23,37 +23,37 @@ export abstract class InputEvent extends Event {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference;
+  declare readonly spaceRef: NodeReference;
 
   /**
    * The definition this Event is an instance of.
    */
   abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
+  declare readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference;
+  declare readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference;
+  declare readonly snapshotRef: NodeReference;
 
   /**
    * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
-  declare readonly precededByPtr: NodeReference | null;
+  declare readonly precededByRef: NodeReference | null;
 
   /**
    * The Event that caused this Event (if any).
    */
   abstract get causedBy(): Event | null;
-  declare readonly causedByPtr: NodeReference | null;
+  declare readonly causedByRef: NodeReference | null;
 
   /**
    * The time this Event was created (system).
@@ -69,13 +69,13 @@ export abstract class InputEvent extends Event {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference;
+  declare readonly createdByRef: NodeReference;
 
   /**
    * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference;
+  declare readonly clientRef: NodeReference;
 
   /**
    * The nonce of the Client that created this Event (client).
@@ -101,7 +101,7 @@ export abstract class InputEvent extends Event {
    * InputEvent.node
    */
   abstract get node(): Entity | null;
-  declare readonly nodePtr: NodeReference | null;
+  declare readonly nodeRef: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

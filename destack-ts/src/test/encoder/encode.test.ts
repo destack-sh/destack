@@ -36,7 +36,7 @@ beforeEach(async () => {
   const { space } = createAndActivateSpace({
     session,
     region: Region.ZURICH,
-    ownedBy: session.actorPtr,
+    ownedBy: session.actorRef,
     name: "My Space",
     slug: "my-space",
   });

@@ -47,7 +47,7 @@ class KompaktEncoderGenerator:
         """Get the name of a property."""
         source_name = prop.name
         if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-            source_name += "_ptr"
+            source_name += "_ref"
         return source_name
 
     def get_encoder_name(self, cls: type["Object"]) -> str:

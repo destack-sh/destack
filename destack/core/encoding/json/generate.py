@@ -179,14 +179,14 @@ _object_json['metatype'] = '{cls.metatype.name}'
         """Get the name of a property."""
         source_name = prop.name
         if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-            source_name += "_ptr"
+            source_name += "_ref"
         return source_name
 
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
         """Get the target property key for JSON."""
         target_key = to_casing(prop.name, StringCasing.LOWER_CAMEL)
         if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-            target_key += "Ptr"
+            target_key += "Ref"
         return target_key
 
     def generate_pack_enum(self, enum_name: str, source_expr: str) -> str:

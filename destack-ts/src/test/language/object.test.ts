@@ -18,9 +18,9 @@ test("resolve property", () => {
   expect(Folder.property("DeletedAt").name).toBe("deleted_at");
 
   // test property name resolution for parent
-  expect(Folder.property("parent_ptr").name).toBe("parent");
-  expect(Folder.property("parentPtr").name).toBe("parent");
+  expect(Folder.property("parent_ref").name).toBe("parent");
+  expect(Folder.property("parentRef").name).toBe("parent");
   expect(Folder.property("parent").name).toBe("parent");
   expect(Folder.property("Parent").name).toBe("parent");
-  expect(Folder.property("ParentPtr").name).toBe("parent");
+  expect(Folder.property("ParentRef").name).toBe("parent");
 });

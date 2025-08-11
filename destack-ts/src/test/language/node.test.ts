@@ -21,13 +21,13 @@ afterEach(async () => {
 });
 
 test("node space ptr", async () => {
-  // add nodes that are spatial and check that they have the same space_ptr
+  // add nodes that are spatial and check that they have the same space_ref
   const { space } = Space.createSpace({
     session,
     name: "MySpace",
     slug: "my-space",
     region: Region.ZURICH,
-    ownedBy: session.actorPtr,
+    ownedBy: session.actorRef,
   });
   ACTIVE_SPACE.set(space);
 
@@ -35,17 +35,17 @@ test("node space ptr", async () => {
     name: "MyFolder",
   });
   space.addChild(folder);
-  expect(folder.parentPtr).toBeTruthy();
-  expect(folder.parentPtr!.id).toBe(space.id);
-  expect(folder.spacePtr).toBeTruthy();
-  expect(folder.spacePtr!.id).toBe(space.id);
+  expect(folder.parentRef).toBeTruthy();
+  expect(folder.parentRef!.id).toBe(space.id);
+  expect(folder.spaceRef).toBeTruthy();
+  expect(folder.spaceRef!.id).toBe(space.id);
 
   const tags = [new Tag({ name: "A" }), new Tag({ name: "B" }), new Tag({ name: "C" })];
   folder.addChildren(tags);
 
   for (const tag of tags) {
-    expect(tag.spacePtr).toBeTruthy();
-    expect(tag.spacePtr!.id).toBe(space.id);
+    expect(tag.spaceRef).toBeTruthy();
+    expect(tag.spaceRef!.id).toBe(space.id);
   }
 });
 

@@ -59,16 +59,16 @@ export class Icon extends ImmutableStruct {
    * Icon.file
    */
   get file(): File | null {
-    const nodePtr: NodeReference | null = this.filePtr;
-    if (nodePtr != null) {
+    const nodeRef: NodeReference | null = this.fileRef;
+    if (nodeRef != null) {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr) as File | null;
+      return this._session.graph.get(nodeRef) as File | null;
     }
     return null;
   }
-  readonly filePtr: NodeReference | null;
+  readonly fileRef: NodeReference | null;
 
   /**
    * Icon.fileUrl
@@ -115,7 +115,7 @@ export class Icon extends ImmutableStruct {
     if (_file != null && _file.constructor.name !== "NodeReference") {
       _file = (_file as Node).toRef();
     }
-    this.filePtr = _file as NodeReference | null;
+    this.fileRef = _file as NodeReference | null;
     let _fileUrl = options.fileUrl ?? null;
     this.fileUrl = _fileUrl;
     let _color = options.color ?? null;
@@ -146,7 +146,7 @@ export class Icon extends ImmutableStruct {
     if (!(this.vscName === other.vscName)) {
       return false;
     }
-    if (!(this.filePtr?.id === other.filePtr?.id)) {
+    if (!(this.fileRef?.id === other.fileRef?.id)) {
       return false;
     }
     if (!(this.fileUrl === other.fileUrl)) {
@@ -181,8 +181,8 @@ export class Icon extends ImmutableStruct {
     if (this.vscName != null) {
       h = (h * 31 + hashString(this.vscName)) & 0xffffffff;
     }
-    if (this.filePtr != null) {
-      h = (h * 31 + hashString(this.filePtr.id)) & 0xffffffff;
+    if (this.fileRef != null) {
+      h = (h * 31 + hashString(this.fileRef.id)) & 0xffffffff;
     }
     if (this.fileUrl != null) {
       h = (h * 31 + hashString(this.fileUrl)) & 0xffffffff;
