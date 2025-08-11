@@ -2,6 +2,7 @@
 
 import dataclasses
 from dataclasses import dataclass
+from math import ceil
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any, Literal, assert_never
 
@@ -19,6 +20,7 @@ from destack.registry import (
 
 from .._utils import get_superclasses
 from . import _console
+from ._console import Color
 from ._parser import create_cli, create_repl
 
 if TYPE_CHECKING:
@@ -52,15 +54,33 @@ cli = create_cli(
 
 @dataclass(slots=True)
 class ManualContext:
+    """State and display configuration for the manual."""
+
+    # sizing
     memory_sizer: "ObjectSizer"
     kompakt_sizer: "ObjectSizer"
     sizers: dict[str, "ObjectSizer"]
+
+    # navigation
     current: str | None = None
     history: list[str] = dataclasses.field(default_factory=list)
 
+    # colors
+    color_header: Color = "bright_cyan"
+    color_module: Color = "bright_cyan"
+    color_section_title: Color = "yellow"
+    color_name: Color = "white"
+    color_type: Color = "yellow"
+    color_value: Color = "green"
+    color_dim: Color = "dim"
+    color_origin: Color = "cyan"
+    color_alias: Color = "cyan"
+    color_tree_highlight: Color = "bright_white"
+    color_tree_default: Color = "white"
+
 
 @cli.command()
-def manual():
+def manual() -> None:
     """Interactive manual for the schema."""
     from destack import (
         VERSION,
@@ -104,8 +124,9 @@ Type 'help' for available commands.""",
 def _register_commands(repl: Any, context: ManualContext) -> None:
     """Register all REPL commands."""
 
+    # commands: show
     @repl.command("show", "Show detailed information about a definition")
-    def show_definition(*args):
+    def show_definition(*args: str) -> None:
         """Show detailed definition information."""
         if not args:
             _console.error("Please provide a definition name.")
@@ -127,11 +148,12 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
         # display the definition
         _show_definition(definition, context)
 
+    # commands: tree
     @repl.command(
         "tree",
         "Show inheritance tree. Usage: tree <name> [--direction=up|down|both|-d up] [--full|-f]",
     )
-    def show_tree(*args):
+    def show_tree(*args: str) -> None:
         """Show inheritance tree for an Object (Node/Struct/Handle)."""
         if not args:
             _console.error("Please provide a definition name.")
@@ -169,8 +191,9 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
         _console.section("Inheritance Tree", tree)
 
     # default handler for direct definition names
+    # commands: default passthrough
     @repl.command("default")
-    def handle_default(user_input: str):
+    def handle_default(user_input: str) -> None:
         """Handle direct definition names."""
         # remove any quotes
         name = user_input.strip().strip("'\"")
@@ -247,6 +270,26 @@ def _render_size(size: "ObjectSize", show_instances_per_bytes: int | None = None
         base = f"{base} ({count_str} per {bytes_str})"
 
     return base
+
+
+def _render_size_value(size: "ObjectSize") -> str:
+    """Render only the size part as a string (no per-bytes info)."""
+    if size.max_size is None:
+        return f"{size.min_size}.."
+    if size.min_size == size.max_size:
+        return f"{size.min_size}"
+    return f"{size.min_size}..{size.max_size}"
+
+
+def _render_size_instances_per(size: "ObjectSize", per_bytes: int) -> str:
+    """Render only the instances-per-bytes part as a string."""
+    count_max = per_bytes // size.min_size
+    if size.max_size is None:
+        return f"<{count_max}"
+    if size.min_size == size.max_size:
+        return f"={count_max}"
+    count_min = per_bytes // size.max_size
+    return f"{count_min}..{count_max}"
 
 
 def _render_type(type: "Type") -> str:
@@ -361,15 +404,20 @@ def _show_definition(
     definition_cls = BUILTIN_CLASS_BY_NAME[definition.name]
 
     # header
+    # header block
     _console.print("")
-    _console.print("=" * 70, "bright_cyan")
-    _console.print(f"{definition.name} [{definition.__class__.__name__}]", "bright_cyan", "bold")
-    _console.print(f"{definition_cls.__module__}", "bright_cyan")
-    _console.print("=" * 70, "bright_cyan")
+    _console.print("=" * 70, context.color_header)
+    _console.print(
+        f"{definition.name} [{definition.__class__.__name__}]",
+        context.color_header,
+        "bold",
+    )
+    _console.print(f"{definition_cls.__module__}", context.color_module)
+    _console.print("=" * 70, context.color_header)
 
     # description
     if definition.description:
-        _console.print("\n" + _console.color("Description:", "yellow", "bold"))
+        _console.print("\n" + _console.color("Description:", context.color_section_title, "bold"))
         desc_lines = definition.description.strip().split("\n")
         for line in desc_lines:
             _console.print("  " + line)
@@ -388,7 +436,7 @@ def _show_definition(
     else:
         assert_never(definition)
 
-    _console.print("\n" + "=" * 70, "bright_cyan")
+    _console.print("\n" + "=" * 70, context.color_header)
 
 
 def _show_properties(
@@ -398,12 +446,25 @@ def _show_properties(
     context: ManualContext,
 ) -> None:
     """Display properties section."""
+    # properties
     instance_properties = [p for p in properties if not p.is_static and not p.is_runtime_only]
     _console.print(
-        "\n" + _console.color(f"{title} ({len(instance_properties)}):", "yellow", "bold")
+        "\n"
+        + _console.color(
+            f"{title} ({len(instance_properties)}):", context.color_section_title, "bold"
+        )
     )
-    rows: list[list[str]] = []
-    headers = ["ID", "Name", "Type", "Memory", "Kompakt", "Defined In", "Flags"]
+    headers = [
+        "ID",
+        "Name",
+        "Type",
+        "Memory",
+        "Kompakt",
+        "Defined In",
+        "Flags",
+    ]
+
+    rows: list[dict[str, str]] = []
     for prop in instance_properties:
         flags: list[str] = []
         if prop.is_readonly:
@@ -420,16 +481,21 @@ def _show_properties(
             flags.append("ha")
         origin = _get_origin_for(owner, prop)
         rows.append(
-            [
-                _console.color(str(prop.id), "dim"),
-                _console.color(prop.name, "white"),
-                _console.color(_render_type(prop.type), "yellow"),
-                _console.color(_render_size(context.memory_sizer.size_property(prop)), "green"),
-                _console.color(_render_size(context.kompakt_sizer.size_property(prop)), "green"),
-                _console.color(origin or "-", "cyan"),
-                _console.color("|".join(flags) if flags else "", "gray"),
-            ]
+            {
+                "ID": _console.color(str(prop.id), context.color_dim),
+                "Name": _console.color(prop.name, context.color_name),
+                "Type": _console.color(_render_type(prop.type), context.color_type),
+                "Memory": _console.color(
+                    _render_size(context.memory_sizer.size_property(prop)), context.color_value
+                ),
+                "Kompakt": _console.color(
+                    _render_size(context.kompakt_sizer.size_property(prop)), context.color_value
+                ),
+                "Defined In": _console.color(origin or "-", context.color_origin),
+                "Flags": _console.color("|".join(flags) if flags else "", "gray"),
+            }
         )
+
     _console.print(_console.table(rows, headers))
 
 
@@ -440,56 +506,62 @@ def _show_methods(
     context: ManualContext,
 ) -> None:
     """Display methods section formatted as a table."""
-    _console.print("\n" + _console.color(f"{title} ({len(methods)}):", "yellow", "bold"))
+    # methods
+    _console.print(
+        "\n" + _console.color(f"{title} ({len(methods)}):", context.color_section_title, "bold")
+    )
     if not methods:
         return
     headers = ["ID", "Name", "Inputs", "Returns", "Defined In", "Alias"]
-    rows: list[list[str]] = []
+    rows: list[dict[str, str]] = []
     for method in methods:
         # find the aliased method by id
         if method.alias_of is not None:
             aliased_method = next((m for m in methods if m.id == method.alias_of), None)
             assert aliased_method is not None, f"aliased method #{method.alias_of} not found"
             rows.append(
-                [
-                    _console.color(str(method.id), "dim"),
-                    _console.color(method.name, "white"),
-                    _console.color("-", "gray"),
-                    _console.color("-", "gray"),
-                    _console.color(_get_origin_for(owner, method) or "-", "cyan"),
-                    _console.color(aliased_method.name, "cyan"),
-                ]
+                {
+                    "ID": _console.color(str(method.id), context.color_dim),
+                    "Name": _console.color(method.name, context.color_name),
+                    "Inputs": _console.color("-", "gray"),
+                    "Returns": _console.color("-", "gray"),
+                    "Defined In": _console.color(
+                        _get_origin_for(owner, method) or "-", context.color_origin
+                    ),
+                    "Alias": _console.color(aliased_method.name, context.color_alias),
+                }
             )
             continue
 
-        # signature
+        # signature: one input per line
         input_signature_parts: list[str] = []
         for input_property in method.input_properties:
-            part = f"{_console.color(input_property.name, 'white')}: {_console.color(_render_type(input_property.type), 'yellow')}"
+            part = f"{_console.color(input_property.name, context.color_name)}: {_console.color(_render_type(input_property.type), context.color_type)}"
             if input_property.default_value is not None:
                 part = f"{part} = {_render_value(input_property.default_value)}"
             input_signature_parts.append(part)
         inputs = (
-            ", ".join(input_signature_parts)
+            "\n".join(input_signature_parts)
             if input_signature_parts
             else _console.color("-", "gray")
         )
         returns = (
-            _console.color(_render_type(method.output_property.type), "yellow")
+            _console.color(_render_type(method.output_property.type), context.color_type)
             if method.output_property is not None
             else _console.color("None", "gray")
         )
 
-        # row
         rows.append(
-            [
-                _console.color(str(method.id), "dim"),
-                _console.color(method.name, "white"),
-                inputs,
-                returns,
-                _console.color(_get_origin_for(owner, method) or "-", "cyan"),
-                _console.color("-", "gray"),
-            ]
+            {
+                "ID": _console.color(str(method.id), context.color_dim),
+                "Name": _console.color(method.name, context.color_name),
+                "Inputs": inputs,
+                "Returns": returns,
+                "Defined In": _console.color(
+                    _get_origin_for(owner, method) or "-", context.color_origin
+                ),
+                "Alias": _console.color("-", "gray"),
+            }
         )
     _console.print(_console.table(rows, headers))
 
@@ -503,19 +575,24 @@ def _show_actions(
     """Display actions as a table with type and message IO."""
     from .. import ActionType, StringCasing, to_casing
 
-    _console.print("\n" + _console.color(f"{title} ({len(actions)}):", "yellow", "bold"))
+    # actions
+    _console.print(
+        "\n" + _console.color(f"{title} ({len(actions)}):", context.color_section_title, "bold")
+    )
     if not actions:
         return
     headers = ["ID", "Name", "Type", "Input", "Output", "Defined In"]
-    rows: list[list[str]] = []
+    rows: list[dict[str, str]] = []
     for action in actions:
         # action type label
         type_label = action.type.name if isinstance(action.type, ActionType) else str(action.type)
 
-        def fmt_msg(msg_type):
+        def fmt_msg(msg_type: Any) -> str:
             if msg_type is None:
                 return _console.color("None", "gray")
-            return _console.color(to_casing(msg_type.name, StringCasing.UPPER_CAMEL), "yellow")
+            return _console.color(
+                to_casing(msg_type.name, StringCasing.UPPER_CAMEL), context.color_type
+            )
 
         input_label = fmt_msg(action.input_message_type)
         output_label = fmt_msg(action.output_message_type)
@@ -526,14 +603,16 @@ def _show_actions(
             output_label = f"Stream[{output_label}]"
 
         rows.append(
-            [
-                _console.color(str(action.id), "dim"),
-                _console.color(action.name, "white"),
-                _console.color(type_label, "cyan"),
-                input_label,
-                output_label,
-                _console.color(_get_origin_for(owner, action) or "-", "cyan"),
-            ]
+            {
+                "ID": _console.color(str(action.id), context.color_dim),
+                "Name": _console.color(action.name, context.color_name),
+                "Type": _console.color(type_label, context.color_origin),
+                "Input": input_label,
+                "Output": output_label,
+                "Defined In": _console.color(
+                    _get_origin_for(owner, action) or "-", context.color_origin
+                ),
+            }
         )
 
     _console.print(_console.table(rows, headers))
@@ -545,47 +624,112 @@ def _show_constants(
     context: ManualContext,
 ) -> None:
     """Display constants section."""
-    _console.print("\n" + _console.color(f"{title}:", "yellow"))
+    # constants
+    _console.print("\n" + _console.color(f"{title}:", context.color_section_title))
+    if not constants:
+        return
+    headers = ["ID", "Name", "Value"]
+    rows: list[dict[str, str]] = []
     for constant in constants:
-        _console.print(
-            f"  {_console.color(constant.name, 'white')} ({_console.color(str(constant.id), 'dim')}) = {_render_value(constant.value)}"
+        rows.append(
+            {
+                "ID": _console.color(str(constant.id), context.color_dim),
+                "Name": _console.color(constant.name, context.color_name),
+                "Value": str(_render_value(constant.value)),
+            }
         )
+    _console.print(_console.table(rows, headers))
 
 
-def _show_size(definition: "StructDefinition | NodeDefinition", context: ManualContext) -> None:
-    """Display size information."""
-
-    one_mb = 1024 * 1024
-
-    # metadata size
-    _console.print(
-        f"  Memory: {_console.color(_render_size(context.memory_sizer.size_object(definition), show_instances_per_bytes=one_mb), 'green')}"
-    )
-    _console.print(
-        f"  Kompakt: {_console.color(_render_size(context.kompakt_sizer.size_object(definition), show_instances_per_bytes=one_mb), 'green')}"
-    )
+def _show_layout(definition: "StructDefinition | NodeDefinition", context: ManualContext) -> None:
+    """Display layout/size information."""
 
     # specific sizers
-    _console.print("\n" + _console.color("Sizes:", "yellow", "bold"))
+    _console.print("\n" + _console.color("Layout:", context.color_section_title, "bold"))
+    headers = [
+        "Layout",
+        "Size",
+        "/1MB",
+        "/1GB",
+        "1k Disk R",
+        "1k Disk W",
+        "1k Net R",
+        "1k Net W",
+        "Cache Lines",
+    ]
+    secondary_headers = [
+        "",
+        "unaligned",
+        "contiguous",
+        "contiguous",
+        "~3 GB/s",
+        "~2 GB/s",
+        "100 Mb/s",
+        "20 Mb/s",
+        "64B each",
+    ]
+    rows: list[dict[str, str]] = []
     for name, sizer in context.sizers.items():
-        _console.print(
-            f"  {_console.color(name, 'cyan')}: {_console.color(_render_size(sizer.size_object(definition), show_instances_per_bytes=one_mb), 'green')}"
+        size = sizer.size_object(definition)
+        size_str = _render_size_value(size)
+        # per counts
+        per_str_1mb = _render_size_instances_per(size, 1024 * 1024)
+        # performance estimates
+        # assume median size when a range; use min_size for conservative throughput
+        approx_size_bytes = (
+            size.min_size if size.max_size is None else (size.min_size + size.max_size) // 2
         )
+        # disk: NVMe SSD approximate throughput ~ 3 GB/s (read) and ~ 2 GB/s (write)
+        disk_read_bps = 3 * 1024 * 1024 * 1024
+        disk_write_bps = 2 * 1024 * 1024 * 1024
+        disk_r = _console.humanize_duration((approx_size_bytes * 1000) / disk_read_bps)
+        disk_w = _console.humanize_duration((approx_size_bytes * 1000) / disk_write_bps)
+        # network: 100 Mb/s down, 20 Mb/s up (megabits)
+        net_r_bps = 100 * 1_000_000 / 8  # to bytes/s
+        net_w_bps = 20 * 1_000_000 / 8  # to bytes/s
+        net_r = _console.humanize_duration((approx_size_bytes * 1000) / net_r_bps)
+        net_w = _console.humanize_duration((approx_size_bytes * 1000) / net_w_bps)
+        # cache lines: size / 64B rounded up
+        cache_lines = ceil(approx_size_bytes / 64) if approx_size_bytes > 0 else 0
+        rows.append(
+            {
+                "Layout": _console.color(name, context.color_origin),
+                "Size": _console.color(
+                    _console.humanize_bytes(approx_size_bytes)
+                    if size.min_size == size.max_size
+                    else size_str,
+                    context.color_value,
+                ),
+                "/1MB": _console.color(
+                    _console.humanize_count_text(per_str_1mb), context.color_dim
+                ),
+                "1k Disk R": _console.color(disk_r, context.color_dim),
+                "1k Disk W": _console.color(disk_w, context.color_dim),
+                "1k Net R": _console.color(net_r, context.color_dim),
+                "1k Net W": _console.color(net_w, context.color_dim),
+                "Cache Lines": _console.color(
+                    _console.humanize_count(cache_lines), context.color_dim
+                ),
+            }
+        )
+    _console.print(_console.table(rows, headers, secondary_headers=secondary_headers))
 
 
 def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
     """Display Node-specific details."""
     # metadata
-    _console.print("\n" + _console.color("Metadata:", "yellow", "bold"))
-    metadata = []
-    metadata.append(("Inherits", "->".join([base.name for base in definition.inherits])))
-    metadata.append(("Stability", str(definition.stability)))
-    metadata.append(("Abstract", definition.is_abstract))
-    metadata.append(("Final", definition.is_final))
-    metadata.append(("Singleton", definition.is_singleton))
-    for key, value in metadata:
-        _console.print(f"  {key}: {_console.color(value, 'green')}")
-    _show_size(definition, context)
+    _console.print("\n" + _console.color("Metadata:", context.color_section_title, "bold"))
+    meta_dict: dict[str, object] = {
+        "Inherits": "->".join([base.name for base in definition.inherits]),
+        "Stability": str(definition.stability),
+        "Abstract": definition.is_abstract,
+        "Final": definition.is_final,
+        "Singleton": definition.is_singleton,
+    }
+    _console.print(_console.kv(meta_dict))
+
+    # layout
+    _show_layout(definition, context)
 
     # inheritance tree (object-only)
     tree = _render_inheritance_tree(
@@ -593,7 +737,7 @@ def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
     )
     if tree:
         _console.print("")
-        _console.print("\n" + _console.color("Inheritance:", "yellow", "bold"))
+        _console.print("\n" + _console.color("Inheritance:", context.color_section_title, "bold"))
         _console.print(tree)
 
     if definition.properties:
@@ -610,14 +754,16 @@ def _show_struct(definition: "StructDefinition", context: ManualContext) -> None
     """Display Struct-specific details."""
 
     # metadata
-    _console.print("\n" + _console.color("Metadata:", "yellow", "bold"))
-    metadata = []
-    metadata.append(("Inherits", "->".join([base.name for base in definition.inherits])))
-    metadata.append(("Stability", str(definition.stability)))
-    metadata.append(("Abstract", definition.is_abstract))
-    for key, value in metadata:
-        _console.print(f"  {key}: {_console.color(value, 'green')}")
-    _show_size(definition, context)
+    _console.print("\n" + _console.color("Metadata:", context.color_section_title, "bold"))
+    meta_dict: dict[str, object] = {
+        "Inherits": "->".join([base.name for base in definition.inherits]),
+        "Stability": str(definition.stability),
+        "Abstract": definition.is_abstract,
+    }
+    _console.print(_console.kv(meta_dict))
+
+    # layout
+    _show_layout(definition, context)
 
     # inheritance tree (object-only)
     tree = _render_inheritance_tree(
@@ -625,7 +771,7 @@ def _show_struct(definition: "StructDefinition", context: ManualContext) -> None
     )
     if tree:
         _console.print("")
-        _console.print("\n" + _console.color("Inheritance:", "yellow", "bold"))
+        _console.print("\n" + _console.color("Inheritance:", context.color_section_title, "bold"))
         _console.print(tree)
 
     if definition.properties:
@@ -639,10 +785,13 @@ def _show_enum(definition: "EnumDefinition", context: ManualContext) -> None:
     # options
     if definition.options:
         _console.print(
-            "\n" + _console.color(f"Options ({len(definition.options)}):", "yellow", "bold")
+            "\n"
+            + _console.color(
+                f"Options ({len(definition.options)}):", context.color_section_title, "bold"
+            )
         )
         for option in definition.options:
-            opt_str = f"  {_console.color(option.name, 'green')} = {option.id}"
+            opt_str = f"  {_console.color(option.name, context.color_value)} = {option.id}"
             if option.description:
                 opt_str = f"  # {_console.color(option.description, 'dim')}\n{opt_str}"
             _console.print(opt_str)
@@ -682,7 +831,7 @@ def _render_inheritance_tree(
         return None
 
     # resolve per-kind helpers
-    def get_base(defn: NodeDefinition | StructDefinition | HandleDefinition):
+    def _get_base(defn: NodeDefinition | StructDefinition | HandleDefinition):
         if isinstance(defn, NodeDefinition):
             base_type = defn.base_type
             return NODE_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
@@ -692,7 +841,7 @@ def _render_inheritance_tree(
         base_type = defn.base_type
         return HANDLE_DEFINITION_BY_TYPE.get(base_type) if base_type is not None else None
 
-    def get_children(defn: NodeDefinition | StructDefinition | HandleDefinition) -> list[Any]:
+    def _get_children(defn: NodeDefinition | StructDefinition | HandleDefinition) -> list[Any]:
         if isinstance(defn, NodeDefinition):
             children_types = defn.extended_by
             return [NODE_DEFINITION_BY_TYPE[t] for t in children_types]
@@ -706,14 +855,14 @@ def _render_inheritance_tree(
     ancestors: list[Any] = []
     cur = definition
     while True:
-        parent = get_base(cur)  # type: ignore[arg-type]
+        parent = _get_base(cur)  # type: ignore[arg-type]
         if parent is None:
             break
         ancestors.append(parent)
         cur = parent
 
     # build label map
-    def label(defn: Any) -> str:
+    def _add_label(defn: Any) -> str:
         # compute descendant count for this node
         def count_desc(d: Any) -> int:
             return len(_get_all_descendants(d))
@@ -724,26 +873,28 @@ def _render_inheritance_tree(
         # add per-level size deltas for Structs/Nodes
         inc_str = ""
         if isinstance(defn, (NodeDefinition, StructDefinition)):
-            parent = get_base(defn)
+            parent = _get_base(defn)
             if parent is not None and isinstance(parent, (NodeDefinition, StructDefinition)):
                 mem_def = context.memory_sizer.size_object(defn)
                 mem_par = context.memory_sizer.size_object(parent)
                 mem_inc = max(0, mem_def.min_size - mem_par.min_size)
                 inc_str = f" [+{mem_inc}B]"
-
-        return f"{defn.name}{suffix}{inc_str}"
+        # suffixes should be dim gray, even when the label itself is highlighted
+        suffix_col = _console.color(suffix, "dim") if suffix else ""
+        inc_col = _console.color(inc_str, "gray", "dim") if inc_str else ""
+        return f"{defn.name}{suffix_col}{inc_col}"
 
     label_by_id: dict[str, str] = {}
     children_by_id: dict[str, list[str]] = {}
 
     target_id = definition.name
-    label_by_id[target_id] = label(definition)
+    label_by_id[target_id] = _add_label(definition)
 
-    def add_edge(parent: Any, child: Any) -> None:
+    def _add_edge(parent: Any, child: Any) -> None:
         pid = parent.name
         cid = child.name
-        label_by_id.setdefault(pid, label(parent))
-        label_by_id.setdefault(cid, label(child))
+        label_by_id.setdefault(pid, _add_label(parent))
+        label_by_id.setdefault(cid, _add_label(child))
         children_by_id.setdefault(pid, []).append(cid)
 
     # choose root and assemble according to direction
@@ -751,7 +902,7 @@ def _render_inheritance_tree(
         # stitch the ancestor chain: root -> ... -> target
         chain = [*list(reversed(ancestors)), definition]
         for i in range(len(chain) - 1):
-            add_edge(chain[i], chain[i + 1])
+            _add_edge(chain[i], chain[i + 1])
         root_id = chain[0].name if chain else definition.name
     else:
         root_id = definition.name
@@ -759,14 +910,14 @@ def _render_inheritance_tree(
     # include descendants from the target (only direct unless include_subclasses=True)
     if direction in ("down", "both"):
 
-        def walk_desc(defn: Any):
-            children = get_children(defn)
+        def _walk_desc(defn: Any):
+            children = _get_children(defn)
             for child in children:
-                add_edge(defn, child)
+                _add_edge(defn, child)
                 if include_subclasses:
-                    walk_desc(child)
+                    _walk_desc(child)
 
-        walk_desc(definition)
+        _walk_desc(definition)
 
     return _console.render_tree(root_id, children_by_id, label_by_id, highlight_id=target_id)
 
@@ -851,7 +1002,8 @@ def _get_origin_for(
     if object_cls is None:
         return None
     for super_cls in reversed(list(get_superclasses(object_cls))):
-        if hasattr(super_cls, attribute.name):
+        # avoid hasattr per code style: check class dict
+        if attribute.name in getattr(super_cls, "__dict__", {}):
             return super_cls.__name__
     return None
 
@@ -867,38 +1019,38 @@ def _show_module(definition: "ModuleDefinition", context: ManualContext) -> None
 
     # types
     if definition.node_types:
-        _console.print("\n" + _console.color("Nodes:", "yellow", "bold"))
+        _console.print("\n" + _console.color("Nodes:", context.color_section_title, "bold"))
         for node_type in definition.node_types:
             camel_name = to_casing(node_type.name, StringCasing.UPPER_CAMEL)
             _console.print(
-                f"  {_console.color(camel_name, 'cyan')} ({_console.color(str(node_type.value), 'dim')})"
+                f"  {_console.color(camel_name, context.color_origin)} ({_console.color(str(node_type.value), context.color_dim)})"
             )
 
     # structs
     if definition.struct_types:
-        _console.print("\n" + _console.color("Structs:", "yellow", "bold"))
+        _console.print("\n" + _console.color("Structs:", context.color_section_title, "bold"))
         for struct_type in definition.struct_types:
             camel_name = to_casing(struct_type.name, StringCasing.UPPER_CAMEL)
             _console.print(
-                f"  {_console.color(camel_name, 'cyan')} ({_console.color(str(struct_type.value), 'dim')})"
+                f"  {_console.color(camel_name, context.color_origin)} ({_console.color(str(struct_type.value), context.color_dim)})"
             )
 
     # enums
     if definition.enum_types:
-        _console.print("\n" + _console.color("Enums:", "yellow", "bold"))
+        _console.print("\n" + _console.color("Enums:", context.color_section_title, "bold"))
         for enum_type in definition.enum_types:
             camel_name = to_casing(enum_type.name, StringCasing.UPPER_CAMEL)
             _console.print(
-                f"  {_console.color(camel_name, 'cyan')} ({_console.color(str(enum_type.value), 'dim')})"
+                f"  {_console.color(camel_name, context.color_origin)} ({_console.color(str(enum_type.value), context.color_dim)})"
             )
 
     # handles
     if definition.handle_types:
-        _console.print("\n" + _console.color("Handles:", "yellow", "bold"))
+        _console.print("\n" + _console.color("Handles:", context.color_section_title, "bold"))
         for handle_type in definition.handle_types:
             camel_name = to_casing(handle_type.name, StringCasing.UPPER_CAMEL)
             _console.print(
-                f"  {_console.color(camel_name, 'cyan')} ({_console.color(str(handle_type.value), 'dim')})"
+                f"  {_console.color(camel_name, context.color_origin)} ({_console.color(str(handle_type.value), context.color_dim)})"
             )
 
     # children
@@ -906,5 +1058,5 @@ def _show_module(definition: "ModuleDefinition", context: ManualContext) -> None
         _console.print(f"  Children ({len(definition.children_paths)}):")
         for child_path in definition.children_paths:
             _console.print(
-                f"  {_console.color(child_path, 'green')} ({_console.color(child_path, 'dim')})"
+                f"  {_console.color(child_path, context.color_value)} ({_console.color(child_path, context.color_dim)})"
             )

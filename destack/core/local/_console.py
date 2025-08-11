@@ -1,7 +1,7 @@
 import re
 import sys
 import traceback
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Literal
 
 # ansi color codes
@@ -264,48 +264,195 @@ def _pad_cell(cell: str, width: int) -> str:
     return cell + (" " * pad)
 
 
-def table(rows: list[list[str]], headers: list[str] | None = None, padding: int = 2) -> str:
-    """Create a formatted table."""
+def table(
+    rows: Sequence[Mapping[str, object]] | Sequence[Sequence[object]],
+    headers: Sequence[str] | None = None,
+    padding: int = 2,
+    right_align_numeric: bool = True,
+    secondary_headers: Sequence[str] | None = None,
+) -> str:
+    """Create a formatted table.
+
+    Accepts rows as list of dicts (preferred) or list of lists.
+    - Dict rows: column order is taken from headers if provided, otherwise
+      from the first row's key order, then union of subsequent keys.
+    - Numbers in data cells are right-aligned if `right_align_numeric` is True.
+    - Multi-line cells are supported and rendered with proper padding.
+    """
     if not rows and not headers:
         return ""
 
-    # calculate column widths
-    all_rows = [headers] if headers else []
-    all_rows.extend(rows)
+    # normalize rows to matrix + derive headers if dict-based
+    use_dict = bool(rows) and isinstance(rows[0], Mapping)  # type: ignore[index]
 
-    if not all_rows:
-        return ""
+    if use_dict:
+        dict_rows: Sequence[Mapping[str, object]] = rows  # type: ignore[assignment]
+        if headers is None:
+            ordered_keys: list[str] = []
+            seen: set[str] = set()
+            for r in dict_rows:
+                for k in r:
+                    if k not in seen:
+                        seen.add(k)
+                        ordered_keys.append(str(k))
+            headers = ordered_keys
+        matrix: list[list[str]] = [[str(r.get(h, "")) for h in headers] for r in dict_rows]
+    else:
+        matrix = [[str(c) for c in row] for row in rows]  # type: ignore[list-item]
+        # if headers provided, ensure col count matches
+        if headers is None and matrix:
+            headers = [str(i + 1) for i in range(len(matrix[0]))]
 
-    num_cols = len(all_rows[0])
+    assert headers is not None
+
+    # helpers for multi-line cells and numeric detection
+    def _max_visible_line_len(cell: str) -> int:
+        return max((_visible_len(line) for line in cell.splitlines()), default=0)
+
+    def _is_numeric_like(cell: str) -> bool:
+        txt = _strip_ansi(cell).strip()
+        if not txt:
+            return False
+        # allow thousands separators
+        txt = txt.replace(",", "")
+        # strip common unit suffixes once for detection (bytes and time)
+        unit_match = re.fullmatch(r"(.*?)(?:B|KB|MB|GB|TB|s|ms|us|μs|ns|%)$", txt)
+        core = unit_match.group(1) if unit_match else txt
+        core = core.strip()
+        # ranges and prefixed comparisons (e.g., 1..10, <5, =3)
+        if re.fullmatch(r"[<=>]?\d+(?:\.\d+)?(?:\.\.)?[<=>]?\d*(?:\.\d+)?", core):
+            return True
+        return bool(re.fullmatch(r"-?\d+(?:\.\d+)?", core))
+
+    # compute column widths using max line length per cell
+    num_cols = len(headers)
     col_widths = [0] * num_cols
+    for i in range(num_cols):
+        # include header in width
+        col_widths[i] = max(col_widths[i], _visible_len(str(headers[i])))
+        if secondary_headers is not None and i < len(secondary_headers):
+            col_widths[i] = max(col_widths[i], _visible_len(str(secondary_headers[i])))
+        for row in matrix:
+            if i < len(row):
+                col_widths[i] = max(col_widths[i], _max_visible_line_len(row[i]))
 
-    for row in all_rows:
-        for i, cell in enumerate(row[:num_cols]):
-            col_widths[i] = max(col_widths[i], _visible_len(str(cell)))
+    # determine alignment per column
+    right_align_cols: set[int] = set()
+    if right_align_numeric and matrix:
+        for i in range(num_cols):
+            # if all data cells in this column are numeric-like → right align
+            if matrix and all(
+                (i < len(row) and (_is_numeric_like(row[i]) or _strip_ansi(row[i]).strip() == ""))
+                for row in matrix
+            ):
+                right_align_cols.add(i)
 
-    result = []
+    # renderer for one physical row possibly spanning multiple lines
+    def _render_physical_rows(cells: list[str]) -> list[str]:
+        split_cells = [c.splitlines() if c else [""] for c in cells]
+        height = max(len(sc) for sc in split_cells)
+        lines: list[str] = []
+        for line_idx in range(height):
+            parts: list[str] = []
+            for col_idx, sc in enumerate(split_cells):
+                line_text = sc[line_idx] if line_idx < len(sc) else ""
+                width = col_widths[col_idx]
+                if col_idx in right_align_cols:
+                    pad = max(0, width - _visible_len(line_text))
+                    parts.append((" " * pad) + line_text)
+                else:
+                    parts.append(_pad_cell(line_text, width))
+            lines.append(" " * padding + (" " * padding).join(parts))
+        return lines
 
-    # add headers if provided
-    if headers:
-        header_row: list[str] = []
-        for i, header in enumerate(headers):
-            header_row.append(_pad_cell(str(header), col_widths[i]))
-        result.append(" " * padding + (" " * padding).join(header_row))
+    out_lines: list[str] = []
 
-        # add separator
-        sep_row: list[str] = []
-        for width in col_widths:
-            sep_row.append("─" * width)
-        result.append(" " * padding + (" " * padding).join(sep_row))
+    # header
+    header_cells = [str(h) for h in headers]
+    out_lines.extend(_render_physical_rows(header_cells))
 
-    # add data rows
-    for row in rows:
-        data_row: list[str] = []
-        for i, cell in enumerate(row[:num_cols]):
-            data_row.append(_pad_cell(str(cell), col_widths[i]))
-        result.append(" " * padding + (" " * padding).join(data_row))
+    # secondary header (dim)
+    if secondary_headers is not None:
+        sec_cells = [
+            str(secondary_headers[i]) if i < len(secondary_headers) else "" for i in range(num_cols)
+        ]
+        sec_cells = [color(c, "dim") if c else c for c in sec_cells]
+        out_lines.extend(_render_physical_rows(sec_cells))
 
-    return "\n".join(result)
+    # separator
+    sep_row = ["─" * w for w in col_widths]
+    out_lines.append(" " * padding + (" " * padding).join(sep_row))
+
+    # data rows
+    for row in matrix:
+        cells = [row[i] if i < len(row) else "" for i in range(num_cols)]
+        out_lines.extend(_render_physical_rows(cells))
+
+    return "\n".join(out_lines)
+
+
+def kv(mapping: Mapping[str, object], padding: int = 2) -> str:
+    """Render a key/value mapping as a two-column table."""
+    rows: list[Mapping[str, object]] = []
+    for k, v in mapping.items():
+        rows.append({"Key": str(k), "Value": str(v)})
+    return table(rows, headers=["Key", "Value"], padding=padding)
+
+
+def print_kv(mapping: Mapping[str, object], padding: int = 2) -> None:
+    """Print a key/value mapping as a two-column table."""
+    sys.stdout.write(kv(mapping, padding) + "\n")
+    sys.stdout.flush()
+
+
+def humanize_bytes(num_bytes: int, decimals: int = 2) -> str:
+    """Humanize a byte count to B, KB, MB, GB, TB."""
+    units = ["B", "KB", "MB", "GB", "TB"]
+    value = float(num_bytes)
+    idx = 0
+    while value >= 1024.0 and idx < len(units) - 1:
+        value /= 1024.0
+        idx += 1
+    if idx == 0:
+        return f"{int(value)}{units[idx]}"
+    return f"{value:.{decimals}f}{units[idx]}"
+
+
+def humanize_count(n: int) -> str:
+    """Humanize an integer count with thousands separators."""
+    return f"{n:,}"
+
+
+def humanize_count_text(text: str) -> str:
+    """Humanize numeric tokens in count expressions like '<1000', '1..2000', '=3000'."""
+    s = _strip_ansi(text)
+    s = s.replace(",", "")
+
+    def _hum(match: re.Match[str]) -> str:
+        token = match.group(0)
+        if token in ("..", "<", ">", "=", "-"):
+            return token
+        try:
+            return humanize_count(int(token))
+        except ValueError:
+            return token
+
+    # replace integers while keeping separators
+    return re.sub(r"\d+|\.\.|<|>|=|-", _hum, s)
+
+
+def humanize_duration(seconds: float) -> str:
+    """Humanize a duration in seconds into s/ms/μs/ns."""
+    if seconds >= 1.0:
+        return f"{seconds:.2f}s"
+    ms = seconds * 1_000.0
+    if ms >= 1.0:
+        return f"{ms:.2f}ms"
+    us = seconds * 1_000_000.0
+    if us >= 1.0:
+        return f"{us:.2f}μs"
+    ns = seconds * 1_000_000_000.0
+    return f"{ns:.2f}ns"
 
 
 def prompt(text: str, default: str | None = None) -> str:
