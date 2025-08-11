@@ -1,7 +1,11 @@
+import os
 import re
+import shutil
+import subprocess
 import sys
 import traceback
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from typing import Literal
 
 # ansi color codes
@@ -61,39 +65,97 @@ def color(text: str, *styles: Color) -> str:
 _CAPTURE_STACK: list[list[str]] = []
 
 
+@contextmanager
+def capture_output():
+    """Capture all console output produced by console helpers."""
+    buf: list[str] = []
+    _CAPTURE_STACK.append(buf)
+    try:
+        yield buf
+    finally:
+        _CAPTURE_STACK.pop()
+
+
+def page(text: str) -> None:
+    """Send text to a pager if available, preserving ANSI colors."""
+    pager = os.environ.get("PAGER")
+    cmd: list[str] | None = None
+    if pager:
+        cmd = [pager]
+        # add -R for less if detectable in command string
+        if os.path.basename(pager) == "less" or "less" in pager:
+            cmd.append("-R")
+    else:
+        less = shutil.which("less")
+        if less:
+            cmd = [less, "-R"]
+
+    if cmd is None:
+        # fallback: just print
+        sys.stdout.write(text)
+        if text and not text.endswith("\n"):
+            sys.stdout.write("\n")
+        sys.stdout.flush()
+        return
+
+    try:
+        subprocess.run(cmd, input=text, text=True, check=False)
+    except Exception:
+        # fallback on error
+        sys.stdout.write(text)
+        if text and not text.endswith("\n"):
+            sys.stdout.write("\n")
+        sys.stdout.flush()
+
+
 def print(text: str, *styles: Color) -> None:
     """Print colored text to stdout."""
     line = color(text, *styles) + "\n"
-    sys.stdout.write(line)
-    sys.stdout.flush()
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(line)
+    else:
+        sys.stdout.write(line)
+        sys.stdout.flush()
 
 
 def write(text: str, *styles: Color) -> None:
     """Print text without newline."""
     out = color(text, *styles)
-    sys.stdout.write(out)
-    sys.stdout.flush()
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(out)
+    else:
+        sys.stdout.write(out)
+        sys.stdout.flush()
 
 
 def error(text: str) -> None:
     """Print error to stderr."""
     line = color(text, "red") + "\n"
-    sys.stderr.write(line)
-    sys.stderr.flush()
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(line)
+    else:
+        sys.stderr.write(line)
+        sys.stderr.flush()
 
 
 def warn(text: str) -> None:
     """Print warning."""
     line = color(text, "yellow") + "\n"
-    sys.stdout.write(line)
-    sys.stdout.flush()
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(line)
+    else:
+        sys.stdout.write(line)
+        sys.stdout.flush()
 
 
 def success(text: str) -> None:
     """Print success message."""
     line = color(text, "green") + "\n"
-    sys.stdout.write(line)
-    sys.stdout.flush()
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(line)
+    else:
+        sys.stdout.write(line)
+        sys.stdout.flush()
 
 
 def info(text: str) -> None:
@@ -527,8 +589,11 @@ def section(title: str, content: str | None = None) -> None:
     else:
         lines.append(color("━" * 60, "dim") + "\n")
     out = "".join(lines)
-    sys.stdout.write(out)
-    sys.stdout.flush()
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(out)
+    else:
+        sys.stdout.write(out)
+        sys.stdout.flush()
 
 
 def render_tree(
@@ -581,8 +646,12 @@ def print_tree(
     highlight_id: str | None = None,
 ) -> None:
     """Print a tree rendered by `render_tree`."""
-    sys.stdout.write(render_tree(root_id, children_by_id, label_by_id, highlight_id) + "\n")
-    sys.stdout.flush()
+    out = render_tree(root_id, children_by_id, label_by_id, highlight_id) + "\n"
+    if _CAPTURE_STACK:
+        _CAPTURE_STACK[-1].append(out)
+    else:
+        sys.stdout.write(out)
+        sys.stdout.flush()
 
 
 def paginate_if_needed(render: Iterable[str] | str, page_size: int = 25) -> None:

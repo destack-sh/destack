@@ -149,8 +149,10 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
             context.history.append(context.current)
         context.current = name
 
-        # display the definition
-        _show_definition(definition, context)
+        # display the definition inside a pager
+        with _console.capture_output() as _buf:
+            _show_definition(definition, context)
+        _console.page("".join(_buf))
 
     # commands: tree
     @repl.command(
