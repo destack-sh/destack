@@ -134,10 +134,8 @@ class KompaktEncoder(Encoder):
         writer: BinaryWriter,
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
-        # preamble (4 bits cardinality, 4 bits scalar type, 1 bit is_required)
-        writer.write_uint8(
-            type.cardinality | ((type.scalar_type or 0) << 4) | (type.is_required << 7)
-        )
+        # preamble (4 bits cardinality, 4 bits scalar type)
+        writer.write_uint8(type.cardinality | ((type.scalar_type or 0) << 4))
         # scalar (type folded into preamble)
         if type.cardinality == TypeCardinality.SCALAR:
             assert type.scalar_type is not None, f"no scalar type for {type!r}"
@@ -168,7 +166,10 @@ class KompaktEncoder(Encoder):
             elif type.scalar_type == ScalarType.HANDLE:
                 raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
             elif type.scalar_type == ScalarType.UNION:
-                raise NotImplementedError(f"cannot pack UNION: {type!r}")
+                assert type.element_types is not None, f"no element types for {type!r}"
+                writer.write_uint32(len(type.element_types))
+                for element_type in type.element_types:
+                    self.pack_type_binary(element_type, writer, options)
             else:
                 assert_never(type.scalar_type)
         # list
@@ -197,11 +198,11 @@ class KompaktEncoder(Encoder):
         reader: BinaryReader,
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Type:
-        # preamble (4 bits cardinality, 3 bits scalar type, 1 bit is_required)
+        # preamble (4 bits cardinality, 4 bits scalar type)
         preamble = reader.read_uint8()
         cardinality = TypeCardinality(preamble & 0b1111)
-        scalar_type = ScalarType((preamble >> 4) & 0b111) if (preamble >> 4) & 0b111 else None
-        is_required = bool((preamble >> 7) & 0b1)
+        scalar_type_bits = (preamble >> 4) & 0b1111
+        scalar_type = ScalarType(scalar_type_bits) if scalar_type_bits else None
         key_type: Type | None = None
         value_type: Type | None = None
         element_types: list[Type] | None = None
@@ -233,7 +234,9 @@ class KompaktEncoder(Encoder):
             elif scalar_type == ScalarType.HANDLE:
                 raise NotImplementedError(f"cannot unpack HANDLE: {scalar_type!r}")
             elif scalar_type == ScalarType.UNION:
-                raise NotImplementedError(f"cannot unpack UNION: {scalar_type!r}")
+                element_types = [
+                    self.unpack_type_binary(reader, options) for _ in range(reader.read_uint32())
+                ]
             else:
                 assert_never(scalar_type)
         # list
@@ -257,7 +260,6 @@ class KompaktEncoder(Encoder):
             value_type=value_type,
             element_types=element_types,
             key_type=key_type,
-            is_required=is_required,
             # scalar
             scalar_type=scalar_type,
             primitive_type=primitive_type,
