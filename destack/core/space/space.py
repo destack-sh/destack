@@ -34,7 +34,14 @@ class CreateSpaceResult(NamedTuple):
 @final
 class Space(Entity):
     """
-    A Space is the root of a Destack workspace.
+    A Space is the root of an isolated "workspace" in the Destack computational universe.
+
+    Every Space has its own logical time called "epoch".
+    Epochs are monotonic integers that are incremented by 1 for each Event in the Space.
+    Every moment/state in Spacetime therefore has a unique identifier (space @ epoch).
+
+    NOTE: Epochs are managed as 64-bit unsigned integers but can migrate if they grow too large.
+     (64 bits are sufficient for 1B Events per second per Space for over 500 years.)
     """
 
     slug: str = declare_property(102, is_repr=True)

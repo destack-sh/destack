@@ -5,7 +5,7 @@ from ._hoisted import ReferenceType, ValueFactory
 from .declaration import TagDeclaration
 from .property import _PROPERTY_SPECIFIERS, declare_property
 from .struct import Struct, _process_struct_cls
-from .types import UInt8, UInt64, UInt128
+from .types import UInt8, UInt64
 from .universe import ObjectStability, StructType
 from .uuid import UUID
 
@@ -111,7 +111,7 @@ class Message(Struct):
         description="The time in the Client when it created this Message (client).",
         tags=("tracking",),
     )
-    client_remote_epoch: UInt128 = declare_property(
+    client_remote_epoch: UInt64 = declare_property(
         26,
         is_managed=True,
         is_readonly=True,

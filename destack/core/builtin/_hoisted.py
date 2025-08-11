@@ -187,9 +187,9 @@ class Region(OptionEnum):
 class ReferenceType(OptionEnum):
     """The type of a Node reference."""
 
-    UNTYPED_IDENTITY = declare_option(
+    RAW = declare_option(
         1,
-        description="Identity reference (id, for internal use)",
+        description="Raw untyped reference (id only, for internal use)",
         is_internal=True,
     )
     IDENTITY = declare_option(
@@ -212,8 +212,8 @@ class Encoding(OptionEnum):
     """Encoding scheme."""
 
     JSON = declare_option(1, "JSON", description="JSON encoding")
-    KOMPAKT = declare_option(3, "KOMPAKT", description="Kompakt encoding (optimized for size)")
-    # BREIT = declare_option(4, "BREIT", description="Breit encoding (optimized for speed)")
+    KOMPAKT = declare_option(3, "KOMPAKT", description="KOMPAKT encoding (optimized for size)")
+    # FLOTT = declare_option(4, "FLOTT", description="FLOTT encoding (optimized for speed)")
     # KONSTANT, ...
     # C?
 
@@ -281,7 +281,7 @@ class ScalarType(OptionEnum):
         "Node",
         description="Node as a value (Node)",
     )
-    NODE_UNTYPED_IDENTITY = declare_option(
+    NODE_RAW = declare_option(
         4,
         "Node Naked Identity",
         description="Reference to a Node (id only, for internal use)",
@@ -293,12 +293,12 @@ class ScalarType(OptionEnum):
         description="Reference to a Node (type + id, for internal use)",
         is_internal=True,
     )
-    NODE_LOCATION = declare_option(
+    NODE_SPATIAL = declare_option(
         6,
         "Node Location",
         description="Reference to a Node (type + id + space, assumed time)",
     )
-    NODE_MOMENT = declare_option(
+    NODE_TEMPORAL = declare_option(
         7,
         "Node Moment",
         description="Reference to a Node (type + id + space + time)",

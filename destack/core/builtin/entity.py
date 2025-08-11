@@ -9,7 +9,7 @@ from typing import (
 )
 
 from ._const import UNSET
-from ._hoisted import ReferenceType, UInt128, ValueFactory
+from ._hoisted import ReferenceType, UInt64, ValueFactory
 from .declaration import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -25,7 +25,7 @@ from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 if TYPE_CHECKING:
     from destack import (
         Branch,
-        NodeLocation,
+        NodeSpatialReference,
         Script,
         Tag,
         Value,
@@ -190,7 +190,7 @@ class Entity(Node):
         description="The time this Entity was created (system time).",
         tags=("tracking",),
     )
-    created_epoch: UInt128 = declare_property(
+    created_epoch: UInt64 = declare_property(
         21,
         is_managed=True,
         is_hash=False,
@@ -219,7 +219,7 @@ class Entity(Node):
         description="The time this Entity was last updated (system time).",
         tags=("tracking",),
     )
-    updated_epoch: UInt128 = declare_property(
+    updated_epoch: UInt64 = declare_property(
         24,
         is_managed=True,
         is_hash=False,
@@ -303,11 +303,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         description="The custom Values of this Entity, keyed by custom Property or Tag name.",
         tags=("custom",),
     )
-    context_values: dict[str, "Value"] | None = declare_property(
-        51,
-        description="The context Values provided by this Entity, keyed by context Property name.",
-        tags=("custom",),
-    )
+    # context_values?
 
     # 60-70: behavior
     script: Optional["Script"] = declare_property(
@@ -318,12 +314,12 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     )
 
     # 70-80: provenance
-    # source: Optional["Script"]?
+    # provenance: Optional["Script"]?
     # key? (for reconciliation)
     # ... (from script, dynamic effect, manual function, import, ...)
 
     @declare_method(2)
-    def to_ref(self) -> "NodeLocation":
+    def to_ref(self) -> "NodeSpatialReference":
         """Gets a reference to this Node."""
         raise NotImplementedError
 

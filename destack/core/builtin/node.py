@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         IndexDeclaration,
         Node,
         NodeDefinition,
-        NodeLocation,
+        NodeSpatialReference,
         PermissionDeclaration,
         Snapshot,
         Space,
@@ -304,7 +304,7 @@ class Node(Object):
         is_eq=False,
         is_hash=False,
         is_readonly=True,
-        reference_type=ReferenceType.UNTYPED_IDENTITY,
+        reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
         tags=("identity",),
@@ -315,7 +315,7 @@ class Node(Object):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        reference_type=ReferenceType.UNTYPED_IDENTITY,
+        reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Node is part of.",
         tags=("identity",),
@@ -326,7 +326,7 @@ class Node(Object):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        reference_type=ReferenceType.UNTYPED_IDENTITY,
+        reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Node is part of.",
         tags=("identity",),
@@ -353,6 +353,6 @@ class Node(Object):
         raise NotImplementedError
 
     @declare_method(2)
-    def to_ref(self) -> "NodeLocation":
+    def to_ref(self) -> "NodeSpatialReference":
         """Gets a reference to this Node."""
         raise NotImplementedError

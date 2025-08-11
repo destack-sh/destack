@@ -14,11 +14,13 @@ class KeyEvent(InputEvent):
     key: str = declare_property(
         110,
         is_repr=True,
+        is_interned=True,
         description="The character that was pressed (e.g. 'a', 'B', '1', 'Enter').",
     )
     code: str = declare_property(
         111,
         is_repr=True,
+        is_interned=True,
         description="The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').",
     )
     is_repeat: bool = declare_property(

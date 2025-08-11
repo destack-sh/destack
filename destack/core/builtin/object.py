@@ -108,7 +108,7 @@ class ObjectGenerator:
             and not p.is_managed
             and p.type.cardinality == TypeCardinality.SCALAR
             and p.type.scalar_type
-            != ScalarType.NODE_MOMENT  # passed either as node or node_ptr, defer check
+            != ScalarType.NODE_TEMPORAL  # passed either as node or node_ptr, defer check
         ]
 
         # header
@@ -141,7 +141,7 @@ class ObjectGenerator:
                     extra_glbls[default_name] = prop.default_value
                     default_str = default_name
                 method_header_lines.append(f"{prop.name}={default_str}")
-                if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+                if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
                     method_header_lines.append(f"{prop.name}_ptr=None")
 
             method_header_lines.append(")")
@@ -272,11 +272,13 @@ else:
 
             arg_name = prop.name
             self_name = (
-                prop.name if prop.type.scalar_type != ScalarType.NODE_MOMENT else f"{prop.name}_ptr"
+                prop.name
+                if prop.type.scalar_type != ScalarType.NODE_TEMPORAL
+                else f"{prop.name}_ptr"
             )
 
             # cast node to node_ptr
-            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+            if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
                 method_body_lines.append(f"""\
 if {arg_name} is not None:
     {self_name} = {arg_name}.to_ref()""")
@@ -452,7 +454,7 @@ __str__ = __repr__
         has_required_repr_props = False
         for prop in repr_properties:
             source_prop_name = prop.name
-            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+            if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
                 source_prop_name = f"{prop.name}_ptr"
             source_expr = f"self.{source_prop_name}"
             target_expr = f"_{source_prop_name}_repr"
@@ -673,16 +675,16 @@ if ({map_expr} := {source_expr}):
         elif type.scalar_type == ScalarType.NODE:
             return f"{value_expr}!r"
         # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return f"{value_expr}!r"
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return f"{value_expr}!r"
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return f"{value_expr}!r"
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return f"{value_expr}!r"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
@@ -714,7 +716,7 @@ if ({map_expr} := {source_expr}):
         cmp_strs = []
         for i, prop in enumerate(eq_properties):
             prop_name = prop.name
-            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+            if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
                 prop_name = f"{prop_name}_ptr"
             self_source_expr = f"self.{prop_name}"
             other_source_expr = f"other.{prop_name}"
@@ -810,7 +812,7 @@ if {self_source_expr} is not None:
 
             if type.scalar_type in (
                 ScalarType.STRUCT,
-                ScalarType.NODE_MOMENT,
+                ScalarType.NODE_TEMPORAL,
                 ScalarType.NODE,
             ):
                 # maps with complex values need key-by-key comparison
@@ -910,16 +912,16 @@ if {self_source_expr} != {other_source_expr}:
         elif type.scalar_type == ScalarType.NODE:
             return "{self_val}.id == {other_val}.id", False
         # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return "{self_val}.id == {other_val}.id", False
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return "{self_val} == {other_val}", True
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return "{self_val} == {other_val}", True
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return "{self_val}.id == {other_val}.id", False
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
@@ -951,7 +953,7 @@ if {self_source_expr} != {other_source_expr}:
         hash_parts: list[str] = []
         for prop in hash_properties:
             prop_name = prop.name
-            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+            if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
                 prop_name = f"{prop_name}_ptr"
             source_expr = f"self.{prop_name}"
             prop_hash_impl = self.generate_hash_value(
@@ -1113,16 +1115,16 @@ if ({map_source_expr} := {source_expr}):
         elif type.scalar_type == ScalarType.NODE:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
@@ -1425,8 +1427,8 @@ def _process_object_cls[ObjectT: Object](
             lower_camel_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
             upper_camel_name = to_casing(prop.name, StringCasing.UPPER_CAMEL)
             if prop.type.scalar_type in (
-                ScalarType.NODE_MOMENT,
-                ScalarType.NODE_UNTYPED_IDENTITY,
+                ScalarType.NODE_TEMPORAL,
+                ScalarType.NODE_RAW,
                 ScalarType.NODE_IDENTITY,
             ):
                 aliases = (
@@ -1514,13 +1516,13 @@ def __init__(self):
             if isinstance(cls_dict.get(prop.name), PropertyDeclaration):
                 cls_dict.pop(prop.name, None)
             # gather slots
-            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+            if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
                 slots.append(f"{prop.name}_ptr")
-            elif prop.type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            elif prop.type.scalar_type == ScalarType.NODE_RAW:
                 slots.append(f"{prop.name}_id")
             elif prop.type.scalar_type == ScalarType.NODE_IDENTITY:
                 slots.append(f"{prop.name}_ptr")
-            elif prop.type.scalar_type == ScalarType.NODE_LOCATION:
+            elif prop.type.scalar_type == ScalarType.NODE_SPATIAL:
                 slots.append(f"{prop.name}_ptr")
             else:
                 slots.append(prop.name)

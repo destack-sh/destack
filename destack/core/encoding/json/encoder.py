@@ -337,16 +337,16 @@ class JsonEncoder(Encoder):
         elif type.scalar_type == ScalarType.NODE:
             return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return str(value)
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return str(value.id)
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return self.pack_object(value, options)
         # node reference (moment)
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return self.pack_object(value, options)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
@@ -434,22 +434,22 @@ class JsonEncoder(Encoder):
                 None, None, value, session, options & ~EncoderFlag.OMIT_METATYPE
             )
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return UUID(value)
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return self.unpack_object(
-                ObjectKind.STRUCT, StructType.NODE_IDENTITY, value, session, options
+                ObjectKind.STRUCT, StructType.NODE_IDENTITY_REFERENCE, value, session, options
             )
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return self.unpack_object(
-                ObjectKind.STRUCT, StructType.NODE_LOCATION, value, session, options
+                ObjectKind.STRUCT, StructType.NODE_SPATIAL_REFERENCE, value, session, options
             )
         # node reference (moment)
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return self.unpack_object(
-                ObjectKind.STRUCT, StructType.NODE_MOMENT, value, session, options
+                ObjectKind.STRUCT, StructType.NODE_TEMPORAL_REFERENCE, value, session, options
             )
         # struct
         elif type.scalar_type == ScalarType.STRUCT:

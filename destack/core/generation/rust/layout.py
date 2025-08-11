@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, assert_never, override
 from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_DEFINITION_BY_TYPE
 
 from ...builtin import PrimitiveType, ScalarType, StructType, TypeCardinality
-from ...definition import NodeDefinition, StructDefinition
+from ...definition import NodeDefinition, PropertyDefinition, StructDefinition
 from .._core import ObjectSize, ObjectSizer
 
 if TYPE_CHECKING:
@@ -51,34 +51,58 @@ class RustObjectSizer(ObjectSizer):
     INTERNED_KEY_SIZE = 8
 
     @override
-    def size_object(self, object: "StructDefinition | NodeDefinition") -> ObjectSize:
+    def size_object(
+        self,
+        object: "StructDefinition | NodeDefinition",
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated size of an object instance in bytes."""
+        total_min_size = 0
         total_max_size = 0
+        path = (*_path, object.type) if isinstance(object, StructDefinition) else _path
         for prop in object.properties:
             if prop.is_static or prop.is_runtime_only:
                 continue
-            if prop.is_interned:
-                prop_size = ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
+            prop_size = self.size_property(prop, include_reference=False, _path=path)
+            total_min_size += prop_size.min_size
+            if total_max_size is None or prop_size.max_size is None:
+                total_max_size = None
             else:
-                prop_size = self.size_type(prop.type, include_reference=False)
-            total_max_size += prop_size.max_size or prop_size.min_size
-        # max size = min size
-        return ObjectSize(total_max_size, total_max_size)
+                total_max_size += prop_size.max_size
+        return ObjectSize(total_min_size, total_max_size)
 
     @override
-    def size_type(self, type: "Type", include_reference: bool = True) -> ObjectSize:
+    def size_property(
+        self,
+        property: "PropertyDefinition",
+        include_reference: bool = True,
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
+        """Get the estimated size of a property in bytes."""
+        if property.is_interned:
+            return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
+        else:
+            return self.size_type(property.type, include_reference=include_reference, _path=_path)
+
+    @override
+    def size_type(
+        self,
+        type: "Type",
+        include_reference: bool = True,
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated size of a Type's value in bytes."""
 
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            size = self.size_type_scalar(type)
+            size = self.size_type_scalar(type, _path=_path)
         # list (Vec)
         elif type.cardinality == TypeCardinality.LIST:
             size = ObjectSize(self.VEC_HEADER_SIZE, None)
         # tuple (inline)
         elif type.cardinality == TypeCardinality.TUPLE:
             assert type.element_types is not None, f"no element types for {type!r}"
-            elem_sizes = [self.size_type(t) for t in type.element_types]
+            elem_sizes = [self.size_type(t, _path=_path) for t in type.element_types]
             min_size = sum(s.min_size for s in elem_sizes)
             if any(s.max_size is None for s in elem_sizes):
                 max_size: int | None = None
@@ -88,6 +112,7 @@ class RustObjectSizer(ObjectSizer):
         # map (HashMap)
         elif type.cardinality == TypeCardinality.MAP:
             size = ObjectSize(self.HASHMAP_HEADER_SIZE, None)
+        #
         else:
             assert_never(type.cardinality)
 
@@ -98,7 +123,11 @@ class RustObjectSizer(ObjectSizer):
         return size
 
     @override
-    def size_type_scalar(self, type: "Type") -> ObjectSize:
+    def size_type_scalar(
+        self,
+        type: "Type",
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated size of a scalar type (no reference overhead)."""
         assert type.scalar_type is not None, f"no scalar type for {type!r}"
 
@@ -168,28 +197,31 @@ class RustObjectSizer(ObjectSizer):
         elif type.scalar_type == ScalarType.NODE:
             return ObjectSize(8, 8)  # reference?
         # node reference as struct
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
         # node id (uuid)
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[type.struct_type])
+            if type.struct_type in _path:
+                return ObjectSize(0, 0)  # circular self reference
+            else:
+                return self.size_object(STRUCT_DEFINITION_BY_TYPE[type.struct_type], _path=_path)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot size HANDLE: {type!r}")
         # union
         elif type.scalar_type == ScalarType.UNION:
             assert type.element_types is not None, f"no element types for {type!r}"
-            elem_sizes = [self.size_type_scalar(t) for t in type.element_types]
+            elem_sizes = [self.size_type_scalar(t, _path=_path) for t in type.element_types]
             min_size = min((s.min_size for s in elem_sizes), default=0)
             if any(s.max_size is None for s in elem_sizes):
                 max_size: int | None = None
@@ -232,25 +264,45 @@ class KompaktObjectSizer(ObjectSizer):
     DURATION_RANGE = (1, 10)  # nanos zigzag varint
 
     @override
-    def size_object(self, object: "StructDefinition | NodeDefinition") -> ObjectSize:
+    def size_object(
+        self,
+        object: "StructDefinition | NodeDefinition",
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated encoded size of an object in bytes (approximate)."""
         total_min_size = 0
         total_max_size = 0
+        path = (*_path, object.type) if isinstance(object, StructDefinition) else _path
         for prop in object.properties:
             if prop.is_static or prop.is_runtime_only:
                 continue
-            min_size, max_size = self.size_type(prop.type, include_reference=False)
+            min_size, max_size = self.size_property(prop, include_reference=False, _path=path)
             total_min_size += min_size
             total_max_size += max_size or min_size
         return ObjectSize(total_min_size, total_max_size)
 
     @override
-    def size_type(self, type: "Type", include_reference: bool = True) -> ObjectSize:
+    def size_property(
+        self,
+        property: "PropertyDefinition",
+        include_reference: bool = True,
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
+        """Get the estimated encoded size of a property in bytes."""
+        return self.size_type(property.type, include_reference=include_reference, _path=_path)
+
+    @override
+    def size_type(
+        self,
+        type: "Type",
+        include_reference: bool = True,
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated encoded size of a Type's value in Kompakt bytes."""
 
         # scalar
         if type.cardinality == TypeCardinality.SCALAR:
-            size = self.size_type_scalar(type)
+            size = self.size_type_scalar(type, _path=_path)
         # list: length varint + elements
         elif type.cardinality == TypeCardinality.LIST:
             assert type.value_type is not None, f"no value type for {type!r}"
@@ -261,7 +313,7 @@ class KompaktObjectSizer(ObjectSizer):
             assert type.element_types is not None, f"no element types for {type!r}"
             length = len(type.element_types)
             base = self._varint_size(length)
-            elem_sizes = [self.size_type(t) for t in type.element_types]
+            elem_sizes = [self.size_type(t, _path=_path) for t in type.element_types]
             min_size = base + sum(s.min_size for s in elem_sizes)
             if any(s.max_size is None for s in elem_sizes):
                 max_size: int | None = None
@@ -283,7 +335,11 @@ class KompaktObjectSizer(ObjectSizer):
         return size
 
     @override
-    def size_type_scalar(self, type: "Type") -> ObjectSize:
+    def size_type_scalar(
+        self,
+        type: "Type",
+        _path: tuple["StructType", ...] = (),
+    ) -> ObjectSize:
         """Get the estimated encoded size of a scalar Type in Kompakt bytes."""
         assert type.scalar_type is not None, f"no scalar type for {type!r}"
 
@@ -354,28 +410,31 @@ class KompaktObjectSizer(ObjectSizer):
         elif type.scalar_type == ScalarType.NODE:
             return ObjectSize(0, None)
         # node reference: type (u32 varint) + 4 uuids
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_MOMENT])
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_TEMPORAL_REFERENCE])
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY])
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY_REFERENCE])
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_LOCATION])
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_SPATIAL_REFERENCE])
         # struct: approximate by summing field sizes from definition
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[type.struct_type])
+            if type.struct_type in _path:
+                return ObjectSize(0, 0)  # circular self reference
+            else:
+                return self.size_object(STRUCT_DEFINITION_BY_TYPE[type.struct_type])
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot size HANDLE: {type!r}")
         # union: min/min, max/max (unknown if any unbounded)
         elif type.scalar_type == ScalarType.UNION:
             assert type.element_types is not None, f"no element types for {type!r}"
-            elem_sizes = [self.size_type_scalar(t) for t in type.element_types]
+            elem_sizes = [self.size_type_scalar(t, _path=_path) for t in type.element_types]
             min_size = min((s.min_size for s in elem_sizes), default=0)
             if any(s.max_size is None for s in elem_sizes):
                 max_size: int | None = None

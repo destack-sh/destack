@@ -2,11 +2,10 @@ from typing import TYPE_CHECKING, final
 
 from destack.core import (
     EnumType,
-    Float32,
+    Int16,
     OptionEnum,
     Struct,
     StructType,
-    UInt16,
     declare_enum,
     declare_option,
     declare_property,
@@ -78,11 +77,9 @@ class LengthType(OptionEnum):
     """The unit of a length value."""
 
     PIXEL = declare_option(1, description="Pixel")
-    REM = declare_option(2, description="Rem")
-    PERCENT = declare_option(3, description="Percent")
-    FR = declare_option(4, description="Fr")
-    FIT = declare_option(10, description="Fit")
-    FILL = declare_option(11, description="Fill")
+    PERCENT = declare_option(2, description="Percent")
+    FIT = declare_option(3, description="Fit")
+    FILL = declare_option(4, description="Fill")
 
 
 @declare_struct(
@@ -94,7 +91,7 @@ class Length(Struct):
     """An absolute or relative length value."""
 
     unit: LengthType = declare_property(101, is_repr=True)
-    value: Float32 = declare_property(102, is_repr=True)
+    value: Int16 = declare_property(102, is_repr=True)
 
 
 @declare_struct(
@@ -120,11 +117,11 @@ class Offset2(Struct):
 class Inset2(Struct):
     """A 2-dimensional insets value (base + side overrides)."""
 
-    base: UInt16 = declare_property(101, is_repr=True, default=0)
-    top: UInt16 | None = declare_property(102, is_repr=True)
-    left: UInt16 | None = declare_property(103, is_repr=True)
-    right: UInt16 | None = declare_property(104, is_repr=True)
-    bottom: UInt16 | None = declare_property(105, is_repr=True)
+    base: Int16 = declare_property(101, is_repr=True, default=0)
+    top: Int16 | None = declare_property(102, is_repr=True)
+    left: Int16 | None = declare_property(103, is_repr=True)
+    right: Int16 | None = declare_property(104, is_repr=True)
+    bottom: Int16 | None = declare_property(105, is_repr=True)
 
 
 @declare_struct(
@@ -135,11 +132,11 @@ class Inset2(Struct):
 class Corner2(Struct):
     """A 2-dimensional corners value (base + corner overrides)."""
 
-    base: UInt16 = declare_property(101, is_repr=True, default=0)
-    top_left: UInt16 | None = declare_property(102, is_repr=True)
-    top_right: UInt16 | None = declare_property(103, is_repr=True)
-    bottom_left: UInt16 | None = declare_property(104, is_repr=True)
-    bottom_right: UInt16 | None = declare_property(105, is_repr=True)
+    base: Int16 = declare_property(101, is_repr=True, default=0)
+    top_left: Int16 | None = declare_property(102, is_repr=True)
+    top_right: Int16 | None = declare_property(103, is_repr=True)
+    bottom_left: Int16 | None = declare_property(104, is_repr=True)
+    bottom_right: Int16 | None = declare_property(105, is_repr=True)
 
 
 @declare_struct(
@@ -150,9 +147,9 @@ class Corner2(Struct):
 class Axis2(Struct):
     """A 2-dimensional axis value (base + x/y overrides)."""
 
-    base: Float32 = declare_property(101, is_repr=True, default=0)
-    x: Float32 | None = declare_property(102, is_repr=True)
-    y: Float32 | None = declare_property(103, is_repr=True)
+    base: Int16 = declare_property(101, is_repr=True, default=0)
+    x: Int16 | None = declare_property(102, is_repr=True)
+    y: Int16 | None = declare_property(103, is_repr=True)
 
 
 @declare_struct(
@@ -163,10 +160,10 @@ class Axis2(Struct):
 class Axis3(Struct):
     """A 3-dimensional axis value (base + x/y/z overrides)."""
 
-    base: Float32 = declare_property(101, is_repr=True, default=0)
-    x: Float32 | None = declare_property(102, is_repr=True)
-    y: Float32 | None = declare_property(103, is_repr=True)
-    z: Float32 | None = declare_property(104, is_repr=True)
+    base: Int16 = declare_property(101, is_repr=True, default=0)
+    x: Int16 | None = declare_property(102, is_repr=True)
+    y: Int16 | None = declare_property(103, is_repr=True)
+    z: Int16 | None = declare_property(104, is_repr=True)
 
 
 @declare_struct(
@@ -177,8 +174,8 @@ class Axis3(Struct):
 class Grid2(Struct):
     """A 2-dimensional grid configuration value."""
 
-    columns: UInt16 = declare_property(101, is_repr=True)
-    rows: UInt16 = declare_property(102, is_repr=True)
+    columns: Int16 = declare_property(101, is_repr=True)
+    rows: Int16 = declare_property(102, is_repr=True)
     column_width: Length | None = declare_property(103, is_repr=True)
     column_min_width: Length | None = declare_property(104, is_repr=True)
     row_height: Length | None = declare_property(105, is_repr=True)
@@ -192,5 +189,5 @@ class Grid2(Struct):
 class GridSpan2(Struct):
     """A 2-dimensional grid span value."""
 
-    columns: UInt16 = declare_property(101, is_repr=True)
-    rows: UInt16 = declare_property(102, is_repr=True)
+    columns: Int16 = declare_property(101, is_repr=True)
+    rows: Int16 = declare_property(102, is_repr=True)

@@ -178,14 +178,14 @@ _object_json['metatype'] = '{cls.metatype.name}'
     def get_source_property_name(self, prop: PropertyDeclaration) -> str:
         """Get the name of a property."""
         source_name = prop.name
-        if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+        if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
             source_name += "_ptr"
         return source_name
 
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
         """Get the target property key for JSON."""
         target_key = to_casing(prop.name, StringCasing.LOWER_CAMEL)
-        if prop.type.scalar_type == ScalarType.NODE_MOMENT:
+        if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
             target_key += "Ptr"
         return target_key
 
@@ -494,16 +494,16 @@ else:
             return f"""\
 _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node id (untyped)
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return f"str({source_expr})"
         # node id (typed)
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
             return f"_encoder.pack_object({source_expr}, _options)"
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
             return f"_encoder.pack_object({source_expr}, _options)"
         # node reference (moment)
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return f"""\
 _encoder.pack_object({source_expr}, _options)"""
         # struct
@@ -587,18 +587,18 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
             return f"""\
 _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+        elif type.scalar_type == ScalarType.NODE_RAW:
             return f"UUID({source_expr})"
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY.value}, {source_expr}, _session, _options)"
+            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY_REFERENCE.value}, {source_expr}, _session, _options)"
         # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
-            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_LOCATION.value}, {source_expr}, _session, _options)"
+        elif type.scalar_type == ScalarType.NODE_SPATIAL:
+            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_SPATIAL_REFERENCE.value}, {source_expr}, _session, _options)"
         # node reference (moment)
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
+        elif type.scalar_type == ScalarType.NODE_TEMPORAL:
             return f"""\
-_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, {source_expr}, _session, _options)"""
+_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_TEMPORAL_REFERENCE.value}, {source_expr}, _session, _options)"""
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
