@@ -17,7 +17,7 @@ from .declaration import (
     TagDeclaration,
     declare_method,
 )
-from .enum import OptionEnum, declare_enum, declare_option
+from .enum import FlagEnum, OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property
 from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
@@ -48,6 +48,42 @@ class Materialization(OptionEnum):
     PARTIAL = declare_option(2, description="Entity is a partial override of its definition")
     FULL = declare_option(3, description="Entity is a full copy of its definition")
     ROOT = declare_option(4, description="Entity is its own root (no other definition)")
+
+
+@declare_enum(EnumType.PROCESS_FLAG)
+class ProcessFlag(FlagEnum):
+    """
+    How an Entity should be treated for processing by the system.
+    """
+
+    DEFAULT = declare_option(0)
+    DELETED = declare_option(
+        1,
+        description="Entity is (soft) deleted.",
+    )
+    INACTIVE = declare_option(
+        2,
+        description="Entity is inactive.",
+    )
+    INACTIVE_INPUT = declare_option(
+        4,
+        description="Entity is inactive to InputEvents.",
+    )
+
+
+@declare_enum(EnumType.EXTENSION_FLAG)
+class ExtensionFlag(FlagEnum):
+    """
+    How an Entity should be treated for extension by the system.
+    """
+
+    DEFAULT = declare_option(0)
+    INSTANTIABLE = declare_option(1)
+    EXTENSIBLE = declare_option(2)
+    # is_locked, is_extensible, is_instantiable, ...
+    # is_trait? is_abstract?
+    # is_locked/is_final?
+    # is_singleton?
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
@@ -233,19 +269,8 @@ class Entity(Node):
         description="The Actor that last updated this Entity.",
         tag="tracking",
     )
-    deleted_at: Optional[datetime] = declare_property(
-        26,
-        is_managed=True,
-        is_hash=False,
-        is_eq=False,
-        description="""\
-The time this Entity was last deleted (system time, if it's is currently deleted).
-Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
-""",
-        tag="tracking",
-    )
     owned_by: "Entity" = declare_property(
-        30,
+        26,
         is_repr=True,
         description="The exclusive owner of this Entity (the authority on access).",
         reference_type=ReferenceType.LOCATION,
@@ -253,11 +278,20 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         tag="tracking",
     )
     managed_by: "Entity" = declare_property(
-        31,
+        27,
         is_repr=True,
         description="The exclusive manager of this Entity (the authority on state).",
         reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.ACTOR,
+        tag="tracking",
+    )
+    process_flags: ProcessFlag = declare_property(
+        30,
+        is_managed=True,
+        is_hash=False,
+        is_eq=False,
+        default=ProcessFlag.DEFAULT,
+        description="The process flags of this Entity.",
         tag="tracking",
     )
 
@@ -276,6 +310,14 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         default_factory=ValueFactory.NAME,
         tag="tree",
     )
+    key: str | None = declare_property(
+        42,
+        is_eq=False,
+        is_interned=True,
+        is_managed=True,
+        description="The key of this Entity (for reconciliation and querying).",
+        tag="tree",
+    )
     order_key: str | None = declare_property(
         43,
         is_eq=False,
@@ -287,17 +329,16 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     # icon: Optional["Icon"]?
 
     # 50-60: custom
-    custom_values: dict[str, "Value"] | None = declare_property(
+    extension_flags: ExtensionFlag = declare_property(
         50,
+        description="The extension flags of this Entity.",
+        tag="custom",
+    )
+    custom_values: dict[str, "Value"] | None = declare_property(
+        51,
         description="The custom Values of this Entity, keyed by custom Property or Tag name.",
         tag="custom",
     )
-    # is_locked, is_extensible, is_instantiable, ...
-    # base_type?
-    # traits?
-    # is_trait? is_abstract?
-    # is_locked/is_final?
-    # is_singleton?
     # context_values?
 
     # 60-70: behavior

@@ -183,7 +183,6 @@ def _process_node_cls(
                 if struct_prop.name == "template":
                     # nocheckin: proper mechanism for "struct with partial overrides to node/struct"
                     #  (like Styles or TransitionTemplate or any template really..
-                    #   .. similarity to Offset2/Inset2/... with base and overrides?
                     #   .. similarity to Entity partials?
                     #    .. generic ScalarType.PARTIAL? (or PARTIAL_STRUCT/PARTIAL_NODE?)
                     #   .. also similarity to Context overrides in Entity.context_values?

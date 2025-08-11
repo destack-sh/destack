@@ -58,7 +58,9 @@ from .entity import (
     ENTITY_MATERIALIZATION_ID,
     ENTITY_MATERIALIZATION_KEY,
     Entity,
+    ExtensionFlag,
     Materialization,
+    ProcessFlag,
     declare_entity,
 )
 from .enum import (
@@ -168,6 +170,7 @@ __all__ = [
     "Error",
     "Event",
     "EventStatus",
+    "ExtensionFlag",
     "FlagEnum",
     "Float16",
     "Float32",
@@ -200,6 +203,7 @@ __all__ = [
     "OptionEnum",
     "PermissionDeclaration",
     "PrimitiveType",
+    "ProcessFlag",
     "PropertyDeclaration",
     "PropertyZone",
     "ReferenceType",

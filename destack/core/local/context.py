@@ -26,7 +26,6 @@ class Context(Handle):
     Context propagates across the call stack (because it propagates through Runs).
     """
 
-    # TODO :Incomplete: Context to replace local 'globals'
     actor: "Entity" = declare_property_runtime(401, is_repr=True)
     client: "Client" = declare_property_runtime(402, is_repr=True)
     client_nonce: UInt8 = declare_property_runtime(403, is_repr=True)

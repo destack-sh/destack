@@ -278,7 +278,10 @@ class KompaktObjectSizer(ObjectSizer):
                 continue
             min_size, max_size = self.size_property(prop, include_reference=False, _path=path)
             total_min_size += min_size
-            total_max_size += max_size or min_size
+            if total_max_size is None or max_size is None:
+                total_max_size = None
+            else:
+                total_max_size += max_size
         return ObjectSize(total_min_size, total_max_size)
 
     @override

@@ -536,7 +536,13 @@ def _show_properties(
             }
         )
 
-    _console.print(_console.table(rows, headers))
+    _console.print(
+        _console.table(
+            rows,
+            headers,
+            separators_on_change=["Defined In", "Tag"],
+        )
+    )
 
 
 def _show_methods(
@@ -655,7 +661,9 @@ def _show_actions(
             }
         )
 
-    _console.print(_console.table(rows, headers))
+    _console.print(
+        _console.table(rows, headers, separators_on_change=["Defined In"]),
+    )
 
 
 def _show_constants(
