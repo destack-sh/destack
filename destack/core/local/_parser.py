@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, get_args, get_origin
 
-from . import console
+from . import _console
 
 
 @dataclass(slots=True)
@@ -27,24 +27,32 @@ class CLI:
     """CLI application with Commands and sub-CLIs."""
 
     name: str | None = None
+    aliases: list[str] = field(default_factory=list)
     help: str | None = None
-    commands: dict[str, CLICommand] = field(default_factory=dict)
-    clis: dict[str, "CLI"] = field(default_factory=dict)
+    commands: list[CLICommand] = field(default_factory=list)
+    clis: list["CLI"] = field(default_factory=list)
 
     def command(self, name: str | None = None):
         """Decorator to register a command."""
 
         def decorator(func: Callable):
             cmd_name = name or func.__name__.replace("_", "-")  # type: ignore
-            self.commands[cmd_name] = CLICommand(func, cmd_name)
+            self.commands.append(CLICommand(func, cmd_name))
             return func
 
         return decorator
 
     def add_sub_cli(self, name: str, sub_cli: "CLI"):
         """Add a sub-CLI."""
-        self.clis[name] = sub_cli
+        # check for conflicts
+        for existing_cli in self.clis:
+            if existing_cli.name == name or name in existing_cli.aliases:
+                raise ValueError(f"sub-CLI '{name}' already exists")
+            if existing_cli.name in sub_cli.aliases:
+                raise ValueError(f"sub-CLI '{existing_cli.name}' conflicts with alias")
+
         sub_cli.name = name
+        self.clis.append(sub_cli)
 
     def run(self, argv: list[str] | None = None):
         """Run the CLI application."""
@@ -57,19 +65,19 @@ class CLI:
         first_arg = args[0]
 
         # check if it's a sub-CLI
-        if first_arg in self.clis:
-            sub_cli = self.clis[first_arg]
-            sub_cli.run(args[1:])
-            return
+        for sub_cli in self.clis:
+            if sub_cli.name == first_arg or first_arg in sub_cli.aliases:
+                sub_cli.run(args[1:])
+                return
 
         # check if it's a command
-        if first_arg in self.commands:
-            command = self.commands[first_arg]
-            self.run_command(command, args[1:])
-            return
+        for command in self.commands:
+            if command.name == first_arg:
+                self.run_command(command, args[1:])
+                return
 
         # unknown command/sub-CLI
-        console.error(f"unknown command: `{first_arg}`")
+        _console.error(f"unknown command: `{first_arg}`")
         self.show_help()
         sys.exit(1)
 
@@ -150,7 +158,7 @@ class CLI:
 
         # check for unused positional arguments
         if pos_idx < len(positionals):
-            console.error(f"unexpected argument: {positionals[pos_idx]}")
+            _console.error(f"unexpected argument: {positionals[pos_idx]}")
             self.show_command_help(command)
             sys.exit(1)
 
@@ -166,7 +174,7 @@ class CLI:
         try:
             command.func(**parsed_args)
         except TypeError as e:
-            console.error(f"Error: {e}")
+            _console.error(f"Error: {e}")
             self.show_command_help(command)
             sys.exit(1)
 
@@ -217,52 +225,56 @@ class CLI:
     def show_help(self):
         """Show general help."""
         if self.help:
-            console.print(self.help, "bold")
-            console.print("")
+            _console.print(self.help, "bold")
+            _console.print("")
 
         # show sub-CLIs first
         if self.clis:
-            console.print("Sub-commands:", "cyan", "bold")
-            max_name_len = max(len(name) for name in self.clis)
-            for name, sub_cli in sorted(self.clis.items()):
+            _console.print("CLIs:", "cyan", "bold")
+            max_name_len = max(len(cli.name or "") for cli in self.clis)
+            for sub_cli in sorted(self.clis, key=lambda c: c.name or ""):
+                name = sub_cli.name or ""
                 help_text = sub_cli.help or ""
                 if help_text:
                     help_text = help_text.split("\n")[0]  # first line only
-                console.print(
-                    f"  {console.color(name, 'cyan')}{' ' * (max_name_len - len(name) + 2)}{help_text}",
+                aliases_text = ""
+                if sub_cli.aliases:
+                    aliases_text = f" (aliases: {', '.join(sub_cli.aliases)})"
+                _console.print(
+                    f"  {_console.color(name, 'cyan')}{' ' * (max_name_len - len(name) + 2)}{help_text}{aliases_text}",
                     "gray",
                 )
-            console.print("")
+            _console.print("")
 
         # then show direct commands
         if self.commands:
-            console.print("Commands:", "cyan", "bold")
-            max_name_len = max(len(name) for name in self.commands)
-            for name, cmd in sorted(self.commands.items()):
+            _console.print("Commands:", "cyan", "bold")
+            max_name_len = max(len(cmd.name) for cmd in self.commands)
+            for cmd in sorted(self.commands, key=lambda c: c.name):
                 help_text = cmd.help or ""
                 if help_text:
                     help_text = help_text.split("\n")[0]  # first line only
-                console.print(
-                    f"  {console.color(name, 'cyan')}{' ' * (max_name_len - len(name) + 2)}{help_text}",
+                _console.print(
+                    f"  {_console.color(cmd.name, 'cyan')}{' ' * (max_name_len - len(cmd.name) + 2)}{help_text}",
                     "gray",
                 )
-            console.print("")
+            _console.print("")
 
         if self.commands or self.clis:
-            console.print("Use '<command> --help' for more information about a command.", "dim")
+            _console.print("Use '<command> --help' for more information about a command.", "dim")
 
     def show_command_help(self, command: CLICommand):
         """Show help for a specific command."""
-        console.print(f"{command.name}", "cyan", "bold")
+        _console.print(f"{command.name}", "cyan", "bold")
         if command.help:
-            console.print(f"  {command.help}")
+            _console.print(f"  {command.help}")
 
         sig = inspect.signature(command.func)
         params = list(sig.parameters.values())
 
         if params:
-            console.print("")
-            console.print("Arguments:", "yellow")
+            _console.print("")
+            _console.print("Arguments:", "yellow")
             for param in params:
                 param_name = param.name.replace("_", "-")
 
@@ -280,12 +292,21 @@ class CLI:
                 if param.default is not param.empty:
                     parts.append(f" (default: {param.default})")
 
-                console.print("".join(parts))
+                _console.print("".join(parts))
 
 
-def create_cli(name: str | None = None, help: str | None = None) -> CLI:
+def create_cli(
+    name: str | None = None,
+    *,
+    aliases: list[str] | None = None,
+    help: str | None = None,
+) -> CLI:
     """Create a new CLI application."""
-    return CLI(name, help)
+    return CLI(
+        name=name,
+        aliases=aliases or [],
+        help=help,
+    )
 
 
 def create_repl(
@@ -304,31 +325,42 @@ class REPL:
     prompt_text: str = "> "
     welcome: str | None = None
     exit_commands: list[str] = field(default_factory=lambda: ["exit", "quit", "q"])
-    commands: dict[str, Callable] = field(default_factory=dict)
-    help_texts: dict[str, str] = field(default_factory=dict)
+    commands: list[CLICommand] = field(default_factory=list)
+    clis: list[CLI] = field(default_factory=list)
 
     def command(self, name: str | None = None, help_text: str | None = None):
         """Decorator to register a REPL command."""
 
         def decorator(func: Callable):
             cmd_name = name or func.__name__.replace("_", "-")  # type: ignore
-            self.commands[cmd_name] = func
-            if help_text or func.__doc__:
-                self.help_texts[cmd_name] = help_text or (func.__doc__ or "").strip()
+            cmd = CLICommand(func, cmd_name, help_text)
+            self.commands.append(cmd)
             return func
 
         return decorator
 
+    def add_sub_cli(self, name: str, sub_cli: CLI):
+        """Add a sub-CLI."""
+        # check for conflicts
+        for existing_cli in self.clis:
+            if existing_cli.name == name or name in existing_cli.aliases:
+                raise ValueError(f"sub-CLI '{name}' already exists")
+            if existing_cli.name in sub_cli.aliases:
+                raise ValueError(f"sub-CLI '{existing_cli.name}' conflicts with alias")
+
+        sub_cli.name = name
+        self.clis.append(sub_cli)
+
     def run(self):
         """Run the REPL loop."""
         if self.welcome:
-            console.print(self.welcome, "green", "bold")
-            console.print("")
+            _console.print(self.welcome, "green", "bold")
+            _console.print("")
 
         while True:
             try:
                 # get user input
-                user_input = console.prompt(self.prompt_text.rstrip())
+                user_input = _console.prompt(self.prompt_text.rstrip())
                 # push into history so up/down navigation works
                 if user_input:
                     readline.add_history(user_input)
@@ -338,7 +370,6 @@ class REPL:
 
                 # check for exit
                 if user_input.lower() in self.exit_commands:
-                    console.print("Goodbye!", "dim")
                     break
 
                 # parse command and arguments
@@ -354,63 +385,115 @@ class REPL:
                     self.show_help(args[0] if args else None)
                     continue
 
+                # check if it's a sub-CLI
+                for sub_cli in self.clis:
+                    if sub_cli.name == cmd_name or cmd_name in sub_cli.aliases:
+                        sub_cli.run(args)
+                        continue
+
                 # find and execute command
-                if cmd_name in self.commands:
+                command = None
+                for cmd in self.commands:
+                    if cmd.name == cmd_name:
+                        command = cmd
+                        break
+
+                if command:
                     try:
-                        self.commands[cmd_name](*args)
+                        command.func(*args)
                     except TypeError as e:
-                        console.error(f"Error: {e}")
-                        console.stacktrace(e)
-                        if cmd_name in self.help_texts:
-                            console.print(f"Usage: {self.help_texts[cmd_name]}", "dim")
+                        _console.error(f"Error: {e}")
+                        _console.stacktrace(e)
+                        if command.help:
+                            _console.print(f"Usage: {command.help}", "dim")
                     except Exception as e:
-                        console.error(f"Error executing '{cmd_name}': {e}")
-                        console.stacktrace(e)
+                        _console.error(f"Error executing '{cmd_name}': {e}")
+                        _console.stacktrace(e)
                 else:
                     # try to pass the entire input to a default handler if it exists
-                    if "default" in self.commands:
+                    default_command = None
+                    for cmd in self.commands:
+                        if cmd.name == "default":
+                            default_command = cmd
+                            break
+                    if default_command:
                         try:
-                            self.commands["default"](user_input)
+                            default_command.func(user_input)
                         except Exception as e:
-                            console.error(f"Error: {e}")
-                            console.stacktrace(e)
+                            _console.error(f"Error: {e}")
+                            _console.stacktrace(e)
                     else:
-                        console.error(f"Unknown command: '{cmd_name}'")
-                        console.print("Type 'help' for available commands.", "dim")
+                        _console.error(f"Unknown command: '{cmd_name}'")
+                        _console.print("Type 'help' for available commands.", "dim")
 
             except KeyboardInterrupt:
-                console.print("\n" + console.color("Use 'exit' or 'quit' to leave.", "yellow"))
+                _console.print("\n" + _console.color("Use 'exit' or 'quit' to leave.", "yellow"))
             except EOFError:
-                console.print("\nGoodbye!", "dim")
+                _console.print("\nGoodbye!", "dim")
                 break
 
     def show_help(self, command: str | None = None):
         """Show help for commands."""
-        if command and command in self.commands:
-            # show help for specific command
-            console.print(f"\n{console.color(command, 'cyan', 'bold')}")
-            if command in self.help_texts:
-                console.print(f"  {self.help_texts[command]}")
+        if command:
+            # look for specific command
+            found_command = None
+            for cmd in self.commands:
+                if cmd.name == command:
+                    found_command = cmd
+                    break
+
+            # look for sub-CLI
+            found_cli = None
+            for cli in self.clis:
+                if cli.name == command or command in cli.aliases:
+                    found_cli = cli
+                    break
+
+            if found_command:
+                _console.print(f"\n{_console.color(command, 'cyan', 'bold')}")
+                if found_command.help:
+                    _console.print(f"  {found_command.help}")
+                else:
+                    _console.print("  No documentation available.", "dim")
+            elif found_cli:
+                found_cli.show_help()
             else:
-                console.print("  No documentation available.", "dim")
+                _console.error(f"Unknown command: '{command}'")
         else:
             # show all commands
-            console.print("\nAvailable commands:", "cyan", "bold")
-            console.print("")
+            _console.print("\nAvailable commands:", "cyan", "bold")
+            _console.print("")
 
             # built-in commands
-            console.print(f"  {console.color('help, ?', 'yellow')}  - Show this help message")
+            _console.print(f"  {_console.color('help, ?', 'yellow')}  - Show this help message")
             exit_cmds = ", ".join(self.exit_commands)
-            console.print(f"  {console.color(exit_cmds, 'yellow')}  - Exit the program")
+            _console.print(f"  {_console.color(exit_cmds, 'yellow')}  - Exit the program")
 
+            # sub-CLIs
+            if self.clis:
+                _console.print("")
+                max_name_len = max(len(cli.name or "") for cli in self.clis)
+                for cli in sorted(self.clis, key=lambda c: c.name or ""):
+                    name = cli.name or ""
+                    help_text = cli.help or ""
+                    if help_text:
+                        help_text = help_text.split("\n")[0]  # first line only
+                    aliases_text = ""
+                    if cli.aliases:
+                        aliases_text = f" (aliases: {', '.join(cli.aliases)})"
+                    _console.print(
+                        f"  {_console.color(name, 'cyan')}{' ' * (max_name_len - len(name) + 2)}{help_text}{aliases_text}",
+                        "gray",
+                    )
+
+            # user commands
             if self.commands:
-                console.print("")
-                # user commands
-                max_len = max(len(cmd) for cmd in self.commands if cmd != "default")
-                for cmd_name in sorted(self.commands):
-                    if cmd_name == "default":
+                _console.print("")
+                max_len = max(len(cmd.name) for cmd in self.commands if cmd.name != "default")
+                for cmd in sorted(self.commands, key=lambda c: c.name):
+                    if cmd.name == "default":
                         continue
-                    padding = " " * (max_len - len(cmd_name) + 2)
-                    help_text = self.help_texts.get(cmd_name, "")
-                    console.print(f"  {console.color(cmd_name, 'cyan')}{padding}{help_text}")
-        console.print("")
+                    padding = " " * (max_len - len(cmd.name) + 2)
+                    help_text = cmd.help or ""
+                    _console.print(f"  {_console.color(cmd.name, 'cyan')}{padding}{help_text}")
+        _console.print("")

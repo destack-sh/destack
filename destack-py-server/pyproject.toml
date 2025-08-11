@@ -1,6 +1,6 @@
 [project]
 name = "destack-server"
-version = "2025.08.08.1"
+version = "2025.08.11.1"
 description = "Destack Python Server"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 requires-python = ">=3.13"

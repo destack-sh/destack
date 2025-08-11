@@ -1,7 +1,7 @@
-from . import console
+from . import _console
+from ._parser import CLI, create_cli
 from .context import Context
 from .logger import Logger
-from .parser import CLI, create_cli
 from .session import Session
 from .tracer import Tracer
 
@@ -11,6 +11,6 @@ __all__ = [
     "Logger",
     "Session",
     "Tracer",
-    "console",
+    "_console",
     "create_cli",
 ]
