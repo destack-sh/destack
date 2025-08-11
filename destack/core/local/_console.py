@@ -332,6 +332,7 @@ def table(
     padding: int = 2,
     right_align_numeric: bool = True,
     secondary_headers: Sequence[str] | None = None,
+    separators_on_change: Sequence[str] | None = None,
 ) -> str:
     """Create a formatted table.
 
@@ -446,7 +447,37 @@ def table(
     out_lines.append(" " * padding + (" " * padding).join(sep_row))
 
     # data rows
+    monitor_indices: list[int] = []
+    if separators_on_change:
+        name_to_idx = {str(h): i for i, h in enumerate(headers)}
+        for name in separators_on_change:
+            idx = name_to_idx.get(str(name))
+            if idx is not None:
+                monitor_indices.append(idx)
+    prev_keys: list[str] | None = None
     for row in matrix:
+        # insert a separator if any monitored key changed
+        if monitor_indices and prev_keys is not None:
+            cur_keys = []
+            for i in monitor_indices:
+                if i < len(row):
+                    lines = _strip_ansi(row[i]).splitlines()
+                    cur_keys.append(lines[0] if lines else "")
+                else:
+                    cur_keys.append("")
+            if cur_keys != prev_keys:
+                sep_row = ["─" * w for w in col_widths]
+                out_lines.append(" " * padding + (" " * padding).join(sep_row))
+            prev_keys = cur_keys
+        elif monitor_indices and prev_keys is None:
+            prev_keys = []
+            for i in monitor_indices:
+                if i < len(row):
+                    lines = _strip_ansi(row[i]).splitlines()
+                    prev_keys.append(lines[0] if lines else "")
+                else:
+                    prev_keys.append("")
+
         cells = [row[i] if i < len(row) else "" for i in range(num_cols)]
         out_lines.extend(_render_physical_rows(cells))
 

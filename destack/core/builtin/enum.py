@@ -187,6 +187,8 @@ def declare_enum(enum_type: "EnumType"):
                 )
                 options_by_id[option.id] = option
         elif issubclass(cls, FlagEnum):
+            # flags must have at least one non-zero option
+            assert max(cls) > 0, f"flag enum {cls.__name__} must have at least one non-zero option"
             # flags must be unique and powers of 2 (0 is allowed)
             for option in declaration.options:
                 assert 0 <= option.id < 2**32, (

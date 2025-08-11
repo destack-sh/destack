@@ -174,12 +174,14 @@ class EnumType(OptionEnum):
     OBJECT_STABILITY = declare_option(8)
     UNIVERSE_DOMAIN = declare_option(10)
     UNIVERSE_CATEGORY = declare_option(11)
-    MATERIALIZATION = declare_option(14)
-    STRING_CASING = declare_option(15)
+    MATERIALIZATION = declare_option(20)
+    PROCESS_FLAG = declare_option(21)
+    EXTENSION_FLAG = declare_option(22)
     RUNTIME_PLATFORM = declare_option(30)
     RUNTIME_LANGUAGE = declare_option(31)
     RUNTIME_TYPE = declare_option(32)
     EVENT_STATUS = declare_option(40)
+    STRING_CASING = declare_option(50)
 
     # definition [100_000]
 
