@@ -71,25 +71,25 @@ export class Folder
    * Folder.parent
    */
   get parent(): Space | Folder | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | Folder | null;
+    const nodeRef: NodeReference | null = this.parentRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Space | Folder | null;
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  readonly parentRef: NodeReference | null;
 
   /**
    * The Space this Node is in.
    */
   get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | null;
+    const nodeRef: NodeReference | null = this.spaceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Space | null;
     }
     return null;
   }
-  readonly spacePtr: NodeReference;
+  readonly spaceRef: NodeReference;
 
   /**
    * Entity.materialization
@@ -100,62 +100,62 @@ export class Folder
    * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.definitionRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Entity is part of.
    */
   get branch(): Branch | null {
-    const nodePtr: NodeReference | null = this.branchPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Branch | null;
+    const nodeRef: NodeReference | null = this.branchRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Branch | null;
     }
     return null;
   }
-  readonly branchPtr: NodeReference;
+  readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Snapshot | null;
+    const nodeRef: NodeReference | null = this.snapshotRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Snapshot | null;
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference;
+  readonly snapshotRef: NodeReference;
 
   /**
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Folder | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Folder | null;
+    const nodeRef: NodeReference | null = this.precededByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Folder | null;
     }
     return null;
   }
-  readonly precededByPtr: NodeReference | null;
+  readonly precededByRef: NodeReference | null;
 
   /**
    * The (root) Entity that is being instantiated.
    */
   get instance(): Entity | null {
-    const nodePtr: NodeReference | null = this.instancePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.instanceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly instancePtr: NodeReference | null;
+  readonly instanceRef: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -171,13 +171,13 @@ export class Folder
    * The Actor that created this Entity.
    */
   get createdBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.createdByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference;
+  readonly createdByRef: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -193,13 +193,13 @@ export class Folder
    * The Actor that last updated this Entity.
    */
   get updatedBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.updatedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference;
+  readonly updatedByRef: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -212,31 +212,31 @@ export class Folder
    * Entity.ownedBy
    */
   get ownedBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.ownedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
   set ownedBy(node: Entity | null) {
     if (node === null) {
-      this.ownedByPtr = null;
+      this.ownedByRef = null;
     } else {
-      this.ownedByPtr = node.toRef();
+      this.ownedByRef = node.toRef();
     }
   }
   /**
    * Entity.ownedBy
    */
-  get ownedByPtr(): NodeReference | null {
-    return this._ownedByPtr;
+  get ownedByRef(): NodeReference | null {
+    return this._ownedByRef;
   }
-  set ownedByPtr(value: NodeReference | null) {
+  set ownedByRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["owned_by"];
     this._session.updateSetProperty(this, prop, value);
-    this._ownedByPtr = value;
+    this._ownedByRef = value;
   }
-  _ownedByPtr: NodeReference | null;
+  _ownedByRef: NodeReference | null;
 
   /**
    * Entity.name
@@ -279,31 +279,31 @@ export class Folder
    * The Script of this Entity.
    */
   get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Script | null;
+    const nodeRef: NodeReference | null = this.scriptRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Script | null;
     }
     return null;
   }
   set script(node: Script | null) {
     if (node === null) {
-      this.scriptPtr = null;
+      this.scriptRef = null;
     } else {
-      this.scriptPtr = node.toRef();
+      this.scriptRef = node.toRef();
     }
   }
   /**
    * The Script of this Entity.
    */
-  get scriptPtr(): NodeReference | null {
-    return this._scriptPtr;
+  get scriptRef(): NodeReference | null {
+    return this._scriptRef;
   }
-  set scriptPtr(value: NodeReference | null) {
+  set scriptRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["script"];
     this._session.updateSetProperty(this, prop, value);
-    this._scriptPtr = value;
+    this._scriptRef = value;
   }
-  _scriptPtr: NodeReference | null;
+  _scriptRef: NodeReference | null;
 
   /**
    * Whether this Entity can be instanced.
@@ -314,13 +314,13 @@ export class Folder
    * The Script that defines this Node.
    */
   get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Script | null;
+    const nodeRef: NodeReference | null = this.sourceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Script | null;
     }
     return null;
   }
-  readonly sourcePtr: NodeReference | null;
+  readonly sourceRef: NodeReference | null;
 
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
@@ -390,31 +390,31 @@ export class Folder
    * Folder.mainScene
    */
   get mainScene(): Scene | null {
-    const nodePtr: NodeReference | null = this.mainScenePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Scene | null;
+    const nodeRef: NodeReference | null = this.mainSceneRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Scene | null;
     }
     return null;
   }
   set mainScene(node: Scene | null) {
     if (node === null) {
-      this.mainScenePtr = null;
+      this.mainSceneRef = null;
     } else {
-      this.mainScenePtr = node.toRef();
+      this.mainSceneRef = node.toRef();
     }
   }
   /**
    * Folder.mainScene
    */
-  get mainScenePtr(): NodeReference | null {
-    return this._mainScenePtr;
+  get mainSceneRef(): NodeReference | null {
+    return this._mainSceneRef;
   }
-  set mainScenePtr(value: NodeReference | null) {
+  set mainSceneRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["main_scene"];
     this._session.updateSetProperty(this, prop, value);
-    this._mainScenePtr = value;
+    this._mainSceneRef = value;
   }
-  _mainScenePtr: NodeReference | null;
+  _mainSceneRef: NodeReference | null;
 
   constructor(options: {
     id?: UUID;
@@ -464,7 +464,7 @@ export class Folder
     if (_parent != null && _parent.constructor.name !== "NodeReference") {
       _parent = (_parent as Node).toRef();
     }
-    this.parentPtr = _parent as NodeReference | null;
+    this.parentRef = _parent as NodeReference | null;
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
@@ -479,7 +479,7 @@ export class Folder
     if (_space == null) {
       throw new Error(`Folder.space is required`);
     }
-    this.spacePtr = _space as NodeReference;
+    this.spaceRef = _space as NodeReference;
     let _materialization = options.materialization ?? null;
     if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
@@ -492,7 +492,7 @@ export class Folder
     if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition as NodeReference | null;
+    this.definitionRef = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
@@ -507,7 +507,7 @@ export class Folder
     if (_branch == null) {
       throw new Error(`Folder.branch is required`);
     }
-    this.branchPtr = _branch as NodeReference;
+    this.branchRef = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
@@ -522,24 +522,24 @@ export class Folder
     if (_snapshot == null) {
       throw new Error(`Folder.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot as NodeReference;
+    this.snapshotRef = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
     if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy as NodeReference | null;
+    this.precededByRef = _precededBy as NodeReference | null;
     let _instance = options.instance ?? null;
     if (_instance != null && _instance.constructor.name !== "NodeReference") {
       _instance = (_instance as Node).toRef();
     }
-    this.instancePtr = _instance as NodeReference | null;
+    this.instanceRef = _instance as NodeReference | null;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.constructor.name !== "NodeReference") {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this._ownedByPtr = _ownedBy as NodeReference | null;
+    this._ownedByRef = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
     if (_name == null) {
       _name = "Folder";
@@ -565,14 +565,14 @@ export class Folder
     if (_script != null && _script.constructor.name !== "NodeReference") {
       _script = (_script as Node).toRef();
     }
-    this._scriptPtr = _script as NodeReference | null;
+    this._scriptRef = _script as NodeReference | null;
     let _isExtensible = options.isExtensible ?? null;
     this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.constructor.name !== "NodeReference") {
       _source = (_source as Node).toRef();
     }
-    this.sourcePtr = _source as NodeReference | null;
+    this.sourceRef = _source as NodeReference | null;
     let _key = options.key ?? null;
     this._key = _key;
     let _type = options.type ?? null;
@@ -591,7 +591,7 @@ export class Folder
     if (_mainScene != null && _mainScene.constructor.name !== "NodeReference") {
       _mainScene = (_mainScene as Node).toRef();
     }
-    this._mainScenePtr = _mainScene as NodeReference | null;
+    this._mainSceneRef = _mainScene as NodeReference | null;
 
     /* identity */
     if (options.id == null) {
@@ -599,10 +599,10 @@ export class Folder
       const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = this._session.actorPtr;
+      this.createdByRef = this._session.actorRef;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = this._session.actorPtr;
+      this.updatedByRef = this._session.actorRef;
     } else {
       if (
         options.createdAt == null ||
@@ -614,12 +614,12 @@ export class Folder
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
-      this.createdByPtr =
-        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
+      this.createdByRef =
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorRef;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
-      this.updatedByPtr =
-        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorPtr;
+      this.updatedByRef =
+        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorRef;
     }
   }
 
@@ -639,13 +639,13 @@ export class Folder
     if (!(this._slug === other._slug)) {
       return false;
     }
-    if (!(this._mainScenePtr?.id === other._mainScenePtr?.id)) {
+    if (!(this._mainSceneRef?.id === other._mainSceneRef?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.definitionRef?.id === other.definitionRef?.id)) {
       return false;
     }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+    if (!(this._ownedByRef?.id === other._ownedByRef?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -654,19 +654,19 @@ export class Folder
     if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+    if (!(this._scriptRef?.id === other._scriptRef?.id)) {
       return false;
     }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+    if (!(this.sourceRef?.id === other.sourceRef?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!(this.spaceRef.id === other.spaceRef.id)) {
       return false;
     }
     return true;
@@ -675,8 +675,8 @@ export class Folder
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    if (this.parentRef != null) {
+      h = (h * 31 + hashString(this.parentRef.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
     if (this._icon != null) {
@@ -685,21 +685,21 @@ export class Folder
     if (this._slug != null) {
       h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     }
-    if (this._mainScenePtr != null) {
-      h = (h * 31 + hashString(this._mainScenePtr.id)) & 0xffffffff;
+    if (this._mainSceneRef != null) {
+      h = (h * 31 + hashString(this._mainSceneRef.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.definitionRef != null) {
+      h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdByRef.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.updatedByRef.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByRef != null) {
+      h = (h * 31 + hashString(this._ownedByRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
@@ -709,20 +709,20 @@ export class Folder
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._scriptRef != null) {
+      h = (h * 31 + hashString(this._scriptRef.id)) & 0xffffffff;
     }
     if (this.isExtensible != null) {
       h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    if (this.sourceRef != null) {
+      h = (h * 31 + hashString(this.sourceRef.id)) & 0xffffffff;
     }
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spaceRef.id)) & 0xffffffff;
 
     return h;
   }
@@ -732,10 +732,10 @@ export class Folder
     return new _NodeReference({
       type: NodeType.FOLDER,
       id: this.id,
-      spaceId: this.spacePtr.id,
-      definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr.id,
-      snapshotId: this.snapshotPtr.id,
+      spaceId: this.spaceRef.id,
+      definitionId: this.definitionRef?.id ?? null,
+      branchId: this.branchRef.id,
+      snapshotId: this.snapshotRef.id,
       _session: this._session,
     });
   }

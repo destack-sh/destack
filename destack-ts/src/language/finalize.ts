@@ -46,11 +46,11 @@ function _indexProperties(
       const upperCamelName = toCasing(propertyDefinition.name, Casing.CAMEL);
       const aliases = [
         propertyDefinition.name,
-        `${propertyDefinition.name}_ptr`,
+        `${propertyDefinition.name}_ref`,
         lowerCamelName,
-        `${lowerCamelName}Ptr`,
+        `${lowerCamelName}Ref`,
         upperCamelName,
-        `${upperCamelName}Ptr`,
+        `${upperCamelName}Ref`,
       ];
       for (const alias of aliases) {
         if (

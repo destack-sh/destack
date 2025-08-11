@@ -43,16 +43,16 @@ export class NodeDefinitionReference extends ImmutableStruct {
    * NodeDefinitionReference.definition
    */
   get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
+    const nodeRef: NodeReference | null = this.definitionRef;
+    if (nodeRef != null) {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr) as Entity | null;
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly definitionRef: NodeReference | null;
 
   constructor(options: {
     type: NodeDefinitionType;
@@ -84,7 +84,7 @@ export class NodeDefinitionReference extends ImmutableStruct {
     if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition as NodeReference | null;
+    this.definitionRef = _definition as NodeReference | null;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -105,7 +105,7 @@ export class NodeDefinitionReference extends ImmutableStruct {
     if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.definitionRef?.id === other.definitionRef?.id)) {
       return false;
     }
     return true;
@@ -133,8 +133,8 @@ export class NodeDefinitionReference extends ImmutableStruct {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.nodeType) & 0xffffffff;
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.definitionRef != null) {
+      h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -201,7 +201,7 @@ export class NodeDefinitionReference extends ImmutableStruct {
         } else {
           throw new Error(`unexpected node reference: ${base.repr()}`);
         }
-        const definitionPtr = new NodeReference({
+        const definitionRef = new NodeReference({
           type: definitionNodeType,
           id: base.definitionId,
           spaceId: base.spaceId,
@@ -211,7 +211,7 @@ export class NodeDefinitionReference extends ImmutableStruct {
         return new NodeDefinitionReference({
           type: NodeDefinitionType.CUSTOM,
           nodeType: base.type,
-          definition: definitionPtr,
+          definition: definitionRef,
         });
       } else {
         return new NodeDefinitionReference({
@@ -266,16 +266,16 @@ export class PropertyReference extends ImmutableStruct {
    * custom Property of a custom Node or Struct
    */
   get customProperty(): CustomProperty | null {
-    const nodePtr: NodeReference | null = this.customPropertyPtr;
-    if (nodePtr != null) {
+    const nodeRef: NodeReference | null = this.customPropertyRef;
+    if (nodeRef != null) {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr) as CustomProperty | null;
+      return this._session.graph.get(nodeRef) as CustomProperty | null;
     }
     return null;
   }
-  readonly customPropertyPtr: NodeReference | null;
+  readonly customPropertyRef: NodeReference | null;
 
   constructor(options: {
     type: PropertyReferenceType;
@@ -313,7 +313,7 @@ export class PropertyReference extends ImmutableStruct {
     if (_customProperty != null && _customProperty.constructor.name !== "NodeReference") {
       _customProperty = (_customProperty as Node).toRef();
     }
-    this.customPropertyPtr = _customProperty as NodeReference | null;
+    this.customPropertyRef = _customProperty as NodeReference | null;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -343,7 +343,7 @@ export class PropertyReference extends ImmutableStruct {
     if (!(this.id === other.id)) {
       return false;
     }
-    if (!(this.customPropertyPtr?.id === other.customPropertyPtr?.id)) {
+    if (!(this.customPropertyRef?.id === other.customPropertyRef?.id)) {
       return false;
     }
     return true;
@@ -393,8 +393,8 @@ export class PropertyReference extends ImmutableStruct {
     if (this.id != null) {
       h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     }
-    if (this.customPropertyPtr != null) {
-      h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
+    if (this.customPropertyRef != null) {
+      h = (h * 31 + hashString(this.customPropertyRef.id)) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -452,12 +452,12 @@ export class PropertyReference extends ImmutableStruct {
     if (isStruct(attribute, StructType.PROPERTY_REFERENCE)) {
       return attribute;
     } else if (isNode(attribute, NodeType.CUSTOM_PROPERTY)) {
-      if (attribute.parentPtr == null) {
+      if (attribute.parentRef == null) {
         throw new Error(`${attribute.repr()} has no parent`);
       }
       return new PropertyReference({
         type: PropertyReferenceType.CUSTOM,
-        nodeType: attribute.parentPtr.type,
+        nodeType: attribute.parentRef.type,
         customProperty: attribute,
       });
     } else {
@@ -752,16 +752,16 @@ export class ObjectDefinitionReference extends ImmutableStruct {
    * ObjectDefinitionReference.customDefinition
    */
   get customDefinition(): Entity | null {
-    const nodePtr: NodeReference | null = this.customDefinitionPtr;
-    if (nodePtr != null) {
+    const nodeRef: NodeReference | null = this.customDefinitionRef;
+    if (nodeRef != null) {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr) as Entity | null;
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly customDefinitionPtr: NodeReference | null;
+  readonly customDefinitionRef: NodeReference | null;
 
   constructor(options: {
     type: ObjectDefinitionType;
@@ -796,7 +796,7 @@ export class ObjectDefinitionReference extends ImmutableStruct {
     if (_customDefinition != null && _customDefinition.constructor.name !== "NodeReference") {
       _customDefinition = (_customDefinition as Node).toRef();
     }
-    this.customDefinitionPtr = _customDefinition as NodeReference | null;
+    this.customDefinitionRef = _customDefinition as NodeReference | null;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -823,7 +823,7 @@ export class ObjectDefinitionReference extends ImmutableStruct {
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (!(this.customDefinitionPtr?.id === other.customDefinitionPtr?.id)) {
+    if (!(this.customDefinitionRef?.id === other.customDefinitionRef?.id)) {
       return false;
     }
     return true;
@@ -867,8 +867,8 @@ export class ObjectDefinitionReference extends ImmutableStruct {
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.customDefinitionPtr != null) {
-      h = (h * 31 + hashString(this.customDefinitionPtr.id)) & 0xffffffff;
+    if (this.customDefinitionRef != null) {
+      h = (h * 31 + hashString(this.customDefinitionRef.id)) & 0xffffffff;
     }
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -909,16 +909,16 @@ export class StructDefinitionReference extends ImmutableStruct {
    * StructDefinitionReference.definition
    */
   get definition(): CustomStruct | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
+    const nodeRef: NodeReference | null = this.definitionRef;
+    if (nodeRef != null) {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr) as CustomStruct;
+      return this._session.graph.get(nodeRef) as CustomStruct;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference;
+  readonly definitionRef: NodeReference;
 
   constructor(options: {
     type: StructDefinitionType;
@@ -950,7 +950,7 @@ export class StructDefinitionReference extends ImmutableStruct {
     if (_definition == null) {
       throw new Error(`StructDefinitionReference.definition is required`);
     }
-    this.definitionPtr = _definition as NodeReference;
+    this.definitionRef = _definition as NodeReference;
 
     /* identity */
     // @ts-expect-error(readonly)
@@ -971,7 +971,7 @@ export class StructDefinitionReference extends ImmutableStruct {
     if (!(this.structType === other.structType)) {
       return false;
     }
-    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+    if (!(this.definitionRef.id === other.definitionRef.id)) {
       return false;
     }
     return true;
@@ -1001,7 +1001,7 @@ export class StructDefinitionReference extends ImmutableStruct {
     if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     // @ts-expect-error(readonly)
     this._hash = h;
     return h;

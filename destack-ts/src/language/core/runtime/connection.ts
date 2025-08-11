@@ -11,16 +11,16 @@ export class Connection {
   readonly graph: Graph;
 
   /** The remote Space. */
-  readonly remoteSpacePtr: NodeReference;
+  readonly remoteSpaceRef: NodeReference;
 
-  constructor(options: { remoteSpacePtr: NodeReference; graph: Graph; session: Session }) {
-    this.remoteSpacePtr = options.remoteSpacePtr;
+  constructor(options: { remoteSpaceRef: NodeReference; graph: Graph; session: Session }) {
+    this.remoteSpaceRef = options.remoteSpaceRef;
     this.session = options.session;
     this.graph = options.graph;
   }
 
   repr(): string {
-    return `<Connection remote=${this.remoteSpacePtr.id}>`;
+    return `<Connection remote=${this.remoteSpaceRef.id}>`;
   }
 
   async open(): Promise<void> {

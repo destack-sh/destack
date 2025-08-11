@@ -140,7 +140,7 @@ class PropertyDeclaration(Declaration):
         return self._definition
 
     def determine(self, object_type: int | None, is_root_node: bool) -> None:
-        """Determine type information from annotation, add _ptr property if needed."""
+        """Determine type information from annotation, add _ref property if needed."""
         assert self.py_type is not None, f"no py_type for {self!r}"
 
         # parse annotation
@@ -185,7 +185,7 @@ class PropertyDeclaration(Declaration):
         # default to regular node references
         if self.type.scalar_type == ScalarType.NODE_TEMPORAL and self.reference_type is None:
             self.reference_type = ReferenceType.MOMENT
-        # references get a _ptr property (which is wired/stored)
+        # references get a _ref property (which is wired/stored)
         if (
             self.type.value_type is not None
             and self.type.value_type.scalar_type == ScalarType.NODE_TEMPORAL

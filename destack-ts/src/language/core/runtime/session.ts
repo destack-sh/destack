@@ -22,9 +22,9 @@ export class Session {
   remoteEpoch: number;
   localEpoch: number;
 
-  clientPtr: NodeReference;
+  clientRef: NodeReference;
   clientNonce: string;
-  actorPtr: NodeReference;
+  actorRef: NodeReference;
   oracle: Oracle;
 
   pendingEvents: Event[];
@@ -43,9 +43,9 @@ export class Session {
     oracle?: Oracle;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
-    this.clientPtr = options.client.toRef();
+    this.clientRef = options.client.toRef();
     this.clientNonce = options.clientNonce;
-    this.actorPtr = options.actor.toRef();
+    this.actorRef = options.actor.toRef();
     this.graph = options.graph;
     this.remoteEpoch = options.remoteEpoch;
     this.localEpoch = options.localEpoch;
@@ -58,8 +58,8 @@ export class Session {
 
   repr(): string {
     const contentParts: string[] = [];
-    if (this.actorPtr) {
-      contentParts.push(`actor=${this.actorPtr.repr()}`);
+    if (this.actorRef) {
+      contentParts.push(`actor=${this.actorRef.repr()}`);
     }
     if (this.graph) {
       contentParts.push(`graph=${this.graph.repr()}`);
@@ -108,9 +108,9 @@ export class Session {
       type: EditType.CREATE,
       node,
       value: toValue(node, null, { nodeAsValue: true }),
-      space: node.spacePtr,
-      branch: node.branchPtr,
-      snapshot: node.snapshotPtr,
+      space: node.spaceRef,
+      branch: node.branchRef,
+      snapshot: node.snapshotRef,
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
@@ -125,9 +125,9 @@ export class Session {
       type: EditType.UPSERT,
       node,
       value: toValue(node, null, { nodeAsValue: true }),
-      space: node.spacePtr,
-      branch: node.branchPtr,
-      snapshot: node.snapshotPtr,
+      space: node.spaceRef,
+      branch: node.branchRef,
+      snapshot: node.snapshotRef,
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
@@ -150,7 +150,7 @@ export class Session {
       throw new Error(`property name is required for ${node.repr()}.${prop.id}`);
     }
     const propName = toCasing(prop.name, Casing.CAMEL);
-    const nodePtr = node.toRef();
+    const nodeRef = node.toRef();
     const propType = prop.toType();
 
     // undo
@@ -165,15 +165,15 @@ export class Session {
     // edit
     const edit = new EditEvent({
       type: EditType.UPDATE,
-      node: nodePtr,
+      node: nodeRef,
       propertyId: prop.id,
       operation: operation,
       value: newValue,
       reverseOperation: undoOperation,
       reverseValue: oldValue,
-      space: node.spacePtr,
-      branch: node.branchPtr,
-      snapshot: node.snapshotPtr,
+      space: node.spaceRef,
+      branch: node.branchRef,
+      snapshot: node.snapshotRef,
     });
     this.update(node, edit);
   }
@@ -187,9 +187,9 @@ export class Session {
       type: EditType.MOVE,
       node,
       value: toValue(parent),
-      space: node.spacePtr,
-      branch: node.branchPtr,
-      snapshot: node.snapshotPtr,
+      space: node.spaceRef,
+      branch: node.branchRef,
+      snapshot: node.snapshotRef,
     });
     this.pendingEvents.push(edit);
   }
@@ -203,9 +203,9 @@ export class Session {
       type: EditType.DELETE,
       node,
       value: toValue(node, null, { nodeAsValue: true }),
-      space: node.spacePtr,
-      branch: node.branchPtr,
-      snapshot: node.snapshotPtr,
+      space: node.spaceRef,
+      branch: node.branchRef,
+      snapshot: node.snapshotRef,
     });
     this.pendingEvents.push(edit);
   }
@@ -218,9 +218,9 @@ export class Session {
     const edit = new EditEvent({
       type: EditType.RESTORE,
       node,
-      space: node.spacePtr,
-      branch: node.branchPtr,
-      snapshot: node.snapshotPtr,
+      space: node.spaceRef,
+      branch: node.branchRef,
+      snapshot: node.snapshotRef,
     });
     this.pendingEvents.push(edit);
   }

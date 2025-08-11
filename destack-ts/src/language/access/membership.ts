@@ -42,37 +42,37 @@ export abstract class MembershipEvent extends Event {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference;
+  declare readonly spaceRef: NodeReference;
 
   /**
    * The definition this Event is an instance of.
    */
   abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
+  declare readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference;
+  declare readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference;
+  declare readonly snapshotRef: NodeReference;
 
   /**
    * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
-  declare readonly precededByPtr: NodeReference | null;
+  declare readonly precededByRef: NodeReference | null;
 
   /**
    * The Event that caused this Event (if any).
    */
   abstract get causedBy(): Event | null;
-  declare readonly causedByPtr: NodeReference | null;
+  declare readonly causedByRef: NodeReference | null;
 
   /**
    * The time this Event was created (system).
@@ -88,13 +88,13 @@ export abstract class MembershipEvent extends Event {
    * The Actor that created this Event.
    */
   abstract get createdBy(): Entity | null;
-  declare readonly createdByPtr: NodeReference;
+  declare readonly createdByRef: NodeReference;
 
   /**
    * The Client that created this Event (client).
    */
   abstract get client(): Client | null;
-  declare readonly clientPtr: NodeReference;
+  declare readonly clientRef: NodeReference;
 
   /**
    * The nonce of the Client that created this Event (client).
@@ -120,19 +120,19 @@ export abstract class MembershipEvent extends Event {
    * MembershipEvent.node
    */
   abstract get node(): Membership | null;
-  declare readonly nodePtr: NodeReference;
+  declare readonly nodeRef: NodeReference;
 
   /**
    * MembershipEvent.joinable
    */
   abstract get joinable(): Entity | null;
-  declare readonly joinablePtr: NodeReference;
+  declare readonly joinableRef: NodeReference;
 
   /**
    * MembershipEvent.member
    */
   abstract get member(): Entity | null;
-  declare readonly memberPtr: NodeReference;
+  declare readonly memberRef: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -152,73 +152,73 @@ export class MembershipJoinedEvent extends MembershipEvent {
    * The Space this Node is in.
    */
   get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | null;
+    const nodeRef: NodeReference | null = this.spaceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Space | null;
     }
     return null;
   }
-  readonly spacePtr: NodeReference;
+  readonly spaceRef: NodeReference;
 
   /**
    * The definition this Event is an instance of.
    */
   get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.definitionRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
    */
   get branch(): Branch | null {
-    const nodePtr: NodeReference | null = this.branchPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Branch | null;
+    const nodeRef: NodeReference | null = this.branchRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Branch | null;
     }
     return null;
   }
-  readonly branchPtr: NodeReference;
+  readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Snapshot | null;
+    const nodeRef: NodeReference | null = this.snapshotRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Snapshot | null;
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference;
+  readonly snapshotRef: NodeReference;
 
   /**
    * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Event | null;
+    const nodeRef: NodeReference | null = this.precededByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Event | null;
     }
     return null;
   }
-  readonly precededByPtr: NodeReference | null;
+  readonly precededByRef: NodeReference | null;
 
   /**
    * The Event that caused this Event (if any).
    */
   get causedBy(): Event | null {
-    const nodePtr: NodeReference | null = this.causedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Event | null;
+    const nodeRef: NodeReference | null = this.causedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Event | null;
     }
     return null;
   }
-  readonly causedByPtr: NodeReference | null;
+  readonly causedByRef: NodeReference | null;
 
   /**
    * The time this Event was created (system).
@@ -234,25 +234,25 @@ export class MembershipJoinedEvent extends MembershipEvent {
    * The Actor that created this Event.
    */
   get createdBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.createdByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference;
+  readonly createdByRef: NodeReference;
 
   /**
    * The Client that created this Event (client).
    */
   get client(): Client | null {
-    const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Client | null;
+    const nodeRef: NodeReference | null = this.clientRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference;
+  readonly clientRef: NodeReference;
 
   /**
    * The nonce of the Client that created this Event (client).
@@ -278,49 +278,49 @@ export class MembershipJoinedEvent extends MembershipEvent {
    * MembershipEvent.node
    */
   get node(): Membership | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Membership | null;
+    const nodeRef: NodeReference | null = this.nodeRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Membership | null;
     }
     return null;
   }
-  readonly nodePtr: NodeReference;
+  readonly nodeRef: NodeReference;
 
   /**
    * MembershipEvent.joinable
    */
   get joinable(): Entity | null {
-    const nodePtr: NodeReference | null = this.joinablePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.joinableRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly joinablePtr: NodeReference;
+  readonly joinableRef: NodeReference;
 
   /**
    * MembershipEvent.member
    */
   get member(): Entity | null {
-    const nodePtr: NodeReference | null = this.memberPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.memberRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly memberPtr: NodeReference;
+  readonly memberRef: NodeReference;
 
   /**
    * MembershipJoinedEvent.role
    */
   get role(): Role | null {
-    const nodePtr: NodeReference | null = this.rolePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Role | null;
+    const nodeRef: NodeReference | null = this.roleRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Role | null;
     }
     return null;
   }
-  readonly rolePtr: NodeReference;
+  readonly roleRef: NodeReference;
 
   /**
    * MembershipJoinedEvent.roleType
@@ -377,12 +377,12 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_space == null) {
       throw new Error(`MembershipJoinedEvent.space is required`);
     }
-    this.spacePtr = _space as NodeReference;
+    this.spaceRef = _space as NodeReference;
     let _definition = options.definition ?? null;
     if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition as NodeReference | null;
+    this.definitionRef = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
@@ -397,7 +397,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_branch == null) {
       throw new Error(`MembershipJoinedEvent.branch is required`);
     }
-    this.branchPtr = _branch as NodeReference;
+    this.branchRef = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
@@ -412,28 +412,28 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_snapshot == null) {
       throw new Error(`MembershipJoinedEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot as NodeReference;
+    this.snapshotRef = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
     if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy as NodeReference | null;
+    this.precededByRef = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
     if (_causedBy != null && _causedBy.constructor.name !== "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy as NodeReference | null;
+    this.causedByRef = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
     if (_client == null) {
-      _client = this._session.clientPtr;
+      _client = this._session.clientRef;
     }
     if (_client == null) {
       throw new Error(`MembershipJoinedEvent.client is required`);
     }
-    this.clientPtr = _client as NodeReference;
+    this.clientRef = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
     if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
@@ -457,7 +457,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_node == null) {
       throw new Error(`MembershipJoinedEvent.node is required`);
     }
-    this.nodePtr = _node as NodeReference;
+    this.nodeRef = _node as NodeReference;
     let _joinable = options.joinable;
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
@@ -465,7 +465,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_joinable == null) {
       throw new Error(`MembershipJoinedEvent.joinable is required`);
     }
-    this.joinablePtr = _joinable as NodeReference;
+    this.joinableRef = _joinable as NodeReference;
     let _member = options.member;
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
@@ -473,7 +473,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_member == null) {
       throw new Error(`MembershipJoinedEvent.member is required`);
     }
-    this.memberPtr = _member as NodeReference;
+    this.memberRef = _member as NodeReference;
     let _role = options.role;
     if (_role != null && _role.constructor.name !== "NodeReference") {
       _role = (_role as Node).toRef();
@@ -481,7 +481,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (_role == null) {
       throw new Error(`MembershipJoinedEvent.role is required`);
     }
-    this.rolePtr = _role as NodeReference;
+    this.roleRef = _role as NodeReference;
     let _roleType = options.roleType;
     if (_roleType == null) {
       throw new Error(`MembershipJoinedEvent.roleType is required`);
@@ -494,7 +494,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
       const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = this._session.actorPtr;
+      this.createdByRef = this._session.actorRef;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -508,8 +508,8 @@ export class MembershipJoinedEvent extends MembershipEvent {
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
-      this.createdByPtr =
-        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
+      this.createdByRef =
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorRef;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -519,37 +519,37 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.rolePtr.id === other.rolePtr.id)) {
+    if (!(this.roleRef.id === other.roleRef.id)) {
       return false;
     }
     if (!(this.roleType === other.roleType)) {
       return false;
     }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
+    if (!(this.nodeRef.id === other.nodeRef.id)) {
       return false;
     }
-    if (!(this.joinablePtr.id === other.joinablePtr.id)) {
+    if (!(this.joinableRef.id === other.joinableRef.id)) {
       return false;
     }
-    if (!(this.memberPtr.id === other.memberPtr.id)) {
+    if (!(this.memberRef.id === other.memberRef.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.definitionRef?.id === other.definitionRef?.id)) {
       return false;
     }
-    if (!(this.branchPtr.id === other.branchPtr.id)) {
+    if (!(this.branchRef.id === other.branchRef.id)) {
       return false;
     }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
+    if (!(this.snapshotRef.id === other.snapshotRef.id)) {
       return false;
     }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+    if (!(this.precededByRef?.id === other.precededByRef?.id)) {
       return false;
     }
-    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
+    if (!(this.causedByRef?.id === other.causedByRef?.id)) {
       return false;
     }
-    if (!(this.clientPtr.id === other.clientPtr.id)) {
+    if (!(this.clientRef.id === other.clientRef.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -564,7 +564,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!(this.spaceRef.id === other.spaceRef.id)) {
       return false;
     }
     return true;
@@ -573,32 +573,32 @@ export class MembershipJoinedEvent extends MembershipEvent {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.rolePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.roleRef.id)) & 0xffffffff;
     h = (h * 31 + this.roleType) & 0xffffffff;
-    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodeRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.joinableRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.memberRef.id)) & 0xffffffff;
+    if (this.definitionRef != null) {
+      h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.precededByPtr != null) {
-      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.branchRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotRef.id)) & 0xffffffff;
+    if (this.precededByRef != null) {
+      h = (h * 31 + hashString(this.precededByRef.id)) & 0xffffffff;
     }
-    if (this.causedByPtr != null) {
-      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
+    if (this.causedByRef != null) {
+      h = (h * 31 + hashString(this.causedByRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdByRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientRef.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spaceRef.id)) & 0xffffffff;
 
     return h;
   }
@@ -608,10 +608,10 @@ export class MembershipJoinedEvent extends MembershipEvent {
     return new _NodeReference({
       type: NodeType.MEMBERSHIP_JOINED_EVENT,
       id: this.id,
-      spaceId: this.spacePtr.id,
-      definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr.id,
-      snapshotId: this.snapshotPtr.id,
+      spaceId: this.spaceRef.id,
+      definitionId: this.definitionRef?.id ?? null,
+      branchId: this.branchRef.id,
+      snapshotId: this.snapshotRef.id,
       _session: this._session,
     });
   }
@@ -660,73 +660,73 @@ export class MembershipLeftEvent extends MembershipEvent {
    * The Space this Node is in.
    */
   get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | null;
+    const nodeRef: NodeReference | null = this.spaceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Space | null;
     }
     return null;
   }
-  readonly spacePtr: NodeReference;
+  readonly spaceRef: NodeReference;
 
   /**
    * The definition this Event is an instance of.
    */
   get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.definitionRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
    */
   get branch(): Branch | null {
-    const nodePtr: NodeReference | null = this.branchPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Branch | null;
+    const nodeRef: NodeReference | null = this.branchRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Branch | null;
     }
     return null;
   }
-  readonly branchPtr: NodeReference;
+  readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Snapshot | null;
+    const nodeRef: NodeReference | null = this.snapshotRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Snapshot | null;
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference;
+  readonly snapshotRef: NodeReference;
 
   /**
    * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Event | null;
+    const nodeRef: NodeReference | null = this.precededByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Event | null;
     }
     return null;
   }
-  readonly precededByPtr: NodeReference | null;
+  readonly precededByRef: NodeReference | null;
 
   /**
    * The Event that caused this Event (if any).
    */
   get causedBy(): Event | null {
-    const nodePtr: NodeReference | null = this.causedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Event | null;
+    const nodeRef: NodeReference | null = this.causedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Event | null;
     }
     return null;
   }
-  readonly causedByPtr: NodeReference | null;
+  readonly causedByRef: NodeReference | null;
 
   /**
    * The time this Event was created (system).
@@ -742,25 +742,25 @@ export class MembershipLeftEvent extends MembershipEvent {
    * The Actor that created this Event.
    */
   get createdBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.createdByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference;
+  readonly createdByRef: NodeReference;
 
   /**
    * The Client that created this Event (client).
    */
   get client(): Client | null {
-    const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Client | null;
+    const nodeRef: NodeReference | null = this.clientRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Client | null;
     }
     return null;
   }
-  readonly clientPtr: NodeReference;
+  readonly clientRef: NodeReference;
 
   /**
    * The nonce of the Client that created this Event (client).
@@ -786,37 +786,37 @@ export class MembershipLeftEvent extends MembershipEvent {
    * MembershipEvent.node
    */
   get node(): Membership | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Membership | null;
+    const nodeRef: NodeReference | null = this.nodeRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Membership | null;
     }
     return null;
   }
-  readonly nodePtr: NodeReference;
+  readonly nodeRef: NodeReference;
 
   /**
    * MembershipEvent.joinable
    */
   get joinable(): Entity | null {
-    const nodePtr: NodeReference | null = this.joinablePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.joinableRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly joinablePtr: NodeReference;
+  readonly joinableRef: NodeReference;
 
   /**
    * MembershipEvent.member
    */
   get member(): Entity | null {
-    const nodePtr: NodeReference | null = this.memberPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.memberRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly memberPtr: NodeReference;
+  readonly memberRef: NodeReference;
 
   constructor(options: {
     id?: UUID;
@@ -866,12 +866,12 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_space == null) {
       throw new Error(`MembershipLeftEvent.space is required`);
     }
-    this.spacePtr = _space as NodeReference;
+    this.spaceRef = _space as NodeReference;
     let _definition = options.definition ?? null;
     if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition as NodeReference | null;
+    this.definitionRef = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
@@ -886,7 +886,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_branch == null) {
       throw new Error(`MembershipLeftEvent.branch is required`);
     }
-    this.branchPtr = _branch as NodeReference;
+    this.branchRef = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
@@ -901,28 +901,28 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_snapshot == null) {
       throw new Error(`MembershipLeftEvent.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot as NodeReference;
+    this.snapshotRef = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
     if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy as NodeReference | null;
+    this.precededByRef = _precededBy as NodeReference | null;
     let _causedBy = options.causedBy ?? null;
     if (_causedBy != null && _causedBy.constructor.name !== "NodeReference") {
       _causedBy = (_causedBy as Node).toRef();
     }
-    this.causedByPtr = _causedBy as NodeReference | null;
+    this.causedByRef = _causedBy as NodeReference | null;
     let _client = options.client ?? null;
     if (_client != null && _client.constructor.name !== "NodeReference") {
       _client = (_client as Node).toRef();
     }
     if (_client == null) {
-      _client = this._session.clientPtr;
+      _client = this._session.clientRef;
     }
     if (_client == null) {
       throw new Error(`MembershipLeftEvent.client is required`);
     }
-    this.clientPtr = _client as NodeReference;
+    this.clientRef = _client as NodeReference;
     let _clientNonce = options.clientNonce ?? null;
     if (_clientNonce == null) {
       _clientNonce = this._session.clientNonce;
@@ -946,7 +946,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_node == null) {
       throw new Error(`MembershipLeftEvent.node is required`);
     }
-    this.nodePtr = _node as NodeReference;
+    this.nodeRef = _node as NodeReference;
     let _joinable = options.joinable;
     if (_joinable != null && _joinable.constructor.name !== "NodeReference") {
       _joinable = (_joinable as Node).toRef();
@@ -954,7 +954,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_joinable == null) {
       throw new Error(`MembershipLeftEvent.joinable is required`);
     }
-    this.joinablePtr = _joinable as NodeReference;
+    this.joinableRef = _joinable as NodeReference;
     let _member = options.member;
     if (_member != null && _member.constructor.name !== "NodeReference") {
       _member = (_member as Node).toRef();
@@ -962,7 +962,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (_member == null) {
       throw new Error(`MembershipLeftEvent.member is required`);
     }
-    this.memberPtr = _member as NodeReference;
+    this.memberRef = _member as NodeReference;
 
     /* identity */
     if (options.id == null) {
@@ -970,7 +970,7 @@ export class MembershipLeftEvent extends MembershipEvent {
       const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = this._session.actorPtr;
+      this.createdByRef = this._session.actorRef;
       this.clientCreatedAt = now;
       this.clientEpoch = epoch;
     } else {
@@ -984,8 +984,8 @@ export class MembershipLeftEvent extends MembershipEvent {
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
-      this.createdByPtr =
-        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
+      this.createdByRef =
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorRef;
       this.clientCreatedAt = options.clientCreatedAt;
       this.clientEpoch = options.clientEpoch;
     }
@@ -995,31 +995,31 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
+    if (!(this.nodeRef.id === other.nodeRef.id)) {
       return false;
     }
-    if (!(this.joinablePtr.id === other.joinablePtr.id)) {
+    if (!(this.joinableRef.id === other.joinableRef.id)) {
       return false;
     }
-    if (!(this.memberPtr.id === other.memberPtr.id)) {
+    if (!(this.memberRef.id === other.memberRef.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.definitionRef?.id === other.definitionRef?.id)) {
       return false;
     }
-    if (!(this.branchPtr.id === other.branchPtr.id)) {
+    if (!(this.branchRef.id === other.branchRef.id)) {
       return false;
     }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
+    if (!(this.snapshotRef.id === other.snapshotRef.id)) {
       return false;
     }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+    if (!(this.precededByRef?.id === other.precededByRef?.id)) {
       return false;
     }
-    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
+    if (!(this.causedByRef?.id === other.causedByRef?.id)) {
       return false;
     }
-    if (!(this.clientPtr.id === other.clientPtr.id)) {
+    if (!(this.clientRef.id === other.clientRef.id)) {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
@@ -1034,7 +1034,7 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!(this.spaceRef.id === other.spaceRef.id)) {
       return false;
     }
     return true;
@@ -1043,30 +1043,30 @@ export class MembershipLeftEvent extends MembershipEvent {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodeRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.joinableRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.memberRef.id)) & 0xffffffff;
+    if (this.definitionRef != null) {
+      h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.precededByPtr != null) {
-      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.branchRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotRef.id)) & 0xffffffff;
+    if (this.precededByRef != null) {
+      h = (h * 31 + hashString(this.precededByRef.id)) & 0xffffffff;
     }
-    if (this.causedByPtr != null) {
-      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
+    if (this.causedByRef != null) {
+      h = (h * 31 + hashString(this.causedByRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdByRef.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.clientRef.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     h =
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spaceRef.id)) & 0xffffffff;
 
     return h;
   }
@@ -1076,10 +1076,10 @@ export class MembershipLeftEvent extends MembershipEvent {
     return new _NodeReference({
       type: NodeType.MEMBERSHIP_LEFT_EVENT,
       id: this.id,
-      spaceId: this.spacePtr.id,
-      definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr.id,
-      snapshotId: this.snapshotPtr.id,
+      spaceId: this.spaceRef.id,
+      definitionId: this.definitionRef?.id ?? null,
+      branchId: this.branchRef.id,
+      snapshotId: this.snapshotRef.id,
       _session: this._session,
     });
   }
@@ -1128,25 +1128,25 @@ export class Membership extends Entity implements IsOwnable {
    * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.parentRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly parentPtr: NodeReference | null;
+  readonly parentRef: NodeReference | null;
 
   /**
    * The Space this Node is in.
    */
   get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Space | null;
+    const nodeRef: NodeReference | null = this.spaceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Space | null;
     }
     return null;
   }
-  readonly spacePtr: NodeReference;
+  readonly spaceRef: NodeReference;
 
   /**
    * Entity.materialization
@@ -1157,62 +1157,62 @@ export class Membership extends Entity implements IsOwnable {
    * The definition this Entity is an instance of.
    */
   get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.definitionRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly definitionPtr: NodeReference | null;
+  readonly definitionRef: NodeReference | null;
 
   /**
    * The Branch this Entity is part of.
    */
   get branch(): Branch | null {
-    const nodePtr: NodeReference | null = this.branchPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Branch | null;
+    const nodeRef: NodeReference | null = this.branchRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Branch | null;
     }
     return null;
   }
-  readonly branchPtr: NodeReference;
+  readonly branchRef: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Snapshot | null;
+    const nodeRef: NodeReference | null = this.snapshotRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Snapshot | null;
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference;
+  readonly snapshotRef: NodeReference;
 
   /**
    * The previous Entity this Entity is based on (from the base Branch, if any).
    * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Membership | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Membership | null;
+    const nodeRef: NodeReference | null = this.precededByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Membership | null;
     }
     return null;
   }
-  readonly precededByPtr: NodeReference | null;
+  readonly precededByRef: NodeReference | null;
 
   /**
    * The (root) Entity that is being instantiated.
    */
   get instance(): Entity | null {
-    const nodePtr: NodeReference | null = this.instancePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.instanceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly instancePtr: NodeReference | null;
+  readonly instanceRef: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -1228,13 +1228,13 @@ export class Membership extends Entity implements IsOwnable {
    * The Actor that created this Entity.
    */
   get createdBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.createdByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference;
+  readonly createdByRef: NodeReference;
 
   /**
    * The time this Entity was last updated (system time).
@@ -1250,13 +1250,13 @@ export class Membership extends Entity implements IsOwnable {
    * The Actor that last updated this Entity.
    */
   get updatedBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.updatedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
-  readonly updatedByPtr: NodeReference;
+  readonly updatedByRef: NodeReference;
 
   /**
    * The time this Entity was deleted (system time).
@@ -1269,31 +1269,31 @@ export class Membership extends Entity implements IsOwnable {
    * Entity.ownedBy
    */
   get ownedBy(): Entity | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.ownedByRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
   set ownedBy(node: Entity | null) {
     if (node === null) {
-      this.ownedByPtr = null;
+      this.ownedByRef = null;
     } else {
-      this.ownedByPtr = node.toRef();
+      this.ownedByRef = node.toRef();
     }
   }
   /**
    * Entity.ownedBy
    */
-  get ownedByPtr(): NodeReference | null {
-    return this._ownedByPtr;
+  get ownedByRef(): NodeReference | null {
+    return this._ownedByRef;
   }
-  set ownedByPtr(value: NodeReference | null) {
+  set ownedByRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["owned_by"];
     this._session.updateSetProperty(this, prop, value);
-    this._ownedByPtr = value;
+    this._ownedByRef = value;
   }
-  _ownedByPtr: NodeReference | null;
+  _ownedByRef: NodeReference | null;
 
   /**
    * Entity.name
@@ -1336,31 +1336,31 @@ export class Membership extends Entity implements IsOwnable {
    * The Script of this Entity.
    */
   get script(): Script | null {
-    const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Script | null;
+    const nodeRef: NodeReference | null = this.scriptRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Script | null;
     }
     return null;
   }
   set script(node: Script | null) {
     if (node === null) {
-      this.scriptPtr = null;
+      this.scriptRef = null;
     } else {
-      this.scriptPtr = node.toRef();
+      this.scriptRef = node.toRef();
     }
   }
   /**
    * The Script of this Entity.
    */
-  get scriptPtr(): NodeReference | null {
-    return this._scriptPtr;
+  get scriptRef(): NodeReference | null {
+    return this._scriptRef;
   }
-  set scriptPtr(value: NodeReference | null) {
+  set scriptRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["script"];
     this._session.updateSetProperty(this, prop, value);
-    this._scriptPtr = value;
+    this._scriptRef = value;
   }
-  _scriptPtr: NodeReference | null;
+  _scriptRef: NodeReference | null;
 
   /**
    * Whether this Entity can be instanced.
@@ -1371,13 +1371,13 @@ export class Membership extends Entity implements IsOwnable {
    * The Script that defines this Node.
    */
   get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Script | null;
+    const nodeRef: NodeReference | null = this.sourceRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Script | null;
     }
     return null;
   }
-  readonly sourcePtr: NodeReference | null;
+  readonly sourceRef: NodeReference | null;
 
   /**
    * The key to uniquely identify this Node in reconciliation. If not set, name is used.
@@ -1399,57 +1399,57 @@ export class Membership extends Entity implements IsOwnable {
    * Membership.member
    */
   get member(): Entity | null {
-    const nodePtr: NodeReference | null = this.memberPtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Entity | null;
+    const nodeRef: NodeReference | null = this.memberRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Entity | null;
     }
     return null;
   }
   set member(node: Entity) {
-    this.memberPtr = node.toRef();
+    this.memberRef = node.toRef();
   }
   /**
    * Membership.member
    */
-  get memberPtr(): NodeReference {
-    return this._memberPtr;
+  get memberRef(): NodeReference {
+    return this._memberRef;
   }
-  set memberPtr(value: NodeReference) {
+  set memberRef(value: NodeReference) {
     const prop = (this.constructor as NodeClass).__properties__["member"];
     this._session.updateSetProperty(this, prop, value);
-    this._memberPtr = value;
+    this._memberRef = value;
   }
-  _memberPtr: NodeReference;
+  _memberRef: NodeReference;
 
   /**
    * Membership.role
    */
   get role(): Role | null {
-    const nodePtr: NodeReference | null = this.rolePtr;
-    if (nodePtr != null) {
-      return this._session.graph.get(nodePtr) as Role | null;
+    const nodeRef: NodeReference | null = this.roleRef;
+    if (nodeRef != null) {
+      return this._session.graph.get(nodeRef) as Role | null;
     }
     return null;
   }
   set role(node: Role | null) {
     if (node === null) {
-      this.rolePtr = null;
+      this.roleRef = null;
     } else {
-      this.rolePtr = node.toRef();
+      this.roleRef = node.toRef();
     }
   }
   /**
    * Membership.role
    */
-  get rolePtr(): NodeReference | null {
-    return this._rolePtr;
+  get roleRef(): NodeReference | null {
+    return this._roleRef;
   }
-  set rolePtr(value: NodeReference | null) {
+  set roleRef(value: NodeReference | null) {
     const prop = (this.constructor as NodeClass).__properties__["role"];
     this._session.updateSetProperty(this, prop, value);
-    this._rolePtr = value;
+    this._roleRef = value;
   }
-  _rolePtr: NodeReference | null;
+  _roleRef: NodeReference | null;
 
   /**
    * Membership.roleType
@@ -1514,7 +1514,7 @@ export class Membership extends Entity implements IsOwnable {
     if (_parent != null && _parent.constructor.name !== "NodeReference") {
       _parent = (_parent as Node).toRef();
     }
-    this.parentPtr = _parent as NodeReference | null;
+    this.parentRef = _parent as NodeReference | null;
     let _space = options.space ?? null;
     if (_space != null && _space.constructor.name !== "NodeReference") {
       _space = (_space as Node).toRef();
@@ -1529,7 +1529,7 @@ export class Membership extends Entity implements IsOwnable {
     if (_space == null) {
       throw new Error(`Membership.space is required`);
     }
-    this.spacePtr = _space as NodeReference;
+    this.spaceRef = _space as NodeReference;
     let _materialization = options.materialization ?? null;
     if (_materialization == null) {
       _materialization = 11 /* Materialization.ROOT */;
@@ -1542,7 +1542,7 @@ export class Membership extends Entity implements IsOwnable {
     if (_definition != null && _definition.constructor.name !== "NodeReference") {
       _definition = (_definition as Node).toRef();
     }
-    this.definitionPtr = _definition as NodeReference | null;
+    this.definitionRef = _definition as NodeReference | null;
     let _branch = options.branch ?? null;
     if (_branch != null && _branch.constructor.name !== "NodeReference") {
       _branch = (_branch as Node).toRef();
@@ -1557,7 +1557,7 @@ export class Membership extends Entity implements IsOwnable {
     if (_branch == null) {
       throw new Error(`Membership.branch is required`);
     }
-    this.branchPtr = _branch as NodeReference;
+    this.branchRef = _branch as NodeReference;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.constructor.name !== "NodeReference") {
       _snapshot = (_snapshot as Node).toRef();
@@ -1572,24 +1572,24 @@ export class Membership extends Entity implements IsOwnable {
     if (_snapshot == null) {
       throw new Error(`Membership.snapshot is required`);
     }
-    this.snapshotPtr = _snapshot as NodeReference;
+    this.snapshotRef = _snapshot as NodeReference;
     let _precededBy = options.precededBy ?? null;
     if (_precededBy != null && _precededBy.constructor.name !== "NodeReference") {
       _precededBy = (_precededBy as Node).toRef();
     }
-    this.precededByPtr = _precededBy as NodeReference | null;
+    this.precededByRef = _precededBy as NodeReference | null;
     let _instance = options.instance ?? null;
     if (_instance != null && _instance.constructor.name !== "NodeReference") {
       _instance = (_instance as Node).toRef();
     }
-    this.instancePtr = _instance as NodeReference | null;
+    this.instanceRef = _instance as NodeReference | null;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.constructor.name !== "NodeReference") {
       _ownedBy = (_ownedBy as Node).toRef();
     }
-    this._ownedByPtr = _ownedBy as NodeReference | null;
+    this._ownedByRef = _ownedBy as NodeReference | null;
     let _name = options.name ?? null;
     if (_name == null) {
       _name = "Membership";
@@ -1615,14 +1615,14 @@ export class Membership extends Entity implements IsOwnable {
     if (_script != null && _script.constructor.name !== "NodeReference") {
       _script = (_script as Node).toRef();
     }
-    this._scriptPtr = _script as NodeReference | null;
+    this._scriptRef = _script as NodeReference | null;
     let _isExtensible = options.isExtensible ?? null;
     this.isExtensible = _isExtensible;
     let _source = options.source ?? null;
     if (_source != null && _source.constructor.name !== "NodeReference") {
       _source = (_source as Node).toRef();
     }
-    this.sourcePtr = _source as NodeReference | null;
+    this.sourceRef = _source as NodeReference | null;
     let _key = options.key ?? null;
     this._key = _key;
     let _member = options.member;
@@ -1632,12 +1632,12 @@ export class Membership extends Entity implements IsOwnable {
     if (_member == null) {
       throw new Error(`Membership.member is required`);
     }
-    this._memberPtr = _member as NodeReference;
+    this._memberRef = _member as NodeReference;
     let _role = options.role ?? null;
     if (_role != null && _role.constructor.name !== "NodeReference") {
       _role = (_role as Node).toRef();
     }
-    this._rolePtr = _role as NodeReference | null;
+    this._roleRef = _role as NodeReference | null;
     let _roleType = options.roleType ?? null;
     this._roleType = _roleType;
 
@@ -1647,10 +1647,10 @@ export class Membership extends Entity implements IsOwnable {
       const epoch = this._session.remoteEpoch;
       this.createdAt = now;
       this.createdEpoch = epoch;
-      this.createdByPtr = this._session.actorPtr;
+      this.createdByRef = this._session.actorRef;
       this.updatedAt = now;
       this.updatedEpoch = epoch;
-      this.updatedByPtr = this._session.actorPtr;
+      this.updatedByRef = this._session.actorRef;
     } else {
       if (
         options.createdAt == null ||
@@ -1664,12 +1664,12 @@ export class Membership extends Entity implements IsOwnable {
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
-      this.createdByPtr =
-        options.createdBy != null ? options.createdBy.toRef() : this._session.actorPtr;
+      this.createdByRef =
+        options.createdBy != null ? options.createdBy.toRef() : this._session.actorRef;
       this.updatedAt = options.updatedAt;
       this.updatedEpoch = options.updatedEpoch;
-      this.updatedByPtr =
-        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorPtr;
+      this.updatedByRef =
+        options.updatedBy != null ? options.updatedBy.toRef() : this._session.actorRef;
     }
   }
 
@@ -1677,19 +1677,19 @@ export class Membership extends Entity implements IsOwnable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._memberPtr.id === other._memberPtr.id)) {
+    if (!(this._memberRef.id === other._memberRef.id)) {
       return false;
     }
-    if (!(this._rolePtr?.id === other._rolePtr?.id)) {
+    if (!(this._roleRef?.id === other._roleRef?.id)) {
       return false;
     }
     if (!(this._roleType === other._roleType)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.definitionRef?.id === other.definitionRef?.id)) {
       return false;
     }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+    if (!(this._ownedByRef?.id === other._ownedByRef?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -1698,19 +1698,19 @@ export class Membership extends Entity implements IsOwnable {
     if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+    if (!(this._scriptRef?.id === other._scriptRef?.id)) {
       return false;
     }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+    if (!(this.sourceRef?.id === other.sourceRef?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!(this.spaceRef.id === other.spaceRef.id)) {
       return false;
     }
     return true;
@@ -1719,28 +1719,28 @@ export class Membership extends Entity implements IsOwnable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._memberPtr.id)) & 0xffffffff;
-    if (this._rolePtr != null) {
-      h = (h * 31 + hashString(this._rolePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._memberRef.id)) & 0xffffffff;
+    if (this._roleRef != null) {
+      h = (h * 31 + hashString(this._roleRef.id)) & 0xffffffff;
     }
     if (this._roleType != null) {
       h = (h * 31 + this._roleType) & 0xffffffff;
     }
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    if (this.parentRef != null) {
+      h = (h * 31 + hashString(this.parentRef.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.definitionRef != null) {
+      h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdByRef.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.updatedByRef.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByRef != null) {
+      h = (h * 31 + hashString(this._ownedByRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
@@ -1750,20 +1750,20 @@ export class Membership extends Entity implements IsOwnable {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._scriptRef != null) {
+      h = (h * 31 + hashString(this._scriptRef.id)) & 0xffffffff;
     }
     if (this.isExtensible != null) {
       h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    if (this.sourceRef != null) {
+      h = (h * 31 + hashString(this.sourceRef.id)) & 0xffffffff;
     }
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spaceRef.id)) & 0xffffffff;
 
     return h;
   }
@@ -1773,10 +1773,10 @@ export class Membership extends Entity implements IsOwnable {
     return new _NodeReference({
       type: NodeType.MEMBERSHIP,
       id: this.id,
-      spaceId: this.spacePtr.id,
-      definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr.id,
-      snapshotId: this.snapshotPtr.id,
+      spaceId: this.spaceRef.id,
+      definitionId: this.definitionRef?.id ?? null,
+      branchId: this.branchRef.id,
+      snapshotId: this.snapshotRef.id,
       _session: this._session,
     });
   }

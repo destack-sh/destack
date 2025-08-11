@@ -40,7 +40,7 @@ export abstract class Node extends BuiltinObject {
   static readonly __definitionReference: NodeDefinitionReference;
 
   readonly id: string;
-  readonly parentPtr: NodeReference | null = null;
+  readonly parentRef: NodeReference | null = null;
 
   /* The Session this Node is in. */
   _session: Session;
@@ -53,14 +53,14 @@ export abstract class Node extends BuiltinObject {
 
   constructor(
     id: string | null,
-    parentPtr: NodeReference | null,
+    parentRef: NodeReference | null,
     _session: Session | null,
     _isNew: boolean,
   ) {
     super(_session);
     const isEvent = this.__definition__.domain == GraphDomain.EVENT;
     this.id = id ?? (isEvent ? uuid7() : uuid4());
-    this.parentPtr = parentPtr; // is assigned again in subclasses but needed for adding to Graph
+    this.parentRef = parentRef; // is assigned again in subclasses but needed for adding to Graph
     this._session = _session ?? activeSession();
     this._hash = this.id;
     this._ref = null;

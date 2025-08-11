@@ -48,16 +48,16 @@ export class TextSpan extends ImmutableStruct {
    * TextSpan.node
    */
   get node(): Node | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr != null) {
+    const nodeRef: NodeReference | null = this.nodeRef;
+    if (nodeRef != null) {
       if (this._session === null) {
         return null;
       }
-      return this._session.graph.get(nodePtr) as Node | null;
+      return this._session.graph.get(nodeRef) as Node | null;
     }
     return null;
   }
-  readonly nodePtr: NodeReference | null;
+  readonly nodeRef: NodeReference | null;
 
   /**
    * TextSpan.url
@@ -125,7 +125,7 @@ export class TextSpan extends ImmutableStruct {
     if (_node != null && _node.constructor.name !== "NodeReference") {
       _node = (_node as Node).toRef();
     }
-    this.nodePtr = _node as NodeReference | null;
+    this.nodeRef = _node as NodeReference | null;
     let _url = options.url ?? null;
     this.url = _url;
     let _isBold = options.isBold ?? null;
@@ -158,7 +158,7 @@ export class TextSpan extends ImmutableStruct {
     if (!(this.content === other.content)) {
       return false;
     }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+    if (!(this.nodeRef?.id === other.nodeRef?.id)) {
       return false;
     }
     if (!(this.url === other.url)) {
@@ -196,8 +196,8 @@ export class TextSpan extends ImmutableStruct {
     if (this.content != null) {
       h = (h * 31 + hashString(this.content)) & 0xffffffff;
     }
-    if (this.nodePtr != null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.nodeRef != null) {
+      h = (h * 31 + hashString(this.nodeRef.id)) & 0xffffffff;
     }
     if (this.url != null) {
       h = (h * 31 + hashString(this.url)) & 0xffffffff;

@@ -163,10 +163,10 @@ export class Action extends Method implements IsRunnable {
       }
     }
 
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+    if (!(this.definitionRef?.id === other.definitionRef?.id)) {
       return false;
     }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+    if (!(this._ownedByRef?.id === other._ownedByRef?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -175,19 +175,19 @@ export class Action extends Method implements IsRunnable {
     if (JSON.stringify(this._customValues) !== JSON.stringify(other._customValues)) {
       return false;
     }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+    if (!(this._scriptRef?.id === other._scriptRef?.id)) {
       return false;
     }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+    if (!(this.sourceRef?.id === other.sourceRef?.id)) {
       return false;
     }
     if (!(this._key === other._key)) {
       return false;
     }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
+    if (!(this.spaceRef.id === other.spaceRef.id)) {
       return false;
     }
     return true;
@@ -211,21 +211,21 @@ export class Action extends Method implements IsRunnable {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    if (this.parentRef != null) {
+      h = (h * 31 + hashString(this.parentRef.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.definitionRef != null) {
+      h = (h * 31 + hashString(this.definitionRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdByRef.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.updatedByRef.id)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    if (this._ownedByRef != null) {
+      h = (h * 31 + hashString(this._ownedByRef.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
@@ -235,20 +235,20 @@ export class Action extends Method implements IsRunnable {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    if (this._scriptRef != null) {
+      h = (h * 31 + hashString(this._scriptRef.id)) & 0xffffffff;
     }
     if (this.isExtensible != null) {
       h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    if (this.sourceRef != null) {
+      h = (h * 31 + hashString(this.sourceRef.id)) & 0xffffffff;
     }
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spaceRef.id)) & 0xffffffff;
 
     return h;
   }
@@ -258,10 +258,10 @@ export class Action extends Method implements IsRunnable {
     return new _NodeReference({
       type: NodeType.ACTION,
       id: this.id,
-      spaceId: this.spacePtr.id,
-      definitionId: this.definitionPtr?.id ?? null,
-      branchId: this.branchPtr.id,
-      snapshotId: this.snapshotPtr.id,
+      spaceId: this.spaceRef.id,
+      definitionId: this.definitionRef?.id ?? null,
+      branchId: this.branchRef.id,
+      snapshotId: this.snapshotRef.id,
       _session: this._session,
     });
   }
