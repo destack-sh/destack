@@ -22,11 +22,11 @@ if TYPE_CHECKING:
 class ConstantDefinition(Definition):
     """Definition of a builtin Constant."""
 
-    id: UInt8 = declare_property(2, is_repr=True)
-    taggings: list[UInt8] = declare_property(109)
+    id: UInt8 = declare_property(2, is_repr=True, tag=None)
+    taggings: list[UInt8] = declare_property(109, tag=None)
 
     # content
-    value: "Value" = declare_property(120)
+    value: "Value" = declare_property(120, tag=None)
 
     _is_deferred: bool = declare_property_runtime(401)
 

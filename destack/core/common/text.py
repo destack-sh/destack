@@ -34,19 +34,45 @@ class TextSpanType(OptionEnum):
 class TextSpan(Struct):
     """A span of text with optional formatting"""
 
-    type: TextSpanType = declare_property(100, default=TextSpanType.TEXT)
-    content: Optional[str] = declare_property(101)
+    type: TextSpanType = declare_property(
+        100,
+        default=TextSpanType.TEXT,
+        tag=None,
+    )
+    content: Optional[str] = declare_property(
+        101,
+        tag=None,
+    )
     node: Optional[Node] = declare_property(
         102,
         reference_type=ReferenceType.IDENTITY,
+        tag=None,
     )
-    url: Optional[str] = declare_property(105)
+    url: Optional[str] = declare_property(
+        105,
+        tag=None,
+    )
 
-    is_bold: Optional[bool] = declare_property(150)
-    is_italic: Optional[bool] = declare_property(151)
-    is_strikethrough: Optional[bool] = declare_property(152)
-    is_underline: Optional[bool] = declare_property(153)
-    is_code: Optional[bool] = declare_property(154)
+    is_bold: Optional[bool] = declare_property(
+        150,
+        tag=None,
+    )
+    is_italic: Optional[bool] = declare_property(
+        151,
+        tag=None,
+    )
+    is_strikethrough: Optional[bool] = declare_property(
+        152,
+        tag=None,
+    )
+    is_underline: Optional[bool] = declare_property(
+        153,
+        tag=None,
+    )
+    is_code: Optional[bool] = declare_property(
+        154,
+        tag=None,
+    )
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -67,13 +93,28 @@ class Text(Struct):
     Rich Text; a single paragraph composed of TextSpans with inline formatting.
     """
 
-    spans: list[TextSpan] = declare_property(103)
+    spans: list[TextSpan] = declare_property(
+        103,
+        tag=None,
+    )
 
-    is_bold: Optional[bool] = declare_property(150)
-    is_italic: Optional[bool] = declare_property(151)
-    is_strikethrough: Optional[bool] = declare_property(152)
-    is_underline: Optional[bool] = declare_property(153)
-    is_code: Optional[bool] = declare_property(154)
+    is_bold: Optional[bool] = declare_property(
+        150,
+        tag=None,
+    )
+    is_italic: Optional[bool] = declare_property(
+        151,
+        tag=None,
+    )
+    is_strikethrough: Optional[bool] = declare_property(
+        152,
+        tag=None,
+    )
+    is_underline: Optional[bool] = declare_property(
+        153,
+        tag=None,
+    )
+    is_code: Optional[bool] = declare_property(154, tag=None)
 
     def _to_option_kwargs(self):
         kwargs = {}

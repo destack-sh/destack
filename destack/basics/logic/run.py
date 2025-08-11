@@ -66,10 +66,12 @@ class RunEvent(Event):
     run: "Run" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     target: Optional["Entity"] = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -144,24 +146,43 @@ class Run(Entity):
     action: "Action" = declare_property(
         111,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    status: RunStatus = declare_property(112, is_repr=True)
+    status: RunStatus = declare_property(
+        112,
+        is_repr=True,
+        tag=None,
+    )
     duration: Optional[timedelta] = declare_property(
         113,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
         is_repr=True,
+        tag=None,
     )
     scheduled_at: Optional[datetime] = declare_property(
-        116, description="When the Run is scheduled to start."
+        116,
+        description="When the Run is scheduled to start.",
+        tag=None,
     )
     started_at: Optional[datetime] = declare_property(
-        117, description="When the Run first started.", is_repr=True
+        117,
+        description="When the Run first started.",
+        is_repr=True,
+        tag=None,
     )
-    seen_at: Optional[datetime] = declare_property(118, description="When the Run was last active.")
+    seen_at: Optional[datetime] = declare_property(
+        118,
+        description="When the Run was last active.",
+        tag=None,
+    )
     interrupted_at: Optional[datetime] = declare_property(
-        119, description="When the Run was interrupted."
+        119,
+        description="When the Run was interrupted.",
+        tag=None,
     )
     terminated_at: Optional[datetime] = declare_property(
-        120, description="When the Run was last terminated."
+        120,
+        description="When the Run was last terminated.",
+        tag=None,
     )

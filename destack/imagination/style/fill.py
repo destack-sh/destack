@@ -59,21 +59,43 @@ class FillSize(OptionEnum):
 class Fill(Struct):
     """A fill value."""
 
-    type: FillType = declare_property(100, is_repr=True)
+    type: FillType = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
     template: Optional["FillStyle"] = declare_property(
         101,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    color: Optional[Color] = declare_property(102, is_repr=True)
-    gradient: Optional[Gradient] = declare_property(103, is_repr=True)
+    color: Optional[Color] = declare_property(
+        102,
+        is_repr=True,
+        tag=None,
+    )
+    gradient: Optional[Gradient] = declare_property(
+        103,
+        is_repr=True,
+        tag=None,
+    )
     image: Optional["Image"] = declare_property(
         104,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    position: Optional[FillPosition] = declare_property(105, is_repr=True)
-    size: Optional[FillSize] = declare_property(106, is_repr=True)
+    position: Optional[FillPosition] = declare_property(
+        105,
+        is_repr=True,
+        tag=None,
+    )
+    size: Optional[FillSize] = declare_property(
+        106,
+        is_repr=True,
+        tag=None,
+    )
 
     @staticmethod
     def from_color(color: Color) -> "Fill":
@@ -91,16 +113,37 @@ class Fill(Struct):
 class FillStyle(Style):
     """A fill style."""
 
-    type: FillType = declare_property(100, is_repr=True)
-    color: Optional["Color"] = declare_property(101, is_repr=True)
-    gradient: Optional["Gradient"] = declare_property(102, is_repr=True)
+    type: FillType = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
+    color: Optional["Color"] = declare_property(
+        101,
+        is_repr=True,
+        tag=None,
+    )
+    gradient: Optional["Gradient"] = declare_property(
+        102,
+        is_repr=True,
+        tag=None,
+    )
     image: Optional["Image"] = declare_property(
         103,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    position: Optional[FillPosition] = declare_property(104, is_repr=True)
-    size: Optional[FillSize] = declare_property(105, is_repr=True)
+    position: Optional[FillPosition] = declare_property(
+        104,
+        is_repr=True,
+        tag=None,
+    )
+    size: Optional[FillSize] = declare_property(
+        105,
+        is_repr=True,
+        tag=None,
+    )
 
     @staticmethod
     def from_fill(fill: Fill) -> "FillStyle":

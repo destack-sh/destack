@@ -19,6 +19,15 @@ if TYPE_CHECKING:
 class TextView(ContentView):
     """A (rich) text view."""
 
-    text: Optional[Text] = declare_property(250)
-    font: Optional["Font"] = declare_property(201)
-    color: Optional["Fill"] = declare_property(202)
+    text: Optional[Text] = declare_property(
+        250,
+        tag=None,
+    )
+    font: Optional["Font"] = declare_property(
+        201,
+        tag=None,
+    )
+    color: Optional["Fill"] = declare_property(
+        202,
+        tag=None,
+    )

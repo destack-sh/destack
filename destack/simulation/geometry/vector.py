@@ -54,11 +54,13 @@ class Vector2(Struct):
         101,
         is_repr=True,
         description="The x-coordinate of the Vector2.",
+        tag=None,
     )
     y: Float32 = declare_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector2.",
+        tag=None,
     )
 
     @declare_method(101)
@@ -308,16 +310,19 @@ class Vector3(Struct):
         101,
         is_repr=True,
         description="The x-coordinate of the Vector3.",
+        tag=None,
     )
     y: Float32 = declare_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector3.",
+        tag=None,
     )
     z: Float32 = declare_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector3.",
+        tag=None,
     )
 
     @declare_method(101)
@@ -567,21 +572,25 @@ class Vector4(Struct):
         101,
         is_repr=True,
         description="The x-coordinate of the Vector4.",
+        tag=None,
     )
     y: Float32 = declare_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector4.",
+        tag=None,
     )
     z: Float32 = declare_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector4.",
+        tag=None,
     )
     w: Float32 = declare_property(
         104,
         is_repr=True,
         description="The w-coordinate of the Vector4.",
+        tag=None,
     )
 
     @declare_method(101)
@@ -816,11 +825,13 @@ class Vector2i(Struct):
         101,
         is_repr=True,
         description="The x-coordinate of the Vector2i.",
+        tag=None,
     )
     y: Int32 = declare_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector2i.",
+        tag=None,
     )
 
     @declare_method(101)
@@ -1070,16 +1081,19 @@ class Vector3i(Struct):
         101,
         is_repr=True,
         description="The x-coordinate of the Vector3i.",
+        tag=None,
     )
     y: Int32 = declare_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector3i.",
+        tag=None,
     )
     z: Int32 = declare_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector3i.",
+        tag=None,
     )
 
     @declare_method(101)
@@ -1329,21 +1343,25 @@ class Vector4i(Struct):
         101,
         is_repr=True,
         description="The x-coordinate of the Vector4i.",
+        tag=None,
     )
     y: Int32 = declare_property(
         102,
         is_repr=True,
         description="The y-coordinate of the Vector4i.",
+        tag=None,
     )
     z: Int32 = declare_property(
         103,
         is_repr=True,
         description="The z-coordinate of the Vector4i.",
+        tag=None,
     )
     w: Int32 = declare_property(
         104,
         is_repr=True,
         description="The w-coordinate of the Vector4i.",
+        tag=None,
     )
 
     @declare_method(101)

@@ -40,8 +40,8 @@ class GradientType(OptionEnum):
 class GradientStop(Struct):
     """A gradient stop with color and position."""
 
-    color: Optional["Color"] = declare_property(101, is_repr=True)
-    position: Float32 = declare_property(102, is_repr=True)
+    color: Optional["Color"] = declare_property(101, is_repr=True, tag=None)
+    position: Float32 = declare_property(102, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -53,15 +53,16 @@ class GradientStop(Struct):
 class Gradient(Struct):
     """A gradient value."""
 
-    type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True)
+    type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True, tag=None)
     template: Optional["GradientStyle"] = declare_property(
         101,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    angle: Optional[Float32] = declare_property(102, is_repr=True)
-    stops: list[GradientStop] = declare_property(103, is_repr=True)
-    center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True)
+    angle: Optional[Float32] = declare_property(102, is_repr=True, tag=None)
+    stops: list[GradientStop] = declare_property(103, is_repr=True, tag=None)
+    center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -71,8 +72,8 @@ class Gradient(Struct):
 class GradientStyle(Style):
     """A gradient style."""
 
-    type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True)
-    angle: Optional[Float32] = declare_property(102, is_repr=True)
-    stops: list[GradientStop] = declare_property(103, is_repr=True)
-    center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True)
-    dark: Gradient | None = declare_property(105)
+    type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True, tag=None)
+    angle: Optional[Float32] = declare_property(102, is_repr=True, tag=None)
+    stops: list[GradientStop] = declare_property(103, is_repr=True, tag=None)
+    center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True, tag=None)
+    dark: Gradient | None = declare_property(105, tag=None)

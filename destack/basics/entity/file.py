@@ -23,6 +23,17 @@ class File(Entity):
     """
 
     # meta
-    mime_type: str | None = declare_property(120, is_repr=True)
-    size: UInt64 | None = declare_property(122, is_repr=True)
-    sha256: str | None = declare_property(123)
+    mime_type: str | None = declare_property(
+        120,
+        is_repr=True,
+        tag=None,
+    )
+    size: UInt64 | None = declare_property(
+        122,
+        is_repr=True,
+        tag=None,
+    )
+    sha256: str | None = declare_property(
+        123,
+        tag=None,
+    )

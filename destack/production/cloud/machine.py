@@ -35,15 +35,54 @@ class Machine(Entity):
     NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
     """
 
-    type: MachineType = declare_property(100, default=MachineType.RUNTIME)
+    type: MachineType = declare_property(
+        100,
+        default=MachineType.RUNTIME,
+        tag=None,
+    )
 
-    version: str = declare_property(120, default=VERSION)
-    external_name: Optional[str] = declare_property(121)
-    external_id: Optional[str] = declare_property(122)
-    image_id: Optional[str] = declare_property(123)
+    version: str = declare_property(
+        120,
+        default=VERSION,
+        tag=None,
+    )
+    external_name: Optional[str] = declare_property(
+        121,
+        tag=None,
+    )
+    external_id: Optional[str] = declare_property(
+        122,
+        tag=None,
+    )
+    image_id: Optional[str] = declare_property(
+        123,
+        tag=None,
+    )
 
-    cpu: Float32 = declare_property(130, description="vCPU count", default=1.0)
-    ram: Float32 = declare_property(131, description="GB", default=1.0)
-    width: UInt32 = declare_property(132, default=1280)
-    height: UInt32 = declare_property(133, default=960)
-    is_headless: bool = declare_property(134, default=False)
+    cpu: Float32 = declare_property(
+        130,
+        description="vCPU count",
+        default=1.0,
+        tag=None,
+    )
+    ram: Float32 = declare_property(
+        131,
+        description="GB",
+        default=1.0,
+        tag=None,
+    )
+    width: UInt32 = declare_property(
+        132,
+        default=1280,
+        tag=None,
+    )
+    height: UInt32 = declare_property(
+        133,
+        default=960,
+        tag=None,
+    )
+    is_headless: bool = declare_property(
+        134,
+        default=False,
+        tag=None,
+    )

@@ -26,11 +26,13 @@ class Value(Struct):
         100,
         is_repr=True,
         description="The Type of the Value.",
+        tag=None,
     )
     value: Any | None = declare_property(
         200,
         is_repr=True,
         description="The generic Value.",
+        tag=None,
     )
 
     def get(self):

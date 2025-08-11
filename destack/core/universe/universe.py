@@ -43,9 +43,9 @@ _ROOT_BRANCH_ID = UUID(int=31)
 
 @declare_message(StructType.UNIVERSE_SIGNUP_REQUEST)
 class UniverseSignupRequest(Message):
-    name: str = declare_property(101)
-    email: str = declare_property(102)
-    password: str = declare_property(103)
+    name: str = declare_property(101, tag=None)
+    email: str = declare_property(102, tag=None)
+    password: str = declare_property(103, tag=None)
 
 
 @declare_message(StructType.UNIVERSE_SIGNUP_RESPONSE)
@@ -53,14 +53,15 @@ class UniverseSignupResponse(Message):
     user: "User" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
 @declare_message(StructType.UNIVERSE_SPAWN_REQUEST)
 class UniverseSpawnRequest(Message):
-    name: str = declare_property(101)
-    region: Region = declare_property(102)
-    slug: str = declare_property(103)
+    name: str = declare_property(101, tag=None)
+    region: Region = declare_property(102, tag=None)
+    slug: str = declare_property(103, tag=None)
 
 
 @declare_message(StructType.UNIVERSE_SPAWN_RESPONSE)
@@ -68,6 +69,7 @@ class UniverseSpawnResponse(Message):
     space: "Space" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 

@@ -43,14 +43,15 @@ type_ = type
 class ObjectDefinitionReference(Struct):
     """Reference to an object "type" (builtin, custom or trait)."""
 
-    kind: ObjectKind = declare_property(101, is_repr=True)
-    node_type: Optional[NodeType] = declare_property(102, is_repr=True)
-    struct_type: Optional[StructType] = declare_property(103, is_repr=True)
-    handle_type: Optional[HandleType] = declare_property(104, is_repr=True)
+    kind: ObjectKind = declare_property(101, is_repr=True, tag=None)
+    node_type: Optional[NodeType] = declare_property(102, is_repr=True, tag=None)
+    struct_type: Optional[StructType] = declare_property(103, is_repr=True, tag=None)
+    handle_type: Optional[HandleType] = declare_property(104, is_repr=True, tag=None)
     definition: Optional["Entity"] = declare_property(
         106,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
     @classmethod
@@ -98,19 +99,21 @@ class PropertyReference(Struct):
     A reference to a builtin object's Property.
     """
 
-    node_type: NodeType | None = declare_property(101, is_repr=True)
-    struct_type: StructType | None = declare_property(103, is_repr=True)
-    handle_type: HandleType | None = declare_property(104, is_repr=True)
+    node_type: NodeType | None = declare_property(101, is_repr=True, tag=None)
+    struct_type: StructType | None = declare_property(103, is_repr=True, tag=None)
+    handle_type: HandleType | None = declare_property(104, is_repr=True, tag=None)
     id: Optional[UInt8] = declare_property(
         105,
         is_repr=True,
         description="id of the builtin Property",
+        tag=None,
     )
     custom_property: Optional["CustomPropertyDefinition"] = declare_property(
         106,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
         description="custom Property of a custom Node or Struct",
+        tag=None,
     )
 
     def to_type(self) -> "Type":
@@ -164,8 +167,8 @@ class NodeIdentityReference(Struct):
     A reference to a Node in an unknown space.
     """
 
-    type: NodeType = declare_property(100, is_repr=True)
-    id: UUID = declare_property(101, is_repr=True)
+    type: NodeType = declare_property(100, is_repr=True, tag=None)
+    id: UUID = declare_property(101, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -186,16 +189,19 @@ class NodeSpatialReference(Struct):
         100,
         is_repr=True,
         description="The type of the Node.",
+        tag=None,
     )
     id: UUID = declare_property(
         101,
         is_repr=True,
         description="The unique id of the Node.",
+        tag=None,
     )
     space_id: UUID = declare_property(
         102,
         is_repr=True,
         description="The id of the Space the Node belonged to.",
+        tag=None,
     )
 
 
@@ -217,29 +223,35 @@ class NodeTemporalReference(Struct):
         100,
         is_repr=True,
         description="The type of the Node.",
+        tag=None,
     )
     id: UUID = declare_property(
         101,
         is_repr=True,
         description="The unique id of the Node.",
+        tag=None,
     )
     space_id: UUID = declare_property(
         102,
         is_repr=True,
         description="The id of the Space the Node belonged to.",
+        tag=None,
     )
     branch_id: UUID = declare_property(
         103,
         is_repr=True,
         description="The id of the Branch the Node belonged to (when it was referenced).",
+        tag=None,
     )
     snapshot_id: UUID = declare_property(
         104,
         is_repr=True,
         description="The id of the Snapshot the Node belonged to (when it was referenced).",
+        tag=None,
     )
     epoch: UInt64 = declare_property(
         105,
         is_repr=True,
         description="The logical time the Node belonged to (when it was referenced).",
+        tag=None,
     )

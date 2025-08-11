@@ -44,12 +44,12 @@ class Space(Entity):
      (64 bits are sufficient for 1B Events per second per Space for over 500 years.)
     """
 
-    slug: str = declare_property(102, is_repr=True)
+    slug: str = declare_property(102, is_repr=True, tag=None)
 
     # system_folder, home_folder, ...
 
     # infra
-    region: Region = declare_property(120)
+    region: Region = declare_property(120, tag=None)
 
     @declare_action(
         101,

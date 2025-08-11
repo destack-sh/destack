@@ -33,27 +33,63 @@ class MigrationType(OptionEnum):
 class MigrationDefinition(Struct):
     """Definition of a builtin Migration."""
 
-    type: "MigrationType" = declare_property(100, is_repr=True)
-    name: str = declare_property(101, is_repr=True)
-    description: str | None = declare_property(103, is_repr=True)
+    type: "MigrationType" = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
+    name: str = declare_property(
+        101,
+        is_repr=True,
+        tag=None,
+    )
+    description: str | None = declare_property(
+        103,
+        is_repr=True,
+        tag=None,
+    )
 
 
 @declare_entity(NodeType.MIGRATION)
 class Migration(Entity):
     """Migration of an Entity."""
 
-    type: MigrationType = declare_property(100, is_repr=True)
-    description: str | None = declare_property(103, is_repr=True)
+    type: MigrationType = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
+    description: str | None = declare_property(
+        103,
+        is_repr=True,
+        tag=None,
+    )
 
 
 @declare_struct(StructType.MIGRATION_OPERATION_DEFINITION)
 class MigrationOperationDefinition(Struct):
     """Definition of a builtin MigrationOperation."""
 
-    id: UInt32 = declare_property(2, is_repr=True)
-    name: str = declare_property(101, is_repr=True)
-    description: str | None = declare_property(103, is_repr=True)
-    type: "MigrationType" = declare_property(100, is_repr=True)
+    id: UInt32 = declare_property(
+        2,
+        is_repr=True,
+        tag=None,
+    )
+    name: str = declare_property(
+        101,
+        is_repr=True,
+        tag=None,
+    )
+    description: str | None = declare_property(
+        103,
+        is_repr=True,
+        tag=None,
+    )
+    type: "MigrationType" = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
 
 
 @declare_entity(NodeType.MIGRATION_OPERATION)

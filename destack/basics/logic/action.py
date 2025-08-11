@@ -17,4 +17,7 @@ class Action(Function):
     Actions are stateful and can be called and managed across runtimes.
     """
 
-    type: ActionType = declare_property(100)
+    type: ActionType = declare_property(
+        100,
+        tag=None,
+    )

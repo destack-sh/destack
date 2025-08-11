@@ -41,13 +41,19 @@ class BorderType(OptionEnum):
 class Border(Struct):
     """A border value."""
 
-    type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)
-    color: Optional["Color"] = declare_property(101, is_repr=True)
-    width: Optional["Inset2"] = declare_property(102, is_repr=True)
+    type: BorderType = declare_property(
+        100,
+        default=BorderType.SOLID,
+        is_repr=True,
+        tag=None,
+    )
+    color: Optional["Color"] = declare_property(101, is_repr=True, tag=None)
+    width: Optional["Inset2"] = declare_property(102, is_repr=True, tag=None)
     template: Optional["BorderStyle"] = declare_property(
         103,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -58,6 +64,11 @@ class Border(Struct):
 class BorderStyle(Style):
     """A border style."""
 
-    type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)
-    color: Optional["Color"] = declare_property(101, is_repr=True)
-    width: Optional["Inset2"] = declare_property(102, is_repr=True)
+    type: BorderType = declare_property(
+        100,
+        default=BorderType.SOLID,
+        is_repr=True,
+        tag=None,
+    )
+    color: Optional["Color"] = declare_property(101, is_repr=True, tag=None)
+    width: Optional["Inset2"] = declare_property(102, is_repr=True, tag=None)

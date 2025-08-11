@@ -39,6 +39,7 @@ class FollowEvent(Event):
     follow: "Follow" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 

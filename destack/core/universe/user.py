@@ -22,16 +22,16 @@ if TYPE_CHECKING:
 class User(Entity):
     """A User is a human using Destack."""
 
-    slug: str = declare_property(102, is_repr=True)
+    slug: str = declare_property(102, is_repr=True, tag=None)
 
-    last_logged_in_at: Optional[datetime] = declare_property(111)
+    last_logged_in_at: Optional[datetime] = declare_property(111, tag=None)
     # last_active_at, seen_at, ...
 
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     #  (multiple auth methods, multiple connected accounts, etc.)
-    email: str | None = declare_property(130)
-    password_salt: Optional[bytes] = declare_property(131, is_eq=False)
-    password_hash: Optional[bytes] = declare_property(132, is_eq=False)
+    email: str | None = declare_property(130, tag=None)
+    password_salt: Optional[bytes] = declare_property(131, is_eq=False, tag=None)
+    password_hash: Optional[bytes] = declare_property(132, is_eq=False, tag=None)
     # challenges?
     # password_reset_token, email_confirmation_token, ...

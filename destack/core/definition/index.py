@@ -24,12 +24,12 @@ class IndexDefinition(Definition):
     """Definition of a builtin Index."""
 
     # meta
-    id: UInt8 = declare_property(2, is_repr=True)
-    type: "IndexType" = declare_property(100, is_repr=True)
+    id: UInt8 = declare_property(2, is_repr=True, tag=None)
+    type: "IndexType" = declare_property(100, is_repr=True, tag=None)
 
     # content
-    properties: list["PropertyReference"] = declare_property(120)
-    cover: list["PropertyReference"] = declare_property(121)
+    properties: list["PropertyReference"] = declare_property(120, tag=None)
+    cover: list["PropertyReference"] = declare_property(121, tag=None)
 
     @classmethod
     def from_declaration(cls, declaration: "IndexDeclaration") -> "Self":

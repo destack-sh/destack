@@ -41,71 +41,71 @@ class NodeDefinition(ObjectDefinition):
     type: NodeType = declare_property(
         100,
         is_repr=True,
-        tags=("meta",),
+        tag="meta",
     )
     stability: ObjectStability = declare_property(
         105,
         description="The stability of this Node (how its definition is expected to change).",
-        tags=("meta",),
+        tag="meta",
     )
     is_abstract: bool = declare_property(
         110,
         is_repr=True,
         description="Whether this Node cannot be instantiated directly.",
-        tags=("meta",),
+        tag="meta",
     )
     is_final: bool = declare_property(
         111,
         is_repr=True,
         description="Whether this Node cannot be extended by custom Nodes.",
-        tags=("meta",),
+        tag="meta",
     )
     is_singleton: bool = declare_property(
         112,
         description="Whether this Node is a singleton (only one instance can exist).",
-        tags=("meta",),
+        tag="meta",
     )
 
     # content
     properties: list["PropertyDefinition"] = declare_property(
         120,
         description="All properties of this Node (including inherited).",
-        tags=("content",),
+        tag="content",
     )
     indexes: list["IndexDefinition"] = declare_property(
         121,
         description="All indexes of this Node (including inherited).",
-        tags=("content",),
+        tag="content",
     )
     constraints: list["ConstraintDefinition"] = declare_property(
         122,
         description="All constraints of this Node (including inherited).",
-        tags=("content",),
+        tag="content",
     )
     permissions: list["PermissionDefinition"] = declare_property(
         123,
         description="All permissions of this Node (including inherited).",
-        tags=("content",),
+        tag="content",
     )
     methods: list["MethodDefinition"] = declare_property(
         125,
         description="All methods of this Node (including inherited).",
-        tags=("content",),
+        tag="content",
     )
     actions: list["ActionDefinition"] = declare_property(
         126,
         description="All actions of this Node (including inherited).",
-        tags=("content",),
+        tag="content",
     )
     constants: list["ConstantDefinition"] = declare_property(
         128,
         description="All constants of this Node (including inherited).",
-        tags=("content",),
+        tag="content",
     )
     tags: list["TagDefinition"] = declare_property(
         129,
         description="All tags of this Node.",
-        tags=("content",),
+        tag="content",
     )
 
     # inheritance
@@ -113,32 +113,32 @@ class NodeDefinition(ObjectDefinition):
         130,
         is_repr=True,
         description="The base type this Node extends (directly).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     extended_by: list[NodeType] = declare_property(
         131,
         description="Nodes that extend this Node type (directly).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     inherits: list[NodeType] = declare_property(
         132,
         description="Nodes that this Node inherits.",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     inherited_by: list[NodeType] = declare_property(
         133,
         description="Nodes that inherit this Node type.",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     traits: list[TraitType] = declare_property(
         134,
         description="Traits implemented by this Node.",
-        tags=("inheritance",),
+        tag="inheritance",
     )
     self_traits: list[TraitType] = declare_property(
         135,
         description="Traits declared by this Node (directly).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
 
     # graph
@@ -146,60 +146,60 @@ class NodeDefinition(ObjectDefinition):
         160,
         is_repr=True,
         description="The parent types of this Node type (directly).",
-        tags=("graph",),
+        tag="graph",
     )
     child_types: list[NodeType] = declare_property(
         161,
         is_repr=True,
         description="The child types of this Node type (directly).",
-        tags=("graph",),
+        tag="graph",
     )
     ancestor_types: list[NodeType] = declare_property(
         162,
         description="The ancestor types of this Node type.",
-        tags=("graph",),
+        tag="graph",
     )
     descendant_types: list[NodeType] = declare_property(
         163,
         description="The descendant types of this Node type.",
-        tags=("graph",),
+        tag="graph",
     )
     expected_parent_types: list[NodeType] = declare_property(
         170,
         description="The parent types expected for this Node type (any of).",
-        tags=("graph",),
+        tag="graph",
     )
     expected_child_types: list[NodeType] = declare_property(
         171,
         description="The child types expected for this Node type (any of).",
-        tags=("graph",),
+        tag="graph",
     )
     expected_ancestor_types: list[NodeType] = declare_property(
         172,
         description="The ancestor types expected for this Node type (any of).",
-        tags=("graph",),
+        tag="graph",
     )
     expected_descendant_types: list[NodeType] = declare_property(
         173,
         description="The descendant types expected for this Node type (any of).",
-        tags=("graph",),
+        tag="graph",
     )
 
     # associations
     event_types: list[NodeType] = declare_property(
         200,
         description="The event types related to this Node.",
-        tags=("associations",),
+        tag="associations",
     )
     self_event_types: list[NodeType] = declare_property(
         201,
         description="The event types declared by this Node (directly).",
-        tags=("associations",),
+        tag="associations",
     )
     base_struct_type: StructType | None = declare_property(
         220,
         description="The Struct type this Node implements (if any).",
-        tags=("inheritance",),
+        tag="inheritance",
     )
 
     @override

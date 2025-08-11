@@ -4,7 +4,7 @@ import dataclasses
 from dataclasses import dataclass
 from math import ceil
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, Literal, assert_never
+from typing import TYPE_CHECKING, Any, Literal, Optional, assert_never
 
 from destack.registry import (
     BUILTIN_CLASS_BY_NAME,
@@ -455,6 +455,30 @@ def _show_properties(
     context: ManualContext,
 ) -> None:
     """Display properties section."""
+    from destack.core import Node, Struct
+
+    def _resolve_tag_name(owner_local: Any, tag_id: Optional[int]) -> Optional[str]:
+        """Resolve a tag id to its name for the given owner definition."""
+        if tag_id is None:
+            return None
+        # try from definition's own tags first
+        try:
+            for tag in owner_local.tags:  # type: ignore[attr-defined]
+                if tag.id == tag_id:
+                    return tag.name
+        except Exception:
+            pass
+        # fallback to builtin class declaration tags (walk mro)
+        object_cls = BUILTIN_CLASS_BY_NAME.get(owner_local.name)
+        if object_cls is None:
+            return None
+        for cls in object_cls.__mro__:
+            if issubclass(cls, Node) or issubclass(cls, Struct):
+                for tag in cls.__declaration__.tags:
+                    if tag.id == tag_id:
+                        return tag.name
+        return None
+
     # properties
     instance_properties = [p for p in properties if not p.is_static and not p.is_runtime_only]
     _console.print(
@@ -470,6 +494,7 @@ def _show_properties(
         "Memory",
         "Kompakt",
         "Flott",
+        "Tag",
         "Defined In",
         "Flags",
     ]
@@ -490,10 +515,12 @@ def _show_properties(
         if prop.is_hash:
             flags.append("ha")
         origin = _get_origin_for(owner, prop)
+        tag_name = _resolve_tag_name(owner, prop.tag)
         rows.append(
             {
                 "ID": _console.color(str(prop.id), context.color_dim),
                 "Name": _console.color(prop.name, context.color_name),
+                "Tag": _console.color(tag_name, context.color_origin) if tag_name else "",
                 "Type": _console.color(_render_type(prop.type), context.color_type),
                 "Memory": _console.color(
                     _render_size(context.memory_sizer.size_property(prop)), context.color_value
@@ -667,7 +694,7 @@ def _show_layout(definition: "StructDefinition | NodeDefinition", context: Manua
         "1k Disk W",
         "1k Net R",
         "1k Net W",
-        "Cache Lines",
+        "Lines",
     ]
     secondary_headers = [
         "memory",
@@ -690,9 +717,9 @@ def _show_layout(definition: "StructDefinition | NodeDefinition", context: Manua
         approx_size_bytes = (
             size.min_size if size.max_size is None else (size.min_size + size.max_size) // 2
         )
-        # disk: NVMe SSD approximate throughput ~ 3 GB/s (read) and ~ 2 GB/s (write)
-        disk_read_bps = 3 * 1024 * 1024 * 1024
-        disk_write_bps = 2 * 1024 * 1024 * 1024
+        # disk: NVMe SSD approximate throughput ~ 2 GB/s (read) and ~ 1 GB/s (write)
+        disk_read_bps = 2 * 1024 * 1024 * 1024
+        disk_write_bps = 1 * 1024 * 1024 * 1024
         disk_r = _console.humanize_duration((approx_size_bytes * 1000) / disk_read_bps)
         disk_w = _console.humanize_duration((approx_size_bytes * 1000) / disk_write_bps)
         # network: 100 Mb/s down, 20 Mb/s up (megabits)
@@ -702,6 +729,7 @@ def _show_layout(definition: "StructDefinition | NodeDefinition", context: Manua
         net_w = _console.humanize_duration((approx_size_bytes * 1000) / net_w_bps)
         # cache lines: size / 64B rounded up
         cache_lines = ceil(approx_size_bytes / 64) if approx_size_bytes > 0 else 0
+        is_wired = name in ("Memory", "Kompakt", "Flott")
         rows.append(
             {
                 "Layout": _console.color(name, context.color_origin),
@@ -712,14 +740,23 @@ def _show_layout(definition: "StructDefinition | NodeDefinition", context: Manua
                     context.color_value,
                 ),
                 "/1MB": _console.color(
-                    _console.humanize_count_text(per_str_1mb), context.color_dim
+                    _console.humanize_count_text(per_str_1mb), context.color_value
                 ),
-                "1k Disk R": _console.color(disk_r, context.color_dim),
-                "1k Disk W": _console.color(disk_w, context.color_dim),
-                "1k Net R": _console.color(net_r, context.color_dim),
-                "1k Net W": _console.color(net_w, context.color_dim),
-                "Cache Lines": _console.color(
-                    _console.humanize_count(cache_lines), context.color_dim
+                "1k Disk R": _console.color(
+                    disk_r, context.color_value if is_wired else context.color_dim
+                ),
+                "1k Disk W": _console.color(
+                    disk_w, context.color_value if is_wired else context.color_dim
+                ),
+                "1k Net R": _console.color(
+                    net_r, context.color_value if is_wired else context.color_dim
+                ),
+                "1k Net W": _console.color(
+                    net_w, context.color_value if is_wired else context.color_dim
+                ),
+                "Lines": _console.color(
+                    _console.humanize_count(cache_lines),
+                    context.color_value if is_wired else context.color_dim,
                 ),
             }
         )
@@ -728,14 +765,26 @@ def _show_layout(definition: "StructDefinition | NodeDefinition", context: Manua
 
 def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
     """Display Node-specific details."""
+    from ..builtin import StringCasing, to_casing
+
     # metadata
     _console.print("\n" + _console.color("Metadata:", context.color_section_title, "bold"))
     meta_dict: dict[str, object] = {
-        "Inherits": "->".join([base.name for base in definition.inherits]),
-        "Stability": str(definition.stability),
-        "Abstract": definition.is_abstract,
-        "Final": definition.is_final,
-        "Singleton": definition.is_singleton,
+        "Inherits": " -> ".join(
+            [
+                _console.color(to_casing(base.name, StringCasing.UPPER_CAMEL), context.color_value)
+                for base in definition.inherits
+            ]
+            or "-"
+        ),
+        "Stability": _console.color(
+            to_casing(definition.stability.name, StringCasing.UPPER_CAMEL), context.color_value
+        ),
+        "Abstract": _console.color("Yes" if definition.is_abstract else "No", context.color_value),
+        "Final": _console.color("Yes" if definition.is_final else "No", context.color_value),
+        "Singleton": _console.color(
+            "Yes" if definition.is_singleton else "No", context.color_value
+        ),
     }
     _console.print(_console.kv(meta_dict))
 
@@ -763,13 +812,22 @@ def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
 
 def _show_struct(definition: "StructDefinition", context: ManualContext) -> None:
     """Display Struct-specific details."""
+    from ..builtin import StringCasing, to_casing
 
     # metadata
     _console.print("\n" + _console.color("Metadata:", context.color_section_title, "bold"))
     meta_dict: dict[str, object] = {
-        "Inherits": "->".join([base.name for base in definition.inherits]),
-        "Stability": str(definition.stability),
-        "Abstract": definition.is_abstract,
+        "Inherits": " -> ".join(
+            [
+                _console.color(to_casing(base.name, StringCasing.UPPER_CAMEL), context.color_value)
+                for base in definition.inherits
+            ]
+            or "-"
+        ),
+        "Stability": _console.color(
+            to_casing(definition.stability.name, StringCasing.UPPER_CAMEL), context.color_value
+        ),
+        "Abstract": _console.color("Yes" if definition.is_abstract else "No", context.color_value),
     }
     _console.print(_console.kv(meta_dict))
 

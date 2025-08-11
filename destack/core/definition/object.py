@@ -75,7 +75,7 @@ class ObjectDefinition(Definition):
     id: UInt32 = declare_property(
         2,
         is_repr=True,
-        tags=("meta",),
+        tag="meta",
     )
 
     @abc.abstractmethod

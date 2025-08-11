@@ -27,6 +27,7 @@ class TriggerEvent(Event):
     trigger: "Trigger" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -40,8 +41,8 @@ class Trigger(Entity):
     """A Trigger is a dynamic event to run something."""
 
     # when
-    event: Optional[NodeType] = declare_property(110)
-    where: Optional["Condition"] = declare_property(111)
+    event: Optional[NodeType] = declare_property(110, tag=None)
+    where: Optional["Condition"] = declare_property(111, tag=None)
     # sampling?
     # is_passive/scope/process_mode/liveness?
     #  (only trigger if containing View? is active, no backfill)
@@ -50,5 +51,6 @@ class Trigger(Entity):
     target: Optional["Entity"] = declare_property(
         120,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    arguments: dict[UUID, Value] = declare_property(121)
+    arguments: dict[UUID, Value] = declare_property(121, tag=None)

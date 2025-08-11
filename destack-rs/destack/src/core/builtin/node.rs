@@ -2,6 +2,8 @@ use uuid::Uuid;
 
 use crate::core::builtin::object::Object;
 
+// nocheckin: generate NodeComponents (Object?Component)
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeReference {
     pub r#type: i8,

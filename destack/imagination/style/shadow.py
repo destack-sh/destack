@@ -47,18 +47,21 @@ class ShadowPosition(OptionEnum):
 class Shadow(Struct):
     """A shadow value."""
 
-    type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True)
+    type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True, tag=None)
     template: Optional["ShadowStyle"] = declare_property(
         101,
         is_repr=True,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
-    color: Optional["Color"] = declare_property(102, is_repr=True)
-    position: ShadowPosition = declare_property(103, default=ShadowPosition.OUTSIDE, is_repr=True)
-    offset: Optional["Axis2"] = declare_property(104, is_repr=True)
-    blur: Optional[Float32] = declare_property(105, is_repr=True)
-    spread: Optional[Float32] = declare_property(106, is_repr=True)
-    diffusion: Optional[Float32] = declare_property(107, is_repr=True)
+    color: Optional["Color"] = declare_property(102, is_repr=True, tag=None)
+    position: ShadowPosition = declare_property(
+        103, default=ShadowPosition.OUTSIDE, is_repr=True, tag=None
+    )
+    offset: Optional["Axis2"] = declare_property(104, is_repr=True, tag=None)
+    blur: Optional[Float32] = declare_property(105, is_repr=True, tag=None)
+    spread: Optional[Float32] = declare_property(106, is_repr=True, tag=None)
+    diffusion: Optional[Float32] = declare_property(107, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -68,10 +71,12 @@ class Shadow(Struct):
 class ShadowStyle(Style):
     """A shadow style."""
 
-    type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True)
-    color: Optional["Color"] = declare_property(101, is_repr=True)
-    position: ShadowPosition = declare_property(102, default=ShadowPosition.OUTSIDE, is_repr=True)
-    offset: Optional["Axis2"] = declare_property(103, is_repr=True)
-    blur: Optional[Float32] = declare_property(104, is_repr=True)
-    spread: Optional[Float32] = declare_property(105, is_repr=True)
-    diffusion: Optional[Float32] = declare_property(106, is_repr=True)
+    type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True, tag=None)
+    color: Optional["Color"] = declare_property(101, is_repr=True, tag=None)
+    position: ShadowPosition = declare_property(
+        102, default=ShadowPosition.OUTSIDE, is_repr=True, tag=None
+    )
+    offset: Optional["Axis2"] = declare_property(103, is_repr=True, tag=None)
+    blur: Optional[Float32] = declare_property(104, is_repr=True, tag=None)
+    spread: Optional[Float32] = declare_property(105, is_repr=True, tag=None)
+    diffusion: Optional[Float32] = declare_property(106, is_repr=True, tag=None)

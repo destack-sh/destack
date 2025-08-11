@@ -24,10 +24,12 @@ class SanctionEvent(Event):
     sanction: "Sanction" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
     target: "Entity" = declare_property(
         110,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -68,9 +70,16 @@ class Sanction(
 ):
     """A Sanction on some Actor."""
 
-    type: SanctionType = declare_property(100)
-    expires_at: Optional[datetime] = declare_property(110)
+    type: SanctionType = declare_property(
+        100,
+        tag=None,
+    )
+    expires_at: Optional[datetime] = declare_property(
+        110,
+        tag=None,
+    )
     target: "Entity" = declare_property(
         111,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )

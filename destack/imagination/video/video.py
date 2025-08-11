@@ -10,6 +10,15 @@ class Video(File):
     A Video File.
     """
 
-    width: UInt32 = declare_property(128)
-    height: UInt32 = declare_property(129)
-    duration: timedelta = declare_property(130)
+    width: UInt32 = declare_property(
+        128,
+        tag=None,
+    )
+    height: UInt32 = declare_property(
+        129,
+        tag=None,
+    )
+    duration: timedelta = declare_property(
+        130,
+        tag=None,
+    )

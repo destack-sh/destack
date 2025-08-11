@@ -16,4 +16,5 @@ class Tag(Entity):
     type: Optional["Type"] = declare_property(
         100,
         description="The designated Type for Values associated with this Tag. Any if unset.",
+        tag=None,
     )

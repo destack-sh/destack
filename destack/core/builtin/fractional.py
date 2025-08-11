@@ -31,9 +31,9 @@ class FractionalIntegerError(Error):
     An Error raised when a fractional integer operation fails.
     """
 
-    head: str | None = declare_property(110, is_repr=True)
-    a: str | None = declare_property(111, is_repr=True)
-    b: str | None = declare_property(112, is_repr=True)
+    head: str | None = declare_property(110, is_repr=True, tag=None)
+    a: str | None = declare_property(111, is_repr=True, tag=None)
+    b: str | None = declare_property(112, is_repr=True, tag=None)
 
 
 def _get_integer_length(head: str) -> int:

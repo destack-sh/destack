@@ -37,6 +37,7 @@ class StarEvent(Event):
     star: "Star" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 

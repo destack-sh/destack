@@ -56,65 +56,81 @@ class Type(Struct):
         110,
         is_repr=True,
         description="Cardinality of this Type.",
+        tag=None,
     )
     key_type: Optional["Type"] = declare_property(
         111,
         is_repr=True,
         description="Key type of this Type (if it's a map).",
+        tag=None,
     )
     value_type: Optional["Type"] = declare_property(
         112,
         is_repr=True,
         description="Value type of this Type (list, map).",
+        tag=None,
     )
     element_types: list["Type"] | None = declare_property(
         113,
         is_repr=True,
         description="Element types of this Type (tuple, union).",
+        tag=None,
     )
     length: Optional[UInt32] = declare_property(
         114,
         is_repr=True,
         description="Length of this Type (string primitive, list, tuple).",
+        tag=None,
     )
     dimensions: list[UInt32] | None = declare_property(
         115,
         is_repr=True,
         description="Multiple dimensions of this Type (array).",
+        tag=None,
     )
     # generic_over?
-    is_required: bool = declare_property(119, default=True)
+    is_required: bool = declare_property(
+        119,
+        default=True,
+        tag=None,
+    )
 
     # scalar
     scalar_type: Optional[ScalarType] = declare_property(
         120,
         is_repr=True,
         description="Scalar value type of this Type (primitive, enum, node, struct, etc..).",
+        tag=None,
     )
     primitive_type: Optional[PrimitiveType] = declare_property(
         121,
         is_repr=True,
         description="Primitive type of this Type (if it's a primitive scalar).",
+        tag=None,
     )
     enum_type: Optional[EnumType] = declare_property(
         122,
         is_repr=True,
         description="Enum type of this Type (if it's an enum scalar).",
+        tag=None,
     )
     node_types: list[NodeType] | None = declare_property(
         123,
         is_repr=True,
         description="Node types of this Type (if it's a node reference or node value scalar).",
+        tag=None,
     )
     struct_type: Optional[StructType] = declare_property(
         124,
         is_repr=True,
         description="Struct type of this Type (if it's a struct scalar).",
+        tag=None,
     )
     handle_type: Optional[HandleType] = declare_property(
         125,
         is_repr=True,
         description="Handle type of this Type (if it's a handle scalar).",
+        tag=None,
     )
 
     @classmethod
@@ -157,9 +173,18 @@ class Type(Struct):
 class StringConstraint(Struct):
     """The constraint of a string."""
 
-    regex: Optional[str] = declare_property(41)
-    starts_with: Optional[str] = declare_property(42)
-    ends_with: Optional[str] = declare_property(43)
+    regex: Optional[str] = declare_property(
+        41,
+        tag=None,
+    )
+    starts_with: Optional[str] = declare_property(
+        42,
+        tag=None,
+    )
+    ends_with: Optional[str] = declare_property(
+        43,
+        tag=None,
+    )
 
 
 SLUG_REGEX_CHAR = r"a-z0-9-"
@@ -177,9 +202,18 @@ PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]
 class NumberConstraint(Struct):
     """The constraint of a number."""
 
-    min_value: Optional[Float32] = declare_property(41)
-    max_value: Optional[Float32] = declare_property(42)
-    step_value: Optional[Float32] = declare_property(43)
+    min_value: Optional[Float32] = declare_property(
+        41,
+        tag=None,
+    )
+    max_value: Optional[Float32] = declare_property(
+        42,
+        tag=None,
+    )
+    step_value: Optional[Float32] = declare_property(
+        43,
+        tag=None,
+    )
 
 
 @declare_struct(
@@ -190,8 +224,14 @@ class NumberConstraint(Struct):
 class CollectionConstraint(Struct):
     """The constraint of a collection."""
 
-    min_length: Optional[UInt32] = declare_property(41)
-    max_length: Optional[UInt32] = declare_property(42)
+    min_length: Optional[UInt32] = declare_property(
+        41,
+        tag=None,
+    )
+    max_length: Optional[UInt32] = declare_property(
+        42,
+        tag=None,
+    )
 
 
 TypeConstraint = Union[NumberConstraint, StringConstraint, CollectionConstraint]

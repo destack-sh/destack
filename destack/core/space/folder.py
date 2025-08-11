@@ -40,5 +40,10 @@ class FolderType(OptionEnum):
 class Folder(Entity):
     """A Folder is a sub-space of a Space."""
 
-    type: FolderType = declare_property(100, is_repr=True, default=FolderType.GENERAL)
-    slug: str | None = declare_property(103, is_repr=True)
+    type: FolderType = declare_property(
+        100,
+        is_repr=True,
+        default=FolderType.GENERAL,
+        tag=None,
+    )
+    slug: str | None = declare_property(103, is_repr=True, tag=None)

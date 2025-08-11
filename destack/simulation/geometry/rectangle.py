@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 class Rectangle2D(Form2D):
     """A Rectangle is a rectangle."""
 
-    width: Float32 = declare_property(210, is_repr=True)
-    height: Float32 = declare_property(220, is_repr=True)
+    width: Float32 = declare_property(210, is_repr=True, tag=None)
+    height: Float32 = declare_property(220, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -35,5 +35,5 @@ class Rectangle2D(Form2D):
 class RectangleShape2D(Shape2D):
     """A RectangleShape is a shape that represents a rectangle."""
 
-    width: Float32 = declare_property(210, is_repr=True)
-    height: Float32 = declare_property(220, is_repr=True)
+    width: Float32 = declare_property(210, is_repr=True, tag=None)
+    height: Float32 = declare_property(220, is_repr=True, tag=None)

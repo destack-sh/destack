@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class DragEvent(InputEvent):
     """A DragEvent is an InputEvent that corresponds to some direct user input with a drag."""
 
-    position: "Vector2" = declare_property(110, is_repr=True)
+    position: "Vector2" = declare_property(110, is_repr=True, tag=None)
 
 
 @declare_event(NodeType.DRAG_START_EVENT)

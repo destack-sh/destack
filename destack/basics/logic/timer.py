@@ -27,6 +27,7 @@ class TimerEvent(Event):
     timer: "Timer" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -82,5 +83,12 @@ class TimerType(OptionEnum):
 class Timer(Entity):
     """A Timer."""
 
-    type: TimerType = declare_property(100, is_repr=True)
-    schedule: Optional["Schedule"] = declare_property(110)
+    type: TimerType = declare_property(
+        100,
+        is_repr=True,
+        tag=None,
+    )
+    schedule: Optional["Schedule"] = declare_property(
+        110,
+        tag=None,
+    )

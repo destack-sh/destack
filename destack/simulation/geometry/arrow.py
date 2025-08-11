@@ -34,10 +34,10 @@ class ArrowHeadType(OptionEnum):
 class Arrow2D(Form2D):
     """An Arrow is a shape that represents an arrow."""
 
-    start_type: ArrowHeadType = declare_property(200, is_repr=True)
-    start: "Vector2" = declare_property(201, is_repr=True)
-    end_type: ArrowHeadType = declare_property(210, is_repr=True)
-    end: "Vector2" = declare_property(211, is_repr=True)
+    start_type: ArrowHeadType = declare_property(200, is_repr=True, tag=None)
+    start: "Vector2" = declare_property(201, is_repr=True, tag=None)
+    end_type: ArrowHeadType = declare_property(210, is_repr=True, tag=None)
+    end: "Vector2" = declare_property(211, is_repr=True, tag=None)
 
 
 @declare_entity(NodeType.ARROW_SHAPE2D)
@@ -45,7 +45,7 @@ class ArrowShape2D(Shape2D):
     """An ArrowShape is a shape that represents an arrow."""
 
     # content
-    start_type: ArrowHeadType = declare_property(200, is_repr=True)
-    start: "Vector2" = declare_property(201, is_repr=True)
-    end_type: ArrowHeadType = declare_property(210, is_repr=True)
-    end: "Vector2" = declare_property(211, is_repr=True)
+    start_type: ArrowHeadType = declare_property(200, is_repr=True, tag=None)
+    start: "Vector2" = declare_property(201, is_repr=True, tag=None)
+    end_type: ArrowHeadType = declare_property(210, is_repr=True, tag=None)
+    end: "Vector2" = declare_property(211, is_repr=True, tag=None)

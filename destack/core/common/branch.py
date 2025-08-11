@@ -39,4 +39,7 @@ class Branch(Entity):
     A Branch is a version of a Snapshot.
     """
 
-    type: BranchType = declare_property(100)
+    type: BranchType = declare_property(
+        100,
+        tag=None,
+    )

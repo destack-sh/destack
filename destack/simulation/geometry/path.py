@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class Path2D(Form2D):
     """A Path is a path of multiple points."""
 
-    points: list["Vector2"] = declare_property(210)
+    points: list["Vector2"] = declare_property(210, tag=None)
 
 
 @declare_entity(
@@ -33,4 +33,4 @@ class Path2D(Form2D):
 class PathShape2D(Shape2D):
     """A PathShape is a shape that represents a path of multiple points."""
 
-    points: list["Vector2"] = declare_property(200)
+    points: list["Vector2"] = declare_property(200, tag=None)

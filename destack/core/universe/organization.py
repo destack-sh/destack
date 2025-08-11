@@ -23,4 +23,4 @@ class Organization(Entity):
     An Organization with Users and Teams.
     """
 
-    slug: str = declare_property(101, is_repr=True)
+    slug: str = declare_property(101, is_repr=True, tag=None)

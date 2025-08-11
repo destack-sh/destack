@@ -8,5 +8,5 @@ class Image(File):
     An Image File.
     """
 
-    width: UInt32 = declare_property(128)
-    height: UInt32 = declare_property(129)
+    width: UInt32 = declare_property(128, tag=None)
+    height: UInt32 = declare_property(129, tag=None)

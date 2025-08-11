@@ -22,6 +22,7 @@ class SceneEvent(Event):
     scene: "Scene" = declare_property(
         101,
         reference_type=ReferenceType.LOCATION,
+        tag=None,
     )
 
 
@@ -38,4 +39,5 @@ class Scene(Entity):
         200,
         reference_type=ReferenceType.LOCATION,
         description="The root view of the Scene.",
+        tag=None,
     )
