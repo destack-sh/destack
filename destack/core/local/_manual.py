@@ -59,6 +59,7 @@ class ManualContext:
     # sizing
     memory_sizer: "ObjectSizer"
     kompakt_sizer: "ObjectSizer"
+    flott_sizer: "ObjectSizer"
     sizers: dict[str, "ObjectSizer"]
 
     # navigation
@@ -84,6 +85,7 @@ def manual() -> None:
     """Interactive manual for the schema."""
     from destack import (
         VERSION,
+        FlottObjectSizer,
         KompaktObjectSizer,
         PythonObjectSizer,
         RustObjectSizer,
@@ -105,9 +107,11 @@ Type 'help' for available commands.""",
     context = ManualContext(
         memory_sizer=RustObjectSizer(),
         kompakt_sizer=KompaktObjectSizer(),
+        flott_sizer=FlottObjectSizer(),
         sizers={
             "Memory": RustObjectSizer(),
             "Kompakt": KompaktObjectSizer(),
+            "Flott": FlottObjectSizer(),
             "Rust": RustObjectSizer(),
             "JavaScript": TypeScriptObjectSizer(),
             "Python": PythonObjectSizer(),
@@ -183,7 +187,10 @@ def _register_commands(repl: Any, context: ManualContext) -> None:
         # if we go down, default to full subtree
         include_subclasses = full or direction in ("down", "both")
         tree = _render_inheritance_tree(
-            definition, context=context, direction=direction, include_subclasses=include_subclasses
+            definition,
+            context=context,
+            direction=direction,
+            include_subclasses=include_subclasses,
         )
         if tree is None:
             _console.warn("Only Objects (Node/Struct/Handle) have inheritance.")
@@ -460,6 +467,7 @@ def _show_properties(
         "Type",
         "Memory",
         "Kompakt",
+        "Flott",
         "Defined In",
         "Flags",
     ]
@@ -490,6 +498,9 @@ def _show_properties(
                 ),
                 "Kompakt": _console.color(
                     _render_size(context.kompakt_sizer.size_property(prop)), context.color_value
+                ),
+                "Flott": _console.color(
+                    _render_size(context.flott_sizer.size_property(prop)), context.color_value
                 ),
                 "Defined In": _console.color(origin or "-", context.color_origin),
                 "Flags": _console.color("|".join(flags) if flags else "", "gray"),
@@ -650,7 +661,6 @@ def _show_layout(definition: "StructDefinition | NodeDefinition", context: Manua
         "Layout",
         "Size",
         "/1MB",
-        "/1GB",
         "1k Disk R",
         "1k Disk W",
         "1k Net R",
@@ -658,9 +668,8 @@ def _show_layout(definition: "StructDefinition | NodeDefinition", context: Manua
         "Cache Lines",
     ]
     secondary_headers = [
-        "",
+        "memory",
         "unaligned",
-        "contiguous",
         "contiguous",
         "~3 GB/s",
         "~2 GB/s",
@@ -874,11 +883,14 @@ def _render_inheritance_tree(
         inc_str = ""
         if isinstance(defn, (NodeDefinition, StructDefinition)):
             parent = _get_base(defn)
+            mem_def = context.memory_sizer.size_object(defn)
             if parent is not None and isinstance(parent, (NodeDefinition, StructDefinition)):
-                mem_def = context.memory_sizer.size_object(defn)
                 mem_par = context.memory_sizer.size_object(parent)
                 mem_inc = max(0, mem_def.min_size - mem_par.min_size)
                 inc_str = f" [+{mem_inc}B]"
+            else:
+                inc_str = f" [{mem_def.min_size}B]"
+
         # suffixes should be dim gray, even when the label itself is highlighted
         suffix_col = _console.color(suffix, "dim") if suffix else ""
         inc_col = _console.color(inc_str, "gray", "dim") if inc_str else ""
