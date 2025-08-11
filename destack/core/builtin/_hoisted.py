@@ -185,14 +185,25 @@ class Region(OptionEnum):
 
 @declare_enum(EnumType.REFERENCE_TYPE)
 class ReferenceType(OptionEnum):
-    # nocheckin: add more ReferenceTypes, make them regular (identity, location, "instance", ..?)
-    REGULAR = declare_option(
+    """The type of a Node reference."""
+
+    UNTYPED_IDENTITY = declare_option(
         1,
-        description="Fat reference (NodeReference)",
+        description="Identity reference (id, for internal use)",
+        is_internal=True,
     )
-    THIN = declare_option(
+    IDENTITY = declare_option(
         2,
-        description="Thin reference (NodeReference.id, internal use only)",
+        description="Identity reference (type + id, for internal use)",
+        is_internal=True,
+    )
+    LOCATION = declare_option(
+        3,
+        description="Identity + Space reference (type + id + space, assumed time)",
+    )
+    MOMENT = declare_option(
+        4,
+        description="Identity + Space + time reference (type + id + space + time)",
     )
 
 
@@ -270,28 +281,38 @@ class ScalarType(OptionEnum):
         "Node",
         description="Node as a value (Node)",
     )
-    NODE_REFERENCE = declare_option(
+    NODE_UNTYPED_IDENTITY = declare_option(
         4,
-        "Node Reference",
-        description="Reference to a Node (NodeReference)",
+        "Node Naked Identity",
+        description="Reference to a Node (id only, for internal use)",
     )
-    NODE_ID = declare_option(
+    NODE_IDENTITY = declare_option(
         5,
-        "Node ID",
-        description="Reference to a Node (NodeReference.id, internal use only)",
+        "Node Typed Identity",
+        description="Reference to a Node (type + id, assumed Space)",
+    )
+    NODE_LOCATION = declare_option(
+        6,
+        "Node Location",
+        description="Reference to a Node (type + id + space, assumed time)",
+    )
+    NODE_MOMENT = declare_option(
+        7,
+        "Node Moment",
+        description="Reference to a Node (type + id + space + time)",
     )
     STRUCT = declare_option(
-        6,
+        8,
         "Struct",
         description="Struct value (structured data)",
     )
     HANDLE = declare_option(
-        7,
+        9,
         "Handle",
         description="Handle (runtime-only)",
     )
     UNION = declare_option(
-        8,
+        10,
         "Union",
         description="Tagged union of heterogeneous values",
     )

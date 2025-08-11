@@ -38,13 +38,23 @@ class OptionDeclaration(int):  # pretend to be an enum member
     title: str | None = None
     description: str | None = None
 
-    def __new__(cls, id: int, name: str, title: str, description: str | None = None):
+    is_internal: bool = False
+
+    def __new__(
+        cls,
+        id: int,
+        name: str,
+        title: str,
+        description: str | None = None,
+        is_internal: bool = False,
+    ):
         obj = int.__new__(cls, id)  # create the int part
         obj.id = id
         obj.name = name
         obj.component = UNSET
         obj.title = title
         obj.description = description
+        obj.is_internal = is_internal
         return obj
 
     def __str__(self) -> str:
@@ -115,7 +125,13 @@ def _process_enum_cls(
     return cls, declaration
 
 
-def declare_option(id: int, title: str | None = None, *, description: str | None = None) -> int:
+def declare_option(
+    id: int,
+    title: str | None = None,
+    *,
+    description: str | None = None,
+    is_internal: bool = False,
+) -> int:
     """Declare an option in an Enum."""
 
     declaration = OptionDeclaration(
@@ -123,6 +139,7 @@ def declare_option(id: int, title: str | None = None, *, description: str | None
         name=UNSET,
         title=title or UNSET,
         description=description,
+        is_internal=is_internal,
     )
 
     return cast(int, declaration)  # pretend it's an int for enum type annotation

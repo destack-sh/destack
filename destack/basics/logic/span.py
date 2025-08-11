@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.core import (
     Event,
     NodeType,
+    ReferenceType,
     Value,
     declare_event,
     declare_property,
@@ -24,10 +25,19 @@ class SpanEvent(Event):
         description="The custom Values of this Entity, keyed by custom Property name.",
     )
 
-    name: str = declare_property(101)
+    name: str = declare_property(
+        101,
+        is_interned=True,
+    )
     start_time: datetime = declare_property(102)
     end_time: datetime = declare_property(103)
     duration: timedelta = declare_property(104)
 
-    parent_span: Optional["SpanEvent"] = declare_property(110)
-    action: Optional["Action"] = declare_property(111)
+    parent_span: Optional["SpanEvent"] = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
+    action: Optional["Action"] = declare_property(
+        111,
+        reference_type=ReferenceType.LOCATION,
+    )

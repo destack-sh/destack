@@ -6,6 +6,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     TraitType,
     declare_entity,
     declare_event,
@@ -35,7 +36,10 @@ class Reaction(Entity):
 
 @declare_event(NodeType.REACTION_EVENT)
 class ReactionEvent(Event):
-    reaction: "Reaction" = declare_property(101)
+    reaction: "Reaction" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
     content: str = declare_property(102)
 
 

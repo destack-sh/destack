@@ -178,14 +178,14 @@ _object_json['metatype'] = '{cls.metatype.name}'
     def get_source_property_name(self, prop: PropertyDeclaration) -> str:
         """Get the name of a property."""
         source_name = prop.name
-        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_MOMENT:
             source_name += "_ptr"
         return source_name
 
     def get_target_property_key(self, prop: PropertyDeclaration) -> str:
         """Get the target property key for JSON."""
         target_key = to_casing(prop.name, StringCasing.LOWER_CAMEL)
-        if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+        if prop.type.scalar_type == ScalarType.NODE_MOMENT:
             target_key += "Ptr"
         return target_key
 
@@ -507,12 +507,18 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
             return f"""\
 _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return f"""\
 _encoder.pack_object({source_expr}, _options)"""
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return f"str({source_expr})"
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"_encoder.pack_object({source_expr}, _options)"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"_encoder.pack_object({source_expr}, _options)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
@@ -597,12 +603,18 @@ _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderO
             return f"""\
 _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return f"""\
-_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_REFERENCE.value}, {source_expr}, _session, _options)"""
+_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, {source_expr}, _session, _options)"""
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return f"UUID({source_expr})"
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY.value}, {source_expr}, _session, _options)"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_LOCATION.value}, {source_expr}, _session, _options)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")

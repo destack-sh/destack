@@ -4,6 +4,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     RoleType,
     TraitType,
     declare_entity,
@@ -19,8 +20,14 @@ if TYPE_CHECKING:
 class RoleEvent(Event):
     """A Event regarding a Role."""
 
-    role: "Role" = declare_property(101)
-    actor: "Entity" = declare_property(110)
+    role: "Role" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
+    actor: "Entity" = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.ROLE_ASSIGNED_EVENT)

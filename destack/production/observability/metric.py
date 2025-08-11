@@ -4,6 +4,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     declare_entity,
     declare_event,
     declare_property,
@@ -26,4 +27,5 @@ class MeasurementEvent(Event):
         10,
         is_managed=True,
         is_readonly=True,
+        reference_type=ReferenceType.LOCATION,
     )

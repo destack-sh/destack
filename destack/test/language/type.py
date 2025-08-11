@@ -359,14 +359,14 @@ def test_annotation_to_type():
     # Node
     assert Type.of(Node) == Type(
         cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.NODE_REFERENCE,
+        scalar_type=ScalarType.NODE_MOMENT,
         node_types=[NodeType.NODE],
     )
     assert invert_type(Type.of(Node)) == Node
     # User | Organization (union of node types)
     assert Type.of(User | Organization) == Type(
         cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.NODE_REFERENCE,
+        scalar_type=ScalarType.NODE_MOMENT,
         node_types=[NodeType.USER, NodeType.ORGANIZATION],
     )
     assert invert_type(Type.of(User | Organization)) == User | Organization
@@ -377,7 +377,7 @@ def test_annotation_to_type():
         cardinality=TypeCardinality.LIST,
         value_type=Type(
             cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_REFERENCE,
+            scalar_type=ScalarType.NODE_MOMENT,
             node_types=[NodeType.USER],
         ),
     )
@@ -393,7 +393,7 @@ def test_annotation_to_type():
         ),
         value_type=Type(
             cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_REFERENCE,
+            scalar_type=ScalarType.NODE_MOMENT,
             node_types=[NodeType.USER],
         ),
     )
@@ -405,12 +405,12 @@ def test_annotation_to_type():
         element_types=[
             Type(
                 cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.NODE_REFERENCE,
+                scalar_type=ScalarType.NODE_MOMENT,
                 node_types=[NodeType.USER],
             ),
             Type(
                 cardinality=TypeCardinality.SCALAR,
-                scalar_type=ScalarType.NODE_REFERENCE,
+                scalar_type=ScalarType.NODE_MOMENT,
                 node_types=[NodeType.ORGANIZATION],
             ),
         ],
@@ -422,7 +422,7 @@ def test_annotation_to_type():
         cardinality=TypeCardinality.LIST,
         value_type=Type(
             cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_REFERENCE,
+            scalar_type=ScalarType.NODE_MOMENT,
             node_types=[NodeType.USER, NodeType.ORGANIZATION],
         ),
     )

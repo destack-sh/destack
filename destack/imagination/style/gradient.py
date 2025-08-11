@@ -5,6 +5,7 @@ from destack.core import (
     Float32,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     declare_entity,
@@ -53,7 +54,11 @@ class Gradient(Struct):
     """A gradient value."""
 
     type: GradientType = declare_property(100, default=GradientType.LINEAR, is_repr=True)
-    template: Optional["GradientStyle"] = declare_property(101, is_repr=True)
+    template: Optional["GradientStyle"] = declare_property(
+        101,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     angle: Optional[Float32] = declare_property(102, is_repr=True)
     stops: list[GradientStop] = declare_property(103, is_repr=True)
     center_anchor: Optional["Axis2"] = declare_property(104, is_repr=True)

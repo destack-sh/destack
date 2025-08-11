@@ -5,6 +5,7 @@ from destack.core import (
     Float32,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     declare_entity,
@@ -47,7 +48,11 @@ class Shadow(Struct):
     """A shadow value."""
 
     type: ShadowType = declare_property(100, default=ShadowType.BOX, is_repr=True)
-    template: Optional["ShadowStyle"] = declare_property(101, is_repr=True)
+    template: Optional["ShadowStyle"] = declare_property(
+        101,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     color: Optional["Color"] = declare_property(102, is_repr=True)
     position: ShadowPosition = declare_property(103, default=ShadowPosition.OUTSIDE, is_repr=True)
     offset: Optional["Axis2"] = declare_property(104, is_repr=True)

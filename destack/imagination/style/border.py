@@ -4,6 +4,7 @@ from destack.core import (
     EnumType,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     declare_entity,
@@ -43,7 +44,11 @@ class Border(Struct):
     type: BorderType = declare_property(100, default=BorderType.SOLID, is_repr=True)
     color: Optional["Color"] = declare_property(101, is_repr=True)
     width: Optional["Inset2"] = declare_property(102, is_repr=True)
-    template: Optional["BorderStyle"] = declare_property(103, is_repr=True)
+    template: Optional["BorderStyle"] = declare_property(
+        103,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_entity(

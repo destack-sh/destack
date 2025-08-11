@@ -4,6 +4,7 @@ from destack.core import (
     Entity,
     Event,
     NodeType,
+    ReferenceType,
     TraitType,
     declare_entity,
     declare_event,
@@ -18,16 +19,28 @@ if TYPE_CHECKING:
 class InviteEvent(Event):
     """A Event regarding an Invite."""
 
-    invite: "Invite" = declare_property(101)
-    joinable: "Entity" = declare_property(102)
-    member: "Entity" = declare_property(103)
+    invite: "Invite" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
+    joinable: "Entity" = declare_property(
+        102,
+        reference_type=ReferenceType.LOCATION,
+    )
+    member: "Entity" = declare_property(
+        103,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.INVITE_SENT_EVENT)
 class InviteSentEvent(InviteEvent):
     """An Invite was sent."""
 
-    role: "Role" = declare_property(110)
+    role: "Role" = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
     role_type: "RoleType" = declare_property(111)
 
 
@@ -42,7 +55,10 @@ class InviteRescindedEvent(InviteEvent):
 class InviteAcceptedEvent(InviteEvent):
     """An Invite was accepted."""
 
-    role: "Role" = declare_property(110)
+    role: "Role" = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
     role_type: "RoleType" = declare_property(111)
 
 
@@ -61,6 +77,12 @@ class InviteRejectedEvent(InviteEvent):
 class Invite(Entity):
     """An Invite to a Joinable."""
 
-    member: "Entity" = declare_property(110)
-    role: Optional["Role"] = declare_property(111)
+    member: "Entity" = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
+    role: Optional["Role"] = declare_property(
+        111,
+        reference_type=ReferenceType.LOCATION,
+    )
     role_type: Optional["RoleType"] = declare_property(112)

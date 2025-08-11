@@ -144,7 +144,7 @@ class Type(Struct):
     @declare_method(201, is_implemented=True)
     @classmethod
     def of(
-        cls, value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.REGULAR
+        cls, value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.MOMENT
     ) -> "Type":
         """
         Infer the Type of a value or class.
@@ -203,14 +203,13 @@ _PRIMITIVE_PY_TYPES: tuple[type, ...] = tuple(
 
 @declare_method(301, is_implemented=True)
 def infer_type(
-    value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.REGULAR
+    value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.MOMENT
 ) -> "Type":
     """
     Infer the Type of a value or class.
     For values, we try to infer the most specific Type that can represent the value.
     """
     from ..builtin import Handle, Node, parse_type_declaration
-    from .relation import NodeReference
 
     #
     # Values
@@ -223,17 +222,15 @@ def infer_type(
             scalar_type=ScalarType.PRIMITIVE,
             primitive_type=PrimitiveType.NONE,
         )
-    elif isinstance(value_or_type, NodeReference):
-        return Type(
-            cardinality=TypeCardinality.SCALAR,
-            scalar_type=ScalarType.NODE_REFERENCE,
-            node_types=[value_or_type.type],
-        )
     elif isinstance(value_or_type, Node):
-        if reference_type == ReferenceType.REGULAR:
+        if reference_type == ReferenceType.MOMENT:
             scalar_type = ScalarType.NODE
-        elif reference_type == ReferenceType.THIN:
-            scalar_type = ScalarType.NODE_ID
+        elif reference_type == ReferenceType.UNTYPED_IDENTITY:
+            scalar_type = ScalarType.NODE_UNTYPED_IDENTITY
+        elif reference_type == ReferenceType.IDENTITY:
+            scalar_type = ScalarType.NODE_IDENTITY
+        elif reference_type == ReferenceType.LOCATION:
+            scalar_type = ScalarType.NODE_LOCATION
         elif reference_type is None:
             scalar_type = ScalarType.NODE
         else:
@@ -367,7 +364,12 @@ def invert_type_scalar(type: "Type") -> "Any":
         assert type.node_types is not None, f"no node types for: {type!r}"
         return NODE_CLASS_BY_TYPE[type.node_types[0]]
     # node reference
-    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
+    elif type.scalar_type in (
+        ScalarType.NODE_MOMENT,
+        ScalarType.NODE_UNTYPED_IDENTITY,
+        ScalarType.NODE_IDENTITY,
+        ScalarType.NODE_LOCATION,
+    ):
         assert type.node_types is not None, f"no node types for: {type!r}"
         if len(type.node_types) == 1:
             return NODE_CLASS_BY_TYPE[type.node_types[0]]

@@ -6,6 +6,7 @@ from destack.core import (
     Event,
     NodeType,
     OptionEnum,
+    ReferenceType,
     declare_entity,
     declare_enum,
     declare_event,
@@ -23,7 +24,10 @@ if TYPE_CHECKING:
 class TimerEvent(Event):
     """A TimerEvent is an Event that corresponds to a Timer."""
 
-    timer: "Timer" = declare_property(101)
+    timer: "Timer" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.TIMER_STARTED_EVENT)

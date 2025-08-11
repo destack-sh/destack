@@ -1,8 +1,9 @@
+import math
 from typing import TYPE_CHECKING, assert_never, override
 
-from destack.registry import STRUCT_DEFINITION_BY_TYPE
+from destack.registry import ENUM_CLASS_BY_TYPE, STRUCT_DEFINITION_BY_TYPE
 
-from ...builtin import PrimitiveType, ScalarType, TypeCardinality
+from ...builtin import PrimitiveType, ScalarType, StructType, TypeCardinality
 from ...definition import NodeDefinition, StructDefinition
 from .._core import ObjectSize, ObjectSizer
 
@@ -12,18 +13,7 @@ if TYPE_CHECKING:
 
 class RustObjectSizer(ObjectSizer):
     """
-    Estimate the size of values in a Rust runtime (64-bit) in bytes.
-
-    Assumptions:
-    - struct fields store values inline; we do not add pointer overhead for fields
-    - integers/floats/bool/char use their native fixed sizes
-    - String and Vec headers are inline (ptr, len, cap) ≈ 24 bytes; payload is unbounded
-    - HashMap header ≈ 48 bytes; entries are unbounded
-    - UUID (uuid::Uuid) is 16 bytes
-    - Chrono naive types (NaiveDateTime, NaiveTime, Duration) are approximated as 12 bytes
-    - NaiveDate is approximated as 4 bytes
-    - tuples are laid out inline: sum of element sizes (alignment ignored)
-    - optional values (is_required=False) have min_size=0
+    Estimate the size of values in our Rust runtime (64-bit) in bytes.
     """
 
     # collection headers
@@ -168,18 +158,27 @@ class RustObjectSizer(ObjectSizer):
                 return ObjectSize(8, 8)
             else:
                 assert_never(type.primitive_type)
-        # enum
+        # enum: smallest int that fits
         elif type.scalar_type == ScalarType.ENUM:
-            return ObjectSize(4, 4)
+            assert type.enum_type is not None, f"no enum type for {type!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+            max_bytes = math.ceil(math.log2(max(enum_cls)) / 8)
+            return ObjectSize(max_bytes, max_bytes)
         # node
         elif type.scalar_type == ScalarType.NODE:
             return ObjectSize(8, 8)  # reference?
         # node reference as struct
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
         # node id (uuid)
-        elif type.scalar_type == ScalarType.NODE_ID:
-            return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return ObjectSize(self.INTERNED_KEY_SIZE, self.INTERNED_KEY_SIZE)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -205,15 +204,6 @@ class KompaktObjectSizer(ObjectSizer):
     """
     Estimate the encoded size in bytes for Kompakt binary format.
     NOTE: this isn't technically Rust-specific but it's related and I have to put this somewhere.
-
-    Uses the same sizing as BinaryWriter in `destack/core/encoding/binary.py`:
-    - varint/zigzag sizes for integers
-    - fixed sizes for floats, bool, char, uuid
-    - time types sized as their encoded integer forms (varint ranges)
-    - strings/bytes with varint length prefix + payload (unbounded)
-    - lists/tuples/maps compound following encoder behavior
-    - enums encoded as varint u32
-    - node reference encoded as type (varint u32) + 4 uuids
     """
 
     # fixed sizes
@@ -354,20 +344,27 @@ class KompaktObjectSizer(ObjectSizer):
                 return ObjectSize(1, None)
             else:
                 assert_never(primitive)
-        # enum: u32 varint
+        # enum: smallest varint up to 5 bytes
         elif type.scalar_type == ScalarType.ENUM:
-            return ObjectSize(*self.UINT32_RANGE)
+            assert type.enum_type is not None, f"no enum type for {type!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+            max_bytes = math.ceil(math.log2(max(enum_cls)) / 8)
+            return ObjectSize(1, max_bytes)
         # node: encoded as object; unknown size
         elif type.scalar_type == ScalarType.NODE:
             return ObjectSize(0, None)
         # node reference: type (u32 varint) + 4 uuids
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            min_size = self.UINT32_RANGE[0] + 4 * self.UUID_SIZE
-            max_size = self.UINT32_RANGE[1] + 4 * self.UUID_SIZE
-            return ObjectSize(min_size, max_size)
-        # node id: uuid
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_MOMENT])
+        # node id
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY])
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_LOCATION])
         # struct: approximate by summing field sizes from definition
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"

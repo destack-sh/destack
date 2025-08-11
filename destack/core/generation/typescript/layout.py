@@ -13,12 +13,6 @@ if TYPE_CHECKING:
 class TypeScriptObjectSizer(ObjectSizer):
     """
     Estimate the size of values in a TypeScript/JS runtime in bytes.
-
-    Assumptions:
-    - primitives (number, boolean, string, null) do not incur pointer overhead
-    - UUIDs are represented as strings (36 UTF-16 code units)
-    - Date/Datetime/Time/Duration are represented using Temporal objects
-    - collections (arrays, tuples, maps) and objects are references
     """
 
     # js reference/pointer size (engine dependent)
@@ -163,13 +157,19 @@ class TypeScriptObjectSizer(ObjectSizer):
         elif type.scalar_type == ScalarType.NODE:
             return ObjectSize(0, 0)
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             # treat as struct
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_REFERENCE])
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_MOMENT])
         # node id (UUID string)
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             uuid_bytes = 36 * 2
             return ObjectSize(uuid_bytes, uuid_bytes)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY])
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_LOCATION])
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -247,12 +247,13 @@ class TypeScriptObjectSizer(ObjectSizer):
             elif type.scalar_type in (
                 ScalarType.NODE,
                 ScalarType.STRUCT,
-                ScalarType.NODE_REFERENCE,
-                ScalarType.NODE_ID,
+                ScalarType.NODE_MOMENT,
+                ScalarType.NODE_IDENTITY,
+                ScalarType.NODE_LOCATION,
             ):
                 return True
             # node id
-            elif type.scalar_type == ScalarType.NODE_ID:
+            elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
                 return False
             # handle
             elif type.scalar_type == ScalarType.HANDLE:

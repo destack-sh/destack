@@ -6,6 +6,7 @@ from destack.core import (
     Float32,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     TraitType,
@@ -41,7 +42,11 @@ class Transition(Struct):
     """A transition value."""
 
     type: TransitionType = declare_property(100, default=TransitionType.TWEEN, is_repr=True)
-    template: Optional["TransitionTemplate"] = declare_property(101, is_repr=True)
+    template: Optional["TransitionTemplate"] = declare_property(
+        101,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     delay: Optional[Float32] = declare_property(102, is_repr=True)
     duration: Optional[Float32] = declare_property(103, is_repr=True)
     ease: list[Float32] = declare_property(104, is_repr=True)

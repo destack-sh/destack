@@ -7,6 +7,7 @@ from destack.core import (
     Event,
     NodeType,
     OptionEnum,
+    ReferenceType,
     declare_entity,
     declare_enum,
     declare_event,
@@ -20,8 +21,14 @@ if TYPE_CHECKING:
 
 @declare_event(NodeType.ENTITLEMENT_EVENT, is_abstract=True)
 class EntitlementEvent(Event):
-    entitlement: "Entitlement" = declare_property(101)
-    target: "Entity" = declare_property(110)
+    entitlement: "Entitlement" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
+    target: "Entity" = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.ENTITLEMENT_REQUESTED_EVENT)
@@ -61,4 +68,7 @@ class Entitlement(Entity):
 
     type: EntitlementType = declare_property(100)
     expires_at: Optional[datetime] = declare_property(110)
-    target: "Entity" = declare_property(111)
+    target: "Entity" = declare_property(
+        111,
+        reference_type=ReferenceType.LOCATION,
+    )

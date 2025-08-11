@@ -4,6 +4,7 @@ from destack.core import (
     Event,
     Float32,
     NodeType,
+    ReferenceType,
     declare_entity,
     declare_event,
     declare_property,
@@ -28,7 +29,10 @@ if TYPE_CHECKING:
 class ViewEvent(Event):
     """A Event regarding a View."""
 
-    view: "View" = declare_property(101)
+    view: "View" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_entity(

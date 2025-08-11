@@ -2,7 +2,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Optional,
     cast,
     dataclass_transform,
 )
@@ -31,7 +30,7 @@ if TYPE_CHECKING:
         IndexDeclaration,
         Node,
         NodeDefinition,
-        NodeReference,
+        NodeLocation,
         PermissionDeclaration,
         Snapshot,
         Space,
@@ -186,6 +185,7 @@ def _process_node_cls(
                     #  (like Styles or TransitionTemplate or any template really..
                     #   .. similarity to Offset2/Inset2/... with base and overrides?
                     #   .. similarity to Entity partials?
+                    #    .. just a generic ScalarType.PARTIAL? (or PARTIAL_STRUCT/PARTIAL_NODE?)
                     #   .. also similarity to Context overrides in Entity.context_values?
                     #   .. also similarity to mut/non mut Structs?
                     #   .. also related to (frozen-in-time) Structs & Nodes as values?)
@@ -294,6 +294,7 @@ class Node(Object):
         is_managed=True,
         is_eq=False,
         is_readonly=True,
+        is_interned=True,
         description="The universally unique identifier of this Node.",
         tags=("identity",),
     )
@@ -303,7 +304,7 @@ class Node(Object):
         is_eq=False,
         is_hash=False,
         is_readonly=True,
-        reference_type=ReferenceType.THIN,
+        reference_type=ReferenceType.UNTYPED_IDENTITY,
         default_factory=ValueFactory.SPACE,
         description="The Space this Node is in.",
         tags=("identity",),
@@ -314,7 +315,7 @@ class Node(Object):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        reference_type=ReferenceType.THIN,
+        reference_type=ReferenceType.UNTYPED_IDENTITY,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Node is part of.",
         tags=("identity",),
@@ -325,7 +326,7 @@ class Node(Object):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        reference_type=ReferenceType.THIN,
+        reference_type=ReferenceType.UNTYPED_IDENTITY,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Node is part of.",
         tags=("identity",),
@@ -334,8 +335,6 @@ class Node(Object):
     # 100+ for general properties
     # ...
 
-    """The cached reference to this Node instance."""
-    _ref: Optional["NodeReference"] = declare_property_runtime(401, default=None)
     """Whether this Node is new."""
     _is_new: bool = declare_property_runtime(402, default=False)
 
@@ -353,11 +352,7 @@ class Node(Object):
         """The human readable path of this Node."""
         raise NotImplementedError
 
-    def __to_ref__(self) -> "NodeReference":
-        """Gets a reference to this Node."""
-        raise NotImplementedError
-
     @declare_method(2)
-    def to_ref(self) -> "NodeReference":
+    def to_ref(self) -> "NodeLocation":
         """Gets a reference to this Node."""
         raise NotImplementedError

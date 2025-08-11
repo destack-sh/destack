@@ -7,6 +7,7 @@ from destack.core import (
     Event,
     NodeType,
     OptionEnum,
+    ReferenceType,
     declare_entity,
     declare_enum,
     declare_event,
@@ -62,8 +63,14 @@ class RunStatus(OptionEnum):
 class RunEvent(Event):
     """An Event regarding a Run."""
 
-    run: "Run" = declare_property(101)
-    target: Optional["Entity"] = declare_property(110)
+    run: "Run" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
+    target: Optional["Entity"] = declare_property(
+        110,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.RUN_STARTED_EVENT)
@@ -134,7 +141,10 @@ class Run(Entity):
     Run of an Action.
     """
 
-    action: "Action" = declare_property(111)
+    action: "Action" = declare_property(
+        111,
+        reference_type=ReferenceType.LOCATION,
+    )
     status: RunStatus = declare_property(112, is_repr=True)
     duration: Optional[timedelta] = declare_property(
         113,

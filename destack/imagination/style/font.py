@@ -4,6 +4,7 @@ from destack.core import (
     EnumType,
     NodeType,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     declare_entity,
@@ -90,7 +91,11 @@ class Font(Struct):
     """A font value."""
 
     type: FontType = declare_property(100, default=FontType.SANS, is_repr=True)
-    template: Optional["FontStyle"] = declare_property(101, is_repr=True)
+    template: Optional["FontStyle"] = declare_property(
+        101,
+        is_repr=True,
+        reference_type=ReferenceType.LOCATION,
+    )
     weight: Optional[FontWeight] = declare_property(102, default=FontWeight.NORMAL, is_repr=True)
     fill: Optional[Fill] = declare_property(103, is_repr=True)
     size: Optional[FontSize] = declare_property(104, default=FontSize.BASE, is_repr=True)

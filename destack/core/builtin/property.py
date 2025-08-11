@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Literal,
     Optional,
 )
 
@@ -66,6 +67,7 @@ class PropertyDeclaration(Declaration):
 
     # relationships
     reference_type: ReferenceType | None = None
+    reference_as_value: bool = False
 
     # flags
     is_repr: bool = False  # included in Object.__repr__
@@ -145,7 +147,7 @@ class PropertyDeclaration(Declaration):
         try:
             self.type = parse_type_declaration(
                 self.py_type,
-                reference_type=self.reference_type,
+                reference_type="value" if self.reference_as_value else self.reference_type,
                 is_builtin=True,
             )
         except Exception as e:
@@ -181,12 +183,12 @@ class PropertyDeclaration(Declaration):
         if not self.type.is_required and self.default_value is UNSET:
             self.default_value = None
         # default to regular node references
-        if self.type.scalar_type == ScalarType.NODE_REFERENCE and self.reference_type is None:
-            self.reference_type = ReferenceType.REGULAR
+        if self.type.scalar_type == ScalarType.NODE_MOMENT and self.reference_type is None:
+            self.reference_type = ReferenceType.MOMENT
         # references get a _ptr property (which is wired/stored)
         if (
             self.type.value_type is not None
-            and self.type.value_type.scalar_type == ScalarType.NODE_REFERENCE
+            and self.type.value_type.scalar_type == ScalarType.NODE_MOMENT
         ):
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert (
@@ -347,7 +349,7 @@ def declare_property(
     description: str | None = None,
     default: Any = UNSET,
     default_factory: ValueFactory | None = None,
-    reference_type: ReferenceType | None = None,
+    reference_type: ReferenceType | Literal["value"] | None = None,
     is_managed: bool = False,
     is_repr: bool = False,
     is_hash: bool = True,
@@ -362,13 +364,14 @@ def declare_property(
         description=description,
         default_value=default,
         default_factory=default_factory,
-        reference_type=reference_type,
+        reference_type=reference_type if reference_type != "value" else None,
+        reference_as_value=reference_type == "value",
         is_managed=is_managed,
         is_repr=is_repr,
         is_hash=is_hash,
         is_eq=is_eq,
         is_readonly=is_readonly,
-        is_interned=is_interned,
+        is_interned=is_interned or reference_type is not None,  # references are always interned
         tags=tags,
     )
 
@@ -386,13 +389,15 @@ def declare_property_runtime(
     return PropertyDeclaration(
         id=id,
         description=description,
+        default_value=default,
+        default_factory_callable=default_factory,
+        reference_type=None,
+        reference_as_value=True,
         is_managed=True,
         is_runtime_only=True,
         is_repr=is_repr,
         is_hash=False,
         is_eq=False,
-        default_value=default,
-        default_factory_callable=default_factory,
     )
 
 

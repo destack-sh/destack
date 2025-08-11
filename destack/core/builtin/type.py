@@ -1,6 +1,6 @@
 import types
 import typing
-from typing import TYPE_CHECKING, TypeAliasType, assert_never
+from typing import TYPE_CHECKING, Literal, TypeAliasType, assert_never
 
 from ._hoisted import (
     PRIMITIVE_TYPE_BY_ANNOTATION,
@@ -76,12 +76,11 @@ NONE_TYPE_DECLARATION = TypeDeclaration(
 def parse_type_declaration(
     py_type: type | str | typing.ForwardRef,
     *,
-    reference_type: ReferenceType | None = ReferenceType.REGULAR,
+    reference_type: ReferenceType | Literal["value"] | None = None,
     is_builtin: bool = False,
 ) -> TypeDeclaration:
     """
     Parses the TypeDeclaration from a given py type.
-    NOTE: builtin members have some additional limitations (no unions, flat types, etc.).
     """
 
     # try to resolve
@@ -94,7 +93,11 @@ def parse_type_declaration(
     # list
     if origin is list:
         element_type_arg = typing.get_args(py_type)[0]
-        element_annotation = parse_type_declaration(element_type_arg, is_builtin=is_builtin)
+        element_annotation = parse_type_declaration(
+            element_type_arg,
+            is_builtin=is_builtin,
+            reference_type=reference_type,
+        )
         return TypeDeclaration(
             cardinality=TypeCardinality.LIST,
             value_type=element_annotation,
@@ -110,7 +113,10 @@ def parse_type_declaration(
         if len(type_args) == 2 and type_args[1] is ...:
             raise ValueError(f"cannot infer type of tuple: {py_type!r}")
         # heterogeneous tuple
-        element_types = [parse_type_declaration(arg, is_builtin=is_builtin) for arg in type_args]
+        element_types = [
+            parse_type_declaration(arg, is_builtin=is_builtin, reference_type=reference_type)
+            for arg in type_args
+        ]
         return TypeDeclaration(
             cardinality=TypeCardinality.TUPLE,
             element_types=element_types,
@@ -127,7 +133,11 @@ def parse_type_declaration(
 
         if len(non_none_types) == 1:
             # it's just an optional of that type
-            result = parse_type_declaration(non_none_types[0], is_builtin=is_builtin)
+            result = parse_type_declaration(
+                non_none_types[0],
+                is_builtin=is_builtin,
+                reference_type=reference_type,
+            )
             result.is_required = is_required
             return result
         else:
@@ -146,14 +156,19 @@ def parse_type_declaration(
                 # union of node types
                 return TypeDeclaration(
                     cardinality=TypeCardinality.SCALAR,
-                    scalar_type=ScalarType.NODE_REFERENCE,
+                    scalar_type=ScalarType.NODE_MOMENT,
                     node_types=tuple(all_node_types),
                     is_required=is_required,
                 )
             else:
                 # general union
                 element_types = tuple(
-                    parse_type_declaration(arg, is_builtin=is_builtin) for arg in non_none_types
+                    parse_type_declaration(
+                        arg,
+                        is_builtin=is_builtin,
+                        reference_type=reference_type,
+                    )
+                    for arg in non_none_types
                 )
                 return TypeDeclaration(
                     cardinality=TypeCardinality.SCALAR,
@@ -165,8 +180,16 @@ def parse_type_declaration(
     # map
     if origin is dict:
         key_type_arg, value_type_arg = typing.get_args(py_type)
-        key_annotation = parse_type_declaration(key_type_arg, is_builtin=is_builtin)
-        value_annotation = parse_type_declaration(value_type_arg, is_builtin=is_builtin)
+        key_annotation = parse_type_declaration(
+            key_type_arg,
+            is_builtin=is_builtin,
+            reference_type=reference_type,
+        )
+        value_annotation = parse_type_declaration(
+            value_type_arg,
+            is_builtin=is_builtin,
+            reference_type=reference_type,
+        )
         if is_builtin:
             assert key_annotation.cardinality == TypeCardinality.SCALAR, (
                 f"builtin Types don't support map keys: {py_type!r}"
@@ -193,7 +216,7 @@ def parse_type_declaration(
 def parse_type_declaration_scalar(
     py_type: type | str | typing.ForwardRef,
     *,
-    reference_type: ReferenceType | None = ReferenceType.REGULAR,
+    reference_type: ReferenceType | Literal["value"] | None,
     is_builtin: bool = False,
     is_required: bool = True,
 ) -> TypeDeclaration:
@@ -224,7 +247,7 @@ def parse_type_declaration_scalar(
         is_required = False
     elif class_name == "Self":
         # Self is only valid for Nodes
-        scalar_type = ScalarType.NODE_REFERENCE
+        scalar_type = ScalarType.NODE_MOMENT
         is_self = True
     elif class_name == "Any":
         scalar_type = ScalarType.PRIMITIVE
@@ -240,11 +263,16 @@ def parse_type_declaration_scalar(
         scalar_type = ScalarType.STRUCT
         struct_type = struct_t
     elif node_t := resolve_node_types(class_name):
-        if reference_type == ReferenceType.REGULAR:
-            scalar_type = ScalarType.NODE_REFERENCE
-        elif reference_type == ReferenceType.THIN:
-            scalar_type = ScalarType.NODE_ID
-        elif reference_type is None:
+        assert reference_type is not None, f"no reference type specified for {py_type!r}"
+        if reference_type == ReferenceType.UNTYPED_IDENTITY:
+            scalar_type = ScalarType.NODE_UNTYPED_IDENTITY
+        elif reference_type == ReferenceType.IDENTITY:
+            scalar_type = ScalarType.NODE_IDENTITY
+        elif reference_type == ReferenceType.MOMENT:
+            scalar_type = ScalarType.NODE_MOMENT
+        elif reference_type == ReferenceType.LOCATION:
+            scalar_type = ScalarType.NODE_LOCATION
+        elif reference_type == "value":
             scalar_type = ScalarType.NODE
         else:
             assert_never(reference_type)
@@ -255,7 +283,6 @@ def parse_type_declaration_scalar(
     else:
         raise ValueError(f"undetermined scalar type: {py_type!r} ({type(py_type)})")
 
-    # default: scalar
     return TypeDeclaration(
         cardinality=TypeCardinality.SCALAR,
         scalar_type=scalar_type,

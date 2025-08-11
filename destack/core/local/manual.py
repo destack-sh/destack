@@ -371,7 +371,12 @@ def _render_type_scalar(type: "Type") -> str:
             node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
             return " | ".join(node_names)
     # node reference
-    elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
+    elif type.scalar_type in (
+        ScalarType.NODE_MOMENT,
+        ScalarType.NODE_UNTYPED_IDENTITY,
+        ScalarType.NODE_IDENTITY,
+        ScalarType.NODE_LOCATION,
+    ):
         if type.node_types is None:
             node_str = "Node"
         elif len(type.node_types) == 1:
@@ -379,12 +384,7 @@ def _render_type_scalar(type: "Type") -> str:
         else:
             node_names = [NODE_CLASS_BY_TYPE[t].__name__ for t in type.node_types]
             node_str = " | ".join(node_names)
-        if type.scalar_type == ScalarType.NODE_ID:
-            return f"->{node_str}.id"
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
-            return f"->{node_str}"
-        else:
-            assert_never(type.scalar_type)
+        return f"->{node_str}[{type.scalar_type.name}]"
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
         assert type.struct_type is not None, f"no struct_type for {type!r}"

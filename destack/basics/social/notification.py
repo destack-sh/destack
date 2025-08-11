@@ -6,6 +6,7 @@ from destack.core import (
     Event,
     NodeType,
     OptionEnum,
+    ReferenceType,
     TraitType,
     declare_entity,
     declare_enum,
@@ -33,7 +34,10 @@ class NotificationStatus(OptionEnum):
 class NotificationEvent(Event):
     """A Event regarding a Notification."""
 
-    notification: "Notification" = declare_property(101)
+    notification: "Notification" = declare_property(
+        101,
+        reference_type=ReferenceType.LOCATION,
+    )
 
 
 @declare_event(NodeType.NOTIFICATION_SENT_EVENT)

@@ -13,18 +13,6 @@ if TYPE_CHECKING:
 class PythonObjectSizer(ObjectSizer):
     """
     Estimate the actual size of Objects in the Python runtime in bytes.
-
-    Assumptions:
-    - every value is an object; size_type adds pointer overhead by default
-    - integers use PyLong layout: ~28 bytes header + 4 bytes per 30-bit digit (min 1 digit)
-    - floats are boxed objects of fixed size (FLOAT_OBJECT_SIZE)
-    - uuid is a uuid.UUID object (UUID_OBJECT_SIZE)
-    - datetime/date/time/timedelta use CPython objects with fixed sizes (DATETIME/DATE/TIME/TIMEDELTA)
-    - bytes and str report baseline empty sizes; payload length is unbounded (max_size=None)
-    - list and dict report empty-container baselines; entries/elements are unbounded
-    - tuple size is base + pointer per element + element sizes; unbounded if any element is unbounded
-    - enums and node values are treated as singletons/references (pointer-only in aggregates)
-    - optional values (is_required=False) have min_size=0
     """
 
     # object/collection base overheads (engine dependent)
@@ -175,13 +163,21 @@ class PythonObjectSizer(ObjectSizer):
             # references in memory, also just pointers
             return ObjectSize(0, 0)
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             # treat as struct
-            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_REFERENCE])
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_MOMENT])
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             # UUID object
             return ObjectSize(self.UUID_OBJECT_SIZE, self.UUID_OBJECT_SIZE)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            # treat as struct
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_IDENTITY])
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            # treat as struct
+            return self.size_object(STRUCT_DEFINITION_BY_TYPE[StructType.NODE_LOCATION])
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"

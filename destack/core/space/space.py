@@ -7,7 +7,6 @@ from ..builtin import (
     Region,
     RuntimePlatform,
     TraitType,
-    ValueFactory,
     declare_action,
     declare_entity,
     declare_property,
@@ -37,14 +36,6 @@ class Space(Entity):
     """
     A Space is the root of a Destack workspace.
     """
-
-    space: "Space" = declare_property(
-        3,
-        is_managed=True,
-        is_readonly=True,
-        default_factory=ValueFactory.SELF,
-        description="The Space this Node is in.",
-    )
 
     slug: str = declare_property(102, is_repr=True)
 

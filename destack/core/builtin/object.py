@@ -95,7 +95,6 @@ class ObjectGenerator:
             prop.name: prop for prop in cls.__properties__.values() if not prop.is_static
         }
         if declaration.kind == ObjectKind.NODE:
-            header_properties.pop("_ref")
             header_properties.pop("_is_new")
         properties_in_order = list(header_properties.values())
         properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
@@ -109,7 +108,7 @@ class ObjectGenerator:
             and not p.is_managed
             and p.type.cardinality == TypeCardinality.SCALAR
             and p.type.scalar_type
-            != ScalarType.NODE_REFERENCE  # passed either as node or node_ptr, defer check
+            != ScalarType.NODE_MOMENT  # passed either as node or node_ptr, defer check
         ]
 
         # header
@@ -142,7 +141,7 @@ class ObjectGenerator:
                     extra_glbls[default_name] = prop.default_value
                     default_str = default_name
                 method_header_lines.append(f"{prop.name}={default_str}")
-                if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+                if prop.type.scalar_type == ScalarType.NODE_MOMENT:
                     method_header_lines.append(f"{prop.name}_ptr=None")
 
             method_header_lines.append(")")
@@ -191,7 +190,6 @@ class ObjectGenerator:
                 body_properties.pop("client_local_epoch")
             else:
                 raise NotImplementedError(f"unexpected node {cls.__name__}")
-            body_properties.pop("_ref")
             body_properties.pop("_is_new")
             method_body_lines.append(f"""\
 # session
@@ -274,13 +272,11 @@ else:
 
             arg_name = prop.name
             self_name = (
-                prop.name
-                if prop.type.scalar_type != ScalarType.NODE_REFERENCE
-                else f"{prop.name}_ptr"
+                prop.name if prop.type.scalar_type != ScalarType.NODE_MOMENT else f"{prop.name}_ptr"
             )
 
             # cast node to node_ptr
-            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
                 method_body_lines.append(f"""\
 if {arg_name} is not None:
     {self_name} = {arg_name}.to_ref()""")
@@ -456,7 +452,7 @@ __str__ = __repr__
         has_required_repr_props = False
         for prop in repr_properties:
             source_prop_name = prop.name
-            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
                 source_prop_name = f"{prop.name}_ptr"
             source_expr = f"self.{source_prop_name}"
             target_expr = f"_{source_prop_name}_repr"
@@ -677,11 +673,17 @@ if ({map_expr} := {source_expr}):
         elif type.scalar_type == ScalarType.NODE:
             return f"{value_expr}!r"
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return f"{value_expr}!r"
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
-            raise NotImplementedError(f"cannot get repr for NODE_ID: {type!r}")
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return f"{value_expr}!r"
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"{value_expr}!r"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"{value_expr}!r"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             return f"{value_expr}!r"
@@ -712,7 +714,7 @@ if ({map_expr} := {source_expr}):
         cmp_strs = []
         for i, prop in enumerate(eq_properties):
             prop_name = prop.name
-            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
                 prop_name = f"{prop_name}_ptr"
             self_source_expr = f"self.{prop_name}"
             other_source_expr = f"other.{prop_name}"
@@ -808,7 +810,7 @@ if {self_source_expr} is not None:
 
             if type.scalar_type in (
                 ScalarType.STRUCT,
-                ScalarType.NODE_REFERENCE,
+                ScalarType.NODE_MOMENT,
                 ScalarType.NODE,
             ):
                 # maps with complex values need key-by-key comparison
@@ -908,11 +910,17 @@ if {self_source_expr} != {other_source_expr}:
         elif type.scalar_type == ScalarType.NODE:
             return "{self_val}.id == {other_val}.id", False
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return "{self_val}.id == {other_val}.id", False
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
-            raise NotImplementedError(f"cannot get equals for NODE_ID: {type!r}")
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return "{self_val} == {other_val}", True
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return "{self_val} == {other_val}", True
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return "{self_val}.id == {other_val}.id", False
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             return "{self_val}.equals({other_val})", False
@@ -943,7 +951,7 @@ if {self_source_expr} != {other_source_expr}:
         hash_parts: list[str] = []
         for prop in hash_properties:
             prop_name = prop.name
-            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
                 prop_name = f"{prop_name}_ptr"
             source_expr = f"self.{prop_name}"
             prop_hash_impl = self.generate_hash_value(
@@ -1105,11 +1113,17 @@ if ({map_source_expr} := {source_expr}):
         elif type.scalar_type == ScalarType.NODE:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node reference
-        elif type.scalar_type == ScalarType.NODE_REFERENCE:
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # node id
-        elif type.scalar_type == ScalarType.NODE_ID:
-            raise NotImplementedError(f"cannot hash NODE_ID: {type!r}")
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"{hasher_expr}.hash_uint64({source_expr}.hash())"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot hash HANDLE: {type!r}")
@@ -1410,7 +1424,11 @@ def _process_object_cls[ObjectT: Object](
         if not prop.is_runtime_only:
             lower_camel_name = to_casing(prop.name, StringCasing.LOWER_CAMEL)
             upper_camel_name = to_casing(prop.name, StringCasing.UPPER_CAMEL)
-            if prop.type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_ID):
+            if prop.type.scalar_type in (
+                ScalarType.NODE_MOMENT,
+                ScalarType.NODE_UNTYPED_IDENTITY,
+                ScalarType.NODE_IDENTITY,
+            ):
                 aliases = (
                     prop.name,
                     prop.name + "_ptr",
@@ -1496,10 +1514,14 @@ def __init__(self):
             if isinstance(cls_dict.get(prop.name), PropertyDeclaration):
                 cls_dict.pop(prop.name, None)
             # gather slots
-            if prop.type.scalar_type == ScalarType.NODE_REFERENCE:
+            if prop.type.scalar_type == ScalarType.NODE_MOMENT:
                 slots.append(f"{prop.name}_ptr")
-            elif prop.type.scalar_type == ScalarType.NODE_ID:
+            elif prop.type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
                 slots.append(f"{prop.name}_id")
+            elif prop.type.scalar_type == ScalarType.NODE_IDENTITY:
+                slots.append(f"{prop.name}_ptr")
+            elif prop.type.scalar_type == ScalarType.NODE_LOCATION:
+                slots.append(f"{prop.name}_ptr")
             else:
                 slots.append(prop.name)
         cls_dict["__slots__"] = tuple(slots)

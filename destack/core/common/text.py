@@ -7,6 +7,7 @@ from ..builtin import (
     EnumType,
     Node,
     OptionEnum,
+    ReferenceType,
     Struct,
     StructType,
     declare_enum,
@@ -35,7 +36,10 @@ class TextSpan(Struct):
 
     type: TextSpanType = declare_property(100, default=TextSpanType.TEXT)
     content: Optional[str] = declare_property(101)
-    node: Optional[Node] = declare_property(102)
+    node: Optional[Node] = declare_property(
+        102,
+        reference_type=ReferenceType.IDENTITY,
+    )
     url: Optional[str] = declare_property(105)
 
     is_bold: Optional[bool] = declare_property(150)

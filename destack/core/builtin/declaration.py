@@ -308,7 +308,7 @@ def _parse_signature(
     return_annotation: Any,
     operator: "FunctionOperator | None",
 ) -> SignatureDeclaration:
-    from .property import PropertyDeclaration
+    from .property import PropertyDeclaration, ReferenceType
     from .type import parse_type_declaration
 
     input_properties: list[PropertyDeclaration] = []
@@ -328,7 +328,11 @@ def _parse_signature(
             default_value=param.default if param.default != inspect.Parameter.empty else UNSET,
         )
         try:
-            prop.type = parse_type_declaration(prop_py_type, is_builtin=True)
+            prop.type = parse_type_declaration(
+                prop_py_type,
+                is_builtin=True,
+                reference_type=ReferenceType.MOMENT,
+            )
         except Exception as e:
             raise ValueError(
                 f"unexpected parameter type: {qualname}.{param_name} ({prop.py_type})"
@@ -340,7 +344,11 @@ def _parse_signature(
     if return_annotation != inspect.Parameter.empty and return_annotation is not None:
         prop = PropertyDeclaration(name="__return__", py_type=return_annotation)
         try:
-            prop.type = parse_type_declaration(prop.py_type, is_builtin=True)
+            prop.type = parse_type_declaration(
+                prop.py_type,
+                is_builtin=True,
+                reference_type=ReferenceType.MOMENT,
+            )
         except Exception as e:
             raise ValueError(f"unexpected return type: {qualname} ({prop.py_type})") from e
         output_property = prop
