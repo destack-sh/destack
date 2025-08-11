@@ -451,9 +451,6 @@ else:
                 PrimitiveType.INT32,
                 PrimitiveType.INT64,
                 PrimitiveType.INT128,
-            ):
-                return source_expr
-            elif type.primitive_type in (
                 PrimitiveType.UINT8,
                 PrimitiveType.UINT16,
                 PrimitiveType.UINT32,
@@ -492,6 +489,23 @@ else:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return self.generate_pack_enum(enum_cls.__name__, source_expr)
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return f"""\
+_encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
+        # node id (untyped)
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return f"str({source_expr})"
+        # node id (typed)
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"_encoder.pack_object({source_expr}, _options)"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"_encoder.pack_object({source_expr}, _options)"
+        # node reference (moment)
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return f"""\
+_encoder.pack_object({source_expr}, _options)"""
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -502,23 +516,6 @@ _encoder.pack_object({source_expr}, _options)"""
             else:
                 return f"""\
 _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
-        # node
-        elif type.scalar_type == ScalarType.NODE:
-            return f"""\
-_encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
-        # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return f"""\
-_encoder.pack_object({source_expr}, _options)"""
-        # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
-            return f"str({source_expr})"
-        # node typed id
-        elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return f"_encoder.pack_object({source_expr}, _options)"
-        # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
-            return f"_encoder.pack_object({source_expr}, _options)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
@@ -547,22 +544,19 @@ _encoder.pack_object({source_expr}, _options)"""
                 PrimitiveType.INT32,
                 PrimitiveType.INT64,
                 PrimitiveType.INT128,
-            ):
-                return source_expr
-            elif type.primitive_type in (
                 PrimitiveType.UINT8,
                 PrimitiveType.UINT16,
                 PrimitiveType.UINT32,
                 PrimitiveType.UINT64,
                 PrimitiveType.UINT128,
             ):
-                return source_expr
+                return f"int({source_expr})"
             elif type.primitive_type in (
                 PrimitiveType.FLOAT16,
                 PrimitiveType.FLOAT32,
                 PrimitiveType.FLOAT64,
             ):
-                return source_expr
+                return f"float({source_expr})"
             elif type.primitive_type == PrimitiveType.DATETIME:
                 return f"datetime.fromisoformat({source_expr})"
             elif type.primitive_type == PrimitiveType.DATE:
@@ -588,6 +582,23 @@ _encoder.pack_object({source_expr}, _options)"""
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return self.generate_unpack_enum(enum_cls.__name__, source_expr)
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return f"""\
+_encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
+        # node id
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return f"UUID({source_expr})"
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY.value}, {source_expr}, _session, _options)"
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_LOCATION.value}, {source_expr}, _session, _options)"
+        # node reference (moment)
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return f"""\
+_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, {source_expr}, _session, _options)"""
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -598,23 +609,6 @@ _encoder.unpack_object({ObjectKind.STRUCT.value}, {type.struct_type.value}, {sou
             else:
                 return f"""\
 _encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
-        # node
-        elif type.scalar_type == ScalarType.NODE:
-            return f"""\
-_encoder.unpack_object(None, None, {source_expr}, _session, _options & ~EncoderOptions.OMIT_METATYPE)"""
-        # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return f"""\
-_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, {source_expr}, _session, _options)"""
-        # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
-            return f"UUID({source_expr})"
-        # node typed id
-        elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY.value}, {source_expr}, _session, _options)"
-        # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
-            return f"_encoder.unpack_object({ObjectKind.STRUCT.value}, {StructType.NODE_LOCATION.value}, {source_expr}, _session, _options)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")

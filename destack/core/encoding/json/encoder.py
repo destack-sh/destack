@@ -333,6 +333,21 @@ class JsonEncoder(Encoder):
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return self.pack_scalar_enum(enum_cls, value)
+        # node
+        elif type.scalar_type == ScalarType.NODE:
+            return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
+        # node id
+        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
+            return str(value)
+        # node typed id
+        elif type.scalar_type == ScalarType.NODE_IDENTITY:
+            return str(value.id)
+        # node location
+        elif type.scalar_type == ScalarType.NODE_LOCATION:
+            return self.pack_object(value, options)
+        # node reference (moment)
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return self.pack_object(value, options)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
@@ -341,21 +356,6 @@ class JsonEncoder(Encoder):
                 return self.pack_object(value, options)
             else:
                 return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
-        # node
-        elif type.scalar_type == ScalarType.NODE:
-            return self.pack_object(value, options & ~EncoderFlag.OMIT_METATYPE)
-        # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return self.pack_object(value, options)
-        # node location
-        elif type.scalar_type == ScalarType.NODE_LOCATION:
-            return self.pack_object(value, options)
-        # node id
-        elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
-            return str(value)
-        # node typed id
-        elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return str(value.id)
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
@@ -428,11 +428,6 @@ class JsonEncoder(Encoder):
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return self.unpack_scalar_enum(enum_cls, value)
-        # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return self.unpack_object(
-                ObjectKind.STRUCT, StructType.NODE_MOMENT, value, session, options
-            )
         # node
         elif type.scalar_type == ScalarType.NODE:
             return self.unpack_object(
@@ -450,6 +445,11 @@ class JsonEncoder(Encoder):
         elif type.scalar_type == ScalarType.NODE_LOCATION:
             return self.unpack_object(
                 ObjectKind.STRUCT, StructType.NODE_LOCATION, value, session, options
+            )
+        # node reference (moment)
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return self.unpack_object(
+                ObjectKind.STRUCT, StructType.NODE_MOMENT, value, session, options
             )
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
