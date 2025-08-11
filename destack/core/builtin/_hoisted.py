@@ -285,11 +285,13 @@ class ScalarType(OptionEnum):
         4,
         "Node Naked Identity",
         description="Reference to a Node (id only, for internal use)",
+        is_internal=True,
     )
     NODE_IDENTITY = declare_option(
         5,
         "Node Typed Identity",
-        description="Reference to a Node (type + id, assumed Space)",
+        description="Reference to a Node (type + id, for internal use)",
+        is_internal=True,
     )
     NODE_LOCATION = declare_option(
         6,

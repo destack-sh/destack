@@ -474,20 +474,9 @@ for _ in range({key}_length):
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             return f"_writer.write_uint32({source_expr}.value)"
-        # struct
-        elif type.scalar_type == ScalarType.STRUCT:
-            assert type.struct_type is not None, f"no struct type for {type!r}"
-            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-            if struct_cls.__declaration__.is_final:
-                return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
-            else:
-                return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node
         elif type.scalar_type == ScalarType.NODE:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
-        # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
         # node id
         elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return f"_writer.write_uuid({source_expr})"
@@ -497,6 +486,17 @@ for _ in range({key}_length):
         # node location
         elif type.scalar_type == ScalarType.NODE_LOCATION:
             return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+        # node reference (moment)
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+        # struct
+        elif type.scalar_type == ScalarType.STRUCT:
+            assert type.struct_type is not None, f"no struct type for {type!r}"
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+            else:
+                return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
@@ -571,20 +571,9 @@ for _ in range({key}_length):
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             return f"{enum_cls.__name__}.__options_by_id__[_reader.read_uint32()]"
-        # struct
-        elif type.scalar_type == ScalarType.STRUCT:
-            assert type.struct_type is not None, f"no struct type for {type!r}"
-            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-            if struct_cls.__declaration__.is_final:
-                return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, _reader, _session, _options)"
-            else:
-                return "_encoder.unpack_object_binary(None, None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node
         elif type.scalar_type == ScalarType.NODE:
             return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
-        # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node id
         elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             return "UUID(_reader.read_uuid())"
@@ -594,6 +583,17 @@ for _ in range({key}_length):
         # node location
         elif type.scalar_type == ScalarType.NODE_LOCATION:
             return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_LOCATION.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        # node reference (moment)
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_MOMENT.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+        # struct
+        elif type.scalar_type == ScalarType.STRUCT:
+            assert type.struct_type is not None, f"no struct type for {type!r}"
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, _reader, _session, _options)"
+            else:
+                return "_encoder.unpack_object_binary(None, None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")

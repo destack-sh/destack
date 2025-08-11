@@ -141,23 +141,27 @@ class KompaktEncoder(Encoder):
         # scalar (type folded into preamble)
         if type.cardinality == TypeCardinality.SCALAR:
             assert type.scalar_type is not None, f"no scalar type for {type!r}"
+            # primitive
             if type.scalar_type == ScalarType.PRIMITIVE:
                 assert type.primitive_type is not None, f"no primitive type for {type!r}"
                 writer.write_uint8(type.primitive_type)
+            # enum
             elif type.scalar_type == ScalarType.ENUM:
                 assert type.enum_type is not None, f"no enum type for {type!r}"
                 writer.write_uint32(type.enum_type)
+            # node
             elif type.scalar_type in (
                 ScalarType.NODE,
-                ScalarType.NODE_MOMENT,
                 ScalarType.NODE_UNTYPED_IDENTITY,
                 ScalarType.NODE_IDENTITY,
                 ScalarType.NODE_LOCATION,
+                ScalarType.NODE_MOMENT,
             ):
                 assert type.node_types is not None, f"no node types for {type!r}"
                 writer.write_uint32(len(type.node_types))
                 for node_type in type.node_types:
                     writer.write_uint32(node_type)
+            # struct
             elif type.scalar_type == ScalarType.STRUCT:
                 assert type.struct_type is not None, f"no struct type for {type!r}"
                 writer.write_uint32(type.struct_type)
@@ -208,18 +212,22 @@ class KompaktEncoder(Encoder):
         # scalar (type folded into preamble)
         if cardinality == TypeCardinality.SCALAR:
             assert scalar_type is not None, f"no scalar type for {cardinality}"
+            # primitive
             if scalar_type == ScalarType.PRIMITIVE:
                 primitive_type = PrimitiveType(reader.read_uint8())
+            # enum
             elif scalar_type == ScalarType.ENUM:
                 enum_type = EnumType(reader.read_uint32())
+            # node
             elif scalar_type in (
                 ScalarType.NODE,
-                ScalarType.NODE_MOMENT,
                 ScalarType.NODE_UNTYPED_IDENTITY,
                 ScalarType.NODE_IDENTITY,
                 ScalarType.NODE_LOCATION,
+                ScalarType.NODE_MOMENT,
             ):
                 node_types = [NodeType(reader.read_uint32()) for _ in range(reader.read_uint32())]
+            # struct
             elif scalar_type == ScalarType.STRUCT:
                 struct_type = StructType(reader.read_uint32())
             elif scalar_type == ScalarType.HANDLE:
@@ -424,14 +432,14 @@ class KompaktEncoder(Encoder):
                 writer.write_time(value)
             elif type.primitive_type == PrimitiveType.DURATION:
                 writer.write_duration(value)
-            elif type.primitive_type == PrimitiveType.UUID:
-                writer.write_uuid(value)
-            elif type.primitive_type == PrimitiveType.BYTES:
-                writer.write_bytes(value)
             elif type.primitive_type == PrimitiveType.STRING:
                 writer.write_string(value)
             elif type.primitive_type == PrimitiveType.CHARACTER:
                 writer.write_character(value)
+            elif type.primitive_type == PrimitiveType.UUID:
+                writer.write_uuid(value)
+            elif type.primitive_type == PrimitiveType.BYTES:
+                writer.write_bytes(value)
             elif type.primitive_type == PrimitiveType.JSON:
                 writer.write_json(value)
             else:
@@ -443,9 +451,6 @@ class KompaktEncoder(Encoder):
         # node
         elif type.scalar_type == ScalarType.NODE:
             self.pack_object_binary(value, writer, options & ~EncoderFlag.OMIT_METATYPE)
-        # node reference
-        elif type.scalar_type == ScalarType.NODE_MOMENT:
-            self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # node id
         elif type.scalar_type == ScalarType.NODE_UNTYPED_IDENTITY:
             writer.write_uuid(value.id)
@@ -454,6 +459,9 @@ class KompaktEncoder(Encoder):
             self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # node location
         elif type.scalar_type == ScalarType.NODE_LOCATION:
+            self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
+        # node reference (moment)
+        elif type.scalar_type == ScalarType.NODE_MOMENT:
             self.pack_object_binary(value, writer, options | EncoderFlag.OMIT_METATYPE)
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
@@ -524,14 +532,14 @@ class KompaktEncoder(Encoder):
                 return reader.read_time()
             elif type.primitive_type == PrimitiveType.DURATION:
                 return reader.read_duration()
-            elif type.primitive_type == PrimitiveType.UUID:
-                return reader.read_uuid()
-            elif type.primitive_type == PrimitiveType.BYTES:
-                return reader.read_bytes()
             elif type.primitive_type == PrimitiveType.STRING:
                 return reader.read_string()
             elif type.primitive_type == PrimitiveType.CHARACTER:
                 return reader.read_character()
+            elif type.primitive_type == PrimitiveType.UUID:
+                return reader.read_uuid()
+            elif type.primitive_type == PrimitiveType.BYTES:
+                return reader.read_bytes()
             elif type.primitive_type == PrimitiveType.JSON:
                 return reader.read_json()
             else:
@@ -542,26 +550,6 @@ class KompaktEncoder(Encoder):
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
             enum_value = reader.read_uint32()
             return enum_cls.__options_by_id__[enum_value]
-        # struct
-        elif type.scalar_type == ScalarType.STRUCT:
-            assert type.struct_type is not None, f"no struct type for {type!r}"
-            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
-            if struct_cls.__declaration__.is_final:
-                return self.unpack_object_binary(
-                    ObjectKind.STRUCT,
-                    type.struct_type,
-                    reader,
-                    session,
-                    options | EncoderFlag.OMIT_METATYPE,
-                )
-            else:
-                return self.unpack_object_binary(
-                    None,
-                    None,
-                    reader,
-                    session,
-                    options & ~EncoderFlag.OMIT_METATYPE,
-                )
         # node
         elif type.scalar_type == ScalarType.NODE:
             return self.unpack_object_binary(
@@ -601,6 +589,26 @@ class KompaktEncoder(Encoder):
                 session,
                 options | EncoderFlag.OMIT_METATYPE,
             )
+        # struct
+        elif type.scalar_type == ScalarType.STRUCT:
+            assert type.struct_type is not None, f"no struct type for {type!r}"
+            struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+            if struct_cls.__declaration__.is_final:
+                return self.unpack_object_binary(
+                    ObjectKind.STRUCT,
+                    type.struct_type,
+                    reader,
+                    session,
+                    options | EncoderFlag.OMIT_METATYPE,
+                )
+            else:
+                return self.unpack_object_binary(
+                    None,
+                    None,
+                    reader,
+                    session,
+                    options & ~EncoderFlag.OMIT_METATYPE,
+                )
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")

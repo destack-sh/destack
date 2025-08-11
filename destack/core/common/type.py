@@ -365,10 +365,10 @@ def invert_type_scalar(type: "Type") -> "Any":
         return NODE_CLASS_BY_TYPE[type.node_types[0]]
     # node reference
     elif type.scalar_type in (
-        ScalarType.NODE_MOMENT,
         ScalarType.NODE_UNTYPED_IDENTITY,
         ScalarType.NODE_IDENTITY,
         ScalarType.NODE_LOCATION,
+        ScalarType.NODE_MOMENT,
     ):
         assert type.node_types is not None, f"no node types for: {type!r}"
         if len(type.node_types) == 1:
