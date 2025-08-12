@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
+    DateTime,
+    Duration,
     Event,
     NodeType,
     ReferenceType,
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 @declare_event(NodeType.SPAN_EVENT)
 class SpanEvent(Event):
     """
-    A Span is a trace inside a Run.
+    A Span traces a Run.
     """
 
     custom_values: dict[str, "Value"] | None = declare_property(
@@ -31,9 +32,9 @@ class SpanEvent(Event):
         is_interned=True,
         tag=None,
     )
-    start_time: datetime = declare_property(102, tag=None)
-    end_time: datetime = declare_property(103, tag=None)
-    duration: timedelta = declare_property(104, tag=None)
+    start_time: DateTime = declare_property(102, tag=None)
+    end_time: DateTime = declare_property(103, tag=None)
+    duration: Duration = declare_property(104, tag=None)
 
     parent_span: Optional["SpanEvent"] = declare_property(
         110,

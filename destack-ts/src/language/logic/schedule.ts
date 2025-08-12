@@ -1,4 +1,4 @@
-import type { Datetime, Session, UInt8, UInt16, UInt32 } from "@destack/language/core";
+import type { DateTime, Session, UInt8, UInt16, UInt32 } from "@destack/language/core";
 import { EnumType, Struct, StructType } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { hashInt, hashString } from "@destack/utils/hash";
@@ -88,12 +88,12 @@ export class Schedule extends Struct {
   /**
    * Schedule.start
    */
-  start: Datetime | null;
+  start: DateTime | null;
 
   /**
    * Schedule.end
    */
-  end: Datetime | null;
+  end: DateTime | null;
 
   /**
    * Schedule.count
@@ -158,8 +158,8 @@ export class Schedule extends Struct {
   constructor(options: {
     frequency: ScheduleFrequency;
     interval?: UInt32;
-    start?: Datetime | null;
-    end?: Datetime | null;
+    start?: DateTime | null;
+    end?: DateTime | null;
     count?: UInt32 | null;
     weekStart?: DayOfWeek | null;
     bySetPos?: readonly UInt32[] | null;

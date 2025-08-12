@@ -3,6 +3,7 @@ resolver = "2"
 members = [
 	"destack-rs/destack",
 	"destack-rs/destack_fractional",
+	"destack-rs/destack_time",
 	"destack-rs-system/destack_system",
 	"destack-rs-test/destack_test",
 ]
@@ -16,8 +17,9 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 destack = { path = "destack-rs/destack" }
-destack_system = { path = "destack-rs-system/destack_system" }
 destack_fractional = { path = "destack-rs/destack_fractional" }
+destack_time = { path = "destack-rs/destack_time" }
+destack_system = { path = "destack-rs-system/destack_system" }
 
 # dependencies
 bytes = "1.10.1"

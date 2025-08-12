@@ -7,7 +7,7 @@ from ..builtin import (
     Bytes,
     Character,
     Date,
-    Datetime,
+    DateTime,
     Duration,
     Float16,
     Float32,
@@ -132,7 +132,7 @@ class Hasher(Handle):
 
     # PrimitiveType.DATETIME
     @declare_method(140)
-    def hash_datetime(self, value: Datetime) -> None:
+    def hash_datetime(self, value: DateTime) -> None:
         """Hash a datetime as zigzag-encoded varint of microseconds since epoch."""
         raise NotImplementedError
 
@@ -328,7 +328,7 @@ class MemoryHasher(Hasher):
         self._mix_bytes(struct.pack("<d", value))
 
     @override
-    def hash_datetime(self, value: Datetime) -> None:
+    def hash_datetime(self, value: DateTime) -> None:
         """Hash a datetime as zigzag-encoded varint of microseconds since epoch."""
         if value.tzinfo is None:
             value = value.replace(tzinfo=UTC)

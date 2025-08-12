@@ -12,7 +12,7 @@ from .types import (
     Bytes,
     Character,
     Date,
-    Datetime,
+    DateTime,
     Duration,
     Float16,
     Float32,
@@ -453,9 +453,9 @@ Range: ±2^-1022 to ±2^1023-1
     # time
     DATETIME = declare_option(
         40,
-        "Datetime",
+        "DateTime",
         description="""\
-Datetime in signed 64-bit microsecond precision since epoch (UTC)
+DateTime in signed 64-bit microsecond precision since epoch (UTC)
 Range: ±292,277 years
 """,
     )
@@ -475,8 +475,17 @@ Time in unsigned 64-bit nanosecond precision
 Range: 00:00:00.000000000 to 23:59:59.999999999
 """,
     )
+    # nocheckin: support and use TIMESTAMP primitive
+    #     TIMESTAMP = declare_option(
+    #         43,
+    #         "Timestamp",
+    #         description="""\
+    # Timestamp in signed 64-bit nanosecond precision since epoch (UTC)
+    # Range: ±292,277 years
+    # """,
+    #     )
     DURATION = declare_option(
-        43,
+        44,
         "Duration",
         description="""\
 Duration in signed 64-bit nanosecond precision
@@ -555,7 +564,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     Float32: PrimitiveType.FLOAT32,
     Float64: PrimitiveType.FLOAT64,
     # time
-    Datetime: PrimitiveType.DATETIME,
+    DateTime: PrimitiveType.DATETIME,
     datetime: PrimitiveType.DATETIME,
     Date: PrimitiveType.DATE,
     date: PrimitiveType.DATE,

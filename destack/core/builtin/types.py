@@ -20,7 +20,7 @@ type Float16 = float
 type Float32 = float
 type Float64 = float
 # time
-type Datetime = datetime
+type DateTime = datetime
 type Date = date
 type Time = time
 type Duration = timedelta
@@ -49,7 +49,7 @@ __all__ = [  # noqa: RUF022
     "Float32",
     "Float64",
     # time
-    "Datetime",
+    "DateTime",
     "Date",
     "Time",
     "Duration",

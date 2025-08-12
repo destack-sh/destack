@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   EventStatus,
   Float32,
   Materialization,
@@ -64,7 +64,7 @@ export abstract class ViewEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -91,7 +91,7 @@ export abstract class ViewEvent extends Event {
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Datetime;
+  declare readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -174,7 +174,7 @@ export abstract class View extends Entity2D {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -190,7 +190,7 @@ export abstract class View extends Entity2D {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Datetime;
+  declare readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -208,7 +208,7 @@ export abstract class View extends Entity2D {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Datetime | null;
+  declare readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy

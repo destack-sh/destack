@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, override
 from ...builtin import (
     Bytes,
     Date,
-    Datetime,
+    DateTime,
     Duration,
     Int16,
     Int32,
@@ -113,7 +113,7 @@ class FlottBinaryWriter(KompaktBinaryWriter):
         self.buffer.extend(struct.pack("<QQ", low, high))
 
     @override
-    def write_datetime(self, value: Datetime) -> None:
+    def write_datetime(self, value: DateTime) -> None:
         """
         Write a datetime as fixed 8 bytes of signed 64-bit microseconds since Unix epoch (UTC).
         Range: approximately ±292,277 years.
@@ -304,7 +304,7 @@ class FlottBinaryReader(KompaktBinaryReader):
         return (high << 64) | low
 
     @override
-    def read_datetime(self) -> Datetime:
+    def read_datetime(self) -> DateTime:
         """
         Read a datetime from fixed 8 bytes of signed 64-bit microseconds since Unix epoch (UTC).
         Range: approximately ±292,277 years.

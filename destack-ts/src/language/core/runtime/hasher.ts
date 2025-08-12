@@ -2,7 +2,7 @@ import type {
   Boolean,
   Bytes,
   Date,
-  Datetime,
+  DateTime,
   Duration,
   Float16,
   Float32,
@@ -194,7 +194,7 @@ export class Hasher {
   }
 
   // PrimitiveType.DATETIME
-  hashDatetime(value: Datetime): void {
+  hashDateTime(value: DateTime): void {
     // ensure UTC timezone
     const utcValue = value.withTimeZone("UTC");
     const date = utcValue.toPlainDate();

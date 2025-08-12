@@ -18,7 +18,7 @@ export type Float16 = number;
 export type Float32 = number;
 export type Float64 = number;
 // time
-export type Datetime = Temporal.ZonedDateTime;
+export type DateTime = Temporal.ZonedDateTime;
 export type Date = Temporal.PlainDate;
 export type Time = Temporal.PlainTime;
 export type Duration = Temporal.Duration;

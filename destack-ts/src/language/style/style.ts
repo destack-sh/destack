@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   Materialization,
   NodeReference,
   Snapshot,
@@ -71,7 +71,7 @@ export abstract class Style extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -87,7 +87,7 @@ export abstract class Style extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Datetime;
+  declare readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -105,7 +105,7 @@ export abstract class Style extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Datetime | null;
+  declare readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy

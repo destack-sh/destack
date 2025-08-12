@@ -3,7 +3,7 @@ import { EnumType, NodeType, TraitType } from "@destack/language/core/builtin/bu
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { hasTrait, Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { Datetime, UInt128, UUID } from "@destack/language/core/builtin/types";
+import type { DateTime, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -81,7 +81,7 @@ export abstract class Entity extends Node {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -97,7 +97,7 @@ export abstract class Entity extends Node {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Datetime;
+  declare readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -115,7 +115,7 @@ export abstract class Entity extends Node {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Datetime | null;
+  declare readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
