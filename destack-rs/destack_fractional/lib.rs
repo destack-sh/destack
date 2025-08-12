@@ -457,5 +457,3 @@ mod tests {
     fractional_err_case!(case_zero_one, Some("0"), Some("1"), "InvalidOrderKey");
     fractional_err_case!(case_a1_a0, Some("a1"), Some("a0"), "InvalidComparison");
 }
-
-

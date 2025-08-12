@@ -1,4 +1,3 @@
-use std::error::Error as StdError;
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
@@ -10,45 +9,6 @@ use crate::Duration;
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DateTime(pub i64);
-
-/// errors for parsing `DateTime`
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DateTimeParseError {
-    TooShort,
-    MissingT,
-    MissingTimezone,
-    InvalidTime,
-    InvalidDate(crate::date::DateParseError),
-    InvalidOffset,
-    TimeOutOfRange,
-    FractionDigitsMustBe6,
-}
-
-impl fmt::Display for DateTimeParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DateTimeParseError::TooShort => f.write_str("too short"),
-            DateTimeParseError::MissingT => f.write_str("missing 'T'"),
-            DateTimeParseError::MissingTimezone => f.write_str("missing timezone"),
-            DateTimeParseError::InvalidTime => f.write_str("invalid time"),
-            DateTimeParseError::InvalidDate(_) => f.write_str("invalid date"),
-            DateTimeParseError::InvalidOffset => f.write_str("invalid offset"),
-            DateTimeParseError::TimeOutOfRange => f.write_str("time out of range"),
-            DateTimeParseError::FractionDigitsMustBe6 => {
-                f.write_str("microseconds must be 6 digits")
-            }
-        }
-    }
-}
-
-impl StdError for DateTimeParseError {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match self {
-            DateTimeParseError::InvalidDate(e) => Some(e),
-            _ => None,
-        }
-    }
-}
 
 impl DateTime {
     /// Get the current datetime in UTC
@@ -62,90 +22,21 @@ impl DateTime {
     }
 
     #[inline]
-    /// Split the time and timezone parts of a datetime string.
-    fn split_time_and_tz(dt_str: &str) -> Result<(&str, &str), DateTimeParseError> {
-        if let Some(zpos) = dt_str.rfind('Z') {
-            Ok((&dt_str[..zpos], &dt_str[zpos..]))
-        } else if let Some(pos) = dt_str.rfind(|c| c == '+' || c == '-') {
-            Ok((&dt_str[..pos], &dt_str[pos..]))
-        } else {
-            Err(DateTimeParseError::MissingTimezone)
-        }
-    }
-
-    #[inline]
-    /// Parse two digits from a byte slice at the given index.
-    fn parse_two_digits(dt_bytes: &[u8], idx: usize) -> Result<i64, DateTimeParseError> {
-        if idx + 1 >= dt_bytes.len()
-            || !dt_bytes[idx].is_ascii_digit()
-            || !dt_bytes[idx + 1].is_ascii_digit()
-        {
-            return Err(DateTimeParseError::InvalidTime);
-        }
-        Ok(((dt_bytes[idx] - b'0') as i64) * 10 + (dt_bytes[idx + 1] - b'0') as i64)
-    }
-
-    #[inline]
-    /// Parse the time part of a datetime string.
-    fn parse_time_us(dt_str: &str) -> Result<(i64, i64, i64, i64), DateTimeParseError> {
+    /// Parse the time part of a datetime string into (hh, mm, ss, us)
+    fn parse_time_us(dt_str: &str) -> Result<(i64, i64, i64, i64), crate::parser::ParseError> {
         let dt_bytes = dt_str.as_bytes();
-        if dt_bytes.len() < 8 {
-            return Err(DateTimeParseError::InvalidTime);
-        }
-        // hh
-        let hh = Self::parse_two_digits(dt_bytes, 0)?;
-        if dt_bytes.get(2) != Some(&b':') {
-            return Err(DateTimeParseError::InvalidTime);
-        }
-        // mm
-        let mm = Self::parse_two_digits(dt_bytes, 3)?;
-        if dt_bytes.get(5) != Some(&b':') {
-            return Err(DateTimeParseError::InvalidTime);
-        }
-        // ss
-        let ss = Self::parse_two_digits(dt_bytes, 6)?;
-        if hh >= 24 || mm >= 60 || ss >= 60 {
-            return Err(DateTimeParseError::TimeOutOfRange);
-        }
-        
-        // us
-        let mut us: i64 = 0;
-        if dt_bytes.len() > 8 {
-            if dt_bytes.get(8) != Some(&b'.') {
-                return Err(DateTimeParseError::InvalidTime);
+        let (hh, mm, ss) = crate::parser::parse_hh_mm_ss(dt_bytes)?;
+        let us = if dt_bytes.len() > 8 {
+            let tail = &dt_bytes[8..];
+            match crate::parser::parse_us_maybe(tail) {
+                Ok(Some(v)) => v,
+                Ok(None) => 0,
+                Err(e) => return Err(e),
             }
-            // microseconds must be 6 digits
-            if dt_bytes.len() != 15 {
-                return Err(DateTimeParseError::FractionDigitsMustBe6);
-            }
-            // parse microseconds
-            for &ch in &dt_bytes[9..15] {
-                if !ch.is_ascii_digit() {
-                    return Err(DateTimeParseError::InvalidTime);
-                }
-                us = us * 10 + (ch - b'0') as i64;
-            }
-        }
+        } else {
+            0
+        };
         Ok((hh, mm, ss, us))
-    }
-
-    #[inline]
-    /// Parse the timezone part of a datetime string.
-    fn parse_offset_ns(tz_part: &str) -> Result<i128, DateTimeParseError> {
-        // Z = no offset
-        if tz_part == "Z" {
-            return Ok(0);
-        }
-        // offset is ±HH:MM
-        let tz_bytes = tz_part.as_bytes();
-        if tz_bytes.len() != 6 || (tz_bytes[0] != b'+' && tz_bytes[0] != b'-') || tz_bytes[3] != b':' {
-            return Err(DateTimeParseError::InvalidOffset);
-        }
-        // parse HH and MM
-        let sign = if tz_bytes[0] == b'-' { -1i128 } else { 1 };
-        let hh = ((tz_bytes[1] - b'0') as i128) * 10 + (tz_bytes[2] - b'0') as i128;
-        let mm = ((tz_bytes[4] - b'0') as i128) * 10 + (tz_bytes[5] - b'0') as i128;
-        Ok(sign * (hh * 3_600 + mm * 60) * 1_000_000_000)
     }
 }
 
@@ -235,27 +126,31 @@ impl fmt::Display for DateTime {
         let h = seconds / 3600;
         let m = (seconds % 3600) / 60;
         let s = seconds % 60;
-        write!(f, "{}T{:02}:{:02}:{:02}.{:06}Z", date, h, m, s, us)
+        write!(f, "{}T", date)?;
+        crate::format::write_hms_us(f, h, m, s, us)?;
+        f.write_str("Z")
     }
 }
 
 impl FromStr for DateTime {
-    type Err = DateTimeParseError;
+    type Err = crate::parser::ParseError;
 
     /// Parse a datetime string in the format YYYY-MM-DDTHH:MM:SS.ffffffZ.
     ///  (or with explicit offset ±HH:MM to convert to UTC).
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // split date and time
         if s.len() < 20 {
-            return Err(DateTimeParseError::TooShort);
+            return Err(crate::parser::ParseError::TooShort);
         }
         let (date_part, rest) = s.split_at(10);
         if &rest[0..1] != "T" {
-            return Err(DateTimeParseError::MissingT);
+            return Err(crate::parser::ParseError::MissingT);
         }
-        let (time_part, tz_part) = Self::split_time_and_tz(&s[11..])?;
+        let (time_part, tz_part) = crate::parser::split_time_and_tz(&s[11..])?;
         // parse date
-        let date: crate::Date = date_part.parse().map_err(DateTimeParseError::InvalidDate)?;
+        let date: crate::Date = date_part
+            .parse::<crate::Date>()
+            .map_err(crate::parser::ParseError::InvalidDate)?;
         // parse time with 6 fractional digits
         let (hh, mm, ss, us) = Self::parse_time_us(time_part)?;
         let mut total_ns = (date.0 as i128) * 86_400 * 1_000_000_000i128
@@ -264,7 +159,7 @@ impl FromStr for DateTime {
             + (ss as i128) * 1_000_000_000
             + (us as i128) * 1_000; // micro to nano
         // handle tz
-        let offset_ns = Self::parse_offset_ns(tz_part)?;
+        let offset_ns = crate::parser::parse_tz_offset(tz_part)?;
         total_ns -= offset_ns; // convert to UTC
         let micros = total_ns / 1_000;
         Ok(DateTime(micros as i64))
@@ -280,16 +175,14 @@ mod tests {
     fn test_parse_format_datetime_utc() {
         let s = "2025-08-12T15:34:56.123456Z";
         let dt: DateTime = s.parse().unwrap();
-        // Format back (Display) yields same shape (microseconds)
         let out = dt.to_string();
-        // We only guarantee roundtrip via FromStr/Display pair for microseconds
         assert!(out.starts_with("2025-08-12T15:34:56.123456"));
         assert!(out.ends_with('Z'));
     }
 
     #[test]
     /// Parse a datetime string with an offset.
-    fn test_parse_with_offset() {
+    fn test_parse_datetime_with_offset() {
         let s = "2025-08-12T17:34:56.123456+02:00"; // equals 15:34:56.123456Z
         let dt: DateTime = s.parse().unwrap();
         assert!(dt.to_string().contains("15:34:56.123456"));
@@ -297,7 +190,7 @@ mod tests {
 
     #[test]
     /// Add and subtract durations from a datetime.
-    fn test_add_sub_and_diff() {
+    fn test_add_sub_datetime() {
         let dt = DateTime::now();
         let later = dt + Duration::from_millis(1_500);
         let diff = later - dt;
@@ -308,7 +201,7 @@ mod tests {
 
     #[test]
     /// Roundtrip a datetime from and to a SystemTime.
-    fn test_system_time_roundtrip() {
+    fn test_system_time_datetime() {
         let st = std::time::SystemTime::now();
         let dt: DateTime = st.into();
         let st2: std::time::SystemTime = dt.into();

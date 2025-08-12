@@ -48,7 +48,9 @@ impl Date {
     fn parse_i32_digits(bytes: &[u8]) -> Result<i32, DateParseError> {
         let mut v: i32 = 0;
         for &ch in bytes {
-            if !ch.is_ascii_digit() { return Err(DateParseError::InvalidNumber); }
+            if !ch.is_ascii_digit() {
+                return Err(DateParseError::InvalidNumber);
+            }
             v = v * 10 + (ch - b'0') as i32;
         }
         Ok(v)
@@ -112,17 +114,21 @@ impl From<std::time::SystemTime> for Date {
 impl fmt::Display for Date {
     /// Format the date as YYYY-MM-DD.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let z = self.0 + 719468;
-        let era = if z >= 0 { z / 146097 } else { (z - 146096) / 146097 };
-        let doe = z - era * 146097;
-        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-        let y = yoe + era * 400;
-        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-        let mp = (5 * doy + 2) / 153;
-        let d = doy - (153 * mp + 2) / 5 + 1;
-        let m = mp + if mp < 10 { 3 } else { -9 };
-        let year = y + (m <= 2) as i64;
-        write!(f, "{:04}-{:02}-{:02}", year, m, d)
+        let days_since_epoch = self.0 + 719468;
+        let era = if days_since_epoch >= 0 {
+            days_since_epoch / 146097
+        } else {
+            (days_since_epoch - 146096) / 146097
+        };
+        let day_of_era = days_since_epoch - era * 146097;
+        let year_of_era = (day_of_era - day_of_era / 1460 + day_of_era / 36524 - day_of_era / 146096) / 365;
+        let year = year_of_era + era * 400;
+        let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+        let month_plus = (5 * day_of_year + 2) / 153;
+        let day = day_of_year - (153 * month_plus + 2) / 5 + 1;
+        let month = month_plus + if month_plus < 10 { 3 } else { -9 };
+        let adjusted_year = year + (month <= 2) as i64;
+        write!(f, "{:04}-{:02}-{:02}", adjusted_year, month, day)
     }
 }
 
@@ -131,31 +137,36 @@ impl FromStr for Date {
 
     /// Parse a date string in the format YYYY-MM-DD.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let b = s.as_bytes();
-        if b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
+        let bytes = s.as_bytes();
+        if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
             return Err(DateParseError::InvalidFormat);
         }
-        let year = Self::parse_i32_digits(&b[0..4])? as i64;
-        let month = Self::parse_i32_digits(&b[5..7])? as i64;
-        let day = Self::parse_i32_digits(&b[8..10])? as i64;
-        if month < 1 || month > 12 { return Err(DateParseError::MonthOutOfRange); }
-        if day < 1 || day > 31 { return Err(DateParseError::DayOutOfRange); }
-        let y = year - (month <= 2) as i64;
-        let m = month + if month > 2 { -3 } else { 9 };
-        let era = if y >= 0 { y / 400 } else { (y - 399) / 400 };
-        let yoe = y - era * 400;
-        let doy = (153 * m + 2) / 5 + day - 1;
-        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-        let z = era * 146097 + doe - 719468;
-        Ok(Date(z))
+        let year = Self::parse_i32_digits(&bytes[0..4])? as i64;
+        let month = Self::parse_i32_digits(&bytes[5..7])? as i64;
+        let day = Self::parse_i32_digits(&bytes[8..10])? as i64;
+        if month < 1 || month > 12 {
+            return Err(DateParseError::MonthOutOfRange);
+        }
+        if day < 1 || day > 31 {
+            return Err(DateParseError::DayOutOfRange);
+        }
+        let adjusted_year = year - (month <= 2) as i64;
+        let adjusted_month = month + if month > 2 { -3 } else { 9 };
+        let era = if adjusted_year >= 0 { adjusted_year / 400 } else { (adjusted_year - 399) / 400 };
+        let year_of_era = adjusted_year - era * 400;
+        let day_of_year = (153 * adjusted_month + 2) / 5 + day - 1;
+        let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+        let days_since_epoch = era * 146097 + day_of_era - 719468;
+        Ok(Date(days_since_epoch))
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn ops_and_conversions() {
+    fn test_convert_date() {
         let today = Date::now();
         let tomorrow = today + 1;
         assert_eq!(tomorrow - today, 1);
@@ -167,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_and_format() {
+    fn test_parse_date() {
         let d: Date = "2025-08-12".parse().unwrap();
         assert_eq!(d.to_string(), "2025-08-12");
         let rt: Date = d.to_string().parse().unwrap();
@@ -176,10 +187,12 @@ mod tests {
 
     use quickcheck_macros::quickcheck;
     #[quickcheck]
-    fn date_roundtrip(days: i64) -> bool {
+    fn test_date_roundtrip(days: i64) -> bool {
         let d = Date(days);
         // guard: our Display keeps year in 4 digits; restrict to a safe range to avoid extreme years
-        if days < -100_000_000 || days > 100_000_000 { return true; }
+        if days < -100_000_000 || days > 100_000_000 {
+            return true;
+        }
         let s = d.to_string();
         let back: Date = s.parse().unwrap();
         back == d
