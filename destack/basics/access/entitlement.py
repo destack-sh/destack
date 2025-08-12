@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
@@ -8,6 +7,7 @@ from destack.core import (
     NodeType,
     OptionEnum,
     ReferenceType,
+    Timestamp,
     declare_entity,
     declare_enum,
     declare_event,
@@ -72,7 +72,7 @@ class Entitlement(Entity):
         100,
         tag=None,
     )
-    expires_at: Optional[datetime] = declare_property(
+    expires_at: Optional[Timestamp] = declare_property(
         110,
         tag=None,
     )

@@ -657,6 +657,36 @@ def test_time(writer_cls, reader_cls):
 
 
 @pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
+def test_timestamp(writer_cls, reader_cls):
+    """Test timestamp encoding and decoding (nanoseconds since epoch)."""
+    value_to_bytes = {
+        0: 1,
+        1: 1,
+        999_999_999: 5,
+        1_000_000_000: 5,  # 1 second
+        1_000_000_001: 5,
+        2**32 - 1: 5,
+        2**32: 5,
+        2**63 - 1: 9,
+        2**63: 10,
+        2**64 - 1: 10,
+    }
+
+    writer = writer_cls()
+    for value in value_to_bytes:
+        writer.write_timestamp(value)
+
+    # Calculate total expected bytes
+    total_expected = sum(value_to_bytes.values())
+    assert len(writer.to_bytes()) == total_expected
+
+    reader = reader_cls(buffer=writer.to_bytes())
+    for value in value_to_bytes:
+        assert reader.read_timestamp() == value
+    assert reader.remaining == 0
+
+
+@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
 def test_duration(writer_cls, reader_cls):
     """Test duration encoding and decoding."""
     from datetime import timedelta

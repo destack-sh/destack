@@ -1,5 +1,6 @@
 import types
 import typing
+from datetime import datetime
 from typing import TYPE_CHECKING, Literal, TypeAliasType, assert_never
 
 from ._hoisted import (
@@ -213,6 +214,9 @@ def parse_type_declaration(
     )
 
 
+_UNSPECIFIC_TYPES = (float, int, datetime)
+
+
 def parse_type_declaration_scalar(
     py_type: type | str | typing.ForwardRef,
     *,
@@ -231,14 +235,17 @@ def parse_type_declaration_scalar(
     node_types: list[NodeType] | None = None
     is_self = False
     is_any = False
+
     class_name = _get_class_name(py_type) if py_type is not type(None) else "None"
     assert class_name is not None, f"undetermined class name: {py_type!r}"
+
+    # builtin types must be explicit
+    if is_builtin and py_type in _UNSPECIFIC_TYPES:
+        raise ValueError(f"unspecific primitive type: {py_type!r}")
+
     if isinstance(py_type, (type, TypeAliasType)) and (
         primitive_t := PRIMITIVE_TYPE_BY_ANNOTATION.get(py_type)
     ):
-        if is_builtin and py_type in (float, int):
-            # shouldn't use float/int directly, use a specific precision/size
-            raise ValueError(f"unspecific primitive type: {py_type!r}")
         scalar_type = ScalarType.PRIMITIVE
         primitive_type = primitive_t
     elif class_name == "None":

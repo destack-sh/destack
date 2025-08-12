@@ -34,6 +34,7 @@ class TypeScriptObjectSizer(ObjectSizer):
     TEMPORAL_INSTANT_SIZE = 16
     TEMPORAL_DATE_SIZE = 12
     TEMPORAL_TIME_SIZE = 16
+    TEMPORAL_TIMESTAMP_SIZE = 16
     TEMPORAL_DURATION_SIZE = 24
 
     @override
@@ -145,6 +146,8 @@ class TypeScriptObjectSizer(ObjectSizer):
                 return ObjectSize(self.TEMPORAL_DATE_SIZE, self.TEMPORAL_DATE_SIZE)
             elif type.primitive_type == PrimitiveType.TIME:
                 return ObjectSize(self.TEMPORAL_TIME_SIZE, self.TEMPORAL_TIME_SIZE)
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return ObjectSize(self.TEMPORAL_INSTANT_SIZE, self.TEMPORAL_INSTANT_SIZE)
             elif type.primitive_type == PrimitiveType.DURATION:
                 return ObjectSize(self.TEMPORAL_DURATION_SIZE, self.TEMPORAL_DURATION_SIZE)
             elif type.primitive_type == PrimitiveType.UUID:
@@ -254,6 +257,8 @@ class TypeScriptObjectSizer(ObjectSizer):
                 elif primitive == PrimitiveType.DATE:
                     return True
                 elif primitive == PrimitiveType.TIME:
+                    return True
+                elif primitive == PrimitiveType.TIMESTAMP:
                     return True
                 elif primitive == PrimitiveType.DURATION:
                     return True

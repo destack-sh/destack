@@ -19,6 +19,7 @@ from ..builtin import (
     Int128,
     String,
     Time,
+    Timestamp,
     UInt8,
     UInt16,
     UInt32,
@@ -151,6 +152,12 @@ class BinaryWriter(Handle):
     @declare_method(142)
     def write_time(self, value: Time) -> None:
         """Write a time."""
+        raise NotImplementedError
+
+    # PrimitiveType.TIMESTAMP
+    @declare_method(144)
+    def write_timestamp(self, value: Timestamp) -> None:
+        """Write a timestamp."""
         raise NotImplementedError
 
     # PrimitiveType.DURATION
@@ -308,6 +315,12 @@ class BinaryReader(Handle):
     @declare_method(142)
     def read_time(self) -> Time:
         """Read a time."""
+        raise NotImplementedError
+
+    # PrimitiveType.TIMESTAMP
+    @declare_method(144)
+    def read_timestamp(self) -> Timestamp:
+        """Read a timestamp."""
         raise NotImplementedError
 
     # PrimitiveType.DURATION

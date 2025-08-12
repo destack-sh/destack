@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -10,6 +9,7 @@ from ..builtin import (
     Handle,
     HandleType,
     Int128,
+    Timestamp,
     declare_handle,
     declare_method,
     declare_property_runtime,
@@ -31,7 +31,7 @@ class Session(Handle):
     graph: "Graph" = declare_property_runtime(404)
     pending_events: list["Event"] = declare_property_runtime(406)
     connections: list["Connection"] = declare_property_runtime(407)
-    closed_at: datetime | None = declare_property_runtime(408)
+    closed_at: Timestamp | None = declare_property_runtime(408)
 
     @property
     def context(self) -> "Context":

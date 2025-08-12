@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -9,7 +8,7 @@ from typing import (
 )
 
 from ._const import UNSET
-from ._hoisted import ReferenceType, UInt64, ValueFactory
+from ._hoisted import ReferenceType, Timestamp, UInt64, ValueFactory
 from .declaration import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -211,7 +210,7 @@ class Entity(Node):
     )
 
     # 20-40: tracking
-    created_at: datetime = declare_property(
+    created_at: Timestamp = declare_property(
         20,
         is_managed=True,
         is_hash=False,
@@ -241,7 +240,7 @@ class Entity(Node):
         description="The Actor that created this Entity.",
         tag="tracking",
     )
-    updated_at: datetime = declare_property(
+    updated_at: Timestamp = declare_property(
         23,
         is_managed=True,
         is_hash=False,

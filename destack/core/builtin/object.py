@@ -654,6 +654,8 @@ if ({map_expr} := {source_expr}):
                 PrimitiveType.TIME,
             ):
                 return f"{value_expr}.isoformat()"
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return f"{value_expr}!r"
             elif type.primitive_type == PrimitiveType.DURATION:
                 return f"{value_expr}!r"
             elif type.primitive_type == PrimitiveType.STRING:
@@ -891,6 +893,7 @@ if {self_source_expr} != {other_source_expr}:
                 PrimitiveType.DATETIME,
                 PrimitiveType.DATE,
                 PrimitiveType.TIME,
+                PrimitiveType.TIMESTAMP,
                 PrimitiveType.DURATION,
             ):
                 return "{self_val} == {other_val}", True
@@ -1091,6 +1094,8 @@ if ({map_source_expr} := {source_expr}):
                 return f"{hasher_expr}.hash_date({source_expr})"
             elif type.primitive_type == PrimitiveType.TIME:
                 return f"{hasher_expr}.hash_time({source_expr})"
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return f"{hasher_expr}.hash_uint64({source_expr})"
             elif type.primitive_type == PrimitiveType.DURATION:
                 return f"{hasher_expr}.hash_duration({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:

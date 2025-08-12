@@ -42,6 +42,7 @@ class RustObjectSizer(ObjectSizer):
     DATETIME_SIZE = 8
     DATE_SIZE = 8
     TIME_SIZE = 8
+    TIMESTAMP_SIZE = 8
     DURATION_SIZE = 8
 
     # uuid size
@@ -172,6 +173,8 @@ class RustObjectSizer(ObjectSizer):
                 return ObjectSize(self.DATE_SIZE, self.DATE_SIZE)
             elif type.primitive_type == PrimitiveType.TIME:
                 return ObjectSize(self.TIME_SIZE, self.TIME_SIZE)
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return ObjectSize(self.TIMESTAMP_SIZE, self.TIMESTAMP_SIZE)
             elif type.primitive_type == PrimitiveType.DURATION:
                 return ObjectSize(self.DURATION_SIZE, self.DURATION_SIZE)
             elif type.primitive_type == PrimitiveType.UUID:
@@ -261,6 +264,7 @@ class KompaktObjectSizer(ObjectSizer):
     DATETIME_RANGE = (1, 10)  # micros zigzag varint
     DATE_RANGE = (1, 5)  # days varint
     TIME_RANGE = (1, 6)  # nanos since midnight
+    TIMESTAMP_RANGE = (1, 10)  # nanos zigzag varint
     DURATION_RANGE = (1, 10)  # nanos zigzag varint
 
     @override
@@ -386,6 +390,8 @@ class KompaktObjectSizer(ObjectSizer):
                 return ObjectSize(*self.DATE_RANGE)
             elif primitive == PrimitiveType.TIME:
                 return ObjectSize(*self.TIME_RANGE)
+            elif primitive == PrimitiveType.TIMESTAMP:
+                return ObjectSize(*self.TIMESTAMP_RANGE)
             elif primitive == PrimitiveType.DURATION:
                 return ObjectSize(*self.DURATION_RANGE)
             elif primitive == PrimitiveType.UUID:
@@ -482,6 +488,7 @@ class FlottObjectSizer(KompaktObjectSizer):
     DATETIME_RANGE = (8, 8)
     DATE_RANGE = (8, 8)
     TIME_RANGE = (8, 8)
+    TIMESTAMP_RANGE = (8, 8)
     DURATION_RANGE = (8, 8)
 
     @override
@@ -567,6 +574,8 @@ class FlottObjectSizer(KompaktObjectSizer):
                 return ObjectSize(*self.DATE_RANGE)
             elif primitive == PrimitiveType.TIME:
                 return ObjectSize(*self.TIME_RANGE)
+            elif primitive == PrimitiveType.TIMESTAMP:
+                return ObjectSize(*self.TIMESTAMP_RANGE)
             elif primitive == PrimitiveType.DURATION:
                 return ObjectSize(*self.DURATION_RANGE)
             elif primitive == PrimitiveType.UUID:

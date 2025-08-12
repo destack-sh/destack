@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, assert_never, override
+from typing import TYPE_CHECKING, ClassVar, assert_never, override
 
 from destack.registry import STRUCT_DEFINITION_BY_TYPE
 
@@ -29,6 +29,19 @@ class PythonObjectSizer(ObjectSizer):
     STRING_EMPTY_SIZE = 49
     LIST_EMPTY_SIZE = 56
     DICT_EMPTY_SIZE = 64
+
+    BITS_BY_INTEGER_TYPE: ClassVar[dict[PrimitiveType, int]] = {
+        PrimitiveType.INT8: 8,
+        PrimitiveType.INT16: 16,
+        PrimitiveType.INT32: 32,
+        PrimitiveType.INT64: 64,
+        PrimitiveType.INT128: 128,
+        PrimitiveType.UINT8: 8,
+        PrimitiveType.UINT16: 16,
+        PrimitiveType.UINT32: 32,
+        PrimitiveType.UINT64: 64,
+        PrimitiveType.UINT128: 128,
+    }
 
     @override
     def size_object(
@@ -136,19 +149,7 @@ class PythonObjectSizer(ObjectSizer):
                 PrimitiveType.UINT128,
             ):
                 # PyLong: ~28 bytes header + 4 bytes per 30-bit digit
-                bits_by_type = {
-                    PrimitiveType.INT8: 8,
-                    PrimitiveType.INT16: 16,
-                    PrimitiveType.INT32: 32,
-                    PrimitiveType.INT64: 64,
-                    PrimitiveType.INT128: 128,
-                    PrimitiveType.UINT8: 8,
-                    PrimitiveType.UINT16: 16,
-                    PrimitiveType.UINT32: 32,
-                    PrimitiveType.UINT64: 64,
-                    PrimitiveType.UINT128: 128,
-                }
-                bits = bits_by_type[primitive]
+                bits = self.BITS_BY_INTEGER_TYPE[primitive]
                 digits = max(1, (bits + 29) // 30)
                 size = 28 + 4 * digits
                 return ObjectSize(size, size)
@@ -160,6 +161,12 @@ class PythonObjectSizer(ObjectSizer):
                 return ObjectSize(self.DATE_OBJECT_SIZE, self.DATE_OBJECT_SIZE)
             elif primitive == PrimitiveType.TIME:
                 return ObjectSize(self.TIME_OBJECT_SIZE, self.TIME_OBJECT_SIZE)
+            elif primitive == PrimitiveType.TIMESTAMP:
+                # Python longs are 28 bytes header + 4 bytes per 30-bit digit
+                bits = self.BITS_BY_INTEGER_TYPE[PrimitiveType.UINT64]
+                digits = max(1, (bits + 29) // 30)
+                size = 28 + 4 * digits
+                return ObjectSize(size, size)
             elif primitive == PrimitiveType.DURATION:
                 return ObjectSize(self.TIMEDELTA_OBJECT_SIZE, self.TIMEDELTA_OBJECT_SIZE)
             elif primitive == PrimitiveType.UUID:

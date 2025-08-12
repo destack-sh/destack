@@ -23,6 +23,7 @@ type Float64 = float
 type DateTime = datetime
 type Date = date
 type Time = time
+type Timestamp = UInt64
 type Duration = timedelta
 # string
 type String = str
@@ -52,6 +53,7 @@ __all__ = [  # noqa: RUF022
     "DateTime",
     "Date",
     "Time",
+    "Timestamp",
     "Duration",
     # string
     "String",

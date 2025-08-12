@@ -25,6 +25,7 @@ from .types import (
     Json,
     String,
     Time,
+    Timestamp,
     UInt8,
     UInt16,
     UInt32,
@@ -475,15 +476,14 @@ Time in unsigned 64-bit nanosecond precision
 Range: 00:00:00.000000000 to 23:59:59.999999999
 """,
     )
-    # nocheckin: support and use TIMESTAMP primitive
-    #     TIMESTAMP = declare_option(
-    #         43,
-    #         "Timestamp",
-    #         description="""\
-    # Timestamp in signed 64-bit nanosecond precision since epoch (UTC)
-    # Range: ±292,277 years
-    # """,
-    #     )
+    TIMESTAMP = declare_option(
+        43,
+        "Timestamp",
+        description="""\
+Timestamp in unsigned 64-bit nanosecond precision since epoch (UTC)
+Range: 1970-01-01 to 2554-07-21 UTC
+""",
+    )
     DURATION = declare_option(
         44,
         "Duration",
@@ -570,6 +570,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     date: PrimitiveType.DATE,
     Time: PrimitiveType.TIME,
     time: PrimitiveType.TIME,
+    Timestamp: PrimitiveType.TIMESTAMP,
     Duration: PrimitiveType.DURATION,
     timedelta: PrimitiveType.DURATION,
     # string

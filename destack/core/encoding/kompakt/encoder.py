@@ -432,6 +432,8 @@ class KompaktEncoder(Encoder):
                 writer.write_date(value)
             elif type.primitive_type == PrimitiveType.TIME:
                 writer.write_time(value)
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                writer.write_timestamp(value)
             elif type.primitive_type == PrimitiveType.DURATION:
                 writer.write_duration(value)
             elif type.primitive_type == PrimitiveType.STRING:
@@ -532,6 +534,8 @@ class KompaktEncoder(Encoder):
                 return reader.read_date()
             elif type.primitive_type == PrimitiveType.TIME:
                 return reader.read_time()
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return reader.read_timestamp()
             elif type.primitive_type == PrimitiveType.DURATION:
                 return reader.read_duration()
             elif type.primitive_type == PrimitiveType.STRING:

@@ -1,10 +1,10 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional, final
 
 from ..builtin import (
     ClientType,
     Entity,
     NodeType,
+    Timestamp,
     declare_entity,
     declare_property,
 )
@@ -23,8 +23,8 @@ class Client(Entity):
 
     # status
     access_token: Optional[str] = declare_property(120, tag=None)
-    seen_at: Optional[datetime] = declare_property(121, tag=None)
-    logged_in_at: Optional[datetime] = declare_property(122, tag=None)
+    seen_at: Optional[Timestamp] = declare_property(121, tag=None)
+    logged_in_at: Optional[Timestamp] = declare_property(122, tag=None)
 
     # details
     device_type: Optional[str] = declare_property(130, tag=None)

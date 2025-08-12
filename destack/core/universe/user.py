@@ -1,9 +1,9 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional, final
 
 from ..builtin import (
     Entity,
     NodeType,
+    Timestamp,
     TraitType,
     declare_entity,
     declare_property,
@@ -24,7 +24,7 @@ class User(Entity):
 
     slug: str = declare_property(102, is_repr=True, tag=None)
 
-    last_logged_in_at: Optional[datetime] = declare_property(111, tag=None)
+    last_logged_in_at: Optional[Timestamp] = declare_property(111, tag=None)
     # last_active_at, seen_at, ...
 
     # auth

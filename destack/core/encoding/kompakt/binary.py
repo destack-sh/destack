@@ -19,6 +19,7 @@ from ...builtin import (
     Int128,
     String,
     Time,
+    Timestamp,
     UInt8,
     UInt16,
     UInt32,
@@ -213,6 +214,15 @@ class KompaktBinaryWriter(BinaryWriter):
             + value.microsecond * 1_000
         )
         self._write_varint(nanos)
+
+    @override
+    def write_timestamp(self, value: Timestamp) -> None:
+        """
+        Write a timestamp as varint of unsigned 64-bit nanoseconds since Unix epoch (UTC).
+        Range: 1970-01-01 to 2554-07-21 UTC.
+        Size: 1-10 bytes.
+        """
+        self._write_varint(value)
 
     @override
     def write_duration(self, value: Duration) -> None:
@@ -544,6 +554,15 @@ class KompaktBinaryReader(BinaryReader):
         seconds = nanos // 1_000_000_000
         microseconds = (nanos % 1_000_000_000) // 1_000
         return time(hours, minutes, seconds, microseconds)
+
+    @override
+    def read_timestamp(self) -> Timestamp:
+        """
+        Read a timestamp from varint of unsigned 64-bit nanoseconds since Unix epoch (UTC).
+        Range: 1970-01-01 to 2554-07-21 UTC.
+        Size: 1-10 bytes.
+        """
+        return self._read_varint()
 
     @override
     def read_duration(self) -> Duration:

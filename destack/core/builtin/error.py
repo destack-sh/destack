@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, cast, dataclass_transform
 
-from ._hoisted import ReferenceType, ValueFactory
+from ._hoisted import ReferenceType, Timestamp, ValueFactory
 from .declaration import TagDeclaration
 from .property import _PROPERTY_SPECIFIERS, declare_property
 from .struct import Struct, _process_struct_cls
@@ -104,7 +103,7 @@ class Error(Struct, Exception):
         description="The nonce of the Client that created this Error (client).",
         tag="tracking",
     )
-    client_created_at: datetime = declare_property(
+    client_created_at: Timestamp = declare_property(
         25,
         is_managed=True,
         is_readonly=True,
