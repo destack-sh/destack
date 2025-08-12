@@ -100,7 +100,7 @@ impl Duration {
                 // add fractional seconds if any
                 if fractional_ns > 0 {
                     // format fractional seconds without trailing zeros
-                    let mut fractional = format!("{:09}", fractional_ns);
+                    let mut fractional = format!("{fractional_ns:09}");
                     while fractional.ends_with('0') {
                         fractional.pop();
                     }
@@ -180,7 +180,7 @@ impl Duration {
                 b'.' if is_in_time => {
                     // previous number is the integral seconds component
                     seconds = num;
-                    
+
                     // fraction then must end with 'S'
                     let frac_start = idx;
                     let mut frac_end = frac_start;
@@ -406,7 +406,7 @@ mod tests {
         // days and hours combo
         let d2: Duration = "P3DT4H".parse().unwrap();
         assert_eq!(d2.to_string(), "P3DT4H");
-        
+
         // negative duration
         let d3: Duration = "-PT2S".parse().unwrap();
         assert_eq!(d3.as_nanos(), -2_000_000_000);
@@ -432,7 +432,8 @@ mod tests {
 
         // negative complex duration
         let neg_complex: Duration = "-P2DT1H30M45.123456789S".parse().unwrap();
-        let neg_expected = -(2 * 86_400_000_000_000 + 3_600_000_000_000 + 1_800_000_000_000 + 45_123_456_789);
+        let neg_expected =
+            -(2 * 86_400_000_000_000 + 3_600_000_000_000 + 1_800_000_000_000 + 45_123_456_789);
         assert_eq!(neg_complex.as_nanos(), neg_expected);
 
         // minutes only
@@ -447,7 +448,6 @@ mod tests {
     #[quickcheck]
     /// Roundtrip duration parsing and formatting.
     fn test_duration_roundtrip(n: i64) -> bool {
-        println!("n: {n}");
         let duration = Duration::from_nanos(n);
         let duration_str = duration.to_string();
         let parsed_duration: Duration = duration_str.parse().unwrap();

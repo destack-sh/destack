@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
+use std::time::SystemTime;
 
 use crate::parser::ParseError;
 
@@ -14,9 +15,9 @@ impl Date {
     /// Get the current date (UTC)
     pub fn now() -> Self {
         Self(
-            std::time::SystemTime::now()
+            SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .expect("SystemTime before UNIX_EPOCH")
+                .unwrap_or_else(|_| panic!("SystemTime before UNIX_EPOCH"))
                 .as_secs() as i64
                 / 86400, // convert seconds to days
         )
@@ -39,7 +40,7 @@ impl Date {
         let day = day_of_year - (153 * month_plus + 2) / 5 + 1;
         let month = month_plus + if month_plus < 10 { 3 } else { -9 };
         let adjusted_year = year + (month <= 2) as i64;
-        format!("{:04}-{:02}-{:02}", adjusted_year, month, day)
+        format!("{adjusted_year:04}-{month:02}-{day:02}")
     }
 
     /// Parse ISO 8601 date format (YYYY-MM-DD).
@@ -181,7 +182,6 @@ mod tests {
     #[quickcheck]
     fn test_date_roundtrip(days: i64) -> bool {
         let d = Date(days);
-        // guard: our Display keeps year in 4 digits; restrict to a safe range to avoid extreme years
         if days < -100_000_000 || days > 100_000_000 {
             return true;
         }

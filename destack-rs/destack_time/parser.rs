@@ -138,7 +138,7 @@ pub(crate) fn parse_ns9_maybe(dt_bytes: &[u8]) -> Result<Option<u64>, ParseError
 pub(crate) fn split_time_and_tz(dt_str: &str) -> Result<(&str, &str), ParseError> {
     if let Some(zpos) = dt_str.rfind('Z') {
         Ok((&dt_str[..zpos], &dt_str[zpos..]))
-    } else if let Some(pos) = dt_str.rfind(|c| c == '+' || c == '-') {
+    } else if let Some(pos) = dt_str.rfind(['+', '-']) {
         Ok((&dt_str[..pos], &dt_str[pos..]))
     } else {
         Err(ParseError::MissingTimezone)
