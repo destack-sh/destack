@@ -2,7 +2,9 @@
 import "./preload";
 
 // regular imports
-import { ENV, IS_DEV } from "@destack/utils/env";
+export const ENV = "development";
+export const IS_DEV = true;
+
 import "./assets/index.css";
 
 async function init() {
@@ -33,5 +35,3 @@ async function init() {
 }
 
 init();
-
-
