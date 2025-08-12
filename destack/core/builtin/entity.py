@@ -68,6 +68,14 @@ class ProcessFlag(FlagEnum):
         4,
         description="Entity is inactive to InputEvents.",
     )
+    SLEEPING = declare_option(
+        8,
+        description="Entity is sleeping (i.e. not processing).",
+    )
+    SLEEPING_INPUT = declare_option(
+        16,
+        description="Entity is sleeping to InputEvents.",
+    )
 
 
 @declare_enum(EnumType.EXTENSION_FLAG)

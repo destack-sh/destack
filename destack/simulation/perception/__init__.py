@@ -28,6 +28,7 @@ from .key import (
 from .mouse import (
     ClickEvent,
     DoubleClickEvent,
+    Mouse,
     MouseButton,
     MouseEvent,
     SingleClickEvent,
@@ -35,6 +36,7 @@ from .mouse import (
     WheelEvent,
 )
 from .pointer import (
+    Pointer2D,
     PointerDownEvent,
     PointerEnterEvent,
     PointerEvent,
@@ -66,9 +68,11 @@ __all__ = [
     "KeyEvent",
     "KeyPressEvent",
     "KeyUpEvent",
+    "Mouse",
     "MouseButton",
     "MouseEvent",
     "PasteEvent",
+    "Pointer2D",
     "PointerDownEvent",
     "PointerEnterEvent",
     "PointerEvent",

@@ -3,14 +3,23 @@ from typing import TYPE_CHECKING
 from destack.core import (
     Float32,
     NodeType,
+    declare_entity,
     declare_event,
     declare_property,
 )
 
+from ..geometry import Entity2D
 from .input import InputEvent
 
 if TYPE_CHECKING:
     from destack import Vector2
+
+
+@declare_entity(NodeType.POINTER2D)
+class Pointer2D(Entity2D):
+    """A Pointer is a user input device that can be used to interact with the UI."""
+
+    pass
 
 
 @declare_event(NodeType.POINTER_EVENT, is_abstract=True)
