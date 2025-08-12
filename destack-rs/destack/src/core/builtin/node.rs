@@ -14,17 +14,17 @@ pub struct NodeReference {
 }
 
 pub trait Node: Object {
-	#[inline]
+    #[inline]
     fn metakind(&self) -> u8 {
-		return 2;
-	}
+        return 2;
+    }
 
-	fn metatype(&self) -> u8;
-	
-	fn id(&self) -> Uuid;
+    fn metatype(&self) -> u8;
+
+    fn id(&self) -> Uuid;
     fn space_id(&self) -> Uuid;
     fn branch_id(&self) -> Uuid;
     fn snapshot_id(&self) -> Uuid;
 
-	// fn space(&self, session: &Session) -> &Space;
+    // fn space(&self, session: &Session) -> &Space;
 }

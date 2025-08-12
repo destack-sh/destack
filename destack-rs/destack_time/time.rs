@@ -5,6 +5,7 @@ use std::ops::{Add, Sub};
 use std::str::FromStr;
 
 use crate::Duration;
+use crate::parser;
 
 /// Time in unsigned 64-bit nanosecond precision since midnight
 /// range: 00:00:00.000_000_000 to 23:59:59.999_999_999
@@ -54,31 +55,19 @@ impl Time {
     }
 
     #[inline]
-    /// Parse two digits from a byte slice at the given index.
-    fn parse_two_digits(b: &[u8], idx: usize) -> Result<u64, TimeError> {
-        if idx + 1 >= b.len() || !b[idx].is_ascii_digit() || !b[idx + 1].is_ascii_digit() {
-            return Err(TimeError::TooShort);
-        }
-        Ok(((b[idx] - b'0') as u64) * 10 + (b[idx + 1] - b'0') as u64)
-    }
-
-    #[inline]
     /// Parse the fractional part of a time string.
     fn parse_fraction_ns_9(b: &[u8], idx: usize) -> Result<(u64, usize), TimeError> {
         if idx >= b.len() || b[idx] != b'.' {
             return Err(TimeError::Trailing);
         }
         let start = idx + 1;
-        if b.len() - start != 9 {
-            return Err(TimeError::FractionMustBe9);
-        }
-        let mut ns: u64 = 0;
-        for &ch in &b[start..] {
-            if !ch.is_ascii_digit() {
-                return Err(TimeError::InvalidFraction);
+        let ns = crate::parser::parse_ns_digits_exact(&b[start..]).map_err(|e| match e {
+            parser::ParseError::FractionDigitsMustBe9 => TimeError::FractionMustBe9,
+            parser::ParseError::InvalidTime | parser::ParseError::InvalidNumber => {
+                TimeError::InvalidFraction
             }
-            ns = ns * 10 + (ch - b'0') as u64;
-        }
+            _ => TimeError::InvalidFraction,
+        })?;
         Ok((ns, b.len()))
     }
 
@@ -88,15 +77,24 @@ impl Time {
         if b.len() < 8 {
             return Err(TimeError::TooShort);
         }
-        let h = Self::parse_two_digits(b, 0)?;
+        let h = match crate::parser::parse_two_digits(&b[0..2]) {
+            Ok(v) => v as u64,
+            Err(_) => return Err(TimeError::TooShort),
+        };
         if b.get(2) != Some(&b':') {
             return Err(TimeError::MissingColon);
         }
-        let m = Self::parse_two_digits(b, 3)?;
+        let m = match crate::parser::parse_two_digits(&b[3..5]) {
+            Ok(v) => v as u64,
+            Err(_) => return Err(TimeError::TooShort),
+        };
         if b.get(5) != Some(&b':') {
             return Err(TimeError::MissingColon);
         }
-        let s = Self::parse_two_digits(b, 6)?;
+        let s = match crate::parser::parse_two_digits(&b[6..8]) {
+            Ok(v) => v as u64,
+            Err(_) => return Err(TimeError::TooShort),
+        };
         if h >= 24 || m >= 60 || s >= 60 {
             return Err(TimeError::OutOfRange);
         }
@@ -111,7 +109,7 @@ impl Time {
 }
 
 //
-// Duration operators
+// Oerators
 //
 
 impl Add<Duration> for Time {
@@ -223,7 +221,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn format_parse_roundtrip() {
+    fn test_format_parse_time() {
         let t = Time::try_from((15, 34, 56, 123_456_789)).unwrap();
         let s = t.to_string();
         assert_eq!(s, "15:34:56.123456789");
@@ -233,7 +231,7 @@ mod tests {
 
     use quickcheck_macros::quickcheck;
     #[quickcheck]
-    fn time_roundtrip_within_day(n: u64) -> bool {
+    fn test_time_roundtrip(n: u64) -> bool {
         let day = 24u64 * 60 * 60 * 1_000_000_000;
         let t = Time(n % day);
         let s = t.to_string();
@@ -242,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn add_sub_duration_wraps() {
+    fn test_add_sub_duration_wraps() {
         let t = Time::try_from((23, 59, 59, 900_000_000)).unwrap();
         let later = t + Duration::from_millis(200);
         // wraps to next day at 00:00:00.100
@@ -253,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    fn sub_time_gives_duration() {
+    fn test_sub_time_gives_duration() {
         let a = Time::try_from((1, 0, 0)).unwrap();
         let b = Time::try_from((0, 30, 0)).unwrap();
         let d = a - b;

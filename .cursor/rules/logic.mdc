@@ -15,6 +15,7 @@ Larger code blocks - regardless of branching - should be broken up into logical 
  (demarcate with whitespace and/or preamble comments like `# parse HH:MM remainder`).
 
 When calling functions or returning results any non-trivial operation gets a temporary variable.
+Variables should be full words wherever possible and no obvious abbreviation exists.
 Like:
 ```
 let first_digit = (dt_bytes[0] - b'0') as i64;

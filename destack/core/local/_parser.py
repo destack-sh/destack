@@ -1,3 +1,4 @@
+import contextlib
 import inspect
 import readline
 import sys
@@ -7,7 +8,6 @@ from pathlib import Path
 from typing import Any, get_args, get_origin
 
 from . import _console
-import contextlib
 
 
 @dataclass(slots=True)

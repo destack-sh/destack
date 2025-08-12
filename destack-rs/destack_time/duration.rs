@@ -34,7 +34,9 @@ impl fmt::Display for DurationError {
             DurationError::InvalidUnitOrPosition => "invalid unit or position",
             DurationError::InvalidFraction => "invalid fractional seconds",
             DurationError::Overflow => "duration overflow",
-            DurationError::NegativeToStd => "negative duration cannot convert to std::time::Duration",
+            DurationError::NegativeToStd => {
+                "negative duration cannot convert to std::time::Duration"
+            }
         };
         f.write_str(msg)
     }
@@ -128,7 +130,7 @@ impl Duration {
 }
 
 //
-// Duration operators
+// Operators
 //
 
 impl Add<Duration> for Duration {
@@ -166,10 +168,6 @@ impl Neg for Duration {
         Duration(-self.0)
     }
 }
-
-//
-// Scalar operators
-//
 
 impl Add<i64> for Duration {
     type Output = Duration;
@@ -271,6 +269,9 @@ impl FromStr for Duration {
         let bytes = s.as_bytes();
         let mut idx = 0;
         let mut negative = false;
+
+        // preamble
+        // optional negative sign
         if bytes[idx] == b'-' {
             negative = true;
             idx += 1;
@@ -278,21 +279,22 @@ impl FromStr for Duration {
                 return Err(DurationError::Invalid);
             }
         }
+        // mandatory 'P'
         if bytes.get(idx) != Some(&b'P') {
             return Err(DurationError::MissingP);
         }
         idx += 1;
 
+        // parse components
         let mut days: i64 = 0;
         let mut hours: i64 = 0;
         let mut minutes: i64 = 0;
         let mut seconds: i64 = 0;
         let mut nanos: i64 = 0;
-        let mut in_time = false;
-
+        let mut is_in_time = false;
         while idx < bytes.len() {
             if bytes[idx] == b'T' {
-                in_time = true;
+                is_in_time = true;
                 idx += 1;
                 continue;
             }
@@ -311,11 +313,11 @@ impl FromStr for Duration {
             let unit = bytes[idx];
             idx += 1;
             match unit {
-                b'D' if !in_time => days = num,
-                b'H' if in_time => hours = num,
-                b'M' if in_time => minutes = num,
-                b'S' if in_time => seconds = num,
-                b'.' if in_time => {
+                b'D' if !is_in_time => days = num,
+                b'H' if is_in_time => hours = num,
+                b'M' if is_in_time => minutes = num,
+                b'S' if is_in_time => seconds = num,
+                b'.' if is_in_time => {
                     // previous number is the integral seconds component
                     seconds = num;
                     // fraction then must end with 'S'
@@ -325,29 +327,30 @@ impl FromStr for Duration {
                     while frac_end < bytes.len() && bytes[frac_end].is_ascii_digit() {
                         frac_end += 1;
                     }
-                    if frac_start == frac_end || frac_end >= bytes.len() || bytes[frac_end] != b'S' {
+                    if frac_start == frac_end || frac_end >= bytes.len() || bytes[frac_end] != b'S'
+                    {
                         return Err(DurationError::InvalidFraction);
                     }
                     let mut frac = &s[frac_start..frac_end];
                     let len = frac.len();
-                    let mut ns_val: i64 = 0;
+                    let mut ns: i64 = 0;
                     // take up to 9 digits, pad with zeros to the right
                     if len <= 9 {
                         // parse and scale
                         for ch in frac.as_bytes() {
-                            ns_val = ns_val * 10 + (*ch - b'0') as i64;
+                            ns = ns * 10 + (*ch - b'0') as i64;
                         }
                         for _ in 0..(9 - len) {
-                            ns_val *= 10;
+                            ns *= 10;
                         }
                     } else {
                         // truncate beyond 9
                         frac = &frac[..9];
                         for ch in frac.as_bytes() {
-                            ns_val = ns_val * 10 + (*ch - b'0') as i64;
+                            ns = ns * 10 + (*ch - b'0') as i64;
                         }
                     }
-                    nanos = ns_val;
+                    nanos = ns;
                     idx = frac_end + 1; // skip 'S'
                 }
                 _ => return Err(DurationError::InvalidUnitOrPosition),

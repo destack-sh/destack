@@ -23,6 +23,35 @@ repos:
         types: [ python ]
         args: [ format ]
 
+  # rust
+  - repo: local
+    hooks:
+      - id: cargo-check
+        name: cargo check (rs)
+        entry: cargo
+        language: system
+        pass_filenames: false
+        always_run: true
+        args: [ "check", "--workspace" ]
+
+      - id: cargo-fmt
+        name: cargo fmt (rs)
+        entry: cargo
+        language: system
+        pass_filenames: false
+        always_run: true
+        # choose one of these:
+        # args: [ "fmt" ]             # auto-fix formatting
+        args: [ "fmt", "--", "--check" ]  # fail if not formatted
+
+      - id: cargo-clippy
+        name: cargo clippy (rs)
+        entry: cargo
+        language: system
+        pass_filenames: false
+        always_run: true
+        args: [ "clippy", "--all-targets", "--all-features", "--", "-D", "warnings" ]
+
   # general
   # conventional commit
   - repo: https://github.com/compilerla/conventional-pre-commit
