@@ -6,3 +6,12 @@ alwaysApply: false
 Performance is very important.
 Doc tests are a good idea where they make sense.
 Rust tests usually go in the bottom of the file in a `tests` mod.
+
+Import common stuff and use the inner name like:
+```
+use std::time::Instant;
+
+fn foo() {
+    let now = Instant::now();
+}
+``

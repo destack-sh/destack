@@ -5,14 +5,16 @@ pub enum ParseError {
     TooShort,
     MissingT,
     MissingTimezone,
+    InvalidFormat,
     InvalidNumber,
     InvalidTime,
-    InvalidDate(crate::date::DateParseError),
+    InvalidDate,
     InvalidOffset,
     TimeOutOfRange,
     FractionDigitsMustBe6,
     FractionDigitsMustBe9,
     BeforeEpoch,
+    Overflow,
 }
 
 impl fmt::Display for ParseError {
@@ -21,14 +23,16 @@ impl fmt::Display for ParseError {
             ParseError::TooShort => f.write_str("too short"),
             ParseError::MissingT => f.write_str("missing 'T'"),
             ParseError::MissingTimezone => f.write_str("missing timezone"),
+            ParseError::InvalidFormat => f.write_str("invalid format"),
             ParseError::InvalidNumber => f.write_str("invalid number"),
             ParseError::InvalidTime => f.write_str("invalid time"),
-            ParseError::InvalidDate(_) => f.write_str("invalid date"),
+            ParseError::InvalidDate => f.write_str("invalid date"),
             ParseError::InvalidOffset => f.write_str("invalid offset"),
             ParseError::TimeOutOfRange => f.write_str("time out of range"),
             ParseError::FractionDigitsMustBe6 => f.write_str("microseconds must be 6 digits"),
             ParseError::FractionDigitsMustBe9 => f.write_str("nanoseconds must be 9 digits"),
             ParseError::BeforeEpoch => f.write_str("before epoch"),
+            ParseError::Overflow => f.write_str("overflow"),
         }
     }
 }

@@ -1,48 +1,15 @@
 use std::convert::TryFrom;
-use std::error::Error as StdError;
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::str::FromStr;
+
+use crate::parser::ParseError;
 
 /// Duration in signed 64-bit nanosecond precision
 /// range: ±292.277 years
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Duration(pub i64);
-
-/// errors for parsing and converting `Duration`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DurationError {
-    Empty,
-    Invalid,
-    MissingP,
-    ExpectedNumber,
-    InvalidUnitOrPosition,
-    InvalidFraction,
-    Overflow,
-    NegativeToStd,
-}
-
-impl fmt::Display for DurationError {
-    /// Format: "empty duration", "invalid duration", "missing 'P'", "expected number", "invalid unit or position", "invalid fractional seconds", "duration overflow", "negative duration cannot convert to std::time::Duration"
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let msg = match self {
-            DurationError::Empty => "empty duration",
-            DurationError::Invalid => "invalid duration",
-            DurationError::MissingP => "missing 'P'",
-            DurationError::ExpectedNumber => "expected number",
-            DurationError::InvalidUnitOrPosition => "invalid unit or position",
-            DurationError::InvalidFraction => "invalid fractional seconds",
-            DurationError::Overflow => "duration overflow",
-            DurationError::NegativeToStd => {
-                "negative duration cannot convert to std::time::Duration"
-            }
-        };
-        f.write_str(msg)
-    }
-}
-
-impl StdError for DurationError {}
 
 impl Duration {
     /// Create Duration from seconds.
@@ -75,57 +42,190 @@ impl Duration {
         if self.0 == 0 {
             return "PT0S".to_string();
         }
-        let mut nanos = self.0;
-        let neg = nanos < 0;
-        if neg {
+
+        let mut nanos = self.0 as i128;
+        let is_negative = nanos < 0;
+        if is_negative {
             nanos = -nanos;
         }
-        let mut s = String::new();
-        if neg {
-            s.push('-');
+
+        let mut result = String::new();
+        if is_negative {
+            result.push('-');
         }
-        s.push('P');
-        let mut rem = nanos;
-        let day_ns: i64 = 86_400 * 1_000_000_000;
-        let hour_ns: i64 = 3_600 * 1_000_000_000;
-        let minute_ns: i64 = 60 * 1_000_000_000;
-        let days = rem / day_ns;
-        rem -= days * day_ns;
-        if days != 0 {
-            s.push_str(&days.to_string());
-            s.push('D');
+        result.push('P');
+
+        // extract days
+        const DAY_NS: i128 = 86_400 * 1_000_000_000;
+        const HOUR_NS: i128 = 3_600 * 1_000_000_000;
+        const MINUTE_NS: i128 = 60 * 1_000_000_000;
+        const SECOND_NS: i128 = 1_000_000_000;
+
+        let days = nanos / DAY_NS;
+        let mut remainder = nanos % DAY_NS;
+
+        // add days if any
+        if days > 0 {
+            result.push_str(&days.to_string());
+            result.push('D');
         }
-        if rem != 0 {
-            s.push('T');
-            let hours = rem / hour_ns;
-            rem -= hours * hour_ns;
-            if hours != 0 {
-                s.push_str(&hours.to_string());
-                s.push('H');
+
+        // extract time components
+        if remainder > 0 {
+            // add time separator
+            result.push('T');
+
+            // extract hours
+            let hours = remainder / HOUR_NS;
+            remainder %= HOUR_NS;
+            if hours > 0 {
+                result.push_str(&hours.to_string());
+                result.push('H');
             }
-            let minutes = rem / minute_ns;
-            rem -= minutes * minute_ns;
-            if minutes != 0 {
-                s.push_str(&minutes.to_string());
-                s.push('M');
+
+            // extract minutes
+            let minutes = remainder / MINUTE_NS;
+            remainder %= MINUTE_NS;
+            if minutes > 0 {
+                result.push_str(&minutes.to_string());
+                result.push('M');
             }
-            let secs = rem / 1_000_000_000;
-            let ns = (rem % 1_000_000_000) as i64;
-            if secs != 0 || ns != 0 {
-                s.push_str(&secs.to_string());
-                if ns != 0 {
-                    // fractional seconds up to 9 digits without trailing zeros
-                    let mut frac = format!("{:09}", ns);
-                    while frac.ends_with('0') {
-                        frac.pop();
+
+            // extract seconds and fractional seconds
+            let seconds = remainder / SECOND_NS;
+            let fractional_ns = remainder % SECOND_NS;
+            if seconds > 0 || fractional_ns > 0 {
+                result.push_str(&seconds.to_string());
+
+                // add fractional seconds if any
+                if fractional_ns > 0 {
+                    // format fractional seconds without trailing zeros
+                    let mut fractional = format!("{:09}", fractional_ns);
+                    while fractional.ends_with('0') {
+                        fractional.pop();
                     }
-                    s.push('.');
-                    s.push_str(&frac);
+                    result.push('.');
+                    result.push_str(&fractional);
                 }
-                s.push('S');
+                result.push('S');
             }
         }
-        s
+
+        result
+    }
+
+    /// Parse ISO 8601 duration format.
+    pub fn from_iso(s: &str) -> Result<Self, crate::parser::ParseError> {
+        if s.is_empty() {
+            return Err(ParseError::TooShort);
+        }
+        let bytes = s.as_bytes();
+        let mut idx = 0;
+        let mut negative = false;
+
+        // optional negative sign
+        if bytes[idx] == b'-' {
+            negative = true;
+            idx += 1;
+            if idx >= bytes.len() {
+                return Err(ParseError::InvalidFormat);
+            }
+        }
+
+        // mandatory 'P'
+        if bytes.get(idx) != Some(&b'P') {
+            return Err(ParseError::InvalidFormat);
+        }
+        idx += 1;
+
+        // parse components
+        let mut days: i64 = 0;
+        let mut hours: i64 = 0;
+        let mut minutes: i64 = 0;
+        let mut seconds: i64 = 0;
+        let mut nanos: i64 = 0;
+        let mut is_in_time = false;
+
+        // parse each component
+        while idx < bytes.len() {
+            if bytes[idx] == b'T' {
+                is_in_time = true;
+                idx += 1;
+                continue;
+            }
+
+            // parse an integer (or integer.fraction if seconds)
+            let start = idx;
+            while idx < bytes.len() && bytes[idx].is_ascii_digit() {
+                idx += 1;
+            }
+            if start == idx {
+                return Err(ParseError::InvalidFormat);
+            }
+            let num: i64 = s[start..idx]
+                .parse()
+                .map_err(|_| ParseError::InvalidFormat)?;
+
+            if idx >= bytes.len() {
+                return Err(ParseError::InvalidFormat);
+            }
+            let unit = bytes[idx];
+            idx += 1;
+
+            match unit {
+                b'D' if !is_in_time => days = num,
+                b'H' if is_in_time => hours = num,
+                b'M' if is_in_time => minutes = num,
+                b'S' if is_in_time => seconds = num,
+                b'.' if is_in_time => {
+                    // previous number is the integral seconds component
+                    seconds = num;
+                    
+                    // fraction then must end with 'S'
+                    let frac_start = idx;
+                    let mut frac_end = frac_start;
+                    while frac_end < bytes.len() && bytes[frac_end].is_ascii_digit() {
+                        frac_end += 1;
+                    }
+                    if frac_start == frac_end || frac_end >= bytes.len() || bytes[frac_end] != b'S'
+                    {
+                        return Err(ParseError::InvalidFormat);
+                    }
+                    let mut frac = &s[frac_start..frac_end];
+                    let len = frac.len();
+                    let mut ns: i64 = 0;
+
+                    // take up to 9 digits, pad with zeros to the right
+                    if len > 9 {
+                        frac = &frac[..9];
+                    }
+                    for ch in frac.as_bytes() {
+                        ns = ns * 10 + (*ch - b'0') as i64;
+                    }
+                    for _ in 0..(9 - frac.len()) {
+                        ns *= 10;
+                    }
+                    nanos = ns;
+                    idx = frac_end + 1; // skip 'S'
+                }
+                _ => return Err(ParseError::InvalidFormat),
+            }
+        }
+
+        // compute total nanoseconds
+        let mut total: i128 = 0;
+        total += (days as i128) * 86_400 * 1_000_000_000i128;
+        total += (hours as i128) * 3_600 * 1_000_000_000i128;
+        total += (minutes as i128) * 60 * 1_000_000_000i128;
+        total += (seconds as i128) * 1_000_000_000i128;
+        total += nanos as i128;
+        if negative {
+            total = -total;
+        }
+        if total < i64::MIN as i128 || total > i64::MAX as i128 {
+            return Err(ParseError::Overflow);
+        }
+        Ok(Duration(total as i64))
     }
 }
 
@@ -230,23 +330,23 @@ impl From<Duration> for i64 {
 }
 
 impl TryFrom<std::time::Duration> for Duration {
-    type Error = DurationError;
+    type Error = crate::parser::ParseError;
 
     fn try_from(value: std::time::Duration) -> Result<Self, Self::Error> {
         let nanos_u128 = value.as_nanos();
         if nanos_u128 > i64::MAX as u128 {
-            return Err(DurationError::Overflow);
+            return Err(crate::parser::ParseError::Overflow);
         }
         Ok(Duration(nanos_u128 as i64))
     }
 }
 
 impl TryFrom<Duration> for std::time::Duration {
-    type Error = DurationError;
+    type Error = crate::parser::ParseError;
 
     fn try_from(value: Duration) -> Result<Self, Self::Error> {
         if value.0 < 0 {
-            return Err(DurationError::NegativeToStd);
+            return Err(crate::parser::ParseError::InvalidFormat);
         }
         Ok(std::time::Duration::from_nanos(value.0 as u64))
     }
@@ -259,117 +359,11 @@ impl fmt::Display for Duration {
 }
 
 impl FromStr for Duration {
-    type Err = DurationError;
+    type Err = crate::parser::ParseError;
 
     /// Accepts ISO 8601 duration formats like: P3DT4H, PT1.234567890S, -PT2S, P0D, PT0S.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.is_empty() {
-            return Err(DurationError::Empty);
-        }
-        let bytes = s.as_bytes();
-        let mut idx = 0;
-        let mut negative = false;
-
-        // preamble
-        // optional negative sign
-        if bytes[idx] == b'-' {
-            negative = true;
-            idx += 1;
-            if idx >= bytes.len() {
-                return Err(DurationError::Invalid);
-            }
-        }
-        // mandatory 'P'
-        if bytes.get(idx) != Some(&b'P') {
-            return Err(DurationError::MissingP);
-        }
-        idx += 1;
-
-        // parse components
-        let mut days: i64 = 0;
-        let mut hours: i64 = 0;
-        let mut minutes: i64 = 0;
-        let mut seconds: i64 = 0;
-        let mut nanos: i64 = 0;
-        let mut is_in_time = false;
-        while idx < bytes.len() {
-            if bytes[idx] == b'T' {
-                is_in_time = true;
-                idx += 1;
-                continue;
-            }
-            // parse an integer (or integer.fraction if seconds)
-            let start = idx;
-            while idx < bytes.len() && bytes[idx].is_ascii_digit() {
-                idx += 1;
-            }
-            if start == idx {
-                return Err(DurationError::ExpectedNumber);
-            }
-            let num: i64 = s[start..idx].parse().map_err(|_| DurationError::Invalid)?;
-            if idx >= bytes.len() {
-                return Err(DurationError::Invalid);
-            }
-            let unit = bytes[idx];
-            idx += 1;
-            match unit {
-                b'D' if !is_in_time => days = num,
-                b'H' if is_in_time => hours = num,
-                b'M' if is_in_time => minutes = num,
-                b'S' if is_in_time => seconds = num,
-                b'.' if is_in_time => {
-                    // previous number is the integral seconds component
-                    seconds = num;
-                    // fraction then must end with 'S'
-                    // read fraction digits up to 9
-                    let frac_start = idx;
-                    let mut frac_end = frac_start;
-                    while frac_end < bytes.len() && bytes[frac_end].is_ascii_digit() {
-                        frac_end += 1;
-                    }
-                    if frac_start == frac_end || frac_end >= bytes.len() || bytes[frac_end] != b'S'
-                    {
-                        return Err(DurationError::InvalidFraction);
-                    }
-                    let mut frac = &s[frac_start..frac_end];
-                    let len = frac.len();
-                    let mut ns: i64 = 0;
-                    // take up to 9 digits, pad with zeros to the right
-                    if len <= 9 {
-                        // parse and scale
-                        for ch in frac.as_bytes() {
-                            ns = ns * 10 + (*ch - b'0') as i64;
-                        }
-                        for _ in 0..(9 - len) {
-                            ns *= 10;
-                        }
-                    } else {
-                        // truncate beyond 9
-                        frac = &frac[..9];
-                        for ch in frac.as_bytes() {
-                            ns = ns * 10 + (*ch - b'0') as i64;
-                        }
-                    }
-                    nanos = ns;
-                    idx = frac_end + 1; // skip 'S'
-                }
-                _ => return Err(DurationError::InvalidUnitOrPosition),
-            }
-        }
-
-        let mut total: i128 = 0;
-        total += (days as i128) * 86_400 * 1_000_000_000i128;
-        total += (hours as i128) * 3_600 * 1_000_000_000i128;
-        total += (minutes as i128) * 60 * 1_000_000_000i128;
-        total += (seconds as i128) * 1_000_000_000i128;
-        total += nanos as i128;
-        if negative {
-            total = -total;
-        }
-        if total < i64::MIN as i128 || total > i64::MAX as i128 {
-            return Err(DurationError::Overflow);
-        }
-        Ok(Duration(total as i64))
+        Self::from_iso(s)
     }
 }
 
@@ -379,6 +373,7 @@ mod tests {
     use quickcheck_macros::quickcheck;
 
     #[test]
+    /// Create durations and perform arithmetic operations.
     fn test_into_duration() {
         let mut d = Duration::from_seconds(1);
         assert_eq!(d.as_nanos(), 1_000_000_000);
@@ -401,23 +396,61 @@ mod tests {
     }
 
     #[test]
+    /// Parse various ISO 8601 duration formats.
     fn test_parse_duration() {
+        // basic fractional seconds
         let d: Duration = "PT1.23456789S".parse().unwrap();
         assert_eq!(d.as_nanos(), 1_234_567_890);
         assert_eq!(d.to_string(), "PT1.23456789S");
 
+        // days and hours combo
         let d2: Duration = "P3DT4H".parse().unwrap();
         assert_eq!(d2.to_string(), "P3DT4H");
+        
+        // negative duration
         let d3: Duration = "-PT2S".parse().unwrap();
         assert_eq!(d3.as_nanos(), -2_000_000_000);
         assert_eq!(d3.to_string(), "-PT2S");
+
+        // zero duration edge case
+        let zero: Duration = "PT0S".parse().unwrap();
+        assert_eq!(zero.as_nanos(), 0);
+        assert_eq!(zero.to_string(), "PT0S");
+
+        // complex multi-component duration
+        let complex: Duration = "P1DT2H3M4.567S".parse().unwrap();
+        let expected_ns = 86_400_000_000_000 + 7_200_000_000_000 + 180_000_000_000 + 4_567_000_000;
+        assert_eq!(complex.as_nanos(), expected_ns);
+
+        // fractional seconds with trailing zeros should be preserved in parsing
+        let trailing: Duration = "PT1.100S".parse().unwrap();
+        assert_eq!(trailing.as_nanos(), 1_100_000_000);
+
+        // very small fractional seconds
+        let tiny: Duration = "PT0.000000001S".parse().unwrap();
+        assert_eq!(tiny.as_nanos(), 1);
+
+        // negative complex duration
+        let neg_complex: Duration = "-P2DT1H30M45.123456789S".parse().unwrap();
+        let neg_expected = -(2 * 86_400_000_000_000 + 3_600_000_000_000 + 1_800_000_000_000 + 45_123_456_789);
+        assert_eq!(neg_complex.as_nanos(), neg_expected);
+
+        // minutes only
+        let mins_only: Duration = "PT42M".parse().unwrap();
+        assert_eq!(mins_only.as_nanos(), 42 * 60_000_000_000);
+
+        // hours only
+        let hours_only: Duration = "PT7H".parse().unwrap();
+        assert_eq!(hours_only.as_nanos(), 7 * 3_600_000_000_000);
     }
 
     #[quickcheck]
+    /// Roundtrip duration parsing and formatting.
     fn test_duration_roundtrip(n: i64) -> bool {
-        let d = Duration::from_nanos(n);
-        let s = d.to_string();
-        let back: Duration = s.parse().unwrap();
-        back == d
+        println!("n: {n}");
+        let duration = Duration::from_nanos(n);
+        let duration_str = duration.to_string();
+        let parsed_duration: Duration = duration_str.parse().unwrap();
+        parsed_duration == duration
     }
 }
