@@ -2,7 +2,10 @@ use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 
-use crate::Duration;
+use crate::parser::{
+    ParseError, parse_hh_mm_ss, parse_tz_offset, parse_us_maybe, split_time_and_tz,
+};
+use crate::{Date, Duration};
 
 /// DateTime in signed 64-bit microsecond precision since epoch (UTC)
 /// range: ±292,277 years
@@ -21,14 +24,64 @@ impl DateTime {
         )
     }
 
+    /// Format as ISO 8601 datetime (YYYY-MM-DDTHH:MM:SS.ffffffZ).
+    pub fn to_iso(&self) -> String {
+        // microseconds since epoch (UTC)
+        // compute days, seconds within day, and micros remainder carefully with floor division
+        let micros = self.0;
+        let days: i64;
+        let seconds: i64;
+        if micros >= 0 {
+            days = (micros / 1_000_000) / 86_400;
+            seconds = (micros / 1_000_000) - days * 86_400;
+        } else {
+            // floor division behavior for negatives
+            days = ((micros - 1) / 1_000_000 - 86_400 + 1) / 86_400;
+            seconds = (micros / 1_000_000) - days * 86_400;
+        }
+        let us = (micros - (days * 86_400 + seconds) * 1_000_000).abs();
+        let date = Date(days);
+        let h = seconds / 3600;
+        let m = (seconds % 3600) / 60;
+        let s = seconds % 60;
+        format!("{}T{:02}:{:02}:{:02}.{:06}Z", date, h, m, s, us)
+    }
+
+    /// Parse ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SS.ffffffZ or with offset).
+    pub fn from_iso(s: &str) -> Result<Self, ParseError> {
+        // split date and time
+        if s.len() < 20 {
+            return Err(ParseError::TooShort);
+        }
+        let (date_part, rest) = s.split_at(10);
+        if &rest[0..1] != "T" {
+            return Err(ParseError::MissingT);
+        }
+        let (time_part, tz_part) = split_time_and_tz(&s[11..])?;
+        // parse date
+        let date: Date = date_part.parse::<Date>()?;
+        // parse time with 6 fractional digits
+        let (hh, mm, ss, us) = Self::_parse_time_us(time_part)?;
+        let mut total_ns = (date.0 as i128) * 86_400 * 1_000_000_000i128
+            + (hh as i128) * 3_600 * 1_000_000_000
+            + (mm as i128) * 60 * 1_000_000_000
+            + (ss as i128) * 1_000_000_000
+            + (us as i128) * 1_000; // micro to nano
+        // handle tz
+        let offset_ns = parse_tz_offset(tz_part)?;
+        total_ns -= offset_ns; // convert to UTC
+        let micros = total_ns / 1_000;
+        Ok(DateTime(micros as i64))
+    }
+
     #[inline]
     /// Parse the time part of a datetime string into (hh, mm, ss, us)
-    fn parse_time_us(dt_str: &str) -> Result<(i64, i64, i64, i64), crate::parser::ParseError> {
+    fn _parse_time_us(dt_str: &str) -> Result<(i64, i64, i64, i64), ParseError> {
         let dt_bytes = dt_str.as_bytes();
-        let (hh, mm, ss) = crate::parser::parse_hh_mm_ss(dt_bytes)?;
+        let (hh, mm, ss) = parse_hh_mm_ss(dt_bytes)?;
         let us = if dt_bytes.len() > 8 {
             let tail = &dt_bytes[8..];
-            match crate::parser::parse_us_maybe(tail) {
+            match parse_us_maybe(tail) {
                 Ok(Some(v)) => v,
                 Ok(None) => 0,
                 Err(e) => return Err(e),
@@ -106,63 +159,18 @@ impl From<DateTime> for std::time::SystemTime {
 }
 
 impl fmt::Display for DateTime {
-    /// Format: YYYY-MM-DDTHH:MM:SS.ffffffZ.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // microseconds since epoch (UTC)
-        // compute days, seconds within day, and micros remainder carefully with floor division
-        let micros = self.0;
-        let days: i64;
-        let seconds: i64;
-        if micros >= 0 {
-            days = (micros / 1_000_000) / 86_400;
-            seconds = (micros / 1_000_000) - days * 86_400;
-        } else {
-            // floor division behavior for negatives
-            days = ((micros - 1) / 1_000_000 - 86_400 + 1) / 86_400;
-            seconds = (micros / 1_000_000) - days * 86_400;
-        }
-        let us = (micros - (days * 86_400 + seconds) * 1_000_000).abs();
-        let date = crate::Date(days);
-        let h = seconds / 3600;
-        let m = (seconds % 3600) / 60;
-        let s = seconds % 60;
-        write!(f, "{}T", date)?;
-        crate::format::write_hms_us(f, h, m, s, us)?;
-        f.write_str("Z")
+        f.write_str(&self.to_iso())
     }
 }
 
 impl FromStr for DateTime {
-    type Err = crate::parser::ParseError;
+    type Err = ParseError;
 
     /// Parse a datetime string in the format YYYY-MM-DDTHH:MM:SS.ffffffZ.
     ///  (or with explicit offset ±HH:MM to convert to UTC).
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // split date and time
-        if s.len() < 20 {
-            return Err(crate::parser::ParseError::TooShort);
-        }
-        let (date_part, rest) = s.split_at(10);
-        if &rest[0..1] != "T" {
-            return Err(crate::parser::ParseError::MissingT);
-        }
-        let (time_part, tz_part) = crate::parser::split_time_and_tz(&s[11..])?;
-        // parse date
-        let date: crate::Date = date_part
-            .parse::<crate::Date>()
-            .map_err(crate::parser::ParseError::InvalidDate)?;
-        // parse time with 6 fractional digits
-        let (hh, mm, ss, us) = Self::parse_time_us(time_part)?;
-        let mut total_ns = (date.0 as i128) * 86_400 * 1_000_000_000i128
-            + (hh as i128) * 3_600 * 1_000_000_000
-            + (mm as i128) * 60 * 1_000_000_000
-            + (ss as i128) * 1_000_000_000
-            + (us as i128) * 1_000; // micro to nano
-        // handle tz
-        let offset_ns = crate::parser::parse_tz_offset(tz_part)?;
-        total_ns -= offset_ns; // convert to UTC
-        let micros = total_ns / 1_000;
-        Ok(DateTime(micros as i64))
+        Self::from_iso(s)
     }
 }
 
@@ -173,40 +181,42 @@ mod tests {
     #[test]
     /// Parse and format a datetime string in UTC.
     fn test_parse_format_datetime_utc() {
-        let s = "2025-08-12T15:34:56.123456Z";
-        let dt: DateTime = s.parse().unwrap();
-        let out = dt.to_string();
-        assert!(out.starts_with("2025-08-12T15:34:56.123456"));
-        assert!(out.ends_with('Z'));
+        let datetime_str = "2025-08-12T15:34:56.123456Z";
+        let datetime: DateTime = datetime_str.parse().unwrap();
+        let parsed_datetime = datetime.to_string();
+        assert!(parsed_datetime.starts_with("2025-08-12T15:34:56.123456"));
+        assert!(parsed_datetime.ends_with('Z'));
     }
 
     #[test]
     /// Parse a datetime string with an offset.
     fn test_parse_datetime_with_offset() {
-        let s = "2025-08-12T17:34:56.123456+02:00"; // equals 15:34:56.123456Z
-        let dt: DateTime = s.parse().unwrap();
-        assert!(dt.to_string().contains("15:34:56.123456"));
+        let datetime_str = "2025-08-12T17:34:56.123456+02:00"; // equals 15:34:56.123456Z
+        let datetime: DateTime = datetime_str.parse().unwrap();
+        assert!(datetime.to_string().contains("15:34:56.123456"));
     }
 
     #[test]
     /// Add and subtract durations from a datetime.
     fn test_add_sub_datetime() {
-        let dt = DateTime::now();
-        let later = dt + Duration::from_millis(1_500);
-        let diff = later - dt;
+        let datetime = DateTime::now();
+        let later = datetime + Duration::from_millis(1_500);
+        let diff = later - datetime;
         assert!(diff.as_nanos() >= 1_500_000_000);
         let back = later - Duration::from_millis(1_500);
-        assert_eq!(back.0, dt.0);
+        assert_eq!(back.0, datetime.0);
     }
 
     #[test]
     /// Roundtrip a datetime from and to a SystemTime.
     fn test_system_time_datetime() {
-        let st = std::time::SystemTime::now();
-        let dt: DateTime = st.into();
-        let st2: std::time::SystemTime = dt.into();
+        let system_time = std::time::SystemTime::now();
+        let datetime: DateTime = system_time.into();
+        let system_time2: std::time::SystemTime = datetime.into();
         // allow some drift but they should be close (microsecond precision)
-        let delta = st2.duration_since(st).unwrap_or_else(|e| e.duration());
+        let delta = system_time2
+            .duration_since(system_time)
+            .unwrap_or_else(|e| e.duration());
         assert!(delta.as_millis() < 10);
     }
 }

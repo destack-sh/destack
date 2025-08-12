@@ -219,42 +219,42 @@ impl TryFrom<(u32, u32, u32, u32)> for Time {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickcheck_macros::quickcheck;
 
     #[test]
     fn test_format_parse_time() {
-        let t = Time::try_from((15, 34, 56, 123_456_789)).unwrap();
-        let s = t.to_string();
-        assert_eq!(s, "15:34:56.123456789");
-        let back: Time = s.parse().unwrap();
-        assert_eq!(back, t);
+        let time = Time::try_from((15, 34, 56, 123_456_789)).unwrap();
+        let time_str = time.to_string();
+        assert_eq!(time_str, "15:34:56.123456789");
+        let parsed_time: Time = time_str.parse().unwrap();
+        assert_eq!(parsed_time, time);
     }
 
-    use quickcheck_macros::quickcheck;
     #[quickcheck]
     fn test_time_roundtrip(n: u64) -> bool {
         let day = 24u64 * 60 * 60 * 1_000_000_000;
-        let t = Time(n % day);
-        let s = t.to_string();
-        let back: Time = s.parse().unwrap();
-        back == t
+        let time = Time(n % day);
+        let time_str = time.to_string();
+        let parsed_time: Time = time_str.parse().unwrap();
+        parsed_time == time
     }
 
     #[test]
     fn test_add_sub_duration_wraps() {
-        let t = Time::try_from((23, 59, 59, 900_000_000)).unwrap();
-        let later = t + Duration::from_millis(200);
+        let time = Time::try_from((23, 59, 59, 900_000_000)).unwrap();
+        let later = time + Duration::from_millis(200);
         // wraps to next day at 00:00:00.100
         let expected = Time::try_from((0, 0, 0, 100_000_000)).unwrap();
         assert_eq!(later, expected);
         let earlier = expected - Duration::from_millis(200);
-        assert_eq!(earlier, t);
+        assert_eq!(earlier, time);
     }
 
     #[test]
     fn test_sub_time_gives_duration() {
-        let a = Time::try_from((1, 0, 0)).unwrap();
-        let b = Time::try_from((0, 30, 0)).unwrap();
-        let d = a - b;
-        assert_eq!(d.as_nanos(), 30 * 60 * 1_000_000_000);
+        let time1 = Time::try_from((1, 0, 0)).unwrap();
+        let time2 = Time::try_from((0, 30, 0)).unwrap();
+        let duration = time1 - time2;
+        assert_eq!(duration.as_nanos(), 30 * 60 * 1_000_000_000);
     }
 }

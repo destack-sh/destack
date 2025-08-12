@@ -4,10 +4,10 @@ use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 
-use crate::Duration;
+use crate::{format::write_hms_ns, parser::{ParseError, parse_tz_offset, split_time_and_tz}, Date, Duration};
 
 /// Timestamp in unsigned 64-bit nanosecond precision since epoch (UTC)
-/// range: [0, u64::MAX]
+/// range: [0, 2^64-1]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Timestamp(pub u64);
@@ -107,13 +107,13 @@ impl fmt::Display for Timestamp {
         let ns = self.0 % 1_000_000_000;
         // derive date from days since epoch
         let days = (secs / 86_400) as i64;
-        let date = crate::Date(days);
+        let date = Date(days);
         let sod = secs % 86_400;
         let h = sod / 3600;
         let m = (sod % 3600) / 60;
         let s = sod % 60;
         write!(f, "{}T", date)?;
-        crate::format::write_hms_ns(f, h, m, s, ns)?;
+        write_hms_ns(f, h, m, s, ns)?;
         f.write_str("Z")
     }
 }
@@ -124,19 +124,19 @@ impl FromStr for Timestamp {
     // Parse YYYY-MM-DDTHH:MM:SS.fffffffffZ or with explicit offset ±HH:MM to convert to UTC.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() < 20 {
-            return Err(crate::parser::ParseError::TooShort);
+            return Err(ParseError::TooShort);
         }
         let (date_part, rest) = s.split_at(10);
         if &rest[0..1] != "T" {
-            return Err(crate::parser::ParseError::MissingT);
+            return Err(ParseError::MissingT);
         }
-        let (time_part, tz_part) = match crate::parser::split_time_and_tz(&s[11..]) {
+        let (time_part, tz_part) = match split_time_and_tz(&s[11..]) {
             Ok(v) => v,
             Err(e) => return Err(e),
         };
-        let date: crate::Date = match date_part.parse::<crate::Date>() {
+        let date: Date = match date_part.parse::<Date>() {
             Ok(v) => v,
-            Err(e) => return Err(crate::parser::ParseError::InvalidDate(e)),
+            Err(e) => return Err(e),
         };
         // parse time with 9 fractional digits
         let (hh, mm, ss, ns) = Self::parse_time_ns(time_part)?;
@@ -148,13 +148,13 @@ impl FromStr for Timestamp {
         if date.0 < 0 {
             return Err(TimestampParseError::BeforeEpoch);
         }
-        let offset_ns = match crate::parser::parse_tz_offset(tz_part) {
+        let offset_ns = match parse_tz_offset(tz_part) {
             Ok(v) => v,
             Err(e) => return Err(e),
         };
         let adj = (total_ns as i128) - offset_ns;
         if adj < 0 {
-            return Err(crate::parser::ParseError::BeforeEpoch);
+            return Err(ParseError::BeforeEpoch);
         }
         Ok(Timestamp(adj as u64))
     }
