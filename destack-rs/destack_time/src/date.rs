@@ -3,7 +3,7 @@ use std::ops::{Add, Sub};
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use crate::parser::ParseError;
+use crate::parser::TimeParseError;
 
 /// Date in signed 64-bit day precision since epoch (UTC)
 /// range: ±2.5e16 days
@@ -44,19 +44,19 @@ impl Date {
     }
 
     /// Parse ISO 8601 date format (YYYY-MM-DD).
-    pub fn from_iso(s: &str) -> Result<Self, ParseError> {
+    pub fn from_iso(s: &str) -> Result<Self, TimeParseError> {
         let bytes = s.as_bytes();
         if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
-            return Err(ParseError::InvalidFormat);
+            return Err(TimeParseError::InvalidFormat);
         }
         let year = Self::_parse_i32_digits(&bytes[0..4])? as i64;
         let month = Self::_parse_i32_digits(&bytes[5..7])? as i64;
         let day = Self::_parse_i32_digits(&bytes[8..10])? as i64;
         if month < 1 || month > 12 {
-            return Err(ParseError::InvalidFormat);
+            return Err(TimeParseError::InvalidFormat);
         }
         if day < 1 || day > 31 {
-            return Err(ParseError::InvalidFormat);
+            return Err(TimeParseError::InvalidFormat);
         }
         let adjusted_year = year - (month <= 2) as i64;
         let adjusted_month = month + if month > 2 { -3 } else { 9 };
@@ -73,11 +73,11 @@ impl Date {
     }
 
     #[inline]
-    fn _parse_i32_digits(bytes: &[u8]) -> Result<i32, ParseError> {
+    fn _parse_i32_digits(bytes: &[u8]) -> Result<i32, TimeParseError> {
         let mut v: i32 = 0;
         for &ch in bytes {
             if !ch.is_ascii_digit() {
-                return Err(ParseError::InvalidNumber);
+                return Err(TimeParseError::InvalidNumber);
             }
             v = v * 10 + (ch - b'0') as i32;
         }
@@ -146,7 +146,7 @@ impl fmt::Display for Date {
 }
 
 impl FromStr for Date {
-    type Err = ParseError;
+    type Err = TimeParseError;
 
     /// Parse a date string in the format YYYY-MM-DD.
     fn from_str(s: &str) -> Result<Self, Self::Err> {

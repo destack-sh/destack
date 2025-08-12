@@ -1,5 +1,5 @@
 use std::convert::TryFrom;
-// no custom StdError impl needed; we bubble up crate::parser::ParseError
+// no custom StdError impl needed; we bubble up crate::parser::TimeParseError
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
@@ -9,7 +9,7 @@ use crate::parser::parse_hh_mm_ss;
 use crate::{
     Date, Duration,
     format::write_hms_ns,
-    parser::{ParseError, parse_tz_offset, split_time_and_tz},
+    parser::{TimeParseError, parse_tz_offset, split_time_and_tz},
 };
 
 /// Timestamp in unsigned 64-bit nanosecond precision since epoch (UTC)
@@ -17,8 +17,6 @@ use crate::{
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Timestamp(pub u64);
-
-type TimestampParseError = crate::parser::ParseError;
 
 impl Timestamp {
     /// Get the current Timestamp (nanoseconds since epoch).
@@ -31,7 +29,7 @@ impl Timestamp {
     }
 
     #[inline]
-    fn parse_time_ns(time_part: &str) -> Result<(u64, u64, u64, u64), TimestampParseError> {
+    fn parse_time_ns(time_part: &str) -> Result<(u64, u64, u64, u64), TimeParseError> {
         let tb = time_part.as_bytes();
         let (hh, mm, ss) = parse_hh_mm_ss(tb)?;
         let ns = if tb.len() > 8 {
@@ -96,7 +94,7 @@ impl From<Timestamp> for u64 {
 }
 
 impl TryFrom<u64> for Timestamp {
-    type Error = TimestampParseError;
+    type Error = TimeParseError;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         Ok(Timestamp(value))
@@ -122,16 +120,16 @@ impl fmt::Display for Timestamp {
 }
 
 impl FromStr for Timestamp {
-    type Err = TimestampParseError;
+    type Err = TimeParseError;
 
     // Parse YYYY-MM-DDTHH:MM:SS.fffffffffZ or with explicit offset ±HH:MM to convert to UTC.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() < 20 {
-            return Err(ParseError::TooShort);
+            return Err(TimeParseError::TooShort);
         }
         let (date_part, rest) = s.split_at(10);
         if &rest[0..1] != "T" {
-            return Err(ParseError::MissingT);
+            return Err(TimeParseError::MissingT);
         }
         let (time_part, tz_part) = split_time_and_tz(&s[11..])?;
         let date: Date = date_part.parse::<Date>()?;
@@ -143,12 +141,12 @@ impl FromStr for Timestamp {
             + (ss as u128) * 1_000_000_000
             + ns as u128;
         if date.0 < 0 {
-            return Err(TimestampParseError::BeforeEpoch);
+            return Err(TimeParseError::BeforeEpoch);
         }
         let offset_ns = parse_tz_offset(tz_part)?;
         let adj = (total_ns as i128) - offset_ns;
         if adj < 0 {
-            return Err(ParseError::BeforeEpoch);
+            return Err(TimeParseError::BeforeEpoch);
         }
         Ok(Timestamp(adj as u64))
     }
