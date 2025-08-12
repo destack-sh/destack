@@ -13,13 +13,13 @@ path = "src/main.rs"
 
 [dependencies]
 destack_fractional = { workspace = true }
+destack_time = { workspace = true }
 bytes = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
 sysinfo = { workspace = true }
 uuid = { workspace = true }
-wasm-bindgen = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -27,8 +27,6 @@ pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 static_assertions = { workspace = true }
-wasm-bindgen-test = { workspace = true }
 
 [lints]
 workspace = true
-

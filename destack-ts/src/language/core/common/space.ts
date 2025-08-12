@@ -16,7 +16,7 @@ import type {
   IsOwnable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
-import type { Datetime, Float64, UInt128, UUID } from "@destack/language/core/builtin/types";
+import type { DateTime, Float64, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import { BranchType, SnapshotType } from "@destack/language/core/common/time";
@@ -52,7 +52,7 @@ export abstract class Universe extends Entity {
   /**
    * The beginning of time. (1970-01-01T00:00:00+00:00)
    */
-  static readonly BEGINNING_OF_TIME: Datetime = Temporal.Instant.from(
+  static readonly BEGINNING_OF_TIME: DateTime = Temporal.Instant.from(
     "1970-01-01 00:00:00+00:00",
   ).toZonedDateTimeISO("UTC");
 
@@ -167,7 +167,7 @@ export abstract class Universe extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -183,7 +183,7 @@ export abstract class Universe extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Datetime;
+  declare readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -201,7 +201,7 @@ export abstract class Universe extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Datetime | null;
+  declare readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -375,7 +375,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -397,7 +397,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -421,7 +421,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -625,13 +625,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     snapshot?: Snapshot | NodeReference;
     precededBy?: Space | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;

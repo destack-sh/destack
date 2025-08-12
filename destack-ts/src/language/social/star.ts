@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   IsOwned,
   NodeClass,
   NodeReference,
@@ -129,7 +129,7 @@ export class Star extends Entity implements IsOwned {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -151,7 +151,7 @@ export class Star extends Entity implements IsOwned {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -175,7 +175,7 @@ export class Star extends Entity implements IsOwned {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -317,13 +317,13 @@ export class Star extends Entity implements IsOwned {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Star | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
@@ -702,7 +702,7 @@ export class StarEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -741,7 +741,7 @@ export class StarEvent extends Event {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -773,12 +773,12 @@ export class StarEvent extends Event {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Star | NodeReference;

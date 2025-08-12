@@ -5,7 +5,7 @@ import type { Event } from "@destack/language/core/builtin/event";
 import { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
 import type { Node, NodeClass } from "@destack/language/core/builtin/node";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
-import type { Datetime, UInt128, UUID } from "@destack/language/core/builtin/types";
+import type { DateTime, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { Space } from "@destack/language/core/common/space";
 import type { Branch, Snapshot } from "@destack/language/core/common/time";
@@ -115,7 +115,7 @@ export class Index extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -137,7 +137,7 @@ export class Index extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -161,7 +161,7 @@ export class Index extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -335,13 +335,13 @@ export class Index extends Entity {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Index | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
@@ -769,7 +769,7 @@ export class Constraint extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -791,7 +791,7 @@ export class Constraint extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -815,7 +815,7 @@ export class Constraint extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -989,13 +989,13 @@ export class Constraint extends Entity {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Constraint | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;

@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   IsOwnable,
   NodeClass,
   NodeReference,
@@ -99,7 +99,7 @@ export abstract class NotificationEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -126,7 +126,7 @@ export abstract class NotificationEvent extends Event {
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Datetime;
+  declare readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -233,7 +233,7 @@ export class NotificationSentEvent extends NotificationEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -272,7 +272,7 @@ export class NotificationSentEvent extends NotificationEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -304,12 +304,12 @@ export class NotificationSentEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Notification | NodeReference;
@@ -651,7 +651,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -690,7 +690,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -722,12 +722,12 @@ export class NotificationRescindedEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Notification | NodeReference;
@@ -1069,7 +1069,7 @@ export class NotificationReadEvent extends NotificationEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1108,7 +1108,7 @@ export class NotificationReadEvent extends NotificationEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1140,12 +1140,12 @@ export class NotificationReadEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Notification | NodeReference;
@@ -1487,7 +1487,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1526,7 +1526,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1558,12 +1558,12 @@ export class NotificationDismissedEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Notification | NodeReference;
@@ -1905,7 +1905,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1944,7 +1944,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1976,12 +1976,12 @@ export class NotificationExpiredEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Notification | NodeReference;
@@ -2341,7 +2341,7 @@ export class Notification extends Entity implements IsOwnable {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -2363,7 +2363,7 @@ export class Notification extends Entity implements IsOwnable {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -2387,7 +2387,7 @@ export class Notification extends Entity implements IsOwnable {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -2577,13 +2577,13 @@ export class Notification extends Entity implements IsOwnable {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Notification | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;

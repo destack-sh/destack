@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   NodeReference,
   Session,
   Snapshot,
@@ -72,7 +72,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -99,7 +99,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Datetime;
+  declare readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -211,7 +211,7 @@ export class DragStartEvent extends DragEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -250,7 +250,7 @@ export class DragStartEvent extends DragEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -287,12 +287,12 @@ export class DragStartEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -644,7 +644,7 @@ export class DragEndEvent extends DragEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -683,7 +683,7 @@ export class DragEndEvent extends DragEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -720,12 +720,12 @@ export class DragEndEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -1077,7 +1077,7 @@ export class DragOverEvent extends DragEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1116,7 +1116,7 @@ export class DragOverEvent extends DragEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1153,12 +1153,12 @@ export class DragOverEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -1510,7 +1510,7 @@ export class DragEnterEvent extends DragEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1549,7 +1549,7 @@ export class DragEnterEvent extends DragEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1586,12 +1586,12 @@ export class DragEnterEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -1943,7 +1943,7 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1982,7 +1982,7 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -2019,12 +2019,12 @@ export class DragLeaveEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -2376,7 +2376,7 @@ export class DropEvent extends DragEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -2415,7 +2415,7 @@ export class DropEvent extends DragEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -2452,12 +2452,12 @@ export class DropEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;

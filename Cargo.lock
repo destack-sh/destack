@@ -221,6 +221,7 @@ dependencies = [
  "bytes",
  "criterion",
  "destack_fractional",
+ "destack_time",
  "once_cell",
  "pretty_assertions",
  "quickcheck",
@@ -230,8 +231,6 @@ dependencies = [
  "static_assertions",
  "sysinfo",
  "uuid",
- "wasm-bindgen",
- "wasm-bindgen-test",
 ]
 
 [[package]]
@@ -274,6 +273,10 @@ dependencies = [
  "static_assertions",
  "uuid",
 ]
+
+[[package]]
+name = "destack_time"
+version = "2025.8.11-1"
 
 [[package]]
 name = "diff"

@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   NodeClass,
   NodeReference,
   Session,
@@ -94,7 +94,7 @@ export abstract class SanctionEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -121,7 +121,7 @@ export abstract class SanctionEvent extends Event {
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Datetime;
+  declare readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -234,7 +234,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -273,7 +273,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -317,12 +317,12 @@ export class SanctionRequestedEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Sanction | NodeReference;
@@ -677,7 +677,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -716,7 +716,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -760,12 +760,12 @@ export class SanctionGrantedEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Sanction | NodeReference;
@@ -1120,7 +1120,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1159,7 +1159,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1203,12 +1203,12 @@ export class SanctionRevokedEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Sanction | NodeReference;
@@ -1563,7 +1563,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1602,7 +1602,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1646,12 +1646,12 @@ export class SanctionExpiredEvent extends SanctionEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Sanction | NodeReference;
@@ -2024,7 +2024,7 @@ export class Sanction extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -2046,7 +2046,7 @@ export class Sanction extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -2070,7 +2070,7 @@ export class Sanction extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -2224,15 +2224,15 @@ export class Sanction extends Entity {
   /**
    * Sanction.expiresAt
    */
-  get expiresAt(): Datetime | null {
+  get expiresAt(): DateTime | null {
     return this._expiresAt;
   }
-  set expiresAt(value: Datetime | null) {
+  set expiresAt(value: DateTime | null) {
     const prop = (this.constructor as NodeClass).__properties__["expires_at"];
     this._session.updateSetProperty(this, prop, value);
     this._expiresAt = value;
   }
-  _expiresAt: Datetime | null;
+  _expiresAt: DateTime | null;
 
   /**
    * Sanction.target
@@ -2270,13 +2270,13 @@ export class Sanction extends Entity {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Sanction | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
@@ -2286,7 +2286,7 @@ export class Sanction extends Entity {
     source?: Script | NodeReference | null;
     key?: string | null;
     type: SanctionType;
-    expiresAt?: Datetime | null;
+    expiresAt?: DateTime | null;
     target: Entity | NodeReference;
     _session?: Session | null;
   }) {

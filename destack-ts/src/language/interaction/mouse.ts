@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   Float32,
   NodeReference,
   Session,
@@ -94,7 +94,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -121,7 +121,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Datetime;
+  declare readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -227,7 +227,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -254,7 +254,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Datetime;
+  declare readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -396,7 +396,7 @@ export class SingleClickEvent extends ClickEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -435,7 +435,7 @@ export class SingleClickEvent extends ClickEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -502,12 +502,12 @@ export class SingleClickEvent extends ClickEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -926,7 +926,7 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -965,7 +965,7 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1032,12 +1032,12 @@ export class DoubleClickEvent extends ClickEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -1456,7 +1456,7 @@ export class TripleClickEvent extends ClickEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1495,7 +1495,7 @@ export class TripleClickEvent extends ClickEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1562,12 +1562,12 @@ export class TripleClickEvent extends ClickEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;
@@ -1986,7 +1986,7 @@ export class WheelEvent extends MouseEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -2025,7 +2025,7 @@ export class WheelEvent extends MouseEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -2097,12 +2097,12 @@ export class WheelEvent extends MouseEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node?: Entity | NodeReference | null;

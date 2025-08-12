@@ -5,7 +5,7 @@ from ..builtin import (
     Bytes,
     Character,
     Date,
-    Datetime,
+    DateTime,
     Duration,
     Float16,
     Float32,
@@ -137,7 +137,7 @@ class BinaryWriter(Handle):
 
     # PrimitiveType.DATETIME
     @declare_method(140)
-    def write_datetime(self, value: Datetime) -> None:
+    def write_datetime(self, value: DateTime) -> None:
         """Write a datetime."""
         raise NotImplementedError
 
@@ -294,7 +294,7 @@ class BinaryReader(Handle):
 
     # PrimitiveType.DATETIME
     @declare_method(140)
-    def read_datetime(self) -> Datetime:
+    def read_datetime(self) -> DateTime:
         """Read a datetime."""
         raise NotImplementedError
 

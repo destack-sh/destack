@@ -139193,7 +139193,7 @@ export function loadConstants(): void {
           "100": 100,
           "101": "DATETIME",
           "102": { "1": 400031, "100": 3, "102": "fas fa-calendar-days" },
-          "103": "Datetime (microsecond precision, with timezone)",
+          "103": "DateTime (microsecond precision, with timezone)",
           "109": [],
         },
         {

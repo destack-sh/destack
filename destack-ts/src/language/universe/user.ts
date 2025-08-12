@@ -1,7 +1,7 @@
 import type {
   Branch,
   Bytes,
-  Datetime,
+  DateTime,
   IsActor,
   IsFollowable,
   NodeClass,
@@ -135,7 +135,7 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -157,7 +157,7 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -181,7 +181,7 @@ export class User extends Entity implements IsActor, IsFollowable {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -351,15 +351,15 @@ export class User extends Entity implements IsActor, IsFollowable {
   /**
    * User.lastLoggedInAt
    */
-  get lastLoggedInAt(): Datetime | null {
+  get lastLoggedInAt(): DateTime | null {
     return this._lastLoggedInAt;
   }
-  set lastLoggedInAt(value: Datetime | null) {
+  set lastLoggedInAt(value: DateTime | null) {
     const prop = (this.constructor as NodeClass).__properties__["last_logged_in_at"];
     this._session.updateSetProperty(this, prop, value);
     this._lastLoggedInAt = value;
   }
-  _lastLoggedInAt: Datetime | null;
+  _lastLoggedInAt: DateTime | null;
 
   /**
    * User.isStaff
@@ -465,13 +465,13 @@ export class User extends Entity implements IsActor, IsFollowable {
     snapshot?: Snapshot | NodeReference;
     precededBy?: User | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
@@ -482,7 +482,7 @@ export class User extends Entity implements IsActor, IsFollowable {
     key?: string | null;
     slug: string;
     status?: UserStatus;
-    lastLoggedInAt?: Datetime | null;
+    lastLoggedInAt?: DateTime | null;
     isStaff?: boolean;
     handle?: Handle | NodeReference | null;
     email?: string | null;

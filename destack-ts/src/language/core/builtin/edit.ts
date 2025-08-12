@@ -4,7 +4,7 @@ import type { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import type { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { Datetime, UInt8, UInt128, UUID } from "@destack/language/core/builtin/types";
+import type { DateTime, UInt8, UInt128, UUID } from "@destack/language/core/builtin/types";
 import type { Value } from "@destack/language/core/builtin/value";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Space } from "@destack/language/core/common/space";
@@ -134,7 +134,7 @@ export class EditEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -173,7 +173,7 @@ export class EditEvent extends Event {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -253,12 +253,12 @@ export class EditEvent extends Event {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     type: EditType;

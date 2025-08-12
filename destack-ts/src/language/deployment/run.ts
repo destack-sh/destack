@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   Duration,
   Materialization,
   NodeReference,
@@ -100,7 +100,7 @@ export abstract class RunEvent extends Event {
   /**
    * The time this Event was created (system).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -127,7 +127,7 @@ export abstract class RunEvent extends Event {
   /**
    * The time in the Client when it created this Event (client).
    */
-  declare readonly clientCreatedAt: Datetime;
+  declare readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -240,7 +240,7 @@ export class RunStartedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -279,7 +279,7 @@ export class RunStartedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -323,12 +323,12 @@ export class RunStartedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -682,7 +682,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -721,7 +721,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -765,12 +765,12 @@ export class RunPauseRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -1124,7 +1124,7 @@ export class RunPausedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1163,7 +1163,7 @@ export class RunPausedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1207,12 +1207,12 @@ export class RunPausedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -1566,7 +1566,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -1605,7 +1605,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -1649,12 +1649,12 @@ export class RunResumeRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -2008,7 +2008,7 @@ export class RunResumedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -2047,7 +2047,7 @@ export class RunResumedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -2091,12 +2091,12 @@ export class RunResumedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -2450,7 +2450,7 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -2489,7 +2489,7 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -2533,12 +2533,12 @@ export class RunStopRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -2892,7 +2892,7 @@ export class RunFailedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -2931,7 +2931,7 @@ export class RunFailedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -2975,12 +2975,12 @@ export class RunFailedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -3334,7 +3334,7 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * The time this Event was created (system).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Event was created (system).
@@ -3373,7 +3373,7 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * The time in the Client when it created this Event (client).
    */
-  readonly clientCreatedAt: Datetime;
+  readonly clientCreatedAt: DateTime;
 
   /**
    * The logical time in the Client when it created this Event (client).
@@ -3417,12 +3417,12 @@ export class RunCompletedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
     client?: Client | NodeReference;
     clientNonce?: UUID;
-    clientCreatedAt?: Datetime;
+    clientCreatedAt?: DateTime;
     clientEpoch?: UInt128;
     status?: EventStatus;
     node: Run | NodeReference;
@@ -3752,7 +3752,7 @@ export abstract class Run extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  declare readonly createdAt: Datetime;
+  declare readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -3768,7 +3768,7 @@ export abstract class Run extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  declare readonly updatedAt: Datetime;
+  declare readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -3786,7 +3786,7 @@ export abstract class Run extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  declare readonly deletedAt: Datetime | null;
+  declare readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -3888,8 +3888,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run is scheduled to start.
    */
-  abstract get scheduledAt(): Datetime | null;
-  abstract set scheduledAt(value: Datetime | null);
+  abstract get scheduledAt(): DateTime | null;
+  abstract set scheduledAt(value: DateTime | null);
 
   /**
    * When the Run first started.
@@ -3897,8 +3897,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run first started.
    */
-  abstract get startedAt(): Datetime | null;
-  abstract set startedAt(value: Datetime | null);
+  abstract get startedAt(): DateTime | null;
+  abstract set startedAt(value: DateTime | null);
 
   /**
    * When the Run was last active.
@@ -3906,8 +3906,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run was last active.
    */
-  abstract get seenAt(): Datetime | null;
-  abstract set seenAt(value: Datetime | null);
+  abstract get seenAt(): DateTime | null;
+  abstract set seenAt(value: DateTime | null);
 
   /**
    * When the Run was interrupted.
@@ -3915,8 +3915,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run was interrupted.
    */
-  abstract get interruptedAt(): Datetime | null;
-  abstract set interruptedAt(value: Datetime | null);
+  abstract get interruptedAt(): DateTime | null;
+  abstract set interruptedAt(value: DateTime | null);
 
   /**
    * When the Run was last terminated.
@@ -3924,8 +3924,8 @@ export abstract class Run extends Entity {
   /**
    * When the Run was last terminated.
    */
-  abstract get terminatedAt(): Datetime | null;
-  abstract set terminatedAt(value: Datetime | null);
+  abstract get terminatedAt(): DateTime | null;
+  abstract set terminatedAt(value: DateTime | null);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

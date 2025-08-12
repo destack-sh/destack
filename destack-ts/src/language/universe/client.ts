@@ -1,6 +1,6 @@
 import type {
   Branch,
-  Datetime,
+  DateTime,
   NodeClass,
   NodeReference,
   Session,
@@ -129,7 +129,7 @@ export class Client extends Entity {
   /**
    * The time this Entity was created (system time).
    */
-  readonly createdAt: Datetime;
+  readonly createdAt: DateTime;
 
   /**
    * The logical time this Entity was created (system time).
@@ -151,7 +151,7 @@ export class Client extends Entity {
   /**
    * The time this Entity was last updated (system time).
    */
-  readonly updatedAt: Datetime;
+  readonly updatedAt: DateTime;
 
   /**
    * The logical time this Entity was last updated (system time).
@@ -175,7 +175,7 @@ export class Client extends Entity {
    * Only set if the Entity is currently 'deleted'.
    * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
-  readonly deletedAt: Datetime | null;
+  readonly deletedAt: DateTime | null;
 
   /**
    * Entity.ownedBy
@@ -421,15 +421,15 @@ export class Client extends Entity {
   /**
    * Client.seenAt
    */
-  get seenAt(): Datetime | null {
+  get seenAt(): DateTime | null {
     return this._seenAt;
   }
-  set seenAt(value: Datetime | null) {
+  set seenAt(value: DateTime | null) {
     const prop = (this.constructor as NodeClass).__properties__["seen_at"];
     this._session.updateSetProperty(this, prop, value);
     this._seenAt = value;
   }
-  _seenAt: Datetime | null;
+  _seenAt: DateTime | null;
 
   /**
    * Client.loggedInAt
@@ -437,15 +437,15 @@ export class Client extends Entity {
   /**
    * Client.loggedInAt
    */
-  get loggedInAt(): Datetime | null {
+  get loggedInAt(): DateTime | null {
     return this._loggedInAt;
   }
-  set loggedInAt(value: Datetime | null) {
+  set loggedInAt(value: DateTime | null) {
     const prop = (this.constructor as NodeClass).__properties__["logged_in_at"];
     this._session.updateSetProperty(this, prop, value);
     this._loggedInAt = value;
   }
-  _loggedInAt: Datetime | null;
+  _loggedInAt: DateTime | null;
 
   /**
    * Client.deviceType
@@ -521,13 +521,13 @@ export class Client extends Entity {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Client | NodeReference | null;
     instance?: Entity | NodeReference | null;
-    createdAt?: Datetime;
+    createdAt?: DateTime;
     createdEpoch?: UInt128;
     createdBy?: Entity | NodeReference;
-    updatedAt?: Datetime;
+    updatedAt?: DateTime;
     updatedEpoch?: UInt128;
     updatedBy?: Entity | NodeReference;
-    deletedAt?: Datetime | null;
+    deletedAt?: DateTime | null;
     ownedBy?: Entity | NodeReference | null;
     name?: string;
     orderKey?: string;
@@ -541,8 +541,8 @@ export class Client extends Entity {
     machine?: Machine | NodeReference | null;
     user?: User | NodeReference | null;
     accessToken?: string | null;
-    seenAt?: Datetime | null;
-    loggedInAt?: Datetime | null;
+    seenAt?: DateTime | null;
+    loggedInAt?: DateTime | null;
     deviceType?: string | null;
     deviceName?: string | null;
     operatingSystem?: string | null;

@@ -7,7 +7,7 @@ from ...builtin import (
     Bytes,
     Character,
     Date,
-    Datetime,
+    DateTime,
     Duration,
     Float16,
     Float32,
@@ -168,7 +168,7 @@ class KompaktBinaryWriter(BinaryWriter):
         self.buffer.extend(struct.pack("<d", value))
 
     @override
-    def write_datetime(self, value: Datetime) -> None:
+    def write_datetime(self, value: DateTime) -> None:
         """
         Write a datetime as zigzag-encoded varint of signed 64-bit microseconds since Unix epoch (UTC).
         Range: approximately ±292,277 years.
@@ -488,7 +488,7 @@ class KompaktBinaryReader(BinaryReader):
         return value
 
     @override
-    def read_datetime(self) -> Datetime:
+    def read_datetime(self) -> DateTime:
         """
         Read a datetime from zigzag-decoded varint of signed 64-bit microseconds since Unix epoch (UTC).
         Range: approximately ±292,277 years.
