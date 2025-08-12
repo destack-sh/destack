@@ -63,7 +63,7 @@ class ProcessFlag(FlagEnum):
     )
     INACTIVE = declare_option(
         2,
-        description="Entity is inactive.",
+        description="Entity is inactive (i.e. paused).",
     )
     INACTIVE_INPUT = declare_option(
         4,
@@ -272,15 +272,15 @@ class Entity(Node):
     owned_by: "Entity" = declare_property(
         26,
         is_repr=True,
-        description="The exclusive owner of this Entity (the authority on access).",
+        description="The exclusive owner of this Entity (the root on access).",
         reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.ACTOR,
         tag="tracking",
     )
-    managed_by: "Entity" = declare_property(
+    controlled_by: "Entity" = declare_property(
         27,
         is_repr=True,
-        description="The exclusive manager of this Entity (the authority on state).",
+        description="The exclusive controller of this Entity (the authority on Changes).",
         reference_type=ReferenceType.LOCATION,
         default_factory=ValueFactory.ACTOR,
         tag="tracking",

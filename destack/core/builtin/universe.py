@@ -130,7 +130,7 @@ class UniverseCategory(OptionEnum):
     CAMERA = declare_option(40_300_000, "Camera", description="Camera and viewport")
     SHADERS = declare_option(40_400_000, "Shaders", description="Shader programming")
     MATERIAL = declare_option(40_500_000, "Material", description="Material rendering")
-    # XR, ...
+    # TEXT/FONT, XR, ...
 
     #
     # PRODUCTION
@@ -194,6 +194,7 @@ class EnumType(OptionEnum):
     REFERENCE_TYPE = declare_option(200_010)
     # text
     TEXT_SPAN_TYPE = declare_option(200_100)
+    TEXT_STYLE_FLAG = declare_option(200_101)
     ICON_TYPE = declare_option(200_110)
     # change
     CHANGE_TYPE = declare_option(200_200)
