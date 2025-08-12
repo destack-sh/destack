@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use crate::parser::{
-    ParseError, parse_hh_mm_ss, parse_tz_offset, parse_us_maybe, split_time_and_tz,
+    TimeParseError, parse_hh_mm_ss, parse_tz_offset, parse_us_maybe, split_time_and_tz,
 };
 use crate::{Date, Duration};
 
@@ -49,14 +49,14 @@ impl DateTime {
     }
 
     /// Parse ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SS.ffffffZ or with offset).
-    pub fn from_iso(s: &str) -> Result<Self, ParseError> {
+    pub fn from_iso(s: &str) -> Result<Self, TimeParseError> {
         // split date and time
         if s.len() < 20 {
-            return Err(ParseError::TooShort);
+            return Err(TimeParseError::TooShort);
         }
         let (date_part, rest) = s.split_at(10);
         if &rest[0..1] != "T" {
-            return Err(ParseError::MissingT);
+            return Err(TimeParseError::MissingT);
         }
         let (time_part, tz_part) = split_time_and_tz(&s[11..])?;
         // parse date
@@ -77,7 +77,7 @@ impl DateTime {
 
     #[inline]
     /// Parse the time part of a datetime string into (hh, mm, ss, us)
-    fn _parse_time_us(dt_str: &str) -> Result<(i64, i64, i64, i64), ParseError> {
+    fn _parse_time_us(dt_str: &str) -> Result<(i64, i64, i64, i64), TimeParseError> {
         let dt_bytes = dt_str.as_bytes();
         let (hh, mm, ss) = parse_hh_mm_ss(dt_bytes)?;
         let us = if dt_bytes.len() > 8 {
@@ -166,7 +166,7 @@ impl fmt::Display for DateTime {
 }
 
 impl FromStr for DateTime {
-    type Err = ParseError;
+    type Err = TimeParseError;
 
     /// Parse a datetime string in the format YYYY-MM-DDTHH:MM:SS.ffffffZ.
     ///  (or with explicit offset ±HH:MM to convert to UTC).

@@ -3,7 +3,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::str::FromStr;
 
-use crate::parser::ParseError;
+use crate::parser::TimeParseError;
 
 /// Duration in signed 64-bit nanosecond precision
 /// range: ±292.277 years
@@ -115,9 +115,9 @@ impl Duration {
     }
 
     /// Parse ISO 8601 duration format.
-    pub fn from_iso(s: &str) -> Result<Self, crate::parser::ParseError> {
+    pub fn from_iso(s: &str) -> Result<Self, crate::parser::TimeParseError> {
         if s.is_empty() {
-            return Err(ParseError::TooShort);
+            return Err(TimeParseError::TooShort);
         }
         let bytes = s.as_bytes();
         let mut idx = 0;
@@ -128,13 +128,13 @@ impl Duration {
             negative = true;
             idx += 1;
             if idx >= bytes.len() {
-                return Err(ParseError::InvalidFormat);
+                return Err(TimeParseError::InvalidFormat);
             }
         }
 
         // mandatory 'P'
         if bytes.get(idx) != Some(&b'P') {
-            return Err(ParseError::InvalidFormat);
+            return Err(TimeParseError::InvalidFormat);
         }
         idx += 1;
 
@@ -160,14 +160,14 @@ impl Duration {
                 idx += 1;
             }
             if start == idx {
-                return Err(ParseError::InvalidFormat);
+                return Err(TimeParseError::InvalidFormat);
             }
             let num: i64 = s[start..idx]
                 .parse()
-                .map_err(|_| ParseError::InvalidFormat)?;
+                .map_err(|_| TimeParseError::InvalidFormat)?;
 
             if idx >= bytes.len() {
-                return Err(ParseError::InvalidFormat);
+                return Err(TimeParseError::InvalidFormat);
             }
             let unit = bytes[idx];
             idx += 1;
@@ -189,7 +189,7 @@ impl Duration {
                     }
                     if frac_start == frac_end || frac_end >= bytes.len() || bytes[frac_end] != b'S'
                     {
-                        return Err(ParseError::InvalidFormat);
+                        return Err(TimeParseError::InvalidFormat);
                     }
                     let mut frac = &s[frac_start..frac_end];
                     let len = frac.len();
@@ -208,7 +208,7 @@ impl Duration {
                     nanos = ns;
                     idx = frac_end + 1; // skip 'S'
                 }
-                _ => return Err(ParseError::InvalidFormat),
+                _ => return Err(TimeParseError::InvalidFormat),
             }
         }
 
@@ -223,7 +223,7 @@ impl Duration {
             total = -total;
         }
         if total < i64::MIN as i128 || total > i64::MAX as i128 {
-            return Err(ParseError::Overflow);
+            return Err(TimeParseError::Overflow);
         }
         Ok(Duration(total as i64))
     }
@@ -330,23 +330,23 @@ impl From<Duration> for i64 {
 }
 
 impl TryFrom<std::time::Duration> for Duration {
-    type Error = crate::parser::ParseError;
+    type Error = crate::parser::TimeParseError;
 
     fn try_from(value: std::time::Duration) -> Result<Self, Self::Error> {
         let nanos_u128 = value.as_nanos();
         if nanos_u128 > i64::MAX as u128 {
-            return Err(crate::parser::ParseError::Overflow);
+            return Err(crate::parser::TimeParseError::Overflow);
         }
         Ok(Duration(nanos_u128 as i64))
     }
 }
 
 impl TryFrom<Duration> for std::time::Duration {
-    type Error = crate::parser::ParseError;
+    type Error = crate::parser::TimeParseError;
 
     fn try_from(value: Duration) -> Result<Self, Self::Error> {
         if value.0 < 0 {
-            return Err(crate::parser::ParseError::InvalidFormat);
+            return Err(crate::parser::TimeParseError::InvalidFormat);
         }
         Ok(std::time::Duration::from_nanos(value.0 as u64))
     }
@@ -359,7 +359,7 @@ impl fmt::Display for Duration {
 }
 
 impl FromStr for Duration {
-    type Err = crate::parser::ParseError;
+    type Err = crate::parser::TimeParseError;
 
     /// Accepts ISO 8601 duration formats like: P3DT4H, PT1.234567890S, -PT2S, P0D, PT0S.
     fn from_str(s: &str) -> Result<Self, Self::Err> {

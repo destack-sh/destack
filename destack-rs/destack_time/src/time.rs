@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use crate::Duration;
-use crate::parser;
+use crate::parser::TimeParseError;
 
 /// Time in unsigned 64-bit nanosecond precision since midnight
 /// range: 00:00:00.000_000_000 to 23:59:59.999_999_999
@@ -63,8 +63,8 @@ impl Time {
         }
         let start = idx + 1;
         let ns = crate::parser::parse_ns_digits_exact(&b[start..]).map_err(|e| match e {
-            parser::ParseError::FractionDigitsMustBe9 => TimeError::FractionMustBe9,
-            parser::ParseError::InvalidTime | parser::ParseError::InvalidNumber => {
+            TimeParseError::FractionDigitsMustBe9 => TimeError::FractionMustBe9,
+            TimeParseError::InvalidTime | TimeParseError::InvalidNumber => {
                 TimeError::InvalidFraction
             }
             _ => TimeError::InvalidFraction,
