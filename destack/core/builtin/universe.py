@@ -97,12 +97,11 @@ class UniverseCategory(OptionEnum):
     GEOMETRY = declare_option(20_000_000, "Geometry", description="Geometric representations")
     GEOGRAPHY = declare_option(20_100_000, "Geography", description="Geographic representations")
     PHYSICS = declare_option(20_200_000, "Physics", description="Physics simulation")
-    ANIMATION = declare_option(20_300_000, "Animation", description="Motion choreography")
-    PERCEPTION = declare_option(20_400_000, "Perception", description="Sensing and interaction")
-    LIGHTING = declare_option(21_000_000, "Lighting", description="Lighting and shadows")
-    # CHARACTER/HUMAN?, FLESH/FUR/...?, PARTICLE?, FLUID?, NAVIGATION, ...
+    PERCEPTION = declare_option(20_300_000, "Perception", description="Sensing and interaction")
+    # CHARACTER/HUMAN?, FLESH/FUR/...?, CLOTH, FLUID?, ...
+    # NAVIGATION, ACTUATION, ...
     # LOGIC, NETWORKING, STATISTICS, ...
-    # MECHANICAL, ELECTRICAL, SUBSTANCE, ...
+    # MECHANICAL, MOLECULAR, ELECTRICAL, AERODYNAMIC, LIGHT, SUBSTANCE, ...
     # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, CIVIL, ...
 
     #
@@ -114,6 +113,7 @@ class UniverseCategory(OptionEnum):
     VIDEO = declare_option(30_200_000, "Video", description="Video production")
     MODEL = declare_option(30_300_000, "Model", description="Modeling, sculpting, CSG, CAD")
     PAINT = declare_option(30_400_000, "Paint", description="Drawing and painting")
+    ANIMATION = declare_option(30_500_000, "Animation", description="Motion choreography")
     # MUSIC, ...
     STYLE = declare_option(31_000_000, "Style", description="Appearance and theming")
     DOCUMENT = declare_option(32_000_000, "Document", description="Document processing")
@@ -126,11 +126,14 @@ class UniverseCategory(OptionEnum):
 
     SCENE = declare_option(40_000_000, "Scene", description="Staging and viewing")
     VIEW = declare_option(40_100_000, "View", description="View construction")
-    RENDERING = declare_option(40_200_000, "Rendering", description="Render pipelines")
+    RENDERING = declare_option(
+        40_200_000, "Rendering", description="Render pipelines, post-processing"
+    )
     CAMERA = declare_option(40_300_000, "Camera", description="Camera and viewport")
     SHADERS = declare_option(40_400_000, "Shaders", description="Shader programming")
     MATERIAL = declare_option(40_500_000, "Material", description="Material rendering")
-    # TEXT/FONT, XR, ...
+    LIGHTING = declare_option(40_600_000, "Lighting", description="Light and shadows")
+    # PARTICLE?, TEXT/FONT, XR, ...
 
     #
     # PRODUCTION
@@ -293,18 +296,8 @@ class EnumType(OptionEnum):
     # physics [20_200_000]
     # ...
 
-    # animation [20_300_000]
-    TRANSITION_TYPE = declare_option(20_300_000)
-    SPRING_TYPE = declare_option(20_300_001)
-    EFFECT_TYPE = declare_option(20_300_100)
-    REPEAT_TYPE = declare_option(20_300_002)
-    EASING = declare_option(20_300_003)
-
-    # perception [20_400_000]
-    MOUSE_BUTTON = declare_option(20_400_000)
-
-    # lighting [21_000_000]
-    # ...
+    # perception [20_300_000]
+    MOUSE_BUTTON = declare_option(20_300_000)
 
     #
     # IMAGINATION
@@ -324,6 +317,13 @@ class EnumType(OptionEnum):
 
     # paint [30_400_000]
     # ...
+
+    # animation [30_500_000]
+    TRANSITION_TYPE = declare_option(30_500_000)
+    SPRING_TYPE = declare_option(30_500_001)
+    EFFECT_TYPE = declare_option(30_500_100)
+    REPEAT_TYPE = declare_option(30_500_002)
+    EASING = declare_option(30_500_003)
 
     # style [31_000_000]
     # ...
@@ -370,6 +370,9 @@ class EnumType(OptionEnum):
     # ...
 
     # material [40_500_000]
+    # ...
+
+    # lighting [40_600_000]
     # ...
 
     #
@@ -532,16 +535,10 @@ class TraitType(OptionEnum):
     # physics [20_200_000]
     # ...
 
-    # animation [20_300_000]
-    # ...
-
-    # perception [20_400_000]
-    INTERACTIVE = declare_option(20_400_000, "Interactive", description="Can be interacted with")
-    DRAGGABLE = declare_option(20_400_001, "Draggable", description="Can be dragged")
-    SELECTABLE = declare_option(20_400_002, "Selectable", description="Can be selected")
-    # ...
-
-    # lighting [21_000_000]
+    # perception [20_300_000]
+    INTERACTIVE = declare_option(20_300_000, "Interactive", description="Can be interacted with")
+    DRAGGABLE = declare_option(20_300_001, "Draggable", description="Can be dragged")
+    SELECTABLE = declare_option(20_300_002, "Selectable", description="Can be selected")
     # ...
 
     #
@@ -561,6 +558,9 @@ class TraitType(OptionEnum):
     # ...
 
     # paint [30_400_000]
+    # ...
+
+    # animation [30_500_000]
     # ...
 
     # style [31_000_000]
@@ -589,6 +589,9 @@ class TraitType(OptionEnum):
     # ...
 
     # material [40_500_000]
+    # ...
+
+    # lighting [40_600_000]
     # ...
 
     #
@@ -900,64 +903,51 @@ class NodeType(OptionEnum):
     # JOINT, FIXED_JOINT, FREE_JOINT, SPHERICAL_JOINT, SPRING, MOTOR, ...
     # NAVIGATION, ...
 
-    # animation [20_300_000]
-    TRANSITION_TEMPLATE = declare_option(20_300_000, "Transition Style")
-    EFFECT_TEMPLATE = declare_option(20_300_100, "Effect Style")
-    # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
-    # KEYFRAME_VARIANT, ...
-    # RIG, ...
-
-    # perception [20_400_000]
-    INPUT_EVENT = declare_option(20_400_000, "Input Event")
+    # perception [20_300_000]
+    INPUT_EVENT = declare_option(20_300_000, "Input Event")
     # pointer events
-    POINTER_EVENT = declare_option(20_400_100, "Pointer Event")
-    POINTER_DOWN_EVENT = declare_option(20_400_101, "Pointer Down Event")
-    POINTER_UP_EVENT = declare_option(20_400_102, "Pointer Up Event")
-    POINTER_MOVE_EVENT = declare_option(20_400_103, "Pointer Move Event")
-    POINTER_ENTER_EVENT = declare_option(20_400_104, "Pointer Enter Event")
-    POINTER_OVER_EVENT = declare_option(20_400_105, "Pointer Over Event")
-    POINTER_LEAVE_EVENT = declare_option(20_400_106, "Pointer Leave Event")
-    POINTER_LONG_PRESS_EVENT = declare_option(20_400_107, "Long Press Event")
+    POINTER_EVENT = declare_option(20_300_100, "Pointer Event")
+    POINTER_DOWN_EVENT = declare_option(20_300_101, "Pointer Down Event")
+    POINTER_UP_EVENT = declare_option(20_300_102, "Pointer Up Event")
+    POINTER_MOVE_EVENT = declare_option(20_300_103, "Pointer Move Event")
+    POINTER_ENTER_EVENT = declare_option(20_300_104, "Pointer Enter Event")
+    POINTER_OVER_EVENT = declare_option(20_300_105, "Pointer Over Event")
+    POINTER_LEAVE_EVENT = declare_option(20_300_106, "Pointer Leave Event")
+    POINTER_LONG_PRESS_EVENT = declare_option(20_300_107, "Long Press Event")
     # mouse events
-    MOUSE_EVENT = declare_option(20_400_200, "Mouse Event")
-    CLICK_EVENT = declare_option(20_400_201, "Click Event")
-    SINGLE_CLICK_EVENT = declare_option(20_400_202, "Single Click Event")
-    DOUBLE_CLICK_EVENT = declare_option(20_400_203, "Double Click Event")
-    TRIPLE_CLICK_EVENT = declare_option(20_400_204, "Triple Click Event")
-    WHEEL_EVENT = declare_option(20_400_210, "Wheel Event")
+    MOUSE_EVENT = declare_option(20_300_200, "Mouse Event")
+    CLICK_EVENT = declare_option(20_300_201, "Click Event")
+    SINGLE_CLICK_EVENT = declare_option(20_300_202, "Single Click Event")
+    DOUBLE_CLICK_EVENT = declare_option(20_300_203, "Double Click Event")
+    TRIPLE_CLICK_EVENT = declare_option(20_300_204, "Triple Click Event")
+    WHEEL_EVENT = declare_option(20_300_210, "Wheel Event")
     # key events
-    KEY_EVENT = declare_option(20_400_300, "Key Event")
-    KEY_DOWN_EVENT = declare_option(20_400_301, "Key Down Event")
-    KEY_UP_EVENT = declare_option(20_400_302, "Key Up Event")
-    KEY_PRESS_EVENT = declare_option(20_400_303, "Key Press Event")
+    KEY_EVENT = declare_option(20_300_300, "Key Event")
+    KEY_DOWN_EVENT = declare_option(20_300_301, "Key Down Event")
+    KEY_UP_EVENT = declare_option(20_300_302, "Key Up Event")
+    KEY_PRESS_EVENT = declare_option(20_300_303, "Key Press Event")
     # drag events
-    DRAG_EVENT = declare_option(20_400_400, "Drag Event")
-    DRAG_START_EVENT = declare_option(20_400_401, "Drag Start Event")
-    DRAG_END_EVENT = declare_option(20_400_402, "Drag End Event")
-    DRAG_OVER_EVENT = declare_option(20_400_403, "Drag Over Event")
-    DRAG_ENTER_EVENT = declare_option(20_400_404, "Drag Enter Event")
-    DRAG_LEAVE_EVENT = declare_option(20_400_405, "Drag Leave Event")
-    DROP_EVENT = declare_option(20_400_406, "Drop Event")
+    DRAG_EVENT = declare_option(20_300_400, "Drag Event")
+    DRAG_START_EVENT = declare_option(20_300_401, "Drag Start Event")
+    DRAG_END_EVENT = declare_option(20_300_402, "Drag End Event")
+    DRAG_OVER_EVENT = declare_option(20_300_403, "Drag Over Event")
+    DRAG_ENTER_EVENT = declare_option(20_300_404, "Drag Enter Event")
+    DRAG_LEAVE_EVENT = declare_option(20_300_405, "Drag Leave Event")
+    DROP_EVENT = declare_option(20_300_406, "Drop Event")
     # clipboard events
-    CLIPBOARD_EVENT = declare_option(20_400_500, "Clipboard Event")
-    COPY_EVENT = declare_option(20_400_501, "Copy Event")
-    CUT_EVENT = declare_option(20_400_502, "Cut Event")
-    PASTE_EVENT = declare_option(20_400_503, "Paste Event")
+    CLIPBOARD_EVENT = declare_option(20_300_500, "Clipboard Event")
+    COPY_EVENT = declare_option(20_300_501, "Copy Event")
+    CUT_EVENT = declare_option(20_300_502, "Cut Event")
+    PASTE_EVENT = declare_option(20_300_503, "Paste Event")
     # focus events
-    FOCUS_EVENT = declare_option(20_400_600, "Focus Event")
-    FOCUS_IN_EVENT = declare_option(20_400_601, "Focus In Event")
-    FOCUS_OUT_EVENT = declare_option(20_400_602, "Focus Out Event")
+    FOCUS_EVENT = declare_option(20_300_600, "Focus Event")
+    FOCUS_IN_EVENT = declare_option(20_300_601, "Focus In Event")
+    FOCUS_OUT_EVENT = declare_option(20_300_602, "Focus Out Event")
     # command
     # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
     # CLIPBOARD, ...
     # CAMERA, SPEAKER, MICROPHONE, ...
-
-    # lighting [21_000_000]
-    # LIGHT, LIGHT2D, ...
-    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
-    # OCCLUDER, ...
-    # ...
 
     #
     # IMAGINATION
@@ -984,6 +974,13 @@ class NodeType(OptionEnum):
     # DAB, PAINT, BRUSH, ...
     # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
     # TEXTURE, ...
+
+    # animation [30_500_000]
+    TRANSITION_TEMPLATE = declare_option(30_500_000, "Transition Style")
+    EFFECT_TEMPLATE = declare_option(30_500_100, "Effect Style")
+    # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
+    # KEYFRAME_VARIANT, ...
+    # RIG, ...
 
     # style [31_000_000]
     THEME = declare_option(31_000_000, "Theme")
@@ -1049,6 +1046,12 @@ class NodeType(OptionEnum):
     # ...
 
     # material [40_500_000]
+    # ...
+
+    # lighting [40_600_000]
+    # LIGHT, LIGHT2D, ...
+    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
+    # OCCLUDER, ...
     # ...
 
     #
@@ -1261,14 +1264,7 @@ class StructType(OptionEnum):
     # physics [20_200_000]
     # ...
 
-    # animation [20_300_000]
-    TRANSITION = declare_option(20_300_000, "Transition")
-    EFFECT = declare_option(20_300_100, "Effect")
-
-    # perception [20_400_000]
-    # ...
-
-    # lighting [21_000_000]
+    # perception [20_300_000]
     # ...
 
     #
@@ -1289,6 +1285,10 @@ class StructType(OptionEnum):
 
     # paint [30_400_000]
     # ...
+
+    # animation [30_500_000]
+    TRANSITION = declare_option(30_500_000, "Transition")
+    EFFECT = declare_option(30_500_100, "Effect")
 
     # style [31_000_000]
     COLOR = declare_option(31_001_000, "Color")
@@ -1326,6 +1326,9 @@ class StructType(OptionEnum):
     # ...
 
     # material [40_500_000]
+    # ...
+
+    # lighting [40_600_000]
     # ...
 
     #

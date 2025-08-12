@@ -220,6 +220,7 @@ version = "2025.8.11-1"
 dependencies = [
  "bytes",
  "criterion",
+ "destack_fractional",
  "once_cell",
  "pretty_assertions",
  "quickcheck",
@@ -232,6 +233,10 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
+
+[[package]]
+name = "destack_fractional"
+version = "2025.8.11-1"
 
 [[package]]
 name = "destack_system"
