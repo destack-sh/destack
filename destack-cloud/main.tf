@@ -131,7 +131,7 @@ resource "aws_route_table_association" "global_public" {
 
 # 
 # Regions
-# NOTE :Cleanup: region modules are typed out manually because they're legacy modules :StaticRegions
+# NOTE @Cleanup: region modules are typed out manually because they're legacy modules :StaticRegions
 #  (because the kubernetes provider inside needs the EKS cluster inside,
 #   and we can't pass them as arguments without creating a circular dependency (?))
 #

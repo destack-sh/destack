@@ -1,18 +1,49 @@
 use std::convert::TryFrom;
+use std::error::Error as StdError;
+use std::fmt;
 use std::ops::{Add, Sub};
+use std::str::FromStr;
 
 use crate::Duration;
 
-/// Time in unsigned 64-bit nanosecond precision.
-/// Range: 00:00:00.000_000_000 to 23:59:59.999_999_999.
+/// Time in unsigned 64-bit nanosecond precision since midnight
+/// range: 00:00:00.000_000_000 to 23:59:59.999_999_999
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Time(pub u64);
 
+/// errors for parsing or constructing `Time`
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimeError {
+    TooShort,
+    MissingColon,
+    OutOfRange,
+    FractionMustBe9,
+    InvalidFraction,
+    Trailing,
+}
+
+impl fmt::Display for TimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let msg = match self {
+            TimeError::TooShort => "too short",
+            TimeError::MissingColon => "missing colon",
+            TimeError::OutOfRange => "time out of range",
+            TimeError::FractionMustBe9 => "fraction must be 9 digits",
+            TimeError::InvalidFraction => "invalid fraction",
+            TimeError::Trailing => "invalid trailing characters",
+        };
+        f.write_str(msg)
+    }
+}
+
+impl StdError for TimeError {}
+
 impl Time {
+    /// number of nanoseconds in a day
     const DAY_NANOS: u128 = 24 * 60 * 60 * 1_000_000_000;
 
-    /// Get the current Time.
+    /// Get the current time (UTC) as nanoseconds since midnight
     pub fn now() -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -20,6 +51,62 @@ impl Time {
         // get nanoseconds since midnight today
         let nanos_since_midnight = now.as_nanos() % Self::DAY_NANOS;
         Self(nanos_since_midnight as u64)
+    }
+
+    #[inline]
+    /// Parse two digits from a byte slice at the given index.
+    fn parse_two_digits(b: &[u8], idx: usize) -> Result<u64, TimeError> {
+        if idx + 1 >= b.len() || !b[idx].is_ascii_digit() || !b[idx + 1].is_ascii_digit() {
+            return Err(TimeError::TooShort);
+        }
+        Ok(((b[idx] - b'0') as u64) * 10 + (b[idx + 1] - b'0') as u64)
+    }
+
+    #[inline]
+    /// Parse the fractional part of a time string.
+    fn parse_fraction_ns_9(b: &[u8], idx: usize) -> Result<(u64, usize), TimeError> {
+        if idx >= b.len() || b[idx] != b'.' {
+            return Err(TimeError::Trailing);
+        }
+        let start = idx + 1;
+        if b.len() - start != 9 {
+            return Err(TimeError::FractionMustBe9);
+        }
+        let mut ns: u64 = 0;
+        for &ch in &b[start..] {
+            if !ch.is_ascii_digit() {
+                return Err(TimeError::InvalidFraction);
+            }
+            ns = ns * 10 + (ch - b'0') as u64;
+        }
+        Ok((ns, b.len()))
+    }
+
+    #[inline]
+    /// Parse a time string in the format HH:MM:SS[.NNNNNNNNN].
+    fn parse_hms_ns(b: &[u8]) -> Result<u64, TimeError> {
+        if b.len() < 8 {
+            return Err(TimeError::TooShort);
+        }
+        let h = Self::parse_two_digits(b, 0)?;
+        if b.get(2) != Some(&b':') {
+            return Err(TimeError::MissingColon);
+        }
+        let m = Self::parse_two_digits(b, 3)?;
+        if b.get(5) != Some(&b':') {
+            return Err(TimeError::MissingColon);
+        }
+        let s = Self::parse_two_digits(b, 6)?;
+        if h >= 24 || m >= 60 || s >= 60 {
+            return Err(TimeError::OutOfRange);
+        }
+        let mut ns: u64 = 0;
+        if 8 < b.len() {
+            let (frac, _end) = Self::parse_fraction_ns_9(b, 8)?;
+            ns = frac;
+        }
+        let nanos = h * 3_600_000_000_000 + m * 60_000_000_000 + s * 1_000_000_000 + ns;
+        Ok(nanos)
     }
 }
 
@@ -65,6 +152,30 @@ impl From<Time> for u64 {
     }
 }
 
+impl fmt::Display for Time {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut rem = self.0;
+        let h = rem / 3_600_000_000_000;
+        rem -= h * 3_600_000_000_000;
+        let m = rem / 60_000_000_000;
+        rem -= m * 60_000_000_000;
+        let s = rem / 1_000_000_000;
+        let ns = rem - s * 1_000_000_000;
+        write!(f, "{:02}:{:02}:{:02}.{:09}", h, m, s, ns)
+    }
+}
+
+impl FromStr for Time {
+    type Err = TimeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let b = s.as_bytes();
+        let nanos = Self::parse_hms_ns(b)?;
+        Ok(Time(nanos))
+    }
+}
+
+// tests at bottom
 impl TryFrom<u64> for Time {
     type Error = &'static str;
 
@@ -110,6 +221,25 @@ impl TryFrom<(u32, u32, u32, u32)> for Time {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn format_parse_roundtrip() {
+        let t = Time::try_from((15, 34, 56, 123_456_789)).unwrap();
+        let s = t.to_string();
+        assert_eq!(s, "15:34:56.123456789");
+        let back: Time = s.parse().unwrap();
+        assert_eq!(back, t);
+    }
+
+    use quickcheck_macros::quickcheck;
+    #[quickcheck]
+    fn time_roundtrip_within_day(n: u64) -> bool {
+        let day = 24u64 * 60 * 60 * 1_000_000_000;
+        let t = Time(n % day);
+        let s = t.to_string();
+        let back: Time = s.parse().unwrap();
+        back == t
+    }
 
     #[test]
     fn add_sub_duration_wraps() {

@@ -1220,7 +1220,7 @@ def _path_key(self) -> str:
 
     def generate_node_property(self, prop: PropertyDeclaration) -> str:
         """The computed get/set property for a Node reference."""
-        # NOTE :Performance: we could inline Graph.get into node property getters
+        # NOTE @Performance: we could inline Graph.get into node property getters
 
         assert prop.type.cardinality == TypeCardinality.SCALAR, (
             f"node properties must be scalar: {prop!r}"

@@ -277,6 +277,10 @@ dependencies = [
 [[package]]
 name = "destack_time"
 version = "2025.8.11-1"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
 
 [[package]]
 name = "diff"

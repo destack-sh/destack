@@ -76,7 +76,7 @@ resource "aws_s3_object" "destack_web_files" {
   }, split(".", each.key)[length(split(".", each.key)) - 1], "application/octet-stream")
 
   content_base64 = endswith(each.key, ".js") ? base64encode(
-    # :DestackWebEnv (NOTE one replace for each variable.. :Cleanup)
+    # :DestackWebEnv (NOTE one replace for each variable.. @Cleanup)
     replace(
       replace(
         replace(

@@ -72,7 +72,7 @@ export function getStrokeOutlineTracks(
 
     if (isPointSharpCorner || isNextPointSharpCorner) {
       // it's a sharp corner - draw a rounded cap and move on to the next point
-      // NOTE :Cleanup: consider saving these and drawing them later?
+      // NOTE @Cleanup: consider saving these and drawing them later?
       //  (so that we can avoid crossing future points)
       if (nextDot > -0.62 && totalLength - strokePoint.runningLength > strokePoint.radius) {
         // draw a "soft" corner

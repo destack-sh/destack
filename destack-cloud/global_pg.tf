@@ -18,7 +18,7 @@ resource "aws_security_group" "global_pg_security_group" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # NOTE :Infra :Security: restrict global PG ingress to VPC/IP ranges
+    cidr_blocks = ["0.0.0.0/0"] # NOTE :Security: restrict global PG ingress to VPC/IP ranges
   }
 
   egress {
