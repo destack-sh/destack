@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, assert_never
 
 from ..builtin import (
     EnumType,
+    FlagEnum,
     Node,
     OptionEnum,
     ReferenceType,
@@ -24,10 +25,21 @@ if TYPE_CHECKING:
 class TextSpanType(OptionEnum):
     TEXT = declare_option(1, description="Formatted text")
     HARD_BREAK = declare_option(2, description="Hard break")
-    MENTION = declare_option(10, description="Reference to a Node")
+    NODE = declare_option(10, description="Reference to a Node")
     LINK = declare_option(11, description="Hyperlink")
-    CITATION = declare_option(12, description="Citation")
     EQUATION = declare_option(20, description="TeX equation")
+
+
+@declare_enum(EnumType.TEXT_STYLE_FLAG)
+class TextStyleFlag(FlagEnum):
+    """A flag that can be applied to a TextSpan."""
+
+    DEFAULT = declare_option(0)
+    BOLD = declare_option(1)
+    ITALIC = declare_option(2)
+    STRIKETHROUGH = declare_option(4)
+    UNDERLINE = declare_option(8)
+    CODE = declare_option(16)
 
 
 @declare_struct(StructType.TEXT_SPAN)
@@ -53,26 +65,7 @@ class TextSpan(Struct):
         tag=None,
     )
 
-    is_bold: Optional[bool] = declare_property(
-        150,
-        tag=None,
-    )
-    is_italic: Optional[bool] = declare_property(
-        151,
-        tag=None,
-    )
-    is_strikethrough: Optional[bool] = declare_property(
-        152,
-        tag=None,
-    )
-    is_underline: Optional[bool] = declare_property(
-        153,
-        tag=None,
-    )
-    is_code: Optional[bool] = declare_property(
-        154,
-        tag=None,
-    )
+    style_flags: TextStyleFlag = declare_property(150, tag=None, default=TextStyleFlag.DEFAULT)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -98,23 +91,7 @@ class Text(Struct):
         tag=None,
     )
 
-    is_bold: Optional[bool] = declare_property(
-        150,
-        tag=None,
-    )
-    is_italic: Optional[bool] = declare_property(
-        151,
-        tag=None,
-    )
-    is_strikethrough: Optional[bool] = declare_property(
-        152,
-        tag=None,
-    )
-    is_underline: Optional[bool] = declare_property(
-        153,
-        tag=None,
-    )
-    is_code: Optional[bool] = declare_property(154, tag=None)
+    style_flags: TextStyleFlag = declare_property(150, tag=None, default=TextStyleFlag.DEFAULT)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -198,20 +175,18 @@ class Text(Struct):
 # Parsing
 #
 
-MARKER_TO_FLAG = {
-    "*": "is_italic",
-    "_": "is_italic",
-    "**": "is_bold",
-    "__": "is_bold",
-    "~~": "is_strikethrough",
-    "<u>": "is_underline",
-    "`": "is_code",
+MARKER_TO_FLAG: Mapping[str, TextStyleFlag] = {
+    "*": TextStyleFlag.ITALIC,
+    "_": TextStyleFlag.ITALIC,
+    "**": TextStyleFlag.BOLD,
+    "__": TextStyleFlag.BOLD,
+    "~~": TextStyleFlag.STRIKETHROUGH,
+    "<u>": TextStyleFlag.UNDERLINE,
+    "`": TextStyleFlag.CODE,
 }
 
 
-_MARKER_PATTERN = re.compile(
-    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\[\^[a-zA-Z0-9]+\]|\[[^[\]]+\]|\[@[a-zA-Z0-9_]+\])"
-)
+_MARKER_PATTERN = re.compile(r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\[[^[\]]+\]|\[@[a-zA-Z0-9_]+\])")
 _LINK_PATTERN = re.compile(
     r"(?:https?://)?(?:www\.)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:/\S*)?"
 )
@@ -296,38 +271,15 @@ def _parse_inline_raw(
             content = "".join(sp.content or "" for sp in merged)
             spans.append(TextSpan(type=TextSpanType.EQUATION, content=content, **base))
             continue
-        # mention marker: [@identifier]
+        # node mention marker: [@identifier]
         if marker.startswith("[@") and marker.endswith("]"):
             identifier = marker[2:-1]
             node: Node | None = None
-            mention_span = TextSpan(
-                type=TextSpanType.MENTION, content=identifier, node=node, **base
-            )
+            mention_span = TextSpan(type=TextSpanType.NODE, content=identifier, node=node, **base)
             spans.append(mention_span)
             continue
-        # opening marker: could be a citation or link
+        # opening marker: could be a link or literal
         if marker.startswith("[") and marker.endswith("]"):
-            if marker.startswith("[^"):
-                # citation markers
-                citation_content = marker[2:-1]
-                if pos < len(text) and text[pos] == "(":
-                    end_paren = text.find(")", pos)
-                    if end_paren == -1:
-                        spans.append(TextSpan(content=marker, **base))
-                        continue
-                    url = text[pos + 1 : end_paren]
-                    pos = end_paren + 1
-                    spans.append(
-                        TextSpan(
-                            type=TextSpanType.CITATION, content=citation_content, url=url, **base
-                        )
-                    )
-                    continue
-                else:
-                    spans.append(
-                        TextSpan(type=TextSpanType.CITATION, content=citation_content, **base)
-                    )
-                    continue
             if pos < len(text) and text[pos] == "(":
                 end_paren = text.find(")", pos)
                 if end_paren == -1:
@@ -364,9 +316,10 @@ def _parse_inline_raw(
                 spans.append(TextSpan(content=marker, **base))
                 continue
 
-            inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
+            end_marker_str = "</u>" if marker == "<u>" else marker
+            inner, pos = _parse_inline_raw(text, pos, end_marker=end_marker_str, base=base.copy())
             for sp in inner:
-                setattr(sp, flag, True)
+                sp.style_flags = TextStyleFlag(sp.style_flags | flag)
             spans.extend(inner)
             continue
         # unrecognized marker: treat as literal.
@@ -399,11 +352,7 @@ def _merge_spans(spans: list[TextSpan]) -> list[TextSpan]:
             new_span = TextSpan(
                 type=TextSpanType.TEXT,
                 content=content,
-                is_bold=merged[-1].is_bold,
-                is_italic=merged[-1].is_italic,
-                is_strikethrough=merged[-1].is_strikethrough,
-                is_underline=merged[-1].is_underline,
-                is_code=merged[-1].is_code,
+                style_flags=merged[-1].style_flags,
             )
             merged[-1] = new_span
         else:
@@ -411,17 +360,11 @@ def _merge_spans(spans: list[TextSpan]) -> list[TextSpan]:
     return merged
 
 
-def _span_format_key(span: TextSpan) -> tuple:
+def _span_format_key(span: TextSpan) -> int:
     """
     A key that uniquely identifies the formatting of a TextSpan.
     """
-    return (
-        span.is_bold,
-        span.is_italic,
-        span.is_strikethrough,
-        span.is_underline,
-        span.is_code,
-    )
+    return int(span.style_flags)
 
 
 def markdown_to_text(markdown: str) -> Text:
@@ -445,35 +388,40 @@ def markdown_to_text(markdown: str) -> Text:
 # Rendering
 #
 
-MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline", "is_code"]
-MARKER_OPEN = {
-    "is_italic": "*",
-    "is_bold": "**",
-    "is_strikethrough": "~~",
-    "is_underline": "<u>",
-    "is_code": "`",
+MARKER_ORDER: Sequence[TextStyleFlag] = (
+    TextStyleFlag.ITALIC,
+    TextStyleFlag.BOLD,
+    TextStyleFlag.STRIKETHROUGH,
+    TextStyleFlag.UNDERLINE,
+    TextStyleFlag.CODE,
+)
+MARKER_OPEN: Mapping[TextStyleFlag, str] = {
+    TextStyleFlag.ITALIC: "*",
+    TextStyleFlag.BOLD: "**",
+    TextStyleFlag.STRIKETHROUGH: "~~",
+    TextStyleFlag.UNDERLINE: "<u>",
+    TextStyleFlag.CODE: "`",
 }
-MARKER_CLOSE = {
-    "is_italic": "*",
-    "is_bold": "**",
-    "is_strikethrough": "~~",
-    "is_underline": "</u>",
-    "is_code": "`",
+MARKER_CLOSE: Mapping[TextStyleFlag, str] = {
+    TextStyleFlag.ITALIC: "*",
+    TextStyleFlag.BOLD: "**",
+    TextStyleFlag.STRIKETHROUGH: "~~",
+    TextStyleFlag.UNDERLINE: "</u>",
+    TextStyleFlag.CODE: "`",
 }
 
 
-def _get_span_options(span: TextSpan) -> Sequence[str]:
+def _get_span_options(span: TextSpan) -> Sequence[TextStyleFlag]:
     """
     Get the options for a span.
     """
     if span.type in (
         TextSpanType.EQUATION,
         TextSpanType.LINK,
-        TextSpanType.CITATION,
         TextSpanType.HARD_BREAK,
     ):
         return ()
-    return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
+    return tuple(flag for flag in MARKER_ORDER if span.style_flags & flag)
 
 
 def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
@@ -483,18 +431,10 @@ def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
     nested formatting markers (e.g. *…~~…~~…*) are rendered correctly.
     """
 
-    result = []
-    current_state: Sequence[str] = ()
+    result: list[str] = []
+    current_state: Sequence[TextStyleFlag] = ()
     for span in spans:
-        if span.type == TextSpanType.CITATION:
-            for flag in reversed(current_state):
-                result.append(MARKER_CLOSE[flag])
-            if span.url:
-                result.append(f"[^{span.content}]({span.url})")
-            else:
-                result.append(f"[^{span.content}]")
-            current_state = ()
-        elif span.type == TextSpanType.LINK:
+        if span.type == TextSpanType.LINK:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             result.append(f"[{span.content}]({span.url})")
@@ -509,7 +449,7 @@ def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
                 result.append(MARKER_CLOSE[flag])
             result.append("<br>")
             current_state = ()
-        elif span.type == TextSpanType.MENTION:
+        elif span.type == TextSpanType.NODE:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             if (node := span.node) is not None:
@@ -521,10 +461,12 @@ def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
             current_state = ()
         else:
             new_state = _get_span_options(span)
-            min_len = min(len(new_state), len(current_state))
             common = 0
-            while common < min_len and current_state[common] == new_state[common]:  # type: ignore
-                common += 1
+            for old_flag, new_flag in zip(current_state, new_state):
+                if old_flag == new_flag:
+                    common += 1
+                else:
+                    break
             for flag in reversed(current_state[common:]):
                 result.append(MARKER_CLOSE[flag])
             for flag in new_state[common:]:

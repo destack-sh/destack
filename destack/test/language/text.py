@@ -4,22 +4,10 @@ from destack import (
     Text,
     TextSpan,
     TextSpanType,
+    TextStyleFlag,
     markdown_to_text,
     text_to_markdown,
 )
-
-
-def test_text_citation():
-    md = "This is a deferred citation[^1] and an inline citation[^Symbol25](www.symbol.com)."
-    text_obj = markdown_to_text(md)
-    assert text_obj.spans[0] == TextSpan(
-        type=TextSpanType.TEXT, content="This is a deferred citation"
-    )
-    assert text_obj.spans[1] == TextSpan(type=TextSpanType.CITATION, content="1")
-    assert text_obj.spans[2] == TextSpan(type=TextSpanType.TEXT, content=" and an inline citation")
-    assert text_obj.spans[3] == TextSpan(
-        type=TextSpanType.CITATION, content="Symbol25", url="www.symbol.com"
-    )
 
 
 def test_text_code():
@@ -127,7 +115,7 @@ def test_math_operators():
     assert "10 * 3 = 30" in combined_content
 
     # Check none of the spans have italic formatting
-    assert all(not span.is_italic for span in text_obj.spans)
+    assert all((span.style_flags & TextStyleFlag.ITALIC) == 0 for span in text_obj.spans)
 
     # Verify roundtrip
     md_out = text_to_markdown(text_obj)
