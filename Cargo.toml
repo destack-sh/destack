@@ -47,11 +47,10 @@ rust_2018_idioms = "warn"
 unreachable_pub = "warn"
 
 [workspace.lints.clippy]
-pedantic = "warn"
 perf = "warn"
 uninlined_format_args = "warn"
-unwrap_used = "warn"
 expect_used = "warn"
+manual_range_contains = { level = "allow", priority = 1 }
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"

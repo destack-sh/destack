@@ -88,7 +88,7 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
     let digit_a = if !a.is_empty() {
         _BASE_95_DIGITS
             .find(a.chars().next().unwrap())
-            .expect("invalid base95 digit in 'a'")
+            .ok_or_else(|| FractionalError::InvalidOrderKey { key: a.to_string() })?
     } else {
         0
     };
@@ -96,7 +96,7 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
         if !bv.is_empty() {
             _BASE_95_DIGITS
                 .find(bv.chars().next().unwrap())
-                .expect("invalid base95 digit in 'b'")
+                .ok_or_else(|| FractionalError::InvalidOrderKey { key: a.to_string() })?
         } else {
             _BASE_95_DIGITS.len()
         }
@@ -106,7 +106,7 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
 
     if digit_b - digit_a > 1 {
         // midpoint digit (round half up)
-        let mid_digit = (digit_a + digit_b + 1) / 2; // equivalent to int(0.5 + 0.5*(a+b)) for integers
+        let mid_digit = (digit_a + digit_b).div_ceil(2);
         Ok(_BASE_95_DIGITS.chars().nth(mid_digit).unwrap().to_string())
     } else {
         // first digits are consecutive
@@ -152,7 +152,7 @@ fn _is_valid_order_key(key: &str) -> bool {
         Err(_) => return false,
     };
     let fractional_part = &key[integer_part.len()..];
-    !(fractional_part.len() > 0 && fractional_part.ends_with('0'))
+    fractional_part.is_empty() || !fractional_part.ends_with('0')
 }
 
 /// Validates that the given key is a valid order key
@@ -364,11 +364,8 @@ mod tests {
     fn assert_ok(a: Option<&str>, b: Option<&str>, expected: &str) {
         let result = get_order_key(a, b);
         match result {
-            Ok(actual) => assert_eq!(actual, expected, "case ({:?}, {:?})", a, b),
-            Err(e) => panic!(
-                "expected Ok({}), got error {:?} for case ({:?}, {:?})",
-                expected, e, a, b
-            ),
+            Ok(actual) => assert_eq!(actual, expected, "case ({a:?}, {b:?})"),
+            Err(e) => panic!("expected Ok({expected}), got error {e:?} for case ({a:?}, {b:?})"),
         }
     }
 
@@ -377,19 +374,13 @@ mod tests {
         match expected_err {
             "InvalidOrderKey" => assert!(
                 matches!(result, Err(FractionalError::InvalidOrderKey { .. })),
-                "expected InvalidOrderKey for case ({:?}, {:?}), got {:?}",
-                a,
-                b,
-                result
+                "expected InvalidOrderKey for case ({a:?}, {b:?}), got {result:?}"
             ),
             "InvalidComparison" => assert!(
                 matches!(result, Err(FractionalError::InvalidComparison { .. })),
-                "expected InvalidComparison for case ({:?}, {:?}), got {:?}",
-                a,
-                b,
-                result
+                "expected InvalidComparison for case ({a:?}, {b:?}), got {result:?}"
             ),
-            other => panic!("unknown expected error kind: {}", other),
+            other => panic!("unknown expected error kind: {other}"),
         }
     }
 

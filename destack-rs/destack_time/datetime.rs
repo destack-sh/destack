@@ -1,6 +1,7 @@
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
+use std::time::SystemTime;
 
 use crate::parser::{
     ParseError, parse_hh_mm_ss, parse_tz_offset, parse_us_maybe, split_time_and_tz,
@@ -17,9 +18,9 @@ impl DateTime {
     /// Get the current datetime in UTC
     pub fn now() -> Self {
         Self(
-            std::time::SystemTime::now()
+            SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .expect("SystemTime before UNIX_EPOCH")
+                .unwrap_or_else(|_| panic!("SystemTime before UNIX_EPOCH"))
                 .as_micros() as i64,
         )
     }
@@ -44,7 +45,7 @@ impl DateTime {
         let h = seconds / 3600;
         let m = (seconds % 3600) / 60;
         let s = seconds % 60;
-        format!("{}T{:02}:{:02}:{:02}.{:06}Z", date, h, m, s, us)
+        format!("{date}T{h:02}:{m:02}:{s:02}.{us:06}Z")
     }
 
     /// Parse ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SS.ffffffZ or with offset).

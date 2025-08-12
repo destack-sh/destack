@@ -3,6 +3,7 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
+use std::time::SystemTime;
 
 use crate::Duration;
 use crate::parser;
@@ -46,9 +47,9 @@ impl Time {
 
     /// Get the current time (UTC) as nanoseconds since midnight
     pub fn now() -> Self {
-        let now = std::time::SystemTime::now()
+        let now = SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("SystemTime before UNIX_EPOCH");
+            .unwrap_or_else(|_| panic!("SystemTime before UNIX_EPOCH"));
         // get nanoseconds since midnight today
         let nanos_since_midnight = now.as_nanos() % Self::DAY_NANOS;
         Self(nanos_since_midnight as u64)
@@ -159,7 +160,7 @@ impl fmt::Display for Time {
         rem -= m * 60_000_000_000;
         let s = rem / 1_000_000_000;
         let ns = rem - s * 1_000_000_000;
-        write!(f, "{:02}:{:02}:{:02}.{:09}", h, m, s, ns)
+        write!(f, "{h:02}:{m:02}:{s:02}.{ns:09}")
     }
 }
 

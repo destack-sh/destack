@@ -16,7 +16,7 @@ pub struct NodeReference {
 pub trait Node: Object {
     #[inline]
     fn metakind(&self) -> u8 {
-        return 2;
+        2
     }
 
     fn metatype(&self) -> u8;

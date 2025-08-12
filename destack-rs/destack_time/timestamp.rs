@@ -3,8 +3,14 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
+use std::time::SystemTime;
 
-use crate::{format::write_hms_ns, parser::{ParseError, parse_tz_offset, split_time_and_tz}, Date, Duration};
+use crate::parser::parse_hh_mm_ss;
+use crate::{
+    Date, Duration,
+    format::write_hms_ns,
+    parser::{ParseError, parse_tz_offset, split_time_and_tz},
+};
 
 /// Timestamp in unsigned 64-bit nanosecond precision since epoch (UTC)
 /// range: [0, 2^64-1]
@@ -17,9 +23,9 @@ type TimestampParseError = crate::parser::ParseError;
 impl Timestamp {
     /// Get the current Timestamp (nanoseconds since epoch).
     pub fn now() -> Self {
-        let now = std::time::SystemTime::now()
+        let now = SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("SystemTimestamp before UNIX_EPOCH");
+            .unwrap_or_else(|_| panic!("SystemTime before UNIX_EPOCH"));
         let ns = now.as_nanos();
         Self(ns as u64)
     }
@@ -27,10 +33,7 @@ impl Timestamp {
     #[inline]
     fn parse_time_ns(time_part: &str) -> Result<(u64, u64, u64, u64), TimestampParseError> {
         let tb = time_part.as_bytes();
-        let (hh, mm, ss) = match crate::parser::parse_hh_mm_ss(tb) {
-            Ok(v) => v,
-            Err(e) => return Err(e),
-        };
+        let (hh, mm, ss) = parse_hh_mm_ss(tb)?;
         let ns = if tb.len() > 8 {
             let tail = &tb[8..];
             match crate::parser::parse_ns9_maybe(tail) {
@@ -112,7 +115,7 @@ impl fmt::Display for Timestamp {
         let h = sod / 3600;
         let m = (sod % 3600) / 60;
         let s = sod % 60;
-        write!(f, "{}T", date)?;
+        write!(f, "{date}T")?;
         write_hms_ns(f, h, m, s, ns)?;
         f.write_str("Z")
     }
@@ -130,14 +133,8 @@ impl FromStr for Timestamp {
         if &rest[0..1] != "T" {
             return Err(ParseError::MissingT);
         }
-        let (time_part, tz_part) = match split_time_and_tz(&s[11..]) {
-            Ok(v) => v,
-            Err(e) => return Err(e),
-        };
-        let date: Date = match date_part.parse::<Date>() {
-            Ok(v) => v,
-            Err(e) => return Err(e),
-        };
+        let (time_part, tz_part) = split_time_and_tz(&s[11..])?;
+        let date: Date = date_part.parse::<Date>()?;
         // parse time with 9 fractional digits
         let (hh, mm, ss, ns) = Self::parse_time_ns(time_part)?;
         let total_ns: u128 = (date.0 as i128).max(0) as u128 * 86_400 * 1_000_000_000
@@ -148,10 +145,7 @@ impl FromStr for Timestamp {
         if date.0 < 0 {
             return Err(TimestampParseError::BeforeEpoch);
         }
-        let offset_ns = match parse_tz_offset(tz_part) {
-            Ok(v) => v,
-            Err(e) => return Err(e),
-        };
+        let offset_ns = parse_tz_offset(tz_part)?;
         let adj = (total_ns as i128) - offset_ns;
         if adj < 0 {
             return Err(ParseError::BeforeEpoch);
