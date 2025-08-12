@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class ChangeType(OptionEnum):
     """The type of Change."""
 
-    # TODO :Incomplete: ChangeType.CHECK/ASSERT (for transaction/change safety, also BEGIN/END/...?)
+    # TODO @Incomplete: ChangeType.CHECK/ASSERT (for transaction/change safety, also BEGIN/END/...?)
     CREATE = declare_option(20, description="Create a new Entity")
     UPSERT = declare_option(
         21, description="Upsert an Entity (create if not exists, update if exists)"
@@ -78,7 +78,7 @@ class EditOperation(Struct):
         description="The type of EditOperation.",
         tag=None,
     )
-    # TODO :Incomplete: EditOperation.path? (for editing nested stuff)
+    # TODO @Incomplete: EditOperation.path? (for editing nested stuff)
     property_id: UInt8 = declare_property(
         103,
         description="""\
@@ -122,7 +122,7 @@ If it's a custom Property, this just refers to Entity.custom_values.
 class ChangeEvent(Event):
     """A Change in the state of the system (like editing an Entity)."""
 
-    # NOTE :Incomplete: would be cool to support custom ChangeTypes/Operations/Events somehow...
+    # NOTE @Incomplete: would be cool to support custom ChangeTypes/Operations/Events somehow...
 
     # meta
     type: "ChangeType" = declare_property(

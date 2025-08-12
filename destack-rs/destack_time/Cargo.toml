@@ -13,6 +13,8 @@ path = "lib.rs"
 [dependencies]
 
 [dev-dependencies]
+quickcheck = "1"
+quickcheck_macros = "1"
 
 [lints]
 workspace = true

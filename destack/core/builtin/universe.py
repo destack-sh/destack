@@ -442,7 +442,7 @@ class ObjectStability(OptionEnum):
         description="Definition may change in every compatible way",
     )
     # GROWABLE = 2, "Definition may change with new properties at the end (only)"
-    # NOTE :Performance: ObjectStability.GROWABLE is annoying to implement but probably worth it
+    # NOTE @Performance: ObjectStability.GROWABLE is annoying to implement but probably worth it
     STATIC = declare_option(
         7,
         "Static",

@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Inline comments SHOULD be short and begin with a lowercase letter.
+Usually inline comments SHOULD be above a related code block (these blocks are usually 3-10 lines).
+Most comments are <1 sentence and SHOULD not include a . at the end.
+
+Function, module, class, .. documentation must be proper sentences with punctuation. 
+Function documentation SHOULD NOT list out individual arguments.
+
+Comments MAY start with certain keywords:
+ - NOTE: call out something important that should not be missed when reading this code.
+ - TODO: something is missing / slow / imperfect about this code, should be addressed eventually.
+ - nocheckin: this is temporary and should not be committed / checked in.
+Comments like that SHOULD also include one or more tags like:
+ - NOTE @Performance: this clones the string, use custom alloc (?)
+ - TODO @Cleanup: this seems unnecessarily confusing
+ - nocheckin @Broken: commented out for testing, uncomment to commit
+The allowable tags are:
+ - @Performance: could be faster or more efficient
+ - @Robustness: this might be flaky in some cases
+ - @Broken: doesn't do what it should in likely cases
+ - @Cleanup: could be simpler or better structured
+ - @Incomplete: obvious/implicit feature is missing
+ - @Security: should be hardened / may allow more access then intended
+ - @Architecture: something larger than per-class/file code design to reconsider 

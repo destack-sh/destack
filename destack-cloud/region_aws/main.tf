@@ -142,7 +142,7 @@ resource "aws_route_table_association" "private" {
 
 #
 # AWS EKS cluster
-# NOTE :Infra :Architecture: right now 1 region = 1 cluster, but of course we'll later want multiple clusters per region
+# NOTE :Architecture: right now 1 region = 1 cluster, but of course we'll later want multiple clusters per region
 #
 
 data "aws_caller_identity" "current" {}
