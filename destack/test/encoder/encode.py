@@ -16,7 +16,7 @@ from destack import (
     Type,
     Value,
     Vector3,
-    uuid4,
+    uuid7,
 )
 from destack.core.encoding.registry import get_encoder
 
@@ -89,8 +89,8 @@ def test_roundtrip_node_locations():
     """Pack and unpack a NodeSpatial."""
     node_ref = NodeSpatialReference(
         type=NodeType.FOLDER,
-        id=uuid4(),
-        space_id=uuid4(),
+        id=uuid7(),
+        space_id=uuid7(),
     )
     for encoding, encoder in ENCODERS.items():
         _ = _do_test_roundtrip_object(node_ref, encoder, encoding)

@@ -50,7 +50,7 @@ from .enum import OptionDeclaration
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration
 from .types import Int64
 from .universe import NodeType, ObjectKind, ObjectStability, StructType
-from .uuid import UUID, uuid4, uuid7
+from .uuid import UUID, uuid7
 
 if TYPE_CHECKING:
     from destack import BinaryReader, BinaryWriter, EncoderFlag, MemoryHasher, Node, Session
@@ -155,7 +155,6 @@ class ObjectGenerator:
         extra_glbls["ACTIVE_SESSION"] = ACTIVE_SESSION
         extra_glbls["EMPTY_LIST"] = frozenlist()
         extra_glbls["EMPTY_DICT"] = frozendict()
-        extra_glbls["uuid4"] = uuid4
         extra_glbls["uuid7"] = uuid7
 
         method_body_lines = []
@@ -203,7 +202,7 @@ if id is None:
     """)
             if NodeType.ENTITY in declaration.inherits:
                 method_body_lines.append("""\
-    id = uuid4()
+    id = uuid7()
     _now = _session.context.now()
     created_at = _now
     created_epoch = _session.remote_epoch
@@ -337,9 +336,7 @@ if {arg_name} is None:
         """Generate the default factory for an unset property."""
 
         assert prop.default_factory is not None, f"no default factory for {prop!r}"
-        if prop.default_factory == ValueFactory.UUID4:
-            return f"{target_expr} = uuid4()"
-        elif prop.default_factory == ValueFactory.UUID7:
+        if prop.default_factory == ValueFactory.UUID7:
             return f"{target_expr} = uuid7()"
         elif prop.default_factory == ValueFactory.NOW:
             if cls.__declaration__.kind == ObjectKind.NODE:
@@ -1463,7 +1460,7 @@ def _process_object_cls[ObjectT: Object](
         "ACTIVE_SESSION": ACTIVE_SESSION,
         "EMPTY_LIST": frozenlist(),
         "EMPTY_DICT": frozendict(),
-        "uuid4": uuid4,
+        "uuid7": uuid7,
     }
     if declaration.is_abstract:
         init_str = f"""\

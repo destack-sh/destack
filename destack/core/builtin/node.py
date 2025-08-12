@@ -293,6 +293,7 @@ class Node(Object):
         is_eq=False,
         is_readonly=True,
         is_interned=True,
+        default_factory=ValueFactory.UUID7,
         description="The universally unique identifier of this Node.",
         tag="identity",
     )
@@ -315,7 +316,7 @@ class Node(Object):
         is_hash=False,
         reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.BRANCH,
-        description="The Branch this Node is part of.",
+        description="The Branch this Node is part of (in its Space).",
         tag="identity",
     )
     snapshot: "Snapshot" = declare_property(
@@ -326,7 +327,7 @@ class Node(Object):
         is_hash=False,
         reference_type=ReferenceType.RAW,
         default_factory=ValueFactory.SNAPSHOT,
-        description="The Snapshot this Node is part of.",
+        description="The Snapshot this Node is part of (in its Space and Branch).",
         tag="identity",
     )
 
