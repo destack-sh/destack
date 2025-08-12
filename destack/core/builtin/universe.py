@@ -876,18 +876,19 @@ class NodeType(OptionEnum):
     #
 
     # geometry [20_000_000]
+    # nocheckin: realign 2D/3D stuff (10k each?)
     ENTITY2D = declare_option(20_000_000, "Entity2D", description="2D Entity")
     ENTITY3D = declare_option(20_000_100, "Entity3D", description="3D Entity")
-    SHAPE2D = declare_option(20_000_200, "Shape2D")
-    SHAPE3D = declare_option(20_000_300, "Shape3D")
-    LINE_SHAPE2D = declare_option(20_001_000, "Line Shape2D")
-    ARROW_SHAPE2D = declare_option(20_001_100, "Arrow Shape2D")
-    RECTANGLE_SHAPE2D = declare_option(20_001_200, "Rectangle Shape2D")
-    ELLIPSE_SHAPE2D = declare_option(20_001_300, "Ellipse Shape2D")
-    CAPSULE_SHAPE2D = declare_option(20_001_400, "Capsule Shape2D")
-    STAR_SHAPE2D = declare_option(20_001_500, "Star Shape2D")
-    POLYGON_SHAPE2D = declare_option(20_001_600, "Polygon Shape2D")
-    PATH_SHAPE2D = declare_option(20_001_700, "Path Shape2D")
+    SHAPE2D = declare_option(20_001_000, "Shape2D")
+    SHAPE3D = declare_option(20_001_100, "Shape3D")
+    LINE_SHAPE2D = declare_option(20_002_000, "Line Shape2D")
+    ARROW_SHAPE2D = declare_option(20_002_100, "Arrow Shape2D")
+    RECTANGLE_SHAPE2D = declare_option(20_002_200, "Rectangle Shape2D")
+    ELLIPSE_SHAPE2D = declare_option(20_002_300, "Ellipse Shape2D")
+    CAPSULE_SHAPE2D = declare_option(20_002_400, "Capsule Shape2D")
+    STAR_SHAPE2D = declare_option(20_002_500, "Star Shape2D")
+    POLYGON_SHAPE2D = declare_option(20_002_600, "Polygon Shape2D")
+    PATH_SHAPE2D = declare_option(20_002_700, "Path Shape2D")
     # SPLINE_SHAPE2D, MESH_SHAPE2D, ...
     # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
 
@@ -895,60 +896,86 @@ class NodeType(OptionEnum):
     # ...
 
     # physics [20_200_000]
-    # BODY2D, BODY3D, COLLIDER, ...
-    # PHYSICS_SERVICE/SYSTEM/SIMULATOR/SERVER?, ...
-    # BODY_EVENT, CONTACT_EVENT, COLLISION_EVENT, ...
-    # RIGID_BODY, SOFT_BODY, ...
-    # CLOTH, FLESH, LIQUID/FLUID, ...
-    # SKELETON, BONE, ...
+    BODY2D = declare_option(20_200_000, "Body2D")
+    BODY_EVENT = declare_option(20_200_001, "Body Event")
+    BODY_SLEEP_EVENT = declare_option(20_200_002, "Body Sleep Event")
+    BODY_WAKE_EVENT = declare_option(20_200_003, "Body Wake Event")
+    # BODY_CONTACT_EVENT, BODY_CONTACT_STARTED, ...
+    BODY3D = declare_option(20_200_100, "Body3D")
+    RIGID_BODY2D = declare_option(20_201_000, "Rigid Body2D")
+    RIGID_BODY3D = declare_option(20_201_100, "Rigid Body3D")
+    SOFT_BODY2D = declare_option(20_202_000, "Soft Body2D")
+    SOFT_BODY3D = declare_option(20_202_100, "Soft Body3D")
+    COLLIDER2D = declare_option(20_203_000, "Collider2D")
+    COLLIDER_EVENT = declare_option(20_203_001, "Collider Event")
+    COLLIDER_CONTACT_EVENT = declare_option(20_203_002, "Collider Contact Event")
+    COLLIDER3D = declare_option(20_203_100, "Collider3D")
+    # COLLIDER_EVENT, COLLIDER_CONTACT_EVENT, COLLIDER_CONTACT_STARTED, ...
+    JOINT2D = declare_option(20_204_000, "Joint2D")
+    JOINT_EVENT = declare_option(20_204_201, "Joint Event")
+    JOINT_BREAK_EVENT = declare_option(20_204_202, "Joint Break Event")
+    JOINT3D = declare_option(20_204_100, "Joint3D")
+    REVOLUTE_JOINT2D = declare_option(20_204_200, "Revolute Joint2D")
+    PRISMATIC_JOINT2D = declare_option(20_204_300, "Prismatic Joint2D")
+    SPRING_JOINT2D = declare_option(20_204_400, "Spring Joint2D")
+    DISTANCE_JOINT2D = declare_option(20_204_500, "Distance Joint2D")
+    WELD_JOINT2D = declare_option(20_204_600, "Weld Joint2D")
+    WHEEL_JOINT2D = declare_option(20_204_700, "Wheel Joint2D")
+    SPHERICAL_JOINT3D = declare_option(20_205_000, "Spherical Joint3D")
+    HINGE_JOINT3D = declare_option(20_205_100, "Hinge Joint3D")
+    PSIMATIC_JOINT3D = declare_option(20_205_200, "Prismatic Joint3D")
+    FIXED_JOINT3D = declare_option(20_205_300, "Fixed Joint3D")
+    D6_JOINT3D = declare_option(20_205_400, "D6 Joint3D")
     # JOINT, FIXED_JOINT, FREE_JOINT, SPHERICAL_JOINT, SPRING, MOTOR, ...
-    # NAVIGATION, ...
+    # JOINT_EVENT, JOINT_BREAK_EVENT, ...
 
     # perception [20_300_000]
     INPUT_EVENT = declare_option(20_300_000, "Input Event")
     # SENSOR_EVENT, ...
     # pointer events
-    POINTER_EVENT = declare_option(20_300_100, "Pointer Event")
-    POINTER_DOWN_EVENT = declare_option(20_300_101, "Pointer Down Event")
-    POINTER_UP_EVENT = declare_option(20_300_102, "Pointer Up Event")
-    POINTER_MOVE_EVENT = declare_option(20_300_103, "Pointer Move Event")
-    POINTER_ENTER_EVENT = declare_option(20_300_104, "Pointer Enter Event")
-    POINTER_OVER_EVENT = declare_option(20_300_105, "Pointer Over Event")
-    POINTER_LEAVE_EVENT = declare_option(20_300_106, "Pointer Leave Event")
-    POINTER_LONG_PRESS_EVENT = declare_option(20_300_107, "Long Press Event")
+    POINTER2D = declare_option(20_300_100, "Pointer2D")
+    POINTER_EVENT = declare_option(20_300_101, "Pointer Event")
+    POINTER_DOWN_EVENT = declare_option(20_300_102, "Pointer Down Event")
+    POINTER_UP_EVENT = declare_option(20_300_103, "Pointer Up Event")
+    POINTER_MOVE_EVENT = declare_option(20_300_104, "Pointer Move Event")
+    POINTER_ENTER_EVENT = declare_option(20_300_105, "Pointer Enter Event")
+    POINTER_OVER_EVENT = declare_option(20_300_106, "Pointer Over Event")
+    POINTER_LEAVE_EVENT = declare_option(20_300_107, "Pointer Leave Event")
+    POINTER_LONG_PRESS_EVENT = declare_option(20_300_108, "Long Press Event")
     # mouse events
-    MOUSE_EVENT = declare_option(20_300_200, "Mouse Event")
-    CLICK_EVENT = declare_option(20_300_201, "Click Event")
-    SINGLE_CLICK_EVENT = declare_option(20_300_202, "Single Click Event")
-    DOUBLE_CLICK_EVENT = declare_option(20_300_203, "Double Click Event")
-    TRIPLE_CLICK_EVENT = declare_option(20_300_204, "Triple Click Event")
-    WHEEL_EVENT = declare_option(20_300_210, "Wheel Event")
+    MOUSE = declare_option(20_301_000, "Mouse")
+    MOUSE_EVENT = declare_option(20_301_101, "Mouse Event")
+    CLICK_EVENT = declare_option(20_301_102, "Click Event")
+    SINGLE_CLICK_EVENT = declare_option(20_301_103, "Single Click Event")
+    DOUBLE_CLICK_EVENT = declare_option(20_301_104, "Double Click Event")
+    TRIPLE_CLICK_EVENT = declare_option(20_301_105, "Triple Click Event")
+    WHEEL_EVENT = declare_option(20_301_106, "Wheel Event")
     # key events
-    KEY_EVENT = declare_option(20_300_300, "Key Event")
-    KEY_DOWN_EVENT = declare_option(20_300_301, "Key Down Event")
-    KEY_UP_EVENT = declare_option(20_300_302, "Key Up Event")
-    KEY_PRESS_EVENT = declare_option(20_300_303, "Key Press Event")
+    KEY_EVENT = declare_option(20_302_001, "Key Event")
+    KEY_DOWN_EVENT = declare_option(20_302_002, "Key Down Event")
+    KEY_UP_EVENT = declare_option(20_302_003, "Key Up Event")
+    KEY_PRESS_EVENT = declare_option(20_302_004, "Key Press Event")
     # drag events
-    DRAG_EVENT = declare_option(20_300_400, "Drag Event")
-    DRAG_START_EVENT = declare_option(20_300_401, "Drag Start Event")
-    DRAG_END_EVENT = declare_option(20_300_402, "Drag End Event")
-    DRAG_OVER_EVENT = declare_option(20_300_403, "Drag Over Event")
-    DRAG_ENTER_EVENT = declare_option(20_300_404, "Drag Enter Event")
-    DRAG_LEAVE_EVENT = declare_option(20_300_405, "Drag Leave Event")
-    DROP_EVENT = declare_option(20_300_406, "Drop Event")
+    DRAG_EVENT = declare_option(20_303_001, "Drag Event")
+    DRAG_START_EVENT = declare_option(20_303_002, "Drag Start Event")
+    DRAG_END_EVENT = declare_option(20_303_003, "Drag End Event")
+    DRAG_OVER_EVENT = declare_option(20_303_004, "Drag Over Event")
+    DRAG_ENTER_EVENT = declare_option(20_303_005, "Drag Enter Event")
+    DRAG_LEAVE_EVENT = declare_option(20_303_006, "Drag Leave Event")
+    DROP_EVENT = declare_option(20_303_007, "Drop Event")
     # clipboard events
-    CLIPBOARD_EVENT = declare_option(20_300_500, "Clipboard Event")
-    COPY_EVENT = declare_option(20_300_501, "Copy Event")
-    CUT_EVENT = declare_option(20_300_502, "Cut Event")
-    PASTE_EVENT = declare_option(20_300_503, "Paste Event")
+    CLIPBOARD_EVENT = declare_option(20_304_001, "Clipboard Event")
+    COPY_EVENT = declare_option(20_304_002, "Copy Event")
+    CUT_EVENT = declare_option(20_304_003, "Cut Event")
+    PASTE_EVENT = declare_option(20_304_004, "Paste Event")
     # focus events
-    FOCUS_EVENT = declare_option(20_300_600, "Focus Event")
-    FOCUS_IN_EVENT = declare_option(20_300_601, "Focus In Event")
-    FOCUS_OUT_EVENT = declare_option(20_300_602, "Focus Out Event")
-    # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
+    FOCUS_EVENT = declare_option(20_305_001, "Focus Event")
+    FOCUS_IN_EVENT = declare_option(20_305_002, "Focus In Event")
+    FOCUS_OUT_EVENT = declare_option(20_305_003, "Focus Out Event")
+    # COMMAND, MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
-    # CLIPBOARD, ...
     # CAMERA, SPEAKER, MICROPHONE, ...
+    # ...
 
     #
     # IMAGINATION

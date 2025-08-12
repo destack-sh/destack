@@ -4,16 +4,24 @@ from destack.core import (
     EnumType,
     NodeType,
     OptionEnum,
+    declare_entity,
     declare_enum,
     declare_event,
     declare_option,
     declare_property,
 )
 
-from .pointer import PointerEvent
+from .pointer import Pointer2D, PointerEvent
 
 if TYPE_CHECKING:
     from destack import Vector2
+
+
+@declare_entity(NodeType.MOUSE)
+class Mouse(Pointer2D):
+    """A Mouse is a user input device that can be used to interact with the UI."""
+
+    pass
 
 
 @declare_enum(EnumType.MOUSE_BUTTON)

@@ -777,6 +777,15 @@ def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
     """Display Node-specific details."""
     from ..builtin import StringCasing, to_casing
 
+    # inheritance tree (object-only)
+    tree = _render_inheritance_tree(
+        definition, context=context, direction="both", include_subclasses=False
+    )
+    if tree:
+        _console.print("")
+        _console.print("\n" + _console.color("Inheritance:", context.color_section_title, "bold"))
+        _console.print(tree)
+
     # metadata
     _console.print("\n" + _console.color("Metadata:", context.color_section_title, "bold"))
     meta_dict: dict[str, object] = {
@@ -801,15 +810,7 @@ def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
     # layout
     _show_layout(definition, context)
 
-    # inheritance tree (object-only)
-    tree = _render_inheritance_tree(
-        definition, context=context, direction="both", include_subclasses=False
-    )
-    if tree:
-        _console.print("")
-        _console.print("\n" + _console.color("Inheritance:", context.color_section_title, "bold"))
-        _console.print(tree)
-
+    # content
     if definition.properties:
         _show_properties(definition, definition.properties, "Properties", context)
     if definition.methods:
@@ -823,6 +824,15 @@ def _show_node(definition: "NodeDefinition", context: ManualContext) -> None:
 def _show_struct(definition: "StructDefinition", context: ManualContext) -> None:
     """Display Struct-specific details."""
     from ..builtin import StringCasing, to_casing
+
+    # inheritance tree (object-only)
+    tree = _render_inheritance_tree(
+        definition, context=context, direction="both", include_subclasses=False
+    )
+    if tree:
+        _console.print("")
+        _console.print("\n" + _console.color("Inheritance:", context.color_section_title, "bold"))
+        _console.print(tree)
 
     # metadata
     _console.print("\n" + _console.color("Metadata:", context.color_section_title, "bold"))
@@ -844,15 +854,7 @@ def _show_struct(definition: "StructDefinition", context: ManualContext) -> None
     # layout
     _show_layout(definition, context)
 
-    # inheritance tree (object-only)
-    tree = _render_inheritance_tree(
-        definition, context=context, direction="both", include_subclasses=False
-    )
-    if tree:
-        _console.print("")
-        _console.print("\n" + _console.color("Inheritance:", context.color_section_title, "bold"))
-        _console.print(tree)
-
+    # content
     if definition.properties:
         _show_properties(definition, definition.properties, "Properties", context)
     if definition.methods:
