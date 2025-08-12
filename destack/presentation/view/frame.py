@@ -1,12 +1,12 @@
 from destack.core import NodeType, declare_entity
 
-from .layout import LayoutView
+from .layout import LayoutView2D
 
 
 @declare_entity(
-    NodeType.FRAME_VIEW,
+    NodeType.FRAME_VIEW2D,
 )
-class FrameView(LayoutView):
+class FrameView2D(LayoutView2D):
     """
     A frame View is a bare ContainerView.
     """

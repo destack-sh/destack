@@ -281,14 +281,7 @@ class EnumType(OptionEnum):
     #
 
     # geometry [20_000_000]
-    ANCHOR = declare_option(20_000_000)
-    LENGTH_TYPE = declare_option(20_000_001)
-    LAYOUT = declare_option(20_000_002)
-    DISTRIBUTE = declare_option(20_000_003)
-    ALIGN = declare_option(20_000_004)
-    DIRECTION = declare_option(20_000_005)
-    OVERFLOW = declare_option(20_000_006)
-    ARROW_HEAD_TYPE = declare_option(20_000_200)
+    ARROW_HEAD_TYPE = declare_option(20_001_110)
 
     # geography [20_100_000]
     # ...
@@ -339,6 +332,13 @@ class EnumType(OptionEnum):
     # ...
 
     # view [40_100_000]
+    LENGTH_TYPE = declare_option(40_100_001)
+    LAYOUT = declare_option(40_100_002)
+    DISTRIBUTE = declare_option(40_100_003)
+    ALIGN = declare_option(40_100_004)
+    DIRECTION = declare_option(40_100_005)
+    OVERFLOW = declare_option(40_100_006)
+    ANCHOR = declare_option(40_100_007)
     # ...
 
     # rendering [40_200_000]
@@ -876,19 +876,20 @@ class NodeType(OptionEnum):
     #
 
     # geometry [20_000_000]
-    # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
     ENTITY2D = declare_option(20_000_000, "Entity2D", description="2D Entity")
     ENTITY3D = declare_option(20_000_100, "Entity3D", description="3D Entity")
     SHAPE2D = declare_option(20_000_200, "Shape2D")
-    LINE_SHAPE2D = declare_option(20_000_201, "Line Shape2D")
-    ARROW_SHAPE2D = declare_option(20_000_202, "Arrow Shape2D")
-    RECTANGLE_SHAPE2D = declare_option(20_000_203, "Rectangle Shape2D")
-    ELLIPSE_SHAPE2D = declare_option(20_000_204, "Ellipse Shape2D")
-    CAPSULE_SHAPE2D = declare_option(20_000_205, "Capsule Shape2D")
-    STAR_SHAPE2D = declare_option(20_000_206, "Star Shape2D")
-    POLYGON_SHAPE2D = declare_option(20_000_207, "Polygon Shape2D")
-    PATH_SHAPE2D = declare_option(20_000_208, "Path Shape2D")
     SHAPE3D = declare_option(20_000_300, "Shape3D")
+    LINE_SHAPE2D = declare_option(20_001_000, "Line Shape2D")
+    ARROW_SHAPE2D = declare_option(20_001_100, "Arrow Shape2D")
+    RECTANGLE_SHAPE2D = declare_option(20_001_200, "Rectangle Shape2D")
+    ELLIPSE_SHAPE2D = declare_option(20_001_300, "Ellipse Shape2D")
+    CAPSULE_SHAPE2D = declare_option(20_001_400, "Capsule Shape2D")
+    STAR_SHAPE2D = declare_option(20_001_500, "Star Shape2D")
+    POLYGON_SHAPE2D = declare_option(20_001_600, "Polygon Shape2D")
+    PATH_SHAPE2D = declare_option(20_001_700, "Path Shape2D")
+    # SPLINE_SHAPE2D, MESH_SHAPE2D, ...
+    # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
 
     # geography [20_100_000]
     # ...
@@ -905,6 +906,7 @@ class NodeType(OptionEnum):
 
     # perception [20_300_000]
     INPUT_EVENT = declare_option(20_300_000, "Input Event")
+    # SENSOR_EVENT, ...
     # pointer events
     POINTER_EVENT = declare_option(20_300_100, "Pointer Event")
     POINTER_DOWN_EVENT = declare_option(20_300_101, "Pointer Down Event")
@@ -943,7 +945,6 @@ class NodeType(OptionEnum):
     FOCUS_EVENT = declare_option(20_300_600, "Focus Event")
     FOCUS_IN_EVENT = declare_option(20_300_601, "Focus In Event")
     FOCUS_OUT_EVENT = declare_option(20_300_602, "Focus Out Event")
-    # command
     # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
     # CLIPBOARD, ...
@@ -1013,28 +1014,32 @@ class NodeType(OptionEnum):
     # FORM, MENU, INVENTORY, ...
 
     # view [40_100_000]
-    # container views
-    VIEW = declare_option(40_100_000, "View", description="View in a Scene")
-    VIEW_EVENT = declare_option(40_100_001, "View Event")
-    LAYOUT_VIEW = declare_option(40_100_100, "Container View")
-    FRAME_VIEW = declare_option(40_100_200, "Frame View", description="Fixed Container")
-    LABEL_VIEW = declare_option(40_100_300, "Label View", description="Label Container")
-    SPLIT_VIEW = declare_option(40_100_400, "Split View", description="Split Container")
-    # SLOT_DEFINITION_VIEW, SLOT_VIEW, ...
-    # FORM_VIEW, MENU_VIEW, ...
-    # TAB_VIEW, ...
-    # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
-    # POPOVER, SHEET, ALERT, HUD, ...
-    # content views
-    CONTENT_VIEW = declare_option(40_100_500, "Content View")
-    TEXT_VIEW = declare_option(40_100_501, "Text View", description="Text")
-    # CODE_VIEW, ICON_VIEW, IMAGE_VIEW, AUDIO_VIEW, VIDEO_VIEW, DOCUMENT_VIEW, ...
-    # input views
-    INPUT_VIEW = declare_option(40_100_600, "Input View")
-    NUMBER_INPUT_VIEW = declare_option(40_100_601, "Number Input View", description="Number Input")
-    SLIDER_INPUT_VIEW = declare_option(40_100_602, "Slider Input View", description="Slider Input")
-    # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
-    # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
+    # container views (2D)
+    VIEW2D = declare_option(40_100_000, "View", description="View in a Scene")
+    LAYOUT_VIEW2D = declare_option(40_100_100, "Container View")
+    FRAME_VIEW2D = declare_option(40_100_200, "Frame View", description="Fixed Container")
+    LABEL_VIEW2D = declare_option(40_100_300, "Label View", description="Label Container")
+    SPLIT_VIEW2D = declare_option(40_100_400, "Split View", description="Split Container")
+    # SLOT_DEFINITION_VIEW2D, SLOT_VIEW2D, ...
+    # FORM_VIEW2D, MENU_VIEW2D, ...
+    # TAB_VIEW2D, ...
+    # DRAWER_VIEW2D, SPLIT_DRAWER_VIEW2D, GRID/GRID_ELEMENT_VIEW2D, ...
+    # POPOVER_VIEW2D, SHEET_VIEW2D, ALERT_VIEW2D, HUD_VIEW2D, ...
+    # content views (2D)
+    CONTENT_VIEW2D = declare_option(40_100_500, "Content View")
+    TEXT_VIEW2D = declare_option(40_100_501, "Text View", description="Text")
+    # CODE_VIEW2D, DOCUMENT_VIEW2D, ...
+    # ICON_VIEW2D, IMAGE_VIEW2D, AUDIO_VIEW2D, VIDEO_VIEW2D, ...
+    # input views (2D)
+    INPUT_VIEW2D = declare_option(40_100_600, "Input View")
+    NUMBER_INPUT_VIEW2D = declare_option(
+        40_100_601, "Number Input View", description="Number Input"
+    )
+    SLIDER_INPUT_VIEW2D = declare_option(
+        40_100_602, "Slider Input View", description="Slider Input"
+    )
+    # STRING_INPUT_VIEW2D, TOGGLE_INPUT_VIEW2D, PICKER_INPUT_VIEW2D, COLOR_INPUT_VIEW2D, ...
+    # ICON_INPUT_VIEW2D, FILE_INPUT_VIEW2D, DATETIME_INPUT_VIEW2D, DURATION_INPUT_VIEW2D, ...
 
     # rendering [40_200_000]
     # ...
@@ -1050,7 +1055,7 @@ class NodeType(OptionEnum):
 
     # lighting [40_600_000]
     # LIGHT, LIGHT2D, ...
-    # POINT_LIGHT, DIRECTIONAL_LIGHT, SPOT_LIGHT, AMBIENT_LIGHT, ...
+    # POINT_LIGHT2D, DIRECTIONAL_LIGHT2D, SPOT_LIGHT2D, AMBIENT_LIGHT2D, ...
     # OCCLUDER, ...
     # ...
 
@@ -1239,24 +1244,19 @@ class StructType(OptionEnum):
     VECTOR4 = declare_option(20_000_014)
     VECTOR4I = declare_option(20_000_015)
     QUATERNION = declare_option(20_000_020)
-    LENGTH = declare_option(20_000_030, "Length")
-    OFFSET2 = declare_option(20_000_031, "Position")
-    GRID2 = declare_option(20_000_032, "Grid")
-    GRID_SPAN2 = declare_option(20_000_033, "Grid Span")
-    INSET2 = declare_option(20_000_034, "Insets")
-    CORNER2 = declare_option(20_000_035, "Corners")
-    AXIS2 = declare_option(20_000_036, "Axis2")
-    AXIS3 = declare_option(20_000_037, "Axis3")
+    # ...
     FORM2D = declare_option(20_000_200, "Form2D")
-    LINE2D = declare_option(20_000_201, "Line")
-    ARROW2D = declare_option(20_000_202, "Arrow")
-    RECTANGLE2D = declare_option(20_000_203, "Rectangle")
-    ELLIPSE2D = declare_option(20_000_204, "Ellipse")
-    CAPSULE2D = declare_option(20_000_205, "Capsule")
-    STAR2D = declare_option(20_000_206, "Star")
-    POLYGON2D = declare_option(20_000_207, "Polygon")
-    PATH2D = declare_option(20_000_208, "Path")
     FORM3D = declare_option(20_000_300, "Form3D")
+    LINE2D = declare_option(20_001_000, "Line")
+    ARROW2D = declare_option(20_001_100, "Arrow")
+    RECTANGLE2D = declare_option(20_001_200, "Rectangle")
+    ELLIPSE2D = declare_option(20_001_300, "Ellipse")
+    CAPSULE2D = declare_option(20_001_400, "Capsule")
+    STAR2D = declare_option(20_001_500, "Star")
+    POLYGON2D = declare_option(20_001_600, "Polygon")
+    PATH2D = declare_option(20_001_700, "Path")
+    # CURVE2D, SPLINE2D, MESH2D, ...
+    # CURVE3D, SPLINE3D, MESH3D, ...
 
     # geography [20_100_000]
     # ...
@@ -1314,7 +1314,14 @@ class StructType(OptionEnum):
     # ...
 
     # view [40_100_000]
-    # ...
+    LENGTH = declare_option(40_100_000, "Length")
+    OFFSET2 = declare_option(40_100_001, "Position")
+    GRID2 = declare_option(40_100_002, "Grid")
+    GRID_SPAN2 = declare_option(40_100_003, "Grid Span")
+    INSET2 = declare_option(40_100_004, "Insets")
+    CORNER2 = declare_option(40_100_005, "Corners")
+    AXIS2 = declare_option(40_100_006, "Axis2")
+    AXIS3 = declare_option(40_100_007, "Axis3")
 
     # rendering [40_200_000]
     # ...

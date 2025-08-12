@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 @declare_entity(
     NodeType.ENTITY2D,
     is_abstract=True,
+    event_types=(NodeType.POINTER_EVENT,),
     tags=(TagDeclaration(id=110, name="transform", description="Transform"),),
 )
 class Entity2D(Entity):
@@ -36,6 +37,12 @@ class Entity2D(Entity):
         112,
         default=0.0,
         description="The rotation of the Entity in 2D space.",
+        tag="transform",
+    )
+    skew: Float32 = declare_property(
+        113,
+        default=0.0,
+        description="The skew of the Entity in 2D space.",
         tag="transform",
     )
 

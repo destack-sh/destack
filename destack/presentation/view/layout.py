@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.core import Float32, NodeType, TagDeclaration, declare_entity, declare_property
 
-from .view import View
+from .view import View2D
 
 if TYPE_CHECKING:
     from destack import (
@@ -18,14 +18,14 @@ if TYPE_CHECKING:
 
 
 @declare_entity(
-    NodeType.LAYOUT_VIEW,
+    NodeType.LAYOUT_VIEW2D,
     is_abstract=True,
-    expected_descendant_types=(NodeType.VIEW,),
+    expected_descendant_types=(NodeType.VIEW2D,),
     tags=(TagDeclaration(id=150, name="layout", description="The layout of the View."),),
 )
-class LayoutView(View):
+class LayoutView2D(View2D):
     """
-    A Layout View defines how its children  are laid out.
+    A 2D layout View defines how its children are laid out.
     """
 
     # layout

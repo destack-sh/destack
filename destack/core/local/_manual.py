@@ -292,6 +292,8 @@ def _render_size_value(size: "ObjectSize") -> str:
 
 def _render_size_instances_per(size: "ObjectSize", per_bytes: int) -> str:
     """Render only the instances-per-bytes part as a string."""
+    if size.min_size == 0:
+        return "∞"
     count_max = per_bytes // size.min_size
     if size.max_size is None:
         return f"<{count_max}"

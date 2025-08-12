@@ -2,17 +2,17 @@ from typing import TYPE_CHECKING
 
 from destack.core import NodeType, declare_entity
 
-from .view import View
+from .view import View2D
 
 if TYPE_CHECKING:
     pass
 
 
 @declare_entity(
-    NodeType.INPUT_VIEW,
+    NodeType.INPUT_VIEW2D,
     is_abstract=True,
 )
-class InputView(View):
+class InputView2D(View2D):
     """An input View."""
 
     pass
