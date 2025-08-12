@@ -134,14 +134,6 @@ This is line three"""
     assert combined_content == "This is line one This is line two This is line three"
 
 
-def test_empty_text():
-    """Test empty text handling."""
-    text_obj = Text.empty()
-    assert text_obj.is_empty
-    assert text_obj.to_plain() == ""
-    assert text_obj.to_markdown() == ""
-
-
 def test_plain_text_creation():
     """Test creating plain text without markdown."""
     text_obj = Text.plain_text("Hello world")

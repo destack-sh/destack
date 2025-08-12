@@ -1,3 +1,4 @@
+from .animation import *  # noqa: F403
 from .audio import *  # noqa: F403
 from .document import *  # noqa: F403
 from .image import *  # noqa: F403

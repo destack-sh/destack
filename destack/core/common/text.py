@@ -67,14 +67,6 @@ class TextSpan(Struct):
 
     style_flags: TextStyleFlag = declare_property(150, tag=None, default=TextStyleFlag.DEFAULT)
 
-    def _to_option_kwargs(self):
-        kwargs = {}
-        for prop in self.__declaration__.properties:
-            value = getattr(self, prop.name)
-            if value is not None:
-                kwargs[prop.name] = value
-        return kwargs
-
     @staticmethod
     def hard_break() -> "TextSpan":
         return TextSpan(type=TextSpanType.HARD_BREAK)
@@ -117,29 +109,6 @@ class Text(Struct):
     def to_markdown(self) -> str:
         """Render the Text as markdown."""
         return text_to_markdown(self)
-
-    def to_plain(self, max_characters: Optional[int] = None) -> str:
-        """Render the Text as plain text without any formatting or markdown."""
-        text_parts: list[str] = []
-        if max_characters is not None:
-            current_length = 0
-            for span in self.spans:
-                if span.type == TextSpanType.TEXT and span.content:
-                    content = span.content
-                    remaining = max_characters - current_length
-                    if remaining <= 0:
-                        break
-                    elif len(content) > remaining:
-                        text_parts.append(content[:remaining] + "...")
-                        break
-                    else:
-                        text_parts.append(content)
-                        current_length += len(content)
-        else:
-            for span in self.spans:
-                if span.type == TextSpanType.TEXT:
-                    text_parts.append(span.content or "")
-        return "".join(text_parts)
 
     @property
     def is_empty(self) -> bool:
