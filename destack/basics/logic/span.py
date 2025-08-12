@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
-    DateTime,
     Duration,
     Event,
     NodeType,
     ReferenceType,
+    Timestamp,
     Value,
     declare_event,
     declare_property,
@@ -32,8 +32,8 @@ class SpanEvent(Event):
         is_interned=True,
         tag=None,
     )
-    start_time: DateTime = declare_property(102, tag=None)
-    end_time: DateTime = declare_property(103, tag=None)
+    start_time: Timestamp = declare_property(102, tag=None)
+    end_time: Timestamp = declare_property(103, tag=None)
     duration: Duration = declare_property(104, tag=None)
 
     parent_span: Optional["SpanEvent"] = declare_property(
