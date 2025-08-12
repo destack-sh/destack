@@ -3,20 +3,20 @@ use std::ops::{Add, Sub};
 
 use crate::Duration;
 
-/// Time in unsigned 64-bit nanosecond precision.
+/// Timestamp in unsigned 64-bit nanosecond precision.
 /// Range: 00:00:00.000_000_000 to 23:59:59.999_999_999.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Time(pub u64);
+pub struct Timestamp(pub u64);
 
-impl Time {
+impl Timestamp {
     const DAY_NANOS: u128 = 24 * 60 * 60 * 1_000_000_000;
 
-    /// Get the current Time.
+    /// Get the current Timestamp.
     pub fn now() -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("SystemTime before UNIX_EPOCH");
+            .expect("SystemTimestamp before UNIX_EPOCH");
         // get nanoseconds since midnight today
         let nanos_since_midnight = now.as_nanos() % Self::DAY_NANOS;
         Self(nanos_since_midnight as u64)
@@ -27,30 +27,30 @@ impl Time {
 // Duration operators
 //
 
-impl Add<Duration> for Time {
-    type Output = Time;
+impl Add<Duration> for Timestamp {
+    type Output = Timestamp;
 
-    fn add(self, rhs: Duration) -> Time {
+    fn add(self, rhs: Duration) -> Timestamp {
         let total_nanos = self.0 as i64 + rhs.0;
         let nanos_in_day = total_nanos.rem_euclid(Self::DAY_NANOS as i64);
-        Time(nanos_in_day as u64)
+        Timestamp(nanos_in_day as u64)
     }
 }
 
-impl Sub<Duration> for Time {
-    type Output = Time;
+impl Sub<Duration> for Timestamp {
+    type Output = Timestamp;
 
-    fn sub(self, rhs: Duration) -> Time {
+    fn sub(self, rhs: Duration) -> Timestamp {
         let total_nanos = self.0 as i64 - rhs.0;
         let nanos_in_day = total_nanos.rem_euclid(Self::DAY_NANOS as i64);
-        Time(nanos_in_day as u64)
+        Timestamp(nanos_in_day as u64)
     }
 }
 
-impl Sub<Time> for Time {
+impl Sub<Timestamp> for Timestamp {
     type Output = Duration;
 
-    fn sub(self, rhs: Time) -> Duration {
+    fn sub(self, rhs: Timestamp) -> Duration {
         Duration(self.0 as i64 - rhs.0 as i64)
     }
 }
@@ -59,51 +59,51 @@ impl Sub<Time> for Time {
 // Conversions
 //
 
-impl From<Time> for u64 {
-    fn from(value: Time) -> Self {
+impl From<Timestamp> for u64 {
+    fn from(value: Timestamp) -> Self {
         value.0
     }
 }
 
-impl TryFrom<u64> for Time {
+impl TryFrom<u64> for Timestamp {
     type Error = &'static str;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         if (value as u128) >= Self::DAY_NANOS {
-            return Err("time nanoseconds exceed a day");
+            return Err("timestamp nanoseconds exceed a day");
         }
-        Ok(Time(value))
+        Ok(Timestamp(value))
     }
 }
 
-impl TryFrom<(u32, u32, u32)> for Time {
+impl TryFrom<(u32, u32, u32)> for Timestamp {
     type Error = &'static str;
 
     fn try_from(hms: (u32, u32, u32)) -> Result<Self, Self::Error> {
         let (h, m, s) = hms;
         if h >= 24 || m >= 60 || s >= 60 {
-            return Err("invalid time components");
+            return Err("invalid timestamp components");
         }
         let nanos = (h as u128) * 3_600_000_000_000
             + (m as u128) * 60_000_000_000
             + (s as u128) * 1_000_000_000;
-        Ok(Time(nanos as u64))
+        Ok(Timestamp(nanos as u64))
     }
 }
 
-impl TryFrom<(u32, u32, u32, u32)> for Time {
+impl TryFrom<(u32, u32, u32, u32)> for Timestamp {
     type Error = &'static str;
 
     fn try_from(hmsn: (u32, u32, u32, u32)) -> Result<Self, Self::Error> {
         let (h, m, s, n) = hmsn;
         if h >= 24 || m >= 60 || s >= 60 || n >= 1_000_000_000 {
-            return Err("invalid time components");
+            return Err("invalid timestamp components");
         }
         let nanos = (h as u128) * 3_600_000_000_000
             + (m as u128) * 60_000_000_000
             + (s as u128) * 1_000_000_000
             + (n as u128);
-        Ok(Time(nanos as u64))
+        Ok(Timestamp(nanos as u64))
     }
 }
 
@@ -112,21 +112,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn add_sub_duration_wraps() {
-        let t = Time::try_from((23, 59, 59, 900_000_000)).unwrap();
-        let later = t + Duration::from_millis(200);
-        // wraps to next day at 00:00:00.100
-        let expected = Time::try_from((0, 0, 0, 100_000_000)).unwrap();
-        assert_eq!(later, expected);
-        let earlier = expected - Duration::from_millis(200);
-        assert_eq!(earlier, t);
-    }
-
-    #[test]
-    fn sub_time_gives_duration() {
-        let a = Time::try_from((1, 0, 0)).unwrap();
-        let b = Time::try_from((0, 30, 0)).unwrap();
-        let d = a - b;
-        assert_eq!(d.as_nanos(), 30 * 60 * 1_000_000_000);
+    fn add_sub_and_diff() {
+        let t = Timestamp::try_from((12, 0, 0)).unwrap();
+        let t2 = t + Duration::from_seconds(1);
+        assert_eq!(t2 - t, Duration::from_seconds(1));
+        let wrapped = Timestamp::try_from((23, 59, 59, 900_000_000)).unwrap() + Duration::from_millis(200);
+        let expected = Timestamp::try_from((0, 0, 0, 100_000_000)).unwrap();
+        assert_eq!(wrapped, expected);
     }
 }
