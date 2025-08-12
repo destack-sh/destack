@@ -470,6 +470,8 @@ else:
                 return f"{source_expr}.isoformat()"
             elif type.primitive_type == PrimitiveType.TIME:
                 return f"{source_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return f"{source_expr}"
             elif type.primitive_type == PrimitiveType.DURATION:
                 return f"timedelta_to_isoformat({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
@@ -563,6 +565,8 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
                 return f"date.fromisoformat({source_expr})"
             elif type.primitive_type == PrimitiveType.TIME:
                 return f"time.fromisoformat({source_expr})"
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return f"{source_expr}"
             elif type.primitive_type == PrimitiveType.DURATION:
                 return f"timedelta_from_isoformat({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:

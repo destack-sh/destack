@@ -13,6 +13,7 @@ from ...builtin import (
     Int128,
     String,
     Time,
+    Timestamp,
     UInt16,
     UInt32,
     UInt64,
@@ -158,6 +159,15 @@ class FlottBinaryWriter(KompaktBinaryWriter):
             + value.microsecond * 1_000
         )
         self.buffer.extend(struct.pack("<Q", nanos))
+
+    @override
+    def write_timestamp(self, value: Timestamp) -> None:
+        """
+        Write a timestamp as fixed 8 bytes of unsigned 64-bit nanoseconds since Unix epoch (UTC).
+        Range: 1970-01-01 to 2554-07-21 UTC.
+        Size: 8 bytes.
+        """
+        self.buffer.extend(struct.pack("<Q", value))
 
     @override
     def write_duration(self, value: Duration) -> None:
@@ -370,6 +380,19 @@ class FlottBinaryReader(KompaktBinaryReader):
         seconds = nanos // 1_000_000_000
         microseconds = (nanos % 1_000_000_000) // 1_000
         return time(hours, minutes, seconds, microseconds)
+
+    @override
+    def read_timestamp(self) -> Timestamp:
+        """
+        Read a timestamp from fixed 8 bytes of unsigned 64-bit nanoseconds since Unix epoch (UTC).
+        Range: 1970-01-01 to 2554-07-21 UTC.
+        Size: 8 bytes.
+        """
+        if self.pos + 8 > len(self.buffer):
+            raise BinaryError(f"unexpected end of buffer at {self.pos}")
+        value = struct.unpack("<Q", self.buffer[self.pos : self.pos + 8])[0]
+        self.pos += 8
+        return value
 
     @override
     def read_duration(self) -> Duration:

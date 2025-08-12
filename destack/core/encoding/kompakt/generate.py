@@ -457,6 +457,8 @@ for _ in range({key}_length):
                 return f"_writer.write_date({source_expr})"
             elif type.primitive_type == PrimitiveType.TIME:
                 return f"_writer.write_time({source_expr})"
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return f"_writer.write_timestamp({source_expr})"
             elif type.primitive_type == PrimitiveType.DURATION:
                 return f"_writer.write_duration({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
@@ -552,6 +554,8 @@ for _ in range({key}_length):
                 return "_reader.read_date()"
             elif type.primitive_type == PrimitiveType.TIME:
                 return "_reader.read_time()"
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return "_reader.read_timestamp()"
             elif type.primitive_type == PrimitiveType.DURATION:
                 return "_reader.read_duration()"
             elif type.primitive_type == PrimitiveType.STRING:

@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional, dataclass_transform
 
-from ._hoisted import ReferenceType
+from ._hoisted import ReferenceType, Timestamp
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
 from .enum import OptionEnum, declare_enum, declare_option
@@ -116,7 +115,7 @@ class Event(Node):
     )
 
     # 20-40: Event tracking
-    created_at: datetime = declare_property(
+    created_at: Timestamp = declare_property(
         20,
         is_managed=True,
         is_eq=False,
@@ -172,7 +171,7 @@ class Event(Node):
         description="The nonce of the Client that created this Event (client).",
         tag="tracking",
     )
-    client_created_at: datetime = declare_property(
+    client_created_at: Timestamp = declare_property(
         25,
         is_eq=False,
         is_hash=False,

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, final
 
 from destack.core import (
@@ -6,6 +5,7 @@ from destack.core import (
     OptionEnum,
     Struct,
     StructType,
+    Timestamp,
     UInt8,
     UInt16,
     UInt32,
@@ -63,8 +63,8 @@ class Schedule(Struct):
 
     frequency: ScheduleFrequency = declare_property(101, tag=None)
     interval: UInt32 = declare_property(102, default=1, tag=None)
-    start: datetime | None = declare_property(110, tag=None)
-    end: datetime | None = declare_property(111, tag=None)
+    start: Timestamp | None = declare_property(110, tag=None)
+    end: Timestamp | None = declare_property(111, tag=None)
     count: UInt32 | None = declare_property(112, tag=None)
     week_start: DayOfWeek | None = declare_property(113, tag=None)
     by_set_pos: list[UInt32] | None = declare_property(114, tag=None)
@@ -77,118 +77,3 @@ class Schedule(Struct):
     by_hour: list[UInt8] | None = declare_property(121, tag=None)
     by_minute: list[UInt8] | None = declare_property(122, tag=None)
     by_second: list[UInt8] | None = declare_property(123, tag=None)
-
-    @staticmethod
-    def every(
-        interval: int = 1,
-        frequency: ScheduleFrequency = ScheduleFrequency.DAY,
-        *,
-        start: datetime | None = None,
-        end: datetime | None = None,
-        count: int | None = None,
-    ) -> "Schedule":
-        return Schedule(frequency=frequency, interval=interval, start=start, end=end, count=count)
-
-    @staticmethod
-    def yearly(
-        *,
-        start: datetime | None = None,
-        months: list[Month] | None = None,
-        days: list[int] | None = None,
-        end: datetime | None = None,
-        count: int | None = None,
-    ) -> "Schedule":
-        schedule = Schedule(
-            frequency=ScheduleFrequency.YEAR,
-            start=start,
-            end=end,
-            count=count,
-            by_month=months or [],
-            by_month_day=days or [],
-        )
-        return schedule
-
-    @staticmethod
-    def monthly(
-        *,
-        start: datetime | None = None,
-        days: list[int] | None = None,
-        end: datetime | None = None,
-        count: int | None = None,
-    ) -> "Schedule":
-        schedule = Schedule(
-            frequency=ScheduleFrequency.MONTH,
-            start=start,
-            end=end,
-            count=count,
-            by_month_day=days or [],
-        )
-        return schedule
-
-    @staticmethod
-    def weekly(
-        *,
-        start: datetime | None = None,
-        weekdays: list[DayOfWeek] | None = None,
-        end: datetime | None = None,
-        count: int | None = None,
-    ) -> "Schedule":
-        schedule = Schedule(
-            frequency=ScheduleFrequency.WEEK,
-            start=start,
-            end=end,
-            count=count,
-            by_week_day=weekdays or [],
-        )
-        return schedule
-
-    @staticmethod
-    def daily(
-        *,
-        start: datetime | None = None,
-        hours: list[int] | None = None,
-        end: datetime | None = None,
-        count: int | None = None,
-    ) -> "Schedule":
-        schedule = Schedule(
-            frequency=ScheduleFrequency.DAY,
-            start=start,
-            end=end,
-            count=count,
-            by_hour=hours or [],
-        )
-        return schedule
-
-    @staticmethod
-    def hourly(
-        *,
-        start: datetime | None = None,
-        minutes: list[int] | None = None,
-        end: datetime | None = None,
-        count: int | None = None,
-    ) -> "Schedule":
-        schedule = Schedule(
-            frequency=ScheduleFrequency.HOUR,
-            start=start,
-            end=end,
-            count=count,
-            by_minute=minutes or [],
-        )
-        return schedule
-
-    @staticmethod
-    def minutely(
-        *,
-        start: datetime | None = None,
-        seconds: list[int] | None = None,
-        end: datetime | None = None,
-        count: int | None = None,
-    ) -> "Schedule":
-        schedule = Schedule(
-            frequency=ScheduleFrequency.MINUTE,
-            start=start,
-            end=end,
-            count=count,
-            by_second=seconds or [],
-        )
-        return schedule

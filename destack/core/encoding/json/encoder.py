@@ -314,6 +314,8 @@ class JsonEncoder(Encoder):
                 return value.isoformat()
             elif type.primitive_type == PrimitiveType.TIME:
                 return value.astimezone(UTC).replace(tzinfo=None).isoformat()
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return value
             elif type.primitive_type == PrimitiveType.DURATION:
                 return timedelta_to_isoformat(value)
             elif type.primitive_type == PrimitiveType.STRING:
@@ -409,6 +411,8 @@ class JsonEncoder(Encoder):
                 return date.fromisoformat(value)
             elif type.primitive_type == PrimitiveType.TIME:
                 return time.fromisoformat(value).replace(tzinfo=None)
+            elif type.primitive_type == PrimitiveType.TIMESTAMP:
+                return value
             elif type.primitive_type == PrimitiveType.DURATION:
                 return timedelta_from_isoformat(value)
             elif type.primitive_type == PrimitiveType.STRING:

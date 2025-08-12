@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
@@ -8,6 +8,7 @@ from destack.core import (
     NodeType,
     OptionEnum,
     ReferenceType,
+    Timestamp,
     declare_entity,
     declare_enum,
     declare_event,
@@ -160,28 +161,28 @@ class Run(Entity):
         is_repr=True,
         tag=None,
     )
-    scheduled_at: Optional[datetime] = declare_property(
+    scheduled_at: Optional[Timestamp] = declare_property(
         116,
         description="When the Run is scheduled to start.",
         tag=None,
     )
-    started_at: Optional[datetime] = declare_property(
+    started_at: Optional[Timestamp] = declare_property(
         117,
         description="When the Run first started.",
         is_repr=True,
         tag=None,
     )
-    seen_at: Optional[datetime] = declare_property(
+    seen_at: Optional[Timestamp] = declare_property(
         118,
         description="When the Run was last active.",
         tag=None,
     )
-    interrupted_at: Optional[datetime] = declare_property(
+    interrupted_at: Optional[Timestamp] = declare_property(
         119,
         description="When the Run was interrupted.",
         tag=None,
     )
-    terminated_at: Optional[datetime] = declare_property(
+    terminated_at: Optional[Timestamp] = declare_property(
         120,
         description="When the Run was last terminated.",
         tag=None,
