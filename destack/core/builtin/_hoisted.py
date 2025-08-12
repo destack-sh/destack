@@ -514,7 +514,7 @@ Range: 0 to 2^32-1
         55,
         "UUID",
         description="""\
-Universally unique identifier (UUID4, UUID5 or UUID7, 128-bit)
+Universally unique identifier (UUID7, 128-bit)
 Range: 0 to 2^128-1
 """,
     )
@@ -595,8 +595,7 @@ if len(PRIMITIVE_PY_ANNOTATION_BY_TYPE) != len(PrimitiveType):
 class ValueFactory(OptionEnum):
     """The factory to use for generating values."""
 
-    UUID4 = declare_option(1, "UUID4", description="Generate a random UUIDv4")
-    UUID7 = declare_option(2, "UUID7", description="Generate a random (time-sorted) UUIDv7")
+    UUID7 = declare_option(1, "UUID7", description="Generate a random (time-sorted) UUIDv7")
     NOW = declare_option(10, "Now", description="Get the current timestamp (system)")
     REMOTE_EPOCH = declare_option(
         11, "Remote Epoch", description="Get the current logical time (system)"

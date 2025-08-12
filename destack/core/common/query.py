@@ -263,7 +263,7 @@ class Query(Struct):
     """
 
     # meta
-    id: UUID = declare_property(2, default_factory=ValueFactory.UUID4, tag=None)
+    id: UUID = declare_property(2, default_factory=ValueFactory.UUID7, tag=None)
     type: QueryType = declare_property(
         100, is_repr=True, description="The type of Query.", tag=None
     )

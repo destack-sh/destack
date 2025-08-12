@@ -128,7 +128,7 @@ from .universe import (
     UniverseCategory,
     UniverseDomain,
 )
-from .uuid import UUID, uuid4, uuid5, uuid7
+from .uuid import UUID, uuid5, uuid7
 
 __all__ = [
     "ACTIVE_SESSION",
@@ -253,7 +253,6 @@ __all__ = [
     "get_order_key",
     "parse_type_declaration",
     "to_casing",
-    "uuid4",
     "uuid5",
     "uuid7",
 ]

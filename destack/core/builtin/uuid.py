@@ -1,6 +1,6 @@
 import secrets
 import time
-from uuid import UUID, uuid4, uuid5
+from uuid import UUID, uuid5
 
 _time_ns = time.time_ns
 _token_bytes = secrets.token_bytes
@@ -24,8 +24,7 @@ def uuid7() -> UUID:
 
 from .declaration import declare_method  # noqa: E402
 
-uuid4 = declare_method(301, is_implemented=True, description="Generate a UUIDv4.")(uuid4)
 uuid5 = declare_method(302, is_implemented=True, description="Generate a UUIDv5.")(uuid5)
 uuid7 = declare_method(303, is_implemented=True, description="Generate a UUIDv7.")(uuid7)
 
-__all__ = ["UUID", "uuid4", "uuid5", "uuid7"]
+__all__ = ["UUID", "uuid5", "uuid7"]
