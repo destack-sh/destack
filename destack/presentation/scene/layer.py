@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     NodeType.LAYER,
     traits=(TraitType.OWNABLE, TraitType.ORDERED),
     expected_ancestor_types=(NodeType.SCENE,),
-    expected_descendant_types=(NodeType.VIEW,),
+    expected_descendant_types=(NodeType.VIEW2D,),
 )
 class Layer(Entity):
     """A Layer is a container for Views."""

@@ -7,17 +7,17 @@ from destack.core import (
     declare_property,
 )
 
-from .content import ContentView
+from .content import ContentView2D
 
 if TYPE_CHECKING:
     from destack import Fill, Font
 
 
 @declare_entity(
-    NodeType.TEXT_VIEW,
+    NodeType.TEXT_VIEW2D,
 )
-class TextView(ContentView):
-    """A (rich) text view."""
+class TextView2D(ContentView2D):
+    """A 2D Text View."""
 
     text: Optional[Text] = declare_property(
         250,

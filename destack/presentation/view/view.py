@@ -1,13 +1,10 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.core import (
-    Event,
     Float32,
     NodeType,
-    ReferenceType,
     TagDeclaration,
     declare_entity,
-    declare_event,
     declare_property,
 )
 from destack.simulation.geometry import Entity2D
@@ -22,26 +19,14 @@ if TYPE_CHECKING:
         Offset2,
         Shadow,
         Vector2,
-        View,
-    )
-
-
-@declare_event(NodeType.VIEW_EVENT, is_abstract=True)
-class ViewEvent(Event):
-    """A Event regarding a View."""
-
-    view: "View" = declare_property(
-        101,
-        reference_type=ReferenceType.LOCATION,
-        tag=None,
+        View2D,
     )
 
 
 @declare_entity(
-    NodeType.VIEW,
+    NodeType.VIEW2D,
     is_abstract=True,
     event_types=(
-        NodeType.VIEW_EVENT,
         NodeType.POINTER_EVENT,
         NodeType.MOUSE_EVENT,
         NodeType.KEY_EVENT,
@@ -49,18 +34,18 @@ class ViewEvent(Event):
         NodeType.CLIPBOARD_EVENT,
         NodeType.FOCUS_EVENT,
     ),
-    expected_ancestor_types=(
-        NodeType.SCENE,
-        NodeType.VIEW,
-    ),
+    expected_ancestor_types=(NodeType.SCENE,),
     tags=(
         TagDeclaration(id=120, name="size", description="The sizing of the View."),
         TagDeclaration(id=130, name="visibility", description="The visibility of the View."),
         TagDeclaration(id=140, name="style", description="The style of the View."),
     ),
 )
-class View(Entity2D):
-    """A View is a 2D user interface element."""
+class View2D(Entity2D):
+    """
+    A View2D is a 2D interface element.
+    Views add dynamic positioning, sizing and styling to Entity2D.
+    """
 
     # transform
     origin: Optional["Vector2"] = declare_property(

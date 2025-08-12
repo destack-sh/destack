@@ -12,7 +12,7 @@ from destack.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.presentation import LayoutView
+    from destack.presentation import LayoutView2D
 
 
 @declare_event(NodeType.SCENE_EVENT, is_abstract=True)
@@ -35,7 +35,7 @@ class SceneEvent(Event):
 class Scene(Entity):
     """A Scene contains some interactive part of a Stage."""
 
-    root_view: Optional["LayoutView"] = declare_property(
+    root_view: Optional["LayoutView2D"] = declare_property(
         200,
         reference_type=ReferenceType.LOCATION,
         description="The root view of the Scene.",
