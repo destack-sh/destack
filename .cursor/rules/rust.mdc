@@ -15,3 +15,10 @@ fn foo() {
     let now = Instant::now();
 }
 ``
+
+Inline variables directly in format!-style macros:
+`format!("my name is {name}")`
+
+Never use expect or unwrap.
+Try to avoid panics, if unavoidable, make it explicit with:
+`unwrap_or_else(|_| panic!("..."))`

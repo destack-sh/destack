@@ -10,11 +10,10 @@ rust-version.workspace = true
 [dependencies]
 destack = { workspace = true }
 destack_system = { workspace = true }
+
 bytes = { workspace = true }
-once_cell = { workspace = true }
 regex = { workspace = true }
-smallvec = { workspace = true }
-criterion = { workspace = true }
+
 pretty_assertions = { workspace = true }
 static_assertions = { workspace = true }
 

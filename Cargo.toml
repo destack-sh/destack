@@ -4,6 +4,7 @@ members = [
 	"destack-rs/destack",
 	"destack-rs/destack_fractional",
 	"destack-rs/destack_time",
+	"destack-rs/destack_json",
 	"destack-rs/destack_uuid",
 	"destack-rs-system/destack_system",
 	"destack-rs-test/destack_test",
@@ -19,22 +20,17 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 destack = { path = "destack-rs/destack" }
 destack_fractional = { path = "destack-rs/destack_fractional" }
+destack_json = { path = "destack-rs/destack_json" }
 destack_time = { path = "destack-rs/destack_time" }
 destack_uuid = { path = "destack-rs/destack_uuid" }
 destack_system = { path = "destack-rs-system/destack_system" }
 
 # dependencies
 bytes = "1.10.1"
-mio = "1.0.4"
-once_cell = "1.21.3"
 regex = "1.11.1"
-smallvec = "1.15.1"
-sysinfo = "0.36.1"
 tokio = "1.47.1"
 
 # build dependencies
-criterion = "0.7.0"
-loom = "0.7.2"
 pretty_assertions = "1.4.1"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"

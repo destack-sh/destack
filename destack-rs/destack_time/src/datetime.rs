@@ -6,7 +6,7 @@ use std::ops::{Add, Sub};
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use crate::parser::{
+use crate::parse::{
     TimeParseError, parse_hh_mm_ss, parse_tz_offset, parse_us_maybe, split_time_and_tz,
 };
 use crate::{Date, Duration};

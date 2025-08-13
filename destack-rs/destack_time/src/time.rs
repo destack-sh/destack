@@ -8,7 +8,7 @@ use std::str::FromStr;
 use std::time::SystemTime;
 
 use crate::Duration;
-use crate::parser::TimeParseError;
+use crate::parse::TimeParseError;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -38,7 +38,7 @@ impl Time {
             return Err(TimeParseError::InvalidFormat);
         }
         let start = idx + 1;
-        let ns = crate::parser::parse_ns_digits_exact(&b[start..])?;
+        let ns = crate::parse::parse_ns_digits_exact(&b[start..])?;
         Ok((ns, b.len()))
     }
 
@@ -48,21 +48,21 @@ impl Time {
         if b.len() < 8 {
             return Err(TimeParseError::TooShort);
         }
-        let h = match crate::parser::parse_two_digits(&b[0..2]) {
+        let h = match crate::parse::parse_two_digits(&b[0..2]) {
             Ok(v) => v as u64,
             Err(_) => return Err(TimeParseError::InvalidNumber),
         };
         if b.get(2) != Some(&b':') {
             return Err(TimeParseError::InvalidFormat);
         }
-        let m = match crate::parser::parse_two_digits(&b[3..5]) {
+        let m = match crate::parse::parse_two_digits(&b[3..5]) {
             Ok(v) => v as u64,
             Err(_) => return Err(TimeParseError::InvalidNumber),
         };
         if b.get(5) != Some(&b':') {
             return Err(TimeParseError::InvalidFormat);
         }
-        let s = match crate::parser::parse_two_digits(&b[6..8]) {
+        let s = match crate::parse::parse_two_digits(&b[6..8]) {
             Ok(v) => v as u64,
             Err(_) => return Err(TimeParseError::InvalidNumber),
         };

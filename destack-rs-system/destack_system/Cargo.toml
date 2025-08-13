@@ -12,24 +12,17 @@ name = "destack-system"
 path = "src/main.rs"
 
 [dependencies]
-bytes = { workspace = true }
 destack = { workspace = true }
-mio = { workspace = true }
-once_cell = { workspace = true }
-regex = { workspace = true }
-smallvec = { workspace = true }
-sysinfo = { workspace = true }
+
+bytes = { workspace = true }
 tokio = { workspace = true }
-wasm-bindgen = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = "0.7.9"
 
 [dev-dependencies]
-loom = { workspace = true }
 pretty_assertions = { workspace = true }
 quickcheck = { workspace = true }
-wasm-bindgen-test = { workspace = true }
 
 [lints]
 workspace = true
