@@ -18,7 +18,6 @@ use std::fmt;
 
 use destack_time::{Date, DateTime, Duration, Time, Timestamp};
 use destack_uuid::Uuid;
-use half::f16;
 
 #[derive(Debug, Clone)]
 /// Base error for binary encoding/decoding.
@@ -131,13 +130,6 @@ impl BinaryEncoder {
         let high = (value >> 64) as u64;
         self.buffer.extend_from_slice(&low.to_le_bytes());
         self.buffer.extend_from_slice(&high.to_le_bytes());
-    }
-
-    // PrimitiveType.FLOAT16
-    /// Write a 16-bit float.
-    pub fn write_float16(&mut self, value: f32) {
-        let half: u16 = f16::from_f32(value).to_bits();
-        self.buffer.extend_from_slice(&half.to_le_bytes());
     }
 
     // PrimitiveType.FLOAT32
@@ -373,14 +365,6 @@ impl<'a> BinaryDecoder<'a> {
         let low = self.read_uint64()?;
         let high = self.read_uint64()?;
         Ok(((high as u128) << 64) | (low as u128))
-    }
-
-    // PrimitiveType.FLOAT16
-    /// Read a 16-bit float.
-    pub fn read_float16(&mut self) -> Result<f32, BinaryError> {
-        let b = self.take(2)?;
-        let bits = u16::from_le_bytes([b[0], b[1]]);
-        Ok(f16::from_bits(bits).to_f32())
     }
 
     // PrimitiveType.FLOAT32
@@ -775,39 +759,6 @@ mod tests {
     }
 
     #[test]
-    fn test_float16() {
-        let vals = [
-            0.0f32,
-            -0.0,
-            f32::INFINITY,
-            f32::NEG_INFINITY,
-            f32::NAN,
-            1.0,
-            -1.0,
-            std::f32::consts::PI,
-            -std::f32::consts::PI,
-            65504.0,
-        ];
-        let bytes = enc_bytes(|e| {
-            for &v in &vals {
-                e.write_float16(v);
-            }
-        });
-        assert_eq!(bytes.len(), 20);
-        let mut d = BinaryDecoder::new(&bytes);
-        for &v in &vals {
-            let res = d.read_float16().unwrap();
-            if v.is_nan() {
-                assert!(res.is_nan());
-            } else if v.is_infinite() {
-                assert!(res.is_infinite() && res.is_sign_positive() == v.is_sign_positive());
-            } else {
-                assert!((res - v).abs() <= 1e-3);
-            }
-        }
-    }
-
-    #[test]
     fn test_float32() {
         let vals = [
             0.0f32,
@@ -935,7 +886,6 @@ mod tests {
             e.write_int32(-1_234_567);
             e.write_int128(-((1i128) << 100));
             e.write_uint128(1u128 << 100);
-            e.write_float16(1.5);
             e.write_float32(std::f32::consts::PI);
             e.write_float64(std::f64::consts::E);
             e.write_string("test string");
@@ -949,7 +899,6 @@ mod tests {
         assert_eq!(d.read_int32().unwrap(), -1_234_567);
         assert_eq!(d.read_int128().unwrap(), -((1i128) << 100));
         assert_eq!(d.read_uint128().unwrap(), 1u128 << 100);
-        assert!((d.read_float16().unwrap() - 1.5).abs() <= 1e-3);
         assert!((d.read_float32().unwrap() - std::f32::consts::PI).abs() <= 1e-6);
         assert!((d.read_float64().unwrap() - std::f64::consts::E).abs() <= 1e-9);
         assert_eq!(d.read_string().unwrap(), "test string");

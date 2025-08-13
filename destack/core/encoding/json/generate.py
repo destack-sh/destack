@@ -458,11 +458,7 @@ else:
                 PrimitiveType.UINT128,
             ):
                 return source_expr
-            elif type.primitive_type in (
-                PrimitiveType.FLOAT16,
-                PrimitiveType.FLOAT32,
-                PrimitiveType.FLOAT64,
-            ):
+            elif type.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
                 return source_expr
             elif type.primitive_type == PrimitiveType.DATETIME:
                 return f"{source_expr}.astimezone(UTC).isoformat()"
@@ -553,11 +549,7 @@ _encoder.pack_object({source_expr}, _options & ~EncoderOptions.OMIT_METATYPE)"""
                 PrimitiveType.UINT128,
             ):
                 return f"int({source_expr})"
-            elif type.primitive_type in (
-                PrimitiveType.FLOAT16,
-                PrimitiveType.FLOAT32,
-                PrimitiveType.FLOAT64,
-            ):
+            elif type.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
                 return f"float({source_expr})"
             elif type.primitive_type == PrimitiveType.DATETIME:
                 return f"datetime.fromisoformat({source_expr})"

@@ -447,8 +447,6 @@ for _ in range({key}_length):
                 return f"_binary_encoder.write_uint64({source_expr})"
             elif type.primitive_type == PrimitiveType.UINT128:
                 return f"_binary_encoder.write_uint128({source_expr})"
-            elif type.primitive_type == PrimitiveType.FLOAT16:
-                return f"_binary_encoder.write_float16({source_expr})"
             elif type.primitive_type == PrimitiveType.FLOAT32:
                 return f"_binary_encoder.write_float32({source_expr})"
             elif type.primitive_type == PrimitiveType.FLOAT64:
@@ -544,8 +542,6 @@ for _ in range({key}_length):
                 return "_binary_decoder.read_uint64()"
             elif type.primitive_type == PrimitiveType.UINT128:
                 return "_binary_decoder.read_uint128()"
-            elif type.primitive_type == PrimitiveType.FLOAT16:
-                return "_binary_decoder.read_float16()"
             elif type.primitive_type == PrimitiveType.FLOAT32:
                 return "_binary_decoder.read_float32()"
             elif type.primitive_type == PrimitiveType.FLOAT64:

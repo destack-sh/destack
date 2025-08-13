@@ -414,8 +414,6 @@ class KompaktEncoder(Encoder):
                 encoder.write_uint64(value)
             elif type.primitive_type == PrimitiveType.UINT128:
                 encoder.write_uint128(value)
-            elif type.primitive_type == PrimitiveType.FLOAT16:
-                encoder.write_float16(value)
             elif type.primitive_type == PrimitiveType.FLOAT32:
                 encoder.write_float32(value)
             elif type.primitive_type == PrimitiveType.FLOAT64:
@@ -516,8 +514,6 @@ class KompaktEncoder(Encoder):
                 return decoder.read_uint64()
             elif type.primitive_type == PrimitiveType.UINT128:
                 return decoder.read_uint128()
-            elif type.primitive_type == PrimitiveType.FLOAT16:
-                return decoder.read_float16()
             elif type.primitive_type == PrimitiveType.FLOAT32:
                 return decoder.read_float32()
             elif type.primitive_type == PrimitiveType.FLOAT64:

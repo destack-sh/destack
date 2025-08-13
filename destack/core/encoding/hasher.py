@@ -9,7 +9,6 @@ from ..builtin import (
     Date,
     DateTime,
     Duration,
-    Float16,
     Float32,
     Float64,
     Int8,
@@ -135,10 +134,6 @@ class Hasher:
             self._mix_byte((value & 0x7F) | 0x80)
             value >>= 7
         self._mix_byte(value & 0x7F)
-
-    def hash_float16(self, value: Float16) -> None:
-        """Hash a fixed-length 16-bit float."""
-        self._mix_bytes(struct.pack("<e", value))
 
     def hash_float32(self, value: Float32) -> None:
         """Hash a fixed-length 32-bit float."""

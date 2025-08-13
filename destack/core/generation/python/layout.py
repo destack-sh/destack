@@ -153,7 +153,7 @@ class PythonObjectSizer(ObjectSizer):
                 digits = max(1, (bits + 29) // 30)
                 size = 28 + 4 * digits
                 return ObjectSize(size, size)
-            elif primitive in (PrimitiveType.FLOAT16, PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
+            elif primitive in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
                 return ObjectSize(self.FLOAT_OBJECT_SIZE, self.FLOAT_OBJECT_SIZE)
             elif primitive == PrimitiveType.DATETIME:
                 return ObjectSize(self.DATETIME_OBJECT_SIZE, self.DATETIME_OBJECT_SIZE)

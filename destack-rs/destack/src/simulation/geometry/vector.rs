@@ -386,12 +386,3 @@ impl From<Vector2> for [f32; 2] {
         [value.x, value.y]
     }
 }
-
-impl IntoIterator for Vector2 {
-    type Item = f32;
-    type IntoIter = core::array::IntoIter<f32, 2>;
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        [self.x, self.y].into_iter()
-    }
-}

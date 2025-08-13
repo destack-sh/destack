@@ -14,7 +14,6 @@ from .types import (
     Date,
     DateTime,
     Duration,
-    Float16,
     Float32,
     Float64,
     Int8,
@@ -424,14 +423,6 @@ Range: 0 to 2^128-1
     # UINT256, ...
     # float
     # FLOAT4, FLOAT8, ...
-    FLOAT16 = declare_option(
-        22,
-        "Float16",
-        description="""\
-16-bit half-precision float
-Range: ±2^-14 to ±2^15-1
-""",
-    )
     FLOAT32 = declare_option(
         23,
         "Float32",
@@ -559,7 +550,6 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     UInt128: PrimitiveType.UINT128,
     # float
     float: PrimitiveType.FLOAT64,
-    Float16: PrimitiveType.FLOAT16,
     Float32: PrimitiveType.FLOAT32,
     Float64: PrimitiveType.FLOAT64,
     # time

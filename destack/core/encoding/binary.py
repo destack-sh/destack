@@ -9,7 +9,6 @@ from ..builtin import (
     Date,
     DateTime,
     Duration,
-    Float16,
     Float32,
     Float64,
     Int8,
@@ -108,11 +107,6 @@ class BinaryEncoder:
         low = value & 0xFFFFFFFFFFFFFFFF
         high = (value >> 64) & 0xFFFFFFFFFFFFFFFF
         self.buffer.extend(struct.pack("<QQ", low, high))
-
-    # PrimitiveType.FLOAT16
-    def write_float16(self, value: Float16) -> None:
-        """Write a 16-bit float."""
-        self.buffer.extend(struct.pack("<e", value))
 
     # PrimitiveType.FLOAT32
     def write_float32(self, value: Float32) -> None:
@@ -350,15 +344,6 @@ class BinaryDecoder:
         low, high = struct.unpack("<QQ", self.buffer[self.pos : self.pos + 16])
         self.pos += 16
         return (high << 64) | low
-
-    # PrimitiveType.FLOAT16
-    def read_float16(self) -> Float16:
-        """Read a 16-bit float."""
-        if self.pos + 2 > len(self.buffer):
-            raise BinaryError(f"unexpected end of buffer at {self.pos}")
-        value = struct.unpack("<e", self.buffer[self.pos : self.pos + 2])[0]
-        self.pos += 2
-        return value
 
     # PrimitiveType.FLOAT32
     def read_float32(self) -> Float32:

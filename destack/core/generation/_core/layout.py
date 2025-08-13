@@ -70,7 +70,6 @@ class KompaktObjectSizer(ObjectSizer):
     UINT32_SIZE = 4
     UINT64_SIZE = 8
     UINT128_SIZE = 16
-    FLOAT16_SIZE = 2
     FLOAT32_SIZE = 4
     FLOAT64_SIZE = 8
     CHARACTER_SIZE = 4
@@ -191,8 +190,6 @@ class KompaktObjectSizer(ObjectSizer):
                 return ObjectSize(self.UINT64_SIZE, self.UINT64_SIZE)
             elif primitive == PrimitiveType.UINT128:
                 return ObjectSize(self.UINT128_SIZE, self.UINT128_SIZE)
-            elif primitive == PrimitiveType.FLOAT16:
-                return ObjectSize(self.FLOAT16_SIZE, self.FLOAT16_SIZE)
             elif primitive == PrimitiveType.FLOAT32:
                 return ObjectSize(self.FLOAT32_SIZE, self.FLOAT32_SIZE)
             elif primitive == PrimitiveType.FLOAT64:
