@@ -41,7 +41,7 @@ class TextStyleFlag(FlagEnum):
 
 @declare_struct(StructType.TEXT_SPAN)
 class TextSpan(Struct):
-    """A span of text with optional formatting"""
+    """Span of text with optional styling."""
 
     type: TextSpanType = declare_property(
         100,
@@ -71,7 +71,7 @@ class TextSpan(Struct):
 @declare_struct(StructType.TEXT)
 class Text(Struct):
     """
-    Rich Text; a single paragraph composed of TextSpans with inline formatting.
+    Text is a single paragraph composed of TextSpans with inline styling.
     """
 
     spans: list[TextSpan] = declare_property(
