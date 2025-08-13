@@ -3,6 +3,14 @@ globs: *.py
 alwaysApply: false
 ---
 Always type everything properly.
-Avoid getattr/hasattr.
 Prefer Sequence/Mapping/.. and such as return annotation.
+
+Avoid getattr/hasattr.
+
 Imports should go to the top of the file.
+
+When documenting with a multi-line string the first line should start on a newline:
+"""
+This is a long documentation.
+More explanation here.
+"""
