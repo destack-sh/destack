@@ -69,7 +69,7 @@ class Effect(Struct):
     template: Optional["EffectTemplate"] = declare_property(
         101,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     opacity: Optional[Float32] = declare_property(102, is_repr=True, tag=None)

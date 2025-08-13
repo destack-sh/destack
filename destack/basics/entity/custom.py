@@ -48,7 +48,7 @@ class CustomEvent(Event):
         10,
         is_managed=True,
         is_readonly=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The CustomEvent this Signal is an instance of.",
         tag=None,
     )
@@ -69,7 +69,7 @@ class CustomStruct(Struct):
     definition: "CustomStructDefinition" = declare_property(
         11,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     custom_values: dict[str, "Value"] | None = declare_property(
@@ -104,7 +104,7 @@ class CustomMessage(Message):
     definition: "CustomMessageDefinition" = declare_property(
         11,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     custom_values: dict[str, "Value"] | None = declare_property(
@@ -139,7 +139,7 @@ class CustomError(Error):
     definition: "CustomErrorDefinition" = declare_property(
         11,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     custom_values: dict[str, "Value"] | None = declare_property(

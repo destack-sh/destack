@@ -160,7 +160,7 @@ class Type(Struct):
     @declare_method(201, is_implemented=True)
     @classmethod
     def of(
-        cls, value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.MOMENT
+        cls, value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.TEMPORAL
     ) -> "Type":
         """
         Infer the Type of a value or class.
@@ -243,7 +243,7 @@ _PRIMITIVE_PY_TYPES: tuple[type, ...] = tuple(
 
 @declare_method(301, is_implemented=True)
 def infer_type(
-    value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.MOMENT
+    value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.TEMPORAL
 ) -> "Type":
     """
     Infer the Type of a value or class.
@@ -263,13 +263,13 @@ def infer_type(
             primitive_type=PrimitiveType.NONE,
         )
     elif isinstance(value_or_type, Node):
-        if reference_type == ReferenceType.MOMENT:
+        if reference_type == ReferenceType.TEMPORAL:
             scalar_type = ScalarType.NODE
         elif reference_type == ReferenceType.RAW:
             scalar_type = ScalarType.NODE_RAW
         elif reference_type == ReferenceType.IDENTITY:
             scalar_type = ScalarType.NODE_IDENTITY
-        elif reference_type == ReferenceType.LOCATION:
+        elif reference_type == ReferenceType.SPATIAL:
             scalar_type = ScalarType.NODE_SPATIAL
         elif reference_type is None:
             scalar_type = ScalarType.NODE

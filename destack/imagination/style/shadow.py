@@ -51,7 +51,7 @@ class Shadow(Struct):
     template: Optional["ShadowStyle"] = declare_property(
         101,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     color: Optional["Color"] = declare_property(102, is_repr=True, tag=None)

@@ -26,7 +26,7 @@ class TriggerEvent(Event):
 
     trigger: "Trigger" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 
@@ -50,7 +50,7 @@ class Trigger(Entity):
     # what
     target: Optional["Entity"] = declare_property(
         120,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     arguments: dict[UUID, Value] = declare_property(121, tag=None)

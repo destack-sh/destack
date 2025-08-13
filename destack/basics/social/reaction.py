@@ -38,7 +38,7 @@ class Reaction(Entity):
 class ReactionEvent(Event):
     reaction: "Reaction" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     content: str = declare_property(102, tag=None)

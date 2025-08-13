@@ -41,10 +41,15 @@ class BodyWakeEvent(BodyEvent):
 
 @declare_entity(
     NodeType.BODY2D,
-    event_types=(NodeType.BODY_EVENT,),
     is_abstract=True,
+    event_types=(NodeType.BODY_EVENT,),
 )
 class Body2D(Entity2D):
+    """
+    A Body in 2D space.
+    A Body is a physically simulated object that can move and interact with other Bodies.
+    """
+
     pass
 
 
@@ -54,4 +59,9 @@ class Body2D(Entity2D):
     is_abstract=True,
 )
 class Body3D(Entity3D):
+    """
+    A Body in 3D space.
+    A Body is a physically simulated object that can move and interact with other Bodies.
+    """
+
     pass

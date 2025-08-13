@@ -94,7 +94,7 @@ class Font(Struct):
     template: Optional["FontStyle"] = declare_property(
         101,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     weight: Optional[FontWeight] = declare_property(

@@ -109,7 +109,7 @@ class Event(Node):
         10,
         is_managed=True,
         is_readonly=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The definition this Event is an instance of.",
         tag="identity",
     )
@@ -144,7 +144,7 @@ class Event(Node):
         is_repr=False,
         is_readonly=True,
         default_factory=ValueFactory.ACTOR,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The Actor that created this Event.",
         tag="tracking",
     )
@@ -155,7 +155,7 @@ class Event(Node):
         is_hash=False,
         is_repr=True,
         is_readonly=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         default_factory=ValueFactory.CLIENT,
         description="The Client that created this Event (client, but verified).",
         tag="tracking",
@@ -219,7 +219,7 @@ class Event(Node):
         is_hash=False,
         is_readonly=True,
         is_managed=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The Event that caused this Event (if any).",
         tag="identity",
     )

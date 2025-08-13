@@ -66,12 +66,12 @@ class RunEvent(Event):
 
     run: "Run" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     target: Optional["Entity"] = declare_property(
         110,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 
@@ -146,7 +146,7 @@ class Run(Entity):
 
     action: "Action" = declare_property(
         111,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     status: RunStatus = declare_property(

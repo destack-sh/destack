@@ -198,11 +198,11 @@ class ReferenceType(OptionEnum):
         description="Identity reference (type + id, for internal use)",
         is_internal=True,
     )
-    LOCATION = declare_option(
+    SPATIAL = declare_option(
         3,
         description="Identity + Space reference (type + id + space, assumed time)",
     )
-    MOMENT = declare_option(
+    TEMPORAL = declare_option(
         4,
         description="Identity + Space + time reference (type + id + space + time)",
     )

@@ -23,12 +23,12 @@ if TYPE_CHECKING:
 class SanctionEvent(Event):
     sanction: "Sanction" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     target: "Entity" = declare_property(
         110,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 
@@ -80,6 +80,6 @@ class Sanction(
     )
     target: "Entity" = declare_property(
         111,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )

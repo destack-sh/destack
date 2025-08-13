@@ -287,7 +287,7 @@ class EnumType(OptionEnum):
     # ...
 
     # physics [20_200_000]
-    # ...
+    JOINT_FLAG = declare_option(20_200_000)
 
     # perception [20_300_000]
     MOUSE_BUTTON = declare_option(20_300_000)
@@ -902,8 +902,12 @@ class NodeType(OptionEnum):
     BODY_WAKE_EVENT = declare_option(20_200_003, "Body Wake Event")
     # BODY_CONTACT_EVENT, BODY_CONTACT_STARTED, ...
     BODY3D = declare_option(20_200_100, "Body3D")
-    RIGID_BODY2D = declare_option(20_201_000, "Rigid Body2D")
-    RIGID_BODY3D = declare_option(20_201_100, "Rigid Body3D")
+    STATIC_BODY2D = declare_option(20_201_400, "Static Body2D")
+    STATIC_BODY3D = declare_option(20_201_500, "Static Body3D")
+    KINEMATIC_BODY2D = declare_option(20_201_200, "Kinematic Body2D")
+    KINEMATIC_BODY3D = declare_option(20_201_300, "Kinematic Body3D")
+    DYNAMIC_BODY2D = declare_option(20_201_000, "Rigid Body2D")
+    DYNAMIC_BODY3D = declare_option(20_201_100, "Rigid Body3D")
     SOFT_BODY2D = declare_option(20_202_000, "Soft Body2D")
     SOFT_BODY3D = declare_option(20_202_100, "Soft Body3D")
     COLLIDER2D = declare_option(20_203_000, "Collider2D")
@@ -912,22 +916,20 @@ class NodeType(OptionEnum):
     COLLIDER3D = declare_option(20_203_100, "Collider3D")
     # COLLIDER_EVENT, COLLIDER_CONTACT_EVENT, COLLIDER_CONTACT_STARTED, ...
     JOINT2D = declare_option(20_204_000, "Joint2D")
-    JOINT_EVENT = declare_option(20_204_201, "Joint Event")
-    JOINT_BREAK_EVENT = declare_option(20_204_202, "Joint Break Event")
+    JOINT_EVENT = declare_option(20_204_101, "Joint Event")
+    JOINT_BREAK_EVENT = declare_option(20_204_102, "Joint Break Event")
     JOINT3D = declare_option(20_204_100, "Joint3D")
-    REVOLUTE_JOINT2D = declare_option(20_204_200, "Revolute Joint2D")
-    PRISMATIC_JOINT2D = declare_option(20_204_300, "Prismatic Joint2D")
-    SPRING_JOINT2D = declare_option(20_204_400, "Spring Joint2D")
-    DISTANCE_JOINT2D = declare_option(20_204_500, "Distance Joint2D")
-    WELD_JOINT2D = declare_option(20_204_600, "Weld Joint2D")
-    WHEEL_JOINT2D = declare_option(20_204_700, "Wheel Joint2D")
-    SPHERICAL_JOINT3D = declare_option(20_205_000, "Spherical Joint3D")
-    HINGE_JOINT3D = declare_option(20_205_100, "Hinge Joint3D")
-    PSIMATIC_JOINT3D = declare_option(20_205_200, "Prismatic Joint3D")
-    FIXED_JOINT3D = declare_option(20_205_300, "Fixed Joint3D")
-    D6_JOINT3D = declare_option(20_205_400, "D6 Joint3D")
-    # JOINT, FIXED_JOINT, FREE_JOINT, SPHERICAL_JOINT, SPRING, MOTOR, ...
-    # JOINT_EVENT, JOINT_BREAK_EVENT, ...
+    HINGE_JOINT2D = declare_option(20_204_200, "Hinge Joint2D")
+    PRISMATIC_JOINT2D = declare_option(20_204_201, "Prismatic Joint2D")
+    FIXED_JOINT2D = declare_option(20_204_202, "Fixed Joint2D")
+    ROPE_JOINT2D = declare_option(20_204_203, "Rope Joint2D")
+    WHEEL_JOINT2D = declare_option(20_204_204, "Wheel Joint2D")
+    HINGE_JOINT3D = declare_option(20_204_300, "Hinge Joint3D")
+    PRISMATIC_JOINT3D = declare_option(20_204_400, "Prismatic Joint3D")
+    FIXED_JOINT3D = declare_option(20_204_500, "Fixed Joint3D")
+    ROPE_JOINT3D = declare_option(20_204_600, "Rope Joint3D")
+    WHEEL_JOINT3D = declare_option(20_204_700, "Wheel Joint3D")
+    SPHERICAL_JOINT3D = declare_option(20_204_800, "Spherical Joint3D")
 
     # perception [20_300_000]
     INPUT_EVENT = declare_option(20_300_000, "Input Event")
@@ -943,7 +945,7 @@ class NodeType(OptionEnum):
     POINTER_LEAVE_EVENT = declare_option(20_300_107, "Pointer Leave Event")
     POINTER_LONG_PRESS_EVENT = declare_option(20_300_108, "Long Press Event")
     # mouse events
-    MOUSE = declare_option(20_301_000, "Mouse")
+    MOUSE2D = declare_option(20_301_000, "Mouse")
     MOUSE_EVENT = declare_option(20_301_101, "Mouse Event")
     CLICK_EVENT = declare_option(20_301_102, "Click Event")
     SINGLE_CLICK_EVENT = declare_option(20_301_103, "Single Click Event")
@@ -1035,7 +1037,7 @@ class NodeType(OptionEnum):
     SCENE = declare_option(40_000_100, "Scene", description="Scene of an Application")
     SCENE_EVENT = declare_option(40_000_101, "Scene Event")
     LAYER = declare_option(40_000_200, "Layer", description="Layer of a Scene")
-    # BREAKPOINT_VARIANT, ...
+    # VIEW_VARIANT, BREAKPOINT_VARIANT, ...
     # VIEWPORT, OVERLAY, WIDGET, HUD, ...
     # ROOM, ...
     # FORM, MENU, INVENTORY, ...
@@ -1289,7 +1291,14 @@ class StructType(OptionEnum):
     # ...
 
     # physics [20_200_000]
-    # ...
+    JOINT_SPRING = declare_option(20_200_001, "Joint Spring")
+    JOINT_SCALAR_LIMIT = declare_option(20_200_002, "Joint Scalar Limit")
+    JOINT_CONE_LIMIT = declare_option(20_200_003, "Joint Cone Limit")
+    JOINT_TWIST_LIMIT = declare_option(20_200_004, "Joint Cone Limit")
+    JOINT_BREAK_LIMIT = declare_option(20_200_005, "Joint Break Limit")
+    JOINT_MOTOR = declare_option(20_200_006, "Joint Motor")
+    JOINT_FRAME2D = declare_option(20_200_007, "Joint Frame2D")
+    JOINT_FRAME3D = declare_option(20_200_008, "Joint Frame3D")
 
     # perception [20_300_000]
     # ...

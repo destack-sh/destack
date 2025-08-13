@@ -201,7 +201,7 @@ class Entity(Node):
         11,
         is_managed=True,
         is_readonly=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The definition this Entity is an instance of.",
         tag="identity",
     )
@@ -212,7 +212,7 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The (root) Entity that is being instantiated.",
         tag="identity",
     )
@@ -244,7 +244,7 @@ class Entity(Node):
         is_eq=False,
         is_readonly=True,
         default_factory=ValueFactory.ACTOR,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The Actor that created this Entity.",
         tag="tracking",
     )
@@ -272,7 +272,7 @@ class Entity(Node):
         is_hash=False,
         is_eq=False,
         default_factory=ValueFactory.ACTOR,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The Actor that last updated this Entity.",
         tag="tracking",
     )
@@ -280,7 +280,7 @@ class Entity(Node):
         26,
         is_repr=True,
         description="The exclusive owner of this Entity (the root on access).",
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         default_factory=ValueFactory.ACTOR,
         tag="tracking",
     )
@@ -288,7 +288,7 @@ class Entity(Node):
         27,
         is_repr=True,
         description="The exclusive controller of this Entity (the authority on Changes).",
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         default_factory=ValueFactory.ACTOR,
         tag="tracking",
     )
@@ -305,7 +305,7 @@ class Entity(Node):
     # 40-50: tree
     parent: Optional["Entity"] = declare_property(
         40,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The parent of this Entity. Most Entities can be attached to any other Entity.",
         tag="tree",
     )
@@ -352,7 +352,7 @@ class Entity(Node):
     script: Optional["Script"] = declare_property(
         60,
         description="The Script of this Entity.",
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag="behavior",
     )
 

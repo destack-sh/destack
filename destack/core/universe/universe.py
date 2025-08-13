@@ -52,7 +52,7 @@ class UniverseSignupRequest(Message):
 class UniverseSignupResponse(Message):
     user: "User" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 
@@ -68,7 +68,7 @@ class UniverseSpawnRequest(Message):
 class UniverseSpawnResponse(Message):
     space: "Space" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 

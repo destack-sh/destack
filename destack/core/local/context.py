@@ -23,6 +23,15 @@ class Context(Handle):
     Context propagates across the call stack (because it propagates through Runs).
     """
 
+    # nocheckin: Context
+    #   make Context a Node again?
+    #   different Contexts for different UniverseDomains/Categories?
+    #   Context/UniverseContext
+    #    -> SimulationContext
+    #      -> PhysicsContext
+    #      -> PerceptionContext
+    #      -> ...
+
     # actor: "Entity"
     # client: "Client"
     # client_nonce: UInt8
