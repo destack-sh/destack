@@ -115,6 +115,8 @@ class RigidBody2D(Body2D):
         default=0.0,
     )
 
+    # aabb, ...
+
 
 @declare_entity(
     NodeType.RIGID_BODY3D,

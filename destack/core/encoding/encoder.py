@@ -1,14 +1,12 @@
+import abc
+from abc import ABC
 from typing import TYPE_CHECKING, Any, Optional
 
 from ..builtin import (
     EncoderFlag,
-    Handle,
-    HandleType,
     Object,
     ObjectKind,
     UInt32,
-    declare_handle,
-    declare_method,
 )
 from .binary import BinaryReader, BinaryWriter
 
@@ -16,11 +14,10 @@ if TYPE_CHECKING:
     from destack import Session, Type
 
 
-@declare_handle(HandleType.ENCODER, is_abstract=True)
-class Encoder(Handle):
+class Encoder(ABC):
     """Encoder for packing/unpacking Objects."""
 
-    @declare_method(100)
+    @abc.abstractmethod
     def pack_object(
         self,
         object: Object,
@@ -29,7 +26,7 @@ class Encoder(Handle):
         """Pack an Object into some encoded format."""
         raise NotImplementedError
 
-    @declare_method(101)
+    @abc.abstractmethod
     def unpack_object(
         self,
         kind: ObjectKind | None,
@@ -44,7 +41,7 @@ class Encoder(Handle):
         """
         raise NotImplementedError
 
-    @declare_method(102)
+    @abc.abstractmethod
     def pack_object_binary(
         self,
         object: Object,
@@ -54,7 +51,7 @@ class Encoder(Handle):
         """Pack an Object into the byte representation of its encoded format."""
         raise NotImplementedError
 
-    @declare_method(103)
+    @abc.abstractmethod
     def unpack_object_binary(
         self,
         kind: ObjectKind | None,
@@ -69,7 +66,7 @@ class Encoder(Handle):
         """
         raise NotImplementedError
 
-    @declare_method(110)
+    @abc.abstractmethod
     def pack_type(
         self,
         type: "Type",
@@ -78,7 +75,7 @@ class Encoder(Handle):
         """Pack a Type into some encoded format."""
         raise NotImplementedError
 
-    @declare_method(111)
+    @abc.abstractmethod
     def unpack_type(
         self,
         value: Any,
@@ -87,7 +84,7 @@ class Encoder(Handle):
         """Unpack a Type from some encoded format."""
         raise NotImplementedError
 
-    @declare_method(112)
+    @abc.abstractmethod
     def pack_type_binary(
         self,
         type: "Type",
@@ -97,7 +94,7 @@ class Encoder(Handle):
         """Pack a Type into the byte representation of its encoded format."""
         raise NotImplementedError
 
-    @declare_method(113)
+    @abc.abstractmethod
     def unpack_type_binary(
         self,
         reader: "BinaryReader",
@@ -106,7 +103,7 @@ class Encoder(Handle):
         """Unpack a Type from the byte representation of its encoded format."""
         raise NotImplementedError
 
-    @declare_method(120)
+    @abc.abstractmethod
     def pack_value(
         self,
         type: "Type",
@@ -116,7 +113,7 @@ class Encoder(Handle):
         """Pack a value into some encoded format."""
         raise NotImplementedError
 
-    @declare_method(121)
+    @abc.abstractmethod
     def unpack_value(
         self,
         type: "Type",
@@ -127,7 +124,7 @@ class Encoder(Handle):
         """Unpack a value from some encoded format."""
         raise NotImplementedError
 
-    @declare_method(122)
+    @abc.abstractmethod
     def pack_value_binary(
         self,
         type: "Type",
@@ -138,7 +135,7 @@ class Encoder(Handle):
         """Pack a value into the byte representation of its encoded format."""
         raise NotImplementedError
 
-    @declare_method(123)
+    @abc.abstractmethod
     def unpack_value_binary(
         self,
         type: "Type",

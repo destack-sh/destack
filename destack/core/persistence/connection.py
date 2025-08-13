@@ -1,19 +1,13 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from ..builtin import (
-    UUID,
-    Handle,
-    HandleType,
-    declare_handle,
-)
+from ..builtin import UUID
 
 if TYPE_CHECKING:
     from destack import Event
 
 
-@declare_handle(HandleType.CONNECTION)
-class Connection(Handle):
+class Connection:
     """
     A connection between a local and a remote Graph.
     """

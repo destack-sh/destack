@@ -29,17 +29,17 @@ impl fmt::Display for Vector2 {
     }
 }
 
-#[destack::generated(Vector2, full)]
+#[destack::generated(Vector2, partial)]
 impl Vector2 {
     #[destack::generated(Vector2, ZERO, line)]
     pub const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
-    
+
     #[destack::generated(Vector2, ONE, line)]
     pub const ONE: Vector2 = Vector2 { x: 1.0, y: 1.0 };
-    
+
     #[destack::generated(Vector2, X_AXIS, line)]
     pub const X_AXIS: Vector2 = Vector2 { x: 1.0, y: 0.0 };
-    
+
     #[destack::generated(Vector2, Y_AXIS, line)]
     pub const Y_AXIS: Vector2 = Vector2 { x: 0.0, y: 1.0 };
 
