@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 class Halfspace2D(Form2D):
     """A Halfspace2D splits 2D space by a line with normal and distance from origin."""
 
-    normal: "Vector2" = declare_property(200, is_repr=True, tag=None)
-    distance: Float32 = declare_property(201, is_repr=True, tag=None)
+    normal: "Vector2" = declare_property(210, is_repr=True, tag=None)
+    distance: Float32 = declare_property(211, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -35,8 +35,8 @@ class Halfspace2D(Form2D):
 class HalfspaceShape2D(Shape2D):
     """A HalfspaceShape2D represents a half-space in 2D defined by a line."""
 
-    normal: "Vector2" = declare_property(200, is_repr=True, tag=None)
-    distance: Float32 = declare_property(201, is_repr=True, tag=None)
+    normal: "Vector2" = declare_property(210, is_repr=True, tag=None)
+    distance: Float32 = declare_property(211, is_repr=True, tag=None)
 
 
 @declare_struct(

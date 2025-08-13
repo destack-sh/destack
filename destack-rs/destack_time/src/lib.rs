@@ -1,3 +1,7 @@
+//! Destack Time and Date types and utilities.
+//! All types are 64-bit integers (signed or unsigned).
+//! The formatting and parsing are based on the ISO 8601 standard.
+
 mod date;
 mod datetime;
 mod duration;

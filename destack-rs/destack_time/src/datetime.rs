@@ -1,3 +1,6 @@
+//! DateTime in signed 64-bit microsecond precision since epoch (UTC).
+//! We provide the `DateTime` type and some conversions.
+
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
@@ -8,10 +11,11 @@ use crate::parser::{
 };
 use crate::{Date, Duration};
 
-/// DateTime in signed 64-bit microsecond precision since epoch (UTC)
-/// range: ±292,277 years
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// DateTime in signed 64-bit microsecond precision since epoch (UTC).
+///
+/// Range: ±292,277 years.
 pub struct DateTime(pub i64);
 
 impl DateTime {

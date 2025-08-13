@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, final
 
 from destack.core import (
     NodeType,
+    Struct,
     StructType,
     UInt32,
     declare_entity,
@@ -9,7 +10,7 @@ from destack.core import (
     declare_struct,
 )
 
-from .shape import Form2D, Form3D, Shape2D, Shape3D
+from .shape import Shape2D, Shape3D
 
 if TYPE_CHECKING:
     from destack import Vector2, Vector3
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     is_final=True,
 )
 @final
-class Mesh2(Form2D):
+class Mesh2(Struct):
     """A Mesh2D is defined by vertices and triangle indices."""
 
     vertices: list["Vector2"] = declare_property(220, tag=None)
@@ -33,7 +34,7 @@ class Mesh2(Form2D):
     is_final=True,
 )
 @final
-class Mesh3(Form3D):
+class Mesh3(Struct):
     """A Mesh3D is defined by vertices and triangle indices."""
 
     vertices: list["Vector3"] = declare_property(220, tag=None)

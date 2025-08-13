@@ -888,7 +888,7 @@ class NodeType(OptionEnum):
     PATH_SHAPE2D = declare_option(20_001_500, "Chain Shape2D")
     ELLIPSE_SHAPE2D = declare_option(20_001_600, "Ellipse Shape2D")
     HALFSPACE_SHAPE2D = declare_option(20_001_700, "Half Space Shape2D")
-    CONVEX_MESH_SHAPE2D = declare_option(20_001_800, "Convex Polygon Shape2D")
+    CONVEX_SHAPE2D = declare_option(20_001_800, "Convex Polygon Shape2D")
     MESH_SHAPE2D = declare_option(20_001_900, "Mesh Shape2D")
     # 3D
     ENTITY3D = declare_option(20_010_000, "Entity3D")
@@ -903,7 +903,7 @@ class NodeType(OptionEnum):
     CYLINDER_SHAPE3D = declare_option(20_011_700, "Cylinder Shape3D")
     CONE_SHAPE3D = declare_option(20_011_800, "Cone Shape3D")
     PLANE_SHAPE3D = declare_option(20_011_900, "Plane Shape3D")
-    CONVEX_MESH_SHAPE3D = declare_option(20_012_000, "Convex Hull Shape3D")
+    CONVEX_SHAPE3D = declare_option(20_012_000, "Convex Hull Shape3D")
     MESH_SHAPE3D = declare_option(20_012_100, "Mesh Shape3D")
     # vectors
     # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...

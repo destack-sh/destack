@@ -10,6 +10,7 @@ from destack.core import (
 )
 
 from .shape import Form2D, Form3D, Shape2D, Shape3D
+from .vector import Vector2, Vector3
 
 if TYPE_CHECKING:
     pass
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 class Rectangle2D(Form2D):
     """A Rectangle is a rectangle."""
 
+    position: "Vector2" = declare_property(200, is_repr=True, tag=None)
     width: Float32 = declare_property(210, is_repr=True, tag=None)
     height: Float32 = declare_property(220, is_repr=True, tag=None)
 
@@ -48,6 +50,7 @@ class RectangleShape2D(Shape2D):
 class Box3D(Form3D):
     """A Box is an axis-aligned box defined by width, height and depth."""
 
+    position: "Vector3" = declare_property(200, is_repr=True, tag=None)
     width: Float32 = declare_property(210, is_repr=True, tag=None)
     height: Float32 = declare_property(220, is_repr=True, tag=None)
     depth: Float32 = declare_property(230, is_repr=True, tag=None)

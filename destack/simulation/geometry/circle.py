@@ -12,7 +12,7 @@ from destack.core import (
 from .shape import Form2D, Form3D, Shape2D, Shape3D
 
 if TYPE_CHECKING:
-    from destack import Vector2, Vector3
+    pass
 
 
 @declare_struct(
@@ -24,7 +24,6 @@ if TYPE_CHECKING:
 class Circle2D(Form2D):
     """A Circle is centered at a point with a radius."""
 
-    center: "Vector2" = declare_property(200, is_repr=True, tag=None)
     radius: Float32 = declare_property(201, is_repr=True, tag=None)
 
 
@@ -35,7 +34,6 @@ class Circle2D(Form2D):
 class CircleShape2D(Shape2D):
     """A CircleShape is a shape that represents a circle."""
 
-    center: "Vector2" = declare_property(200, is_repr=True, tag=None)
     radius: Float32 = declare_property(201, is_repr=True, tag=None)
 
 
@@ -48,7 +46,6 @@ class CircleShape2D(Shape2D):
 class Sphere3D(Form3D):
     """A Sphere is centered at a point with a radius."""
 
-    center: "Vector3" = declare_property(210, is_repr=True, tag=None)
     radius: Float32 = declare_property(211, is_repr=True, tag=None)
 
 
@@ -59,5 +56,4 @@ class Sphere3D(Form3D):
 class SphereShape3D(Shape3D):
     """A SphereShape3D is a shape that represents a sphere."""
 
-    center: "Vector3" = declare_property(210, is_repr=True, tag=None)
     radius: Float32 = declare_property(211, is_repr=True, tag=None)

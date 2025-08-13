@@ -39,12 +39,6 @@ class Entity2D(Entity):
         description="The rotation of the Entity in 2D space.",
         tag="transform",
     )
-    skew: Float32 = declare_property(
-        113,
-        default=0.0,
-        description="The skew of the Entity in 2D space.",
-        tag="transform",
-    )
 
 
 @declare_entity(

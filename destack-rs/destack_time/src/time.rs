@@ -1,5 +1,7 @@
+//! Time in unsigned 64-bit nanosecond precision since midnight.
+//! We provide the `Time` type and some conversions.
+
 use std::convert::TryFrom;
-use std::error::Error as StdError;
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
@@ -8,38 +10,12 @@ use std::time::SystemTime;
 use crate::Duration;
 use crate::parser::TimeParseError;
 
-/// Time in unsigned 64-bit nanosecond precision since midnight
-/// range: 00:00:00.000_000_000 to 23:59:59.999_999_999
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Time in unsigned 64-bit nanosecond precision since midnight.
+///
+/// Range: 00:00:00.000_000_000 to 23:59:59.999_999_999.
 pub struct Time(pub u64);
-
-/// errors for parsing or constructing `Time`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TimeError {
-    TooShort,
-    MissingColon,
-    OutOfRange,
-    FractionMustBe9,
-    InvalidFraction,
-    Trailing,
-}
-
-impl fmt::Display for TimeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let msg = match self {
-            TimeError::TooShort => "too short",
-            TimeError::MissingColon => "missing colon",
-            TimeError::OutOfRange => "time out of range",
-            TimeError::FractionMustBe9 => "fraction must be 9 digits",
-            TimeError::InvalidFraction => "invalid fraction",
-            TimeError::Trailing => "invalid trailing characters",
-        };
-        f.write_str(msg)
-    }
-}
-
-impl StdError for TimeError {}
 
 impl Time {
     /// number of nanoseconds in a day
@@ -57,47 +33,41 @@ impl Time {
 
     #[inline]
     /// Parse the fractional part of a time string.
-    fn parse_fraction_ns_9(b: &[u8], idx: usize) -> Result<(u64, usize), TimeError> {
+    fn parse_fraction_ns_9(b: &[u8], idx: usize) -> Result<(u64, usize), TimeParseError> {
         if idx >= b.len() || b[idx] != b'.' {
-            return Err(TimeError::Trailing);
+            return Err(TimeParseError::InvalidFormat);
         }
         let start = idx + 1;
-        let ns = crate::parser::parse_ns_digits_exact(&b[start..]).map_err(|e| match e {
-            TimeParseError::FractionDigitsMustBe9 => TimeError::FractionMustBe9,
-            TimeParseError::InvalidTime | TimeParseError::InvalidNumber => {
-                TimeError::InvalidFraction
-            }
-            _ => TimeError::InvalidFraction,
-        })?;
+        let ns = crate::parser::parse_ns_digits_exact(&b[start..])?;
         Ok((ns, b.len()))
     }
 
     #[inline]
     /// Parse a time string in the format HH:MM:SS[.NNNNNNNNN].
-    fn parse_hms_ns(b: &[u8]) -> Result<u64, TimeError> {
+    fn parse_hms_ns(b: &[u8]) -> Result<u64, TimeParseError> {
         if b.len() < 8 {
-            return Err(TimeError::TooShort);
+            return Err(TimeParseError::TooShort);
         }
         let h = match crate::parser::parse_two_digits(&b[0..2]) {
             Ok(v) => v as u64,
-            Err(_) => return Err(TimeError::TooShort),
+            Err(_) => return Err(TimeParseError::InvalidNumber),
         };
         if b.get(2) != Some(&b':') {
-            return Err(TimeError::MissingColon);
+            return Err(TimeParseError::InvalidFormat);
         }
         let m = match crate::parser::parse_two_digits(&b[3..5]) {
             Ok(v) => v as u64,
-            Err(_) => return Err(TimeError::TooShort),
+            Err(_) => return Err(TimeParseError::InvalidNumber),
         };
         if b.get(5) != Some(&b':') {
-            return Err(TimeError::MissingColon);
+            return Err(TimeParseError::InvalidFormat);
         }
         let s = match crate::parser::parse_two_digits(&b[6..8]) {
             Ok(v) => v as u64,
-            Err(_) => return Err(TimeError::TooShort),
+            Err(_) => return Err(TimeParseError::InvalidNumber),
         };
         if h >= 24 || m >= 60 || s >= 60 {
-            return Err(TimeError::OutOfRange);
+            return Err(TimeParseError::TimeOutOfRange);
         }
         let mut ns: u64 = 0;
         if 8 < b.len() {
@@ -165,7 +135,7 @@ impl fmt::Display for Time {
 }
 
 impl FromStr for Time {
-    type Err = TimeError;
+    type Err = TimeParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let b = s.as_bytes();
