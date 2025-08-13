@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     NodeType.LAYOUT_VIEW2D,
     is_abstract=True,
     expected_descendant_types=(NodeType.VIEW2D,),
-    tags=(TagDeclaration(id=160, name="layout", description="The layout of the View."),),
+    tags=(TagDeclaration(id=180, name="layout", description="The layout of the View."),),
 )
 class LayoutView2D(View2D):
     """
@@ -30,52 +30,52 @@ class LayoutView2D(View2D):
 
     # layout
     layout: Optional["Layout"] = declare_property(
-        160,
+        180,
         description="How to layout the children of this View.",
         tag="layout",
     )
     direction: Optional["Direction"] = declare_property(
-        161,
+        181,
         description="The direction in which the children of this View are laid out.",
         tag="layout",
     )
     distribute: Optional["Distribute"] = declare_property(
-        162,
+        182,
         description="How to distribute the children of this View.",
         tag="layout",
     )
     align: Optional["Align"] = declare_property(
-        163,
+        183,
         description="How to align the children of this View.",
         tag="layout",
     )
     gap: Optional["Axis2"] = declare_property(
-        164,
+        184,
         description="The gap between the children of this View.",
         tag="layout",
     )
     padding: Optional["Inset2"] = declare_property(
-        165,
+        185,
         description="The padding around the children of this View.",
         tag="layout",
     )
     grid: Optional["Grid2"] = declare_property(
-        166,
+        186,
         description="The grid in which the children of this View are laid out.",
         tag="layout",
     )
     grid_span: Optional["GridSpan2"] = declare_property(
-        167,
+        187,
         description="The span of this View in the grid.",
         tag="layout",
     )
     aspect_ratio: Optional[Float32] = declare_property(
-        168,
+        188,
         description="The aspect ratio of this View.",
         tag="layout",
     )
     is_wrap: Optional[bool] = declare_property(
-        169,
+        189,
         description="Whether the children of this View are wrapped in the grid.",
         tag="layout",
     )
