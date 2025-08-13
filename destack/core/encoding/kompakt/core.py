@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from destack import (
-        BinaryReader,
-        BinaryWriter,
+        BinaryDecoder,
+        BinaryEncoder,
         EncoderFlag,
         Object,
         Session,
@@ -22,7 +22,7 @@ class KompaktObjectEncoder[T: Object = Object]:
         self,
         _encoder: "KompaktEncoder",
         _object: T,
-        _writer: "BinaryWriter",
+        _binary_encoder: "BinaryEncoder",
         _options: "EncoderFlag",
     ) -> None:
         raise NotImplementedError
@@ -30,7 +30,7 @@ class KompaktObjectEncoder[T: Object = Object]:
     def unpack_object(
         self,
         _encoder: "KompaktEncoder",
-        _reader: "BinaryReader",
+        _binary_decoder: "BinaryDecoder",
         _session: "Session | None",
         _options: "EncoderFlag",
     ) -> T:

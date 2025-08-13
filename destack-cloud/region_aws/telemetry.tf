@@ -59,15 +59,15 @@ resource "kubernetes_cluster_role_binding" "metrics_server_auth_delegator" {
   }
 }
 
-resource "kubernetes_role_binding" "metrics_server_auth_reader" {
+resource "kubernetes_role_binding" "metrics_server_auth_decoder" {
   metadata {
-    name      = "metrics-server-auth-reader"
+    name      = "metrics-server-auth-decoder"
     namespace = "kube-system"
   }
   role_ref {
     api_group = "rbac.authorization.k8s.io"
     kind      = "Role"
-    name      = "extension-apiserver-authentication-reader"
+    name      = "extension-apiserver-authentication-decoder"
   }
   subject {
     kind      = "ServiceAccount"

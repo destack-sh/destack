@@ -1,4 +1,4 @@
-from destack import BinaryReader, BinaryWriter, Encoder, Graph, Session
+from destack import BinaryDecoder, BinaryEncoder, Encoder, Graph, Session
 
 # ruff: noqa: T201
 
@@ -6,37 +6,37 @@ _SILENCE_TYPES = (
     Session,
     Graph,
     Encoder,
-    BinaryReader,
-    BinaryWriter,
+    BinaryDecoder,
+    BinaryEncoder,
 )
 
 
-def wrap_binary_writer(writer: BinaryWriter) -> BinaryWriter:
-    """Wrap a binary writer instance to log all method calls."""
+def wrap_binary_encoder(encoder: BinaryEncoder) -> BinaryEncoder:
+    """Wrap a binary encoder instance to log all method calls."""
     # dynamically wrap all write_* methods
-    for attr_name in dir(writer):
-        if attr_name.startswith("write_") and callable(getattr(writer, attr_name)):
-            original_method = getattr(writer, attr_name)
+    for attr_name in dir(encoder):
+        if attr_name.startswith("write_") and callable(getattr(encoder, attr_name)):
+            original_method = getattr(encoder, attr_name)
             setattr(
-                writer,
+                encoder,
                 attr_name,
                 _make_logging_wrapper(attr_name, original_method),
             )
-    return writer
+    return encoder
 
 
-def wrap_binary_reader(reader: BinaryReader) -> BinaryReader:
-    """Wrap a binary reader instance to log all method calls."""
+def wrap_binary_decoder(decoder: BinaryDecoder) -> BinaryDecoder:
+    """Wrap a binary decoder instance to log all method calls."""
     # dynamically wrap all read_* and peek_* methods
-    for attr_name in dir(reader):
-        if attr_name.startswith(("read_", "peek_")) and callable(getattr(reader, attr_name)):
-            original_method = getattr(reader, attr_name)
+    for attr_name in dir(decoder):
+        if attr_name.startswith(("read_", "peek_")) and callable(getattr(decoder, attr_name)):
+            original_method = getattr(decoder, attr_name)
             setattr(
-                reader,
+                decoder,
                 attr_name,
                 _make_logging_wrapper(attr_name, original_method),
             )
-    return reader
+    return decoder
 
 
 def wrap_encoder(encoder: Encoder) -> Encoder:

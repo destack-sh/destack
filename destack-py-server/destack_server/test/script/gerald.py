@@ -228,10 +228,12 @@ class DataAnalyzer(Entity):
             "require_bluechip": True,
         }
 
-        with pd.ExcelWriter(output_file) as writer:
-            processed_df.to_excel(writer, sheet_name="Analyzed_Data", index=False)
-            pd.DataFrame([summary]).to_excel(writer, sheet_name="Analysis_Summary", index=False)
-            pd.DataFrame([criteria]).to_excel(writer, sheet_name="Investment_Criteria", index=False)
+        with pd.ExcelWriter(output_file) as encoder:
+            processed_df.to_excel(encoder, sheet_name="Analyzed_Data", index=False)
+            pd.DataFrame([summary]).to_excel(encoder, sheet_name="Analysis_Summary", index=False)
+            pd.DataFrame([criteria]).to_excel(
+                encoder, sheet_name="Investment_Criteria", index=False
+            )
 
         logger.info(f"✅ Analyse gespeichert: {output_file}")
         print(f"✅ Analyse abgeschlossen: {output_file}")
@@ -394,8 +396,8 @@ class DataFetcher(Entity):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         excel_file = output_folder / f"raw_certificates_{data_source.lower()}_{timestamp}.xlsx"
 
-        with pd.ExcelWriter(excel_file, engine="openpyxl") as writer:
-            df.to_excel(writer, sheet_name="Raw_Data", index=False)
+        with pd.ExcelWriter(excel_file, engine="openpyxl") as encoder:
+            df.to_excel(encoder, sheet_name="Raw_Data", index=False)
 
             # Metadaten-Sheet
             meta_df = pd.DataFrame(
@@ -408,7 +410,7 @@ class DataFetcher(Entity):
                     }
                 ]
             )
-            meta_df.to_excel(writer, sheet_name="Metadata", index=False)
+            meta_df.to_excel(encoder, sheet_name="Metadata", index=False)
 
         logger.info(f"💾 Excel gespeichert: {excel_file.name}")
         logger.info(f"📊 {len(df)} Datensätze, Quelle: {data_source}")

@@ -8,7 +8,7 @@ from ..builtin import (
     ObjectKind,
     UInt32,
 )
-from .binary import BinaryReader, BinaryWriter
+from .binary import BinaryDecoder, BinaryEncoder
 
 if TYPE_CHECKING:
     from destack import Session, Type
@@ -45,7 +45,7 @@ class Encoder(ABC):
     def pack_object_binary(
         self,
         object: Object,
-        writer: "BinaryWriter",
+        encoder: "BinaryEncoder",
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         """Pack an Object into the byte representation of its encoded format."""
@@ -56,7 +56,7 @@ class Encoder(ABC):
         self,
         kind: ObjectKind | None,
         type: UInt32 | None,
-        reader: "BinaryReader",
+        decoder: "BinaryDecoder",
         session: Optional["Session"],
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Object:
@@ -88,7 +88,7 @@ class Encoder(ABC):
     def pack_type_binary(
         self,
         type: "Type",
-        writer: "BinaryWriter",
+        encoder: "BinaryEncoder",
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         """Pack a Type into the byte representation of its encoded format."""
@@ -97,7 +97,7 @@ class Encoder(ABC):
     @abc.abstractmethod
     def unpack_type_binary(
         self,
-        reader: "BinaryReader",
+        decoder: "BinaryDecoder",
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:
         """Unpack a Type from the byte representation of its encoded format."""
@@ -129,7 +129,7 @@ class Encoder(ABC):
         self,
         type: "Type",
         value: Any,
-        writer: "BinaryWriter",
+        encoder: "BinaryEncoder",
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         """Pack a value into the byte representation of its encoded format."""
@@ -139,7 +139,7 @@ class Encoder(ABC):
     def unpack_value_binary(
         self,
         type: "Type",
-        reader: "BinaryReader",
+        decoder: "BinaryDecoder",
         session: Optional["Session"],
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:

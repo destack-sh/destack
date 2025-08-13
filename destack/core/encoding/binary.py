@@ -35,7 +35,7 @@ class BinaryError(ValueError):
     """Base class for binary encoding/decoding errors."""
 
 
-class BinaryWriter:
+class BinaryEncoder:
     """Write binary primitive values in some encoding."""
 
     def __init__(self) -> None:
@@ -230,7 +230,7 @@ class BinaryWriter:
             raise BinaryError(f"invalid JSON type '{type(value)}': {value!r}")
 
 
-class BinaryReader:
+class BinaryDecoder:
     """Read binary primitive values in some encoding."""
 
     def __init__(self, buffer: bytes) -> None:
@@ -241,7 +241,7 @@ class BinaryReader:
         return f"pos={self.pos}, remaining={self.remaining}"
 
     def __repr__(self) -> str:
-        return f"<BinaryReader pos={self.pos}, remaining={self.remaining}>"
+        return f"<BinaryDecoder pos={self.pos}, remaining={self.remaining}>"
 
     @property
     def remaining(self) -> int:
