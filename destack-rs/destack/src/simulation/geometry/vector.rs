@@ -1,35 +1,35 @@
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[destack::generated(Vector2, struct, full)]
+#[destack::generated(Vector2, struct, block)]
 #[derive(Debug, Clone, Copy)]
 pub struct Vector2 {
     pub x: f32,
     pub y: f32,
 }
 
-#[destack::generated(Vector2, PartialEq, full)]
+#[destack::generated(Vector2, PartialEq, block)]
 impl PartialEq for Vector2 {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
 
-#[destack::generated(Vector2, Default, full)]
+#[destack::generated(Vector2, Default, block)]
 impl Default for Vector2 {
     fn default() -> Self {
         Self::ZERO
     }
 }
 
-#[destack::generated(Vector2, Display, full)]
+#[destack::generated(Vector2, Display, block)]
 impl fmt::Display for Vector2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
     }
 }
 
-#[destack::generated(Vector2, partial)]
+#[destack::partial(Vector2, impl, block)]
 impl Vector2 {
     #[destack::generated(Vector2, ZERO, line)]
     pub const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
@@ -49,106 +49,10 @@ impl Vector2 {
     pub const fn x(&self) -> f32 {
         self.x
     }
-
-    #[inline]
-    /// Return the y component.
-    pub const fn y(&self) -> f32 {
-        self.y
-    }
-
-    /// Return a vector with absolute-valued components.
-    #[inline]
-    pub fn abs(self) -> Self {
-        Self {
-            x: self.x.abs(),
-            y: self.y.abs(),
-        }
-    }
-
-    /// Return the perpendicular vector rotated 90 degrees counterclockwise.
-    #[inline]
-    pub fn perp(self) -> Self {
-        Self {
-            x: -self.y,
-            y: self.x,
-        }
-    }
-
-    /// Compute dot product with another vector.
-    #[inline]
-    pub fn dot(self, other: Self) -> f32 {
-        self.x * other.x + self.y * other.y
-    }
-
-    /// Compute the 2D cross product z-component (useful for angles/orientation).
-    #[inline]
-    pub fn cross_z(self, other: Self) -> f32 {
-        self.x * other.y - self.y * other.x
-    }
-
-    /// Return squared magnitude.
-    #[inline]
-    pub fn magnitude2(self) -> f32 {
-        self.dot(self)
-    }
-
-    /// Return magnitude (length).
-    #[inline]
-    pub fn magnitude(self) -> f32 {
-        self.magnitude2().sqrt()
-    }
-
-    /// Return a normalized vector. Returns ZERO if the vector has zero length.
-    #[inline]
-    pub fn normalize(self) -> Self {
-        let m = self.magnitude();
-        if m > 0.0 { self / m } else { Self::ZERO }
-    }
-
-    /// Compute Euclidean distance to another vector.
-    #[inline]
-    pub fn distance(self, other: Self) -> f32 {
-        (self - other).magnitude()
-    }
-
-    /// Compute squared Euclidean distance to another vector.
-    #[inline]
-    pub fn distance2(self, other: Self) -> f32 {
-        (self - other).magnitude2()
-    }
-
-    /// Compute the signed angle to another vector in radians in range (-PI, PI].
-    /// Uses atan2 of cross and dot for numerical robustness.
-    #[inline]
-    pub fn angle(self, other: Self) -> f32 {
-        self.cross_z(other).atan2(self.dot(other))
-    }
-
-    /// Linearly interpolate between this vector and another by t in [0, 1].
-    #[inline]
-    pub fn lerp(self, other: Self, t: f32) -> Self {
-        self * (1.0 - t) + other * t
-    }
-
-    /// Rotate this point around `center` by `angle` radians (CCW).
-    #[inline]
-    pub fn rot_with(self, center: Self, angle: f32) -> Self {
-        let s = angle.sin();
-        let c = angle.cos();
-        let p = self - center;
-        let x = c * p.x - s * p.y;
-        let y = s * p.x + c * p.y;
-        Vector2 { x, y } + center
-    }
-
-    /// Return the number of components (always 2).
-    #[inline]
-    pub const fn len_components(&self) -> usize {
-        2
-    }
 }
 
 // Arithmetic ops with another Vector2
+#[destack::partial(Vector2, Add, block)]
 impl Add for Vector2 {
     type Output = Vector2;
     #[inline]
