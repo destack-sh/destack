@@ -2,6 +2,8 @@
 //! We provide the `Uuid` type with relevant operators and conversions.
 //! We also provide uuid4, uuid5, and uuid7 generation functions.
 
+mod format;
+mod parse;
 mod uuid;
 mod uuid4;
 mod uuid5;
