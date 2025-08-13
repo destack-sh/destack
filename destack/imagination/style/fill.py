@@ -67,7 +67,7 @@ class Fill(Struct):
     template: Optional["FillStyle"] = declare_property(
         101,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     color: Optional[Color] = declare_property(
@@ -83,7 +83,7 @@ class Fill(Struct):
     image: Optional["Image"] = declare_property(
         104,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     position: Optional[FillPosition] = declare_property(
@@ -131,7 +131,7 @@ class FillStyle(Style):
     image: Optional["Image"] = declare_property(
         103,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     position: Optional[FillPosition] = declare_property(

@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from destack import Vector2
 
 
-@declare_entity(NodeType.MOUSE)
-class Mouse(Pointer2D):
+@declare_entity(NodeType.MOUSE2D)
+class Mouse2D(Pointer2D):
     """A Mouse is a user input device that can be used to interact with the UI."""
 
     pass

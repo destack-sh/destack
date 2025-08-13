@@ -38,11 +38,11 @@ class SpanEvent(Event):
 
     parent_span: Optional["SpanEvent"] = declare_property(
         110,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     action: Optional["Action"] = declare_property(
         111,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )

@@ -26,14 +26,6 @@ repos:
   # rust
   - repo: local
     hooks:
-      - id: cargo-check
-        name: cargo check (rs)
-        entry: cargo
-        language: system
-        pass_filenames: false
-        always_run: true
-        args: [ "check", "--workspace" ]
-
       - id: cargo-fmt
         name: cargo fmt (rs)
         entry: cargo

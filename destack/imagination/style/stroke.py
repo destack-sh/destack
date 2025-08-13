@@ -47,7 +47,7 @@ class Stroke(Struct):
     template: Optional["StrokeStyle"] = declare_property(
         101,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     size: UInt8 = declare_property(

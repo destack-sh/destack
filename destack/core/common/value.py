@@ -47,7 +47,7 @@ class Value(Struct):
         cls,
         value: Any,
         type: "Type | None" = None,
-        reference_type: ReferenceType | None = ReferenceType.MOMENT,
+        reference_type: ReferenceType | None = ReferenceType.TEMPORAL,
     ) -> "Value":
         """
         Convert an arbitrary (legal) value to a Value.

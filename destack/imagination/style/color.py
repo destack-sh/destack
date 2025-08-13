@@ -129,7 +129,7 @@ class ColorStyle(Style):
     a: Float32 = declare_property(206, is_repr=True, tag=None)
     dark: Optional["ColorStyle"] = declare_property(
         207,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 

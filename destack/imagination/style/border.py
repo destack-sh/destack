@@ -52,7 +52,7 @@ class Border(Struct):
     template: Optional["BorderStyle"] = declare_property(
         103,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 

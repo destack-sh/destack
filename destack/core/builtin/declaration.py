@@ -331,7 +331,7 @@ def _parse_signature(
             prop.type = parse_type_declaration(
                 prop_py_type,
                 is_builtin=True,
-                reference_type=ReferenceType.MOMENT,
+                reference_type=ReferenceType.TEMPORAL,
             )
         except Exception as e:
             raise ValueError(
@@ -347,7 +347,7 @@ def _parse_signature(
             prop.type = parse_type_declaration(
                 prop.py_type,
                 is_builtin=True,
-                reference_type=ReferenceType.MOMENT,
+                reference_type=ReferenceType.TEMPORAL,
             )
         except Exception as e:
             raise ValueError(f"unexpected return type: {qualname} ({prop.py_type})") from e

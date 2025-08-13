@@ -33,7 +33,7 @@ class BreakoutGame(Entity):
 
 
 @entity
-class BreakoutPlayer(Entity2D):
+class BreakoutPlayer(RigidBody2D):
     pass
 
 
@@ -43,7 +43,7 @@ class BreakoutPlayer(Entity2D):
 
 
 @entity
-class BreakoutPaddle(Entity2D):
+class BreakoutPaddle(RigidBody2D):
     pass
 
 
@@ -53,7 +53,7 @@ class BreakoutPaddle(Entity2D):
 
 
 @entity
-class BreakoutBrick(Entity2D):
+class BreakoutBrick(RigidBody2D):
     width: Int8
 
 
@@ -63,7 +63,7 @@ class BreakoutBrick(Entity2D):
 
 
 @entity
-class BreakoutBall(Entity2D):
+class BreakoutBall(RigidBody2D):
     radius: Int8
 
 
@@ -73,7 +73,7 @@ class BreakoutBall(Entity2D):
 
 
 @entity
-class BreakoutWall(Entity2D):
+class BreakoutWall(RigidBody2D):
     width: Int8
     height: Int8
 

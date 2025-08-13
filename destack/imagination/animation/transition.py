@@ -50,7 +50,7 @@ class Transition(Struct):
     template: Optional["TransitionTemplate"] = declare_property(
         101,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     delay: Optional[Float32] = declare_property(

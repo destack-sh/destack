@@ -50,7 +50,7 @@ class ObjectDefinitionReference(Struct):
     definition: Optional["Entity"] = declare_property(
         106,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 
@@ -111,7 +111,7 @@ class PropertyReference(Struct):
     custom_property: Optional["CustomPropertyDefinition"] = declare_property(
         106,
         is_repr=True,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="custom Property of a custom Node or Struct",
         tag=None,
     )

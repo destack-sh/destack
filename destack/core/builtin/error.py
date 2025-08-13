@@ -91,7 +91,7 @@ class Error(Struct, Exception):
         is_managed=True,
         is_readonly=True,
         default_factory=ValueFactory.CLIENT,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The Client that created this Error (client, but verified).",
         tag="tracking",
     )

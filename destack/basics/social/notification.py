@@ -36,7 +36,7 @@ class NotificationEvent(Event):
 
     notification: "Notification" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 

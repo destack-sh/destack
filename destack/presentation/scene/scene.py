@@ -21,7 +21,7 @@ class SceneEvent(Event):
 
     scene: "Scene" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 
@@ -37,7 +37,7 @@ class Scene(Entity):
 
     root_view: Optional["LayoutView2D"] = declare_property(
         200,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         description="The root view of the Scene.",
         tag=None,
     )

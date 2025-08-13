@@ -7,7 +7,7 @@ from destack.core import (
     declare_entity,
     declare_property,
 )
-from destack.simulation.geometry import Entity2D
+from destack.simulation.physics import Body2D
 
 if TYPE_CHECKING:
     from destack import (
@@ -36,12 +36,12 @@ if TYPE_CHECKING:
     ),
     expected_ancestor_types=(NodeType.SCENE,),
     tags=(
-        TagDeclaration(id=120, name="size", description="The sizing of the View."),
-        TagDeclaration(id=130, name="visibility", description="The visibility of the View."),
-        TagDeclaration(id=140, name="style", description="The style of the View."),
+        TagDeclaration(id=130, name="size", description="The sizing of the View."),
+        TagDeclaration(id=140, name="visibility", description="The visibility of the View."),
+        TagDeclaration(id=150, name="style", description="The style of the View."),
     ),
 )
-class View2D(Entity2D):
+class View2D(Body2D):
     """
     A View2D is a 2D interface element.
     Views add dynamic positioning, sizing and styling to Entity2D.
@@ -66,66 +66,66 @@ class View2D(Entity2D):
 
     # size
     width: Optional["Length"] = declare_property(
-        120,
+        130,
         description="The width of the View.",
         tag="size",
     )
     height: Optional["Length"] = declare_property(
-        121,
+        131,
         description="The height of the View.",
         tag="size",
     )
     min_width: Optional["Length"] = declare_property(
-        122,
+        132,
         description="The minimum width of the View.",
         tag="size",
     )
     min_height: Optional["Length"] = declare_property(
-        123,
+        133,
         description="The minimum height of the View.",
         tag="size",
     )
     max_width: Optional["Length"] = declare_property(
-        124,
+        134,
         description="The maximum width of the View.",
         tag="size",
     )
     max_height: Optional["Length"] = declare_property(
-        125,
+        135,
         description="The maximum height of the View.",
         tag="size",
     )
 
     # visibility
     is_visible: Optional[bool] = declare_property(
-        130,
+        140,
         description="Whether the View is visible.",
         tag="visibility",
     )
     opacity: Optional[Float32] = declare_property(
-        131,
+        141,
         description="The opacity of the View.",
         tag="visibility",
     )
 
     # style
     fill: Optional["Fill"] = declare_property(
-        140,
+        150,
         description="The fill of the View.",
         tag="style",
     )
     shadow: Optional["Shadow"] = declare_property(
-        141,
+        151,
         description="The shadow of the View.",
         tag="style",
     )
     border: Optional["Border"] = declare_property(
-        142,
+        152,
         description="The border of the View.",
         tag="style",
     )
     radius: Optional["Corner2"] = declare_property(
-        143,
+        153,
         description="The radius of the View.",
         tag="style",
     )

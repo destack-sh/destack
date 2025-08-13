@@ -275,9 +275,9 @@ def parse_type_declaration_scalar(
             scalar_type = ScalarType.NODE_RAW
         elif reference_type == ReferenceType.IDENTITY:
             scalar_type = ScalarType.NODE_IDENTITY
-        elif reference_type == ReferenceType.MOMENT:
+        elif reference_type == ReferenceType.TEMPORAL:
             scalar_type = ScalarType.NODE_TEMPORAL
-        elif reference_type == ReferenceType.LOCATION:
+        elif reference_type == ReferenceType.SPATIAL:
             scalar_type = ScalarType.NODE_SPATIAL
         elif reference_type == "value":
             scalar_type = ScalarType.NODE

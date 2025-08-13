@@ -8,7 +8,7 @@ from destack.core import (
     declare_property,
 )
 
-from ..geometry import Entity2D
+from ..physics import Body2D
 from .input import InputEvent
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @declare_entity(NodeType.POINTER2D)
-class Pointer2D(Entity2D):
+class Pointer2D(Body2D):
     """A Pointer is a user input device that can be used to interact with the UI."""
 
     pass

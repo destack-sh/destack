@@ -23,12 +23,12 @@ if TYPE_CHECKING:
 class EntitlementEvent(Event):
     entitlement: "Entitlement" = declare_property(
         101,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
     target: "Entity" = declare_property(
         110,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )
 
@@ -78,6 +78,6 @@ class Entitlement(Entity):
     )
     target: "Entity" = declare_property(
         111,
-        reference_type=ReferenceType.LOCATION,
+        reference_type=ReferenceType.SPATIAL,
         tag=None,
     )

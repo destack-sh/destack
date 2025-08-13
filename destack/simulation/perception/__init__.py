@@ -28,7 +28,7 @@ from .key import (
 from .mouse import (
     ClickEvent,
     DoubleClickEvent,
-    Mouse,
+    Mouse2D,
     MouseButton,
     MouseEvent,
     SingleClickEvent,
@@ -68,7 +68,7 @@ __all__ = [
     "KeyEvent",
     "KeyPressEvent",
     "KeyUpEvent",
-    "Mouse",
+    "Mouse2D",
     "MouseButton",
     "MouseEvent",
     "PasteEvent",
