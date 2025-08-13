@@ -214,7 +214,6 @@ class Encoding(OptionEnum):
 
     JSON = declare_option(1, "JSON", description="JSON encoding")
     KOMPAKT = declare_option(3, "KOMPAKT", description="KOMPAKT encoding (optimized for size)")
-    # FLOTT = declare_option(4, "FLOTT", description="FLOTT encoding (optimized for speed)")
     # KONSTANT, ...
     # C?
 

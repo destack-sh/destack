@@ -2,321 +2,235 @@ import math
 
 import pytest
 
-from destack import UUID, BinaryReader, BinaryWriter, KompaktBinaryReader, KompaktBinaryWriter
+from destack import UUID, BinaryReader, BinaryWriter
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_bool(writer_cls: type[BinaryWriter], reader_cls: type[BinaryReader]):
+def test_bool():
     """Test boolean encoding and decoding."""
-    writer = writer_cls()
+    writer = BinaryWriter()
     writer.write_bool(True)
     writer.write_bool(False)
 
     assert len(writer.to_bytes()) == 2
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     assert reader.read_bool() is True
     assert reader.read_bool() is False
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_int8(writer_cls, reader_cls):
+def test_int8():
     """Test signed 8-bit integer encoding and decoding."""
     test_values = [0, 1, -1, 127, -128, 42, -42]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for value in test_values:
         writer.write_int8(value)
 
     assert len(writer.to_bytes()) == 7
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_values:
         assert reader.read_int8() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_int16(writer_cls, reader_cls):
-    """Test signed 16-bit integer variable-length encoding."""
-    test_cases = {
-        0: 1,  # zigzag(0) = 0 -> 1 byte
-        1: 1,  # zigzag(1) = 2 -> 1 byte
-        -1: 1,  # zigzag(-1) = 1 -> 1 byte
-        63: 1,  # zigzag(63) = 126 -> 1 byte
-        64: 2,  # zigzag(64) = 128 -> 2 bytes
-        -64: 1,  # zigzag(-64) = 127 -> 1 byte
-        -65: 2,  # zigzag(-65) = 129 -> 2 bytes
-        127: 2,  # zigzag(127) = 254 -> 2 bytes
-        128: 2,  # zigzag(128) = 256 -> 2 bytes
-        -128: 2,  # zigzag(-128) = 255 -> 2 bytes
-        32767: 3,  # max int16 -> zigzag(32767) = 65534 -> 3 bytes
-        -32768: 3,  # min int16 -> zigzag(-32768) = 65535 -> 3 bytes
-    }
+def test_int16():
+    """Test signed 16-bit integer encoding and decoding."""
+    test_values = [0, 1, -1, 127, -128, 32767, -32768, 42, -42]
 
-    for value, expected_bytes in test_cases.items():
-        writer = writer_cls()
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_int16(value)
-        data = writer.to_bytes()
-        assert len(data) == expected_bytes, (
-            f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
-        )
 
-        reader = reader_cls(buffer=data)
-        assert reader.read_int16() == value
+    assert len(writer.to_bytes()) == 18
+
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_int16() == expected
+    assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_int32(writer_cls, reader_cls):
-    """Test signed 32-bit integer variable-length encoding."""
-    value_to_bytes = {
-        0: 1,  # zigzag = 0
-        1: 1,  # zigzag = 2
-        -1: 1,  # zigzag = 1
-        127: 2,  # zigzag = 254
-        -128: 2,  # zigzag = 255
-        256: 2,  # zigzag = 512
-        -256: 2,  # zigzag = 511
-        65535: 3,  # zigzag = 131070
-        -65536: 3,  # zigzag = 131071
-        2147483647: 5,  # zigzag = 4294967294
-        -2147483648: 5,  # zigzag = 4294967295
-    }
+def test_int32():
+    """Test signed 32-bit integer encoding and decoding."""
+    test_values = [0, 1, -1, 127, -128, 32767, -32768, 2147483647, -2147483648, 42, -42]
 
-    writer = writer_cls()
-    for value in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_int32(value)
 
-    # calculate total expected bytes
-    total_expected = sum(value_to_bytes.values())
-    assert len(writer.to_bytes()) == total_expected  # 27 bytes
+    assert len(writer.to_bytes()) == 44
 
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value in value_to_bytes:
-        assert reader.read_int32() == value
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_int32() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_int64(writer_cls, reader_cls):
-    """Test signed 64-bit integer variable-length encoding."""
-    value_to_bytes = {
-        0: 1,
-        1: 1,
-        -1: 1,
-        127: 2,
-        -128: 2,
-        2**31 - 1: 5,
-        -(2**31): 5,
-        2**63 - 1: 10,  # max varint
-        -(2**63): 10,  # max varint
-        123456789012345: 7,
-        -123456789012345: 7,
-    }
+def test_int64():
+    """Test signed 64-bit integer encoding and decoding."""
+    test_values = [
+        0,
+        1,
+        -1,
+        127,
+        -128,
+        32767,
+        -32768,
+        2147483647,
+        -2147483648,
+        9223372036854775807,
+        -9223372036854775808,
+        42,
+        -42,
+    ]
 
-    writer = writer_cls()
-    for value in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_int64(value)
 
-    # calculate total expected bytes
-    total_expected = sum(value_to_bytes.values())
-    assert len(writer.to_bytes()) == total_expected  # 51 bytes
+    assert len(writer.to_bytes()) == 104
 
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value in value_to_bytes:
-        assert reader.read_int64() == value
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_int64() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_int128(writer_cls, reader_cls):
-    """Test signed 128-bit integer variable-length encoding."""
-    value_to_bytes = {
-        0: 1,
-        1: 1,
-        -1: 1,
-        127: 2,
-        -128: 2,
-        2**63 - 1: 10,  # max sint64
-        -(2**63): 10,
-        2**127 - 1: 19,  # max sint128 (varint can go up to 19 bytes)
-        -(2**127): 19,
-        2**100: 15,  # large positive
-        -(2**100): 15,  # large negative
-    }
+def test_int128():
+    """Test signed 128-bit integer encoding and decoding."""
+    test_values = [0, 1, -1, 127, -128, 2**63 - 1, -(2**63), 2**127 - 1, -(2**127), 42, -42]
 
-    writer = writer_cls()
-    for value in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_int128(value)
 
-    # Calculate total expected bytes
-    total_expected = sum(value_to_bytes.values())
-    assert len(writer.to_bytes()) == total_expected
+    assert len(writer.to_bytes()) == 176
 
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value in value_to_bytes:
-        assert reader.read_int128() == value
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_int128() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_uint8(writer_cls, reader_cls):
+def test_uint8():
     """Test unsigned 8-bit integer encoding and decoding."""
     test_values = [0, 1, 127, 128, 255, 42]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for value in test_values:
         writer.write_uint8(value)
 
     assert len(writer.to_bytes()) == 6
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_values:
         assert reader.read_uint8() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_uint16(writer_cls, reader_cls):
-    """Test unsigned 16-bit integer variable-length encoding."""
-    test_cases = {
-        0: 1,  # 0 -> 1 byte
-        127: 1,  # fits in 7 bits
-        128: 2,  # needs 2 bytes
-        16383: 2,  # fits in 14 bits
-        16384: 3,  # needs 3 bytes
-        32767: 3,  # max int16 as uint16
-        65535: 3,  # max uint16
-    }
+def test_uint16():
+    """Test unsigned 16-bit integer encoding and decoding."""
+    test_values = [0, 1, 127, 128, 255, 256, 32767, 32768, 65535, 42]
 
-    for value, expected_bytes in test_cases.items():
-        writer = writer_cls()
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_uint16(value)
-        data = writer.to_bytes()
-        assert len(data) == expected_bytes, (
-            f"Value {value} should encode to {expected_bytes} bytes, got {len(data)}"
-        )
 
-        reader = reader_cls(buffer=data)
-        assert reader.read_uint16() == value
+    assert len(writer.to_bytes()) == 20
+
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_uint16() == expected
+    assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_uint32(writer_cls, reader_cls):
-    """Test unsigned 32-bit integer variable-length encoding."""
-    value_to_bytes = {
-        0: 1,  # 0 -> 1 byte
-        127: 1,  # fits in 7 bits
-        128: 2,  # needs 2 bytes
-        16383: 2,  # fits in 14 bits
-        16384: 3,  # needs 3 bytes
-        65535: 3,  # max uint16
-        65536: 3,  # uint16 + 1
-        2097151: 3,  # fits in 21 bits
-        2097152: 4,  # needs 4 bytes
-        4294967295: 5,  # max uint32
-    }
+def test_uint32():
+    """Test unsigned 32-bit integer encoding and decoding."""
+    test_values = [0, 1, 127, 128, 255, 256, 65535, 65536, 2147483647, 2147483648, 4294967295, 42]
 
-    writer = writer_cls()
-    for value in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_uint32(value)
 
-    # Calculate total expected bytes
-    total_expected = sum(value_to_bytes.values())
-    assert len(writer.to_bytes()) == total_expected  # 28 bytes
+    assert len(writer.to_bytes()) == 48
 
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value in value_to_bytes:
-        assert reader.read_uint32() == value
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_uint32() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_uint64(writer_cls, reader_cls):
-    """Test unsigned 64-bit integer variable-length encoding."""
-    value_to_bytes = {
-        0: 1,
-        127: 1,
-        128: 2,
-        16383: 2,
-        16384: 3,
-        2**32 - 1: 5,  # max uint32
-        2**32: 5,  # uint32 + 1
-        2**63 - 1: 9,  # max int64 as uint64
-        2**64 - 1: 10,  # max uint64
-        123456789012345: 7,
-    }
-
-    writer = writer_cls()
-    for value in value_to_bytes:
-        writer.write_uint64(value)
-
-    # Calculate total expected bytes
-    total_expected = sum(value_to_bytes.values())
-    assert len(writer.to_bytes()) == total_expected  # 50 bytes
-
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value in value_to_bytes:
-        assert reader.read_uint64() == value
-    assert reader.remaining == 0
-
-
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_uint128(writer_cls, reader_cls):
-    """Test unsigned 128-bit integer variable-length encoding."""
-    value_to_bytes = {
-        0: 1,
-        127: 1,
-        128: 2,
-        16383: 2,
-        16384: 3,
-        2**32 - 1: 5,  # max uint32
-        2**64 - 1: 10,  # max uint64
-        2**100: 15,  # large value
-        2**127: 19,  # large value
-        2**128 - 1: 19,  # max uint128
-    }
-
-    writer = writer_cls()
-    for value in value_to_bytes:
-        writer.write_uint128(value)
-
-    # Calculate total expected bytes
-    total_expected = sum(value_to_bytes.values())
-    assert len(writer.to_bytes()) == total_expected  # 82 bytes
-
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value in value_to_bytes:
-        assert reader.read_uint128() == value
-    assert reader.remaining == 0
-
-
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_float16(writer_cls, reader_cls):
-    """Test 16-bit float encoding."""
-    # test roundtrip with expected sizes
-    value_to_bytes = [
-        (0.0, 2),
-        (-0.0, 2),  # full float16 (different bits than 0.0)
-        (float("inf"), 2),
-        (float("-inf"), 2),
-        (float("nan"), 2),
-        (1.0, 2),  # full float16
-        (-1.0, 2),  # full float16
-        (math.pi, 2),
-        (-math.pi, 2),
-        (65504.0, 2),
+def test_uint64():
+    """Test unsigned 64-bit integer encoding and decoding."""
+    test_values = [
+        0,
+        1,
+        127,
+        128,
+        255,
+        256,
+        65535,
+        65536,
+        4294967295,
+        4294967296,
+        9223372036854775807,
+        9223372036854775808,
+        18446744073709551615,
+        42,
     ]
 
-    writer = writer_cls()
-    for value, _ in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
+        writer.write_uint64(value)
+
+    assert len(writer.to_bytes()) == 112
+
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_uint64() == expected
+    assert reader.remaining == 0
+
+
+def test_uint128():
+    """Test unsigned 128-bit integer encoding and decoding."""
+    test_values = [0, 1, 127, 128, 255, 256, 2**64 - 1, 2**64, 2**100, 2**128 - 1, 42]
+
+    writer = BinaryWriter()
+    for value in test_values:
+        writer.write_uint128(value)
+
+    assert len(writer.to_bytes()) == 176
+
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for expected in test_values:
+        assert reader.read_uint128() == expected
+    assert reader.remaining == 0
+
+
+def test_float16():
+    """Test 16-bit float encoding."""
+    test_values = [
+        0.0,
+        -0.0,
+        float("inf"),
+        float("-inf"),
+        float("nan"),
+        1.0,
+        -1.0,
+        math.pi,
+        -math.pi,
+        65504.0,
+    ]
+
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_float16(value)
 
-    assert len(writer.to_bytes()) == sum(size for _, size in value_to_bytes)
+    assert len(writer.to_bytes()) == 20
 
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value, _ in value_to_bytes:
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for value in test_values:
         result = reader.read_float16()
         if value != value:  # NaN check
             assert result != result
@@ -325,30 +239,28 @@ def test_float16(writer_cls, reader_cls):
             assert result == pytest.approx(value, rel=1e-3, abs=1e-3)
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_float32(writer_cls, reader_cls):
+def test_float32():
     """Test 32-bit float encoding."""
-    # test roundtrip with expected sizes
-    value_to_bytes = [
-        (0.0, 4),
-        (-0.0, 4),  # full float32 (different bits than 0.0)
-        (float("inf"), 4),
-        (float("-inf"), 4),
-        (float("nan"), 4),
-        (1.0, 4),  # full float32
-        (-1.0, 4),  # full float32
-        (math.pi, 4),
-        (-math.pi, 4),
+    test_values = [
+        0.0,
+        -0.0,
+        float("inf"),
+        float("-inf"),
+        float("nan"),
+        1.0,
+        -1.0,
+        math.pi,
+        -math.pi,
     ]
 
-    writer = writer_cls()
-    for value, _ in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_float32(value)
 
-    assert len(writer.to_bytes()) == sum(size for _, size in value_to_bytes)
+    assert len(writer.to_bytes()) == 36
 
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value, _ in value_to_bytes:
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for value in test_values:
         result = reader.read_float32()
         if value != value:  # NaN check
             assert result != result
@@ -356,38 +268,36 @@ def test_float32(writer_cls, reader_cls):
             assert result == pytest.approx(value)
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_float64(writer_cls, reader_cls):
+def test_float64():
     """Test 64-bit float encoding."""
-    # test roundtrip with expected sizes
-    value_to_bytes = [
-        (0.0, 8),  # zero optimization
-        (-0.0, 8),  # full float64 (different bits than 0.0)
-        (float("inf"), 8),  # float64
-        (float("-inf"), 8),  # float64
-        (float("nan"), 8),  # float64
-        (1.0, 8),  # float64
-        (-1.0, 8),  # float64
-        (42.0, 8),  # float64
-        (-42.0, 8),  # float64
-        (1000.0, 8),  # float64
-        (-1000.0, 8),  # float64
-        (2**53, 8),  # float64
-        (-(2**53), 8),  # float64
-        (math.pi, 8),  # float64
-        (-math.pi, 8),  # float64
-        (1e100, 8),  # float64
-        (-1e100, 8),  # float64
+    test_values = [
+        0.0,
+        -0.0,
+        float("inf"),
+        float("-inf"),
+        float("nan"),
+        1.0,
+        -1.0,
+        42.0,
+        -42.0,
+        1000.0,
+        -1000.0,
+        2**53,
+        -(2**53),
+        math.pi,
+        -math.pi,
+        1e100,
+        -1e100,
     ]
 
-    writer = writer_cls()
-    for value, _ in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_float64(value)
 
-    assert len(writer.to_bytes()) == sum(size for _, size in value_to_bytes)  # 129 bytes
+    assert len(writer.to_bytes()) == 136
 
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value, _ in value_to_bytes:
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for value in test_values:
         result = reader.read_float64()
         if value != value:  # NaN check
             assert result != result
@@ -395,32 +305,27 @@ def test_float64(writer_cls, reader_cls):
             assert result == pytest.approx(value)
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_string(writer_cls, reader_cls):
+def test_string():
     """Test string encoding with length prefix."""
-    # Map of string -> expected bytes
-    string_to_bytes = {
-        "": 1,  # just length 0
-        "hello": 6,  # 1 length + 5 chars
-        "Hello, 世界!": 15,  # 1 length + 14 UTF-8 bytes (7 + 3 + 3 + 1)
-        "a" * 1000: 1002,  # 2 length bytes + 1000 chars
-    }
+    test_strings = [
+        "",
+        "hello",
+        "Hello, 世界!",
+        "a" * 1000,
+    ]
 
-    writer = writer_cls()
-    for s in string_to_bytes:
+    writer = BinaryWriter()
+    for s in test_strings:
         writer.write_string(s)
 
-    assert len(writer.to_bytes()) == sum(string_to_bytes.values())  # 1024 bytes
-
-    reader = reader_cls(buffer=writer.to_bytes())
-    for s in string_to_bytes:
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for s in test_strings:
         assert reader.read_string() == s
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_character(writer_cls, reader_cls):
-    """Test fixed-width character encoding and decoding (4 bytes per char)."""
+def test_character():
+    """Test character encoding and decoding."""
     test_chars = [
         "A",  # ASCII
         "é",  # Latin-1
@@ -429,71 +334,55 @@ def test_character(writer_cls, reader_cls):
         "\u0000",  # null
     ]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for ch in test_chars:
         writer.write_character(ch)
 
-    assert len(writer.to_bytes()) == 4 * len(test_chars)
-
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_chars:
         assert reader.read_character() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_bytes(writer_cls, reader_cls):
+def test_bytes():
     """Test bytes encoding with length prefix."""
-    # Map of bytes -> expected bytes
-    bytes_to_bytes = {
-        b"": 1,  # just length 0
-        b"hello": 6,  # 1 length + 5 bytes
-        b"\x00\x01\x02\x03": 5,  # 1 length + 4 bytes
-        bytes(range(256)): 258,  # 2 length bytes + 256 bytes
-    }
+    test_bytes = [
+        b"",
+        b"hello",
+        b"\x00\x01\x02\x03",
+        bytes(range(256)),
+    ]
 
-    writer = writer_cls()
-    for b in bytes_to_bytes:
+    writer = BinaryWriter()
+    for b in test_bytes:
         writer.write_bytes(b)
 
-    assert len(writer.to_bytes()) == sum(bytes_to_bytes.values())  # 270 bytes
-
-    reader = reader_cls(buffer=writer.to_bytes())
-    for b in bytes_to_bytes:
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for b in test_bytes:
         assert reader.read_bytes() == b
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_mixed_types(writer_cls, reader_cls):
+def test_mixed_types():
     """Test encoding and decoding mixed types."""
-    writer = writer_cls()
+    writer = BinaryWriter()
 
-    # Write various types with expected sizes
-    operations = [
-        (lambda: writer.write_bool(True), 1),  # 1 byte
-        (lambda: writer.write_int8(-42), 1),  # 1 byte
-        (lambda: writer.write_uint16(65535), 3),  # 3 bytes (varint)
-        (lambda: writer.write_int32(-1234567), 4),  # 4 bytes (varint)
-        (lambda: writer.write_int128(-(2**100)), 15),  # 15 bytes (varint)
-        (lambda: writer.write_uint128(2**100), 15),  # 15 bytes (varint)
-        (lambda: writer.write_float16(1.5), 2),  # 2 bytes
-        (lambda: writer.write_float32(math.pi), 4),  # 4 bytes
-        (lambda: writer.write_float64(math.e), 8),  # 8 bytes
-        (lambda: writer.write_string("test string"), 12),  # 12 bytes (1 + 11)
-        (lambda: writer.write_bytes(b"\x01\x02\x03"), 4),  # 4 bytes (1 + 3)
-        (lambda: writer.write_character("Z"), 4),  # 4 bytes
-    ]
-
-    for write_op, _ in operations:
-        write_op()
-
-    # Calculate total expected bytes
-    total_expected = sum(size for _, size in operations)
-    assert len(writer.to_bytes()) == total_expected  # 89 bytes
+    # write various types
+    writer.write_bool(True)
+    writer.write_int8(-42)
+    writer.write_uint16(65535)
+    writer.write_int32(-1234567)
+    writer.write_int128(-(2**100))
+    writer.write_uint128(2**100)
+    writer.write_float16(1.5)
+    writer.write_float32(math.pi)
+    writer.write_float64(math.e)
+    writer.write_string("test string")
+    writer.write_bytes(b"\x01\x02\x03")
+    writer.write_character("Z")
 
     # read them back
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     assert reader.read_bool() is True
     assert reader.read_int8() == -42
     assert reader.read_uint16() == 65535
@@ -509,57 +398,7 @@ def test_mixed_types(writer_cls, reader_cls):
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_int_zigzag(writer_cls, reader_cls):
-    """Test zigzag encoding/decoding correctness."""
-    test_cases = [
-        (0, 0),
-        (-1, 1),
-        (1, 2),
-        (-2, 3),
-        (2, 4),
-        (-64, 127),
-        (64, 128),
-        (-65, 129),
-        (2147483647, 4294967294),
-        (-2147483648, 4294967295),
-    ]
-
-    writer = writer_cls()
-    for signed, unsigned in test_cases:
-        assert writer._write_zigzag(signed) == unsigned
-
-    reader = reader_cls(buffer=b"")
-    for signed, unsigned in test_cases:
-        assert reader._zigzag_decode(unsigned) == signed
-
-
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_varint(writer_cls, reader_cls):
-    """Test varint encoding produces expected sizes for various ranges."""
-    varint_sizes = {
-        0: 1,  # 1 byte: 0-127
-        127: 1,
-        128: 2,  # 2 bytes: 128-16383
-        16383: 2,
-        16384: 3,  # 3 bytes: 16384-2097151
-        2097151: 3,
-        2097152: 4,  # 4 bytes: 2097152-268435455
-        268435455: 4,
-        268435456: 5,  # 5 bytes: 268435456-max uint32
-        0xFFFFFFFF: 5,
-    }
-
-    for value, expected_bytes in varint_sizes.items():
-        writer = writer_cls()
-        writer._write_varint(value)
-        assert len(writer.to_bytes()) == expected_bytes, (
-            f"Varint {value} should encode to {expected_bytes} bytes"
-        )
-
-
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_datetime(writer_cls, reader_cls):
+def test_datetime():
     """Test datetime encoding and decoding."""
     from datetime import UTC, datetime
 
@@ -580,11 +419,11 @@ def test_datetime(writer_cls, reader_cls):
         datetime(2400, 2, 29, tzinfo=UTC),
     ]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for dt in test_cases:
         writer.write_datetime(dt)
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_cases:
         result = reader.read_datetime()
         assert result == expected
@@ -592,23 +431,21 @@ def test_datetime(writer_cls, reader_cls):
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_datetime_naive(writer_cls, reader_cls):
+def test_datetime_naive():
     """Test that naive datetimes are converted to UTC."""
     from datetime import UTC, datetime
 
     naive_dt = datetime(2024, 1, 15, 14, 30, 45)  # noqa: DTZ001
-    writer = writer_cls()
+    writer = BinaryWriter()
     writer.write_datetime(naive_dt)
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     result = reader.read_datetime()
     assert result.tzinfo == UTC
     assert result.replace(tzinfo=None) == naive_dt
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_date(writer_cls, reader_cls):
+def test_date():
     """Test date encoding and decoding."""
     from datetime import date
 
@@ -623,18 +460,17 @@ def test_date(writer_cls, reader_cls):
         date(1900, 2, 28),  # non-leap century year
     ]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for d in test_cases:
         writer.write_date(d)
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_cases:
         assert reader.read_date() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_time(writer_cls, reader_cls):
+def test_time():
     """Test time encoding and decoding."""
     from datetime import time
 
@@ -646,48 +482,42 @@ def test_time(writer_cls, reader_cls):
         time(0, 0, 0, 1),  # 1 microsecond after midnight
     ]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for t in test_cases:
         writer.write_time(t)
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_cases:
         assert reader.read_time() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_timestamp(writer_cls, reader_cls):
+def test_timestamp():
     """Test timestamp encoding and decoding (nanoseconds since epoch)."""
-    value_to_bytes = {
-        0: 1,
-        1: 1,
-        999_999_999: 5,
-        1_000_000_000: 5,  # 1 second
-        1_000_000_001: 5,
-        2**32 - 1: 5,
-        2**32: 5,
-        2**63 - 1: 9,
-        2**63: 10,
-        2**64 - 1: 10,
-    }
+    test_values = [
+        0,
+        1,
+        999_999_999,
+        1_000_000_000,  # 1 second
+        1_000_000_001,
+        2**32 - 1,
+        2**32,
+        2**63 - 1,
+        2**63,
+        2**64 - 1,
+    ]
 
-    writer = writer_cls()
-    for value in value_to_bytes:
+    writer = BinaryWriter()
+    for value in test_values:
         writer.write_timestamp(value)
 
-    # Calculate total expected bytes
-    total_expected = sum(value_to_bytes.values())
-    assert len(writer.to_bytes()) == total_expected
-
-    reader = reader_cls(buffer=writer.to_bytes())
-    for value in value_to_bytes:
+    reader = BinaryReader(buffer=writer.to_bytes())
+    for value in test_values:
         assert reader.read_timestamp() == value
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_duration(writer_cls, reader_cls):
+def test_duration():
     """Test duration encoding and decoding."""
     from datetime import timedelta
 
@@ -699,8 +529,6 @@ def test_duration(writer_cls, reader_cls):
         timedelta(days=-1),  # negative
         timedelta(weeks=52),  # ~1 year
         timedelta(days=365, hours=5, minutes=48, seconds=46),  # approx 1 year
-        # keep within 64-bit nanosecond range
-        timedelta(days=365250),  # 1000 years
         # weird combinations
         timedelta(days=1, microseconds=999999),  # almost 2 days
         timedelta(seconds=-1),  # negative second
@@ -712,18 +540,17 @@ def test_duration(writer_cls, reader_cls):
         timedelta(seconds=1, microseconds=-1),  # 999999 microseconds
     ]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for td in test_cases:
         writer.write_duration(td)
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_cases:
         assert reader.read_duration() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_uuid(writer_cls, reader_cls):
+def test_uuid():
     """Test UUID encoding and decoding."""
 
     test_cases = [
@@ -733,21 +560,20 @@ def test_uuid(writer_cls, reader_cls):
         UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),  # max UUID
     ]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for uuid in test_cases:
         writer.write_uuid(uuid)
 
     # each UUID is exactly 16 bytes
     assert len(writer.to_bytes()) == 16 * len(test_cases)
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_cases:
         assert reader.read_uuid() == expected
     assert reader.remaining == 0
 
 
-@pytest.mark.parametrize(("writer_cls", "reader_cls"), [(KompaktBinaryWriter, KompaktBinaryReader)])
-def test_json(writer_cls, reader_cls):
+def test_json():
     """Test JSON encoding and decoding."""
     test_cases = [
         None,
@@ -818,11 +644,11 @@ def test_json(writer_cls, reader_cls):
         },
     ]
 
-    writer = writer_cls()
+    writer = BinaryWriter()
     for value in test_cases:
         writer.write_json(value)
 
-    reader = reader_cls(buffer=writer.to_bytes())
+    reader = BinaryReader(buffer=writer.to_bytes())
     for expected in test_cases:
         result = reader.read_json()
         assert result == expected

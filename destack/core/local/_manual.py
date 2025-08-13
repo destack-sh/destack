@@ -59,7 +59,6 @@ class ManualContext:
     # sizing
     memory_sizer: "ObjectSizer"
     kompakt_sizer: "ObjectSizer"
-    flott_sizer: "ObjectSizer"
     sizers: dict[str, "ObjectSizer"]
 
     # navigation
@@ -85,7 +84,6 @@ def manual() -> None:
     """Interactive manual for the schema."""
     from destack import (
         VERSION,
-        FlottObjectSizer,
         KompaktObjectSizer,
         PythonObjectSizer,
         RustObjectSizer,
@@ -107,11 +105,9 @@ Type 'help' for available commands.""",
     context = ManualContext(
         memory_sizer=RustObjectSizer(),
         kompakt_sizer=KompaktObjectSizer(),
-        flott_sizer=FlottObjectSizer(),
         sizers={
             "Memory": RustObjectSizer(),
             "Kompakt": KompaktObjectSizer(),
-            "Flott": FlottObjectSizer(),
             "Rust": RustObjectSizer(),
             "JavaScript": TypeScriptObjectSizer(),
             "Python": PythonObjectSizer(),
@@ -529,9 +525,6 @@ def _show_properties(
                 ),
                 "Kompakt": _console.color(
                     _render_size(context.kompakt_sizer.size_property(prop)), context.color_value
-                ),
-                "Flott": _console.color(
-                    _render_size(context.flott_sizer.size_property(prop)), context.color_value
                 ),
                 "Defined In": _console.color(origin or "-", context.color_origin),
                 "Flags": _console.color("|".join(flags) if flags else "", "gray"),

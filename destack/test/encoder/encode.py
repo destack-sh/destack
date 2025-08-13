@@ -7,8 +7,6 @@ from destack import (
     Encoder,
     Encoding,
     Form2D,
-    KompaktBinaryReader,
-    KompaktBinaryWriter,
     NodeSpatialReference,
     NodeType,
     Object,
@@ -32,11 +30,11 @@ _make_reader: Callable[[bytes], BinaryReader]
 _make_writer: Callable[[], BinaryWriter]
 if _LOG_ENCODE:
     ENCODERS = {encoding: wrap_encoder(encoder) for encoding, encoder in ENCODERS.items()}
-    _make_writer = lambda: wrap_binary_writer(KompaktBinaryWriter())
-    _make_reader = lambda buffer: wrap_binary_reader(KompaktBinaryReader(buffer=buffer))
+    _make_writer = lambda: wrap_binary_writer(BinaryWriter())
+    _make_reader = lambda buffer: wrap_binary_reader(BinaryReader(buffer=buffer))
 else:
-    _make_writer = KompaktBinaryWriter
-    _make_reader = lambda buffer: KompaktBinaryReader(buffer=buffer)
+    _make_writer = BinaryWriter
+    _make_reader = lambda buffer: BinaryReader(buffer=buffer)
 
 
 def _do_test_roundtrip_object(obj: Object, encoder: Encoder, encoding: Encoding) -> bytes:
