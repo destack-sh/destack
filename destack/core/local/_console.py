@@ -513,7 +513,7 @@ def humanize_bytes(num_bytes: int, decimals: int = 2) -> str:
 
 def humanize_count(n: int) -> str:
     """Humanize an integer count with thousands separators."""
-    return f"{n:,}"
+    return f"{n:_}"
 
 
 def humanize_count_text(text: str) -> str:

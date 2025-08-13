@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from typing import TYPE_CHECKING, Union, final
 
 from destack.core import (
@@ -9,7 +8,6 @@ from destack.core import (
     RuntimeLanguage,
     Struct,
     StructType,
-    UInt32,
     declare_constant,
     declare_method,
     declare_property,
@@ -243,33 +241,6 @@ class Vector2(Struct):
         """Rotate this vector around another point by the given angle."""
         raise NotImplementedError
 
-    @declare_method(
-        127,
-        operator=FunctionOperator.ITER,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __iter__(self) -> Iterator[Float32]:
-        """Iterate over the components of the vector (x, y)."""
-        raise NotImplementedError
-
-    @declare_method(
-        128,
-        operator=FunctionOperator.GETITEM,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __getitem__(self, index: UInt32) -> Float32:
-        """Get the component of the vector (x, y)."""
-        raise NotImplementedError
-
-    @declare_method(
-        129,
-        operator=FunctionOperator.LEN,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __len__(self) -> UInt32:
-        """Get the number of components of the vector (2)."""
-        raise NotImplementedError
-
 
 @declare_struct(
     StructType.VECTOR3,
@@ -498,33 +469,6 @@ class Vector3(Struct):
     @declare_method(125)
     def cross(self, other: "Vector3") -> "Vector3":
         """Calculate the cross product with another vector."""
-        raise NotImplementedError
-
-    @declare_method(
-        126,
-        operator=FunctionOperator.ITER,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __iter__(self) -> Iterator[Float32]:
-        """Iterate over the components of the vector (x, y, z)."""
-        raise NotImplementedError
-
-    @declare_method(
-        127,
-        operator=FunctionOperator.GETITEM,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __getitem__(self, index: UInt32) -> Float32:
-        """Get the component of the vector (x, y, z)."""
-        raise NotImplementedError
-
-    @declare_method(
-        128,
-        operator=FunctionOperator.LEN,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __len__(self) -> UInt32:
-        """Get the number of components of the vector (3)."""
         raise NotImplementedError
 
 
@@ -763,33 +707,6 @@ class Vector4(Struct):
         """Linear interpolation between this vector and another."""
         raise NotImplementedError
 
-    @declare_method(
-        125,
-        operator=FunctionOperator.ITER,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __iter__(self) -> Iterator[Float32]:
-        """Iterate over the components of the vector (x, y, z)."""
-        raise NotImplementedError
-
-    @declare_method(
-        126,
-        operator=FunctionOperator.GETITEM,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __getitem__(self, index: UInt32) -> Float32:
-        """Get the component of the vector (x, y, z)."""
-        raise NotImplementedError
-
-    @declare_method(
-        127,
-        operator=FunctionOperator.LEN,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __len__(self) -> UInt32:
-        """Get the number of components of the vector (3)."""
-        raise NotImplementedError
-
 
 @declare_struct(
     StructType.VECTOR2I,
@@ -1012,33 +929,6 @@ class Vector2i(Struct):
     @declare_method(126)
     def rot_with(self, center: "Vector2i", angle: Float32) -> "Vector2":
         """Rotate this vector around another point by the given angle as floating point vector."""
-        raise NotImplementedError
-
-    @declare_method(
-        127,
-        operator=FunctionOperator.ITER,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __iter__(self) -> Iterator[Int32]:
-        """Iterate over the components of the vector (x, y, z)."""
-        raise NotImplementedError
-
-    @declare_method(
-        128,
-        operator=FunctionOperator.GETITEM,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __getitem__(self, index: UInt32) -> Int32:
-        """Get the component of the vector (x, y, z)."""
-        raise NotImplementedError
-
-    @declare_method(
-        129,
-        operator=FunctionOperator.LEN,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __len__(self) -> UInt32:
-        """Get the number of components of the vector (3)."""
         raise NotImplementedError
 
 
@@ -1269,33 +1159,6 @@ class Vector3i(Struct):
     @declare_method(125)
     def cross(self, other: "Vector3i") -> "Vector3i":
         """Calculate the cross product with another vector."""
-        raise NotImplementedError
-
-    @declare_method(
-        126,
-        operator=FunctionOperator.ITER,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __iter__(self) -> Iterator[Int32]:
-        """Iterate over the components of the vector (x, y, z, w)."""
-        raise NotImplementedError
-
-    @declare_method(
-        127,
-        operator=FunctionOperator.GETITEM,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __getitem__(self, index: UInt32) -> Int32:
-        """Get the component of the vector (x, y, z, w)."""
-        raise NotImplementedError
-
-    @declare_method(
-        128,
-        operator=FunctionOperator.LEN,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __len__(self) -> UInt32:
-        """Get the number of components of the vector (4)."""
         raise NotImplementedError
 
 
@@ -1532,33 +1395,6 @@ class Vector4i(Struct):
     @declare_method(124)
     def lerp(self, other: "Vector4i", t: Float32) -> "Vector4":
         """Linear interpolation between this vector and another as floating point vector."""
-        raise NotImplementedError
-
-    @declare_method(
-        125,
-        operator=FunctionOperator.ITER,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __iter__(self) -> Iterator[Int32]:
-        """Iterate over the components of the vector (x, y, z, w)."""
-        raise NotImplementedError
-
-    @declare_method(
-        126,
-        operator=FunctionOperator.GETITEM,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __getitem__(self, index: UInt32) -> Int32:
-        """Get the component of the vector (x, y, z, w)."""
-        raise NotImplementedError
-
-    @declare_method(
-        127,
-        operator=FunctionOperator.LEN,
-        languages=(RuntimeLanguage.PYTHON,),
-    )
-    def __len__(self) -> UInt32:
-        """Get the number of components of the vector (4)."""
         raise NotImplementedError
 
 

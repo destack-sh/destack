@@ -1,3 +1,3 @@
-from .layout import ObjectSize, ObjectSizer
+from .layout import FlottObjectSizer, KompaktObjectSizer, ObjectSize, ObjectSizer
 
-__all__ = ["ObjectSize", "ObjectSizer"]
+__all__ = ["FlottObjectSizer", "KompaktObjectSizer", "ObjectSize", "ObjectSizer"]
