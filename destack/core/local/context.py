@@ -24,13 +24,14 @@ class Context(Handle):
     """
 
     # nocheckin: Context
-    #   make Context a Node again?
+    #   make Context a Node again? with partials?
     #   different Contexts for different UniverseDomains/Categories?
     #   Context/UniverseContext
     #    -> SimulationContext
     #      -> PhysicsContext
     #      -> PerceptionContext
     #      -> ...
+    #    -> CustomContext?
 
     # actor: "Entity"
     # client: "Client"

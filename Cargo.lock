@@ -216,7 +216,7 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "destack"
-version = "2025.8.11-1"
+version = "2025.8.13-0"
 dependencies = [
  "bytes",
  "criterion",
@@ -235,11 +235,11 @@ dependencies = [
 
 [[package]]
 name = "destack_fractional"
-version = "2025.8.11-1"
+version = "2025.8.13-0"
 
 [[package]]
 name = "destack_system"
-version = "2025.8.11-1"
+version = "2025.8.13-0"
 dependencies = [
  "bytes",
  "destack",
@@ -260,7 +260,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test"
-version = "2025.8.11-1"
+version = "2025.8.13-0"
 dependencies = [
  "bytes",
  "criterion",
@@ -276,7 +276,7 @@ dependencies = [
 
 [[package]]
 name = "destack_time"
-version = "2025.8.11-1"
+version = "2025.8.13-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",

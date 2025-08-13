@@ -43,17 +43,17 @@ class TetrisBoard(Entity):
 
 @enum
 class TetrisShape(Enum):
-    I = 1
+    I = 1  # noqa: E741
     J = 2
     L = 3
-    O = 4
+    O = 4  # noqa: E741
     S = 5
     T = 6
     Z = 7
 
 
 @entity
-class TetrisPiece(Entity):
+class TetrisPiece(KinematicBody2D):
     shape: TetrisShape
     rotation: Int8
     x: Int8
@@ -66,6 +66,6 @@ class TetrisPiece(Entity):
 
 
 @entity
-class TetrisCell(Entity):
+class TetrisCell(StaticBody2D):
     occupied: bool
     piece: TetrisPiece | None

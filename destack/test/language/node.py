@@ -1,7 +1,7 @@
 from destack import (
-    LineShape2D,
     Node,
     NodeType,
+    SegmentShape2D,
     Shape2D,
 )
 
@@ -12,8 +12,8 @@ def test_node_inheritance():
     assert Node.__definition__.is_abstract
     assert Shape2D.metatype == NodeType.SHAPE2D
     assert Shape2D.__definition__.is_abstract
-    assert LineShape2D.__definition__.base_type == Shape2D.metatype
-    assert LineShape2D.__definition__.inherits == [
+    assert SegmentShape2D.__definition__.base_type == Shape2D.metatype
+    assert SegmentShape2D.__definition__.inherits == [
         NodeType.NODE,
         NodeType.ENTITY,
         NodeType.ENTITY2D,

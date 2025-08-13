@@ -281,7 +281,7 @@ class EnumType(OptionEnum):
     #
 
     # geometry [20_000_000]
-    ARROW_HEAD_TYPE = declare_option(20_001_110)
+    # ...
 
     # geography [20_100_000]
     # ...
@@ -876,60 +876,78 @@ class NodeType(OptionEnum):
     #
 
     # geometry [20_000_000]
-    # nocheckin: realign 2D/3D stuff (10k each?)
-    ENTITY2D = declare_option(20_000_000, "Entity2D", description="2D Entity")
-    ENTITY3D = declare_option(20_000_100, "Entity3D", description="3D Entity")
-    SHAPE2D = declare_option(20_001_000, "Shape2D")
-    SHAPE3D = declare_option(20_001_100, "Shape3D")
-    LINE_SHAPE2D = declare_option(20_002_000, "Line Shape2D")
-    ARROW_SHAPE2D = declare_option(20_002_100, "Arrow Shape2D")
-    RECTANGLE_SHAPE2D = declare_option(20_002_200, "Rectangle Shape2D")
-    ELLIPSE_SHAPE2D = declare_option(20_002_300, "Ellipse Shape2D")
-    CAPSULE_SHAPE2D = declare_option(20_002_400, "Capsule Shape2D")
-    STAR_SHAPE2D = declare_option(20_002_500, "Star Shape2D")
-    POLYGON_SHAPE2D = declare_option(20_002_600, "Polygon Shape2D")
-    PATH_SHAPE2D = declare_option(20_002_700, "Path Shape2D")
-    # SPLINE_SHAPE2D, MESH_SHAPE2D, ...
+    # 2D
+    ENTITY2D = declare_option(20_000_000, "Entity2D")
+    SHAPE2D = declare_option(20_000_100, "Shape2D")
+    POINT_SHAPE2D = declare_option(20_001_000, "Point Shape2D")
+    CIRCLE_SHAPE2D = declare_option(20_001_100, "Circle Shape2D")
+    CAPSULE_SHAPE2D = declare_option(20_001_200, "Capsule Shape2D")
+    RECTANGLE_SHAPE2D = declare_option(20_001_300, "Rectangle Shape2D")
+    SEGMENT_SHAPE2D = declare_option(20_001_400, "Segment Shape2D")
+    PATH_SHAPE2D = declare_option(20_001_500, "Chain Shape2D")
+    ELLIPSE_SHAPE2D = declare_option(20_001_600, "Ellipse Shape2D")
+    HALFSPACE_SHAPE2D = declare_option(20_001_700, "Half Space Shape2D")
+    CONVEX_MESH_SHAPE2D = declare_option(20_001_800, "Convex Polygon Shape2D")
+    MESH_SHAPE2D = declare_option(20_001_900, "Mesh Shape2D")
+    # 3D
+    ENTITY3D = declare_option(20_010_000, "Entity3D")
+    SHAPE3D = declare_option(20_010_100, "Shape3D")
+    POINT_SHAPE3D = declare_option(20_011_000, "Point Shape3D")
+    SPHERE_SHAPE3D = declare_option(20_011_100, "Sphere Shape3D")
+    CAPSULE_SHAPE3D = declare_option(20_011_200, "Capsule Shape3D")
+    BOX_SHAPE3D = declare_option(20_011_300, "Box Shape3D")
+    SEGMENT_SHAPE3D = declare_option(20_011_400, "Segment Shape3D")
+    POLYLINE_SHAPE3D = declare_option(20_011_500, "Polyline Shape3D")
+    ELLIPSOID_SHAPE3D = declare_option(20_011_600, "Ellipsoid Shape3D")
+    CYLINDER_SHAPE3D = declare_option(20_011_700, "Cylinder Shape3D")
+    CONE_SHAPE3D = declare_option(20_011_800, "Cone Shape3D")
+    PLANE_SHAPE3D = declare_option(20_011_900, "Plane Shape3D")
+    CONVEX_MESH_SHAPE3D = declare_option(20_012_000, "Convex Hull Shape3D")
+    MESH_SHAPE3D = declare_option(20_012_100, "Mesh Shape3D")
+    # vectors
     # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
 
     # geography [20_100_000]
     # ...
 
     # physics [20_200_000]
+    # 2D
     BODY2D = declare_option(20_200_000, "Body2D")
     BODY_EVENT = declare_option(20_200_001, "Body Event")
     BODY_SLEEP_EVENT = declare_option(20_200_002, "Body Sleep Event")
     BODY_WAKE_EVENT = declare_option(20_200_003, "Body Wake Event")
     # BODY_CONTACT_EVENT, BODY_CONTACT_STARTED, ...
-    BODY3D = declare_option(20_200_100, "Body3D")
-    STATIC_BODY2D = declare_option(20_201_400, "Static Body2D")
-    STATIC_BODY3D = declare_option(20_201_500, "Static Body3D")
-    KINEMATIC_BODY2D = declare_option(20_201_200, "Kinematic Body2D")
-    KINEMATIC_BODY3D = declare_option(20_201_300, "Kinematic Body3D")
-    DYNAMIC_BODY2D = declare_option(20_201_000, "Rigid Body2D")
-    DYNAMIC_BODY3D = declare_option(20_201_100, "Rigid Body3D")
-    SOFT_BODY2D = declare_option(20_202_000, "Soft Body2D")
-    SOFT_BODY3D = declare_option(20_202_100, "Soft Body3D")
-    COLLIDER2D = declare_option(20_203_000, "Collider2D")
-    COLLIDER_EVENT = declare_option(20_203_001, "Collider Event")
-    COLLIDER_CONTACT_EVENT = declare_option(20_203_002, "Collider Contact Event")
-    COLLIDER3D = declare_option(20_203_100, "Collider3D")
+    STATIC_BODY2D = declare_option(20_200_100, "Static Body2D")
+    KINEMATIC_BODY2D = declare_option(20_200_200, "Kinematic Body2D")
+    DYNAMIC_BODY2D = declare_option(20_200_300, "Rigid Body2D")
+    SOFT_BODY2D = declare_option(20_200_400, "Soft Body2D")
+    JOINT2D = declare_option(20_201_000, "Joint2D")
+    JOINT_EVENT = declare_option(20_201_001, "Joint Event")
+    JOINT_BREAK_EVENT = declare_option(20_201_002, "Joint Break Event")
+    HINGE_JOINT2D = declare_option(20_201_100, "Hinge Joint2D")
+    PRISMATIC_JOINT2D = declare_option(20_201_200, "Prismatic Joint2D")
+    FIXED_JOINT2D = declare_option(20_201_300, "Fixed Joint2D")
+    ROPE_JOINT2D = declare_option(20_201_400, "Rope Joint2D")
+    WHEEL_JOINT2D = declare_option(20_201_500, "Wheel Joint2D")
+    # 3D
+    BODY3D = declare_option(20_210_000, "Body3D")
+    STATIC_BODY3D = declare_option(20_210_100, "Static Body3D")
+    KINEMATIC_BODY3D = declare_option(20_210_200, "Kinematic Body3D")
+    DYNAMIC_BODY3D = declare_option(20_210_300, "Rigid Body3D")
+    SOFT_BODY3D = declare_option(20_210_400, "Soft Body3D")
+    JOINT3D = declare_option(20_211_000, "Joint3D")
+    HINGE_JOINT3D = declare_option(20_211_100, "Hinge Joint3D")
+    PRISMATIC_JOINT3D = declare_option(20_211_200, "Prismatic Joint3D")
+    FIXED_JOINT3D = declare_option(20_211_300, "Fixed Joint3D")
+    ROPE_JOINT3D = declare_option(20_211_400, "Rope Joint3D")
+    WHEEL_JOINT3D = declare_option(20_211_500, "Wheel Joint3D")
+    SPHERICAL_JOINT3D = declare_option(20_211_600, "Spherical Joint3D")
+    # colliders
+    COLLIDER2D = declare_option(20_220_000, "Collider2D")
+    COLLIDER_EVENT = declare_option(20_220_001, "Collider Event")
+    COLLIDER_CONTACT_EVENT = declare_option(20_220_002, "Collider Contact Event")
+    COLLIDER3D = declare_option(20_220_100, "Collider3D")
     # COLLIDER_EVENT, COLLIDER_CONTACT_EVENT, COLLIDER_CONTACT_STARTED, ...
-    JOINT2D = declare_option(20_204_000, "Joint2D")
-    JOINT_EVENT = declare_option(20_204_101, "Joint Event")
-    JOINT_BREAK_EVENT = declare_option(20_204_102, "Joint Break Event")
-    JOINT3D = declare_option(20_204_100, "Joint3D")
-    HINGE_JOINT2D = declare_option(20_204_200, "Hinge Joint2D")
-    PRISMATIC_JOINT2D = declare_option(20_204_201, "Prismatic Joint2D")
-    FIXED_JOINT2D = declare_option(20_204_202, "Fixed Joint2D")
-    ROPE_JOINT2D = declare_option(20_204_203, "Rope Joint2D")
-    WHEEL_JOINT2D = declare_option(20_204_204, "Wheel Joint2D")
-    HINGE_JOINT3D = declare_option(20_204_300, "Hinge Joint3D")
-    PRISMATIC_JOINT3D = declare_option(20_204_400, "Prismatic Joint3D")
-    FIXED_JOINT3D = declare_option(20_204_500, "Fixed Joint3D")
-    ROPE_JOINT3D = declare_option(20_204_600, "Rope Joint3D")
-    WHEEL_JOINT3D = declare_option(20_204_700, "Wheel Joint3D")
-    SPHERICAL_JOINT3D = declare_option(20_204_800, "Spherical Joint3D")
 
     # perception [20_300_000]
     INPUT_EVENT = declare_option(20_300_000, "Input Event")
@@ -1058,7 +1076,7 @@ class NodeType(OptionEnum):
     CONTENT_VIEW2D = declare_option(40_100_500, "Content View")
     TEXT_VIEW2D = declare_option(40_100_501, "Text View", description="Text")
     # CODE_VIEW2D, DOCUMENT_VIEW2D, ...
-    # ICON_VIEW2D, IMAGE_VIEW2D, AUDIO_VIEW2D, VIDEO_VIEW2D, ...
+    # IMAGE_VIEW2D, AUDIO_VIEW2D, VIDEO_VIEW2D, ...
     # input views (2D)
     INPUT_VIEW2D = declare_option(40_100_600, "Input View")
     NUMBER_INPUT_VIEW2D = declare_option(
@@ -1067,8 +1085,8 @@ class NodeType(OptionEnum):
     SLIDER_INPUT_VIEW2D = declare_option(
         40_100_602, "Slider Input View", description="Slider Input"
     )
-    # STRING_INPUT_VIEW2D, TOGGLE_INPUT_VIEW2D, PICKER_INPUT_VIEW2D, COLOR_INPUT_VIEW2D, ...
-    # ICON_INPUT_VIEW2D, FILE_INPUT_VIEW2D, DATETIME_INPUT_VIEW2D, DURATION_INPUT_VIEW2D, ...
+    # TEXT_INPUT_VIEW2D, TOGGLE_INPUT_VIEW2D, PICKER_INPUT_VIEW2D, COLOR_INPUT_VIEW2D, ...
+    # FILE_INPUT_VIEW2D, DATETIME_INPUT_VIEW2D, DURATION_INPUT_VIEW2D, ...
 
     # rendering [40_200_000]
     # ...
@@ -1273,32 +1291,43 @@ class StructType(OptionEnum):
     VECTOR4 = declare_option(20_000_014)
     VECTOR4I = declare_option(20_000_015)
     QUATERNION = declare_option(20_000_020)
-    # ...
-    FORM2D = declare_option(20_000_200, "Form2D")
-    FORM3D = declare_option(20_000_300, "Form3D")
-    LINE2D = declare_option(20_001_000, "Line")
-    ARROW2D = declare_option(20_001_100, "Arrow")
-    RECTANGLE2D = declare_option(20_001_200, "Rectangle")
-    ELLIPSE2D = declare_option(20_001_300, "Ellipse")
-    CAPSULE2D = declare_option(20_001_400, "Capsule")
-    STAR2D = declare_option(20_001_500, "Star")
-    POLYGON2D = declare_option(20_001_600, "Polygon")
-    PATH2D = declare_option(20_001_700, "Path")
-    # CURVE2D, SPLINE2D, MESH2D, ...
-    # CURVE3D, SPLINE3D, MESH3D, ...
+    MESH2 = declare_option(20_000_030)
+    MESH3 = declare_option(20_000_031)
+    # 2D
+    FORM2D = declare_option(20_000_100, "Form2D")
+    POINT2D = declare_option(20_001_000, "Point2D")
+    CIRCLE2D = declare_option(20_001_100, "Circle2D")
+    CAPSULE2D = declare_option(20_001_200, "Capsule2D")
+    RECTANGLE2D = declare_option(20_001_300, "Rectangle2D")
+    SEGMENT2D = declare_option(20_001_400, "Segment2D")
+    PATH2D = declare_option(20_001_500, "Path2D")
+    ELLIPSE2D = declare_option(20_001_600, "Ellipse2D")
+    HALFSPACE2D = declare_option(20_001_700, "Half Space2D")
+    # 3D
+    FORM3D = declare_option(20_010_300, "Form3D")
+    POINT3D = declare_option(20_011_000, "Point3D")
+    SPHERE3D = declare_option(20_011_100, "Sphere3D")
+    CAPSULE3D = declare_option(20_011_200, "Capsule3D")
+    BOX3D = declare_option(20_011_300, "Box3D")
+    SEGMENT3D = declare_option(20_011_400, "Segment3D")
+    POLYLINE3D = declare_option(20_011_500, "Polyline3D")
+    ELLIPSOID3D = declare_option(20_011_600, "Ellipsoid3D")
+    CYLINDER3D = declare_option(20_011_700, "Cylinder3D")
+    CONE3D = declare_option(20_011_800, "Cone3D")
+    PLANE3D = declare_option(20_011_900, "Plane3D")
 
     # geography [20_100_000]
     # ...
 
     # physics [20_200_000]
-    JOINT_SPRING = declare_option(20_200_001, "Joint Spring")
-    JOINT_SCALAR_LIMIT = declare_option(20_200_002, "Joint Scalar Limit")
-    JOINT_CONE_LIMIT = declare_option(20_200_003, "Joint Cone Limit")
-    JOINT_TWIST_LIMIT = declare_option(20_200_004, "Joint Cone Limit")
-    JOINT_BREAK_LIMIT = declare_option(20_200_005, "Joint Break Limit")
-    JOINT_MOTOR = declare_option(20_200_006, "Joint Motor")
-    JOINT_FRAME2D = declare_option(20_200_007, "Joint Frame2D")
-    JOINT_FRAME3D = declare_option(20_200_008, "Joint Frame3D")
+    JOINT_SPRING = declare_option(20_201_001, "Joint Spring")
+    JOINT_SCALAR_LIMIT = declare_option(20_201_002, "Joint Scalar Limit")
+    JOINT_CONE_LIMIT = declare_option(20_201_003, "Joint Cone Limit")
+    JOINT_TWIST_LIMIT = declare_option(20_201_004, "Joint Cone Limit")
+    JOINT_BREAK_LIMIT = declare_option(20_201_005, "Joint Break Limit")
+    JOINT_MOTOR = declare_option(20_201_006, "Joint Motor")
+    JOINT_FRAME2D = declare_option(20_201_007, "Joint Frame2D")
+    JOINT_FRAME3D = declare_option(20_201_008, "Joint Frame3D")
 
     # perception [20_300_000]
     # ...
