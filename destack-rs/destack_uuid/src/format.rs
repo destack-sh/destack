@@ -20,7 +20,6 @@ pub(crate) fn format_uuid(u: u128) -> [u8; 36] {
     let mut i = 35usize;
     let mut j = 0usize; // number of dashes written from the end
     let mut val = u;
-
     // write from the end for simplicity
     while i < 36 {
         if j < 4 && i == DASHES[3 - j] {
