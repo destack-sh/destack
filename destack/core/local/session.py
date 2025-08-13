@@ -8,15 +8,12 @@ from ..builtin import (
     Event,
     Handle,
     HandleType,
-    Int128,
-    Timestamp,
     declare_handle,
     declare_method,
-    declare_property_runtime,
 )
 
 if TYPE_CHECKING:
-    from destack import ChangeEvent, Connection, Context, Graph, PropertyDefinition
+    from destack import ChangeEvent, PropertyDefinition
 
 
 @declare_handle(HandleType.SESSION)
@@ -24,18 +21,6 @@ class Session(Handle):
     """
     A managed Session for interacting with Spaces.
     """
-
-    remote_epoch: Int128 = declare_property_runtime(401, is_repr=True)
-    local_epoch: Int128 = declare_property_runtime(402, is_repr=True)
-    root_context: "Context" = declare_property_runtime(403, is_repr=True)
-    graph: "Graph" = declare_property_runtime(404)
-    pending_events: list["Event"] = declare_property_runtime(406)
-    connections: list["Connection"] = declare_property_runtime(407)
-    closed_at: Timestamp | None = declare_property_runtime(408)
-
-    @property
-    def context(self) -> "Context":
-        return self.root_context
 
     @declare_method(100)
     async def open(self):

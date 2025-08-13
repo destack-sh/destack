@@ -1437,17 +1437,9 @@ class HandleType(OptionEnum):
 
     HANDLE = declare_option(1)
 
-    # encoding [1_000_000]
-    HASHER = declare_option(1_000_000)
-    ENCODER = declare_option(1_000_100)
-    BINARY_WRITER = declare_option(1_000_200)
-    BINARY_READER = declare_option(1_000_300)
-
     # persistence [1_100_000]
     GRAPH = declare_option(1_100_000)
-    CONNECTION = declare_option(1_100_100)
-    STREAM = declare_option(1_100_200)
-    # TRANSPORT, CHANNEL, ...?
+    # CONNECTION, STREAM, TRANSPORT, CHANNEL, ...?
 
     # local [2_100_000]
     SESSION = declare_option(2_100_000)

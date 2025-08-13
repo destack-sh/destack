@@ -10,8 +10,6 @@ from ..builtin import (
     Float16,
     Float32,
     Float64,
-    Handle,
-    HandleType,
     Int8,
     Int16,
     Int32,
@@ -25,9 +23,7 @@ from ..builtin import (
     UInt32,
     UInt64,
     UInt128,
-    declare_handle,
     declare_method,
-    declare_property_runtime,
 )
 
 if TYPE_CHECKING:
@@ -38,11 +34,11 @@ class BinaryError(ValueError):
     """Base class for binary encoding/decoding errors."""
 
 
-@declare_handle(HandleType.BINARY_WRITER)
-class BinaryWriter(Handle):
+class BinaryWriter:
     """Write binary primitive values in some encoding."""
 
-    buffer: bytearray = declare_property_runtime(401, default_factory=bytearray)
+    def __init__(self) -> None:
+        self.buffer = bytearray()
 
     def __len__(self) -> int:
         return len(self.buffer)
@@ -197,12 +193,12 @@ class BinaryWriter(Handle):
         raise NotImplementedError
 
 
-@declare_handle(HandleType.BINARY_READER)
-class BinaryReader(Handle):
+class BinaryReader:
     """Read binary primitive values in some encoding."""
 
-    buffer: bytes = declare_property_runtime(401)
-    pos: UInt32 = declare_property_runtime(402, default=0)
+    def __init__(self, buffer: bytes) -> None:
+        self.buffer = buffer
+        self.pos: UInt32 = 0
 
     def __str__(self) -> str:
         return f"pos={self.pos}, remaining={self.remaining}"

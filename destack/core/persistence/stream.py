@@ -1,17 +1,10 @@
 from typing import TYPE_CHECKING
 
-from ..builtin import (
-    Handle,
-    HandleType,
-    declare_handle,
-)
-
 if TYPE_CHECKING:
     pass
 
 
-@declare_handle(HandleType.STREAM)
-class Stream(Handle):
+class Stream:
     """
     A Stream inside a Connection.
     """

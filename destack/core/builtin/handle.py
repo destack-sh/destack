@@ -145,7 +145,17 @@ def declare_handle(
 
 @declare_handle(HandleType.HANDLE, is_abstract=True)
 class Handle(Object):
-    """A Handle is a (runtime-only) Object for interacting with the runtime."""
+    """
+    A Handle is a (runtime-only) Object for interacting with the runtime.
+
+    NOTE: Runtime specific Handles calling conventions may deviate slightly.
+     See the language-specific documentation for more information.
+    """
+
+    # NOTE :Architecture: runtime Handle implementations deviate from their Handle declaration
+    #  Unlike with other Objects (Nodes/Structs), Handles are opaque and declaration-only,
+    #   we don't actually generate anything from them directly since they're wildly different
+    #   for every runtime and forcing a common definition would be meaningless and cumbersome.
 
     # meta
     metakind: ClassVar[ObjectKind] = ObjectKind.HANDLE

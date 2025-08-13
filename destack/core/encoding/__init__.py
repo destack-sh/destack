@@ -1,7 +1,7 @@
 from .binary import BinaryReader, BinaryWriter
 from .encoder import Encoder, EncoderFlag
 from .flott import FlottBinaryReader, FlottBinaryWriter
-from .hasher import Hasher, MemoryHasher
+from .hasher import Hasher
 from .json import JsonEncoder
 from .kompakt import KompaktBinaryReader, KompaktBinaryWriter, KompaktEncoder
 
@@ -13,9 +13,9 @@ __all__ = [
     "FlottBinaryReader",
     "FlottBinaryWriter",
     "Hasher",
+    "Hasher",
     "JsonEncoder",
     "KompaktBinaryReader",
     "KompaktBinaryWriter",
     "KompaktEncoder",
-    "MemoryHasher",
 ]

@@ -6,7 +6,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Optional,
     Self,
     assert_never,
     cast,
@@ -29,7 +28,6 @@ from ._const import (
     UNSET,
 )
 from ._hoisted import (
-    Encoding,
     EnumType,
     PrimitiveType,
     ScalarType,
@@ -44,7 +42,6 @@ from .declaration import (
     NodeDeclaration,
     ObjectDeclaration,
     TypeDeclaration,
-    declare_method,
 )
 from .enum import OptionDeclaration
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration
@@ -53,7 +50,7 @@ from .universe import NodeType, ObjectKind, ObjectStability, StructType
 from .uuid import UUID, uuid7
 
 if TYPE_CHECKING:
-    from destack import BinaryReader, BinaryWriter, EncoderFlag, MemoryHasher, Node, Session
+    from destack import Hasher, Node
 
 
 __is_finalized__ = False
@@ -1625,68 +1622,9 @@ class Object:
         """Checks if the content of the two objects is equal (recursively)."""
         raise NotImplementedError
 
-    def hash(self, _hasher: "MemoryHasher | None" = None) -> Int64:
+    def hash(self, _hasher: "Hasher | None" = None) -> Int64:
         """Hash of content properties."""
         raise NotImplementedError
 
     def __bool__(self):
         return True  # support truthy checks for objects
-
-    #
-    # Encoding
-    #
-
-    @declare_method(30)
-    def pack(
-        self,
-        encoding: Encoding,
-        options: Optional["EncoderFlag"] = None,
-    ) -> Any:
-        """Pack this Object into some encoded format."""
-        raise NotImplementedError
-
-    @declare_method(31)
-    def pack_binary(
-        self,
-        encoding: Encoding,
-        writer: "BinaryWriter",
-        options: Optional["EncoderFlag"] = None,
-    ) -> None:
-        """Pack this Object into the byte representation of its encoded format."""
-        raise NotImplementedError
-
-    @declare_method(201)
-    @classmethod
-    def unpack(
-        cls,
-        encoding: Encoding,
-        value: Any,
-        session: Optional["Session"] = None,
-        options: Optional["EncoderFlag"] = None,
-    ) -> Self:
-        """Unpack an Object from some encoded format."""
-        raise NotImplementedError
-
-    @declare_method(202)
-    @classmethod
-    def unpack_binary(
-        cls,
-        encoding: Encoding,
-        reader: "BinaryReader",
-        session: Optional["Session"] = None,
-        options: Optional["EncoderFlag"] = None,
-    ) -> Self:
-        """Unpack an Object from the byte representation of its encoded format."""
-        raise NotImplementedError
-
-    @declare_method(203)
-    @classmethod
-    def unpack_binary_base64(
-        cls,
-        encoding: Encoding,
-        value: str,
-        session: Optional["Session"] = None,
-        options: Optional["EncoderFlag"] = None,
-    ) -> Self:
-        """Unpack an Object from a base64 encoded string."""
-        raise NotImplementedError
