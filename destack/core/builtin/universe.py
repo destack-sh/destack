@@ -287,7 +287,8 @@ class EnumType(OptionEnum):
     # ...
 
     # physics [20_200_000]
-    JOINT_FLAG = declare_option(20_200_000)
+    RIGID_MOTION_MODE = declare_option(20_200_100)
+    JOINT_FLAG = declare_option(20_201_000)
 
     # perception [20_300_000]
     MOUSE_BUTTON = declare_option(20_300_000)
@@ -917,10 +918,8 @@ class NodeType(OptionEnum):
     BODY_SLEEP_EVENT = declare_option(20_200_002, "Body Sleep Event")
     BODY_WAKE_EVENT = declare_option(20_200_003, "Body Wake Event")
     # BODY_CONTACT_EVENT, BODY_CONTACT_STARTED, ...
-    STATIC_BODY2D = declare_option(20_200_100, "Static Body2D")
-    KINEMATIC_BODY2D = declare_option(20_200_200, "Kinematic Body2D")
-    DYNAMIC_BODY2D = declare_option(20_200_300, "Rigid Body2D")
-    SOFT_BODY2D = declare_option(20_200_400, "Soft Body2D")
+    RIGID_BODY2D = declare_option(20_200_100, "Rigid Body2D")
+    SOFT_BODY2D = declare_option(20_200_200, "Soft Body2D")
     JOINT2D = declare_option(20_201_000, "Joint2D")
     JOINT_EVENT = declare_option(20_201_001, "Joint Event")
     JOINT_BREAK_EVENT = declare_option(20_201_002, "Joint Break Event")
@@ -931,10 +930,8 @@ class NodeType(OptionEnum):
     WHEEL_JOINT2D = declare_option(20_201_500, "Wheel Joint2D")
     # 3D
     BODY3D = declare_option(20_210_000, "Body3D")
-    STATIC_BODY3D = declare_option(20_210_100, "Static Body3D")
-    KINEMATIC_BODY3D = declare_option(20_210_200, "Kinematic Body3D")
-    DYNAMIC_BODY3D = declare_option(20_210_300, "Rigid Body3D")
-    SOFT_BODY3D = declare_option(20_210_400, "Soft Body3D")
+    RIGID_BODY3D = declare_option(20_210_100, "Rigid Body3D")
+    SOFT_BODY3D = declare_option(20_210_200, "Soft Body3D")
     JOINT3D = declare_option(20_211_000, "Joint3D")
     HINGE_JOINT3D = declare_option(20_211_100, "Hinge Joint3D")
     PRISMATIC_JOINT3D = declare_option(20_211_200, "Prismatic Joint3D")
