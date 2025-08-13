@@ -637,7 +637,6 @@ if ({map_expr} := {source_expr}):
             ):
                 return f"{value_expr}!r"
             elif type.primitive_type in (
-                PrimitiveType.FLOAT16,
                 PrimitiveType.FLOAT32,
                 PrimitiveType.FLOAT64,
             ):
@@ -875,7 +874,6 @@ if {self_source_expr} != {other_source_expr}:
             ):
                 return "{self_val} == {other_val}", True
             elif type.primitive_type in (
-                PrimitiveType.FLOAT16,
                 PrimitiveType.FLOAT32,
                 PrimitiveType.FLOAT64,
             ):
@@ -1076,8 +1074,6 @@ if ({map_source_expr} := {source_expr}):
                 return f"{hasher_expr}.hash_uint64({source_expr})"
             elif type.primitive_type == PrimitiveType.UINT128:
                 return f"{hasher_expr}.hash_uint128({source_expr})"
-            elif type.primitive_type == PrimitiveType.FLOAT16:
-                return f"{hasher_expr}.hash_float16({source_expr})"
             elif type.primitive_type == PrimitiveType.FLOAT32:
                 return f"{hasher_expr}.hash_float32({source_expr})"
             elif type.primitive_type == PrimitiveType.FLOAT64:

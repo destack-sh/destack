@@ -134,7 +134,6 @@ class TypeScriptObjectSizer(ObjectSizer):
                 PrimitiveType.UINT32,
                 PrimitiveType.UINT64,
                 PrimitiveType.UINT128,
-                PrimitiveType.FLOAT16,
                 PrimitiveType.FLOAT32,
                 PrimitiveType.FLOAT64,
             ):
@@ -237,7 +236,6 @@ class TypeScriptObjectSizer(ObjectSizer):
                     PrimitiveType.UINT32,
                     PrimitiveType.UINT64,
                     PrimitiveType.UINT128,
-                    PrimitiveType.FLOAT16,
                     PrimitiveType.FLOAT32,
                     PrimitiveType.FLOAT64,
                 ):

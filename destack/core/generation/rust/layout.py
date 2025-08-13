@@ -34,7 +34,6 @@ class RustObjectSizer(ObjectSizer):
     UINT32_SIZE = 4
     UINT64_SIZE = 8
     UINT128_SIZE = 16
-    FLOAT16_SIZE = 2
     FLOAT32_SIZE = 4
     FLOAT64_SIZE = 8
 
@@ -161,8 +160,6 @@ class RustObjectSizer(ObjectSizer):
                 return ObjectSize(self.UINT64_SIZE, self.UINT64_SIZE)
             elif type.primitive_type == PrimitiveType.UINT128:
                 return ObjectSize(self.UINT128_SIZE, self.UINT128_SIZE)
-            elif type.primitive_type == PrimitiveType.FLOAT16:
-                return ObjectSize(self.FLOAT16_SIZE, self.FLOAT16_SIZE)
             elif type.primitive_type == PrimitiveType.FLOAT32:
                 return ObjectSize(self.FLOAT32_SIZE, self.FLOAT32_SIZE)
             elif type.primitive_type == PrimitiveType.FLOAT64:

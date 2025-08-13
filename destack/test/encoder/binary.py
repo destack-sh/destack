@@ -208,37 +208,6 @@ def test_uint128():
     assert decoder.remaining == 0
 
 
-def test_float16():
-    """Test 16-bit float encoding."""
-    test_values = [
-        0.0,
-        -0.0,
-        float("inf"),
-        float("-inf"),
-        float("nan"),
-        1.0,
-        -1.0,
-        math.pi,
-        -math.pi,
-        65504.0,
-    ]
-
-    encoder = BinaryEncoder()
-    for value in test_values:
-        encoder.write_float16(value)
-
-    assert len(encoder.to_bytes()) == 20
-
-    decoder = BinaryDecoder(buffer=encoder.to_bytes())
-    for value in test_values:
-        result = decoder.read_float16()
-        if value != value:  # NaN check
-            assert result != result
-        else:
-            # float16 has lower precision, so we need a larger tolerance
-            assert result == pytest.approx(value, rel=1e-3, abs=1e-3)
-
-
 def test_float32():
     """Test 32-bit float encoding."""
     test_values = [
@@ -374,7 +343,6 @@ def test_mixed_types():
     encoder.write_int32(-1234567)
     encoder.write_int128(-(2**100))
     encoder.write_uint128(2**100)
-    encoder.write_float16(1.5)
     encoder.write_float32(math.pi)
     encoder.write_float64(math.e)
     encoder.write_string("test string")
@@ -389,7 +357,6 @@ def test_mixed_types():
     assert decoder.read_int32() == -1234567
     assert decoder.read_int128() == -(2**100)
     assert decoder.read_uint128() == 2**100
-    assert decoder.read_float16() == pytest.approx(1.5, rel=1e-3)
     assert decoder.read_float32() == pytest.approx(math.pi, rel=1e-6)
     assert decoder.read_float64() == pytest.approx(math.e)
     assert decoder.read_string() == "test string"

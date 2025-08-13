@@ -16,7 +16,6 @@ type UInt32 = int
 type UInt64 = int
 type UInt128 = int
 # float
-type Float16 = float
 type Float32 = float
 type Float64 = float
 # time
@@ -46,7 +45,6 @@ __all__ = [  # noqa: RUF022
     "UInt64",
     "UInt128",
     # float
-    "Float16",
     "Float32",
     "Float64",
     # time

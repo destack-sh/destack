@@ -300,12 +300,7 @@ class JsonEncoder(Encoder):
                     PrimitiveType.UINT64,
                     PrimitiveType.UINT128,
                 )
-                or type.primitive_type
-                in (
-                    PrimitiveType.FLOAT16,
-                    PrimitiveType.FLOAT32,
-                    PrimitiveType.FLOAT64,
-                )
+                or type.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64)
             ):
                 return float(value)
             elif type.primitive_type == PrimitiveType.DATETIME:
@@ -399,11 +394,7 @@ class JsonEncoder(Encoder):
                 PrimitiveType.UINT128,
             ):
                 return int(value)
-            elif type.primitive_type in (
-                PrimitiveType.FLOAT16,
-                PrimitiveType.FLOAT32,
-                PrimitiveType.FLOAT64,
-            ):
+            elif type.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
                 return float(value)
             elif type.primitive_type == PrimitiveType.DATETIME:
                 return datetime.fromisoformat(value).astimezone(UTC)
