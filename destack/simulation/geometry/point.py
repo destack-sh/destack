@@ -2,13 +2,14 @@ from typing import TYPE_CHECKING, final
 
 from destack.core import (
     NodeType,
+    Struct,
     StructType,
     declare_entity,
     declare_property,
     declare_struct,
 )
 
-from .shape import Form2D, Form3D, Shape2D, Shape3D
+from .shape import Shape2D, Shape3D
 
 if TYPE_CHECKING:
     from destack import Vector2, Vector3
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     into_node_types=(NodeType.POINT_SHAPE2D,),
 )
 @final
-class Point2D(Form2D):
+class Point2D(Struct):
     """A Point is a zero-area shape with an optional local offset."""
 
     position: "Vector2" = declare_property(200, tag=None)
@@ -42,7 +43,7 @@ class PointShape2D(Shape2D):
     into_node_types=(NodeType.POINT_SHAPE3D,),
 )
 @final
-class Point3D(Form3D):
+class Point3D(Struct):
     """A Point3D is a zero-volume shape with an optional local offset."""
 
     position: "Vector3" = declare_property(210, tag=None)

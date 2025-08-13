@@ -1,5 +1,7 @@
+//! Timestamp in unsigned 64-bit nanosecond precision since epoch (UTC).
+//! Provide the `Timestamp` type and some conversions.
+
 use std::convert::TryFrom;
-// no custom StdError impl needed; we bubble up crate::parser::TimeParseError
 use std::fmt;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
@@ -12,10 +14,11 @@ use crate::{
     parser::{TimeParseError, parse_tz_offset, split_time_and_tz},
 };
 
-/// Timestamp in unsigned 64-bit nanosecond precision since epoch (UTC)
-/// range: [0, 2^64-1]
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Timestamp in unsigned 64-bit nanosecond precision since epoch (UTC).
+///
+/// Range: [0, 2^64-1].
 pub struct Timestamp(pub u64);
 
 impl Timestamp {

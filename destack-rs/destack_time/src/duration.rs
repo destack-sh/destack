@@ -1,3 +1,6 @@
+//! Duration in signed 64-bit nanosecond precision.
+//! We provide the `Duration` type and some conversions.
+
 use std::convert::TryFrom;
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
@@ -5,10 +8,11 @@ use std::str::FromStr;
 
 use crate::parser::TimeParseError;
 
-/// Duration in signed 64-bit nanosecond precision
-/// range: ±292.277 years
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Duration in signed 64-bit nanosecond precision.
+///
+/// Range: ±292,277 years.
 pub struct Duration(pub i64);
 
 impl Duration {

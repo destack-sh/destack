@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 class Capsule2D(Form2D):
     """A Capsule2D is a segment with rounded ends with a common radius."""
 
-    center_a: "Vector2" = declare_property(210, tag=None)
-    center_b: "Vector2" = declare_property(211, tag=None)
+    center_a_offset: "Vector2" = declare_property(210, tag=None)
+    center_b_offset: "Vector2" = declare_property(211, tag=None)
     radius: Float32 = declare_property(212, tag=None)
 
 
@@ -37,8 +37,8 @@ class Capsule2D(Form2D):
 class CapsuleShape2D(Shape2D):
     """A CapsuleShape is a shape that represents a capsule."""
 
-    center_a: "Vector2" = declare_property(210, tag=None)
-    center_b: "Vector2" = declare_property(211, tag=None)
+    center_a_offset: "Vector2" = declare_property(210, tag=None)
+    center_b_offset: "Vector2" = declare_property(211, tag=None)
     radius: Float32 = declare_property(212, tag=None)
 
 
@@ -51,8 +51,8 @@ class CapsuleShape2D(Shape2D):
 class Capsule3D(Form3D):
     """A Capsule3D is a segment with rounded ends in 3D with a common radius."""
 
-    center_a: "Vector3" = declare_property(210, tag=None)
-    center_b: "Vector3" = declare_property(211, tag=None)
+    center_a_offset: "Vector3" = declare_property(210, tag=None)
+    center_b_offset: "Vector3" = declare_property(211, tag=None)
     radius: Float32 = declare_property(212, tag=None)
 
 
@@ -63,6 +63,6 @@ class Capsule3D(Form3D):
 class CapsuleShape3D(Shape3D):
     """A CapsuleShape3D is a shape that represents a capsule in 3D."""
 
-    center_a: "Vector3" = declare_property(210, tag=None)
-    center_b: "Vector3" = declare_property(211, tag=None)
+    center_a_offset: "Vector3" = declare_property(210, tag=None)
+    center_b_offset: "Vector3" = declare_property(211, tag=None)
     radius: Float32 = declare_property(212, tag=None)

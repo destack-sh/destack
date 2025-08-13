@@ -5,13 +5,14 @@ from destack.core import (
     Struct,
     StructType,
     declare_entity,
+    declare_property,
     declare_struct,
 )
 
 from .entity import Entity2D, Entity3D
 
 if TYPE_CHECKING:
-    pass
+    from destack import Vector2, Vector3
 
 
 @declare_struct(
@@ -19,9 +20,9 @@ if TYPE_CHECKING:
     is_abstract=True,
 )
 class Form2D(Struct):
-    """Represent 2-dimensional geometric Shapes in the abstract."""
+    """Represent 2-dimensional geometric shapes with position in the abstract."""
 
-    pass
+    position: "Vector2" = declare_property(200, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -39,9 +40,9 @@ class Shape2D(Entity2D):
     is_abstract=True,
 )
 class Form3D(Struct):
-    """Represent 3-dimensional geometric Shapes in the abstract."""
+    """Represent 3-dimensional geometric shapes with position in the abstract."""
 
-    pass
+    position: "Vector3" = declare_property(200, is_repr=True, tag=None)
 
 
 @declare_entity(

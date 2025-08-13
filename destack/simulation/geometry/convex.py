@@ -13,18 +13,18 @@ if TYPE_CHECKING:
 
 
 @declare_entity(
-    NodeType.CONVEX_MESH_SHAPE2D,
+    NodeType.CONVEX_SHAPE2D,
 )
-class ConvexMeshShape2D(Shape2D):
-    """A ConvexMeshShape2D represents a convex polygon."""
+class ConvexShape2D(Shape2D):
+    """A ConvexShape2D represents a convex polygon."""
 
     vertices: list["Vector2"] = declare_property(220, tag=None)
 
 
 @declare_entity(
-    NodeType.CONVEX_MESH_SHAPE3D,
+    NodeType.CONVEX_SHAPE3D,
 )
-class ConvexMeshShape3D(Shape3D):
-    """A ConvexMeshShape3D represents a convex hull."""
+class ConvexShape3D(Shape3D):
+    """A ConvexShape3D represents a convex hull."""
 
     vertices: list["Vector3"] = declare_property(220, tag=None)

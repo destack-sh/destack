@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 class Segment2D(Form2D):
     """A Segment is a line between two points."""
 
-    start: "Vector2" = declare_property(210, is_repr=True, tag=None)
-    end: "Vector2" = declare_property(220, is_repr=True, tag=None)
+    start_offset: "Vector2" = declare_property(210, is_repr=True, tag=None)
+    end_offset: "Vector2" = declare_property(220, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -34,8 +34,8 @@ class Segment2D(Form2D):
 class SegmentShape2D(Shape2D):
     """A SegmentShape is a shape that represents a line between two points."""
 
-    start: "Vector2" = declare_property(200, is_repr=True, tag=None)
-    end: "Vector2" = declare_property(210, is_repr=True, tag=None)
+    start_offset: "Vector2" = declare_property(200, is_repr=True, tag=None)
+    end_offset: "Vector2" = declare_property(210, is_repr=True, tag=None)
 
 
 @declare_struct(
@@ -47,8 +47,8 @@ class SegmentShape2D(Shape2D):
 class Segment3D(Form3D):
     """A Segment3D is a line between two points in 3D space."""
 
-    start: "Vector3" = declare_property(210, is_repr=True, tag=None)
-    end: "Vector3" = declare_property(220, is_repr=True, tag=None)
+    start_offset: "Vector3" = declare_property(210, is_repr=True, tag=None)
+    end_offset: "Vector3" = declare_property(220, is_repr=True, tag=None)
 
 
 @declare_entity(
@@ -58,5 +58,5 @@ class Segment3D(Form3D):
 class SegmentShape3D(Shape3D):
     """A SegmentShape3D is a shape that represents a line between two points in 3D."""
 
-    start: "Vector3" = declare_property(200, is_repr=True, tag=None)
-    end: "Vector3" = declare_property(210, is_repr=True, tag=None)
+    start_offset: "Vector3" = declare_property(200, is_repr=True, tag=None)
+    end_offset: "Vector3" = declare_property(210, is_repr=True, tag=None)
