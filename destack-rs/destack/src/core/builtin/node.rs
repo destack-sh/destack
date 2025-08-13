@@ -1,4 +1,4 @@
-use uuid::Uuid;
+use destack_uuid::Uuid;
 
 use crate::core::builtin::object::Object;
 
