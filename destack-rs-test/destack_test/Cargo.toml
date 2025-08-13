@@ -14,7 +14,6 @@ bytes = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true }
 smallvec = { workspace = true }
-uuid = { workspace = true }
 criterion = { workspace = true }
 pretty_assertions = { workspace = true }
 static_assertions = { workspace = true }

@@ -31,7 +31,7 @@ class Context(Handle):
     #      -> PhysicsContext
     #      -> PerceptionContext
     #      -> ...
-    #    -> CustomContext?
+    #    -> CustomContext? (or actually just Context.custom_values if it's a regular Entity)
 
     # actor: "Entity"
     # client: "Client"
