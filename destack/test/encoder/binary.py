@@ -2,69 +2,69 @@ import math
 
 import pytest
 
-from destack import UUID, BinaryReader, BinaryWriter
+from destack import UUID, BinaryDecoder, BinaryEncoder
 
 
 def test_bool():
     """Test boolean encoding and decoding."""
-    writer = BinaryWriter()
-    writer.write_bool(True)
-    writer.write_bool(False)
+    encoder = BinaryEncoder()
+    encoder.write_bool(True)
+    encoder.write_bool(False)
 
-    assert len(writer.to_bytes()) == 2
+    assert len(encoder.to_bytes()) == 2
 
-    reader = BinaryReader(buffer=writer.to_bytes())
-    assert reader.read_bool() is True
-    assert reader.read_bool() is False
-    assert reader.remaining == 0
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
+    assert decoder.read_bool() is True
+    assert decoder.read_bool() is False
+    assert decoder.remaining == 0
 
 
 def test_int8():
     """Test signed 8-bit integer encoding and decoding."""
     test_values = [0, 1, -1, 127, -128, 42, -42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_int8(value)
+        encoder.write_int8(value)
 
-    assert len(writer.to_bytes()) == 7
+    assert len(encoder.to_bytes()) == 7
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_int8() == expected
-    assert reader.remaining == 0
+        assert decoder.read_int8() == expected
+    assert decoder.remaining == 0
 
 
 def test_int16():
     """Test signed 16-bit integer encoding and decoding."""
     test_values = [0, 1, -1, 127, -128, 32767, -32768, 42, -42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_int16(value)
+        encoder.write_int16(value)
 
-    assert len(writer.to_bytes()) == 18
+    assert len(encoder.to_bytes()) == 18
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_int16() == expected
-    assert reader.remaining == 0
+        assert decoder.read_int16() == expected
+    assert decoder.remaining == 0
 
 
 def test_int32():
     """Test signed 32-bit integer encoding and decoding."""
     test_values = [0, 1, -1, 127, -128, 32767, -32768, 2147483647, -2147483648, 42, -42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_int32(value)
+        encoder.write_int32(value)
 
-    assert len(writer.to_bytes()) == 44
+    assert len(encoder.to_bytes()) == 44
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_int32() == expected
-    assert reader.remaining == 0
+        assert decoder.read_int32() == expected
+    assert decoder.remaining == 0
 
 
 def test_int64():
@@ -85,80 +85,80 @@ def test_int64():
         -42,
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_int64(value)
+        encoder.write_int64(value)
 
-    assert len(writer.to_bytes()) == 104
+    assert len(encoder.to_bytes()) == 104
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_int64() == expected
-    assert reader.remaining == 0
+        assert decoder.read_int64() == expected
+    assert decoder.remaining == 0
 
 
 def test_int128():
     """Test signed 128-bit integer encoding and decoding."""
     test_values = [0, 1, -1, 127, -128, 2**63 - 1, -(2**63), 2**127 - 1, -(2**127), 42, -42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_int128(value)
+        encoder.write_int128(value)
 
-    assert len(writer.to_bytes()) == 176
+    assert len(encoder.to_bytes()) == 176
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_int128() == expected
-    assert reader.remaining == 0
+        assert decoder.read_int128() == expected
+    assert decoder.remaining == 0
 
 
 def test_uint8():
     """Test unsigned 8-bit integer encoding and decoding."""
     test_values = [0, 1, 127, 128, 255, 42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_uint8(value)
+        encoder.write_uint8(value)
 
-    assert len(writer.to_bytes()) == 6
+    assert len(encoder.to_bytes()) == 6
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_uint8() == expected
-    assert reader.remaining == 0
+        assert decoder.read_uint8() == expected
+    assert decoder.remaining == 0
 
 
 def test_uint16():
     """Test unsigned 16-bit integer encoding and decoding."""
     test_values = [0, 1, 127, 128, 255, 256, 32767, 32768, 65535, 42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_uint16(value)
+        encoder.write_uint16(value)
 
-    assert len(writer.to_bytes()) == 20
+    assert len(encoder.to_bytes()) == 20
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_uint16() == expected
-    assert reader.remaining == 0
+        assert decoder.read_uint16() == expected
+    assert decoder.remaining == 0
 
 
 def test_uint32():
     """Test unsigned 32-bit integer encoding and decoding."""
     test_values = [0, 1, 127, 128, 255, 256, 65535, 65536, 2147483647, 2147483648, 4294967295, 42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_uint32(value)
+        encoder.write_uint32(value)
 
-    assert len(writer.to_bytes()) == 48
+    assert len(encoder.to_bytes()) == 48
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_uint32() == expected
-    assert reader.remaining == 0
+        assert decoder.read_uint32() == expected
+    assert decoder.remaining == 0
 
 
 def test_uint64():
@@ -180,32 +180,32 @@ def test_uint64():
         42,
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_uint64(value)
+        encoder.write_uint64(value)
 
-    assert len(writer.to_bytes()) == 112
+    assert len(encoder.to_bytes()) == 112
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_uint64() == expected
-    assert reader.remaining == 0
+        assert decoder.read_uint64() == expected
+    assert decoder.remaining == 0
 
 
 def test_uint128():
     """Test unsigned 128-bit integer encoding and decoding."""
     test_values = [0, 1, 127, 128, 255, 256, 2**64 - 1, 2**64, 2**100, 2**128 - 1, 42]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_uint128(value)
+        encoder.write_uint128(value)
 
-    assert len(writer.to_bytes()) == 176
+    assert len(encoder.to_bytes()) == 176
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_values:
-        assert reader.read_uint128() == expected
-    assert reader.remaining == 0
+        assert decoder.read_uint128() == expected
+    assert decoder.remaining == 0
 
 
 def test_float16():
@@ -223,15 +223,15 @@ def test_float16():
         65504.0,
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_float16(value)
+        encoder.write_float16(value)
 
-    assert len(writer.to_bytes()) == 20
+    assert len(encoder.to_bytes()) == 20
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for value in test_values:
-        result = reader.read_float16()
+        result = decoder.read_float16()
         if value != value:  # NaN check
             assert result != result
         else:
@@ -253,15 +253,15 @@ def test_float32():
         -math.pi,
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_float32(value)
+        encoder.write_float32(value)
 
-    assert len(writer.to_bytes()) == 36
+    assert len(encoder.to_bytes()) == 36
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for value in test_values:
-        result = reader.read_float32()
+        result = decoder.read_float32()
         if value != value:  # NaN check
             assert result != result
         else:
@@ -290,15 +290,15 @@ def test_float64():
         -1e100,
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_float64(value)
+        encoder.write_float64(value)
 
-    assert len(writer.to_bytes()) == 136
+    assert len(encoder.to_bytes()) == 136
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for value in test_values:
-        result = reader.read_float64()
+        result = decoder.read_float64()
         if value != value:  # NaN check
             assert result != result
         else:
@@ -314,14 +314,14 @@ def test_string():
         "a" * 1000,
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for s in test_strings:
-        writer.write_string(s)
+        encoder.write_string(s)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for s in test_strings:
-        assert reader.read_string() == s
-    assert reader.remaining == 0
+        assert decoder.read_string() == s
+    assert decoder.remaining == 0
 
 
 def test_character():
@@ -334,14 +334,14 @@ def test_character():
         "\u0000",  # null
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for ch in test_chars:
-        writer.write_character(ch)
+        encoder.write_character(ch)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_chars:
-        assert reader.read_character() == expected
-    assert reader.remaining == 0
+        assert decoder.read_character() == expected
+    assert decoder.remaining == 0
 
 
 def test_bytes():
@@ -353,49 +353,49 @@ def test_bytes():
         bytes(range(256)),
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for b in test_bytes:
-        writer.write_bytes(b)
+        encoder.write_bytes(b)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for b in test_bytes:
-        assert reader.read_bytes() == b
-    assert reader.remaining == 0
+        assert decoder.read_bytes() == b
+    assert decoder.remaining == 0
 
 
 def test_mixed_types():
     """Test encoding and decoding mixed types."""
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
 
     # write various types
-    writer.write_bool(True)
-    writer.write_int8(-42)
-    writer.write_uint16(65535)
-    writer.write_int32(-1234567)
-    writer.write_int128(-(2**100))
-    writer.write_uint128(2**100)
-    writer.write_float16(1.5)
-    writer.write_float32(math.pi)
-    writer.write_float64(math.e)
-    writer.write_string("test string")
-    writer.write_bytes(b"\x01\x02\x03")
-    writer.write_character("Z")
+    encoder.write_bool(True)
+    encoder.write_int8(-42)
+    encoder.write_uint16(65535)
+    encoder.write_int32(-1234567)
+    encoder.write_int128(-(2**100))
+    encoder.write_uint128(2**100)
+    encoder.write_float16(1.5)
+    encoder.write_float32(math.pi)
+    encoder.write_float64(math.e)
+    encoder.write_string("test string")
+    encoder.write_bytes(b"\x01\x02\x03")
+    encoder.write_character("Z")
 
     # read them back
-    reader = BinaryReader(buffer=writer.to_bytes())
-    assert reader.read_bool() is True
-    assert reader.read_int8() == -42
-    assert reader.read_uint16() == 65535
-    assert reader.read_int32() == -1234567
-    assert reader.read_int128() == -(2**100)
-    assert reader.read_uint128() == 2**100
-    assert reader.read_float16() == pytest.approx(1.5, rel=1e-3)
-    assert reader.read_float32() == pytest.approx(math.pi, rel=1e-6)
-    assert reader.read_float64() == pytest.approx(math.e)
-    assert reader.read_string() == "test string"
-    assert reader.read_bytes() == b"\x01\x02\x03"
-    assert reader.read_character() == "Z"
-    assert reader.remaining == 0
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
+    assert decoder.read_bool() is True
+    assert decoder.read_int8() == -42
+    assert decoder.read_uint16() == 65535
+    assert decoder.read_int32() == -1234567
+    assert decoder.read_int128() == -(2**100)
+    assert decoder.read_uint128() == 2**100
+    assert decoder.read_float16() == pytest.approx(1.5, rel=1e-3)
+    assert decoder.read_float32() == pytest.approx(math.pi, rel=1e-6)
+    assert decoder.read_float64() == pytest.approx(math.e)
+    assert decoder.read_string() == "test string"
+    assert decoder.read_bytes() == b"\x01\x02\x03"
+    assert decoder.read_character() == "Z"
+    assert decoder.remaining == 0
 
 
 def test_datetime():
@@ -419,16 +419,16 @@ def test_datetime():
         datetime(2400, 2, 29, tzinfo=UTC),
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for dt in test_cases:
-        writer.write_datetime(dt)
+        encoder.write_datetime(dt)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_cases:
-        result = reader.read_datetime()
+        result = decoder.read_datetime()
         assert result == expected
         assert result.tzinfo == UTC
-    assert reader.remaining == 0
+    assert decoder.remaining == 0
 
 
 def test_datetime_naive():
@@ -436,11 +436,11 @@ def test_datetime_naive():
     from datetime import UTC, datetime
 
     naive_dt = datetime(2024, 1, 15, 14, 30, 45)  # noqa: DTZ001
-    writer = BinaryWriter()
-    writer.write_datetime(naive_dt)
+    encoder = BinaryEncoder()
+    encoder.write_datetime(naive_dt)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
-    result = reader.read_datetime()
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
+    result = decoder.read_datetime()
     assert result.tzinfo == UTC
     assert result.replace(tzinfo=None) == naive_dt
 
@@ -460,14 +460,14 @@ def test_date():
         date(1900, 2, 28),  # non-leap century year
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for d in test_cases:
-        writer.write_date(d)
+        encoder.write_date(d)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_cases:
-        assert reader.read_date() == expected
-    assert reader.remaining == 0
+        assert decoder.read_date() == expected
+    assert decoder.remaining == 0
 
 
 def test_time():
@@ -482,14 +482,14 @@ def test_time():
         time(0, 0, 0, 1),  # 1 microsecond after midnight
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for t in test_cases:
-        writer.write_time(t)
+        encoder.write_time(t)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_cases:
-        assert reader.read_time() == expected
-    assert reader.remaining == 0
+        assert decoder.read_time() == expected
+    assert decoder.remaining == 0
 
 
 def test_timestamp():
@@ -507,14 +507,14 @@ def test_timestamp():
         2**64 - 1,
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_values:
-        writer.write_timestamp(value)
+        encoder.write_timestamp(value)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for value in test_values:
-        assert reader.read_timestamp() == value
-    assert reader.remaining == 0
+        assert decoder.read_timestamp() == value
+    assert decoder.remaining == 0
 
 
 def test_duration():
@@ -540,14 +540,14 @@ def test_duration():
         timedelta(seconds=1, microseconds=-1),  # 999999 microseconds
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for td in test_cases:
-        writer.write_duration(td)
+        encoder.write_duration(td)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_cases:
-        assert reader.read_duration() == expected
-    assert reader.remaining == 0
+        assert decoder.read_duration() == expected
+    assert decoder.remaining == 0
 
 
 def test_uuid():
@@ -560,17 +560,17 @@ def test_uuid():
         UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),  # max UUID
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for uuid in test_cases:
-        writer.write_uuid(uuid)
+        encoder.write_uuid(uuid)
 
     # each UUID is exactly 16 bytes
-    assert len(writer.to_bytes()) == 16 * len(test_cases)
+    assert len(encoder.to_bytes()) == 16 * len(test_cases)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_cases:
-        assert reader.read_uuid() == expected
-    assert reader.remaining == 0
+        assert decoder.read_uuid() == expected
+    assert decoder.remaining == 0
 
 
 def test_json():
@@ -644,12 +644,12 @@ def test_json():
         },
     ]
 
-    writer = BinaryWriter()
+    encoder = BinaryEncoder()
     for value in test_cases:
-        writer.write_json(value)
+        encoder.write_json(value)
 
-    reader = BinaryReader(buffer=writer.to_bytes())
+    decoder = BinaryDecoder(buffer=encoder.to_bytes())
     for expected in test_cases:
-        result = reader.read_json()
+        result = decoder.read_json()
         assert result == expected
-    assert reader.remaining == 0
+    assert decoder.remaining == 0

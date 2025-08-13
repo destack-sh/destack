@@ -22,7 +22,7 @@ from ...builtin import (
     to_casing,
 )
 from ...common import Type, Value
-from ..encoder import BinaryReader, BinaryWriter, Encoder, EncoderFlag
+from ..encoder import BinaryDecoder, BinaryEncoder, Encoder, EncoderFlag
 from ..time import timedelta_from_isoformat, timedelta_to_isoformat
 from .core import JsonObjectEncoder
 
@@ -112,22 +112,22 @@ class JsonEncoder(Encoder):
     def pack_object_binary(
         self,
         object: Object,
-        writer: BinaryWriter,
+        encoder: BinaryEncoder,
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
         object_packed = self.pack_object(object, options)
-        writer.write_bytes(json.dumps(object_packed).encode("utf-8"))
+        encoder.write_bytes(json.dumps(object_packed).encode("utf-8"))
 
     @override
     def unpack_object_binary(
         self,
         kind: ObjectKind | None,
         type: int | None,
-        reader: BinaryReader,
+        decoder: BinaryDecoder,
         session: "Session | None",
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Object:
-        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
+        value_decoded = json.loads(decoder.read_bytes().decode("utf-8"))
         return self.unpack_object(kind, type, value_decoded, session, options)
 
     @override
@@ -152,19 +152,19 @@ class JsonEncoder(Encoder):
     def pack_type_binary(
         self,
         type: Type,
-        writer: BinaryWriter,
+        encoder: BinaryEncoder,
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
-        self.pack_object_binary(type, writer, options)
+        self.pack_object_binary(type, encoder, options)
 
     @override
     def unpack_type_binary(
         self,
-        reader: BinaryReader,
+        decoder: BinaryDecoder,
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Type:
         unpacked_type = self.unpack_object_binary(
-            ObjectKind.STRUCT, StructType.TYPE, reader, None, options
+            ObjectKind.STRUCT, StructType.TYPE, decoder, None, options
         )
         assert isinstance(unpacked_type, Type), f"expected Type, got {unpacked_type!r}"
         return unpacked_type
@@ -490,20 +490,20 @@ class JsonEncoder(Encoder):
         self,
         type: Type,
         value: Any,
-        writer: BinaryWriter,
+        encoder: BinaryEncoder,
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> None:
-        writer.write_bytes(json.dumps(self.pack_value(type, value, options)).encode("utf-8"))
+        encoder.write_bytes(json.dumps(self.pack_value(type, value, options)).encode("utf-8"))
 
     @override
     def unpack_value_binary(
         self,
         type: Type,
-        reader: BinaryReader,
+        decoder: BinaryDecoder,
         session: "Session | None",
         options: EncoderFlag = EncoderFlag.DEFAULT,
     ) -> Any:
-        value_decoded = json.loads(reader.read_bytes().decode("utf-8"))
+        value_decoded = json.loads(decoder.read_bytes().decode("utf-8"))
         return self.unpack_value(type, value_decoded, session, options)
 
 

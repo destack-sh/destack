@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, assert_never, override
 
 from destack.core import (
     UUID,
-    BinaryReader,
-    BinaryWriter,
+    BinaryDecoder,
+    BinaryEncoder,
     EncoderFlag,
     Encoding,
     Entity,
@@ -78,7 +78,7 @@ class {encoder_name}(KompaktObjectEncoder):
         self,
         _encoder: "KompaktEncoder",
         _object: "{cls.__name__}",
-        _writer: BinaryWriter,
+        _binary_encoder: BinaryEncoder,
         _options: "EncoderOptions",
     ) -> None:
 {textwrap.indent(pack_kompakt, " " * 8)}
@@ -87,7 +87,7 @@ class {encoder_name}(KompaktObjectEncoder):
     def unpack_object(
         self,
         _encoder: "KompaktEncoder",
-        _reader: BinaryReader,
+        _binary_decoder: BinaryDecoder,
         _session: "Session | None",
         _options: "EncoderOptions",
     ) -> "{cls.__name__}":
@@ -98,8 +98,8 @@ class {encoder_name}(KompaktObjectEncoder):
             impl,
             {
                 "KompaktObjectEncoder": KompaktObjectEncoder,
-                "BinaryReader": BinaryReader,
-                "BinaryWriter": BinaryWriter,
+                "BinaryDecoder": BinaryDecoder,
+                "BinaryEncoder": BinaryEncoder,
                 "datetime": datetime,
                 "timedelta": timedelta,
                 "date": date,
@@ -167,9 +167,9 @@ if _object.{prop_name} is None:
 
             # prefix with number of set properties and their null flags
             if is_entity:
-                body_lines.append("_writer.write_uint8(_object.materialization.value)")
-            body_lines.append("_writer.write_uint8(_num_set_properties)")
-            body_lines.append("_writer.write_uint128(_null_flags)")
+                body_lines.append("_binary_encoder.write_uint8(_object.materialization.value)")
+            body_lines.append("_binary_encoder.write_uint8(_num_set_properties)")
+            body_lines.append("_binary_encoder.write_uint128(_null_flags)")
         elif stability == ObjectStability.STATIC:
             # properties can't change
             assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
@@ -204,7 +204,7 @@ if _object.{prop_name} is None:
             # if the property order may change, prefix with property id
             # (always write property id so we know which properties are null)
             if stability == ObjectStability.DYNAMIC:
-                body_lines.append(f"_writer.write_uint8({prop.id})")
+                body_lines.append(f"_binary_encoder.write_uint8({prop.id})")
             body_lines.append(pack_code)
 
         return "\n".join(body_lines), "\n".join(extra_lines)
@@ -229,9 +229,11 @@ if _object.{prop_name} is None:
         if stability == ObjectStability.DYNAMIC:
             # dynamic set of properties
             if is_entity:
-                body_lines.append("_materialization = Materialization(_reader.read_uint8())")
-            body_lines.append("_num_set_properties = _reader.read_uint8()")
-            body_lines.append("_null_flags = _reader.read_uint128()")
+                body_lines.append(
+                    "_materialization = Materialization(_binary_decoder.read_uint8())"
+                )
+            body_lines.append("_num_set_properties = _binary_decoder.read_uint8()")
+            body_lines.append("_null_flags = _binary_decoder.read_uint128()")
         elif stability == ObjectStability.STATIC:
             # properties can't change
             assert issubclass(cls, Struct), f"only Structs can be static: {cls!r}"
@@ -240,7 +242,7 @@ if _object.{prop_name} is None:
                 pass
             else:
                 # some properties may be null
-                body_lines.append("_null_flags = _reader.read_uint128()")
+                body_lines.append("_null_flags = _binary_decoder.read_uint128()")
         else:
             assert_never(stability)
 
@@ -269,8 +271,8 @@ if _object.{prop_name} is None:
 {textwrap.indent(prop_unpacked, " " * 4)}""")
             body_lines.append(f"""\
 for _i in range(_num_set_properties):
-    _prop_id = _reader.read_uint8()
-    # _prop_bytes = _reader.read_uint32()
+    _prop_id = _binary_decoder.read_uint8()
+    # _prop_bytes = _binary_decoder.read_uint32()
 {textwrap.indent("\n".join(prop_map_lines), " " * 4)}
     else:
         # unknown property, skip bytes
@@ -334,7 +336,7 @@ if not {is_not_null_expr}:
             item_source_expr = f"{key}_item"
             item_packed = self.generate_pack_scalar_value(type.value_type, item_source_expr)
             list_packed = f"""\
-_writer.write_uint32(len({source_expr}))
+_binary_encoder.write_uint32(len({source_expr}))
 for {item_source_expr} in {source_expr}:
 {textwrap.indent(item_packed, " " * 4)}"""
             return list_packed
@@ -352,7 +354,7 @@ for {item_source_expr} in {source_expr}:
             key_packed = self.generate_pack_scalar_value(type.key_type, key_source_expr)
             value_packed = self.generate_pack_scalar_value(type.value_type, value_source_expr)
             map_packed = f"""\
-_writer.write_uint32(len({source_expr}))
+_binary_encoder.write_uint32(len({source_expr}))
 for {key_source_expr}, {value_source_expr} in {source_expr}.items():
 {textwrap.indent(key_packed, " " * 4)}
 {textwrap.indent(value_packed, " " * 4)}"""
@@ -382,7 +384,7 @@ for {key_source_expr}, {value_source_expr} in {source_expr}.items():
             assert type.value_type is not None, f"no value type for {type!r}"
             element_unpacked = self.generate_unpack_scalar_value(type.value_type)
             list_unpacked = f"""\
-{key}_length = _reader.read_uint32()
+{key}_length = _binary_decoder.read_uint32()
 {target_expr} = []
 for _ in range({key}_length):
     {target_expr}.append({element_unpacked})"""
@@ -401,7 +403,7 @@ for _ in range({key}_length):
             key_unpacked = self.generate_unpack_scalar_value(type.key_type)
             value_unpacked = self.generate_unpack_scalar_value(type.value_type)
             map_unpacked = f"""\
-{key}_length = _reader.read_uint32()
+{key}_length = _binary_decoder.read_uint32()
 {target_expr} = {{}}
 for _ in range({key}_length):
     {key_source_expr} = {key_unpacked}
@@ -424,81 +426,81 @@ for _ in range({key}_length):
             if type.primitive_type == PrimitiveType.NONE:
                 raise NotImplementedError(f"cannot pack none: {type!r}")
             elif type.primitive_type == PrimitiveType.BOOLEAN:
-                return f"_writer.write_bool({source_expr})"
+                return f"_binary_encoder.write_bool({source_expr})"
             elif type.primitive_type == PrimitiveType.INT8:
-                return f"_writer.write_int8({source_expr})"
+                return f"_binary_encoder.write_int8({source_expr})"
             elif type.primitive_type == PrimitiveType.INT16:
-                return f"_writer.write_int16({source_expr})"
+                return f"_binary_encoder.write_int16({source_expr})"
             elif type.primitive_type == PrimitiveType.INT32:
-                return f"_writer.write_int32({source_expr})"
+                return f"_binary_encoder.write_int32({source_expr})"
             elif type.primitive_type == PrimitiveType.INT64:
-                return f"_writer.write_int64({source_expr})"
+                return f"_binary_encoder.write_int64({source_expr})"
             elif type.primitive_type == PrimitiveType.INT128:
-                return f"_writer.write_int128({source_expr})"
+                return f"_binary_encoder.write_int128({source_expr})"
             elif type.primitive_type == PrimitiveType.UINT8:
-                return f"_writer.write_uint8({source_expr})"
+                return f"_binary_encoder.write_uint8({source_expr})"
             elif type.primitive_type == PrimitiveType.UINT16:
-                return f"_writer.write_uint16({source_expr})"
+                return f"_binary_encoder.write_uint16({source_expr})"
             elif type.primitive_type == PrimitiveType.UINT32:
-                return f"_writer.write_uint32({source_expr})"
+                return f"_binary_encoder.write_uint32({source_expr})"
             elif type.primitive_type == PrimitiveType.UINT64:
-                return f"_writer.write_uint64({source_expr})"
+                return f"_binary_encoder.write_uint64({source_expr})"
             elif type.primitive_type == PrimitiveType.UINT128:
-                return f"_writer.write_uint128({source_expr})"
+                return f"_binary_encoder.write_uint128({source_expr})"
             elif type.primitive_type == PrimitiveType.FLOAT16:
-                return f"_writer.write_float16({source_expr})"
+                return f"_binary_encoder.write_float16({source_expr})"
             elif type.primitive_type == PrimitiveType.FLOAT32:
-                return f"_writer.write_float32({source_expr})"
+                return f"_binary_encoder.write_float32({source_expr})"
             elif type.primitive_type == PrimitiveType.FLOAT64:
-                return f"_writer.write_float64({source_expr})"
+                return f"_binary_encoder.write_float64({source_expr})"
             elif type.primitive_type == PrimitiveType.DATETIME:
-                return f"_writer.write_datetime({source_expr})"
+                return f"_binary_encoder.write_datetime({source_expr})"
             elif type.primitive_type == PrimitiveType.DATE:
-                return f"_writer.write_date({source_expr})"
+                return f"_binary_encoder.write_date({source_expr})"
             elif type.primitive_type == PrimitiveType.TIME:
-                return f"_writer.write_time({source_expr})"
+                return f"_binary_encoder.write_time({source_expr})"
             elif type.primitive_type == PrimitiveType.TIMESTAMP:
-                return f"_writer.write_timestamp({source_expr})"
+                return f"_binary_encoder.write_timestamp({source_expr})"
             elif type.primitive_type == PrimitiveType.DURATION:
-                return f"_writer.write_duration({source_expr})"
+                return f"_binary_encoder.write_duration({source_expr})"
             elif type.primitive_type == PrimitiveType.STRING:
-                return f"_writer.write_string({source_expr})"
+                return f"_binary_encoder.write_string({source_expr})"
             elif type.primitive_type == PrimitiveType.CHARACTER:
-                return f"_writer.write_character({source_expr})"
+                return f"_binary_encoder.write_character({source_expr})"
             elif type.primitive_type == PrimitiveType.UUID:
-                return f"_writer.write_uuid({source_expr})"
+                return f"_binary_encoder.write_uuid({source_expr})"
             elif type.primitive_type == PrimitiveType.BYTES:
-                return f"_writer.write_bytes({source_expr})"
+                return f"_binary_encoder.write_bytes({source_expr})"
             elif type.primitive_type == PrimitiveType.JSON:
-                return f"_writer.write_json({source_expr})"
+                return f"_binary_encoder.write_json({source_expr})"
             else:
                 assert_never(type.primitive_type)
         # enum
         elif type.scalar_type == ScalarType.ENUM:
-            return f"_writer.write_uint32({source_expr}.value)"
+            return f"_binary_encoder.write_uint32({source_expr}.value)"
         # node
         elif type.scalar_type == ScalarType.NODE:
-            return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.pack_object_binary({source_expr}, _encoder, _options & ~EncoderOptions.OMIT_METATYPE)"
         # node id
         elif type.scalar_type == ScalarType.NODE_RAW:
-            return f"_writer.write_uuid({source_expr})"
+            return f"_binary_encoder.write_uuid({source_expr})"
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.pack_object_binary({source_expr}, _encoder, _options | EncoderOptions.OMIT_METATYPE)"
         # node location
         elif type.scalar_type == ScalarType.NODE_SPATIAL:
-            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.pack_object_binary({source_expr}, _encoder, _options | EncoderOptions.OMIT_METATYPE)"
         # node reference (moment)
         elif type.scalar_type == ScalarType.NODE_TEMPORAL:
-            return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.pack_object_binary({source_expr}, _encoder, _options | EncoderOptions.OMIT_METATYPE)"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
             if struct_cls.__declaration__.is_final:
-                return f"_encoder.pack_object_binary({source_expr}, _writer, _options | EncoderOptions.OMIT_METATYPE)"
+                return f"_encoder.pack_object_binary({source_expr}, _encoder, _options | EncoderOptions.OMIT_METATYPE)"
             else:
-                return f"_encoder.pack_object_binary({source_expr}, _writer, _options & ~EncoderOptions.OMIT_METATYPE)"
+                return f"_encoder.pack_object_binary({source_expr}, _encoder, _options & ~EncoderOptions.OMIT_METATYPE)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot pack HANDLE: {type!r}")
@@ -521,83 +523,83 @@ for _ in range({key}_length):
             if type.primitive_type == PrimitiveType.NONE:
                 raise NotImplementedError(f"cannot unpack none: {type!r}")
             elif type.primitive_type == PrimitiveType.BOOLEAN:
-                return "_reader.read_bool()"
+                return "_binary_decoder.read_bool()"
             elif type.primitive_type == PrimitiveType.INT8:
-                return "_reader.read_int8()"
+                return "_binary_decoder.read_int8()"
             elif type.primitive_type == PrimitiveType.INT16:
-                return "_reader.read_int16()"
+                return "_binary_decoder.read_int16()"
             elif type.primitive_type == PrimitiveType.INT32:
-                return "_reader.read_int32()"
+                return "_binary_decoder.read_int32()"
             elif type.primitive_type == PrimitiveType.INT64:
-                return "_reader.read_int64()"
+                return "_binary_decoder.read_int64()"
             elif type.primitive_type == PrimitiveType.INT128:
-                return "_reader.read_int128()"
+                return "_binary_decoder.read_int128()"
             elif type.primitive_type == PrimitiveType.UINT8:
-                return "_reader.read_uint8()"
+                return "_binary_decoder.read_uint8()"
             elif type.primitive_type == PrimitiveType.UINT16:
-                return "_reader.read_uint16()"
+                return "_binary_decoder.read_uint16()"
             elif type.primitive_type == PrimitiveType.UINT32:
-                return "_reader.read_uint32()"
+                return "_binary_decoder.read_uint32()"
             elif type.primitive_type == PrimitiveType.UINT64:
-                return "_reader.read_uint64()"
+                return "_binary_decoder.read_uint64()"
             elif type.primitive_type == PrimitiveType.UINT128:
-                return "_reader.read_uint128()"
+                return "_binary_decoder.read_uint128()"
             elif type.primitive_type == PrimitiveType.FLOAT16:
-                return "_reader.read_float16()"
+                return "_binary_decoder.read_float16()"
             elif type.primitive_type == PrimitiveType.FLOAT32:
-                return "_reader.read_float32()"
+                return "_binary_decoder.read_float32()"
             elif type.primitive_type == PrimitiveType.FLOAT64:
-                return "_reader.read_float64()"
+                return "_binary_decoder.read_float64()"
             elif type.primitive_type == PrimitiveType.DATETIME:
-                return "_reader.read_datetime()"
+                return "_binary_decoder.read_datetime()"
             elif type.primitive_type == PrimitiveType.DATE:
-                return "_reader.read_date()"
+                return "_binary_decoder.read_date()"
             elif type.primitive_type == PrimitiveType.TIME:
-                return "_reader.read_time()"
+                return "_binary_decoder.read_time()"
             elif type.primitive_type == PrimitiveType.TIMESTAMP:
-                return "_reader.read_timestamp()"
+                return "_binary_decoder.read_timestamp()"
             elif type.primitive_type == PrimitiveType.DURATION:
-                return "_reader.read_duration()"
+                return "_binary_decoder.read_duration()"
             elif type.primitive_type == PrimitiveType.STRING:
-                return "_reader.read_string()"
+                return "_binary_decoder.read_string()"
             elif type.primitive_type == PrimitiveType.CHARACTER:
-                return "_reader.read_character()"
+                return "_binary_decoder.read_character()"
             elif type.primitive_type == PrimitiveType.UUID:
-                return "_reader.read_uuid()"
+                return "_binary_decoder.read_uuid()"
             elif type.primitive_type == PrimitiveType.BYTES:
-                return "_reader.read_bytes()"
+                return "_binary_decoder.read_bytes()"
             elif type.primitive_type == PrimitiveType.JSON:
-                return "_reader.read_json()"
+                return "_binary_decoder.read_json()"
             else:
                 assert_never(type.primitive_type)
         # enum
         elif type.scalar_type == ScalarType.ENUM:
             assert type.enum_type is not None, f"no enum type for {type!r}"
             enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-            return f"{enum_cls.__name__}.__options_by_id__[_reader.read_uint32()]"
+            return f"{enum_cls.__name__}.__options_by_id__[_binary_decoder.read_uint32()]"
         # node
         elif type.scalar_type == ScalarType.NODE:
-            return "_encoder.unpack_object_binary(None, None, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return "_encoder.unpack_object_binary(None, None, _binary_decoder, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node id
         elif type.scalar_type == ScalarType.NODE_RAW:
-            return "UUID(_reader.read_uuid())"
+            return "UUID(_binary_decoder.read_uuid())"
         # node typed id
         elif type.scalar_type == ScalarType.NODE_IDENTITY:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_IDENTITY_REFERENCE.value}, _binary_decoder, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node location
         elif type.scalar_type == ScalarType.NODE_SPATIAL:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_SPATIAL_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_SPATIAL_REFERENCE.value}, _binary_decoder, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # node reference (moment)
         elif type.scalar_type == ScalarType.NODE_TEMPORAL:
-            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_TEMPORAL_REFERENCE.value}, _reader, _session, _options | EncoderOptions.OMIT_METATYPE)"
+            return f"_encoder.unpack_object_binary({ObjectKind.STRUCT.value}, {StructType.NODE_TEMPORAL_REFERENCE.value}, _binary_decoder, _session, _options | EncoderOptions.OMIT_METATYPE)"
         # struct
         elif type.scalar_type == ScalarType.STRUCT:
             assert type.struct_type is not None, f"no struct type for {type!r}"
             struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
             if struct_cls.__declaration__.is_final:
-                return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, _reader, _session, _options)"
+                return f"_encoder.unpack_object_binary({ObjectKind.STRUCT}, {type.struct_type}, _binary_decoder, _session, _options)"
             else:
-                return "_encoder.unpack_object_binary(None, None, _reader, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
+                return "_encoder.unpack_object_binary(None, None, _binary_decoder, _session, _options & ~EncoderOptions.OMIT_METATYPE)"
         # handle
         elif type.scalar_type == ScalarType.HANDLE:
             raise NotImplementedError(f"cannot unpack HANDLE: {type!r}")
