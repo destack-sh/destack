@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     is_abstract=True,
 )
 class Form2D(Struct):
-    """A Form2D represents 2-dimensional geometric Shapes in the abstract."""
+    """Represent 2-dimensional geometric Shapes in the abstract."""
 
     pass
 
@@ -29,7 +29,7 @@ class Form2D(Struct):
     is_abstract=True,
 )
 class Shape2D(Entity2D):
-    """A Shape2D represents 2-dimensional geometric Shapes situated in space."""
+    """Represent 2-dimensional geometric Shapes situated in space."""
 
     pass
 
@@ -39,7 +39,7 @@ class Shape2D(Entity2D):
     is_abstract=True,
 )
 class Form3D(Struct):
-    """A Form3D represents 3-dimensional geometric Shapes in the abstract."""
+    """Represent 3-dimensional geometric Shapes in the abstract."""
 
     pass
 
@@ -49,6 +49,6 @@ class Form3D(Struct):
     is_abstract=True,
 )
 class Shape3D(Entity3D):
-    """A Shape3D represents 3-dimensional geometric Shapes situated in space."""
+    """Represent 3-dimensional geometric Shapes situated in space."""
 
     pass

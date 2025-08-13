@@ -1,6 +1,6 @@
 {
   "name": "destack-ts-web",
-  "version": "2025.08.11.1",
+  "version": "2025.08.13.0",
   "private": true,
   "type": "module",
   "bun": {

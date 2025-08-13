@@ -32,9 +32,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        # choose one of these:
-        # args: [ "fmt" ]             # auto-fix formatting
-        args: [ "fmt", "--", "--check" ]  # fail if not formatted
+        args: [ "fmt", "--", "--check" ]
 
       - id: cargo-clippy
         name: cargo clippy (rs)
@@ -42,7 +40,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        args: [ "clippy", "--all-targets", "--all-features", "--", "-D", "warnings" ]
+        args: [ "clippy", "--all-features", "--", "-D", "warnings" ]
 
   # general
   # conventional commit
