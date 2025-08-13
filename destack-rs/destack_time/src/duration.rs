@@ -6,7 +6,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use std::str::FromStr;
 
-use crate::parser::TimeParseError;
+use crate::parse::TimeParseError;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -119,7 +119,7 @@ impl Duration {
     }
 
     /// Parse ISO 8601 duration format.
-    pub fn from_iso(s: &str) -> Result<Self, crate::parser::TimeParseError> {
+    pub fn from_iso(s: &str) -> Result<Self, crate::parse::TimeParseError> {
         if s.is_empty() {
             return Err(TimeParseError::TooShort);
         }
@@ -334,23 +334,23 @@ impl From<Duration> for i64 {
 }
 
 impl TryFrom<std::time::Duration> for Duration {
-    type Error = crate::parser::TimeParseError;
+    type Error = crate::parse::TimeParseError;
 
     fn try_from(value: std::time::Duration) -> Result<Self, Self::Error> {
         let nanos_u128 = value.as_nanos();
         if nanos_u128 > i64::MAX as u128 {
-            return Err(crate::parser::TimeParseError::Overflow);
+            return Err(crate::parse::TimeParseError::Overflow);
         }
         Ok(Duration(nanos_u128 as i64))
     }
 }
 
 impl TryFrom<Duration> for std::time::Duration {
-    type Error = crate::parser::TimeParseError;
+    type Error = crate::parse::TimeParseError;
 
     fn try_from(value: Duration) -> Result<Self, Self::Error> {
         if value.0 < 0 {
-            return Err(crate::parser::TimeParseError::InvalidFormat);
+            return Err(crate::parse::TimeParseError::InvalidFormat);
         }
         Ok(std::time::Duration::from_nanos(value.0 as u64))
     }
@@ -363,7 +363,7 @@ impl fmt::Display for Duration {
 }
 
 impl FromStr for Duration {
-    type Err = crate::parser::TimeParseError;
+    type Err = crate::parse::TimeParseError;
 
     /// Accepts ISO 8601 duration formats like: P3DT4H, PT1.234567890S, -PT2S, P0D, PT0S.
     fn from_str(s: &str) -> Result<Self, Self::Err> {

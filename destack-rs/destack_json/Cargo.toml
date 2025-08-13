@@ -1,6 +1,6 @@
 [package]
-name = "destack_uuid"
-description = "Destack UUID"
+name = "destack_json"
+description = "Destack Json"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -6,7 +6,7 @@ use std::ops::{Add, Sub};
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use crate::parser::TimeParseError;
+use crate::parse::TimeParseError;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

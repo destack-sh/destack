@@ -16,6 +16,7 @@
 
 use std::fmt;
 
+use destack_json::JsonValue;
 use destack_time::{Date, DateTime, Duration, Time, Timestamp};
 use destack_uuid::Uuid;
 
@@ -214,28 +215,27 @@ impl BinaryEncoder {
 
     // PrimitiveType.JSON
     /// Write JSON in the tagged format used by Python.
-    pub fn write_json(&mut self, value: &serde_json::Value) -> Result<(), BinaryError> {
-        use serde_json::Value as J;
+    pub fn write_json(&mut self, value: &JsonValue) -> Result<(), BinaryError> {
         match value {
-            J::Null => self.buffer.push(0),
-            J::Bool(false) => self.buffer.push(1),
-            J::Bool(true) => self.buffer.push(2),
-            J::Number(n) => {
-                if let Some(i) = n.as_i64() {
+            JsonValue::Null => self.buffer.push(0),
+            JsonValue::Bool(false) => self.buffer.push(1),
+            JsonValue::Bool(true) => self.buffer.push(2),
+            JsonValue::Number(n) => {
+                // Try to preserve integers when representable in i64
+                let i = *n as i64;
+                if (i as f64) == *n {
                     self.buffer.push(3);
                     self.write_int64(i);
-                } else if let Some(f) = n.as_f64() {
-                    self.buffer.push(4);
-                    self.write_float64(f);
                 } else {
-                    return Err(BinaryError("unsupported JSON number".to_string()));
+                    self.buffer.push(4);
+                    self.write_float64(*n);
                 }
             }
-            J::String(s) => {
+            JsonValue::String(s) => {
                 self.buffer.push(5);
                 self.write_string(s);
             }
-            J::Array(arr) => {
+            JsonValue::Array(arr) => {
                 self.buffer.push(6);
                 let len = arr.len() as u32;
                 self.buffer.extend_from_slice(&len.to_le_bytes());
@@ -243,7 +243,7 @@ impl BinaryEncoder {
                     self.write_json(item)?;
                 }
             }
-            J::Object(map) => {
+            JsonValue::Object(map) => {
                 self.buffer.push(7);
                 let len = map.len() as u32;
                 self.buffer.extend_from_slice(&len.to_le_bytes());
@@ -283,6 +283,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(s)
     }
 
+    #[inline]
     // PrimitiveType.BOOLEAN
     /// Read a boolean.
     pub fn read_bool(&mut self) -> Result<bool, BinaryError> {
@@ -290,6 +291,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(b != 0)
     }
 
+    #[inline]
     // PrimitiveType.INT8
     /// Read a signed 8-bit integer.
     pub fn read_int8(&mut self) -> Result<i8, BinaryError> {
@@ -297,6 +299,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(i8::from_le_bytes([b[0]]))
     }
 
+    #[inline]
     // PrimitiveType.INT16
     /// Read a signed 16-bit integer.
     pub fn read_int16(&mut self) -> Result<i16, BinaryError> {
@@ -304,6 +307,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(i16::from_le_bytes([b[0], b[1]]))
     }
 
+    #[inline]
     // PrimitiveType.INT32
     /// Read a signed 32-bit integer.
     pub fn read_int32(&mut self) -> Result<i32, BinaryError> {
@@ -311,6 +315,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(i32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 
+    #[inline]
     // PrimitiveType.INT64
     /// Read a signed 64-bit integer.
     pub fn read_int64(&mut self) -> Result<i64, BinaryError> {
@@ -320,6 +325,7 @@ impl<'a> BinaryDecoder<'a> {
         ]))
     }
 
+    #[inline]
     // PrimitiveType.INT128
     /// Read a signed 128-bit integer (two's complement, little-endian bytes).
     pub fn read_int128(&mut self) -> Result<i128, BinaryError> {
@@ -329,6 +335,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(i128::from_le_bytes(arr))
     }
 
+    #[inline]
     // PrimitiveType.UINT8
     /// Read an unsigned 8-bit integer.
     pub fn read_uint8(&mut self) -> Result<u8, BinaryError> {
@@ -336,6 +343,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(b[0])
     }
 
+    #[inline]
     // PrimitiveType.UINT16
     /// Read an unsigned 16-bit integer.
     pub fn read_uint16(&mut self) -> Result<u16, BinaryError> {
@@ -343,6 +351,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(u16::from_le_bytes([b[0], b[1]]))
     }
 
+    #[inline]
     // PrimitiveType.UINT32
     /// Read an unsigned 32-bit integer.
     pub fn read_uint32(&mut self) -> Result<u32, BinaryError> {
@@ -350,6 +359,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 
+    #[inline]
     // PrimitiveType.UINT64
     /// Read an unsigned 64-bit integer.
     pub fn read_uint64(&mut self) -> Result<u64, BinaryError> {
@@ -359,6 +369,7 @@ impl<'a> BinaryDecoder<'a> {
         ]))
     }
 
+    #[inline]
     // PrimitiveType.UINT128
     /// Read an unsigned 128-bit integer (two u64 little-endian parts).
     pub fn read_uint128(&mut self) -> Result<u128, BinaryError> {
@@ -367,6 +378,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(((high as u128) << 64) | (low as u128))
     }
 
+    #[inline]
     // PrimitiveType.FLOAT32
     /// Read a 32-bit float.
     pub fn read_float32(&mut self) -> Result<f32, BinaryError> {
@@ -374,6 +386,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 
+    #[inline]
     // PrimitiveType.FLOAT64
     /// Read a 64-bit float.
     pub fn read_float64(&mut self) -> Result<f64, BinaryError> {
@@ -383,6 +396,7 @@ impl<'a> BinaryDecoder<'a> {
         ]))
     }
 
+    #[inline]
     // PrimitiveType.DATETIME
     /// Read a datetime.
     pub fn read_datetime(&mut self) -> Result<DateTime, BinaryError> {
@@ -390,6 +404,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(DateTime(micros))
     }
 
+    #[inline]
     // PrimitiveType.DATE
     /// Read a date.
     pub fn read_date(&mut self) -> Result<Date, BinaryError> {
@@ -397,6 +412,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(Date(days))
     }
 
+    #[inline]
     // PrimitiveType.TIME
     /// Read a time.
     pub fn read_time(&mut self) -> Result<Time, BinaryError> {
@@ -404,6 +420,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(Time(nanos))
     }
 
+    #[inline]
     // PrimitiveType.TIMESTAMP
     /// Read a timestamp.
     pub fn read_timestamp(&mut self) -> Result<Timestamp, BinaryError> {
@@ -411,6 +428,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(Timestamp(nanos))
     }
 
+    #[inline]
     // PrimitiveType.DURATION
     /// Read a duration.
     pub fn read_duration(&mut self) -> Result<Duration, BinaryError> {
@@ -418,6 +436,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(Duration(nanos))
     }
 
+    #[inline]
     // PrimitiveType.STRING
     /// Read a UTF-8 string.
     pub fn read_string(&mut self) -> Result<String, BinaryError> {
@@ -429,6 +448,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(out)
     }
 
+    #[inline]
     // PrimitiveType.CHARACTER
     /// Read a single Unicode character encoded as UTF-8 with a u32 length prefix.
     pub fn read_character(&mut self) -> Result<char, BinaryError> {
@@ -443,6 +463,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(ch)
     }
 
+    #[inline]
     // PrimitiveType.UUID
     /// Read a UUID as 16 raw bytes, matching Python's `UUID(bytes=...)` big-endian order.
     pub fn read_uuid(&mut self) -> Result<Uuid, BinaryError> {
@@ -452,6 +473,7 @@ impl<'a> BinaryDecoder<'a> {
         Ok(Uuid(u128::from_be_bytes(arr)))
     }
 
+    #[inline]
     // PrimitiveType.BYTES
     /// Read raw bytes with a u32 length prefix.
     pub fn read_bytes(&mut self) -> Result<Vec<u8>, BinaryError> {
@@ -459,34 +481,35 @@ impl<'a> BinaryDecoder<'a> {
         Ok(self.take(len)?.to_vec())
     }
 
+    #[inline]
     // PrimitiveType.JSON
     /// Read JSON in the tagged format used by Python.
-    pub fn read_json(&mut self) -> Result<serde_json::Value, BinaryError> {
+    pub fn read_json(&mut self) -> Result<JsonValue, BinaryError> {
         let tag = self.read_uint8()?;
         match tag {
-            0 => Ok(serde_json::Value::Null),
-            1 => Ok(serde_json::Value::Bool(false)),
-            2 => Ok(serde_json::Value::Bool(true)),
-            3 => Ok(serde_json::Value::from(self.read_int64()?)),
-            4 => Ok(serde_json::Value::from(self.read_float64()?)),
-            5 => Ok(serde_json::Value::from(self.read_string()?)),
+            0 => Ok(JsonValue::Null),
+            1 => Ok(JsonValue::Bool(false)),
+            2 => Ok(JsonValue::Bool(true)),
+            3 => Ok(JsonValue::Number(self.read_int64()? as f64)),
+            4 => Ok(JsonValue::Number(self.read_float64()?)),
+            5 => Ok(JsonValue::String(self.read_string()?)),
             6 => {
                 let len = self.read_uint32()? as usize;
                 let mut arr = Vec::with_capacity(len);
                 for _ in 0..len {
                     arr.push(self.read_json()?);
                 }
-                Ok(serde_json::Value::Array(arr))
+                Ok(JsonValue::Array(arr))
             }
             7 => {
                 let len = self.read_uint32()? as usize;
-                let mut map = serde_json::Map::with_capacity(len);
+                let mut map = std::collections::HashMap::with_capacity(len);
                 for _ in 0..len {
                     let key = self.read_string()?;
                     let val = self.read_json()?;
                     map.insert(key, val);
                 }
-                Ok(serde_json::Value::Object(map))
+                Ok(JsonValue::Object(map))
             }
             _ => Err(BinaryError(format!(
                 "invalid JSON type tag at {}: {tag}",
@@ -1061,7 +1084,7 @@ mod tests {
 
     #[test]
     fn test_json() {
-        use serde_json::json;
+        use destack_json::json;
         let tests = vec![
             json!(null),
             json!(true),

@@ -7,11 +7,11 @@ use std::ops::{Add, Sub};
 use std::str::FromStr;
 use std::time::SystemTime;
 
-use crate::parser::parse_hh_mm_ss;
+use crate::parse::parse_hh_mm_ss;
 use crate::{
     Date, Duration,
     format::write_hms_ns,
-    parser::{TimeParseError, parse_tz_offset, split_time_and_tz},
+    parse::{TimeParseError, parse_tz_offset, split_time_and_tz},
 };
 
 #[repr(transparent)]
@@ -37,7 +37,7 @@ impl Timestamp {
         let (hh, mm, ss) = parse_hh_mm_ss(tb)?;
         let ns = if tb.len() > 8 {
             let tail = &tb[8..];
-            match crate::parser::parse_ns9_maybe(tail) {
+            match crate::parse::parse_ns9_maybe(tail) {
                 Ok(Some(v)) => v,
                 Ok(None) => 0,
                 Err(e) => return Err(e),
