@@ -51,13 +51,13 @@ fn _get_integer_length(head: char) -> Result<usize, FractionalError> {
 /// No trailing zeros allowed
 fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
     // errors
-    if let Some(bv) = b {
-        if a >= bv {
-            return Err(FractionalError::InvalidComparison {
-                a: a.to_string(),
-                b: bv.to_string(),
-            });
-        }
+    if let Some(bv) = b
+        && a >= bv
+    {
+        return Err(FractionalError::InvalidComparison {
+            a: a.to_string(),
+            b: bv.to_string(),
+        });
     }
     if (!a.is_empty() && a.ends_with('0')) || (b.is_some() && b.unwrap().ends_with('0')) {
         return Err(FractionalError::TrailingZero);
@@ -110,10 +110,10 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
         Ok(_BASE_95_DIGITS.chars().nth(mid_digit).unwrap().to_string())
     } else {
         // first digits are consecutive
-        if let Some(bv) = b {
-            if bv.len() > 1 {
-                return Ok(bv.chars().next().unwrap().to_string());
-            }
+        if let Some(bv) = b
+            && bv.len() > 1
+        {
+            return Ok(bv.chars().next().unwrap().to_string());
         }
         // `b` is null or has length 1 (a single digit).
         // the first digit of `a` is the previous digit to `b`, or '9' if `b` is null.
@@ -261,13 +261,13 @@ pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, Fractio
     if let Some(bv) = b {
         _validate_order_key(bv)?;
     }
-    if let (Some(av), Some(bv)) = (a, b) {
-        if av >= bv {
-            return Err(FractionalError::InvalidComparison {
-                a: av.to_string(),
-                b: bv.to_string(),
-            });
-        }
+    if let (Some(av), Some(bv)) = (a, b)
+        && av >= bv
+    {
+        return Err(FractionalError::InvalidComparison {
+            a: av.to_string(),
+            b: bv.to_string(),
+        });
     }
 
     if a.is_none() {
@@ -286,18 +286,8 @@ pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, Fractio
             return Ok(decrement_integer(&ib).unwrap());
         }
     }
-    if b.is_none() {
+    if let Some(b) = b {
         let a = a.unwrap();
-        let ia = _get_integer_part(a)?;
-        let fa = &a[ia.len()..];
-        if let Some(i) = increment_integer(&ia) {
-            Ok(i)
-        } else {
-            Ok(ia + &_midpoint(fa, None)?)
-        }
-    } else {
-        let a = a.unwrap();
-        let b = b.unwrap();
         let ia = _get_integer_part(a)?;
         let fa = &a[ia.len()..];
         let ib = _get_integer_part(b)?;
@@ -311,6 +301,15 @@ pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, Fractio
             } else {
                 Ok(ia + &_midpoint(fa, None)?)
             }
+        }
+    } else {
+        let a = a.unwrap();
+        let ia = _get_integer_part(a)?;
+        let fa = &a[ia.len()..];
+        if let Some(i) = increment_integer(&ia) {
+            Ok(i)
+        } else {
+            Ok(ia + &_midpoint(fa, None)?)
         }
     }
 }
@@ -361,7 +360,7 @@ pub fn get_order_keys(
 mod tests {
     use super::*;
 
-    fn assert_ok(a: Option<&str>, b: Option<&str>, expected: &str) {
+    fn assert_fractional_ok(a: Option<&str>, b: Option<&str>, expected: &str) {
         let result = get_order_key(a, b);
         match result {
             Ok(actual) => assert_eq!(actual, expected, "case ({a:?}, {b:?})"),
@@ -369,7 +368,7 @@ mod tests {
         }
     }
 
-    fn assert_err(a: Option<&str>, b: Option<&str>, expected_err: &str) {
+    fn assert_fractional_err(a: Option<&str>, b: Option<&str>, expected_err: &str) {
         let result = get_order_key(a, b);
         match expected_err {
             "InvalidOrderKey" => assert!(
@@ -388,7 +387,7 @@ mod tests {
         ($name:ident, $a:expr, $b:expr, $expected:expr) => {
             #[test]
             fn $name() {
-                assert_ok($a, $b, $expected);
+                assert_fractional_ok($a, $b, $expected);
             }
         };
     }
@@ -397,7 +396,7 @@ mod tests {
         ($name:ident, $a:expr, $b:expr, $err:expr) => {
             #[test]
             fn $name() {
-                assert_err($a, $b, $err);
+                assert_fractional_err($a, $b, $err);
             }
         };
     }

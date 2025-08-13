@@ -71,7 +71,6 @@ debug-assertions = false
 overflow-checks = false
 strip = "none"
 debug = false
-panic = "abort"
 
 [profile.release]
 opt-level = 3
