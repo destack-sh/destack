@@ -17,7 +17,6 @@ def execute_arbitrary_code(
         print("-" * 80)  # noqa: T201
         print(code)  # noqa: T201
         print("-" * 80)  # noqa: T201
-    assert filename not in linecache.cache, f"filename {filename} already in cache"
     linecache.cache[filename] = (
         len(code),  # size (ignored)
         None,  # mtime  (ignored)
