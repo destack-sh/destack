@@ -1,6 +1,5 @@
 #![destack::partial(vector, file)]
 
-
 use core::ops::Add;
 
 #[destack::generated(Vector2, struct, block)]
