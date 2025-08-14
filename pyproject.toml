@@ -4,17 +4,20 @@
 
 [project]
 name = "destack"
-version = "2025.08.13.0"
+version = "2025.08.14.0"
 description = "Universe simulation engine (i.e. insanely integrated full stack technology platform)"
 
 [tool.uv]
 workspace = { members = [
-	"destack",
+	"destack-language",
 	"destack-py",
 	"destack-py-system",
 	"destack-py-server",
 	"destack-py-web",
 ] }
+
+[tool.ty.environment]
+root = ["./destack-language"]
 
 #
 # Ruff
@@ -22,6 +25,7 @@ workspace = { members = [
 
 [tool.ruff]
 line-length = 100
+src = ["destack-language", "destack-py", "destack-py-server"]
 
 [tool.ruff.lint]
 preview = true
@@ -87,10 +91,10 @@ known-first-party = ["destack"]
 #
 
 [tool.pyright]
-include = ["destack", "destack-py", "destack-py-server"]
+include = ["destack-language", "destack-py", "destack-py-server"]
 ignore = ["*/venv*"]
 venv = "destack-py-server/venv"
-extraPaths = ["destack", "destack-py", "destack-py-server"]
+extraPaths = ["destack-language", "destack-py", "destack-py-server"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true
