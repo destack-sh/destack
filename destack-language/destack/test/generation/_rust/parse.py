@@ -1,18 +1,20 @@
 from collections.abc import Sequence
 
-from destack.core.generation._rust.core import RustCustomItem, RustManagedItem
+import pytest
+
+from destack.core.generation._rust.core import RustCustomItem, RustFile, RustManagedItem, RustMod
 from destack.core.generation._rust.parse import (
     RustItemKind,
     RustItemScope,
+    _parse_rust_imports,
+    _parse_rust_mods,
     parse_rust_file,
-    parse_rust_imports,
     parse_rust_items,
-    parse_rust_mods,
 )
 
 FILE_1: str = """\
 //! Module level comment.
-//! 
+//!
 //! More module level comment.
 
 #![allow(clippy::large_enum_variant)]
@@ -118,6 +120,36 @@ impl Demo {
 """
 
 
+FILES = {"FILE_1": FILE_1, "FILE_2": FILE_2}
+
+
+def _render_to_string(file: RustFile) -> str:
+    """
+    Render the file as a simple canonical string.
+
+    This is not a formatter; it is only for roundtrip structural tests.
+    """
+
+    parts: list[str] = []
+    if file.module_comment:
+        parts.append(file.module_comment.strip())
+    if file.module_attributes:
+        attrs_block = "\n".join(attr.content.strip() for attr in file.module_attributes)
+        parts.append(attrs_block)
+    rendered_items = []
+    for item in file.items:
+        if isinstance(item, RustManagedItem):
+            attr = f"#[destack::{item.kind}({item.object_key}, {item.inner_key}, {item.scope})]"
+            rendered_items.append(f"{attr}\n{item.content}".strip())
+        elif isinstance(item, RustMod):
+            prefix = "pub mod" if item.is_public else "mod"
+            rendered_items.append(f"{prefix} {item.name};")
+        else:
+            rendered_items.append(item.content.strip())
+    parts.append("\n\n".join(s for s in rendered_items if s))
+    return "\n\n".join(s for s in parts if s)
+
+
 def _assert_has_top_level_items(items: Sequence) -> None:
     """Assert the 6 managed top-level items are present and in order.
 
@@ -137,7 +169,7 @@ def _assert_has_top_level_items(items: Sequence) -> None:
 
 def test_parse_rust_imports() -> None:
     """Parse top-level use imports into structured paths and lists."""
-    imports = parse_rust_imports(FILE_1)
+    imports = _parse_rust_imports(FILE_1)
     assert len(imports) == 2
     assert imports[0].path == "core::fmt" and imports[0].imports == []
     assert imports[1].path == "core::ops"
@@ -166,7 +198,7 @@ use super::qux;
 use external::pkg::Thing;
 pub use core::*;
 """
-    imports = parse_rust_imports(src)
+    imports = _parse_rust_imports(src)
     assert len(imports) == 5
     assert imports[0].path == "crate::foo" and imports[0].is_internal is True
     assert (
@@ -186,7 +218,8 @@ def test_parse_top_level_block_items() -> None:
     _assert_has_top_level_items(items)
     # verify content headers are present
     managed = [i for i in items if isinstance(i, RustManagedItem)]
-    assert managed[0].content.splitlines()[0].startswith("pub struct Vector2 ")
+    # managed[0] may include attribute prefix lines, so check header exists in content
+    assert any(line.startswith("pub struct Vector2 ") for line in managed[0].content.splitlines())
     assert managed[1].content.splitlines()[0].startswith("impl PartialEq for Vector2 ")
     assert managed[2].content.splitlines()[0].startswith("impl Default for Vector2 ")
     assert managed[3].content.splitlines()[0].startswith("impl fmt::Display for Vector2 ")
@@ -298,6 +331,20 @@ pub struct Thing {
     pub a: i32,
 }
 """
-    mods = parse_rust_mods(src)
+    mods = _parse_rust_mods(src)
     assert len(mods) == 1
     assert mods[0].name == "inner" and mods[0].is_public is False
+
+
+@pytest.mark.parametrize("file_name", ["FILE_1", "FILE_2"])
+def test_roundtrip_parse(file_name: str) -> None:
+    """Parse and render back to string; ensure structural equality and sanity."""
+    file_str = FILES[file_name]
+    parsed_file = parse_rust_file(file_str, path="/tmp/x.rs")
+    rendered_file_str = _render_to_string(parsed_file)
+    # input and output should match (ignoring trailing spaces)
+    file_str_clean = "\n".join(line.rstrip() for line in file_str.splitlines()).strip()
+    rendered_file_str_clean = "\n".join(
+        line.rstrip() for line in rendered_file_str.splitlines()
+    ).strip()
+    assert file_str_clean == rendered_file_str_clean
