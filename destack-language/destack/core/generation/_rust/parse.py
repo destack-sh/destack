@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 from .core import (
+    RustAttribute,
     RustCustomItem,
     RustFile,
     RustImport,
@@ -71,7 +72,7 @@ def _parse_attr(line: str) -> tuple[RustItemKind, str, str, RustItemScope] | Non
         return None
 
 
-def _collect_block(lines: Sequence[str], start_index: int) -> tuple[int, list[str]]:
+def _parse_block(lines: Sequence[str], start_index: int) -> tuple[int, list[str]]:
     """
     Collect a syntactic block starting at start_index, robustly.
 
@@ -341,7 +342,7 @@ def _is_internal_import_path(path: str) -> bool:
     return path.startswith("crate::") or path.startswith("self::") or path.startswith("super::")
 
 
-def parse_rust_imports(source: str) -> list[RustImport]:
+def _parse_rust_imports(source: str) -> list[RustImport]:
     """Parse simple Rust `use` imports at the top level."""
     imports: list[RustImport] = []
     for raw_line in source.splitlines():
@@ -384,7 +385,7 @@ def parse_rust_imports(source: str) -> list[RustImport]:
     return imports
 
 
-def parse_rust_mods(source: str) -> list[RustMod]:
+def _parse_rust_mods(source: str) -> list[RustMod]:
     """Parse simple module declarations like `mod foo;` or `pub mod foo;`."""
     mods: list[RustMod] = []
     for raw_line in source.splitlines():
@@ -422,9 +423,15 @@ def parse_rust_items(source: str) -> list[RustItem]:
             i += 1
             continue
 
+        # skip module-level doc comments and attributes; these are captured at file level
+        head = lines[i].lstrip()
+        if head.startswith("//!") or head.startswith("#!["):
+            i += 1
+            continue
+
         # treat single-line comments as standalone custom items to avoid
         # accidentally swallowing following managed items
-        if lines[i].lstrip().startswith("//"):
+        if head.startswith("//") and not head.startswith("//!"):
             items.append(RustCustomItem(children=[], content=_dedent_block([lines[i]])))
             i += 1
             continue
@@ -448,11 +455,13 @@ def parse_rust_items(source: str) -> list[RustItem]:
                 items.append(item)
                 i = start + 1
                 continue
-            # block: skip any attributes like #[derive(...)] before the header
+            # block: keep any attributes like #[derive(...)] before the header in content,
+            # but use the header position for block collection and child parsing
             start_no_attrs = _skip_attribute_lines(lines, start)
+            attrs_prefix = [ln for ln in lines[start:start_no_attrs] if ln.strip()]
             # managed headers are well-formed; simple brace counting is sufficient
             end, collected = _collect_block_simple(lines, start_no_attrs)
-            content = _dedent_block(collected)
+            content = _dedent_block((attrs_prefix + collected) if attrs_prefix else collected)
             # children: parse recursively inside the block body (exclude header and closing brace)
             body_lines = collected[1:-1] if len(collected) >= 2 else []
             inner_children = parse_rust_items("\n".join(body_lines)) if body_lines else []
@@ -468,8 +477,6 @@ def parse_rust_items(source: str) -> list[RustItem]:
             i = end + 1
             continue
 
-        # custom item: capture contiguous meaningful content
-        stripped = lines[i].lstrip()
         # collect leading non-destack attributes for custom items
         collected_custom: list[str] = []
         j = i
@@ -499,7 +506,7 @@ def parse_rust_items(source: str) -> list[RustItem]:
         token = _find_first_token_outside_literals(lines, code_index, {"{", ";"})
         if token is not None and token[2] == "{":
             header_start = token[0]
-            end, block_lines = _collect_block(lines, header_start)
+            end, block_lines = _parse_block(lines, header_start)
             combined = collected_custom + block_lines if collected_custom else block_lines
             content = _dedent_block(combined)
             body_only = block_lines[1:-1] if len(block_lines) >= 2 else []
@@ -521,20 +528,81 @@ def parse_rust_items(source: str) -> list[RustItem]:
 
 
 def parse_rust_file(source: str, path: str = "") -> RustFile:
-    """Parse a Rust file into a `RustFile` with annotated and custom items.
+    """
+    Parse a Rust file into a `RustFile` with annotated and custom items.
 
-    Also includes top-level `use` imports and `mod` declarations as items for
-    roundtrip purposes.
+    Also includes module-level `//!` comments and `#![...]` attributes, plus
+    top-level `use` imports and `mod` declarations as items for roundtrip purposes.
     """
     items: list[RustItem] = []
+    module_comment_lines: list[str] = []
+    module_attrs: list[str] = []
+    # collect leading module-level comments and attributes in order
+    idx = 0
+    lines = source.splitlines()
+    while idx < len(lines):
+        line = lines[idx]
+        stripped = line.strip()
+        if stripped.startswith("//!"):
+            module_comment_lines.append(line)
+            idx += 1
+            continue
+        if stripped.startswith("#!["):
+            module_attrs.append(stripped)
+            idx += 1
+            continue
+        if not stripped:
+            idx += 1
+            continue
+        break
+    # group contiguous top-level use/mod lines together to preserve exact blocks
+    grouped_blocks: list[str] = []
+    current_block: list[str] = []
     for raw_line in source.splitlines():
         s = raw_line.strip()
         if not s:
+            # flush any current block on blank line
+            if current_block:
+                grouped_blocks.append("\n".join(current_block))
+                current_block = []
             continue
-        if s.startswith("use ") or s.startswith("pub use "):
-            items.append(RustCustomItem(children=[], content=s))
-        elif s.startswith("mod ") or s.startswith("pub mod "):
-            items.append(RustCustomItem(children=[], content=s))
+        if (
+            s.startswith("use ")
+            or s.startswith("pub use ")
+            or s.startswith("mod ")
+            or s.startswith("pub mod ")
+        ):
+            current_block.append(s)
+        else:
+            if current_block:
+                grouped_blocks.append("\n".join(current_block))
+                current_block = []
+    if current_block:
+        grouped_blocks.append("\n".join(current_block))
+    for block in grouped_blocks:
+        items.append(RustCustomItem(children=[], content=block))
+
     items_structured = parse_rust_items(source)
-    items.extend(items_structured)
-    return RustFile(path=path, items=items)
+    # filter out top-level use/mod lines from structured items to avoid duplication
+    for it in items_structured:
+        if isinstance(it, RustCustomItem):
+            head = it.content.strip()
+            if (
+                head.startswith("use ")
+                or head.startswith("pub use ")
+                or head.startswith("mod ")
+                or head.startswith("pub mod ")
+            ):
+                continue
+        items.append(it)
+
+    imports = _parse_rust_imports(source)
+    mods = _parse_rust_mods(source)
+    return RustFile(
+        path=path,
+        items=items,
+        module_comment="\n".join(module_comment_lines).strip(),
+        module_attributes=[RustAttribute(content=a) for a in module_attrs],
+        imports=imports,
+        mods=mods,
+    )

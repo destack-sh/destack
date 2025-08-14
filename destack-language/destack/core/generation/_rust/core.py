@@ -1,3 +1,4 @@
+import dataclasses
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -36,6 +37,17 @@ class RustManagedItem(RustItem):
     inner_key: str  # like 'struct', 'PartialEq', 'Add:Vector2'
     kind: RustItemKind
     scope: RustItemScope
+    _key: str = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self._key = self.object_key + "." + self.inner_key
+
+
+@dataclass(slots=True)
+class RustAttribute:
+    """A raw module-level attribute like `#![allow(...)]`."""
+
+    content: str
 
 
 @dataclass(slots=True)
@@ -63,20 +75,7 @@ class RustFile:
 
     path: str
     items: list[RustItem]
-
-    def render_to_string(self) -> str:
-        """Render the file as a simple canonical string.
-
-        This is not a formatter; it is only for roundtrip structural tests.
-        """
-        rendered_items = []
-        for item in self.items:
-            if isinstance(item, RustManagedItem):
-                attr = f"#[destack::{item.kind}({item.object_key}, {item.inner_key}, {item.scope})]"
-                rendered_items.append(f"{attr}\n{item.content}".strip())
-            elif isinstance(item, RustMod):
-                prefix = "pub mod" if item.is_public else "mod"
-                rendered_items.append(f"{prefix} {item.name};")
-            else:
-                rendered_items.append(item.content.strip())
-        return "\n\n".join(s for s in rendered_items if s)
+    module_comment: str
+    module_attributes: list[RustAttribute]
+    imports: list["RustImport"] | None = None
+    mods: list["RustMod"] | None = None
