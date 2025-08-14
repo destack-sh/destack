@@ -1,5 +1,7 @@
-use core::fmt;
-use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+#![destack::partial(vector, file)]
+
+
+use core::ops::Add;
 
 #[destack::generated(Vector2, struct, block)]
 #[derive(Debug, Clone, Copy)]

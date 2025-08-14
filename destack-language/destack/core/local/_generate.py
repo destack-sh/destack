@@ -11,4 +11,6 @@ cli = create_cli(
 def generate():
     """Generate the libraries / runtimes."""
     # nocheckin(all): generate libraries
-    pass
+    from ..generation._rust import regenerate
+
+    regenerate()

@@ -1,11 +1,19 @@
 import dataclasses
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
+
+DESTACK_RS_PATH = Path("../destack-rs/destack/src")
 
 
-class RustItemKind(StrEnum):
+class RustGenerationType(StrEnum):
+    """What type of generation."""
+
+    """Fully custom part."""
     CUSTOM = "custom"
+    """Fully managed part."""
     GENERATED = "generated"
+    """Partially custom, partially managed."""
     PARTIAL = "partial"
 
 
@@ -34,7 +42,7 @@ class RustCustomItem(RustItem):
 class RustManagedItem(RustItem):
     object_key: str  # like 'Vector2'
     inner_key: str  # like 'struct', 'PartialEq', 'Add:Vector2'
-    kind: RustItemKind
+    type: RustGenerationType
     scope: RustItemScope
     _key: str = dataclasses.field(init=False)
 
@@ -44,7 +52,10 @@ class RustManagedItem(RustItem):
 
 @dataclass(slots=True)
 class RustAttribute:
-    """A raw module-level attribute like `#![allow(...)]`."""
+    """
+    A raw module-level attribute like `#![allow(...)]`.
+    Example: `#![destack::generated(vector, file)]`
+    """
 
     content: str
 
@@ -61,7 +72,8 @@ class RustMod(RustItem):
 class RustImport:
     """An import at the top of the file."""
 
-    path: str  # like 'core::fmt'
+    """"""
+    rust_path: str  # like 'core::fmt'
     imports: list[str]  # like '["Add", "AddAssign", ...]'
     is_internal: bool  # whether this import referes to the crate itself
     is_public: bool  # whether the import is declared with a public visibility
@@ -72,9 +84,21 @@ class RustImport:
 class RustFile:
     """A specific RustFile."""
 
-    path: str
+    """The type of RustFile (set manually or determined via crate attributes)."""
+    type: RustGenerationType
+    """Raw relative path like destack/src/simulation/geometry/vector.rs"""
+    raw_path: str
+    """Normalized path like `destack.simulation.geometry.vector.Vector2`"""
+    normalized_path: str
+    """All items in the file (managed and custom)."""
     items: list[RustItem]
-    module_comment: str
-    module_attributes: list[RustAttribute]
+    """Top level comment."""
+    comment: str
+    """Top level attributes."""
+    attributes: list[RustAttribute]
+    """Top level imports."""
     imports: list["RustImport"] | None = None
+    """Declared modules."""
     mods: list["RustMod"] | None = None
+    """Whether this is the mod.rs file."""
+    is_mod_rs: bool = False
