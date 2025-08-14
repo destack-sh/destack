@@ -1,16 +1,99 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from .core import (
     RustAttribute,
     RustCustomItem,
     RustFile,
+    RustGenerationType,
     RustImport,
     RustItem,
-    RustItemKind,
     RustItemScope,
     RustManagedItem,
     RustMod,
 )
+
+
+@dataclass(slots=True)
+class RustTokenParser:
+    """
+    Parser state for tracking position within Rust source code.
+
+    Handles proper tracking through string literals, character literals,
+    raw strings, line comments, and nested block comments.
+    """
+
+    in_block_comment: int = 0  # nesting depth for block comments
+    in_string: bool = False
+    in_char: bool = False
+    in_line_comment: bool = False
+    raw_string_hashes: int | None = None  # number of '#' in raw string delimiter
+
+    def reset_line(self) -> None:
+        """Reset state for a new line (clears line comment flag)."""
+        self.in_line_comment = False
+
+    def process_char(self, ch: str, nxt: str, prev: str | None = None) -> bool:
+        """
+        Process a single character and update parser state.
+
+        Returns True if the character is visible (not inside string/comment),
+        False otherwise.
+        """
+        # line comments end at newline
+        if self.in_line_comment:
+            return False
+
+        # handle nested block comments
+        if self.in_block_comment > 0:
+            if ch == "/" and prev == "*":
+                self.in_block_comment -= 1
+            elif ch == "/" and nxt == "*":
+                self.in_block_comment += 1
+            return False
+
+        # handle string literals
+        if self.in_string:
+            if self.raw_string_hashes is None:
+                # normal string: end on unescaped "
+                if ch == "\\":
+                    return False  # skip escape sequence
+                if ch == '"':
+                    self.in_string = False
+            else:
+                # raw string: end when '"' followed by exact number of '#'
+                if ch == '"':
+                    # caller should check following '#' count
+                    pass  # handled by caller for proper lookahead
+            return False
+
+        # handle char literals
+        if self.in_char:
+            if ch == "\\":
+                return False  # skip escape sequence
+            if ch == "'":
+                self.in_char = False
+            return False
+
+        # detect comment starts
+        if ch == "/" and nxt == "/":
+            self.in_line_comment = True
+            return False
+        if ch == "/" and nxt == "*":
+            self.in_block_comment += 1
+            return False
+
+        # detect string/char literal starts
+        # (raw string detection handled by caller due to lookahead complexity)
+        if ch == '"' and not self.in_string:
+            self.in_string = True
+            self.raw_string_hashes = None
+            return False
+        if ch == "'" and not self.in_char:
+            self.in_char = True
+            return False
+
+        return True  # character is visible
 
 
 def _dedent_block(lines: Sequence[str]) -> str:
@@ -35,7 +118,7 @@ def _dedent_block(lines: Sequence[str]) -> str:
     return "\n".join(dedented).strip("\n")
 
 
-def _parse_attr(line: str) -> tuple[RustItemKind, str, str, RustItemScope] | None:
+def _parse_attr(line: str) -> tuple[RustGenerationType, str, str, RustItemScope] | None:
     """
     Parse a destack attribute line like:
     #[destack::generated(Vector2, struct, block)]
@@ -53,7 +136,7 @@ def _parse_attr(line: str) -> tuple[RustItemKind, str, str, RustItemScope] | Non
         inside = stripped[len("#[destack::") : -1]
         mode_part, args_part = inside.split("(", 1)
         args_part = args_part.rstrip(")")
-        mode = RustItemKind(mode_part)
+        mode = RustGenerationType(mode_part)
         # split by commas, expecting exactly 3 args
         raw_args = [a.strip() for a in args_part.split(",")]
         if len(raw_args) != 3:
@@ -86,76 +169,71 @@ def _parse_block(lines: Sequence[str], start_index: int) -> tuple[int, list[str]
     depth = 0
     seen_open = False
     index = start_index
-
-    in_block_comment = 0  # nesting depth
-    in_string = False
-    in_char = False
-    raw_string_hashes: int | None = None
+    parser = RustTokenParser()
 
     while index < len(lines):
         line = lines[index]
         collected.append(line)
+        parser.reset_line()
         i = 0
         line_len = len(line)
-        in_line_comment = False
+
         while i < line_len:
             ch = line[i]
             nxt = line[i + 1] if i + 1 < line_len else ""
+            prev = line[i - 1] if i > 0 else None
 
-            # end of line comment at newline, handled by resetting each line
-            if in_line_comment:
+            # handle special cases that need lookahead
+            if parser.in_line_comment:
                 break
 
-            # handle end/start of block comments
-            if in_block_comment > 0:
-                if ch == "/" and i > 0 and line[i - 1] == "*":
-                    in_block_comment -= 1
+            if parser.in_block_comment > 0:
+                if ch == "/" and prev == "*":
+                    parser.in_block_comment -= 1
                 elif ch == "/" and nxt == "*":
-                    in_block_comment += 1
+                    parser.in_block_comment += 1
                     i += 1
                 i += 1
                 continue
 
-            # string literal handling
-            if in_string:
-                if raw_string_hashes is None:
-                    # normal string, end on unescaped "
+            if parser.in_string:
+                if parser.raw_string_hashes is None:
+                    # normal string
                     if ch == "\\":
                         i += 2
                         continue
                     if ch == '"':
-                        in_string = False
+                        parser.in_string = False
                 else:
-                    # raw string: end when '"' followed by exact number of '#'
+                    # raw string: check for closing delimiter
                     if ch == '"':
                         j = i + 1
                         count = 0
                         while j < line_len and line[j] == "#":
                             count += 1
                             j += 1
-                        if count == raw_string_hashes:
-                            in_string = False
-                            raw_string_hashes = None
+                        if count == parser.raw_string_hashes:
+                            parser.in_string = False
+                            parser.raw_string_hashes = None
                             i = j - 1
                 i += 1
                 continue
 
-            # char literal handling
-            if in_char:
+            if parser.in_char:
                 if ch == "\\":
                     i += 2
                     continue
                 if ch == "'":
-                    in_char = False
+                    parser.in_char = False
                 i += 1
                 continue
 
-            # not inside comments/strings: detect comment starts
+            # not in string/comment - check for starts
             if ch == "/" and nxt == "/":
-                in_line_comment = True
+                parser.in_line_comment = True
                 break
             if ch == "/" and nxt == "*":
-                in_block_comment += 1
+                parser.in_block_comment += 1
                 i += 2
                 continue
 
@@ -167,23 +245,25 @@ def _parse_block(lines: Sequence[str], start_index: int) -> tuple[int, list[str]
                     hash_count += 1
                     j += 1
                 if j < line_len and line[j] == '"':
-                    in_string = True
-                    raw_string_hashes = hash_count
+                    parser.in_string = True
+                    parser.raw_string_hashes = hash_count
                     i = j + 1
                     continue
+
             # normal string start
             if ch == '"':
-                in_string = True
-                raw_string_hashes = None
-                i += 1
-                continue
-            # char literal start
-            if ch == "'":
-                in_char = True
+                parser.in_string = True
+                parser.raw_string_hashes = None
                 i += 1
                 continue
 
-            # count braces
+            # char literal start
+            if ch == "'":
+                parser.in_char = True
+                i += 1
+                continue
+
+            # count braces only if visible
             if ch == "{":
                 depth += 1
                 seen_open = True
@@ -195,10 +275,12 @@ def _parse_block(lines: Sequence[str], start_index: int) -> tuple[int, list[str]
         if seen_open and depth == 0:
             break
         index += 1
+
     return index, collected
 
 
 def _find_next_nonempty(lines: Sequence[str], start_index: int) -> int:
+    """Find the next non-empty line starting from start_index."""
     index = start_index
     while index < len(lines) and not lines[index].strip():
         index += 1
@@ -206,6 +288,7 @@ def _find_next_nonempty(lines: Sequence[str], start_index: int) -> int:
 
 
 def _skip_attribute_lines(lines: Sequence[str], start_index: int) -> int:
+    """Skip over attribute lines (e.g., #[derive(...)]) starting from start_index."""
     index = _find_next_nonempty(lines, start_index)
     while index < len(lines):
         stripped = lines[index].lstrip()
@@ -242,72 +325,77 @@ def _collect_block_simple(lines: Sequence[str], start_index: int) -> tuple[int, 
     return index, collected
 
 
-def _find_first_token_outside_literals(
-    lines: Sequence[str], start_index: int, tokens: set[str], max_lookahead_lines: int = 50
-) -> tuple[int, int, str] | None:
-    """Scan forward and find the first token character outside comments/strings."""
-    index = start_index
-    looked = 0
+def _iter_visible_chars(lines: Sequence[str], start_index: int = 0):
+    """
+    Yield (line_index, char_index, ch) for characters outside strings/comments.
+    Handles nested block comments, raw strings, char literals, and line comments.
+    """
+    parser = RustTokenParser()
+    li = start_index
 
-    in_block_comment = 0
-    while index < len(lines) and looked < max_lookahead_lines:
-        line = lines[index]
+    while li < len(lines):
+        line = lines[li]
+        parser.reset_line()
         i = 0
-        line_len = len(line)
-        in_line_comment = False
-        in_string = False
-        in_char = False
-        raw_string_hashes: int | None = None
-        while i < line_len:
-            ch = line[i]
-            nxt = line[i + 1] if i + 1 < line_len else ""
 
-            if in_line_comment:
+        while i < len(line):
+            ch = line[i]
+            nxt = line[i + 1] if i + 1 < len(line) else ""
+            prev = line[i - 1] if i > 0 else None
+
+            # handle special parsing states
+            if parser.in_line_comment:
                 break
-            if in_block_comment > 0:
-                if ch == "/" and i > 0 and line[i - 1] == "*":
-                    in_block_comment -= 1
+
+            if parser.in_block_comment > 0:
+                if ch == "/" and prev == "*":
+                    parser.in_block_comment -= 1
                 elif ch == "/" and nxt == "*":
-                    in_block_comment += 1
+                    parser.in_block_comment += 1
                     i += 1
                 i += 1
                 continue
-            if in_string:
-                if raw_string_hashes is None:
+
+            if parser.in_string:
+                if parser.raw_string_hashes is None:
                     if ch == "\\":
                         i += 2
                         continue
                     if ch == '"':
-                        in_string = False
+                        parser.in_string = False
                 else:
                     if ch == '"':
                         j = i + 1
                         count = 0
-                        while j < line_len and line[j] == "#":
+                        while j < len(line) and line[j] == "#":
                             count += 1
                             j += 1
-                        if count == raw_string_hashes:
-                            in_string = False
-                            raw_string_hashes = None
+                        if count == parser.raw_string_hashes:
+                            parser.in_string = False
+                            parser.raw_string_hashes = None
                             i = j - 1
                 i += 1
                 continue
-            if in_char:
+
+            if parser.in_char:
                 if ch == "\\":
                     i += 2
                     continue
                 if ch == "'":
-                    in_char = False
+                    parser.in_char = False
                 i += 1
                 continue
 
+            # check for comment/string starts
             if ch == "/" and nxt == "/":
-                in_line_comment = True
+                parser.in_line_comment = True
                 break
             if ch == "/" and nxt == "*":
-                in_block_comment += 1
+                parser.in_block_comment += 1
                 i += 2
                 continue
+
+            # detect raw string start
             if ch == "r":
                 j = i + 1
                 hash_count = 0
@@ -315,25 +403,162 @@ def _find_first_token_outside_literals(
                     hash_count += 1
                     j += 1
                 if j < len(line) and line[j] == '"':
-                    in_string = True
-                    raw_string_hashes = hash_count
+                    parser.in_string = True
+                    parser.raw_string_hashes = hash_count
                     i = j + 1
                     continue
+
             if ch == '"':
-                in_string = True
-                raw_string_hashes = None
-                i += 1
-                continue
-            if ch == "'":
-                in_char = True
+                parser.in_string = True
+                parser.raw_string_hashes = None
                 i += 1
                 continue
 
+            if ch == "'":
+                parser.in_char = True
+                i += 1
+                continue
+
+            # character is visible
+            yield li, i, ch
+            i += 1
+
+        li += 1
+
+
+def _relative_block_close_index(block_lines: Sequence[str]) -> int:
+    """
+    Return the relative last line index where the first matching '}' closes.
+
+    Scans through visible characters (outside strings/comments) to find
+    the closing brace that matches the first opening brace.
+    """
+    depth = 0
+    seen_open = False
+    rel_idx = 0
+
+    for li, _, ch in _iter_visible_chars(block_lines, 0):
+        if ch == "{":
+            depth += 1
+            seen_open = True
+        elif ch == "}":
+            depth -= 1
+        rel_idx = li
+        if seen_open and depth == 0:
+            return rel_idx
+
+    return len(block_lines) - 1
+
+
+def _find_first_token_outside_literals(
+    lines: Sequence[str], start_index: int, tokens: set[str], max_lookahead_lines: int = 50
+) -> tuple[int, int, str] | None:
+    """
+    Scan forward and find the first token character outside comments/strings.
+
+    Returns a tuple of (line_index, char_index, token) for the first matching
+    token found, or None if no token is found within max_lookahead_lines.
+    """
+    index = start_index
+    looked = 0
+    parser = RustTokenParser()
+
+    while index < len(lines) and looked < max_lookahead_lines:
+        line = lines[index]
+        # reset line comment flag but preserve block comment state
+        parser.reset_line()
+        i = 0
+        line_len = len(line)
+
+        while i < line_len:
+            ch = line[i]
+            nxt = line[i + 1] if i + 1 < line_len else ""
+            prev = line[i - 1] if i > 0 else None
+
+            if parser.in_line_comment:
+                break
+
+            if parser.in_block_comment > 0:
+                if ch == "/" and prev == "*":
+                    parser.in_block_comment -= 1
+                elif ch == "/" and nxt == "*":
+                    parser.in_block_comment += 1
+                    i += 1
+                i += 1
+                continue
+
+            if parser.in_string:
+                if parser.raw_string_hashes is None:
+                    if ch == "\\":
+                        i += 2
+                        continue
+                    if ch == '"':
+                        parser.in_string = False
+                else:
+                    if ch == '"':
+                        j = i + 1
+                        count = 0
+                        while j < line_len and line[j] == "#":
+                            count += 1
+                            j += 1
+                        if count == parser.raw_string_hashes:
+                            parser.in_string = False
+                            parser.raw_string_hashes = None
+                            i = j - 1
+                i += 1
+                continue
+
+            if parser.in_char:
+                if ch == "\\":
+                    i += 2
+                    continue
+                if ch == "'":
+                    parser.in_char = False
+                i += 1
+                continue
+
+            # check for comment/string starts
+            if ch == "/" and nxt == "/":
+                parser.in_line_comment = True
+                break
+            if ch == "/" and nxt == "*":
+                parser.in_block_comment += 1
+                i += 2
+                continue
+
+            # detect raw string start
+            if ch == "r":
+                j = i + 1
+                hash_count = 0
+                while j < line_len and line[j] == "#":
+                    hash_count += 1
+                    j += 1
+                if j < line_len and line[j] == '"':
+                    parser.in_string = True
+                    parser.raw_string_hashes = hash_count
+                    i = j + 1
+                    continue
+
+            if ch == '"':
+                parser.in_string = True
+                parser.raw_string_hashes = None
+                i += 1
+                continue
+
+            if ch == "'":
+                parser.in_char = True
+                i += 1
+                continue
+
+            # check if this visible character is one of our tokens
             if ch in tokens:
                 return (index, i, ch)
+
             i += 1
+
         index += 1
         looked += 1
+
     return None
 
 
@@ -342,15 +567,129 @@ def _is_internal_import_path(path: str) -> bool:
     return path.startswith("crate::") or path.startswith("self::") or path.startswith("super::")
 
 
+def _extract_top_level_lines(source: str) -> list[str]:
+    """
+    Extract only top-level lines from source, skipping content inside blocks.
+    This is used for parsing imports and module declarations.
+    """
+    lines = source.splitlines()
+    result: list[str] = []
+    parser = RustTokenParser()
+    depth = 0
+
+    for line in lines:
+        parser.reset_line()
+        i = 0
+        line_len = len(line)
+
+        # process the line to track brace depth
+        while i < line_len:
+            ch = line[i]
+            nxt = line[i + 1] if i + 1 < line_len else ""
+            prev = line[i - 1] if i > 0 else None
+
+            if parser.in_line_comment:
+                break
+
+            if parser.in_block_comment > 0:
+                if ch == "/" and prev == "*":
+                    parser.in_block_comment -= 1
+                elif ch == "/" and nxt == "*":
+                    parser.in_block_comment += 1
+                    i += 1
+                i += 1
+                continue
+
+            if parser.in_string:
+                if parser.raw_string_hashes is None:
+                    if ch == "\\":
+                        i += 2
+                        continue
+                    if ch == '"':
+                        parser.in_string = False
+                else:
+                    if ch == '"':
+                        j = i + 1
+                        count = 0
+                        while j < line_len and line[j] == "#":
+                            count += 1
+                            j += 1
+                        if count == parser.raw_string_hashes:
+                            parser.in_string = False
+                            parser.raw_string_hashes = None
+                            i = j - 1
+                i += 1
+                continue
+
+            if parser.in_char:
+                if ch == "\\":
+                    i += 2
+                    continue
+                if ch == "'":
+                    parser.in_char = False
+                i += 1
+                continue
+
+            # check for comment/string starts
+            if ch == "/" and nxt == "/":
+                parser.in_line_comment = True
+                break
+            if ch == "/" and nxt == "*":
+                parser.in_block_comment += 1
+                i += 2
+                continue
+
+            # detect raw string start
+            if ch == "r":
+                j = i + 1
+                hash_count = 0
+                while j < line_len and line[j] == "#":
+                    hash_count += 1
+                    j += 1
+                if j < line_len and line[j] == '"':
+                    parser.in_string = True
+                    parser.raw_string_hashes = hash_count
+                    i = j + 1
+                    continue
+
+            if ch == '"':
+                parser.in_string = True
+                parser.raw_string_hashes = None
+                i += 1
+                continue
+
+            if ch == "'":
+                parser.in_char = True
+                i += 1
+                continue
+
+            # track brace depth
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+
+            i += 1
+
+        # only include lines that are at depth 0 (top-level)
+        if depth == 0:
+            result.append(line)
+
+    return result
+
+
 def _parse_rust_imports(source: str) -> list[RustImport]:
-    """Parse Rust `use` imports."""
+    """Parse Rust `use` imports from top-level lines only."""
     imports: list[RustImport] = []
-    for raw_line in source.splitlines():
+    top_level_lines = _extract_top_level_lines(source)
+
+    for raw_line in top_level_lines:
         stripped = raw_line.strip()
         if not (stripped.startswith("use ") or stripped.startswith("pub use ")):
             continue
         # remove trailing ';'
-        assert stripped.endswith(";"), "expected ';' at end of use statement"
+        if not stripped.endswith(";"):
+            continue  # skip malformed or incomplete lines
         is_public = False
         if stripped.startswith("pub use "):
             is_public = True
@@ -365,7 +704,7 @@ def _parse_rust_imports(source: str) -> list[RustImport]:
             imports_list = [n.strip() for n in names.split(",") if n.strip()]
             imports.append(
                 RustImport(
-                    path=path,
+                    rust_path=path,
                     imports=imports_list,
                     is_internal=_is_internal_import_path(path),
                     is_public=is_public,
@@ -375,7 +714,7 @@ def _parse_rust_imports(source: str) -> list[RustImport]:
         else:
             imports.append(
                 RustImport(
-                    path=use_body,
+                    rust_path=use_body,
                     imports=[] if not is_glob else ["*"],
                     is_internal=_is_internal_import_path(use_body),
                     is_public=is_public,
@@ -386,13 +725,21 @@ def _parse_rust_imports(source: str) -> list[RustImport]:
 
 
 def _parse_rust_mods(source: str) -> list[RustMod]:
-    """Parse simple module declarations like `mod foo;` or `pub mod foo;`."""
+    """
+    Parse simple module declarations like `mod foo;` or `pub mod foo;`.
+    Ignore inline/nested module definitions like `mod test { ... }`.
+    Only parses top-level declarations.
+    """
     mods: list[RustMod] = []
-    for raw_line in source.splitlines():
+    top_level_lines = _extract_top_level_lines(source)
+
+    for raw_line in top_level_lines:
         stripped = raw_line.strip()
         if not (stripped.startswith("mod ") or stripped.startswith("pub mod ")):
             continue
-        assert stripped.endswith(";"), "expected ';' at end of mod statement"
+        # skip nested modules (those without semicolon)
+        if not stripped.endswith(";"):
+            continue
         is_public = stripped.startswith("pub mod ")
         name = (
             stripped[len("pub mod ") : -1].strip()
@@ -413,6 +760,12 @@ def _parse_rust_items(source: str) -> list[RustItem]:
     For block items, children are parsed recursively from within the block body.
     Any non-empty, non-annotated code is captured as `RustCustomItem` in order
     to preserve handwritten code across regenerations.
+
+    The parsing strategy:
+    1. Skip blank lines and module-level docs/attributes
+    2. Parse destack attributes (#[destack::...]) and their associated content
+    3. Capture any non-annotated code as custom items to preserve handwritten code
+    4. For block items, recursively parse children from the block body
     """
     lines = source.splitlines()
     items: list[RustItem] = []
@@ -423,7 +776,8 @@ def _parse_rust_items(source: str) -> list[RustItem]:
             i += 1
             continue
 
-        # skip module-level doc comments and attributes; these are captured at file level
+        # skip module-level doc comments and attributes (//! and #![...])
+        # these are captured at the file level, not as individual items
         head = lines[i].lstrip()
         if head.startswith("//!") or head.startswith("#!["):
             i += 1
@@ -431,6 +785,7 @@ def _parse_rust_items(source: str) -> list[RustItem]:
 
         # treat single-line comments as standalone custom items to avoid
         # accidentally swallowing following managed items
+        # this ensures comments stay with the code they document
         if head.startswith("//") and not head.startswith("//!"):
             items.append(RustCustomItem(children=[], content=_dedent_block([lines[i]])))
             i += 1
@@ -447,7 +802,7 @@ def _parse_rust_items(source: str) -> list[RustItem]:
                 item = RustManagedItem(
                     object_key=object_key,
                     inner_key=inner_key,
-                    kind=mode,
+                    type=mode,
                     scope=scope,
                     children=[],
                     content=content,
@@ -468,7 +823,7 @@ def _parse_rust_items(source: str) -> list[RustItem]:
             item = RustManagedItem(
                 object_key=object_key,
                 inner_key=inner_key,
-                kind=mode,
+                type=mode,
                 scope=scope,
                 children=inner_children,
                 content=content,
@@ -477,7 +832,8 @@ def _parse_rust_items(source: str) -> list[RustItem]:
             i = end + 1
             continue
 
-        # collect leading non-destack attributes for custom items
+        # collect leading non-destack attributes (e.g., #[derive(...)], #[inline])
+        # these belong to the following custom item
         collected_custom: list[str] = []
         j = i
         while j < len(lines):
@@ -501,18 +857,95 @@ def _parse_rust_items(source: str) -> list[RustItem]:
             i = code_index
             continue
 
-        # decide whether this is a block or a line
+        # check if this is a module declaration (mod name { ... } or pub mod name { ... })
         header_line = lines[code_index]
+        header_stripped = header_line.strip()
+        is_module = False
+        mod_name = ""
+        mod_is_public = False
+
+        # check for module declaration patterns
+        if header_stripped.startswith("mod ") and not header_stripped.endswith(";"):
+            # could be "mod name {" or "mod name"
+            mod_parts = header_stripped[4:].split(None, 1)  # split on whitespace
+            if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
+                mod_name = mod_parts[0].rstrip("{").strip()
+                is_module = True
+                mod_is_public = False
+        elif header_stripped.startswith("pub mod ") and not header_stripped.endswith(";"):
+            mod_parts = header_stripped[8:].split(None, 1)
+            if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
+                mod_name = mod_parts[0].rstrip("{").strip()
+                is_module = True
+                mod_is_public = True
+        # also check for attributed modules like #[cfg(test)] mod tests { ... }
+        elif collected_custom:
+            # check if the last attribute is something like #[cfg(test)]
+            # and the current line is a module declaration
+            if header_stripped.startswith("mod ") and not header_stripped.endswith(";"):
+                mod_parts = header_stripped[4:].split(None, 1)
+                if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
+                    mod_name = mod_parts[0].rstrip("{").strip()
+                    is_module = True
+                    mod_is_public = False
+            elif header_stripped.startswith("pub mod ") and not header_stripped.endswith(";"):
+                mod_parts = header_stripped[8:].split(None, 1)
+                if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
+                    mod_name = mod_parts[0].rstrip("{").strip()
+                    is_module = True
+                    mod_is_public = True
+
+        # determine if this custom item is a block (with {}) or a single line (with ;)
+        # by finding the first '{' or ';' outside of strings/comments
         token = _find_first_token_outside_literals(lines, code_index, {"{", ";"})
-        if token is not None and token[2] == "{":
+        if token is not None and token[2] == "{":  # block item
             header_start = token[0]
             end, block_lines = _parse_block(lines, header_start)
-            combined = collected_custom + block_lines if collected_custom else block_lines
+            # handle edge case: if we collected across multiple logical blocks
+            # (e.g., an impl block followed by a free function), we need to truncate
+            # at the correct closing brace to avoid capturing too much
+            rel_close = _relative_block_close_index(block_lines)
+
+            # heuristic: if another destack attribute appears before the calculated
+            # closing brace, use the last standalone '}' before that attribute instead
+            # this handles cases where the robust parser might overshoot
+            next_attr_idx = None
+            scan_idx = header_start + 1
+            while scan_idx < len(lines):
+                if lines[scan_idx].lstrip().startswith("#[destack::"):
+                    next_attr_idx = scan_idx
+                    break
+                scan_idx += 1
+            if next_attr_idx is not None:
+                last_brace_idx: int | None = None
+                for k in range(header_start, next_attr_idx):
+                    if lines[k].strip() == "}":
+                        last_brace_idx = k
+                if last_brace_idx is not None and last_brace_idx >= header_start:
+                    rel_close = last_brace_idx - header_start
+            truncated = block_lines[: rel_close + 1]
+            combined = collected_custom + truncated if collected_custom else truncated
             content = _dedent_block(combined)
-            body_only = block_lines[1:-1] if len(block_lines) >= 2 else []
+            body_only = truncated[1:-1] if len(truncated) >= 2 else []
             inner_children = _parse_rust_items("\n".join(body_only)) if body_only else []
-            items.append(RustCustomItem(children=inner_children, content=content))
-            i = end + 1
+
+            # if this is a module declaration, create a RustMod item
+            if is_module and mod_name:
+                # for nested modules, the entire content including attributes goes in content
+                full_content = _dedent_block(combined)
+                items.append(
+                    RustMod(
+                        children=inner_children,
+                        content=full_content,
+                        name=mod_name,
+                        is_public=mod_is_public,
+                    )
+                )
+            else:
+                items.append(RustCustomItem(children=inner_children, content=content))
+
+            new_end_index = header_start + rel_close
+            i = new_end_index + 1
         else:
             # capture up to the line containing the terminal ';' token (if it is on a later line)
             if token is not None and token[2] == ";":
@@ -527,16 +960,31 @@ def _parse_rust_items(source: str) -> list[RustItem]:
     return items
 
 
-def parse_rust_file(source: str, path: str = "") -> RustFile:
+def parse_rust_file(
+    *,
+    source: str,
+    raw_path: str,
+    normalized_path: str,
+) -> RustFile:
     """
     Parse a Rust file into a `RustFile` with annotated and custom items.
+    The type is determined based on the crate attributes.
+    (If there is no crate attribute, it is assumed to be a fully custom file.)
 
     Also includes module-level `//!` comments and `#![...]` attributes, plus
     top-level `use` imports and `mod` declarations as items for roundtrip purposes.
+
+    The file structure preserved:
+    - Module-level documentation (//! comments)
+    - Module-level attributes (#![...])
+    - Import statements (use ...)
+    - Module declarations (mod ...)
+    - All destack-annotated items with their nested structure
+    - All custom (handwritten) code blocks
     """
     items: list[RustItem] = []
-    module_comment_lines: list[str] = []
-    module_attrs: list[str] = []
+    comment_lines: list[str] = []
+    attributes: list[str] = []
 
     # collect leading module-level comments and attributes in order
     idx = 0
@@ -545,11 +993,11 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
         line = lines[idx]
         stripped = line.strip()
         if stripped.startswith("//!"):
-            module_comment_lines.append(line)
+            comment_lines.append(line)
             idx += 1
             continue
         if stripped.startswith("#!["):
-            module_attrs.append(stripped)
+            attributes.append(stripped)
             idx += 1
             continue
         if not stripped:
@@ -558,12 +1006,16 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
         break
 
     # group contiguous top-level use/mod lines together to preserve exact blocks
+    # this maintains the original formatting and grouping of imports/mods
+    # only handle simple declarations (those ending with ;) not nested modules
+    # only look at top-level lines to avoid picking up imports from inside modules
+    top_level_lines = _extract_top_level_lines(source)
     grouped_blocks: list[str] = []
     current_block: list[str] = []
-    for raw_line in source.splitlines():
+    for raw_line in top_level_lines:
         s = raw_line.strip()
         if not s:
-            # flush any current block on blank line
+            # blank line ends the current import/mod block
             if current_block:
                 grouped_blocks.append("\n".join(current_block))
                 current_block = []
@@ -571,8 +1023,8 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
         if (
             s.startswith("use ")
             or s.startswith("pub use ")
-            or s.startswith("mod ")
-            or s.startswith("pub mod ")
+            or (s.startswith("mod ") and s.endswith(";"))
+            or (s.startswith("pub mod ") and s.endswith(";"))
         ):
             current_block.append(s)
         else:
@@ -586,15 +1038,16 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
 
     # filter out top-level use/mod lines from structured items to avoid duplication
     # (special imports already handled above)
-    items_structured = _parse_rust_items(source)
-    for it in items_structured:
+    # only filter simple mod declarations (ending with ;), not nested modules
+    inner_items = _parse_rust_items(source)
+    for it in inner_items:
         if isinstance(it, RustCustomItem):
             head = it.content.strip()
             if (
                 head.startswith("use ")
                 or head.startswith("pub use ")
-                or head.startswith("mod ")
-                or head.startswith("pub mod ")
+                or (head.startswith("mod ") and head.endswith(";"))
+                or (head.startswith("pub mod ") and head.endswith(";"))
             ):
                 continue
         items.append(it)
@@ -602,11 +1055,20 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
     imports = _parse_rust_imports(source)
     mods = _parse_rust_mods(source)
 
+    # derive type from attributes
+    type = RustGenerationType.CUSTOM
+    if any(a.startswith("#![destack::generated") for a in attributes):
+        type = RustGenerationType.GENERATED
+    elif any(a.startswith("#![destack::partial") for a in attributes):
+        type = RustGenerationType.PARTIAL
+
     return RustFile(
-        path=path,
+        type=type,
+        raw_path=raw_path,
+        normalized_path=normalized_path,
         items=items,
-        module_comment="\n".join(module_comment_lines).strip(),
-        module_attributes=[RustAttribute(content=a) for a in module_attrs],
+        comment="\n".join(comment_lines).strip(),
+        attributes=[RustAttribute(content=a) for a in attributes],
         imports=imports,
         mods=mods,
     )

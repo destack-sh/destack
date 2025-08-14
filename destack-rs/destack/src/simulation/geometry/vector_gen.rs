@@ -1,3 +1,5 @@
+#![destack::generated(vector, file)]
+
 use core::fmt;
 
 use crate::Vector2;
