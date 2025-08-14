@@ -38,10 +38,10 @@ def _dedent_block(lines: Sequence[str]) -> str:
 def _parse_attr(line: str) -> tuple[RustItemKind, str, str, RustItemScope] | None:
     """
     Parse a destack attribute line like:
-    #[destack::synthetic(Vector2, struct, block)]
+    #[destack::generated(Vector2, struct, block)]
     #[destack::partial(Vector2, impl, block)]
-    #[destack::synthetic(Vector2, ZERO, line)]
-    #[destack::stub(Vector2, x, function_stub)]
+    #[destack::generated(Vector2, ZERO, line)]
+    #[destack::stub(Vector2, x, block)]
     """
     stripped = line.strip()
     if not stripped.startswith("#[destack::"):
@@ -65,7 +65,7 @@ def _parse_attr(line: str) -> tuple[RustItemKind, str, str, RustItemScope] | Non
         elif scope_raw == "line":
             scope = RustItemScope.LINE
         else:
-            # treat any other well-formed token (e.g., function_stub) as block content
+            # treat any other well-formed token (e.g., block) as block content
             scope = RustItemScope.BLOCK
         return (mode, object_key, inner_key, scope)
     except Exception:
@@ -343,7 +343,7 @@ def _is_internal_import_path(path: str) -> bool:
 
 
 def _parse_rust_imports(source: str) -> list[RustImport]:
-    """Parse simple Rust `use` imports at the top level."""
+    """Parse Rust `use` imports."""
     imports: list[RustImport] = []
     for raw_line in source.splitlines():
         stripped = raw_line.strip()
@@ -405,7 +405,7 @@ def _parse_rust_mods(source: str) -> list[RustMod]:
     return mods
 
 
-def parse_rust_items(source: str) -> list[RustItem]:
+def _parse_rust_items(source: str) -> list[RustItem]:
     """
     Parse destack-annotated and custom items from a Rust source string.
 
@@ -464,7 +464,7 @@ def parse_rust_items(source: str) -> list[RustItem]:
             content = _dedent_block((attrs_prefix + collected) if attrs_prefix else collected)
             # children: parse recursively inside the block body (exclude header and closing brace)
             body_lines = collected[1:-1] if len(collected) >= 2 else []
-            inner_children = parse_rust_items("\n".join(body_lines)) if body_lines else []
+            inner_children = _parse_rust_items("\n".join(body_lines)) if body_lines else []
             item = RustManagedItem(
                 object_key=object_key,
                 inner_key=inner_key,
@@ -510,7 +510,7 @@ def parse_rust_items(source: str) -> list[RustItem]:
             combined = collected_custom + block_lines if collected_custom else block_lines
             content = _dedent_block(combined)
             body_only = block_lines[1:-1] if len(block_lines) >= 2 else []
-            inner_children = parse_rust_items("\n".join(body_only)) if body_only else []
+            inner_children = _parse_rust_items("\n".join(body_only)) if body_only else []
             items.append(RustCustomItem(children=inner_children, content=content))
             i = end + 1
         else:
@@ -537,6 +537,7 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
     items: list[RustItem] = []
     module_comment_lines: list[str] = []
     module_attrs: list[str] = []
+
     # collect leading module-level comments and attributes in order
     idx = 0
     lines = source.splitlines()
@@ -555,6 +556,7 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
             idx += 1
             continue
         break
+
     # group contiguous top-level use/mod lines together to preserve exact blocks
     grouped_blocks: list[str] = []
     current_block: list[str] = []
@@ -582,8 +584,9 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
     for block in grouped_blocks:
         items.append(RustCustomItem(children=[], content=block))
 
-    items_structured = parse_rust_items(source)
     # filter out top-level use/mod lines from structured items to avoid duplication
+    # (special imports already handled above)
+    items_structured = _parse_rust_items(source)
     for it in items_structured:
         if isinstance(it, RustCustomItem):
             head = it.content.strip()
@@ -598,6 +601,7 @@ def parse_rust_file(source: str, path: str = "") -> RustFile:
 
     imports = _parse_rust_imports(source)
     mods = _parse_rust_mods(source)
+
     return RustFile(
         path=path,
         items=items,

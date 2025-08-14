@@ -5,9 +5,8 @@ from enum import StrEnum
 
 class RustItemKind(StrEnum):
     CUSTOM = "custom"
-    SYNTHETIC = "synthetic"
+    GENERATED = "generated"
     PARTIAL = "partial"
-    STUB = "stub"
 
 
 class RustItemScope(StrEnum):

@@ -7,9 +7,9 @@ from destack.core.generation._rust.parse import (
     RustItemKind,
     RustItemScope,
     _parse_rust_imports,
+    _parse_rust_items,
     _parse_rust_mods,
     parse_rust_file,
-    parse_rust_items,
 )
 
 FILE_1: str = """\
@@ -23,28 +23,28 @@ FILE_1: str = """\
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[destack::synthetic(Vector2, struct, block)]
+#[destack::generated(Vector2, struct, block)]
 #[derive(Debug, Clone, Copy)]
 pub struct Vector2 {
     pub x: f32,
     pub y: f32,
 }
 
-#[destack::synthetic(Vector2, PartialEq, block)]
+#[destack::generated(Vector2, PartialEq, block)]
 impl PartialEq for Vector2 {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
 
-#[destack::synthetic(Vector2, Default, block)]
+#[destack::generated(Vector2, Default, block)]
 impl Default for Vector2 {
     fn default() -> Self {
         Self::ZERO
     }
 }
 
-#[destack::synthetic(Vector2, Display, block)]
+#[destack::generated(Vector2, Display, block)]
 impl fmt::Display for Vector2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
@@ -55,21 +55,21 @@ impl fmt::Display for Vector2 {
 impl Vector2 {
     pub(crate) const INTERNAL_CONST: Vector2 = Vector2 { x: 111.0, y: 222.0 };
 
-    #[destack::synthetic(Vector2, ZERO, line)]
+    #[destack::generated(Vector2, ZERO, line)]
     pub const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
 
-    #[destack::synthetic(Vector2, ONE, line)]
+    #[destack::generated(Vector2, ONE, line)]
     pub const ONE: Vector2 = Vector2 { x: 1.0, y: 1.0 };
 
     pub(crate) const INTERNAL_CONST_2: Vector2 = Vector2 { x: 111.0, y: 222.0 };
     
-    #[destack::synthetic(Vector2, X_AXIS, line)]
+    #[destack::generated(Vector2, X_AXIS, line)]
     pub const X_AXIS: Vector2 = Vector2 { x: 1.0, y: 0.0 };
 
-    #[destack::synthetic(Vector2, Y_AXIS, line)]
+    #[destack::generated(Vector2, Y_AXIS, line)]
     pub const Y_AXIS: Vector2 = Vector2 { x: 0.0, y: 1.0 };
 
-    #[destack::stub(Vector2, x, function_stub)]
+    #[destack::partial(Vector2, x, block)]
     #[inline]
     /// Return the x component.
     pub const fn x(&self) -> f32 {
@@ -106,7 +106,7 @@ FILE_2: str = """\
 
 // example showing braces inside strings and comments should be ignored
 
-#[destack::synthetic(Demo, struct, block)]
+#[destack::generated(Demo, struct, block)]
 pub struct Demo {
     pub field: &'static str,
 }
@@ -116,6 +116,14 @@ impl Demo {
     /* block comment with nested { /* inner { } */ still comment } */
     pub const TEXT: &str = "braces in string { not a block } and escaped quote \" ok";
     pub const RAW: &str = r#"raw { string } with #"#;
+}
+
+#[destack::partial(vector, vector2, block)]
+fn vector2(x: f32, y: f32) -> Vector2 {
+    Vector2 {
+        x: x,
+        y: y
+    }
 }
 """
 
@@ -159,10 +167,10 @@ def _assert_has_top_level_items(items: Sequence) -> None:
     # 6 top-level managed items: struct, PartialEq, Default, Display, impl Vector2 (partial), Add (partial)
     assert len(managed) == 6
     assert managed[0].object_key == "Vector2" and managed[0].inner_key == "struct"
-    assert managed[0].kind == RustItemKind.SYNTHETIC and managed[0].scope == RustItemScope.BLOCK
-    assert managed[1].inner_key == "PartialEq" and managed[1].kind == RustItemKind.SYNTHETIC
-    assert managed[2].inner_key == "Default" and managed[2].kind == RustItemKind.SYNTHETIC
-    assert managed[3].inner_key == "Display" and managed[3].kind == RustItemKind.SYNTHETIC
+    assert managed[0].kind == RustItemKind.GENERATED and managed[0].scope == RustItemScope.BLOCK
+    assert managed[1].inner_key == "PartialEq" and managed[1].kind == RustItemKind.GENERATED
+    assert managed[2].inner_key == "Default" and managed[2].kind == RustItemKind.GENERATED
+    assert managed[3].inner_key == "Display" and managed[3].kind == RustItemKind.GENERATED
     assert managed[4].inner_key == "impl" and managed[4].kind == RustItemKind.PARTIAL
     assert managed[5].inner_key == "Add:Vector2" and managed[5].kind == RustItemKind.PARTIAL
 
@@ -214,7 +222,7 @@ pub use core::*;
 
 def test_parse_top_level_block_items() -> None:
     """Parse top-level block-scoped annotated items (struct and impls)."""
-    items = parse_rust_items(FILE_1)
+    items = _parse_rust_items(FILE_1)
     _assert_has_top_level_items(items)
     # verify content headers are present
     managed = [i for i in items if isinstance(i, RustManagedItem)]
@@ -233,26 +241,28 @@ def test_parse_top_level_block_items() -> None:
 
 def test_parse_children_in_partial_impl_block() -> None:
     """Parse nested line and block items inside a partial impl block."""
-    items = parse_rust_items(FILE_1)
+    items = _parse_rust_items(FILE_1)
     managed = [i for i in items if isinstance(i, RustManagedItem)]
     partial_impl = managed[4]
     assert partial_impl.inner_key == "impl" and partial_impl.scope == RustItemScope.BLOCK
     children = partial_impl.children
-    # expect: 2 custom consts, 4 synthetic line consts, 1 stub block, 1 custom function block
+    # expect: 2 custom consts, 4 generated line consts, 1 stub block, 1 custom function block
     assert len(children) == 8
     # check the 4 generated line constants are present
-    synthetic_lines = [
+    generated_lines = [
         c
         for c in children
         if isinstance(c, RustManagedItem)
-        and c.kind == RustItemKind.SYNTHETIC
+        and c.kind == RustItemKind.GENERATED
         and c.scope == RustItemScope.LINE
     ]
-    assert {c.inner_key for c in synthetic_lines} == {"ZERO", "ONE", "X_AXIS", "Y_AXIS"}
-    for c in synthetic_lines:
+    assert {c.inner_key for c in generated_lines} == {"ZERO", "ONE", "X_AXIS", "Y_AXIS"}
+    for c in generated_lines:
         assert c.content.endswith(";") and c.inner_key in c.content
     # stubbed function is a block
-    stubs = [c for c in children if isinstance(c, RustManagedItem) and c.kind == RustItemKind.STUB]
+    stubs = [
+        c for c in children if isinstance(c, RustManagedItem) and c.kind == RustItemKind.PARTIAL
+    ]
     assert len(stubs) == 1
     stub = stubs[0]
     assert stub.scope == RustItemScope.BLOCK and stub.inner_key == "x"
@@ -304,19 +314,36 @@ def test_parse_full_file_wrapper() -> None:
 
 def test_parse_full_source_string_end_to_end() -> None:
     """End-to-end: keep the full input and ensure we parse the expected count and order."""
-    items = parse_rust_items(FILE_1)
+    items = _parse_rust_items(FILE_1)
     _assert_has_top_level_items(items)
 
 
 def test_collect_block_ignores_strings_and_comments() -> None:
     """Ensure braces inside strings/comments do not break block collection."""
-    items = parse_rust_items(FILE_2)
+    items = _parse_rust_items(FILE_2)
     managed = [i for i in items if isinstance(i, RustManagedItem)]
     assert len(managed) == 1
     assert managed[0].inner_key == "struct"
     customs = [i for i in items if isinstance(i, RustCustomItem)]
     # the impl block should be a single custom block
     assert any(c.content.startswith("impl Demo ") for c in customs)
+
+
+def test_parse_free_block() -> None:
+    """Parse a free function stub annotated at top level."""
+    items = _parse_rust_items(FILE_2)
+    stubs = [
+        i
+        for i in items
+        if isinstance(i, RustManagedItem)
+        and i.kind == RustItemKind.PARTIAL
+        and i.inner_key == "vector2"
+    ]
+    assert len(stubs) == 1
+    stub = stubs[0]
+    assert stub.scope == RustItemScope.BLOCK
+    assert "fn vector2(" in stub.content
+    assert stub.content.strip().endswith("}")
 
 
 def test_parse_mods() -> None:
@@ -326,7 +353,7 @@ def test_parse_mods() -> None:
 pub use core::*;
 mod inner;
 
-#[destack::synthetic(Thing, struct, block)]
+#[destack::generated(Thing, struct, block)]
 pub struct Thing {
     pub a: i32,
 }
