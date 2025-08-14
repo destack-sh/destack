@@ -1,5 +1,5 @@
 [project]
-name = "destack-language"
+name = "destack"
 version = "2025.08.01.22"
 description = "Destack Language Definition (Internal)"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]

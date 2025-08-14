@@ -1,4 +1,3 @@
-import contextlib
 import inspect
 import readline
 import sys
@@ -361,10 +360,6 @@ class REPL:
                 # map to simple prev/next history only (no custom arrow bindings)
                 readline.parse_and_bind("bind ^P ed-prev-history")
                 readline.parse_and_bind("bind ^N ed-next-history")
-                # unbind any stray single-letter bindings that could have been set
-                for key in ("e", "E"):
-                    with contextlib.suppress(Exception):
-                        readline.parse_and_bind(f"bind {key} self-insert")
             else:
                 # standard GNU readline: basic history navigation on arrows
                 readline.parse_and_bind(r"\e[A: previous-history")
