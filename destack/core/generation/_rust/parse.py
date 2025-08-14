@@ -1,41 +1,6 @@
-from __future__ import annotations
-
 from collections.abc import Sequence
-from dataclasses import dataclass
-from enum import StrEnum
 
-
-class RustItemMode(StrEnum):
-    GENERATED = "generated"
-    PARTIAL = "partial"
-    STUB = "stub"
-
-
-class RustItemScope(StrEnum):
-    BLOCK = "block"
-    LINE = "line"
-
-
-@dataclass(slots=True)
-class RustItem:
-    object_key: str  # like 'Vector2'
-    inner_key: str  # like 'struct', 'PartialEq'
-    mode: RustItemMode
-    scope: RustItemScope
-    children: list[RustItem]
-    content: str  # the entire inner content without leading indentation
-
-
-@dataclass(slots=True)
-class RustImport:
-    path: str  # like 'core::fmt'
-    imports: list[str]  # like '["Add", "AddAssign", ...]'
-
-
-@dataclass(slots=True)
-class RustFile:
-    path: str
-    items: list[RustItem]
+from .core import RustFile, RustImport, RustItem, RustItemMode, RustItemScope
 
 
 def _dedent_block(lines: Sequence[str]) -> str:
@@ -63,9 +28,9 @@ def _dedent_block(lines: Sequence[str]) -> str:
 def _parse_attr(line: str) -> tuple[RustItemMode, str, str, RustItemScope] | None:
     """
     Parse a destack attribute line like:
-    #[destack::generated(Vector2, struct, block)]
+    #[destack::owned(Vector2, struct, block)]
     #[destack::partial(Vector2, impl, block)]
-    #[destack::generated(Vector2, ZERO, line)]
+    #[destack::owned(Vector2, ZERO, line)]
     #[destack::stub(Vector2, x, function_stub)]
     """
     stripped = line.strip()

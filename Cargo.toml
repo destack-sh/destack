@@ -26,8 +26,6 @@ destack_uuid = { path = "destack-rs/destack_uuid" }
 destack_system = { path = "destack-rs-system/destack_system" }
 
 # dependencies
-bytes = "1.10.1"
-regex = "1.11.1"
 tokio = "1.47.1"
 
 # build dependencies

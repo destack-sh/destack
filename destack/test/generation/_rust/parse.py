@@ -14,28 +14,28 @@ FILE_CONTENT: str = """\
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[destack::generated(Vector2, struct, block)]
+#[destack::owned(Vector2, struct, block)]
 #[derive(Debug, Clone, Copy)]
 pub struct Vector2 {
     pub x: f32,
     pub y: f32,
 }
 
-#[destack::generated(Vector2, PartialEq, block)]
+#[destack::owned(Vector2, PartialEq, block)]
 impl PartialEq for Vector2 {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
 
-#[destack::generated(Vector2, Default, block)]
+#[destack::owned(Vector2, Default, block)]
 impl Default for Vector2 {
     fn default() -> Self {
         Self::ZERO
     }
 }
 
-#[destack::generated(Vector2, Display, block)]
+#[destack::owned(Vector2, Display, block)]
 impl fmt::Display for Vector2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
@@ -44,16 +44,16 @@ impl fmt::Display for Vector2 {
 
 #[destack::partial(Vector2, impl, block)]
 impl Vector2 {
-    #[destack::generated(Vector2, ZERO, line)]
+    #[destack::owned(Vector2, ZERO, line)]
     pub const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
 
-    #[destack::generated(Vector2, ONE, line)]
+    #[destack::owned(Vector2, ONE, line)]
     pub const ONE: Vector2 = Vector2 { x: 1.0, y: 1.0 };
 
-    #[destack::generated(Vector2, X_AXIS, line)]
+    #[destack::owned(Vector2, X_AXIS, line)]
     pub const X_AXIS: Vector2 = Vector2 { x: 1.0, y: 0.0 };
 
-    #[destack::generated(Vector2, Y_AXIS, line)]
+    #[destack::owned(Vector2, Y_AXIS, line)]
     pub const Y_AXIS: Vector2 = Vector2 { x: 0.0, y: 1.0 };
 
     #[destack::stub(Vector2, x, function_stub)]
@@ -64,7 +64,7 @@ impl Vector2 {
     }
 }
 
-#[destack::partial(Vector2, Add, block)]
+#[destack::partial(Vector2, Add:Vector2, block)]
 // Arithmetic ops with another Vector2
 impl Add for Vector2 {
     type Output = Vector2;
@@ -83,12 +83,12 @@ def _assert_has_top_level_items(items: Sequence) -> None:
     # 6 top-level items: struct, PartialEq, Default, Display, impl Vector2 (partial), Add (partial)
     assert len(items) == 6
     assert items[0].object_key == "Vector2" and items[0].inner_key == "struct"
-    assert items[0].mode == RustItemMode.GENERATED and items[0].scope == RustItemScope.BLOCK
-    assert items[1].inner_key == "PartialEq" and items[1].mode == RustItemMode.GENERATED
-    assert items[2].inner_key == "Default" and items[2].mode == RustItemMode.GENERATED
-    assert items[3].inner_key == "Display" and items[3].mode == RustItemMode.GENERATED
+    assert items[0].mode == RustItemMode.OWNED and items[0].scope == RustItemScope.BLOCK
+    assert items[1].inner_key == "PartialEq" and items[1].mode == RustItemMode.OWNED
+    assert items[2].inner_key == "Default" and items[2].mode == RustItemMode.OWNED
+    assert items[3].inner_key == "Display" and items[3].mode == RustItemMode.OWNED
     assert items[4].inner_key == "impl" and items[4].mode == RustItemMode.PARTIAL
-    assert items[5].inner_key == "Add" and items[5].mode == RustItemMode.PARTIAL
+    assert items[5].inner_key == "Add:Vector2" and items[5].mode == RustItemMode.PARTIAL
 
 
 def test_parse_rust_imports() -> None:
@@ -131,7 +131,7 @@ def test_parse_children_in_partial_impl_block() -> None:
     # 4 generated line constants
     for idx, const_name in enumerate(["ZERO", "ONE", "X_AXIS", "Y_AXIS"]):
         child = children[idx]
-        assert child.mode == RustItemMode.GENERATED
+        assert child.mode == RustItemMode.OWNED
         assert child.scope == RustItemScope.LINE
         assert child.inner_key == const_name
         assert const_name in child.content

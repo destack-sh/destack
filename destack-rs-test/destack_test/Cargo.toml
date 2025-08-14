@@ -11,13 +11,8 @@ rust-version.workspace = true
 destack = { workspace = true }
 destack_system = { workspace = true }
 
-bytes = { workspace = true }
-regex = { workspace = true }
-
 pretty_assertions = { workspace = true }
 static_assertions = { workspace = true }
 
 [lints]
 workspace = true
-
-

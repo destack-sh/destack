@@ -48,12 +48,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
-name = "bytes"
-version = "1.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
-
-[[package]]
 name = "cfg-if"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -63,7 +57,6 @@ checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
 name = "destack"
 version = "2025.8.13-0"
 dependencies = [
- "bytes",
  "destack_fractional",
  "destack_json",
  "destack_time",
@@ -71,8 +64,8 @@ dependencies = [
  "pretty_assertions",
  "quickcheck",
  "quickcheck_macros",
- "regex",
  "static_assertions",
+ "tokio",
 ]
 
 [[package]]
@@ -91,7 +84,6 @@ dependencies = [
 name = "destack_system"
 version = "2025.8.13-0"
 dependencies = [
- "bytes",
  "destack",
  "io-uring",
  "pretty_assertions",
@@ -103,11 +95,9 @@ dependencies = [
 name = "destack_test"
 version = "2025.8.13-0"
 dependencies = [
- "bytes",
  "destack",
  "destack_system",
  "pretty_assertions",
- "regex",
  "static_assertions",
 ]
 

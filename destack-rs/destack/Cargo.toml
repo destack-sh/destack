@@ -17,8 +17,7 @@ destack_time = { workspace = true }
 destack_uuid = { workspace = true }
 destack_json = { workspace = true }
 
-bytes = { workspace = true }
-regex = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
