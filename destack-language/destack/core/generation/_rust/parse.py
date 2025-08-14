@@ -1,3 +1,4 @@
+import textwrap
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -748,16 +749,24 @@ def _parse_rust_mods(source: str) -> list[RustMod]:
         )
         if not name:
             continue
-        mods.append(RustMod(children=[], content=stripped[:-1], name=name, is_public=is_public))
+        outer_content = stripped[:-1]
+        mod = RustMod(
+            children=[],
+            outer_content=outer_content,
+            inner_content=outer_content,
+            name=name,
+            is_public=is_public,
+        )
+        mods.append(mod)
     return mods
 
 
-def _parse_rust_items(source: str) -> list[RustItem]:
+def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
     """
     Parse destack-annotated and custom items from a Rust source string.
 
     Supports generated, partial and stub items, with line or block scopes.
-    For block items, children are parsed recursively from within the block body.
+    For block items, children are parsed down one level from within the block body.
     Any non-empty, non-annotated code is captured as `RustCustomItem` in order
     to preserve handwritten code across regenerations.
 
@@ -787,10 +796,15 @@ def _parse_rust_items(source: str) -> list[RustItem]:
         # accidentally swallowing following managed items
         # this ensures comments stay with the code they document
         if head.startswith("//") and not head.startswith("//!"):
-            items.append(RustCustomItem(children=[], content=_dedent_block([lines[i]])))
+            outer_content = _dedent_block([lines[i]])
+            item = RustCustomItem(
+                children=[], outer_content=outer_content, inner_content=outer_content
+            )
+            items.append(item)
             i += 1
             continue
 
+        # eat attribute
         attr = _parse_attr(lines[i])
         if attr is not None:
             mode, object_key, inner_key, scope = attr
@@ -798,14 +812,15 @@ def _parse_rust_items(source: str) -> list[RustItem]:
             start = _find_next_nonempty(lines, i + 1)
             if scope == RustItemScope.LINE:
                 assert start < len(lines), "expected content line after attribute"
-                content = _dedent_block([lines[start]])
+                outer_content = _dedent_block([lines[start]])
                 item = RustManagedItem(
                     object_key=object_key,
                     inner_key=inner_key,
                     type=mode,
                     scope=scope,
                     children=[],
-                    content=content,
+                    outer_content=outer_content,
+                    inner_content=outer_content,
                 )
                 items.append(item)
                 i = start + 1
@@ -816,18 +831,23 @@ def _parse_rust_items(source: str) -> list[RustItem]:
             attrs_prefix = [ln for ln in lines[start:start_no_attrs] if ln.strip()]
             # managed headers are well-formed; simple brace counting is sufficient
             end, collected = _collect_block_simple(lines, start_no_attrs)
-            content = _dedent_block((attrs_prefix + collected) if attrs_prefix else collected)
-            # children: parse recursively inside the block body (exclude header and closing brace)
+            outer_content = _dedent_block((attrs_prefix + collected) if attrs_prefix else collected)
             body_lines = collected[1:-1] if len(collected) >= 2 else []
-            inner_children = _parse_rust_items("\n".join(body_lines)) if body_lines else []
             item = RustManagedItem(
                 object_key=object_key,
                 inner_key=inner_key,
                 type=mode,
                 scope=scope,
-                children=inner_children,
-                content=content,
+                children=[],
+                outer_content=outer_content,
+                inner_content=textwrap.dedent("\n".join(body_lines)),
             )
+
+            # parse one level down inside the block body (exclude header and closing brace)
+            if parent is None and body_lines:
+                item.children = _parse_rust_items("\n".join(body_lines), parent=item)
+            else:
+                item.children = []
             items.append(item)
             i = end + 1
             continue
@@ -848,8 +868,11 @@ def _parse_rust_items(source: str) -> list[RustItem]:
         if code_index >= len(lines):
             # only orphan attributes remain; record them as a custom item
             if collected_custom:
-                content = _dedent_block(collected_custom)
-                items.append(RustCustomItem(children=[], content=content))
+                outer_content = _dedent_block(collected_custom)
+                item = RustCustomItem(
+                    children=[], outer_content=outer_content, inner_content=outer_content
+                )
+                items.append(item)
             i = code_index
             continue
         # if the next code is a destack attribute, let the main loop handle it
@@ -925,24 +948,24 @@ def _parse_rust_items(source: str) -> list[RustItem]:
                     rel_close = last_brace_idx - header_start
             truncated = block_lines[: rel_close + 1]
             combined = collected_custom + truncated if collected_custom else truncated
-            content = _dedent_block(combined)
-            body_only = truncated[1:-1] if len(truncated) >= 2 else []
-            inner_children = _parse_rust_items("\n".join(body_only)) if body_only else []
+            outer_content = _dedent_block(combined)
 
             # if this is a module declaration, create a RustMod item
             if is_module and mod_name:
                 # for nested modules, the entire content including attributes goes in content
-                full_content = _dedent_block(combined)
-                items.append(
-                    RustMod(
-                        children=inner_children,
-                        content=full_content,
-                        name=mod_name,
-                        is_public=mod_is_public,
-                    )
+                mod = RustMod(
+                    children=[],
+                    outer_content=outer_content,
+                    inner_content=outer_content,
+                    name=mod_name,
+                    is_public=mod_is_public,
                 )
+                items.append(mod)
             else:
-                items.append(RustCustomItem(children=inner_children, content=content))
+                mod = RustCustomItem(
+                    children=[], outer_content=outer_content, inner_content=outer_content
+                )
+                items.append(mod)
 
             new_end_index = header_start + rel_close
             i = new_end_index + 1
@@ -954,8 +977,11 @@ def _parse_rust_items(source: str) -> list[RustItem]:
             else:
                 slice_lines = [header_line]
             combined = collected_custom + slice_lines if collected_custom else slice_lines
-            content = _dedent_block(combined)
-            items.append(RustCustomItem(children=[], content=content))
+            outer_content = _dedent_block(combined)
+            item = RustCustomItem(
+                children=[], outer_content=outer_content, inner_content=outer_content
+            )
+            items.append(item)
             i = (token[0] + 1) if (token is not None and token[2] == ";") else (code_index + 1)
     return items
 
@@ -963,8 +989,8 @@ def _parse_rust_items(source: str) -> list[RustItem]:
 def parse_rust_file(
     *,
     source: str,
-    raw_path: str,
-    normalized_path: str,
+    local_path: str,
+    source_path: str,
 ) -> RustFile:
     """
     Parse a Rust file into a `RustFile` with annotated and custom items.
@@ -996,14 +1022,15 @@ def parse_rust_file(
             comment_lines.append(line)
             idx += 1
             continue
-        if stripped.startswith("#!["):
+        elif stripped.startswith("#!["):
             attributes.append(stripped)
             idx += 1
             continue
-        if not stripped:
+        elif not stripped:
             idx += 1
             continue
-        break
+        else:
+            break
 
     # group contiguous top-level use/mod lines together to preserve exact blocks
     # this maintains the original formatting and grouping of imports/mods
@@ -1013,20 +1040,20 @@ def parse_rust_file(
     grouped_blocks: list[str] = []
     current_block: list[str] = []
     for raw_line in top_level_lines:
-        s = raw_line.strip()
-        if not s:
+        raw_line = raw_line.strip()
+        if not raw_line:
             # blank line ends the current import/mod block
             if current_block:
                 grouped_blocks.append("\n".join(current_block))
                 current_block = []
             continue
         if (
-            s.startswith("use ")
-            or s.startswith("pub use ")
-            or (s.startswith("mod ") and s.endswith(";"))
-            or (s.startswith("pub mod ") and s.endswith(";"))
+            raw_line.startswith("use ")
+            or raw_line.startswith("pub use ")
+            or (raw_line.startswith("mod ") and raw_line.endswith(";"))
+            or (raw_line.startswith("pub mod ") and raw_line.endswith(";"))
         ):
-            current_block.append(s)
+            current_block.append(raw_line)
         else:
             if current_block:
                 grouped_blocks.append("\n".join(current_block))
@@ -1034,15 +1061,16 @@ def parse_rust_file(
     if current_block:
         grouped_blocks.append("\n".join(current_block))
     for block in grouped_blocks:
-        items.append(RustCustomItem(children=[], content=block))
+        item = RustCustomItem(children=[], outer_content=block, inner_content=block)
+        items.append(item)
 
     # filter out top-level use/mod lines from structured items to avoid duplication
     # (special imports already handled above)
     # only filter simple mod declarations (ending with ;), not nested modules
-    inner_items = _parse_rust_items(source)
+    inner_items = _parse_rust_items(source, parent=None)
     for it in inner_items:
         if isinstance(it, RustCustomItem):
-            head = it.content.strip()
+            head = it.outer_content.strip()
             if (
                 head.startswith("use ")
                 or head.startswith("pub use ")
@@ -1064,8 +1092,8 @@ def parse_rust_file(
 
     return RustFile(
         type=type,
-        raw_path=raw_path,
-        normalized_path=normalized_path,
+        local_path=local_path,
+        source_path=source_path,
         items=items,
         comment="\n".join(comment_lines).strip(),
         attributes=[RustAttribute(content=a) for a in attributes],

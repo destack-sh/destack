@@ -6,16 +6,40 @@ from pathlib import Path
 DESTACK_RS_PATH = Path("../destack-rs/destack/src")
 
 
-def to_normalized_path(raw_path: Path) -> str:
-    """Normalize a path to a Rust file."""
-    normalized_path = str(raw_path.relative_to(DESTACK_RS_PATH).with_suffix(""))
-    normalized_path = normalized_path.replace("/", ".")
-    return "destack." + normalized_path
+def raw_path_to_source_path(raw_path: Path) -> str:
+    """
+    Convert a raw path to a source path.
+    Returns: like `simulation.geometry.vector`
+    """
+    source_path = str(raw_path.relative_to(DESTACK_RS_PATH).with_suffix(""))
+    source_path = source_path.replace("/", ".")
+    return "destack." + source_path
 
 
-def to_raw_path(normalized_path: str) -> Path:
-    """Convert a normalized path to a raw path."""
-    return DESTACK_RS_PATH / normalized_path.replace("destack.", "src.").replace(".", "/")
+def raw_path_to_local_path(raw_path: Path, postfix: str = "") -> str:
+    """
+    Convert a raw path to a local path.
+    Trim common DESTACK_RS_PATH prefix and add postfix.
+    Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/vector_gen.rs` (postfix)
+    """
+    return str(raw_path.relative_to(DESTACK_RS_PATH).with_suffix("")) + postfix + ".rs"
+
+
+def source_path_to_local_path(source_path: str, postfix: str = "") -> str:
+    """
+    Convert a source path to a local path.
+    Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/vector_gen.rs` (postfix)
+    """
+    local_path = source_path.replace("destack.", "").replace(".", "/")
+    return str(local_path) + postfix + ".rs"
+
+
+def local_path_to_raw_path(local_path: str) -> Path:
+    """
+    Convert a local path to a raw path.
+    Returns: like `destack/src/simulation/geometry/vector.rs`
+    """
+    return DESTACK_RS_PATH / local_path
 
 
 class RustGenerationType(StrEnum):
@@ -42,7 +66,10 @@ class RustItem:
     """
 
     children: list["RustItem"]
-    content: str  # the entire inner content without leading indentation
+    outer_content: str  # the entire content without leading indentation
+    inner_content: str  # the entire inner content without leading indentation
+    # inner_content strips the block wrapper (like struct Vector { ... inner content ... })
+    # for other items outer_content == inner_content
 
 
 @dataclass(slots=True)
@@ -98,10 +125,10 @@ class RustFile:
 
     """The type of RustFile (set manually or determined via crate attributes)."""
     type: RustGenerationType
-    """Raw relative path like destack/src/simulation/geometry/vector.rs"""
-    raw_path: str
-    """Normalized path like `destack.simulation.geometry.vector.Vector2`"""
-    normalized_path: str
+    """Raw local path like destack/src/simulation/geometry/vector.rs"""
+    local_path: str
+    """Normalized source path like `destack.simulation.geometry.vector.Vector2`"""
+    source_path: str
     """All items in the file (managed and custom)."""
     items: list[RustItem]
     """Top level comment."""
@@ -116,13 +143,15 @@ class RustFile:
     is_mod_rs: bool = False
 
 
-def _render_to_string(file: RustFile) -> str:
+def render_rust_destack_attribute(item: RustManagedItem) -> str:
+    """Render a destack attribute."""
+    return f"#[destack::{item.type}({item.object_key}, {item.inner_key}, {item.scope})]"
+
+
+def render_rust_file(file: RustFile) -> str:
     """
     Render the file as a simple canonical string.
-
-    This is not a formatter; it is only for roundtrip structural tests.
     """
-
     parts: list[str] = []
     if file.comment:
         parts.append(file.comment.strip())
@@ -132,18 +161,11 @@ def _render_to_string(file: RustFile) -> str:
     rendered_items = []
     for item in file.items:
         if isinstance(item, RustManagedItem):
-            attr = f"#[destack::{item.type}({item.object_key}, {item.inner_key}, {item.scope})]"
-            rendered_items.append(f"{attr}\n{item.content}".strip())
+            attr = render_rust_destack_attribute(item)
+            rendered_items.append(f"{attr}\n{item.outer_content}".strip())
         elif isinstance(item, RustMod):
-            # check if it's a simple declaration or a nested module
-            if item.children:
-                # nested module with content
-                rendered_items.append(item.content.strip())
-            else:
-                # simple module declaration
-                prefix = "pub mod" if item.is_public else "mod"
-                rendered_items.append(f"{prefix} {item.name};")
+            rendered_items.append(item.outer_content.strip())
         else:
-            rendered_items.append(item.content.strip())
+            rendered_items.append(item.outer_content.strip())
     parts.append("\n\n".join(s for s in rendered_items if s))
     return "\n\n".join(s for s in parts if s)

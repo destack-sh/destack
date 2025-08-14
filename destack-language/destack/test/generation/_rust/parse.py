@@ -5,8 +5,7 @@ import pytest
 from destack.core.generation._rust.core import (
     RustCustomItem,
     RustManagedItem,
-    RustMod,
-    _render_to_string,
+    render_rust_file,
 )
 from destack.core.generation._rust.parse import (
     RustGenerationType,
@@ -108,9 +107,9 @@ impl Add for Vector2 {
 
 
 FILE_2: str = """\
-#![destack::partial(vector, file)]
-
 //! Module level documentation.
+
+#![destack::partial(vector, file)]
 
 // example showing braces inside strings and comments should be ignored
 
@@ -223,26 +222,30 @@ pub use core::*;
 
 def test_parse_top_level_block_items() -> None:
     """Parse top-level block-scoped annotated items (struct and impls)."""
-    items = _parse_rust_items(FILE_1)
+    items = _parse_rust_items(FILE_1, parent=None)
     _assert_has_top_level_items(items)
     # verify content headers are present
     managed = [i for i in items if isinstance(i, RustManagedItem)]
     # managed[0] may include attribute prefix lines, so check header exists in content
-    assert any(line.startswith("pub struct Vector2 ") for line in managed[0].content.splitlines())
-    assert managed[1].content.splitlines()[0].startswith("impl PartialEq for Vector2 ")
-    assert managed[2].content.splitlines()[0].startswith("impl Default for Vector2 ")
-    assert managed[3].content.splitlines()[0].startswith("impl fmt::Display for Vector2 ")
+    assert any(
+        line.startswith("pub struct Vector2 ") for line in managed[0].outer_content.splitlines()
+    )
+    assert managed[1].outer_content.splitlines()[0].startswith("impl PartialEq for Vector2 ")
+    assert managed[2].outer_content.splitlines()[0].startswith("impl Default for Vector2 ")
+    assert managed[3].outer_content.splitlines()[0].startswith("impl fmt::Display for Vector2 ")
 
     # also ensure custom top-level impl is captured
     custom_top_level = [
-        i for i in items if isinstance(i, RustCustomItem) and i.content.startswith("impl Vector2 ")
+        i
+        for i in items
+        if isinstance(i, RustCustomItem) and i.outer_content.startswith("impl Vector2 ")
     ]
     assert len(custom_top_level) == 1
 
 
 def test_parse_children_in_partial_impl_block() -> None:
     """Parse nested line and block items inside a partial impl block."""
-    items = _parse_rust_items(FILE_1)
+    items = _parse_rust_items(FILE_1, parent=None)
     managed = [i for i in items if isinstance(i, RustManagedItem)]
     partial_impl = managed[4]
     assert partial_impl.inner_key == "impl" and partial_impl.scope == RustItemScope.BLOCK
@@ -259,7 +262,7 @@ def test_parse_children_in_partial_impl_block() -> None:
     ]
     assert {c.inner_key for c in generated_lines} == {"ZERO", "ONE", "X_AXIS", "Y_AXIS"}
     for c in generated_lines:
-        assert c.content.endswith(";") and c.inner_key in c.content
+        assert c.outer_content.endswith(";") and c.inner_key in c.outer_content
     # stubbed function is a block
     stubs = [
         c
@@ -269,15 +272,17 @@ def test_parse_children_in_partial_impl_block() -> None:
     assert len(stubs) == 1
     stub = stubs[0]
     assert stub.scope == RustItemScope.BLOCK and stub.inner_key == "x"
-    assert "fn x(&self) -> f32" in stub.content and stub.content.strip().endswith("}")
+    assert "fn x(&self) -> f32" in stub.outer_content and stub.outer_content.strip().endswith("}")
     # two custom constants captured
     custom_consts = [
-        c for c in children if isinstance(c, RustCustomItem) and "INTERNAL_CONST" in c.content
+        c for c in children if isinstance(c, RustCustomItem) and "INTERNAL_CONST" in c.outer_content
     ]
     assert len(custom_consts) == 2
     # custom function at the bottom captured as a custom block
     custom_funcs = [
-        c for c in children if isinstance(c, RustCustomItem) and "fn custom_function" in c.content
+        c
+        for c in children
+        if isinstance(c, RustCustomItem) and "fn custom_function" in c.outer_content
     ]
     assert len(custom_funcs) == 1
 
@@ -292,7 +297,7 @@ def test_parse_children_in_partial_impl_block() -> None:
         "x(&self)",
         "fn custom_function",
     ]
-    flattened = "\n\n".join(c.content for c in children)
+    flattened = "\n\n".join(c.outer_content for c in children)
     last_pos = -1
     for token in order:
         pos = flattened.find(token)
@@ -305,28 +310,28 @@ def test_parse_full_file_wrapper() -> None:
     """Parse a full file into a RustFile wrapper with all items."""
     rf = parse_rust_file(
         source=FILE_1,
-        normalized_path="destack.simulation.geometry.vector",
-        raw_path="/destack-rs/src/simulation/geometry/vector2.rs",
+        source_path="simulation.geometry.vector",
+        local_path="simulation/geometry/vector2.rs",
     )
     _assert_has_top_level_items(rf.items)
     # ensure top-level custom impl block is preserved
     top_level_custom_impls = [
         i
         for i in rf.items
-        if isinstance(i, RustCustomItem) and i.content.startswith("impl Vector2 ")
+        if isinstance(i, RustCustomItem) and i.outer_content.startswith("impl Vector2 ")
     ]
     assert len(top_level_custom_impls) == 1
 
 
 def test_parse_full_source_string_end_to_end() -> None:
     """End-to-end: keep the full input and ensure we parse the expected count and order."""
-    items = _parse_rust_items(FILE_1)
+    items = _parse_rust_items(FILE_1, parent=None)
     _assert_has_top_level_items(items)
 
 
 def test_parse_free_block() -> None:
     """Parse a free function stub annotated at top level."""
-    items = _parse_rust_items(FILE_2)
+    items = _parse_rust_items(FILE_2, parent=None)
     stubs = [
         i
         for i in items
@@ -337,8 +342,8 @@ def test_parse_free_block() -> None:
     assert len(stubs) == 1
     stub = stubs[0]
     assert stub.scope == RustItemScope.BLOCK
-    assert "fn vector2(" in stub.content
-    assert stub.content.strip().endswith("}")
+    assert "fn vector2(" in stub.outer_content
+    assert stub.outer_content.strip().endswith("}")
 
 
 def test_parse_mods() -> None:
@@ -358,37 +363,6 @@ pub struct Thing {
     assert mods[0].name == "inner" and mods[0].is_public is False
 
 
-def test_parse_nested_module() -> None:
-    """Parse nested module declarations with content."""
-    items = _parse_rust_items(FILE_2)
-
-    # find the tests module
-    test_mods = [i for i in items if isinstance(i, RustMod) and i.name == "tests"]
-    assert len(test_mods) == 1, f"Expected 1 test module, found {len(test_mods)}"
-
-    test_mod = test_mods[0]
-    assert test_mod.is_public is False
-    assert "#[cfg(test)]" in test_mod.content
-    assert "mod tests {" in test_mod.content
-
-    # verify the module has children (the test functions)
-    assert len(test_mod.children) > 0
-
-    # check that the use statement is captured
-    use_items = [
-        c
-        for c in test_mod.children
-        if isinstance(c, RustCustomItem) and "use super::*" in c.content
-    ]
-    assert len(use_items) == 1
-
-    # check that test functions are captured as children
-    test_funcs = [
-        c for c in test_mod.children if isinstance(c, RustCustomItem) and "#[test]" in c.content
-    ]
-    assert len(test_funcs) == 2  # two test functions
-
-
 def test_parse_file_type() -> None:
     # explicit partial attribute -> PARTIAL
     file_content = """\
@@ -398,7 +372,7 @@ def test_parse_file_type() -> None:
 
 //! Module level documentation.
 """
-    file = parse_rust_file(source=file_content, normalized_path="", raw_path="")
+    file = parse_rust_file(source=file_content, source_path="", local_path="")
     assert file.type == RustGenerationType.PARTIAL
 
     # explicit generated attribute -> GENERATED
@@ -409,7 +383,7 @@ def test_parse_file_type() -> None:
 
 //! Module level documentation.
 """
-    file = parse_rust_file(source=file_content, normalized_path="", raw_path="")
+    file = parse_rust_file(source=file_content, source_path="", local_path="")
     assert file.type == RustGenerationType.GENERATED
 
     # no attributes -> CUSTOM
@@ -417,7 +391,7 @@ def test_parse_file_type() -> None:
 //! Module level documentation.
 //! Module level documentation.
 """
-    file = parse_rust_file(source=file_content, normalized_path="", raw_path="")
+    file = parse_rust_file(source=file_content, source_path="", local_path="")
     assert file.type == RustGenerationType.CUSTOM
 
 
@@ -427,10 +401,10 @@ def test_roundtrip_parse(file_name: str) -> None:
     file_str = FILES[file_name]
     parsed_file = parse_rust_file(
         source=file_str,
-        normalized_path="destack.simulation.geometry.vector",
-        raw_path="/destack-rs/src/simulation/geometry/vector2.rs",
+        source_path="simulation.geometry.vector",
+        local_path="simulation/geometry/vector2.rs",
     )
-    rendered_file_str = _render_to_string(parsed_file)
+    rendered_file_str = render_rust_file(parsed_file)
     # input and output should match (ignoring trailing spaces)
     file_str_clean = "\n".join(line.rstrip() for line in file_str.splitlines()).strip()
     rendered_file_str_clean = "\n".join(
