@@ -2,7 +2,12 @@ from collections.abc import Sequence
 
 import pytest
 
-from destack.core.generation._rust.core import RustCustomItem, RustFile, RustManagedItem, RustMod
+from destack.core.generation._rust.core import (
+    RustCustomItem,
+    RustManagedItem,
+    RustMod,
+    _render_to_string,
+)
 from destack.core.generation._rust.parse import (
     RustGenerationType,
     RustItemScope,
@@ -148,39 +153,6 @@ mod tests {
 
 
 FILES = {"FILE_1": FILE_1, "FILE_2": FILE_2}
-
-
-def _render_to_string(file: RustFile) -> str:
-    """
-    Render the file as a simple canonical string.
-
-    This is not a formatter; it is only for roundtrip structural tests.
-    """
-
-    parts: list[str] = []
-    if file.comment:
-        parts.append(file.comment.strip())
-    if file.attributes:
-        attrs_block = "\n".join(attr.content.strip() for attr in file.attributes)
-        parts.append(attrs_block)
-    rendered_items = []
-    for item in file.items:
-        if isinstance(item, RustManagedItem):
-            attr = f"#[destack::{item.type}({item.object_key}, {item.inner_key}, {item.scope})]"
-            rendered_items.append(f"{attr}\n{item.content}".strip())
-        elif isinstance(item, RustMod):
-            # check if it's a simple declaration or a nested module
-            if item.children:
-                # nested module with content
-                rendered_items.append(item.content.strip())
-            else:
-                # simple module declaration
-                prefix = "pub mod" if item.is_public else "mod"
-                rendered_items.append(f"{prefix} {item.name};")
-        else:
-            rendered_items.append(item.content.strip())
-    parts.append("\n\n".join(s for s in rendered_items if s))
-    return "\n\n".join(s for s in parts if s)
 
 
 def _assert_has_top_level_items(items: Sequence) -> None:

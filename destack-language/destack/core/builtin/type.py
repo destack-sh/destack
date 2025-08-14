@@ -118,6 +118,9 @@ def parse_type_declaration(
             parse_type_declaration(arg, is_builtin=is_builtin, reference_type=reference_type)
             for arg in type_args
         ]
+        # validate
+        if is_builtin and not all(e.cardinality == TypeCardinality.SCALAR for e in element_types):
+            raise ValueError(f"builtin Types don't support non-scalar tuple elements: {py_type!r}")
         return TypeDeclaration(
             cardinality=TypeCardinality.TUPLE,
             element_types=element_types,

@@ -6,6 +6,18 @@ from pathlib import Path
 DESTACK_RS_PATH = Path("../destack-rs/destack/src")
 
 
+def to_normalized_path(raw_path: Path) -> str:
+    """Normalize a path to a Rust file."""
+    normalized_path = str(raw_path.relative_to(DESTACK_RS_PATH).with_suffix(""))
+    normalized_path = normalized_path.replace("/", ".")
+    return "destack." + normalized_path
+
+
+def to_raw_path(normalized_path: str) -> Path:
+    """Convert a normalized path to a raw path."""
+    return DESTACK_RS_PATH / normalized_path.replace("destack.", "src.").replace(".", "/")
+
+
 class RustGenerationType(StrEnum):
     """What type of generation."""
 
@@ -102,3 +114,36 @@ class RustFile:
     mods: list["RustMod"] | None = None
     """Whether this is the mod.rs file."""
     is_mod_rs: bool = False
+
+
+def _render_to_string(file: RustFile) -> str:
+    """
+    Render the file as a simple canonical string.
+
+    This is not a formatter; it is only for roundtrip structural tests.
+    """
+
+    parts: list[str] = []
+    if file.comment:
+        parts.append(file.comment.strip())
+    if file.attributes:
+        attrs_block = "\n".join(attr.content.strip() for attr in file.attributes)
+        parts.append(attrs_block)
+    rendered_items = []
+    for item in file.items:
+        if isinstance(item, RustManagedItem):
+            attr = f"#[destack::{item.type}({item.object_key}, {item.inner_key}, {item.scope})]"
+            rendered_items.append(f"{attr}\n{item.content}".strip())
+        elif isinstance(item, RustMod):
+            # check if it's a simple declaration or a nested module
+            if item.children:
+                # nested module with content
+                rendered_items.append(item.content.strip())
+            else:
+                # simple module declaration
+                prefix = "pub mod" if item.is_public else "mod"
+                rendered_items.append(f"{prefix} {item.name};")
+        else:
+            rendered_items.append(item.content.strip())
+    parts.append("\n\n".join(s for s in rendered_items if s))
+    return "\n\n".join(s for s in parts if s)
