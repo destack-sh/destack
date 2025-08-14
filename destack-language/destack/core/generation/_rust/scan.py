@@ -1,10 +1,7 @@
 from os import getcwd
-from pathlib import Path
 
-from .core import RustFile
+from .core import DESTACK_RS_PATH, RustFile, to_normalized_path
 from .parse import parse_rust_file
-
-DESTACK_RS_PATH = Path("../destack-rs/destack/src")
 
 
 def scan_files() -> dict[str, RustFile]:
@@ -14,10 +11,7 @@ def scan_files() -> dict[str, RustFile]:
     assert DESTACK_RS_PATH.exists(), f"DESTACK_RS_PATH {DESTACK_RS_PATH} not found {getcwd()}"
     assert len(all_rs_paths) > 0, f"no .rs files found in {DESTACK_RS_PATH} from {getcwd()}"
     for path in all_rs_paths:
-        normalized_path = str(path.relative_to(DESTACK_RS_PATH).with_suffix(""))
-        normalized_path = normalized_path.replace("/", ".")
-        normalized_path = "destack." + normalized_path
-
+        normalized_path = to_normalized_path(path)
         try:
             rust_file = parse_rust_file(
                 source=path.read_text(),
