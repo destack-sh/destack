@@ -7,7 +7,12 @@ from destack.core import (
     Type,
 )
 
-from .core import RustAttribute, RustFile, RustGenerationType, to_raw_path
+from .core import (
+    RustAttribute,
+    RustFile,
+    RustGenerationType,
+    source_path_to_local_path,
+)
 
 INTRINSIC_PRIMITIVE_TYPES: dict[PrimitiveType, str] = {
     PrimitiveType.BOOLEAN: "bool",
@@ -47,7 +52,7 @@ def generate_struct_definition(struct: StructDefinition) -> str:
 
 
 def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
-    """Generate the new clean files for a given Destack schema (by raw path)."""
+    """Generate the new clean files for a given Destack schema (by local path)."""
     files: dict[str, RustFile] = {}
 
     # map object modules to files
@@ -55,14 +60,12 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         if module.type != ModuleType.OBJECT:
             continue  # ignore index modules
 
-        raw_path = to_raw_path(module.path)
-
         partial_file = RustFile(
             type=RustGenerationType.PARTIAL,
-            normalized_path=module.path,
-            raw_path=str(raw_path),
+            source_path=module.path,
+            local_path=source_path_to_local_path(module.path),
             items=[],
-            comment=f"//! Generated in {VERSION} from {module.path}",
+            comment=f"//! {module.path}@{VERSION}",
             attributes=[
                 RustAttribute(
                     content=f"#![destack::{RustGenerationType.PARTIAL.value}({module.path}, file)]"
@@ -72,10 +75,10 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
 
         gen_file = RustFile(
             type=RustGenerationType.GENERATED,
-            normalized_path=module.path,
-            raw_path=str(raw_path) + ".rs",
+            source_path=module.path,
+            local_path=source_path_to_local_path(module.path, "_gen"),
             items=[],
-            comment=f"//! Generated in {VERSION} from {module.path}",
+            comment=f"//! {module.path}@{VERSION}",
             attributes=[
                 RustAttribute(
                     content=f"#![destack::{RustGenerationType.GENERATED.value}({module.path}, file)]"
@@ -83,8 +86,8 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             ],
         )
 
-        files[partial_file.raw_path] = partial_file
-        files[gen_file.raw_path] = gen_file
+        files[partial_file.local_path] = partial_file
+        files[gen_file.local_path] = gen_file
 
     # add files for 'mod.rs' in each module
     # ...
