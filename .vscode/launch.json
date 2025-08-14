@@ -20,7 +20,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
-      "args": ["--collect-only", "destack/"],
+      "args": ["--collect-only", "destack-language/destack"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
