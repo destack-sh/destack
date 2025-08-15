@@ -1,7 +1,6 @@
 from os import getcwd
 
 from .core import (
-    DESTACK_RS_GEN_POSTFIX,
     DESTACK_RS_PATH,
     RustFile,
     raw_path_to_local_path,
@@ -17,8 +16,7 @@ def scan_files() -> dict[str, RustFile]:
     assert DESTACK_RS_PATH.exists(), f"DESTACK_RS_PATH {DESTACK_RS_PATH} not found {getcwd()}"
     assert len(all_rs_paths) > 0, f"no .rs files found in {DESTACK_RS_PATH} from {getcwd()}"
     for path in all_rs_paths:
-        is_gen = path.name.endswith(f"{DESTACK_RS_GEN_POSTFIX}.rs")
-        local_path = raw_path_to_local_path(path, is_gen=is_gen)
+        local_path = raw_path_to_local_path(path)
         source_path = raw_path_to_source_path(path)
         try:
             rust_file = parse_rust_file(
