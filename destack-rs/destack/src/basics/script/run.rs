@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.script.run, file)]
 
-#[destack::generated(FunctionOperator, , block)]
+#[destack::generated(FunctionOperator, -, block)]
 /// The overridable builtin operators for Functions (depends on runtime language).
 pub enum FunctionOperator {
     /// =
@@ -75,7 +75,7 @@ pub enum FunctionOperator {
     Next = 66,
 }
 
-#[destack::generated(MethodType, , block)]
+#[destack::generated(MethodType, -, block)]
 /// MethodType
 pub enum MethodType {
     /// Instance method
@@ -86,7 +86,7 @@ pub enum MethodType {
     Static = 3,
 }
 
-#[destack::generated(ActionType, , block)]
+#[destack::generated(ActionType, -, block)]
 /// ActionType
 pub enum ActionType {
     /// Single in, single out
@@ -99,7 +99,7 @@ pub enum ActionType {
     StreamInStreamOut = 4,
 }
 
-#[destack::generated(RunStatus, , block)]
+#[destack::generated(RunStatus, -, block)]
 /// RunStatus
 pub enum RunStatus {
     /// Scheduled for sometime

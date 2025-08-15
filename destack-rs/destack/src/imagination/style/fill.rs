@@ -5,19 +5,19 @@
 use crate::Color;
 use crate::Gradient;
 
-#[destack::generated(Fill, , block)]
+#[destack::generated(Fill, -, block)]
 /// A fill value.
 pub struct Fill {
-    r#type: FillType,
-    template: Option<i64 /* TODO */>,
-    color: Option<Color>,
-    gradient: Option<Gradient>,
-    image: Option<i64 /* TODO */>,
-    position: Option<FillPosition>,
-    size: Option<FillSize>,
+    pub r#type: FillType,
+    pub template: Option<i64 /* TODO */>,
+    pub color: Option<Color>,
+    pub gradient: Option<Gradient>,
+    pub image: Option<i64 /* TODO */>,
+    pub position: Option<FillPosition>,
+    pub size: Option<FillSize>,
 }
 
-#[destack::generated(FillType, , block)]
+#[destack::generated(FillType, -, block)]
 /// FillType
 pub enum FillType {
     /// A solid fill
@@ -28,7 +28,7 @@ pub enum FillType {
     Image = 12,
 }
 
-#[destack::generated(FillPosition, , block)]
+#[destack::generated(FillPosition, -, block)]
 /// FillPosition
 pub enum FillPosition {
     /// A top left fill position
@@ -51,7 +51,7 @@ pub enum FillPosition {
     BottomRight = 22,
 }
 
-#[destack::generated(FillSize, , block)]
+#[destack::generated(FillSize, -, block)]
 /// FillSize
 pub enum FillSize {
     /// A fill size

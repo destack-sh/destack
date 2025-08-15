@@ -7,72 +7,72 @@ use crate::PropertyReference;
 use crate::Uuid;
 use crate::Value;
 
-#[destack::generated(Expression, , block)]
+#[destack::generated(Expression, -, block)]
 /// Wrapper to unify any scalar / boolean / aggregate sub-tree.
 pub struct Expression {
-    r#type: ExpressionType,
-    literal: Option<Value>,
-    attribute: Option<PropertyReference>,
+    pub r#type: ExpressionType,
+    pub literal: Option<Value>,
+    pub attribute: Option<PropertyReference>,
 }
 
-#[destack::generated(Join, , block)]
+#[destack::generated(Join, -, block)]
 /// Join a Query with another Query.
 pub struct Join {
-    r#type: JoinType,
-    recursive: bool,
-    on: Option<Condition>,
+    pub r#type: JoinType,
+    pub recursive: bool,
+    pub on: Option<Condition>,
 }
 
-#[destack::generated(Aggregation, , block)]
+#[destack::generated(Aggregation, -, block)]
 /// Aggregation.
 pub struct Aggregation {
-    r#type: AggregationType,
-    expression: Option<Expression>,
+    pub r#type: AggregationType,
+    pub expression: Option<Expression>,
 }
 
-#[destack::generated(Condition, , block)]
+#[destack::generated(Condition, -, block)]
 /// Boolean predicate (AND, =, <, etc.).
 pub struct Condition {
-    r#type: ConditionalType,
-    left: Expression,
-    right: Option<Expression>,
+    pub r#type: ConditionalType,
+    pub left: Expression,
+    pub right: Option<Expression>,
 }
 
-#[destack::generated(Sort, , block)]
+#[destack::generated(Sort, -, block)]
 /// ORDER BY specification.
 pub struct Sort {
-    r#type: SortType,
-    by: Expression,
-    mode: Option<SortMode>,
+    pub r#type: SortType,
+    pub by: Expression,
+    pub mode: Option<SortMode>,
 }
 
-#[destack::generated(Select, , block)]
+#[destack::generated(Select, -, block)]
 /// Select specific Attributes.
 pub struct Select {
-    attributes: Vec<PropertyReference>,
+    pub attributes: Vec<PropertyReference>,
 }
 
-#[destack::generated(Query, , block)]
+#[destack::generated(Query, -, block)]
 /// A Query into the supergraph about Nodes (node or scalar and potentially grouped).
 /// Queries may either be about Entities or Events.
 pub struct Query {
-    id: Uuid,
-    r#type: QueryType,
-    name: String,
-    definition: ObjectDefinitionReference,
-    subqueries: Vec<Query>,
-    join: Option<Join>,
-    select: Option<Select>,
-    r#where: Option<Condition>,
-    having: Option<Condition>,
-    group_by: Option<Vec<Expression>>,
-    aggregation: Option<Aggregation>,
-    sort: Option<Vec<Sort>>,
-    limit: Option<u32>,
-    offset: Option<u32>,
+    pub id: Uuid,
+    pub r#type: QueryType,
+    pub name: String,
+    pub definition: ObjectDefinitionReference,
+    pub subqueries: Vec<Query>,
+    pub join: Option<Join>,
+    pub select: Option<Select>,
+    pub r#where: Option<Condition>,
+    pub having: Option<Condition>,
+    pub group_by: Option<Vec<Expression>>,
+    pub aggregation: Option<Aggregation>,
+    pub sort: Option<Vec<Sort>>,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
 }
 
-#[destack::generated(ConditionalType, , block)]
+#[destack::generated(ConditionalType, -, block)]
 /// ConditionalType
 pub enum ConditionalType {
     Not = 1,
@@ -93,7 +93,7 @@ pub enum ConditionalType {
     NotExists = 41,
 }
 
-#[destack::generated(AggregationType, , block)]
+#[destack::generated(AggregationType, -, block)]
 /// AggregationType
 pub enum AggregationType {
     Exists = 1,
@@ -104,7 +104,7 @@ pub enum AggregationType {
     Average = 6,
 }
 
-#[destack::generated(SortMode, , block)]
+#[destack::generated(SortMode, -, block)]
 /// SortMode
 pub enum SortMode {
     Max = 1,
@@ -114,14 +114,14 @@ pub enum SortMode {
     Median = 5,
 }
 
-#[destack::generated(SortType, , block)]
+#[destack::generated(SortType, -, block)]
 /// SortType
 pub enum SortType {
     Ascending = 1,
     Descending = 2,
 }
 
-#[destack::generated(JoinType, , block)]
+#[destack::generated(JoinType, -, block)]
 /// JoinType
 pub enum JoinType {
     Left = 1,
@@ -129,7 +129,7 @@ pub enum JoinType {
     Child = 11,
 }
 
-#[destack::generated(ExpressionType, , block)]
+#[destack::generated(ExpressionType, -, block)]
 /// ExpressionType
 pub enum ExpressionType {
     Literal = 1,
@@ -138,7 +138,7 @@ pub enum ExpressionType {
     Aggregation = 4,
 }
 
-#[destack::generated(QueryType, , block)]
+#[destack::generated(QueryType, -, block)]
 /// QueryType
 pub enum QueryType {
     /// Flat list of Nodes

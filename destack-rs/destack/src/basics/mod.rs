@@ -14,3 +14,11 @@ mod entity;
 mod intelligence;
 mod script;
 mod social;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;

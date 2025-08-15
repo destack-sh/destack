@@ -3,6 +3,7 @@
 #![destack::partial(destack.simulation.geometry, file)]
 #![allow(unused_imports)]
 
+pub(crate) use crate::simulation::geometry::_gen::*;
 pub use crate::simulation::geometry::capsule::*;
 pub use crate::simulation::geometry::circle::*;
 pub use crate::simulation::geometry::cone::*;
@@ -20,6 +21,7 @@ pub use crate::simulation::geometry::rectangle::*;
 pub(crate) use crate::simulation::geometry::shape::*;
 pub use crate::simulation::geometry::vector::*;
 
+mod _gen;
 mod capsule;
 mod circle;
 mod cone;
@@ -36,3 +38,33 @@ mod quaternion;
 mod rectangle;
 mod shape;
 mod vector;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;

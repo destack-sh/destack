@@ -520,7 +520,7 @@ Range: 0 to 2^32-1
     )
     # VECTOR?
     JSON = declare_option(
-        557,
+        57,
         "JSON",
         description="""\
 JSON (32-bit variable length)
@@ -530,7 +530,7 @@ Range: 0 to 2^32-1
 
 
 # number of primitive kinds must fit into 6 bits for compact encoding
-assert len(PrimitiveType) < 64, "PrimitiveType count must be less than 64"  # for :Encoding
+assert max(PrimitiveType) < 64, "PrimitiveType count must be less than 64"  # for :Encoding
 
 
 PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {

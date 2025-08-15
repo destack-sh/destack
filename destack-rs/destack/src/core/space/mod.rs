@@ -14,3 +14,19 @@ mod branch;
 mod folder;
 mod snapshot;
 mod space;
+
+pub(crate) use crate::core::space::_gen::*;
+
+pub(crate) use crate::core::space::space::*;
+
+pub(crate) use crate::core::space::_gen::*;
+
+pub(crate) use crate::core::space::space::*;
+
+pub(crate) use crate::core::space::_gen::*;
+
+pub(crate) use crate::core::space::space::*;
+
+pub(crate) use crate::core::space::_gen::*;
+
+pub(crate) use crate::core::space::space::*;

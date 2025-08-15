@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.builtin.universe, file)]
 
-#[destack::generated(ObjectKind, , block)]
+#[destack::generated(ObjectKind, -, block)]
 /// ObjectKind
 pub enum ObjectKind {
     /// Object with static logic (runtime only)
@@ -15,7 +15,7 @@ pub enum ObjectKind {
     Handle = 4,
 }
 
-#[destack::generated(ModuleType, , block)]
+#[destack::generated(ModuleType, -, block)]
 /// Built-in module types.
 pub enum ModuleType {
     /// Root module for the entire Universe
@@ -28,7 +28,7 @@ pub enum ModuleType {
     Object = 4,
 }
 
-#[destack::generated(EnumType, , block)]
+#[destack::generated(EnumType, -, block)]
 /// EnumType
 pub enum EnumType {
     ObjectKind = 1,
@@ -133,7 +133,7 @@ pub enum EnumType {
     MachineType = 50000000,
 }
 
-#[destack::generated(NodeType, , block)]
+#[destack::generated(NodeType, -, block)]
 /// NodeType
 pub enum NodeType {
     /// Root of all Nodes
@@ -403,7 +403,7 @@ pub enum NodeType {
     Locale = 60000000,
 }
 
-#[destack::generated(StructType, , block)]
+#[destack::generated(StructType, -, block)]
 /// StructType
 pub enum StructType {
     /// Root of all Structs
@@ -526,7 +526,7 @@ pub enum StructType {
     Axis3 = 40100007,
 }
 
-#[destack::generated(TraitType, , block)]
+#[destack::generated(TraitType, -, block)]
 /// TraitType
 pub enum TraitType {
     /// Is ordered
@@ -561,7 +561,7 @@ pub enum TraitType {
     Selectable = 20300002,
 }
 
-#[destack::generated(HandleType, , block)]
+#[destack::generated(HandleType, -, block)]
 /// The type of a Handle.
 pub enum HandleType {
     Handle = 1,
@@ -572,7 +572,7 @@ pub enum HandleType {
     Tracer = 2100300,
 }
 
-#[destack::generated(ObjectStability, , block)]
+#[destack::generated(ObjectStability, -, block)]
 /// ObjectStability
 pub enum ObjectStability {
     /// Definition may change in every compatible way
@@ -581,7 +581,7 @@ pub enum ObjectStability {
     Static = 7,
 }
 
-#[destack::generated(UniverseDomain, , block)]
+#[destack::generated(UniverseDomain, -, block)]
 /// The Destack Computational Universe is organized into domains.
 pub enum UniverseDomain {
     /// Intrinsics: Basic atoms the rest of the Universe is built on.
@@ -600,7 +600,7 @@ pub enum UniverseDomain {
     Distribution = 60000000,
 }
 
-#[destack::generated(UniverseCategory, , block)]
+#[destack::generated(UniverseCategory, -, block)]
 /// How the Destack Computational Universe is organized (domains > categories).
 pub enum UniverseCategory {
     /// Primitives and intrinsics

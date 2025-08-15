@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.social.notification, file)]
 
-#[destack::generated(NotificationStatus, , block)]
+#[destack::generated(NotificationStatus, -, block)]
 /// A Status of a Notification.
 pub enum NotificationStatus {
     /// Pending

@@ -11,24 +11,24 @@ use crate::TagDefinition;
 use crate::UniverseCategory;
 use crate::UniverseDomain;
 
-#[destack::generated(HandleDefinition, , block)]
+#[destack::generated(HandleDefinition, -, block)]
 /// Definition of a builtin Handle.
 pub struct HandleDefinition {
-    id: u32,
-    r#type: HandleType,
-    name: String,
-    description: String,
-    domain: UniverseDomain,
-    category: UniverseCategory,
-    stability: ObjectStability,
-    tag: Option<u8>,
-    is_abstract: bool,
-    properties: Vec<PropertyDefinition>,
-    methods: Vec<MethodDefinition>,
-    constants: Vec<ConstantDefinition>,
-    tags: Vec<TagDefinition>,
-    base_type: Option<HandleType>,
-    extended_by: Vec<HandleType>,
-    inherits: Vec<HandleType>,
-    inherited_by: Vec<HandleType>,
+    pub id: u32,
+    pub r#type: HandleType,
+    pub name: String,
+    pub description: String,
+    pub domain: UniverseDomain,
+    pub category: UniverseCategory,
+    pub stability: ObjectStability,
+    pub tag: Option<u8>,
+    pub is_abstract: bool,
+    pub properties: Vec<PropertyDefinition>,
+    pub methods: Vec<MethodDefinition>,
+    pub constants: Vec<ConstantDefinition>,
+    pub tags: Vec<TagDefinition>,
+    pub base_type: Option<HandleType>,
+    pub extended_by: Vec<HandleType>,
+    pub inherits: Vec<HandleType>,
+    pub inherited_by: Vec<HandleType>,
 }

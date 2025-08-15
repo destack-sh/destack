@@ -8,3 +8,11 @@ pub use crate::presentation::view::*;
 
 mod scene;
 mod view;
+
+pub(crate) use crate::presentation::scene::*;
+
+pub(crate) use crate::presentation::scene::*;
+
+pub(crate) use crate::presentation::scene::*;
+
+pub(crate) use crate::presentation::scene::*;

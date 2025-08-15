@@ -2,8 +2,24 @@
 
 #![destack::generated(destack.core.common.text, file)]
 
+use crate::Text;
+use crate::TextSpan;
 use crate::TextSpanType;
 use crate::TextStyleFlag;
+
+#[destack::generated(Text, Debug, block)]
+impl std::fmt::Debug for Text {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Text")
+    }
+}
+
+#[destack::generated(TextSpan, Debug, block)]
+impl std::fmt::Debug for TextSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TextSpan")
+    }
+}
 
 #[destack::generated(TextSpanType, Debug, block)]
 impl std::fmt::Debug for TextSpanType {

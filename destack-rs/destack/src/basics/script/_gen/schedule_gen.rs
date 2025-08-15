@@ -4,7 +4,15 @@
 
 use crate::DayOfWeek;
 use crate::Month;
+use crate::Schedule;
 use crate::ScheduleFrequency;
+
+#[destack::generated(Schedule, Debug, block)]
+impl std::fmt::Debug for Schedule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Schedule")
+    }
+}
 
 #[destack::generated(DayOfWeek, Debug, block)]
 impl std::fmt::Debug for DayOfWeek {

@@ -2,24 +2,24 @@
 
 #![destack::partial(destack.core.common.text, file)]
 
-#[destack::generated(Text, , block)]
+#[destack::generated(Text, -, block)]
 /// Text is a single paragraph composed of TextSpans with inline styling.
 pub struct Text {
-    spans: Vec<TextSpan>,
-    style_flags: TextStyleFlag,
+    pub spans: Vec<TextSpan>,
+    pub style_flags: TextStyleFlag,
 }
 
-#[destack::generated(TextSpan, , block)]
+#[destack::generated(TextSpan, -, block)]
 /// Span of text with optional styling.
 pub struct TextSpan {
-    r#type: TextSpanType,
-    content: Option<String>,
-    node: Option<i64 /* TODO */>,
-    url: Option<String>,
-    style_flags: TextStyleFlag,
+    pub r#type: TextSpanType,
+    pub content: Option<String>,
+    pub node: Option<i64 /* TODO */>,
+    pub url: Option<String>,
+    pub style_flags: TextStyleFlag,
 }
 
-#[destack::generated(TextSpanType, , block)]
+#[destack::generated(TextSpanType, -, block)]
 /// TextSpanType
 pub enum TextSpanType {
     /// Formatted text
@@ -34,7 +34,7 @@ pub enum TextSpanType {
     Equation = 20,
 }
 
-#[destack::generated(TextStyleFlag, , block)]
+#[destack::generated(TextStyleFlag, -, block)]
 /// A flag that can be applied to a TextSpan.
 pub enum TextStyleFlag {
     Default = 0,

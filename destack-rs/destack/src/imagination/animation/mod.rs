@@ -12,3 +12,11 @@ mod _gen;
 mod easing;
 mod effect;
 mod transition;
+
+pub(crate) use crate::imagination::animation::_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::*;

@@ -4,10 +4,10 @@
 
 use crate::Vector3;
 
-#[destack::generated(Cone3D, , block)]
+#[destack::generated(Cone3D, -, block)]
 /// A Cone is aligned with the local z axis with a base radius and height.
 pub struct Cone3D {
-    position: Vector3,
-    radius: f32,
-    height: f32,
+    pub position: Vector3,
+    pub radius: f32,
+    pub height: f32,
 }

@@ -5,16 +5,16 @@
 use crate::Color;
 use crate::Inset2;
 
-#[destack::generated(Border, , block)]
+#[destack::generated(Border, -, block)]
 /// A border value.
 pub struct Border {
-    r#type: BorderType,
-    color: Option<Color>,
-    width: Option<Inset2>,
-    template: Option<i64 /* TODO */>,
+    pub r#type: BorderType,
+    pub color: Option<Color>,
+    pub width: Option<Inset2>,
+    pub template: Option<i64 /* TODO */>,
 }
 
-#[destack::generated(BorderType, , block)]
+#[destack::generated(BorderType, -, block)]
 /// Built-in border types.
 pub enum BorderType {
     /// A border style

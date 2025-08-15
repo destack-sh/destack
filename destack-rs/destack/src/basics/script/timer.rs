@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.script.timer, file)]
 
-#[destack::generated(TimerType, , block)]
+#[destack::generated(TimerType, -, block)]
 /// TimerType
 pub enum TimerType {
     /// A one-time timer

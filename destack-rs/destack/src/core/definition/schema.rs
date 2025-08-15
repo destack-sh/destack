@@ -8,15 +8,15 @@ use crate::ModuleDefinition;
 use crate::NodeDefinition;
 use crate::StructDefinition;
 
-#[destack::generated(SchemaDefinition, , block)]
+#[destack::generated(SchemaDefinition, -, block)]
 /// Definition of the entire Destack Schema ("language definition").
 pub struct SchemaDefinition {
-    name: String,
-    description: String,
-    version: String,
-    modules: Vec<ModuleDefinition>,
-    nodes: Vec<NodeDefinition>,
-    structs: Vec<StructDefinition>,
-    handles: Vec<HandleDefinition>,
-    enums: Vec<EnumDefinition>,
+    pub name: String,
+    pub description: String,
+    pub version: String,
+    pub modules: Vec<ModuleDefinition>,
+    pub nodes: Vec<NodeDefinition>,
+    pub structs: Vec<StructDefinition>,
+    pub handles: Vec<HandleDefinition>,
+    pub enums: Vec<EnumDefinition>,
 }

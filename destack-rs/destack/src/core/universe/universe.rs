@@ -6,54 +6,54 @@ use crate::Region;
 use crate::Timestamp;
 use crate::Uuid;
 
-#[destack::generated(UniverseSignupRequest, , block)]
+#[destack::generated(UniverseSignupRequest, -, block)]
 /// UniverseSignupRequest
 pub struct UniverseSignupRequest {
-    id: Uuid,
-    client: i64, /* TODO */
-    client_nonce: u8,
-    client_created_at: Timestamp,
-    client_remote_epoch: u64,
-    client_local_epoch: u64,
-    name: String,
-    email: String,
-    password: String,
+    pub id: Uuid,
+    pub client: i64, /* TODO */
+    pub client_nonce: u8,
+    pub client_created_at: Timestamp,
+    pub client_remote_epoch: u64,
+    pub client_local_epoch: u64,
+    pub name: String,
+    pub email: String,
+    pub password: String,
 }
 
-#[destack::generated(UniverseSignupResponse, , block)]
+#[destack::generated(UniverseSignupResponse, -, block)]
 /// UniverseSignupResponse
 pub struct UniverseSignupResponse {
-    id: Uuid,
-    client: i64, /* TODO */
-    client_nonce: u8,
-    client_created_at: Timestamp,
-    client_remote_epoch: u64,
-    client_local_epoch: u64,
-    user: i64, /* TODO */
+    pub id: Uuid,
+    pub client: i64, /* TODO */
+    pub client_nonce: u8,
+    pub client_created_at: Timestamp,
+    pub client_remote_epoch: u64,
+    pub client_local_epoch: u64,
+    pub user: i64, /* TODO */
 }
 
-#[destack::generated(UniverseSpawnRequest, , block)]
+#[destack::generated(UniverseSpawnRequest, -, block)]
 /// UniverseSpawnRequest
 pub struct UniverseSpawnRequest {
-    id: Uuid,
-    client: i64, /* TODO */
-    client_nonce: u8,
-    client_created_at: Timestamp,
-    client_remote_epoch: u64,
-    client_local_epoch: u64,
-    name: String,
-    region: Region,
-    slug: String,
+    pub id: Uuid,
+    pub client: i64, /* TODO */
+    pub client_nonce: u8,
+    pub client_created_at: Timestamp,
+    pub client_remote_epoch: u64,
+    pub client_local_epoch: u64,
+    pub name: String,
+    pub region: Region,
+    pub slug: String,
 }
 
-#[destack::generated(UniverseSpawnResponse, , block)]
+#[destack::generated(UniverseSpawnResponse, -, block)]
 /// UniverseSpawnResponse
 pub struct UniverseSpawnResponse {
-    id: Uuid,
-    client: i64, /* TODO */
-    client_nonce: u8,
-    client_created_at: Timestamp,
-    client_remote_epoch: u64,
-    client_local_epoch: u64,
-    space: i64, /* TODO */
+    pub id: Uuid,
+    pub client: i64, /* TODO */
+    pub client_nonce: u8,
+    pub client_created_at: Timestamp,
+    pub client_remote_epoch: u64,
+    pub client_local_epoch: u64,
+    pub space: i64, /* TODO */
 }

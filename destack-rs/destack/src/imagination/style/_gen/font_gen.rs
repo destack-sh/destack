@@ -2,12 +2,20 @@
 
 #![destack::generated(destack.imagination.style.font, file)]
 
+use crate::Font;
 use crate::FontSize;
 use crate::FontType;
 use crate::FontWeight;
 use crate::TextAlign;
 use crate::TextDecoration;
 use crate::TextTransform;
+
+#[destack::generated(Font, Debug, block)]
+impl std::fmt::Debug for Font {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Font")
+    }
+}
 
 #[destack::generated(FontType, Debug, block)]
 impl std::fmt::Debug for FontType {

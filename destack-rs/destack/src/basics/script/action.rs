@@ -9,19 +9,19 @@ use crate::RuntimePlatform;
 use crate::RuntimeType;
 use crate::StructType;
 
-#[destack::generated(ActionDefinition, , block)]
+#[destack::generated(ActionDefinition, -, block)]
 /// Definition of a builtin Action.
 pub struct ActionDefinition {
-    id: u16,
-    r#type: ActionType,
-    name: String,
-    description: String,
-    is_async: bool,
-    is_managed: bool,
-    input_message_type: Option<StructType>,
-    output_message_type: Option<StructType>,
-    emits_event_types: Option<Vec<NodeType>>,
-    platforms: Option<Vec<RuntimePlatform>>,
-    languages: Option<Vec<RuntimeLanguage>>,
-    runtimes: Option<Vec<RuntimeType>>,
+    pub id: u16,
+    pub r#type: ActionType,
+    pub name: String,
+    pub description: String,
+    pub is_async: bool,
+    pub is_managed: bool,
+    pub input_message_type: Option<StructType>,
+    pub output_message_type: Option<StructType>,
+    pub emits_event_types: Option<Vec<NodeType>>,
+    pub platforms: Option<Vec<RuntimePlatform>>,
+    pub languages: Option<Vec<RuntimeLanguage>>,
+    pub runtimes: Option<Vec<RuntimeType>>,
 }

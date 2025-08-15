@@ -4,10 +4,10 @@
 
 use crate::Vector3;
 
-#[destack::generated(Cylinder3D, , block)]
+#[destack::generated(Cylinder3D, -, block)]
 /// A Cylinder is aligned with the local z axis with a radius and height.
 pub struct Cylinder3D {
-    position: Vector3,
-    radius: f32,
-    height: f32,
+    pub position: Vector3,
+    pub radius: f32,
+    pub height: f32,
 }

@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.simulation.physics.rigid, file)]
 
-#[destack::generated(RigidMotionMode, , block)]
+#[destack::generated(RigidMotionMode, -, block)]
 /// RigidMotionMode
 pub enum RigidMotionMode {
     /// Does not move or interact with the physics simulation.

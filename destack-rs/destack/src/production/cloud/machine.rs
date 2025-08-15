@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.production.cloud.machine, file)]
 
-#[destack::generated(MachineType, , block)]
+#[destack::generated(MachineType, -, block)]
 /// MachineType
 pub enum MachineType {
     /// The main Destack runtime
@@ -17,7 +17,7 @@ pub enum MachineType {
     Custom = 9000,
 }
 
-#[destack::generated(Region, , block)]
+#[destack::generated(Region, -, block)]
 /// Regions in an Area on a Continent.
 pub enum Region {
     Zurich = 1000,
@@ -33,7 +33,7 @@ pub enum Region {
     Sydney = 7000,
 }
 
-#[destack::generated(RegionArea, , block)]
+#[destack::generated(RegionArea, -, block)]
 /// A larger Area of Regions within a Continent.
 pub enum RegionArea {
     EuropeCentral = 1000,
@@ -49,7 +49,7 @@ pub enum RegionArea {
     AustraliaSouth = 7000,
 }
 
-#[destack::generated(RegionContinent, , block)]
+#[destack::generated(RegionContinent, -, block)]
 /// 'Continents' of Regions.
 pub enum RegionContinent {
     Europe = 1000,
