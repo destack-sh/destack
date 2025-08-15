@@ -2,12 +2,14 @@
 
 #![destack::partial(core/universe, file)]
 
-pub mod user;
+pub use organization::*;
+pub use client::*;
+pub use user::*;
+pub use universe::*;
+pub use team::*;
 
-pub mod organization;
-
-pub mod client;
-
-pub mod team;
-
-pub mod universe;
+mod organization;
+mod client;
+mod user;
+mod universe;
+mod team;

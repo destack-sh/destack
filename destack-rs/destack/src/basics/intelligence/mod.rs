@@ -2,4 +2,6 @@
 
 #![destack::partial(basics/intelligence, file)]
 
-pub mod model;
+pub use model::*;
+
+mod model;

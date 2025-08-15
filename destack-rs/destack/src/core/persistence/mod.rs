@@ -2,8 +2,10 @@
 
 #![destack::partial(core/persistence, file)]
 
-pub mod graph;
+pub use stream::*;
+pub use connection::*;
+pub use graph::*;
 
-pub mod stream;
-
-pub mod connection;
+mod stream;
+mod connection;
+mod graph;

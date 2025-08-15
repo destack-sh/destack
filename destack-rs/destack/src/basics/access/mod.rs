@@ -2,14 +2,16 @@
 
 #![destack::partial(basics/access, file)]
 
-pub mod entitlement;
+pub use invite::*;
+pub use entitlement::*;
+pub use sanction::*;
+pub use permission::*;
+pub use membership::*;
+pub use role::*;
 
-pub mod permission;
-
-pub mod invite;
-
-pub mod role;
-
-pub mod sanction;
-
-pub mod membership;
+mod invite;
+mod entitlement;
+mod sanction;
+mod permission;
+mod membership;
+mod role;

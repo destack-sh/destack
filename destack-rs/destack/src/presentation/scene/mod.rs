@@ -2,8 +2,10 @@
 
 #![destack::partial(presentation/scene, file)]
 
-pub mod scene;
+pub use stage::*;
+pub use layer::*;
+pub use scene::*;
 
-pub mod layer;
-
-pub mod stage;
+mod stage;
+mod layer;
+mod scene;

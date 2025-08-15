@@ -1,4 +1,4 @@
-//! destack.simulation.physics.joint@2025.08.14.0
+//! destack.simulation.physics.joint@2025.08.15.1
 
 #![destack::partial(destack.simulation.physics.joint, file)]
 
@@ -66,7 +66,6 @@ pub struct JointFrame3D {
 pub enum JointFlag {
     DEFAULT = 0,
     /// If enabled, the two bodies connected by the Joint are allowed to collide
-    with each other. Otherwise, contacts between them are suppressed.
-
+    /// with each other. Otherwise, contacts between them are suppressed.
     COLLIDE_CONNECTED = 1
 }

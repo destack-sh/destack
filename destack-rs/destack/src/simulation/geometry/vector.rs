@@ -1,4 +1,6 @@
-#![destack::partial(vector, file)]
+//! destack.simulation.geometry.vector@2025.08.15.1
+
+#![destack::partial(destack.simulation.geometry.vector, file)]
 
 #[destack::generated(Vector2, struct, block)]
 /// A 2D floating point Vector.

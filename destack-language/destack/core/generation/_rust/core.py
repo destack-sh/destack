@@ -115,12 +115,11 @@ class RustAttribute:
 
 
 @dataclass(slots=True)
-class RustMod(RustItem):
+class RustModDeclaration:
     """A module declaration like `mod foo;` or `pub mod foo;`."""
 
     name: str
     is_public: bool
-    is_inline: bool
 
 
 @dataclass(slots=True)
@@ -154,9 +153,11 @@ class RustFile:
     """Top level imports."""
     imports: Sequence["RustImport"] | None = None
     """Declared modules."""
-    mods: Sequence["RustMod"] | None = None
+    mods: Sequence["RustModDeclaration"] | None = None
     """Whether this is the mod.rs file."""
     is_mod_rs: bool = False
+    """Raw source content."""
+    raw_content: str | None = None
 
 
 def render_rust_destack_attribute(item: RustManagedItem) -> str:
@@ -164,16 +165,13 @@ def render_rust_destack_attribute(item: RustManagedItem) -> str:
     return f"#[destack::{item.type}({item.object_key}, {item.inner_key}, {item.scope})]"
 
 
-def render_rust_mod(mod: RustMod) -> str:
+def render_rust_mod(mod: RustModDeclaration) -> str:
     """Render a module declaration."""
-    if mod.is_inline:
-        return mod.outer_content
-    else:
-        # just a declaration
-        mod_str = f"mod {mod.name};"
-        if mod.is_public:
-            mod_str = f"pub {mod_str}"
-        return mod_str
+    # just a declaration
+    mod_str = f"mod {mod.name};"
+    if mod.is_public:
+        mod_str = f"pub {mod_str}"
+    return mod_str
 
 
 def render_rust_import(imp: RustImport) -> str:
@@ -204,6 +202,9 @@ def render_rust_file(file: RustFile) -> str:
     if file.imports:
         imports_block = "\n".join(render_rust_import(imp) for imp in file.imports)
         parts.append(imports_block)
+    if file.mods:
+        mods_block = "\n".join(render_rust_mod(mod) for mod in file.mods)
+        parts.append(mods_block)
 
     # body
     rendered_items = []
@@ -211,10 +212,10 @@ def render_rust_file(file: RustFile) -> str:
         if isinstance(item, RustManagedItem):
             attr = render_rust_destack_attribute(item)
             rendered_items.append(f"{attr}\n{item.outer_content}".strip())
-        elif isinstance(item, RustMod):
-            rendered_items.append(render_rust_mod(item))
-        else:
+        elif isinstance(item, RustCustomItem):
             rendered_items.append(item.outer_content.strip())
+        else:
+            raise ValueError(f"unexpected item: {item!r}")
     parts.append("\n\n".join(s for s in rendered_items if s))
 
     return "\n\n".join(s for s in parts if s)

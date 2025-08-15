@@ -2,4 +2,6 @@
 
 #![destack::partial(imagination/audio, file)]
 
-pub mod audio;
+pub use audio::*;
+
+mod audio;

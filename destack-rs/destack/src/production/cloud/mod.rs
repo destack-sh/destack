@@ -2,4 +2,6 @@
 
 #![destack::partial(production/cloud, file)]
 
-pub mod machine;
+pub use machine::*;
+
+mod machine;

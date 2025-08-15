@@ -2,4 +2,6 @@
 
 #![destack::partial(imagination/video, file)]
 
-pub mod video;
+pub use video::*;
+
+mod video;

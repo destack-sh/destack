@@ -2,6 +2,8 @@
 
 #![destack::partial(core/space, file)]
 
-pub mod folder;
+pub use space::*;
+pub use folder::*;
 
-pub mod space;
+mod space;
+mod folder;

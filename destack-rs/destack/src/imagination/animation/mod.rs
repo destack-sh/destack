@@ -2,8 +2,10 @@
 
 #![destack::partial(imagination/animation, file)]
 
-pub mod transition;
+pub use transition::*;
+pub use effect::*;
+pub use easing::*;
 
-pub mod easing;
-
-pub mod effect;
+mod transition;
+mod effect;
+mod easing;

@@ -2,10 +2,12 @@
 
 #![destack::partial(basics/social, file)]
 
-pub mod follow;
+pub use star::*;
+pub use notification::*;
+pub use reaction::*;
+pub use follow::*;
 
-pub mod notification;
-
-pub mod star;
-
-pub mod reaction;
+mod star;
+mod notification;
+mod reaction;
+mod follow;

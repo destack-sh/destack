@@ -2,10 +2,12 @@
 
 #![destack::partial(production/observability, file)]
 
-pub mod gauge;
+pub use metric::*;
+pub use histogram::*;
+pub use gauge::*;
+pub use counter::*;
 
-pub mod histogram;
-
-pub mod metric;
-
-pub mod counter;
+mod metric;
+mod histogram;
+mod gauge;
+mod counter;

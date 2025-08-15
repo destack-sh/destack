@@ -2,16 +2,18 @@
 
 #![destack::partial(simulation/perception, file)]
 
-pub mod key;
+pub use pointer::*;
+pub use mouse::*;
+pub use drag::*;
+pub use key::*;
+pub use input::*;
+pub use focus::*;
+pub use clipboard::*;
 
-pub mod drag;
-
-pub mod input;
-
-pub mod mouse;
-
-pub mod pointer;
-
-pub mod clipboard;
-
-pub mod focus;
+mod pointer;
+mod mouse;
+mod drag;
+mod key;
+mod input;
+mod focus;
+mod clipboard;

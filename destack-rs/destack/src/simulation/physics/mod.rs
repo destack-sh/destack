@@ -2,12 +2,14 @@
 
 #![destack::partial(simulation/physics, file)]
 
-pub mod body;
+pub use soft::*;
+pub use body::*;
+pub use rigid::*;
+pub use collider::*;
+pub use joint::*;
 
-pub mod soft;
-
-pub mod joint;
-
-pub mod collider;
-
-pub mod rigid;
+mod soft;
+mod body;
+mod rigid;
+mod collider;
+mod joint;

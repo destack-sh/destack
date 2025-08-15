@@ -2,8 +2,10 @@
 
 #![destack::partial(core/encoding/kompakt, file)]
 
-pub mod generate;
+pub use encoder::*;
+pub use core::*;
+pub use generate::*;
 
-pub mod core;
-
-pub mod encoder;
+mod encoder;
+mod core;
+mod generate;

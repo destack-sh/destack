@@ -2,20 +2,22 @@
 
 #![destack::partial(core/common, file)]
 
-pub mod icon;
+pub use type::*;
+pub use branch::*;
+pub use icon::*;
+pub use change::*;
+pub use text::*;
+pub use relation::*;
+pub use value::*;
+pub use query::*;
+pub use snapshot::*;
 
-pub mod relation;
-
-pub mod query;
-
-pub mod branch;
-
-pub mod type;
-
-pub mod text;
-
-pub mod value;
-
-pub mod change;
-
-pub mod snapshot;
+mod type;
+mod branch;
+mod icon;
+mod change;
+mod text;
+mod relation;
+mod value;
+mod query;
+mod snapshot;

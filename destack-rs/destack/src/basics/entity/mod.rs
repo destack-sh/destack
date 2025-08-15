@@ -2,14 +2,16 @@
 
 #![destack::partial(basics/entity, file)]
 
-pub mod constraint;
+pub use custom::*;
+pub use index::*;
+pub use constraint::*;
+pub use migration::*;
+pub use tag::*;
+pub use file::*;
 
-pub mod custom;
-
-pub mod index;
-
-pub mod file;
-
-pub mod migration;
-
-pub mod tag;
+mod custom;
+mod index;
+mod constraint;
+mod migration;
+mod tag;
+mod file;
