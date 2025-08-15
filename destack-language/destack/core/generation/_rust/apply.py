@@ -24,13 +24,18 @@ def execute_operation(operation: RustFileOperation):
 
     path = local_path_to_raw_path(operation.local_path)
 
-    if operation.type in (RustFileOperationType.REPLACE, RustFileOperationType.PATCH):
+    if (
+        operation.type == RustFileOperationType.REPLACE
+        or operation.type == RustFileOperationType.PATCH
+    ):
+        # nocheckin: destructive rust ops
         assert operation.combined_content is not None, (
             f"REPLACE or PATCH operation has no content: {operation!r}"
         )
-        pass  # nocheckin
+        # path.write_text(operation.combined_content)
     elif operation.type == RustFileOperationType.REMOVE:
-        pass  # nocheckin
+        # path.unlink()
+        pass
     elif operation.type == RustFileOperationType.ADD:
         assert operation.combined_content is not None, (
             f"ADD operation has no content: {operation!r}"

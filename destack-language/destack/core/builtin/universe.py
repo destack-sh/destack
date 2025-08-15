@@ -78,7 +78,7 @@ class UniverseCategory(OptionEnum):
     #
 
     ENTITY = declare_option(10_000_000, "Entity", description="Entity management")
-    LOGIC = declare_option(10_100_000, "Logic", description="Scripting and behavior")
+    SCRIPT = declare_option(10_100_000, "Script", description="Logic, scripting and behavior")
     INTELLIGENCE = declare_option(10_200_000, "Intelligence", description="Artificial intelligence")
     ACCESS = declare_option(
         10_300_000, "Access", description="Identity, authentication and authorization"
