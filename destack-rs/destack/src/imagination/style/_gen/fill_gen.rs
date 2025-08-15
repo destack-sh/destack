@@ -2,6 +2,10 @@
 
 #![destack::generated(destack.imagination.style.fill, file)]
 
+use crate::FillPosition;
+use crate::FillSize;
+use crate::FillType;
+
 #[destack::generated(FillType, Debug, block)]
 impl std::fmt::Debug for FillType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

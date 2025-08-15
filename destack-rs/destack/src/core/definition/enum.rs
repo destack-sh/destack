@@ -5,7 +5,7 @@
 use crate::EnumType;
 use crate::OptionDefinition;
 
-#[destack::generated(EnumDefinition, struct, block)]
+#[destack::generated(EnumDefinition, , block)]
 /// Definition of a builtin Enum.
 pub struct EnumDefinition {
     id: u32,

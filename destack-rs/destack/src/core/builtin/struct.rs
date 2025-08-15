@@ -2,6 +2,6 @@
 
 #![destack::partial(destack.core.builtin.struct, file)]
 
-#[destack::generated(Struct, struct, block)]
+#[destack::generated(Struct, , block)]
 /// A Struct is a collection of Properties.
 pub struct Struct {}

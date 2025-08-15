@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.script.run, file)]
 
-#[destack::generated(RunStatus, enum, block)]
+#[destack::generated(RunStatus, , block)]
 /// RunStatus
 pub enum RunStatus {
     /// Scheduled for sometime

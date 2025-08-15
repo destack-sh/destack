@@ -6,7 +6,7 @@ use crate::RuntimeLanguage;
 use crate::RuntimePlatform;
 use crate::RuntimeType;
 
-#[destack::generated(FunctionDefinition, struct, block)]
+#[destack::generated(FunctionDefinition, , block)]
 /// Definition of a builtin Function.
 pub struct FunctionDefinition {
     id: u16,
@@ -14,7 +14,7 @@ pub struct FunctionDefinition {
     description: String,
     is_async: bool,
     is_managed: bool,
-    platforms: Vec<RuntimePlatform>,
-    languages: Vec<RuntimeLanguage>,
-    runtimes: Vec<RuntimeType>,
+    platforms: Option<Vec<RuntimePlatform>>,
+    languages: Option<Vec<RuntimeLanguage>>,
+    runtimes: Option<Vec<RuntimeType>>,
 }

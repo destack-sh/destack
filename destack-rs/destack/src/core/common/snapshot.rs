@@ -2,14 +2,14 @@
 
 #![destack::partial(destack.core.common.snapshot, file)]
 
-#[destack::generated(SnapshotType, enum, block)]
+#[destack::generated(SnapshotType, , block)]
 /// The type of a Snapshot.
 pub enum SnapshotType {
     Full = 10,
     Root = 11,
 }
 
-#[destack::generated(SnapshotStatus, enum, block)]
+#[destack::generated(SnapshotStatus, , block)]
 /// The status of a Snapshot.
 pub enum SnapshotStatus {
     /// Under construction

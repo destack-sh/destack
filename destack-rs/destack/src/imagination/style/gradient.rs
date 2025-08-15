@@ -4,25 +4,27 @@
 
 use crate::Axis2;
 use crate::Color;
+use crate::GradientStop;
+use crate::GradientType;
 
-#[destack::generated(Gradient, struct, block)]
+#[destack::generated(Gradient, , block)]
 /// A gradient value.
 pub struct Gradient {
     r#type: GradientType,
-    template: i64, /* TODO */
-    angle: f32,
+    template: Option<i64 /* TODO */>,
+    angle: Option<f32>,
     stops: Vec<GradientStop>,
-    center_anchor: Axis2,
+    center_anchor: Option<Axis2>,
 }
 
-#[destack::generated(GradientStop, struct, block)]
+#[destack::generated(GradientStop, , block)]
 /// A gradient stop with color and position.
 pub struct GradientStop {
-    color: Color,
+    color: Option<Color>,
     position: f32,
 }
 
-#[destack::generated(GradientType, enum, block)]
+#[destack::generated(GradientType, , block)]
 /// Built-in gradient types.
 pub enum GradientType {
     /// A linear gradient

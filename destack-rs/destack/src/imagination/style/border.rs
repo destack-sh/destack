@@ -2,19 +2,20 @@
 
 #![destack::partial(destack.imagination.style.border, file)]
 
+use crate::BorderType;
 use crate::Color;
 use crate::Inset2;
 
-#[destack::generated(Border, struct, block)]
+#[destack::generated(Border, , block)]
 /// A border value.
 pub struct Border {
     r#type: BorderType,
-    color: Color,
-    width: Inset2,
-    template: i64, /* TODO */
+    color: Option<Color>,
+    width: Option<Inset2>,
+    template: Option<i64 /* TODO */>,
 }
 
-#[destack::generated(BorderType, enum, block)]
+#[destack::generated(BorderType, , block)]
 /// Built-in border types.
 pub enum BorderType {
     /// A border style

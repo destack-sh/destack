@@ -1,6 +1,6 @@
 //! destack.simulation.physics@2025.08.15.1
 
-#![destack::partial(simulation/physics, file)]
+#![destack::partial(destack.simulation.physics, file)]
 #![allow(unused_imports)]
 
 pub use crate::simulation::physics::_gen::*;
@@ -16,27 +16,3 @@ mod collider;
 mod joint;
 mod rigid;
 mod soft;
-
-pub(crate) use crate::simulation::physics::_gen::*;
-
-pub(crate) use crate::simulation::physics::body::*;
-
-pub(crate) use crate::simulation::physics::collider::*;
-
-pub(crate) use crate::simulation::physics::soft::*;
-
-pub(crate) use crate::simulation::physics::_gen::*;
-
-pub(crate) use crate::simulation::physics::body::*;
-
-pub(crate) use crate::simulation::physics::collider::*;
-
-pub(crate) use crate::simulation::physics::soft::*;
-
-pub(crate) use crate::simulation::physics::_gen::*;
-
-pub(crate) use crate::simulation::physics::body::*;
-
-pub(crate) use crate::simulation::physics::collider::*;
-
-pub(crate) use crate::simulation::physics::soft::*;

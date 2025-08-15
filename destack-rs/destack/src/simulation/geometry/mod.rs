@@ -1,6 +1,6 @@
 //! destack.simulation.geometry@2025.08.15.1
 
-#![destack::partial(simulation/geometry, file)]
+#![destack::partial(destack.simulation.geometry, file)]
 #![allow(unused_imports)]
 
 pub use crate::simulation::geometry::capsule::*;
@@ -36,15 +36,3 @@ mod quaternion;
 mod rectangle;
 mod shape;
 mod vector;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;

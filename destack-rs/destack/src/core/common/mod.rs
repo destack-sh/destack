@@ -1,6 +1,6 @@
 //! destack.core.common@2025.08.15.1
 
-#![destack::partial(core/common, file)]
+#![destack::partial(destack.core.common, file)]
 #![allow(unused_imports)]
 
 pub use crate::core::common::_gen::*;
@@ -24,9 +24,3 @@ mod snapshot;
 mod text;
 mod r#type;
 mod value;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;

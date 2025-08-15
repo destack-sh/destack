@@ -5,7 +5,7 @@
 use crate::Vector2;
 use crate::Vector3;
 
-#[destack::generated(Segment2D, struct, block)]
+#[destack::generated(Segment2D, , block)]
 /// A Segment is a line between two points.
 pub struct Segment2D {
     position: Vector2,
@@ -13,7 +13,7 @@ pub struct Segment2D {
     end_offset: Vector2,
 }
 
-#[destack::generated(Segment3D, struct, block)]
+#[destack::generated(Segment3D, , block)]
 /// A Segment3D is a line between two points in 3D space.
 pub struct Segment3D {
     position: Vector3,

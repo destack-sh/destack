@@ -4,7 +4,7 @@
 
 use crate::Value;
 
-#[destack::generated(ConstantDefinition, struct, block)]
+#[destack::generated(ConstantDefinition, , block)]
 /// Definition of a builtin Constant.
 pub struct ConstantDefinition {
     id: u8,

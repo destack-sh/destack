@@ -2,24 +2,26 @@
 
 #![destack::partial(destack.basics.entity.migration, file)]
 
-#[destack::generated(MigrationDefinition, struct, block)]
+use crate::MigrationType;
+
+#[destack::generated(MigrationDefinition, , block)]
 /// Definition of a builtin Migration.
 pub struct MigrationDefinition {
     r#type: MigrationType,
     name: String,
-    description: String,
+    description: Option<String>,
 }
 
-#[destack::generated(MigrationOperationDefinition, struct, block)]
+#[destack::generated(MigrationOperationDefinition, , block)]
 /// Definition of a builtin MigrationOperation.
 pub struct MigrationOperationDefinition {
     id: u32,
     r#type: MigrationType,
     name: String,
-    description: String,
+    description: Option<String>,
 }
 
-#[destack::generated(MigrationType, enum, block)]
+#[destack::generated(MigrationType, , block)]
 /// Type of a builtin Migration.
 pub enum MigrationType {
     /// A Create Migration

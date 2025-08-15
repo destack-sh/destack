@@ -1,6 +1,6 @@
 //! destack.simulation@2025.08.15.1
 
-#![destack::partial(simulation, file)]
+#![destack::partial(destack.simulation, file)]
 #![allow(unused_imports)]
 
 pub use crate::simulation::geometry::*;

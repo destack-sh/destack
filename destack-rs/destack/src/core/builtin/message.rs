@@ -5,7 +5,7 @@
 use crate::Timestamp;
 use crate::Uuid;
 
-#[destack::generated(Message, struct, block)]
+#[destack::generated(Message, , block)]
 /// A Message contains data for communicating with Nodes via Actions.
 /// Because Message are as-is provided by Clients, they only contain client-authority data.
 pub struct Message {

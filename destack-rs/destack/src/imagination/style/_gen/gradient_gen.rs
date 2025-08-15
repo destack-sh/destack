@@ -2,6 +2,8 @@
 
 #![destack::generated(destack.imagination.style.gradient, file)]
 
+use crate::GradientType;
+
 #[destack::generated(GradientType, Debug, block)]
 impl std::fmt::Debug for GradientType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

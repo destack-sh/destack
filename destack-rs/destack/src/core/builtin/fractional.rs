@@ -5,7 +5,7 @@
 use crate::Timestamp;
 use crate::Uuid;
 
-#[destack::generated(FractionalIntegerError, struct, block)]
+#[destack::generated(FractionalIntegerError, , block)]
 /// An Error raised when a fractional integer operation fails.
 pub struct FractionalIntegerError {
     id: Uuid,
@@ -14,8 +14,8 @@ pub struct FractionalIntegerError {
     client_created_at: Timestamp,
     client_remote_epoch: u64,
     client_local_epoch: u64,
-    description: String,
-    head: String,
-    a: String,
-    b: String,
+    description: Option<String>,
+    head: Option<String>,
+    a: Option<String>,
+    b: Option<String>,
 }

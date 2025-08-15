@@ -6,7 +6,7 @@ use crate::Region;
 use crate::Timestamp;
 use crate::Uuid;
 
-#[destack::generated(UniverseSignupRequest, struct, block)]
+#[destack::generated(UniverseSignupRequest, , block)]
 /// UniverseSignupRequest
 pub struct UniverseSignupRequest {
     id: Uuid,
@@ -20,7 +20,7 @@ pub struct UniverseSignupRequest {
     password: String,
 }
 
-#[destack::generated(UniverseSignupResponse, struct, block)]
+#[destack::generated(UniverseSignupResponse, , block)]
 /// UniverseSignupResponse
 pub struct UniverseSignupResponse {
     id: Uuid,
@@ -32,7 +32,7 @@ pub struct UniverseSignupResponse {
     user: i64, /* TODO */
 }
 
-#[destack::generated(UniverseSpawnRequest, struct, block)]
+#[destack::generated(UniverseSpawnRequest, , block)]
 /// UniverseSpawnRequest
 pub struct UniverseSpawnRequest {
     id: Uuid,
@@ -46,7 +46,7 @@ pub struct UniverseSpawnRequest {
     slug: String,
 }
 
-#[destack::generated(UniverseSpawnResponse, struct, block)]
+#[destack::generated(UniverseSpawnResponse, , block)]
 /// UniverseSpawnResponse
 pub struct UniverseSpawnResponse {
     id: Uuid,

@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.access.sanction, file)]
 
-#[destack::generated(SanctionType, enum, block)]
+#[destack::generated(SanctionType, , block)]
 /// A Type of Sanction.
 pub enum SanctionType {
     /// A Ban

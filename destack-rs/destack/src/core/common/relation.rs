@@ -8,14 +8,14 @@ use crate::ObjectKind;
 use crate::StructType;
 use crate::Uuid;
 
-#[destack::generated(NodeIdentityReference, struct, block)]
+#[destack::generated(NodeIdentityReference, , block)]
 /// A reference to a Node in an unknown space.
 pub struct NodeIdentityReference {
     r#type: NodeType,
     id: Uuid,
 }
 
-#[destack::generated(NodeSpatialReference, struct, block)]
+#[destack::generated(NodeSpatialReference, , block)]
 /// A reference to a Node in space.
 pub struct NodeSpatialReference {
     r#type: NodeType,
@@ -23,7 +23,7 @@ pub struct NodeSpatialReference {
     space_id: Uuid,
 }
 
-#[destack::generated(NodeTemporalReference, struct, block)]
+#[destack::generated(NodeTemporalReference, , block)]
 /// A reference to a Node in spacetime.
 pub struct NodeTemporalReference {
     r#type: NodeType,
@@ -34,22 +34,22 @@ pub struct NodeTemporalReference {
     epoch: u64,
 }
 
-#[destack::generated(ObjectDefinitionReference, struct, block)]
+#[destack::generated(ObjectDefinitionReference, , block)]
 /// Reference to an object "type" (builtin, custom or trait).
 pub struct ObjectDefinitionReference {
     kind: ObjectKind,
-    node_type: NodeType,
-    struct_type: StructType,
-    handle_type: HandleType,
-    definition: i64, /* TODO */
+    node_type: Option<NodeType>,
+    struct_type: Option<StructType>,
+    handle_type: Option<HandleType>,
+    definition: Option<i64 /* TODO */>,
 }
 
-#[destack::generated(PropertyReference, struct, block)]
+#[destack::generated(PropertyReference, , block)]
 /// A reference to a builtin object's Property.
 pub struct PropertyReference {
-    node_type: NodeType,
-    struct_type: StructType,
-    handle_type: HandleType,
-    id: u8,
-    custom_property: i64, /* TODO */
+    node_type: Option<NodeType>,
+    struct_type: Option<StructType>,
+    handle_type: Option<HandleType>,
+    id: Option<u8>,
+    custom_property: Option<i64 /* TODO */>,
 }

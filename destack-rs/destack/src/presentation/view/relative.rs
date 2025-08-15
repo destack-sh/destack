@@ -2,14 +2,18 @@
 
 #![destack::partial(destack.presentation.view.relative, file)]
 
-#[destack::generated(Length, struct, block)]
+use crate::Anchor;
+use crate::Length;
+use crate::LengthType;
+
+#[destack::generated(Length, , block)]
 /// An absolute or relative length value.
 pub struct Length {
     unit: LengthType,
     value: i16,
 }
 
-#[destack::generated(Offset2, struct, block)]
+#[destack::generated(Offset2, , block)]
 /// A 2-dimensional position value (relative or absolute).
 pub struct Offset2 {
     r#type: Anchor,
@@ -19,24 +23,24 @@ pub struct Offset2 {
     height: Length,
 }
 
-#[destack::generated(Grid2, struct, block)]
+#[destack::generated(Grid2, , block)]
 /// A 2-dimensional grid configuration value.
 pub struct Grid2 {
     columns: i16,
     rows: i16,
-    column_width: Length,
-    column_min_width: Length,
-    row_height: Length,
+    column_width: Option<Length>,
+    column_min_width: Option<Length>,
+    row_height: Option<Length>,
 }
 
-#[destack::generated(GridSpan2, struct, block)]
+#[destack::generated(GridSpan2, , block)]
 /// A 2-dimensional grid span value.
 pub struct GridSpan2 {
     columns: i16,
     rows: i16,
 }
 
-#[destack::generated(Inset2, struct, block)]
+#[destack::generated(Inset2, , block)]
 /// A 2-dimensional insets value (base + side overrides).
 pub struct Inset2 {
     top: i16,
@@ -45,7 +49,7 @@ pub struct Inset2 {
     bottom: i16,
 }
 
-#[destack::generated(Corner2, struct, block)]
+#[destack::generated(Corner2, , block)]
 /// A 2-dimensional corners value (base + corner overrides).
 pub struct Corner2 {
     top_left: i16,
@@ -54,14 +58,14 @@ pub struct Corner2 {
     bottom_right: i16,
 }
 
-#[destack::generated(Axis2, struct, block)]
+#[destack::generated(Axis2, , block)]
 /// A 2-dimensional axis value (base + x/y overrides).
 pub struct Axis2 {
     x: i16,
     y: i16,
 }
 
-#[destack::generated(Axis3, struct, block)]
+#[destack::generated(Axis3, , block)]
 /// A 3-dimensional axis value (base + x/y/z overrides).
 pub struct Axis3 {
     x: i16,
@@ -69,7 +73,7 @@ pub struct Axis3 {
     z: i16,
 }
 
-#[destack::generated(LengthType, enum, block)]
+#[destack::generated(LengthType, , block)]
 /// The unit of a length value.
 pub enum LengthType {
     /// Pixel
@@ -82,7 +86,7 @@ pub enum LengthType {
     Fill = 4,
 }
 
-#[destack::generated(Layout, enum, block)]
+#[destack::generated(Layout, , block)]
 /// The layout of elements.
 pub enum Layout {
     /// Stack
@@ -91,7 +95,7 @@ pub enum Layout {
     Grid = 2,
 }
 
-#[destack::generated(Distribute, enum, block)]
+#[destack::generated(Distribute, , block)]
 /// The distribution of elements.
 pub enum Distribute {
     /// Start
@@ -108,7 +112,7 @@ pub enum Distribute {
     SpaceEvenly = 6,
 }
 
-#[destack::generated(Align, enum, block)]
+#[destack::generated(Align, , block)]
 /// The alignment of elements.
 pub enum Align {
     /// Start
@@ -119,7 +123,7 @@ pub enum Align {
     End = 3,
 }
 
-#[destack::generated(Direction, enum, block)]
+#[destack::generated(Direction, , block)]
 /// The direction of elements.
 pub enum Direction {
     /// Horizontal
@@ -128,7 +132,7 @@ pub enum Direction {
     Vertical = 2,
 }
 
-#[destack::generated(Overflow, enum, block)]
+#[destack::generated(Overflow, , block)]
 /// The overflow behavior of elements.
 pub enum Overflow {
     /// Hidden
@@ -139,7 +143,7 @@ pub enum Overflow {
     Scroll = 4,
 }
 
-#[destack::generated(Anchor, enum, block)]
+#[destack::generated(Anchor, , block)]
 /// The position of elements.
 pub enum Anchor {
     /// Relative to parent

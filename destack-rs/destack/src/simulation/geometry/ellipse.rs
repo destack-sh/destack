@@ -5,7 +5,7 @@
 use crate::Vector2;
 use crate::Vector3;
 
-#[destack::generated(Ellipse2D, struct, block)]
+#[destack::generated(Ellipse2D, , block)]
 /// An Ellipse is centered at a point with radii along x and y and a rotation.
 pub struct Ellipse2D {
     position: Vector2,
@@ -14,7 +14,7 @@ pub struct Ellipse2D {
     rotation: f32,
 }
 
-#[destack::generated(Ellipsoid3D, struct, block)]
+#[destack::generated(Ellipsoid3D, , block)]
 /// An Ellipsoid is centered at a point with radii along x, y and z axes.
 pub struct Ellipsoid3D {
     position: Vector3,

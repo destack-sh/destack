@@ -1,6 +1,6 @@
 //! destack.core.builtin@2025.08.15.1
 
-#![destack::partial(core/builtin, file)]
+#![destack::partial(destack.core.builtin, file)]
 #![allow(unused_imports)]
 
 pub use crate::core::builtin::_gen::*;
@@ -40,63 +40,3 @@ mod r#type;
 mod types;
 mod universe;
 mod uuid;
-
-pub(crate) use crate::core::builtin::_gen::*;
-
-pub(crate) use crate::core::builtin::declaration::*;
-
-pub(crate) use crate::core::builtin::r#enum::*;
-
-pub(crate) use crate::core::builtin::handle::*;
-
-pub(crate) use crate::core::builtin::node::*;
-
-pub(crate) use crate::core::builtin::object::*;
-
-pub(crate) use crate::core::builtin::property::*;
-
-pub(crate) use crate::core::builtin::r#type::*;
-
-pub(crate) use crate::core::builtin::types::*;
-
-pub(crate) use crate::core::builtin::uuid::*;
-
-pub(crate) use crate::core::builtin::_gen::*;
-
-pub(crate) use crate::core::builtin::declaration::*;
-
-pub(crate) use crate::core::builtin::r#enum::*;
-
-pub(crate) use crate::core::builtin::handle::*;
-
-pub(crate) use crate::core::builtin::node::*;
-
-pub(crate) use crate::core::builtin::object::*;
-
-pub(crate) use crate::core::builtin::property::*;
-
-pub(crate) use crate::core::builtin::r#type::*;
-
-pub(crate) use crate::core::builtin::types::*;
-
-pub(crate) use crate::core::builtin::uuid::*;
-
-pub(crate) use crate::core::builtin::_gen::*;
-
-pub(crate) use crate::core::builtin::declaration::*;
-
-pub(crate) use crate::core::builtin::r#enum::*;
-
-pub(crate) use crate::core::builtin::handle::*;
-
-pub(crate) use crate::core::builtin::node::*;
-
-pub(crate) use crate::core::builtin::object::*;
-
-pub(crate) use crate::core::builtin::property::*;
-
-pub(crate) use crate::core::builtin::r#type::*;
-
-pub(crate) use crate::core::builtin::types::*;
-
-pub(crate) use crate::core::builtin::uuid::*;

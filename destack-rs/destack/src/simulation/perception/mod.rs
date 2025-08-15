@@ -1,6 +1,6 @@
 //! destack.simulation.perception@2025.08.15.1
 
-#![destack::partial(simulation/perception, file)]
+#![destack::partial(destack.simulation.perception, file)]
 #![allow(unused_imports)]
 
 pub use crate::simulation::perception::_gen::*;
@@ -20,45 +20,3 @@ mod input;
 mod key;
 mod mouse;
 mod pointer;
-
-pub(crate) use crate::simulation::perception::_gen::*;
-
-pub(crate) use crate::simulation::perception::clipboard::*;
-
-pub(crate) use crate::simulation::perception::drag::*;
-
-pub(crate) use crate::simulation::perception::focus::*;
-
-pub(crate) use crate::simulation::perception::input::*;
-
-pub(crate) use crate::simulation::perception::key::*;
-
-pub(crate) use crate::simulation::perception::pointer::*;
-
-pub(crate) use crate::simulation::perception::_gen::*;
-
-pub(crate) use crate::simulation::perception::clipboard::*;
-
-pub(crate) use crate::simulation::perception::drag::*;
-
-pub(crate) use crate::simulation::perception::focus::*;
-
-pub(crate) use crate::simulation::perception::input::*;
-
-pub(crate) use crate::simulation::perception::key::*;
-
-pub(crate) use crate::simulation::perception::pointer::*;
-
-pub(crate) use crate::simulation::perception::_gen::*;
-
-pub(crate) use crate::simulation::perception::clipboard::*;
-
-pub(crate) use crate::simulation::perception::drag::*;
-
-pub(crate) use crate::simulation::perception::focus::*;
-
-pub(crate) use crate::simulation::perception::input::*;
-
-pub(crate) use crate::simulation::perception::key::*;
-
-pub(crate) use crate::simulation::perception::pointer::*;

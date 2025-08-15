@@ -2,6 +2,16 @@
 
 #![destack::generated(destack.core.builtin.universe, file)]
 
+use crate::EnumType;
+use crate::HandleType;
+use crate::NodeType;
+use crate::ObjectKind;
+use crate::ObjectStability;
+use crate::StructType;
+use crate::TraitType;
+use crate::UniverseCategory;
+use crate::UniverseDomain;
+
 #[destack::generated(ObjectKind, Debug, block)]
 impl std::fmt::Debug for ObjectKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -5,7 +5,7 @@
 use crate::ConstraintType;
 use crate::PropertyReference;
 
-#[destack::generated(ConstraintDefinition, struct, block)]
+#[destack::generated(ConstraintDefinition, , block)]
 /// Definition of a builtin Constraint.
 pub struct ConstraintDefinition {
     id: u8,

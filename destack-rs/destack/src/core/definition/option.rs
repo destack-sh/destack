@@ -4,7 +4,7 @@
 
 use crate::EnumType;
 
-#[destack::generated(OptionDefinition, struct, block)]
+#[destack::generated(OptionDefinition, , block)]
 /// Definition of a builtin Enum Option.
 pub struct OptionDefinition {
     id: u8,

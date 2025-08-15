@@ -3,16 +3,17 @@
 #![destack::partial(destack.core.common.value, file)]
 
 use crate::Type;
+use crate::Value;
 
-#[destack::generated(Value, struct, block)]
+#[destack::generated(Value, , block)]
 /// A generic Value of any Type.
 /// Values are used to represent any generic data.
 pub struct Value {
     r#type: Type,
-    value: (), /* TODO */
+    value: Option<() /* TODO */>,
 }
 
-#[destack::generated(NamedValue, struct, block)]
+#[destack::generated(NamedValue, , block)]
 /// A named Value.
 pub struct NamedValue {
     name: String,

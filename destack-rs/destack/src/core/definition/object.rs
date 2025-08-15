@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.definition.object, file)]
 
-#[destack::generated(ObjectDefinition, struct, block)]
+#[destack::generated(ObjectDefinition, , block)]
 /// Definition of a builtin Trait, Node or Struct.
 pub struct ObjectDefinition {
     id: u32,

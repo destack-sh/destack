@@ -5,7 +5,7 @@
 use crate::IndexType;
 use crate::PropertyReference;
 
-#[destack::generated(IndexDefinition, struct, block)]
+#[destack::generated(IndexDefinition, , block)]
 /// Definition of a builtin Index.
 pub struct IndexDefinition {
     id: u8,
