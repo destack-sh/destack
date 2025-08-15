@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -54,6 +55,8 @@ def bump(revision: int | None = None):
         "Cargo.toml",
         "destack-language/destack/core/builtin/_const.py",
         "destack-py-server/pyproject.toml",
+        "destack-py/pyproject.toml",
+        "destack-language/pyproject.toml",
         "destack-ts/package.json",
         "destack-ts-web/package.json",
         "destack-ts-server/package.json",
@@ -61,19 +64,25 @@ def bump(revision: int | None = None):
     )
 
     file_texts = {}
-    for path in files_to_update:
-        file_texts[path] = Path(path).read_text()
+    for raw_path in files_to_update:
+        path = Path("../" + raw_path)
+        if not path.exists():
+            raise ValueError(f"{path} not found from {os.getcwd()}")
+        file_texts[raw_path] = path.read_text()
         if (
-            current_version not in file_texts[path]
-            and current_version_semver not in file_texts[path]
+            current_version not in file_texts[raw_path]
+            and current_version_semver not in file_texts[raw_path]
         ):
-            raise ValueError(f"{current_version} / {current_version_semver} not found in {path}")
+            raise ValueError(
+                f"{current_version} / {current_version_semver} not found in {raw_path}"
+            )
 
     # write version to 'version' file and update all other files
     Path("version").write_text(new_version)
-    for path in files_to_update:
+    for raw_path in files_to_update:
+        path = Path("../" + raw_path)
         updated_text = (
-            file_texts[path]
+            file_texts[raw_path]
             .replace(current_version, new_version)
             .replace(current_version_semver, new_version_semver)
         )
