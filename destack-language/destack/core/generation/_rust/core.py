@@ -1,9 +1,11 @@
 import dataclasses
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-DESTACK_RS_PATH = Path("../destack-rs/destack/src")
+DESTACK_RS_PATH = Path("../destack-rs")
+DESTACK_RS_SRC_PATH = DESTACK_RS_PATH / "destack" / "src"
 DESTACK_RS_GEN_POSTFIX = "_gen"
 
 
@@ -12,7 +14,7 @@ def raw_path_to_source_path(raw_path: Path) -> str:
     Convert a raw path to a source path.
     Returns: like `simulation.geometry.vector`
     """
-    source_path = str(raw_path.relative_to(DESTACK_RS_PATH).with_suffix(""))
+    source_path = str(raw_path.relative_to(DESTACK_RS_SRC_PATH).with_suffix(""))
     source_path = source_path.replace("/", ".")
     return "destack." + source_path
 
@@ -23,7 +25,7 @@ def raw_path_to_local_path(raw_path: Path) -> str:
     Trim common DESTACK_RS_PATH prefix and remove postfix.
     Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/_gen/vector_gen.rs`
     """
-    base_path = raw_path.relative_to(DESTACK_RS_PATH).with_suffix("")
+    base_path = raw_path.relative_to(DESTACK_RS_SRC_PATH).with_suffix("")
     return str(base_path) + ".rs"
 
 
@@ -42,7 +44,7 @@ def source_path_to_local_path(source_path: str, *, is_gen: bool) -> str:
             DESTACK_RS_GEN_POSTFIX,
             local_path.split("/")[-1] + DESTACK_RS_GEN_POSTFIX,
         )
-        return str(local_path) + ".rs"
+        return "/".join(local_path) + ".rs"
     else:
         return str(local_path) + ".rs"
 
@@ -52,7 +54,7 @@ def local_path_to_raw_path(local_path: str) -> Path:
     Convert a local path to a raw path.
     Returns: actual Path like `destack/src/simulation/geometry/vector.rs`
     """
-    return DESTACK_RS_PATH / local_path
+    return DESTACK_RS_SRC_PATH / local_path
 
 
 class RustGenerationType(StrEnum):
@@ -143,15 +145,15 @@ class RustFile:
     """Normalized source path like `destack.simulation.geometry.vector.Vector2`"""
     source_path: str
     """All items in the file (managed and custom)."""
-    items: list[RustItem]
+    items: Sequence[RustItem]
     """Top level comment."""
     comment: str
     """Top level attributes."""
-    attributes: list[RustAttribute]
+    attributes: Sequence[RustAttribute]
     """Top level imports."""
-    imports: list["RustImport"] | None = None
+    imports: Sequence["RustImport"] | None = None
     """Declared modules."""
-    mods: list["RustMod"] | None = None
+    mods: Sequence["RustMod"] | None = None
     """Whether this is the mod.rs file."""
     is_mod_rs: bool = False
 

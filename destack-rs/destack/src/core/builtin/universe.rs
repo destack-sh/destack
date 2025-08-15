@@ -1,3 +1,676 @@
 //! destack.core.builtin.universe@2025.08.14.0
 
 #![destack::partial(destack.core.builtin.universe, file)]
+
+#[destack::generated(ObjectKind, enum, block)]
+/// ObjectKind
+pub enum ObjectKind {
+    /// Object with static logic (runtime only)
+    MODULE = 1,
+    /// Object with data, logic and universally addressable identity
+    NODE = 2,
+    /// Object with data and logic (embedded elsewhere)
+    STRUCT = 3,
+    /// Object with special data and logic (runtime only)
+    HANDLE = 4
+}
+
+#[destack::generated(EnumType, enum, block)]
+/// EnumType
+pub enum EnumType {
+    OBJECT_KIND = 1,
+    MODULE_TYPE = 2,
+    ENUM_TYPE = 3,
+    NODE_TYPE = 4,
+    STRUCT_TYPE = 5,
+    TRAIT_TYPE = 6,
+    HANDLE_TYPE = 7,
+    OBJECT_STABILITY = 8,
+    UNIVERSE_DOMAIN = 10,
+    UNIVERSE_CATEGORY = 11,
+    MATERIALIZATION = 20,
+    PROCESS_FLAG = 21,
+    EXTENSION_FLAG = 22,
+    RUNTIME_PLATFORM = 30,
+    RUNTIME_LANGUAGE = 31,
+    RUNTIME_TYPE = 32,
+    EVENT_STATUS = 40,
+    STRING_CASING = 50,
+    PRIMITIVE_TYPE = 200000,
+    TYPE_CARDINALITY = 200001,
+    SCALAR_TYPE = 200002,
+    VALUE_FACTORY = 200003,
+    PROPERTY_ZONE = 200006,
+    REFERENCE_TYPE = 200010,
+    TEXT_SPAN_TYPE = 200100,
+    TEXT_STYLE_FLAG = 200101,
+    ICON_TYPE = 200110,
+    CHANGE_TYPE = 200200,
+    EDIT_OPERATION_TYPE = 200201,
+    CONDITIONAL_TYPE = 200300,
+    AGGREGATION_TYPE = 200301,
+    SORT_MODE = 200302,
+    SORT_TYPE = 200303,
+    JOIN_TYPE = 200304,
+    EXPRESSION_TYPE = 200306,
+    QUERY_TYPE = 200320,
+    ENCODING = 1000000,
+    ENCODER_FLAG = 1000001,
+    ENCODER_STABILITY = 1000002,
+    CLIENT_TYPE = 3000200,
+    BRANCH_TYPE = 3100300,
+    SNAPSHOT_TYPE = 3100400,
+    SNAPSHOT_STATUS = 3100401,
+    FOLDER_TYPE = 3100500,
+    INDEX_TYPE = 10000100,
+    CONSTRAINT_TYPE = 10000200,
+    MIGRATION_TYPE = 10000300,
+    RUN_STATUS = 10101000,
+    FUNCTION_OPERATOR = 10100400,
+    METHOD_TYPE = 10100500,
+    ACTION_TYPE = 10100600,
+    TRIGGER_TYPE = 10100700,
+    TIMER_TYPE = 10100800,
+    DAY_OF_WEEK = 10100801,
+    MONTH = 10100802,
+    SCHEDULE_FREQUENCY = 10100803,
+    LOG_LEVEL = 10101100,
+    ROLE_TYPE = 10300300,
+    SANCTION_TYPE = 10300400,
+    ENTITLEMENT_TYPE = 10300500,
+    NOTIFICATION_STATUS = 11001301,
+    RIGID_MOTION_MODE = 20200100,
+    JOINT_FLAG = 20201000,
+    MOUSE_BUTTON = 20300000,
+    TRANSITION_TYPE = 30500000,
+    SPRING_TYPE = 30500001,
+    EFFECT_TYPE = 30500100,
+    REPEAT_TYPE = 30500002,
+    EASING = 30500003,
+    LENGTH_TYPE = 40100001,
+    LAYOUT = 40100002,
+    DISTRIBUTE = 40100003,
+    ALIGN = 40100004,
+    DIRECTION = 40100005,
+    OVERFLOW = 40100006,
+    ANCHOR = 40100007,
+    COLOR_TYPE = 40200000,
+    COLOR_SHADE = 40200001,
+    COLOR_HUE = 40200002,
+    COLOR_INTENT = 40200003,
+    FILL_TYPE = 40200400,
+    FILL_POSITION = 40200401,
+    FILL_SIZE = 40200402,
+    FONT_TYPE = 40200500,
+    FONT_WEIGHT = 40200501,
+    FONT_SIZE = 40200502,
+    TEXT_ALIGN = 40200503,
+    TEXT_DECORATION = 40200504,
+    TEXT_TRANSFORM = 40200505,
+    BORDER_TYPE = 40200600,
+    SHADOW_TYPE = 40200700,
+    SHADOW_POSITION = 40200701,
+    GRADIENT_TYPE = 40200800,
+    STROKE_TYPE = 40200900,
+    TEXT_SPLIT_TYPE = 40200901,
+    OFFSCREEN_BEHAVIOR = 40200902,
+    REGION = 50000001,
+    REGION_AREA = 50000002,
+    REGION_CONTINENT = 50000003,
+    MACHINE_TYPE = 50000000
+}
+
+#[destack::generated(NodeType, enum, block)]
+/// NodeType
+pub enum NodeType {
+    /// Root of all Nodes
+    NODE = 1,
+    /// Versioned, stateful Node
+    ENTITY = 2,
+    /// Immutable datum of something happening
+    EVENT = 3,
+    CHANGE_EVENT = 201000,
+    /// The Destack computational universe
+    UNIVERSE = 3000000,
+    USER = 3000100,
+    CLIENT = 3000200,
+    ORGANIZATION = 3000300,
+    /// Team in an Organization
+    TEAM = 3000400,
+    /// Universal Space
+    SPACE = 3100000,
+    TAG = 3100100,
+    BRANCH = 3100300,
+    /// Point in Space-time
+    SNAPSHOT = 3100400,
+    /// Sub-space of a Space
+    FOLDER = 3100500,
+    /// Custom Event Definition
+    CUSTOM_EVENT_DEFINITION = 10000000,
+    /// Custom Struct Definition
+    CUSTOM_STRUCT_DEFINITION = 10000100,
+    /// Custom Error Definition
+    CUSTOM_ERROR_DEFINITION = 10000300,
+    /// Custom Message Definition
+    CUSTOM_MESSAGE_DEFINITION = 10000200,
+    /// Custom Enum Definition
+    CUSTOM_ENUM_DEFINITION = 10000500,
+    /// Custom Property Definition
+    CUSTOM_PROPERTY_DEFINITION = 10001000,
+    /// Custom Option Definition
+    CUSTOM_OPTION_DEFINITION = 10001100,
+    /// Index of an Entity
+    INDEX = 10010000,
+    /// Constraint of an Entity
+    CONSTRAINT = 10010100,
+    /// Migration of an Entity
+    MIGRATION = 10010200,
+    /// Migration Operation of an Entity
+    MIGRATION_OPERATION = 10010300,
+    FILE = 10020000,
+    ENVIRONMENT = 10100100,
+    SCRIPT = 10100200,
+    /// Custom Event instance
+    CUSTOM_EVENT = 10100300,
+    MEASUREMENT_EVENT = 10100301,
+    FUNCTION = 10101000,
+    METHOD = 10101100,
+    ACTION = 10101200,
+    TRIGGER = 10102000,
+    TRIGGER_EVENT = 10102001,
+    TIMER = 10102100,
+    TIMER_EVENT = 10102101,
+    TIMER_STARTED_EVENT = 10102102,
+    TIMER_PAUSED_EVENT = 10102103,
+    TIMER_RESUMED_EVENT = 10102104,
+    TIMER_COMPLETED_EVENT = 10102105,
+    TIMER_CANCELLED_EVENT = 10102106,
+    RUN = 10110000,
+    RUN_EVENT = 10110001,
+    RUN_STARTED_EVENT = 10110002,
+    RUN_PAUSE_REQUESTED_EVENT = 10110003,
+    RUN_PAUSED_EVENT = 10110004,
+    RUN_RESUME_REQUESTED_EVENT = 10110005,
+    RUN_RESUMED_EVENT = 10110006,
+    RUN_STOP_REQUESTED_EVENT = 10110007,
+    RUN_FAILED_EVENT = 10110008,
+    RUN_COMPLETED_EVENT = 10110009,
+    SPAN_EVENT = 10110010,
+    LOG_EVENT = 10110011,
+    /// Permission for something
+    PERMISSION = 10300000,
+    /// Membership to something
+    MEMBERSHIP = 10300100,
+    MEMBERSHIP_EVENT = 10300101,
+    MEMBERSHIP_JOINED_EVENT = 10300102,
+    MEMBERSHIP_LEFT_EVENT = 10300103,
+    /// Invite to a Space/Folder
+    INVITE = 10300200,
+    INVITE_EVENT = 10300201,
+    INVITE_SENT_EVENT = 10300202,
+    INVITE_RESCINDED_EVENT = 10300203,
+    INVITE_ACCEPTED_EVENT = 10300204,
+    INVITE_REJECTED_EVENT = 10300205,
+    /// Role in something
+    ROLE = 10300300,
+    ROLE_EVENT = 10300301,
+    ROLE_ASSIGNED_EVENT = 10300302,
+    ROLE_UNASSIGNED_EVENT = 10300303,
+    /// Temporary or permanent restriction
+    SANCTION = 10300400,
+    SANCTION_EVENT = 10300401,
+    SANCTION_REQUESTED_EVENT = 10300402,
+    SANCTION_GRANTED_EVENT = 10300403,
+    SANCTION_REVOKED_EVENT = 10300404,
+    SANCTION_EXPIRED_EVENT = 10300405,
+    /// Temporary or permanent grant
+    ENTITLEMENT = 10300500,
+    ENTITLEMENT_EVENT = 10300501,
+    ENTITLEMENT_REQUESTED_EVENT = 10300502,
+    ENTITLEMENT_GRANTED_EVENT = 10300503,
+    ENTITLEMENT_REVOKED_EVENT = 10300504,
+    ENTITLEMENT_EXPIRED_EVENT = 10300505,
+    STAR = 11001100,
+    STAR_EVENT = 11001101,
+    STAR_ADDED_EVENT = 11001102,
+    STAR_REMOVED_EVENT = 11001103,
+    REACTION = 11001200,
+    REACTION_EVENT = 11001201,
+    REACTION_ADDED_EVENT = 11001202,
+    REACTION_REMOVED_EVENT = 11001203,
+    FOLLOW = 11001300,
+    FOLLOW_EVENT = 11001301,
+    FOLLOW_ADDED_EVENT = 11001302,
+    FOLLOW_REMOVED_EVENT = 11001303,
+    NOTIFICATION = 11001400,
+    NOTIFICATION_EVENT = 11001401,
+    NOTIFICATION_SENT_EVENT = 11001402,
+    NOTIFICATION_RESCINDED_EVENT = 11001403,
+    NOTIFICATION_READ_EVENT = 11001404,
+    NOTIFICATION_DISMISSED_EVENT = 11001405,
+    NOTIFICATION_EXPIRED_EVENT = 11001406,
+    ENTITY2D = 20000000,
+    SHAPE2D = 20000100,
+    POINT_SHAPE2D = 20001000,
+    CIRCLE_SHAPE2D = 20001100,
+    CAPSULE_SHAPE2D = 20001200,
+    RECTANGLE_SHAPE2D = 20001300,
+    SEGMENT_SHAPE2D = 20001400,
+    PATH_SHAPE2D = 20001500,
+    ELLIPSE_SHAPE2D = 20001600,
+    HALFSPACE_SHAPE2D = 20001700,
+    CONVEX_SHAPE2D = 20001800,
+    MESH_SHAPE2D = 20001900,
+    ENTITY3D = 20010000,
+    SHAPE3D = 20010100,
+    POINT_SHAPE3D = 20011000,
+    SPHERE_SHAPE3D = 20011100,
+    CAPSULE_SHAPE3D = 20011200,
+    BOX_SHAPE3D = 20011300,
+    SEGMENT_SHAPE3D = 20011400,
+    POLYLINE_SHAPE3D = 20011500,
+    ELLIPSOID_SHAPE3D = 20011600,
+    CYLINDER_SHAPE3D = 20011700,
+    CONE_SHAPE3D = 20011800,
+    PLANE_SHAPE3D = 20011900,
+    CONVEX_SHAPE3D = 20012000,
+    MESH_SHAPE3D = 20012100,
+    BODY2D = 20200000,
+    BODY_EVENT = 20200001,
+    BODY_SLEEP_EVENT = 20200002,
+    BODY_WAKE_EVENT = 20200003,
+    RIGID_BODY2D = 20200100,
+    SOFT_BODY2D = 20200200,
+    JOINT2D = 20201000,
+    JOINT_EVENT = 20201001,
+    JOINT_BREAK_EVENT = 20201002,
+    HINGE_JOINT2D = 20201100,
+    PRISMATIC_JOINT2D = 20201200,
+    FIXED_JOINT2D = 20201300,
+    ROPE_JOINT2D = 20201400,
+    WHEEL_JOINT2D = 20201500,
+    BODY3D = 20210000,
+    RIGID_BODY3D = 20210100,
+    SOFT_BODY3D = 20210200,
+    JOINT3D = 20211000,
+    HINGE_JOINT3D = 20211100,
+    PRISMATIC_JOINT3D = 20211200,
+    FIXED_JOINT3D = 20211300,
+    ROPE_JOINT3D = 20211400,
+    WHEEL_JOINT3D = 20211500,
+    SPHERICAL_JOINT3D = 20211600,
+    COLLIDER2D = 20220000,
+    COLLIDER_EVENT = 20220001,
+    COLLIDER_CONTACT_EVENT = 20220002,
+    COLLIDER3D = 20220100,
+    INPUT_EVENT = 20300000,
+    POINTER2D = 20300100,
+    POINTER_EVENT = 20300101,
+    POINTER_DOWN_EVENT = 20300102,
+    POINTER_UP_EVENT = 20300103,
+    POINTER_MOVE_EVENT = 20300104,
+    POINTER_ENTER_EVENT = 20300105,
+    POINTER_OVER_EVENT = 20300106,
+    POINTER_LEAVE_EVENT = 20300107,
+    POINTER_LONG_PRESS_EVENT = 20300108,
+    MOUSE2D = 20301000,
+    MOUSE_EVENT = 20301101,
+    CLICK_EVENT = 20301102,
+    SINGLE_CLICK_EVENT = 20301103,
+    DOUBLE_CLICK_EVENT = 20301104,
+    TRIPLE_CLICK_EVENT = 20301105,
+    WHEEL_EVENT = 20301106,
+    KEY_EVENT = 20302001,
+    KEY_DOWN_EVENT = 20302002,
+    KEY_UP_EVENT = 20302003,
+    KEY_PRESS_EVENT = 20302004,
+    DRAG_EVENT = 20303001,
+    DRAG_START_EVENT = 20303002,
+    DRAG_END_EVENT = 20303003,
+    DRAG_OVER_EVENT = 20303004,
+    DRAG_ENTER_EVENT = 20303005,
+    DRAG_LEAVE_EVENT = 20303006,
+    DROP_EVENT = 20303007,
+    CLIPBOARD_EVENT = 20304001,
+    COPY_EVENT = 20304002,
+    CUT_EVENT = 20304003,
+    PASTE_EVENT = 20304004,
+    FOCUS_EVENT = 20305001,
+    FOCUS_IN_EVENT = 20305002,
+    FOCUS_OUT_EVENT = 20305003,
+    AUDIO = 30000000,
+    IMAGE = 30100000,
+    VIDEO = 30200000,
+    MODEL = 30300000,
+    TRANSITION_TEMPLATE = 30500000,
+    EFFECT_TEMPLATE = 30500100,
+    THEME = 31000000,
+    PALETTE = 31000100,
+    STYLE = 31000200,
+    COLOR_STYLE = 31001000,
+    FILL_STYLE = 31001100,
+    FONT_STYLE = 31001200,
+    BORDER_STYLE = 31001300,
+    SHADOW_STYLE = 31001400,
+    GRADIENT_STYLE = 31001500,
+    STROKE_STYLE = 31001600,
+    DOCUMENT = 32000000,
+    STAGE = 40000000,
+    /// Scene of an Application
+    SCENE = 40000100,
+    SCENE_EVENT = 40000101,
+    /// Layer of a Scene
+    LAYER = 40000200,
+    /// View in a Scene
+    VIEW2D = 40100000,
+    LAYOUT_VIEW2D = 40100100,
+    /// Fixed Container
+    FRAME_VIEW2D = 40100200,
+    /// Label Container
+    LABEL_VIEW2D = 40100300,
+    /// Split Container
+    SPLIT_VIEW2D = 40100400,
+    CONTENT_VIEW2D = 40100500,
+    /// Text
+    TEXT_VIEW2D = 40100501,
+    INPUT_VIEW2D = 40100600,
+    /// Number Input
+    NUMBER_INPUT_VIEW2D = 40100601,
+    /// Slider Input
+    SLIDER_INPUT_VIEW2D = 40100602,
+    /// Machine for ephemeral computing
+    MACHINE = 50000000,
+    METRIC = 50100000,
+    GAUGE_METRIC = 50100100,
+    GAUGE_MEASUREMENT_EVENT = 50100101,
+    COUNTER_METRIC = 50100200,
+    COUNTER_MEASUREMENT_EVENT = 50100201,
+    HISTOGRAM_METRIC = 50100300,
+    HISTOGRAM_MEASUREMENT_EVENT = 50100301
+}
+
+#[destack::generated(StructType, enum, block)]
+/// StructType
+pub enum StructType {
+    /// Root of all Structs
+    STRUCT = 1,
+    /// Error
+    ERROR = 2,
+    /// Message
+    MESSAGE = 3,
+    FRACTIONAL_INTEGER_ERROR = 10000,
+    DEFINITION = 100000,
+    SCHEMA_DEFINITION = 100001,
+    MODULE_DEFINITION = 100002,
+    OBJECT_DEFINITION = 100003,
+    NODE_DEFINITION = 100004,
+    STRUCT_DEFINITION = 100005,
+    HANDLE_DEFINITION = 100006,
+    ENUM_DEFINITION = 100007,
+    PROPERTY_DEFINITION = 100100,
+    CONSTANT_DEFINITION = 100101,
+    OPTION_DEFINITION = 100102,
+    TAG_DEFINITION = 100103,
+    INDEX_DEFINITION = 100200,
+    CONSTRAINT_DEFINITION = 100201,
+    MIGRATION_DEFINITION = 100202,
+    MIGRATION_OPERATION_DEFINITION = 100203,
+    FUNCTION_DEFINITION = 100300,
+    METHOD_DEFINITION = 100301,
+    ACTION_DEFINITION = 100302,
+    PERMISSION_DEFINITION = 100400,
+    TYPE = 200000,
+    NUMBER_CONSTRAINT = 200001,
+    STRING_CONSTRAINT = 200002,
+    COLLECTION_CONSTRAINT = 200003,
+    VALUE = 200050,
+    NAMED_VALUE = 200051,
+    EXPRESSION = 200100,
+    JOIN = 200101,
+    AGGREGATION = 200102,
+    CONDITION = 200103,
+    SORT = 200104,
+    SELECT = 200105,
+    QUERY = 200200,
+    NODE_IDENTITY_REFERENCE = 200300,
+    NODE_SPATIAL_REFERENCE = 200301,
+    NODE_TEMPORAL_REFERENCE = 200302,
+    OBJECT_DEFINITION_REFERENCE = 200350,
+    PROPERTY_REFERENCE = 200360,
+    TEXT = 200400,
+    TEXT_SPAN = 200401,
+    ICON = 200500,
+    EDIT_OPERATION = 201100,
+    UNIVERSE_SIGNUP_REQUEST = 3000000,
+    UNIVERSE_SIGNUP_RESPONSE = 3000001,
+    UNIVERSE_SPAWN_REQUEST = 3000002,
+    UNIVERSE_SPAWN_RESPONSE = 3000003,
+    /// Custom Struct Instance
+    CUSTOM_STRUCT = 10000100,
+    /// Custom Error Instance
+    CUSTOM_ERROR = 10000200,
+    /// Custom Message Instance
+    CUSTOM_MESSAGE = 10000300,
+    SCHEDULE = 10100810,
+    VECTOR2 = 20000010,
+    VECTOR2I = 20000011,
+    VECTOR3 = 20000012,
+    VECTOR3I = 20000013,
+    VECTOR4 = 20000014,
+    VECTOR4I = 20000015,
+    QUATERNION = 20000020,
+    MESH2 = 20000030,
+    MESH3 = 20000031,
+    FORM2D = 20000100,
+    POINT2D = 20001000,
+    CIRCLE2D = 20001100,
+    CAPSULE2D = 20001200,
+    RECTANGLE2D = 20001300,
+    SEGMENT2D = 20001400,
+    PATH2D = 20001500,
+    ELLIPSE2D = 20001600,
+    HALFSPACE2D = 20001700,
+    FORM3D = 20010300,
+    POINT3D = 20011000,
+    SPHERE3D = 20011100,
+    CAPSULE3D = 20011200,
+    BOX3D = 20011300,
+    SEGMENT3D = 20011400,
+    POLYLINE3D = 20011500,
+    ELLIPSOID3D = 20011600,
+    CYLINDER3D = 20011700,
+    CONE3D = 20011800,
+    PLANE3D = 20011900,
+    JOINT_SPRING = 20201001,
+    JOINT_SCALAR_LIMIT = 20201002,
+    JOINT_CONE_LIMIT = 20201003,
+    JOINT_TWIST_LIMIT = 20201004,
+    JOINT_BREAK_LIMIT = 20201005,
+    JOINT_MOTOR = 20201006,
+    JOINT_FRAME2D = 20201007,
+    JOINT_FRAME3D = 20201008,
+    TRANSITION = 30500000,
+    EFFECT = 30500100,
+    COLOR = 31001000,
+    FILL = 31001100,
+    FONT = 31001200,
+    BORDER = 31001300,
+    SHADOW = 31001400,
+    GRADIENT = 31001500,
+    GRADIENT_STOP = 31001501,
+    STROKE = 31001600,
+    STROKE_CAP = 31001601,
+    STROKE_PATH = 31001602,
+    STROKE_POINT = 31001603,
+    LENGTH = 40100000,
+    OFFSET2 = 40100001,
+    GRID2 = 40100002,
+    GRID_SPAN2 = 40100003,
+    INSET2 = 40100004,
+    CORNER2 = 40100005,
+    AXIS2 = 40100006,
+    AXIS3 = 40100007
+}
+
+#[destack::generated(TraitType, enum, block)]
+/// TraitType
+pub enum TraitType {
+    /// Is ordered
+    ORDERED = 1,
+    /// Is a Resource
+    RESOURCE = 2,
+    /// Is a Variant
+    VARIANT = 3,
+    /// Is a Template
+    TEMPLATE = 4,
+    /// Can be run
+    RUNNABLE = 10100000,
+    /// Is ownable
+    OWNABLE = 10300000,
+    /// Is owned
+    OWNED = 10300001,
+    /// Is joinable
+    JOINABLE = 10300002,
+    /// Is an Actor
+    ACTOR = 10300003,
+    /// Can be starred
+    STARABLE = 11000100,
+    /// Can be reacted to
+    REACTABLE = 11000200,
+    /// Can be followed
+    FOLLOWABLE = 11000300,
+    /// Can be interacted with
+    INTERACTIVE = 20300000,
+    /// Can be dragged
+    DRAGGABLE = 20300001,
+    /// Can be selected
+    SELECTABLE = 20300002
+}
+
+#[destack::generated(HandleType, enum, block)]
+/// The type of a Handle.
+pub enum HandleType {
+    HANDLE = 1,
+    GRAPH = 1100000,
+    SESSION = 2100000,
+    CONTEXT = 2100100,
+    LOGGER = 2100200,
+    TRACER = 2100300
+}
+
+#[destack::generated(ObjectStability, enum, block)]
+/// ObjectStability
+pub enum ObjectStability {
+    /// Definition may change in every compatible way
+    DYNAMIC = 1,
+    /// Definition may never change
+    STATIC = 7
+}
+
+#[destack::generated(UniverseDomain, enum, block)]
+/// The Destack Computational Universe is organized into domains.
+pub enum UniverseDomain {
+    /// Intrinsics: Basic atoms the rest of the Universe is built on.
+    CORE = 1,
+    /// Scaffolding: Common Universe blocks that span domains.
+    BASICS = 10000000,
+    /// Modeling: The Universe as a complete simulation.
+    SIMULATION = 20000000,
+    /// Imagining: The Universe as a creative canvas.
+    IMAGINATION = 30000000,
+    /// Presenting: The Universe on stage.
+    PRESENTATION = 40000000,
+    /// Operating: The Universe as a complete system.
+    PRODUCTION = 50000000,
+    /// Distributing: Integrating the Universe with everything.
+    DISTRIBUTION = 60000000
+}
+
+#[destack::generated(UniverseCategory, enum, block)]
+/// How the Destack Computational Universe is organized (domains > categories).
+pub enum UniverseCategory {
+    /// Primitives and intrinsics
+    BUILTIN = 1,
+    /// Builtin definitions
+    DEFINITION = 100000,
+    /// Shared definitions
+    COMMON = 200000,
+    /// Serialization and packing
+    ENCODING = 1000000,
+    /// Storage and synchronization
+    PERSISTENCE = 1100000,
+    /// Code generation and compilation
+    GENERATION = 2000000,
+    /// Local runtime integration
+    LOCAL = 2100000,
+    /// Global computational universe
+    UNIVERSE = 3000000,
+    /// Spacetime organization
+    SPACE = 3100000,
+    /// Entity management
+    ENTITY = 10000000,
+    /// Logic, scripting and behavior
+    SCRIPT = 10100000,
+    /// Artificial intelligence
+    INTELLIGENCE = 10200000,
+    /// Identity, authentication and authorization
+    ACCESS = 10300000,
+    /// Quality assurance
+    QUALITY = 10400000,
+    /// Interactions, reputation and trust
+    SOCIAL = 11000000,
+    /// Accounting and finance
+    FINANCE = 11100000,
+    /// Editing the Universe
+    STUDIO = 19000000,
+    /// Geometric representations
+    GEOMETRY = 20000000,
+    /// Geographic representations
+    GEOGRAPHY = 20100000,
+    /// Physics simulation
+    PHYSICS = 20200000,
+    /// Sensing and interaction
+    PERCEPTION = 20300000,
+    /// Audio and sound production
+    AUDIO = 30000000,
+    /// Image and photo production
+    IMAGE = 30100000,
+    /// Video production
+    VIDEO = 30200000,
+    /// Modeling, sculpting, CSG, CAD
+    MODEL = 30300000,
+    /// Drawing and painting
+    PAINT = 30400000,
+    /// Motion choreography
+    ANIMATION = 30500000,
+    /// Appearance and theming
+    STYLE = 31000000,
+    /// Document processing
+    DOCUMENT = 32000000,
+    /// Staging and viewing
+    SCENE = 40000000,
+    /// View construction
+    VIEW = 40100000,
+    /// Render pipelines, post-processing
+    RENDERING = 40200000,
+    /// Camera and viewport
+    CAMERA = 40300000,
+    /// Shader programming
+    SHADERS = 40400000,
+    /// Material rendering
+    MATERIAL = 40500000,
+    /// Light and shadows
+    LIGHTING = 40600000,
+    /// Cloud computing infrastructure
+    CLOUD = 50000000,
+    /// Telemetry on everything
+    OBSERVABILITY = 50100000,
+    /// User experience
+    EXPERIENCE = 50200000,
+    /// Localization and internationalization
+    LOCALIZATION = 60000000,
+    /// Legal, compliance and policy
+    LEGAL = 60100000,
+    /// Billing and monetization
+    COMMERCE = 60200000
+}

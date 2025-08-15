@@ -55,7 +55,7 @@ checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
 
 [[package]]
 name = "destack"
-version = "2025.8.15-0"
+version = "2025.8.15-1"
 dependencies = [
  "destack_fractional",
  "destack_json",
@@ -70,11 +70,11 @@ dependencies = [
 
 [[package]]
 name = "destack_fractional"
-version = "2025.8.15-0"
+version = "2025.8.15-1"
 
 [[package]]
 name = "destack_json"
-version = "2025.8.15-0"
+version = "2025.8.15-1"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -82,7 +82,7 @@ dependencies = [
 
 [[package]]
 name = "destack_system"
-version = "2025.8.15-0"
+version = "2025.8.15-1"
 dependencies = [
  "destack",
  "io-uring",
@@ -93,7 +93,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test"
-version = "2025.8.15-0"
+version = "2025.8.15-1"
 dependencies = [
  "destack",
  "destack_system",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "destack_time"
-version = "2025.8.15-0"
+version = "2025.8.15-1"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "destack_uuid"
-version = "2025.8.15-0"
+version = "2025.8.15-1"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",

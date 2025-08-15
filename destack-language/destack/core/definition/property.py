@@ -102,7 +102,7 @@ class PropertyDefinition(Definition):
             # meta
             id=prop.id,
             name=prop.name,
-            description=prop.description,
+            description=prop.description or "",
             tag=resolve_tagging(object_cls, prop.tag).id if prop.tag else None,
             # type
             type=type,

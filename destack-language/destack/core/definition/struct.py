@@ -155,7 +155,7 @@ class StructDefinition(ObjectDefinition):
             id=struct_cls.metatype.value,
             type=struct_cls.metatype,
             name=struct_cls.__name__,
-            description=struct_cls.__doc__,
+            description=struct_cls.__doc__ or "",
             stability=declaration.stability,
             is_abstract=declaration.is_abstract,
             is_immutable=declaration.is_immutable,
