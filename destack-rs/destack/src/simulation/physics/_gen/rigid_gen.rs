@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.simulation.physics.rigid, file)]
 
-use crate::RigidMotionMode;
-
 #[destack::generated(RigidMotionMode, Debug, block)]
 impl std::fmt::Debug for RigidMotionMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

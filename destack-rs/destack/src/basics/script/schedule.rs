@@ -2,9 +2,28 @@
 
 #![destack::partial(destack.basics.script.schedule, file)]
 
+use crate::Timestamp;
+
 #[destack::generated(Schedule, struct, block)]
 /// The time-based schedule of something (compatible with rrule).
-pub struct Schedule {}
+pub struct Schedule {
+    frequency: ScheduleFrequency,
+    interval: u32,
+    start: Timestamp,
+    end: Timestamp,
+    count: u32,
+    week_start: DayOfWeek,
+    by_set_pos: Vec<u32>,
+    by_month: Vec<Month>,
+    by_month_day: Vec<u8>,
+    by_year_day: Vec<u16>,
+    by_easter: Vec<u8>,
+    by_week_no: Vec<u8>,
+    by_week_day: Vec<DayOfWeek>,
+    by_hour: Vec<u8>,
+    by_minute: Vec<u8>,
+    by_second: Vec<u8>
+}
 
 #[destack::generated(DayOfWeek, enum, block)]
 /// DayOfWeek
@@ -22,7 +41,7 @@ pub enum DayOfWeek {
     /// Saturday
     Saturday = 6,
     /// Sunday
-    Sunday = 7,
+    Sunday = 7
 }
 
 #[destack::generated(Month, enum, block)]
@@ -51,7 +70,7 @@ pub enum Month {
     /// November
     November = 11,
     /// December
-    December = 12,
+    December = 12
 }
 
 #[destack::generated(ScheduleFrequency, enum, block)]
@@ -68,5 +87,5 @@ pub enum ScheduleFrequency {
     /// Hourly
     Hour = 5,
     /// Minutely
-    Minute = 6,
+    Minute = 6
 }

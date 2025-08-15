@@ -4,35 +4,70 @@
 
 #[destack::generated(Length, struct, block)]
 /// An absolute or relative length value.
-pub struct Length {}
+pub struct Length {
+    unit: LengthType,
+    value: i16
+}
 
 #[destack::generated(Offset2, struct, block)]
 /// A 2-dimensional position value (relative or absolute).
-pub struct Offset2 {}
+pub struct Offset2 {
+    r#type: Anchor,
+    top: Length,
+    left: Length,
+    width: Length,
+    height: Length
+}
 
 #[destack::generated(Grid2, struct, block)]
 /// A 2-dimensional grid configuration value.
-pub struct Grid2 {}
+pub struct Grid2 {
+    columns: i16,
+    rows: i16,
+    column_width: Length,
+    column_min_width: Length,
+    row_height: Length
+}
 
 #[destack::generated(GridSpan2, struct, block)]
 /// A 2-dimensional grid span value.
-pub struct GridSpan2 {}
+pub struct GridSpan2 {
+    columns: i16,
+    rows: i16
+}
 
 #[destack::generated(Inset2, struct, block)]
 /// A 2-dimensional insets value (base + side overrides).
-pub struct Inset2 {}
+pub struct Inset2 {
+    top: i16,
+    left: i16,
+    right: i16,
+    bottom: i16
+}
 
 #[destack::generated(Corner2, struct, block)]
 /// A 2-dimensional corners value (base + corner overrides).
-pub struct Corner2 {}
+pub struct Corner2 {
+    top_left: i16,
+    top_right: i16,
+    bottom_left: i16,
+    bottom_right: i16
+}
 
 #[destack::generated(Axis2, struct, block)]
 /// A 2-dimensional axis value (base + x/y overrides).
-pub struct Axis2 {}
+pub struct Axis2 {
+    x: i16,
+    y: i16
+}
 
 #[destack::generated(Axis3, struct, block)]
 /// A 3-dimensional axis value (base + x/y/z overrides).
-pub struct Axis3 {}
+pub struct Axis3 {
+    x: i16,
+    y: i16,
+    z: i16
+}
 
 #[destack::generated(LengthType, enum, block)]
 /// The unit of a length value.
@@ -44,7 +79,7 @@ pub enum LengthType {
     /// Fit
     Fit = 3,
     /// Fill
-    Fill = 4,
+    Fill = 4
 }
 
 #[destack::generated(Layout, enum, block)]
@@ -53,7 +88,7 @@ pub enum Layout {
     /// Stack
     Stack = 1,
     /// Grid
-    Grid = 2,
+    Grid = 2
 }
 
 #[destack::generated(Distribute, enum, block)]
@@ -70,7 +105,7 @@ pub enum Distribute {
     /// Viewport Around
     SpaceAround = 5,
     /// Viewport Evenly
-    SpaceEvenly = 6,
+    SpaceEvenly = 6
 }
 
 #[destack::generated(Align, enum, block)]
@@ -81,7 +116,7 @@ pub enum Align {
     /// Center
     Center = 2,
     /// End
-    End = 3,
+    End = 3
 }
 
 #[destack::generated(Direction, enum, block)]
@@ -90,7 +125,7 @@ pub enum Direction {
     /// Horizontal
     Horizontal = 1,
     /// Vertical
-    Vertical = 2,
+    Vertical = 2
 }
 
 #[destack::generated(Overflow, enum, block)]
@@ -101,7 +136,7 @@ pub enum Overflow {
     /// Visible
     Visible = 3,
     /// Scroll
-    Scroll = 4,
+    Scroll = 4
 }
 
 #[destack::generated(Anchor, enum, block)]
@@ -114,5 +149,5 @@ pub enum Anchor {
     /// Fixed to root
     Fixed = 3,
     /// Sticky to parent
-    Sticky = 4,
+    Sticky = 4
 }

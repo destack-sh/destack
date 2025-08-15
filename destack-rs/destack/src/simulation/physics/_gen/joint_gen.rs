@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.simulation.physics.joint, file)]
 
-use crate::JointFlag;
-
 #[destack::generated(JointFlag, Debug, block)]
 impl std::fmt::Debug for JointFlag {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

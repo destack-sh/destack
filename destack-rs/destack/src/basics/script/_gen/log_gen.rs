@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.basics.script.log, file)]
 
-use crate::LogLevel;
-
 #[destack::generated(LogLevel, Debug, block)]
 impl std::fmt::Debug for LogLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -12,7 +12,7 @@ pub enum Materialization {
     /// Entity is a full copy of its definition
     Full = 3,
     /// Entity is its own root (no other definition)
-    Root = 4,
+    Root = 4
 }
 
 #[destack::generated(ProcessFlag, enum, block)]
@@ -28,7 +28,7 @@ pub enum ProcessFlag {
     /// Entity is sleeping (i.e. not processing).
     Sleeping = 8,
     /// Entity is sleeping to InputEvents.
-    SleepingInput = 16,
+    SleepingInput = 16
 }
 
 #[destack::generated(ExtensionFlag, enum, block)]
@@ -36,5 +36,5 @@ pub enum ProcessFlag {
 pub enum ExtensionFlag {
     Default = 0,
     Instantiable = 1,
-    Extensible = 2,
+    Extensible = 2
 }

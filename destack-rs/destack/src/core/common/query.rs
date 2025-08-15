@@ -2,34 +2,74 @@
 
 #![destack::partial(destack.core.common.query, file)]
 
+use crate::{ObjectDefinitionReference, PropertyReference, Uuid, Value};
+
 #[destack::generated(Expression, struct, block)]
 /// Wrapper to unify any scalar / boolean / aggregate sub-tree.
-pub struct Expression {}
+pub struct Expression {
+    r#type: ExpressionType,
+    literal: Value,
+    attribute: PropertyReference,
+    condition: Condition,
+    aggregation: Aggregation,
+}
 
 #[destack::generated(Join, struct, block)]
 /// Join a Query with another Query.
-pub struct Join {}
+pub struct Join {
+    r#type: JoinType,
+    recursive: bool,
+    on: Condition,
+}
 
 #[destack::generated(Aggregation, struct, block)]
 /// Aggregation.
-pub struct Aggregation {}
+pub struct Aggregation {
+    r#type: AggregationType,
+    expression: Expression,
+}
 
 #[destack::generated(Condition, struct, block)]
 /// Boolean predicate (AND, =, <, etc.).
-pub struct Condition {}
+pub struct Condition {
+    r#type: ConditionalType,
+    left: Expression,
+    right: Expression,
+}
 
 #[destack::generated(Sort, struct, block)]
 /// ORDER BY specification.
-pub struct Sort {}
+pub struct Sort {
+    r#type: SortType,
+    by: Expression,
+    mode: SortMode,
+}
 
 #[destack::generated(Select, struct, block)]
 /// Select specific Attributes.
-pub struct Select {}
+pub struct Select {
+    attributes: Vec<PropertyReference>,
+}
 
 #[destack::generated(Query, struct, block)]
 /// A Query into the supergraph about Nodes (node or scalar and potentially grouped).
 /// Queries may either be about Entities or Events.
-pub struct Query {}
+pub struct Query {
+    id: Uuid,
+    r#type: QueryType,
+    name: String,
+    definition: ObjectDefinitionReference,
+    subqueries: Vec<Query>,
+    join: Join,
+    select: Select,
+    r#where: Condition,
+    having: Condition,
+    group_by: Vec<Expression>,
+    aggregation: Aggregation,
+    sort: Vec<Sort>,
+    limit: u32,
+    offset: u32,
+}
 
 #[destack::generated(ConditionalType, enum, block)]
 /// ConditionalType

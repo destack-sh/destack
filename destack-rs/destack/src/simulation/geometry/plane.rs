@@ -2,10 +2,20 @@
 
 #![destack::partial(destack.simulation.geometry.plane, file)]
 
+use crate::{Vector3, Vector2};
+
 #[destack::generated(Halfspace2D, struct, block)]
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.
-pub struct Halfspace2D {}
+pub struct Halfspace2D {
+    position: Vector2,
+    normal: Vector2,
+    distance: f32
+}
 
 #[destack::generated(Plane3D, struct, block)]
 /// A Plane3D splits 3D space by a plane with normal and distance from origin.
-pub struct Plane3D {}
+pub struct Plane3D {
+    position: Vector3,
+    normal: Vector3,
+    distance: f32
+}

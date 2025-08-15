@@ -3,6 +3,12 @@
 #![destack::partial(core/definition/_gen, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::core::definition::_gen::module_gen::*;
+pub use crate::core::definition::_gen::module_gen::*;
 
 mod module_gen;
+
+pub(crate) use crate::core::definition::_gen::module_gen::*;
+
+pub(crate) use crate::core::definition::_gen::module_gen::*;
+
+pub(crate) use crate::core::definition::_gen::module_gen::*;

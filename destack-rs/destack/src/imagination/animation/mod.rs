@@ -3,12 +3,18 @@
 #![destack::partial(imagination/animation, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::imagination::animation::_gen::*;
-pub use crate::imagination::animation::easing::*;
-pub use crate::imagination::animation::effect::*;
+pub use crate::imagination::animation::_gen::*;
 pub use crate::imagination::animation::transition::*;
+pub use crate::imagination::animation::effect::*;
+pub use crate::imagination::animation::easing::*;
 
 mod _gen;
-mod easing;
-mod effect;
 mod transition;
+mod effect;
+mod easing;
+
+pub(crate) use crate::imagination::animation::_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::*;

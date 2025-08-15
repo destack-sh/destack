@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.core.common.text, file)]
 
-use crate::{TextSpanType, TextStyleFlag};
-
 #[destack::generated(TextSpanType, Debug, block)]
 impl std::fmt::Debug for TextSpanType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

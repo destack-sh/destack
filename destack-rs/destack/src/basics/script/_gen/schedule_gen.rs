@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.basics.script.schedule, file)]
 
-use crate::{DayOfWeek, Month, ScheduleFrequency};
-
 #[destack::generated(DayOfWeek, Debug, block)]
 impl std::fmt::Debug for DayOfWeek {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

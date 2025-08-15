@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.basics.script.run, file)]
 
-use crate::RunStatus;
-
 #[destack::generated(RunStatus, Debug, block)]
 impl std::fmt::Debug for RunStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

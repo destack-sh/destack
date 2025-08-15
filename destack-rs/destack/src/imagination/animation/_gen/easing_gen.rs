@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.imagination.animation.easing, file)]
 
-use crate::Easing;
-
 #[destack::generated(Easing, Debug, block)]
 impl std::fmt::Debug for Easing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

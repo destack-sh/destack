@@ -2,21 +2,48 @@
 
 #![destack::partial(destack.imagination.style.stroke, file)]
 
+use crate::{Vector2, Color, Easing};
+
 #[destack::generated(Stroke, struct, block)]
 /// A stroke value.
-pub struct Stroke {}
+pub struct Stroke {
+    r#type: StrokeType,
+    template: i64 /* TODO */ ,
+    size: u8,
+    thinning: f32,
+    smoothing: f32,
+    streamline: f32,
+    easing: Easing,
+    color: Color,
+    start: StrokeCap,
+    end: StrokeCap
+}
 
 #[destack::generated(StrokeCap, struct, block)]
 /// A stroke cap.
-pub struct StrokeCap {}
+pub struct StrokeCap {
+    cap: bool,
+    taper: bool,
+    easing: Easing
+}
 
 #[destack::generated(StrokePath, struct, block)]
 /// A stroke path.
-pub struct StrokePath {}
+pub struct StrokePath {
+    points: Vec<StrokePoint>
+}
 
 #[destack::generated(StrokePoint, struct, block)]
 /// A computed point in a stroke.
-pub struct StrokePoint {}
+pub struct StrokePoint {
+    point: Vector2,
+    original_point: Vector2,
+    pressure: f32,
+    direction: Vector2,
+    distance: f32,
+    running_length: f32,
+    radius: f32
+}
 
 #[destack::generated(StrokeType, enum, block)]
 /// StrokeType
@@ -28,5 +55,5 @@ pub enum StrokeType {
     /// A dotted stroke
     Dotted = 3,
     /// A freehand stroke
-    Freehand = 4,
+    Freehand = 4
 }

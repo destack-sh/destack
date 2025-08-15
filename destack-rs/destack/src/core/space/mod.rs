@@ -3,10 +3,22 @@
 #![destack::partial(core/space, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::core::space::_gen::*;
+pub use crate::core::space::space::*;
+pub use crate::core::space::_gen::*;
 pub use crate::core::space::folder::*;
-pub(crate) use crate::core::space::space::*;
 
+mod space;
 mod _gen;
 mod folder;
-mod space;
+
+pub(crate) use crate::core::space::_gen::*;
+
+pub(crate) use crate::core::space::space::*;
+
+pub(crate) use crate::core::space::_gen::*;
+
+pub(crate) use crate::core::space::space::*;
+
+pub(crate) use crate::core::space::_gen::*;
+
+pub(crate) use crate::core::space::space::*;

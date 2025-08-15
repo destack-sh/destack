@@ -3,10 +3,28 @@
 #![destack::partial(core/persistence, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::core::persistence::connection::*;
-pub(crate) use crate::core::persistence::graph::*;
-pub(crate) use crate::core::persistence::stream::*;
+pub use crate::core::persistence::stream::*;
+pub use crate::core::persistence::connection::*;
+pub use crate::core::persistence::graph::*;
 
+mod stream;
 mod connection;
 mod graph;
-mod stream;
+
+pub(crate) use crate::core::persistence::connection::*;
+
+pub(crate) use crate::core::persistence::graph::*;
+
+pub(crate) use crate::core::persistence::stream::*;
+
+pub(crate) use crate::core::persistence::connection::*;
+
+pub(crate) use crate::core::persistence::graph::*;
+
+pub(crate) use crate::core::persistence::stream::*;
+
+pub(crate) use crate::core::persistence::connection::*;
+
+pub(crate) use crate::core::persistence::graph::*;
+
+pub(crate) use crate::core::persistence::stream::*;

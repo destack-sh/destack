@@ -4,11 +4,20 @@
 
 #[destack::generated(Text, struct, block)]
 /// Text is a single paragraph composed of TextSpans with inline styling.
-pub struct Text {}
+pub struct Text {
+    spans: Vec<TextSpan>,
+    style_flags: TextStyleFlag
+}
 
 #[destack::generated(TextSpan, struct, block)]
 /// Span of text with optional styling.
-pub struct TextSpan {}
+pub struct TextSpan {
+    r#type: TextSpanType,
+    content: String,
+    node: i64 /* TODO */ ,
+    url: String,
+    style_flags: TextStyleFlag
+}
 
 #[destack::generated(TextSpanType, enum, block)]
 /// TextSpanType
@@ -22,7 +31,7 @@ pub enum TextSpanType {
     /// Hyperlink
     Link = 11,
     /// TeX equation
-    Equation = 20,
+    Equation = 20
 }
 
 #[destack::generated(TextStyleFlag, enum, block)]
@@ -33,5 +42,5 @@ pub enum TextStyleFlag {
     Italic = 2,
     Strikethrough = 4,
     Underline = 8,
-    Code = 16,
+    Code = 16
 }

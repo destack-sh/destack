@@ -3,6 +3,12 @@
 #![destack::partial(basics/entity/_gen, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::basics::entity::_gen::migration_gen::*;
+pub use crate::basics::entity::_gen::migration_gen::*;
 
 mod migration_gen;
+
+pub(crate) use crate::basics::entity::_gen::migration_gen::*;
+
+pub(crate) use crate::basics::entity::_gen::migration_gen::*;
+
+pub(crate) use crate::basics::entity::_gen::migration_gen::*;

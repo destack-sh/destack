@@ -508,6 +508,7 @@ Universally unique identifier (UUID7, 128-bit)
 Range: 0 to 2^128-1
 """,
     )
+    # nocheckin: remove PrimitiveType.Bytes?
     BYTES = declare_option(
         56,
         "Bytes",

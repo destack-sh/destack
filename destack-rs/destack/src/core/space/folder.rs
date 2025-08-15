@@ -14,5 +14,5 @@ pub enum FolderType {
     /// A module
     Module = 4,
     /// An app folder
-    App = 5,
+    App = 5
 }

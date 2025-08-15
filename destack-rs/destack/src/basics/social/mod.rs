@@ -3,14 +3,38 @@
 #![destack::partial(basics/social, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::basics::social::_gen::*;
-pub(crate) use crate::basics::social::follow::*;
+pub use crate::basics::social::star::*;
+pub use crate::basics::social::follow::*;
+pub use crate::basics::social::_gen::*;
 pub use crate::basics::social::notification::*;
-pub(crate) use crate::basics::social::reaction::*;
-pub(crate) use crate::basics::social::star::*;
+pub use crate::basics::social::reaction::*;
 
-mod _gen;
+mod star;
 mod follow;
+mod _gen;
 mod notification;
 mod reaction;
-mod star;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;

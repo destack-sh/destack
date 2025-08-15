@@ -2,9 +2,22 @@
 
 #![destack::partial(destack.imagination.style.font, file)]
 
+use crate::{Fill, Length};
+
 #[destack::generated(Font, struct, block)]
 /// A font value.
-pub struct Font {}
+pub struct Font {
+    r#type: FontType,
+    template: i64, /* TODO */
+    weight: FontWeight,
+    fill: Fill,
+    size: FontSize,
+    align: TextAlign,
+    line_height: Length,
+    letter_spacing: Length,
+    decoration: TextDecoration,
+    transform: TextTransform,
+}
 
 #[destack::generated(FontType, enum, block)]
 /// FontType

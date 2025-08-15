@@ -8,5 +8,5 @@ pub enum TimerType {
     /// A one-time timer
     Once = 1,
     /// A recurring timer
-    Recurring = 2,
+    Recurring = 2
 }

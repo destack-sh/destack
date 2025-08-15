@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.basics.entity.migration, file)]
 
-use crate::MigrationType;
-
 #[destack::generated(MigrationType, Debug, block)]
 impl std::fmt::Debug for MigrationType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
