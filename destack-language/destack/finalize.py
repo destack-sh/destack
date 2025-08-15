@@ -3,7 +3,7 @@ from collections import defaultdict
 from collections.abc import Mapping
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from .core.builtin import (
     VERSION,
@@ -37,7 +37,12 @@ from .registry import (
 )
 
 if TYPE_CHECKING:
-    from destack import ModuleDefinition, SchemaDefinition
+    from destack import (
+        ActionDefinition,
+        MethodDefinition,
+        ModuleDefinition,
+        SchemaDefinition,
+    )
 
 type_ = type
 
@@ -77,8 +82,7 @@ _IGNORED_MODULES = (
 )
 _IGNORED_MODULES_EXTENSIONS = (".pyc", ".egg-info")
 
-# nocheckin: ensure all objects are properly indexed into their modules
-#  (and move the _hoisted ones into their proper module definitions)
+_hoisted_objects: dict[str, Any] = {}
 
 
 def _index_module(
@@ -92,7 +96,6 @@ def _index_module(
         Enum,
         FlagEnum,
         Handle,
-        MethodDefinition,
         ModuleDefinition,
         ModuleType,
         Node,
@@ -133,42 +136,52 @@ def _index_module(
         py_module = importlib.import_module(path)
         description = py_module.__doc__ or ""
 
+        def _index_type(obj: type_):
+            if issubclass(obj, Node):
+                assert obj.__definition__.domain == domain, (
+                    f"node {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
+                )
+                assert obj.__definition__.category == category, (
+                    f"node {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
+                )
+                node_types.append(obj.metatype)
+            elif issubclass(obj, Struct):
+                assert obj.__definition__.domain == domain, (
+                    f"struct {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
+                )
+                assert obj.__definition__.category == category, (
+                    f"struct {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
+                )
+                struct_types.append(obj.metatype)
+            elif issubclass(obj, Handle):
+                assert obj.__definition__.domain == domain, (
+                    f"handle {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
+                )
+                assert obj.__definition__.category == category, (
+                    f"handle {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
+                )
+                handle_types.append(obj.metatype)
+            elif issubclass(obj, Enum) and obj not in (Enum, OptionEnum, FlagEnum):
+                assert obj.__declaration__.domain == domain, (
+                    f"enum {obj.__name__} has domain {obj.__declaration__.domain} but is in {domain} ({path})"
+                )
+                assert obj.__declaration__.category == category, (
+                    f"enum {obj.__name__} has category {obj.__declaration__.category} but is in {category} ({path})"
+                )
+                enum_types.append(obj.metatype)
+
         # regular objects
         for obj_name, obj in py_module.__dict__.items():
             if obj_name.startswith("_"):
                 continue  # internal object
             elif isinstance(obj, MethodDeclaration):
-                method = MethodDefinition.from_declaration(obj)
+                MethodDefinition_ = cast(
+                    type_["MethodDefinition"], STRUCT_CLASS_BY_TYPE[StructType.METHOD_DEFINITION]
+                )
+                method = MethodDefinition_.from_declaration(obj)
                 methods.append(method)
-            elif isinstance(obj, type_):
-                if obj.__module__ != py_module.__name__:
-                    continue  # imported object
-                elif issubclass(obj, Node):
-                    assert obj.__definition__.domain == domain, (
-                        f"node {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
-                    )
-                    assert obj.__definition__.category == category, (
-                        f"node {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
-                    )
-                    node_types.append(obj.metatype)
-                elif issubclass(obj, Struct):
-                    assert obj.__definition__.domain == domain, (
-                        f"struct {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
-                    )
-                    assert obj.__definition__.category == category, (
-                        f"struct {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
-                    )
-                    struct_types.append(obj.metatype)
-                elif issubclass(obj, Handle):
-                    assert obj.__definition__.domain == domain, (
-                        f"handle {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
-                    )
-                    assert obj.__definition__.category == category, (
-                        f"handle {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
-                    )
-                    handle_types.append(obj.metatype)
-                elif issubclass(obj, Enum) and obj not in (Enum, OptionEnum, FlagEnum):
-                    enum_types.append(obj.metatype)
+            elif isinstance(obj, type_) and obj.__module__ == py_module.__name__:
+                _index_type(obj)
 
         # constants from special __constants__ attribute
         if declared_constants := py_module.__dict__.get("__constants__"):
@@ -180,14 +193,28 @@ def _index_module(
                 assert not constant._is_deferred, f"deferred constant in {path}: {constant!r}"
                 constants.append(constant)
 
+        # add any extra "hoisted" objects to first leaf module
+        #  (which won't show up in its own __dict__ because they're .. hoisted)
+        if category is not None:
+            hoisted_module_path = Path("destack.core.builtin._hoisted")
+            hoisted_module = importlib.import_module(str(hoisted_module_path))
+            for obj_name, obj in hoisted_module.__dict__.items():
+                if obj_name.startswith("_"):
+                    continue  # internal object
+                elif (
+                    isinstance(obj, type_)
+                    and obj.__module__ == hoisted_module_path.name
+                    and (declaration := getattr(obj, "__declaration__", None)) is not None
+                    and declaration.domain == domain
+                    and declaration.category == category
+                    and obj_name not in _hoisted_objects
+                ):
+                    _hoisted_objects[obj_name] = obj
+                    _index_type(obj)
+
         MODULE_BY_PATH[path] = py_module
     else:
         description = ""
-
-    # add any hoisted objects to the module
-    if category is not None:
-        hoisted_module_path = Path("destack.core.builtin._hoisted")
-        hoisted_module = importlib.import_module(str(hoisted_module_path))
 
     # create module
     module = ModuleDefinition(
@@ -277,13 +304,11 @@ def finalize():
         return
 
     from .core import (
-        ActionDefinition,
         ConstantDeclaration,
         ConstantDefinition,
         EnumDefinition,
         Event,
         HandleDefinition,
-        MethodDefinition,
         Node,
         NodeDefinition,
         ObjectDefinitionReference,
@@ -390,6 +415,12 @@ def finalize():
         ENUM_DEFINITION_BY_TYPE[enum_cls.metatype] = enum_definition
 
     # collect methods/actions from objects
+    MethodDefinition_ = cast(
+        type["MethodDefinition"], STRUCT_CLASS_BY_TYPE[StructType.METHOD_DEFINITION]
+    )
+    ActionDefinition_ = cast(
+        type["ActionDefinition"], STRUCT_CLASS_BY_TYPE[StructType.ACTION_DEFINITION]
+    )
     for object_cls in chain(
         NODE_CLASS_BY_TYPE.values(),
         STRUCT_CLASS_BY_TYPE.values(),
@@ -400,10 +431,10 @@ def finalize():
         for name, attribute in object_cls.__dict__.items():
             if isinstance(attribute, FunctionDeclaration):
                 if isinstance(attribute, MethodDeclaration):
-                    method = MethodDefinition.from_declaration(attribute)
+                    method = MethodDefinition_.from_declaration(attribute)
                     methods.append(method)
                 elif isinstance(attribute, ActionDeclaration):
-                    action = ActionDefinition.from_declaration(attribute)
+                    action = ActionDefinition_.from_declaration(attribute)
                     actions.append(action)
                 else:
                     raise ValueError(f"unexpected function: {name!r}")
@@ -450,7 +481,9 @@ def finalize():
             enum_cls = ENUM_CLASS_BY_TYPE[enum_type]
             module_objects_by_name[enum_cls.__name__] = enum_cls
     if len(module_objects_by_name) != len(BUILTIN_CLASS_BY_NAME):
-        missing_objects = set(BUILTIN_CLASS_BY_NAME.keys()) - set(module_objects_by_name.keys())
+        missing_objects = (
+            set(BUILTIN_CLASS_BY_NAME.keys()) - set(module_objects_by_name.keys())
+        ) | (set(module_objects_by_name.keys()) - set(BUILTIN_CLASS_BY_NAME.keys()))
         raise ValueError(
             f"missing {len(missing_objects)} objects in {len(MODULE_DEFINITION_BY_PATH)} modules: {list(missing_objects)}"
         )

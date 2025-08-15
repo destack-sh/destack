@@ -73,8 +73,10 @@ class UniverseCategory(OptionEnum):
     #
 
     BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
-    # NOTE :Architecture: it would be nice to merge Definitions and CustomDefinitions
-    #  (but would require much deeper integration with a custom language and I don't even know)
+    # NOTE :Architecture: would be nice to "merge" *Definitions (Structs) and *CustomDefinitions (Nodes)
+    #  Having Struct POD definitions statically known makes bootstrapping the runtime much easier (?);
+    #   Structs are trivial to load and iterate but Nodes need more machinery (identity, graphs, etc).
+    #   (so would require much deeper integration with a custom language and .. dunno, maybe)
     DEFINITION = declare_option(100_000, "Definition", description="Builtin definitions")
     COMMON = declare_option(200_000, "Common", description="Shared definitions")
     ENCODING = declare_option(1_000_000, "Encoding", description="Serialization and packing")
@@ -335,8 +337,28 @@ class EnumType(OptionEnum):
     EFFECT_TYPE = declare_option(30_500_100)
     REPEAT_TYPE = declare_option(30_500_002)
     EASING = declare_option(30_500_003)
+    TEXT_SPLIT_TYPE = declare_option(30_500_004)
+    OFFSCREEN_BEHAVIOR = declare_option(30_500_005)
 
     # style [31_000_000]
+    COLOR_TYPE = declare_option(31_000_000)
+    COLOR_SHADE = declare_option(31_000_001)
+    COLOR_HUE = declare_option(31_000_002)
+    COLOR_INTENT = declare_option(31_000_003)
+    FILL_TYPE = declare_option(31_000_400)
+    FILL_POSITION = declare_option(31_000_401)
+    FILL_SIZE = declare_option(31_000_402)
+    FONT_TYPE = declare_option(31_000_500)
+    FONT_WEIGHT = declare_option(31_000_501)
+    FONT_SIZE = declare_option(31_000_502)
+    TEXT_ALIGN = declare_option(31_000_503)
+    TEXT_DECORATION = declare_option(31_000_504)
+    TEXT_TRANSFORM = declare_option(31_000_505)
+    BORDER_TYPE = declare_option(31_000_600)
+    SHADOW_TYPE = declare_option(31_000_700)
+    SHADOW_POSITION = declare_option(31_000_701)
+    GRADIENT_TYPE = declare_option(31_000_800)
+    STROKE_TYPE = declare_option(31_000_900)
     # ...
 
     # document [32_000_000]
@@ -360,26 +382,7 @@ class EnumType(OptionEnum):
     # ...
 
     # rendering [40_200_000]
-    COLOR_TYPE = declare_option(40_200_000)
-    COLOR_SHADE = declare_option(40_200_001)
-    COLOR_HUE = declare_option(40_200_002)
-    COLOR_INTENT = declare_option(40_200_003)
-    FILL_TYPE = declare_option(40_200_400)
-    FILL_POSITION = declare_option(40_200_401)
-    FILL_SIZE = declare_option(40_200_402)
-    FONT_TYPE = declare_option(40_200_500)
-    FONT_WEIGHT = declare_option(40_200_501)
-    FONT_SIZE = declare_option(40_200_502)
-    TEXT_ALIGN = declare_option(40_200_503)
-    TEXT_DECORATION = declare_option(40_200_504)
-    TEXT_TRANSFORM = declare_option(40_200_505)
-    BORDER_TYPE = declare_option(40_200_600)
-    SHADOW_TYPE = declare_option(40_200_700)
-    SHADOW_POSITION = declare_option(40_200_701)
-    GRADIENT_TYPE = declare_option(40_200_800)
-    STROKE_TYPE = declare_option(40_200_900)
-    TEXT_SPLIT_TYPE = declare_option(40_200_901)
-    OFFSCREEN_BEHAVIOR = declare_option(40_200_902)
+    # ...
 
     # camera [40_300_000]
     # ...
@@ -476,6 +479,32 @@ class ObjectStability(OptionEnum):
         7,
         "Static",
         description="Definition may never change",
+    )
+
+
+@declare_enum(EnumType.MODULE_TYPE)
+class ModuleType(OptionEnum):
+    """Built-in module types."""
+
+    ROOT = declare_option(
+        1,
+        "Root",
+        description="Root module for the entire Universe",
+    )
+    DOMAIN = declare_option(
+        2,
+        "Domain",
+        description="Module for an entire UniverseDomain",
+    )
+    CATEGORY = declare_option(
+        3,
+        "Category",
+        description="Module for an entire UniverseCategory",
+    )
+    OBJECT = declare_option(
+        4,
+        "Object",
+        description="Module for one or more Objects",
     )
 
 
@@ -698,7 +727,6 @@ class NodeType(OptionEnum):
 
     # space [3_100_000]
     SPACE = declare_option(3_100_000, "Space", description="Universal Space")
-    TAG = declare_option(3_100_100, "Tag")
     # TRAIT?
     # FRAGMENT (multiple disjoint trees)
     # SLOT (inside tree)
@@ -716,7 +744,6 @@ class NodeType(OptionEnum):
     #
 
     # entity [10_000_000]
-    # custom
     CUSTOM_EVENT_DEFINITION = declare_option(
         10_000_000,
         "Custom Event",
@@ -753,24 +780,25 @@ class NodeType(OptionEnum):
         description="Custom Option Definition",
     )
     # CUSTOM_ALIAS_DEFINITION, CUSTOM_UNION_DEFINITION, ...
+    TAG = declare_option(10_010_000, "Tag")
     INDEX = declare_option(
-        10_010_000,
+        10_010_100,
         "Index",
         description="Index of an Entity",
     )
     CONSTRAINT = declare_option(
-        10_010_100,
+        10_010_200,
         "Constraint",
         description="Constraint of an Entity",
     )
     # EXPECTATION, ...
     MIGRATION = declare_option(
-        10_010_200,
+        10_011_000,
         "Migration",
         description="Migration of an Entity",
     )
     MIGRATION_OPERATION = declare_option(
-        10_010_300,
+        10_011_100,
         "Migration Operation",
         description="Migration Operation of an Entity",
     )
@@ -784,7 +812,6 @@ class NodeType(OptionEnum):
     ENVIRONMENT = declare_option(10_100_100, "Environment")
     SCRIPT = declare_option(10_100_200, "Script")
     CUSTOM_EVENT = declare_option(10_100_300, "Signal", description="Custom Event instance")
-    MEASUREMENT_EVENT = declare_option(10_100_301, "Measurement of a Metric")
     FUNCTION = declare_option(10_101_000, "Function")
     METHOD = declare_option(10_101_100, "Method")
     ACTION = declare_option(10_101_200, "Action")
@@ -1143,6 +1170,7 @@ class NodeType(OptionEnum):
     # observability [50_100_000]
     # metric
     METRIC = declare_option(50_100_000, "Metric")
+    MEASUREMENT_EVENT = declare_option(50_100_001, "Measurement of a Metric")
     GAUGE_METRIC = declare_option(50_100_100, "Gauge Metric")
     GAUGE_MEASUREMENT_EVENT = declare_option(50_100_101, "Gauge Measurement")
     COUNTER_METRIC = declare_option(50_100_200, "Counter Metric")
@@ -1203,18 +1231,9 @@ class StructType(OptionEnum):
     PROPERTY_DEFINITION = declare_option(100_100)
     CONSTANT_DEFINITION = declare_option(100_101)
     OPTION_DEFINITION = declare_option(100_102)
-    TAG_DEFINITION = declare_option(100_103)
     # ALIAS_DEFINITION, UNION_DEFINITION, ...
-    INDEX_DEFINITION = declare_option(100_200)
-    CONSTRAINT_DEFINITION = declare_option(100_201)
-    MIGRATION_DEFINITION = declare_option(100_202)
-    MIGRATION_OPERATION_DEFINITION = declare_option(100_203)
     # EXPECTATION_DEFINITION, ...
-    FUNCTION_DEFINITION = declare_option(100_300)
-    METHOD_DEFINITION = declare_option(100_301)
-    ACTION_DEFINITION = declare_option(100_302)
     # MUTATION_DEFINITION, ...
-    PERMISSION_DEFINITION = declare_option(100_400)
 
     # common [200_000]
     # type/value
@@ -1291,17 +1310,25 @@ class StructType(OptionEnum):
         "Custom Message",
         description="Custom Message Instance",
     )
+    TAG_DEFINITION = declare_option(10_010_000)
+    INDEX_DEFINITION = declare_option(10_010_100)
+    CONSTRAINT_DEFINITION = declare_option(10_010_200)
+    MIGRATION_DEFINITION = declare_option(10_011_000)
+    MIGRATION_OPERATION_DEFINITION = declare_option(10_011_100)
     # ...
 
     # script [10_100_000]
     SCHEDULE = declare_option(10_100_810)
+    FUNCTION_DEFINITION = declare_option(10_101_000)
+    METHOD_DEFINITION = declare_option(10_101_100)
+    ACTION_DEFINITION = declare_option(10_101_200)
     # ...
 
     # intelligence [10_200_000]
     # ...
 
     # access [10_300_000]
-    # ...
+    PERMISSION_DEFINITION = declare_option(10_300_000)
 
     # quality [10_400_000]
     # ...

@@ -6,10 +6,10 @@
 pub use crate::simulation::geometry::capsule::*;
 pub use crate::simulation::geometry::circle::*;
 pub use crate::simulation::geometry::cone::*;
-pub use crate::simulation::geometry::convex::*;
+pub(crate) use crate::simulation::geometry::convex::*;
 pub use crate::simulation::geometry::cylinder::*;
 pub use crate::simulation::geometry::ellipse::*;
-pub use crate::simulation::geometry::entity::*;
+pub(crate) use crate::simulation::geometry::entity::*;
 pub use crate::simulation::geometry::line::*;
 pub use crate::simulation::geometry::mesh::*;
 pub use crate::simulation::geometry::path::*;
@@ -17,7 +17,7 @@ pub use crate::simulation::geometry::plane::*;
 pub use crate::simulation::geometry::point::*;
 pub use crate::simulation::geometry::quaternion::*;
 pub use crate::simulation::geometry::rectangle::*;
-pub use crate::simulation::geometry::shape::*;
+pub(crate) use crate::simulation::geometry::shape::*;
 pub use crate::simulation::geometry::vector::*;
 
 mod capsule;

@@ -3,6 +3,6 @@
 #![destack::partial(destack.core.generation, file)]
 #![allow(unused_imports)]
 
-pub use crate::core::generation::layout::*;
+pub(crate) use crate::core::generation::layout::*;
 
 mod layout;

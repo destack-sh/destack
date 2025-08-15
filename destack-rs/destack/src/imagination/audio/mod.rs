@@ -3,6 +3,6 @@
 #![destack::partial(destack.imagination.audio, file)]
 #![allow(unused_imports)]
 
-pub use crate::imagination::audio::audio::*;
+pub(crate) use crate::imagination::audio::audio::*;
 
 mod audio;

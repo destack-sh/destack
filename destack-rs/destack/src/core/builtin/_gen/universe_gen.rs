@@ -4,6 +4,7 @@
 
 use crate::EnumType;
 use crate::HandleType;
+use crate::ModuleType;
 use crate::NodeType;
 use crate::ObjectKind;
 use crate::ObjectStability;
@@ -20,6 +21,18 @@ impl std::fmt::Debug for ObjectKind {
             ObjectKind::Node => write!(f, "NODE"),
             ObjectKind::Struct => write!(f, "STRUCT"),
             ObjectKind::Handle => write!(f, "HANDLE"),
+        }
+    }
+}
+
+#[destack::generated(ModuleType, Debug, block)]
+impl std::fmt::Debug for ModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModuleType::Root => write!(f, "ROOT"),
+            ModuleType::Domain => write!(f, "DOMAIN"),
+            ModuleType::Category => write!(f, "CATEGORY"),
+            ModuleType::Object => write!(f, "OBJECT"),
         }
     }
 }
@@ -97,13 +110,8 @@ impl std::fmt::Debug for EnumType {
             EnumType::EffectType => write!(f, "EFFECT_TYPE"),
             EnumType::RepeatType => write!(f, "REPEAT_TYPE"),
             EnumType::Easing => write!(f, "EASING"),
-            EnumType::LengthType => write!(f, "LENGTH_TYPE"),
-            EnumType::Layout => write!(f, "LAYOUT"),
-            EnumType::Distribute => write!(f, "DISTRIBUTE"),
-            EnumType::Align => write!(f, "ALIGN"),
-            EnumType::Direction => write!(f, "DIRECTION"),
-            EnumType::Overflow => write!(f, "OVERFLOW"),
-            EnumType::Anchor => write!(f, "ANCHOR"),
+            EnumType::TextSplitType => write!(f, "TEXT_SPLIT_TYPE"),
+            EnumType::OffscreenBehavior => write!(f, "OFFSCREEN_BEHAVIOR"),
             EnumType::ColorType => write!(f, "COLOR_TYPE"),
             EnumType::ColorShade => write!(f, "COLOR_SHADE"),
             EnumType::ColorHue => write!(f, "COLOR_HUE"),
@@ -122,8 +130,13 @@ impl std::fmt::Debug for EnumType {
             EnumType::ShadowPosition => write!(f, "SHADOW_POSITION"),
             EnumType::GradientType => write!(f, "GRADIENT_TYPE"),
             EnumType::StrokeType => write!(f, "STROKE_TYPE"),
-            EnumType::TextSplitType => write!(f, "TEXT_SPLIT_TYPE"),
-            EnumType::OffscreenBehavior => write!(f, "OFFSCREEN_BEHAVIOR"),
+            EnumType::LengthType => write!(f, "LENGTH_TYPE"),
+            EnumType::Layout => write!(f, "LAYOUT"),
+            EnumType::Distribute => write!(f, "DISTRIBUTE"),
+            EnumType::Align => write!(f, "ALIGN"),
+            EnumType::Direction => write!(f, "DIRECTION"),
+            EnumType::Overflow => write!(f, "OVERFLOW"),
+            EnumType::Anchor => write!(f, "ANCHOR"),
             EnumType::Region => write!(f, "REGION"),
             EnumType::RegionArea => write!(f, "REGION_AREA"),
             EnumType::RegionContinent => write!(f, "REGION_CONTINENT"),
@@ -146,7 +159,6 @@ impl std::fmt::Debug for NodeType {
             NodeType::Organization => write!(f, "ORGANIZATION"),
             NodeType::Team => write!(f, "TEAM"),
             NodeType::Space => write!(f, "SPACE"),
-            NodeType::Tag => write!(f, "TAG"),
             NodeType::Branch => write!(f, "BRANCH"),
             NodeType::Snapshot => write!(f, "SNAPSHOT"),
             NodeType::Folder => write!(f, "FOLDER"),
@@ -157,6 +169,7 @@ impl std::fmt::Debug for NodeType {
             NodeType::CustomEnumDefinition => write!(f, "CUSTOM_ENUM_DEFINITION"),
             NodeType::CustomPropertyDefinition => write!(f, "CUSTOM_PROPERTY_DEFINITION"),
             NodeType::CustomOptionDefinition => write!(f, "CUSTOM_OPTION_DEFINITION"),
+            NodeType::Tag => write!(f, "TAG"),
             NodeType::Index => write!(f, "INDEX"),
             NodeType::Constraint => write!(f, "CONSTRAINT"),
             NodeType::Migration => write!(f, "MIGRATION"),
@@ -165,7 +178,6 @@ impl std::fmt::Debug for NodeType {
             NodeType::Environment => write!(f, "ENVIRONMENT"),
             NodeType::Script => write!(f, "SCRIPT"),
             NodeType::CustomEvent => write!(f, "CUSTOM_EVENT"),
-            NodeType::MeasurementEvent => write!(f, "MEASUREMENT_EVENT"),
             NodeType::Function => write!(f, "FUNCTION"),
             NodeType::Method => write!(f, "METHOD"),
             NodeType::Action => write!(f, "ACTION"),
@@ -358,6 +370,7 @@ impl std::fmt::Debug for NodeType {
             NodeType::SliderInputView2D => write!(f, "SLIDER_INPUT_VIEW2D"),
             NodeType::Machine => write!(f, "MACHINE"),
             NodeType::Metric => write!(f, "METRIC"),
+            NodeType::MeasurementEvent => write!(f, "MEASUREMENT_EVENT"),
             NodeType::GaugeMetric => write!(f, "GAUGE_METRIC"),
             NodeType::GaugeMeasurementEvent => write!(f, "GAUGE_MEASUREMENT_EVENT"),
             NodeType::CounterMetric => write!(f, "COUNTER_METRIC"),
@@ -388,15 +401,6 @@ impl std::fmt::Debug for StructType {
             StructType::PropertyDefinition => write!(f, "PROPERTY_DEFINITION"),
             StructType::ConstantDefinition => write!(f, "CONSTANT_DEFINITION"),
             StructType::OptionDefinition => write!(f, "OPTION_DEFINITION"),
-            StructType::TagDefinition => write!(f, "TAG_DEFINITION"),
-            StructType::IndexDefinition => write!(f, "INDEX_DEFINITION"),
-            StructType::ConstraintDefinition => write!(f, "CONSTRAINT_DEFINITION"),
-            StructType::MigrationDefinition => write!(f, "MIGRATION_DEFINITION"),
-            StructType::MigrationOperationDefinition => write!(f, "MIGRATION_OPERATION_DEFINITION"),
-            StructType::FunctionDefinition => write!(f, "FUNCTION_DEFINITION"),
-            StructType::MethodDefinition => write!(f, "METHOD_DEFINITION"),
-            StructType::ActionDefinition => write!(f, "ACTION_DEFINITION"),
-            StructType::PermissionDefinition => write!(f, "PERMISSION_DEFINITION"),
             StructType::Type => write!(f, "TYPE"),
             StructType::NumberConstraint => write!(f, "NUMBER_CONSTRAINT"),
             StructType::StringConstraint => write!(f, "STRING_CONSTRAINT"),
@@ -426,7 +430,16 @@ impl std::fmt::Debug for StructType {
             StructType::CustomStruct => write!(f, "CUSTOM_STRUCT"),
             StructType::CustomError => write!(f, "CUSTOM_ERROR"),
             StructType::CustomMessage => write!(f, "CUSTOM_MESSAGE"),
+            StructType::TagDefinition => write!(f, "TAG_DEFINITION"),
+            StructType::IndexDefinition => write!(f, "INDEX_DEFINITION"),
+            StructType::ConstraintDefinition => write!(f, "CONSTRAINT_DEFINITION"),
+            StructType::MigrationDefinition => write!(f, "MIGRATION_DEFINITION"),
+            StructType::MigrationOperationDefinition => write!(f, "MIGRATION_OPERATION_DEFINITION"),
             StructType::Schedule => write!(f, "SCHEDULE"),
+            StructType::FunctionDefinition => write!(f, "FUNCTION_DEFINITION"),
+            StructType::MethodDefinition => write!(f, "METHOD_DEFINITION"),
+            StructType::ActionDefinition => write!(f, "ACTION_DEFINITION"),
+            StructType::PermissionDefinition => write!(f, "PERMISSION_DEFINITION"),
             StructType::Vector2 => write!(f, "VECTOR2"),
             StructType::Vector2I => write!(f, "VECTOR2I"),
             StructType::Vector3 => write!(f, "VECTOR3"),

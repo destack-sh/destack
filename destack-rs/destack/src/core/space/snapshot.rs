@@ -1,6 +1,6 @@
-//! destack.core.common.snapshot@2025.08.15.1
+//! destack.core.space.snapshot@2025.08.15.1
 
-#![destack::partial(destack.core.common.snapshot, file)]
+#![destack::partial(destack.core.space.snapshot, file)]
 
 #[destack::generated(SnapshotType, , block)]
 /// The type of a Snapshot.

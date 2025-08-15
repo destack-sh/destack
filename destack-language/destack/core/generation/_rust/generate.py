@@ -226,6 +226,7 @@ def _generate_enum_definition(enum: EnumDefinition) -> RustManagedItem:
     inner_content_parts: list[str] = []
     for option in enum.options:
         rs_name = to_casing(option.name, StringCasing.UPPER_CAMEL)
+        rs_name = ecsape_rust_identifier(rs_name)
         option_declaration = f"{rs_name} = {option.id}"
         if option.description:
             option_declaration = (

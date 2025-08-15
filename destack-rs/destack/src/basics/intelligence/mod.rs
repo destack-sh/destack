@@ -3,6 +3,6 @@
 #![destack::partial(destack.basics.intelligence, file)]
 #![allow(unused_imports)]
 
-pub use crate::basics::intelligence::model::*;
+pub(crate) use crate::basics::intelligence::model::*;
 
 mod model;

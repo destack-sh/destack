@@ -15,6 +15,19 @@ pub enum ObjectKind {
     Handle = 4,
 }
 
+#[destack::generated(ModuleType, , block)]
+/// Built-in module types.
+pub enum ModuleType {
+    /// Root module for the entire Universe
+    Root = 1,
+    /// Module for an entire UniverseDomain
+    Domain = 2,
+    /// Module for an entire UniverseCategory
+    Category = 3,
+    /// Module for one or more Objects
+    Object = 4,
+}
+
 #[destack::generated(EnumType, , block)]
 /// EnumType
 pub enum EnumType {
@@ -87,6 +100,26 @@ pub enum EnumType {
     EffectType = 30500100,
     RepeatType = 30500002,
     Easing = 30500003,
+    TextSplitType = 30500004,
+    OffscreenBehavior = 30500005,
+    ColorType = 31000000,
+    ColorShade = 31000001,
+    ColorHue = 31000002,
+    ColorIntent = 31000003,
+    FillType = 31000400,
+    FillPosition = 31000401,
+    FillSize = 31000402,
+    FontType = 31000500,
+    FontWeight = 31000501,
+    FontSize = 31000502,
+    TextAlign = 31000503,
+    TextDecoration = 31000504,
+    TextTransform = 31000505,
+    BorderType = 31000600,
+    ShadowType = 31000700,
+    ShadowPosition = 31000701,
+    GradientType = 31000800,
+    StrokeType = 31000900,
     LengthType = 40100001,
     Layout = 40100002,
     Distribute = 40100003,
@@ -94,26 +127,6 @@ pub enum EnumType {
     Direction = 40100005,
     Overflow = 40100006,
     Anchor = 40100007,
-    ColorType = 40200000,
-    ColorShade = 40200001,
-    ColorHue = 40200002,
-    ColorIntent = 40200003,
-    FillType = 40200400,
-    FillPosition = 40200401,
-    FillSize = 40200402,
-    FontType = 40200500,
-    FontWeight = 40200501,
-    FontSize = 40200502,
-    TextAlign = 40200503,
-    TextDecoration = 40200504,
-    TextTransform = 40200505,
-    BorderType = 40200600,
-    ShadowType = 40200700,
-    ShadowPosition = 40200701,
-    GradientType = 40200800,
-    StrokeType = 40200900,
-    TextSplitType = 40200901,
-    OffscreenBehavior = 40200902,
     Region = 50000001,
     RegionArea = 50000002,
     RegionContinent = 50000003,
@@ -139,7 +152,6 @@ pub enum NodeType {
     Team = 3000400,
     /// Universal Space
     Space = 3100000,
-    Tag = 3100100,
     Branch = 3100300,
     /// Point in Space-time
     Snapshot = 3100400,
@@ -159,20 +171,20 @@ pub enum NodeType {
     CustomPropertyDefinition = 10001000,
     /// Custom Option Definition
     CustomOptionDefinition = 10001100,
+    Tag = 10010000,
     /// Index of an Entity
-    Index = 10010000,
+    Index = 10010100,
     /// Constraint of an Entity
-    Constraint = 10010100,
+    Constraint = 10010200,
     /// Migration of an Entity
-    Migration = 10010200,
+    Migration = 10011000,
     /// Migration Operation of an Entity
-    MigrationOperation = 10010300,
+    MigrationOperation = 10011100,
     File = 10020000,
     Environment = 10100100,
     Script = 10100200,
     /// Custom Event instance
     CustomEvent = 10100300,
-    MeasurementEvent = 10100301,
     Function = 10101000,
     Method = 10101100,
     Action = 10101200,
@@ -381,6 +393,7 @@ pub enum NodeType {
     /// Machine for ephemeral computing
     Machine = 50000000,
     Metric = 50100000,
+    MeasurementEvent = 50100001,
     GaugeMetric = 50100100,
     GaugeMeasurementEvent = 50100101,
     CounterMetric = 50100200,
@@ -411,15 +424,6 @@ pub enum StructType {
     PropertyDefinition = 100100,
     ConstantDefinition = 100101,
     OptionDefinition = 100102,
-    TagDefinition = 100103,
-    IndexDefinition = 100200,
-    ConstraintDefinition = 100201,
-    MigrationDefinition = 100202,
-    MigrationOperationDefinition = 100203,
-    FunctionDefinition = 100300,
-    MethodDefinition = 100301,
-    ActionDefinition = 100302,
-    PermissionDefinition = 100400,
     Type = 200000,
     NumberConstraint = 200001,
     StringConstraint = 200002,
@@ -452,7 +456,16 @@ pub enum StructType {
     CustomError = 10000200,
     /// Custom Message Instance
     CustomMessage = 10000300,
+    TagDefinition = 10010000,
+    IndexDefinition = 10010100,
+    ConstraintDefinition = 10010200,
+    MigrationDefinition = 10011000,
+    MigrationOperationDefinition = 10011100,
     Schedule = 10100810,
+    FunctionDefinition = 10101000,
+    MethodDefinition = 10101100,
+    ActionDefinition = 10101200,
+    PermissionDefinition = 10300000,
     Vector2 = 20000010,
     Vector2I = 20000011,
     Vector3 = 20000012,

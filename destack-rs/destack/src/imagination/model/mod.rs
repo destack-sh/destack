@@ -3,6 +3,6 @@
 #![destack::partial(destack.imagination.model, file)]
 #![allow(unused_imports)]
 
-pub use crate::imagination::model::model::*;
+pub(crate) use crate::imagination::model::model::*;
 
 mod model;

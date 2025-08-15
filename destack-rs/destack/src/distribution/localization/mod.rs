@@ -3,6 +3,6 @@
 #![destack::partial(destack.distribution.localization, file)]
 #![allow(unused_imports)]
 
-pub use crate::distribution::localization::locale::*;
+pub(crate) use crate::distribution::localization::locale::*;
 
 mod locale;

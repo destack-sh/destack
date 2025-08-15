@@ -307,7 +307,7 @@ class Node(Object):
         is_hash=False,
         is_readonly=True,
         reference_type=ReferenceType.RAW,
-        default_factory=ValueFactory.SPACE,
+        default_factory=ValueFactory.CURRENT_SPACE,
         description="The Space this Node is in.",
         tag="identity",
     )
@@ -318,7 +318,7 @@ class Node(Object):
         is_eq=False,
         is_hash=False,
         reference_type=ReferenceType.RAW,
-        default_factory=ValueFactory.BRANCH,
+        default_factory=ValueFactory.CURRENT_BRANCH,
         description="The Branch this Node is part of (in its Space).",
         tag="identity",
     )
@@ -329,7 +329,7 @@ class Node(Object):
         is_eq=False,
         is_hash=False,
         reference_type=ReferenceType.RAW,
-        default_factory=ValueFactory.SNAPSHOT,
+        default_factory=ValueFactory.CURRENT_SNAPSHOT,
         description="The Snapshot this Node is part of (in its Space and Branch).",
         tag="identity",
     )

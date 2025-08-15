@@ -3,14 +3,14 @@
 #![destack::partial(destack.simulation.perception, file)]
 #![allow(unused_imports)]
 
-pub use crate::simulation::perception::_gen::*;
-pub use crate::simulation::perception::clipboard::*;
-pub use crate::simulation::perception::drag::*;
-pub use crate::simulation::perception::focus::*;
-pub use crate::simulation::perception::input::*;
-pub use crate::simulation::perception::key::*;
+pub(crate) use crate::simulation::perception::_gen::*;
+pub(crate) use crate::simulation::perception::clipboard::*;
+pub(crate) use crate::simulation::perception::drag::*;
+pub(crate) use crate::simulation::perception::focus::*;
+pub(crate) use crate::simulation::perception::input::*;
+pub(crate) use crate::simulation::perception::key::*;
 pub use crate::simulation::perception::mouse::*;
-pub use crate::simulation::perception::pointer::*;
+pub(crate) use crate::simulation::perception::pointer::*;
 
 mod _gen;
 mod clipboard;

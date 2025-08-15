@@ -4,12 +4,12 @@
 #![allow(unused_imports)]
 
 pub use crate::imagination::animation::*;
-pub use crate::imagination::audio::*;
-pub use crate::imagination::document::*;
-pub use crate::imagination::image::*;
-pub use crate::imagination::model::*;
+pub(crate) use crate::imagination::audio::*;
+pub(crate) use crate::imagination::document::*;
+pub(crate) use crate::imagination::image::*;
+pub(crate) use crate::imagination::model::*;
 pub use crate::imagination::style::*;
-pub use crate::imagination::video::*;
+pub(crate) use crate::imagination::video::*;
 
 mod animation;
 mod audio;

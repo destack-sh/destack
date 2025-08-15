@@ -15,9 +15,7 @@ from ..builtin import (
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack import ObjectDefinitionReference
-
-    from .tag import TagDefinition
+    from destack import ObjectDefinitionReference, TagDefinition
 
 
 type_ = type

@@ -39,6 +39,26 @@ pub enum RepeatType {
     Mirror = 3,
 }
 
+#[destack::generated(TextSplitType, , block)]
+/// TextSplitType
+pub enum TextSplitType {
+    /// Split by character
+    Char = 1,
+    /// Split by word
+    Word = 2,
+    /// Split by line
+    Line = 3,
+}
+
+#[destack::generated(OffscreenBehavior, , block)]
+/// What happens when the element is offscreen.
+pub enum OffscreenBehavior {
+    /// Play the animation
+    Play = 1,
+    /// Pause the animation
+    Pause = 2,
+}
+
 #[destack::generated(EffectType, , block)]
 /// When the effect fires.
 pub enum EffectType {
@@ -58,24 +78,4 @@ pub enum EffectType {
     Focus = 23,
     /// Continuous loop
     Loop = 30,
-}
-
-#[destack::generated(TextSplitType, , block)]
-/// TextSplitType
-pub enum TextSplitType {
-    /// Split by character
-    Char = 1,
-    /// Split by word
-    Word = 2,
-    /// Split by line
-    Line = 3,
-}
-
-#[destack::generated(OffscreenBehavior, , block)]
-/// What happens when the element is offscreen.
-pub enum OffscreenBehavior {
-    /// Play the animation
-    Play = 1,
-    /// Pause the animation
-    Pause = 2,
 }

@@ -598,10 +598,10 @@ class ValueFactory(OptionEnum):
     CLIENT = declare_option(21, "Client", description="Get the current Client")
     CLIENT_NONCE = declare_option(22, "ClientNonce", description="Get the current Client nonce")
     REGION = declare_option(30, "Region", description="Get the current Region")
-    SELF = declare_option(40, "Self", description="Get the current Node")
-    SPACE = declare_option(41, "Space", description="Get the current Space")
-    BRANCH = declare_option(42, "Branch", description="Get the current Branch")
-    SNAPSHOT = declare_option(43, "Snapshot", description="Get the current Snapshot")
+    SELF_NODE = declare_option(40, "SelfNode", description="Get the current Node")
+    CURRENT_SPACE = declare_option(41, "Space", description="Get the current Space")
+    CURRENT_BRANCH = declare_option(42, "Branch", description="Get the current Branch")
+    CURRENT_SNAPSHOT = declare_option(43, "Snapshot", description="Get the current Snapshot")
     NAME = declare_option(50, "Name", description="Generate a relevant name")
 
 

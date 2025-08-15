@@ -1,9 +1,9 @@
-from .action import Action
+from .action import Action, ActionDefinition
 from .custom import CustomEvent
 from .environment import Environment
-from .function import Function
+from .function import Function, FunctionDefinition
 from .log import LogEvent, LogLevel
-from .method import Method
+from .method import Method, MethodDefinition
 from .run import (
     Run,
     RunCompletedEvent,
@@ -28,13 +28,17 @@ from .trigger import Trigger, TriggerType
 
 __all__ = [
     "Action",
+    "ActionDefinition",
     "CustomEvent",
     "DayOfWeek",
     "Environment",
     "Function",
+    "FunctionDefinition",
     "LogEvent",
     "LogLevel",
     "Method",
+    "Method",
+    "MethodDefinition",
     "Month",
     "Run",
     "RunCompletedEvent",

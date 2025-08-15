@@ -6,6 +6,7 @@ use crate::ConstantDefinition;
 use crate::EnumType;
 use crate::HandleType;
 use crate::MethodDefinition;
+use crate::ModuleType;
 use crate::NodeType;
 use crate::StructType;
 use crate::UniverseCategory;
@@ -28,17 +29,4 @@ pub struct ModuleDefinition {
     enum_types: Vec<EnumType>,
     parent_path: Option<String>,
     children_paths: Vec<String>,
-}
-
-#[destack::generated(ModuleType, , block)]
-/// Built-in module types.
-pub enum ModuleType {
-    /// Root module for the entire Universe
-    Root = 1,
-    /// Module for an entire UniverseDomain
-    Domain = 2,
-    /// Module for an entire UniverseCategory
-    Category = 3,
-    /// Module for one or more Objects
-    Object = 4,
 }
