@@ -63,7 +63,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         partial_file = RustFile(
             type=RustGenerationType.PARTIAL,
             source_path=module.path,
-            local_path=source_path_to_local_path(module.path),
+            local_path=source_path_to_local_path(module.path, is_gen=False),
             items=[],
             comment=f"//! {module.path}@{VERSION}",
             attributes=[
@@ -76,7 +76,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         gen_file = RustFile(
             type=RustGenerationType.GENERATED,
             source_path=module.path,
-            local_path=source_path_to_local_path(module.path, "_gen"),
+            local_path=source_path_to_local_path(module.path, is_gen=True),
             items=[],
             comment=f"//! {module.path}@{VERSION}",
             attributes=[

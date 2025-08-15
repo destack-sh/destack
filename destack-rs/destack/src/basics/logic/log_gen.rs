@@ -1,3 +1,0 @@
-//! destack.basics.logic.log@2025.08.14.0
-
-#![destack::generated(destack.basics.logic.log, file)]

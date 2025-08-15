@@ -1,3 +1,0 @@
-//! destack.core.builtin.property@2025.08.14.0
-
-#![destack::generated(destack.core.builtin.property, file)]

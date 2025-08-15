@@ -4,6 +4,7 @@ from enum import StrEnum
 from pathlib import Path
 
 DESTACK_RS_PATH = Path("../destack-rs/destack/src")
+DESTACK_RS_GEN_POSTFIX = "_gen"
 
 
 def raw_path_to_source_path(raw_path: Path) -> str:
@@ -16,22 +17,30 @@ def raw_path_to_source_path(raw_path: Path) -> str:
     return "destack." + source_path
 
 
-def raw_path_to_local_path(raw_path: Path, postfix: str = "") -> str:
+def raw_path_to_local_path(raw_path: Path) -> str:
     """
     Convert a raw path to a local path.
-    Trim common DESTACK_RS_PATH prefix and add postfix.
-    Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/vector_gen.rs` (postfix)
+    Trim common DESTACK_RS_PATH prefix and remove postfix.
+    Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/_gen/vector_gen.rs`
     """
-    return str(raw_path.relative_to(DESTACK_RS_PATH).with_suffix("")) + postfix + ".rs"
+    base_path = raw_path.relative_to(DESTACK_RS_PATH).with_suffix("")
+    if is_gen:
+        return str(base_path.parent / DESTACK_RS_GEN_POSTFIX / base_path.name) + ".rs"
+    else:
+        return str(base_path) + ".rs"
 
 
-def source_path_to_local_path(source_path: str, postfix: str = "") -> str:
+def source_path_to_local_path(source_path: str, *, is_gen: bool) -> str:
     """
     Convert a source path to a local path.
-    Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/vector_gen.rs` (postfix)
+    Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/_gen/vector_gen.rs`
     """
     local_path = source_path.replace("destack.", "").replace(".", "/")
-    return str(local_path) + postfix + ".rs"
+    if is_gen:
+        local_path = local_path + "/" + DESTACK_RS_GEN_POSTFIX
+        return str(local_path) + ".rs"
+    else:
+        return str(local_path) + ".rs"
 
 
 def local_path_to_raw_path(local_path: str) -> Path:
