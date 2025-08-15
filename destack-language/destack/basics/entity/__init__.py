@@ -1,4 +1,4 @@
-from .constraint import Constraint
+from .constraint import Constraint, ConstraintDefinition
 from .custom import (
     CustomEnumDefinition,
     CustomEventDefinition,
@@ -8,7 +8,7 @@ from .custom import (
     CustomStructDefinition,
 )
 from .file import File
-from .index import Index
+from .index import Index, IndexDefinition
 from .migration import (
     Migration,
     MigrationDefinition,
@@ -16,10 +16,11 @@ from .migration import (
     MigrationOperationDefinition,
     MigrationType,
 )
-from .tag import Tag
+from .tag import Tag, TagDefinition
 
 __all__ = [
     "Constraint",
+    "ConstraintDefinition",
     "CustomEnumDefinition",
     "CustomEventDefinition",
     "CustomMessageDefinition",
@@ -28,10 +29,12 @@ __all__ = [
     "CustomStructDefinition",
     "File",
     "Index",
+    "IndexDefinition",
     "Migration",
     "MigrationDefinition",
     "MigrationOperation",
     "MigrationOperationDefinition",
     "MigrationType",
     "Tag",
+    "TagDefinition",
 ]

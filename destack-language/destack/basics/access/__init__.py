@@ -14,7 +14,7 @@ from .invite import (
     InviteSentEvent,
 )
 from .membership import Membership, MembershipJoinedEvent, MembershipLeftEvent
-from .permission import Permission
+from .permission import Permission, PermissionDefinition
 from .role import Role, RoleType
 from .sanction import (
     Sanction,
@@ -41,6 +41,7 @@ __all__ = [
     "MembershipJoinedEvent",
     "MembershipLeftEvent",
     "Permission",
+    "PermissionDefinition",
     "Role",
     "RoleType",
     "Sanction",

@@ -18,22 +18,6 @@ impl std::fmt::Debug for RepeatType {
     }
 }
 
-#[destack::generated(EffectType, Debug, block)]
-impl std::fmt::Debug for EffectType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EffectType::Appear => write!(f, "APPEAR"),
-            EffectType::Enter => write!(f, "ENTER"),
-            EffectType::Exit => write!(f, "EXIT"),
-            EffectType::Hover => write!(f, "HOVER"),
-            EffectType::Press => write!(f, "PRESS"),
-            EffectType::Drag => write!(f, "DRAG"),
-            EffectType::Focus => write!(f, "FOCUS"),
-            EffectType::Loop => write!(f, "LOOP"),
-        }
-    }
-}
-
 #[destack::generated(TextSplitType, Debug, block)]
 impl std::fmt::Debug for TextSplitType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -51,6 +35,22 @@ impl std::fmt::Debug for OffscreenBehavior {
         match self {
             OffscreenBehavior::Play => write!(f, "PLAY"),
             OffscreenBehavior::Pause => write!(f, "PAUSE"),
+        }
+    }
+}
+
+#[destack::generated(EffectType, Debug, block)]
+impl std::fmt::Debug for EffectType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EffectType::Appear => write!(f, "APPEAR"),
+            EffectType::Enter => write!(f, "ENTER"),
+            EffectType::Exit => write!(f, "EXIT"),
+            EffectType::Hover => write!(f, "HOVER"),
+            EffectType::Press => write!(f, "PRESS"),
+            EffectType::Drag => write!(f, "DRAG"),
+            EffectType::Focus => write!(f, "FOCUS"),
+            EffectType::Loop => write!(f, "LOOP"),
         }
     }
 }

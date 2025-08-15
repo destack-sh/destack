@@ -3,6 +3,6 @@
 #![destack::partial(destack.simulation.perception._gen, file)]
 #![allow(unused_imports)]
 
-pub use crate::simulation::perception::_gen::mouse_gen::*;
+pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
 
 mod mouse_gen;

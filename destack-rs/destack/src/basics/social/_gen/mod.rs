@@ -3,6 +3,6 @@
 #![destack::partial(destack.basics.social._gen, file)]
 #![allow(unused_imports)]
 
-pub use crate::basics::social::_gen::notification_gen::*;
+pub(crate) use crate::basics::social::_gen::notification_gen::*;
 
 mod notification_gen;

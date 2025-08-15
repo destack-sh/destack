@@ -3,11 +3,9 @@ from typing import TYPE_CHECKING, Optional, final
 from ..builtin import (
     EnumType,
     HandleType,
+    ModuleType,
     NodeType,
-    OptionEnum,
     StructType,
-    declare_enum,
-    declare_option,
     declare_property,
     declare_struct,
 )
@@ -19,32 +17,6 @@ if TYPE_CHECKING:
         MethodDefinition,
         UniverseCategory,
         UniverseDomain,
-    )
-
-
-@declare_enum(EnumType.MODULE_TYPE)
-class ModuleType(OptionEnum):
-    """Built-in module types."""
-
-    ROOT = declare_option(
-        1,
-        "Root",
-        description="Root module for the entire Universe",
-    )
-    DOMAIN = declare_option(
-        2,
-        "Domain",
-        description="Module for an entire UniverseDomain",
-    )
-    CATEGORY = declare_option(
-        3,
-        "Category",
-        description="Module for an entire UniverseCategory",
-    )
-    OBJECT = declare_option(
-        4,
-        "Object",
-        description="Module for one or more Objects",
     )
 
 

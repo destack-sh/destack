@@ -1,6 +1,6 @@
-//! destack.core.common.branch@2025.08.15.1
+//! destack.core.space.branch@2025.08.15.1
 
-#![destack::partial(destack.core.common.branch, file)]
+#![destack::partial(destack.core.space.branch, file)]
 
 #[destack::generated(BranchType, , block)]
 /// The type of a Branch.

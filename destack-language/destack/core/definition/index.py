@@ -1,41 +1,7 @@
-from typing import TYPE_CHECKING, Self, final
-
-from ..builtin import (
-    StructType,
-    UInt8,
-    declare_property,
-    declare_struct,
-)
-from .definition import Definition
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from destack import IndexDeclaration, IndexType, PropertyReference
+    pass
 
 
 type_ = type
-
-
-@declare_struct(
-    StructType.INDEX_DEFINITION,
-    is_final=True,
-)
-@final
-class IndexDefinition(Definition):
-    """Definition of a builtin Index."""
-
-    # meta
-    id: UInt8 = declare_property(2, is_repr=True, tag=None)
-    type: "IndexType" = declare_property(100, is_repr=True, tag=None)
-
-    # content
-    properties: list["PropertyReference"] = declare_property(120, tag=None)
-    cover: list["PropertyReference"] = declare_property(121, tag=None)
-
-    @classmethod
-    def from_declaration(cls, declaration: "IndexDeclaration") -> "Self":
-        return cls(
-            # meta
-            id=declaration.id,
-            type=declaration.type,
-            name=declaration.name or "Index",
-        )

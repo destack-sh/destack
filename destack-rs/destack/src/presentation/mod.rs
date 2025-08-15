@@ -3,7 +3,7 @@
 #![destack::partial(destack.presentation, file)]
 #![allow(unused_imports)]
 
-pub use crate::presentation::scene::*;
+pub(crate) use crate::presentation::scene::*;
 pub use crate::presentation::view::*;
 
 mod scene;

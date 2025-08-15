@@ -5,7 +5,7 @@
 
 pub use crate::basics::access::*;
 pub use crate::basics::entity::*;
-pub use crate::basics::intelligence::*;
+pub(crate) use crate::basics::intelligence::*;
 pub use crate::basics::script::*;
 pub use crate::basics::social::*;
 

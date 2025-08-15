@@ -13,12 +13,13 @@ from ..builtin import (
 from .object import ObjectDefinition
 
 if TYPE_CHECKING:
-    from destack import ObjectDefinitionReference
-
-    from .constant import ConstantDefinition
-    from .method import MethodDefinition
-    from .property import PropertyDefinition
-    from .tag import TagDefinition
+    from destack import (
+        ConstantDefinition,
+        MethodDefinition,
+        ObjectDefinitionReference,
+        PropertyDefinition,
+        TagDefinition,
+    )
 
 
 type_ = type
@@ -106,10 +107,12 @@ class HandleDefinition(ObjectDefinition):
     @classmethod
     def from_declaration(cls, declaration: HandleDeclaration) -> "HandleDefinition":
         """Create HandleDefinition from a Handle class."""
-        from .constant import ConstantDefinition
-        from .method import MethodDefinition
-        from .property import PropertyDefinition
-        from .tag import TagDefinition
+        from destack import (
+            ConstantDefinition,
+            MethodDefinition,
+            PropertyDefinition,
+            TagDefinition,
+        )
 
         return cls(
             # meta

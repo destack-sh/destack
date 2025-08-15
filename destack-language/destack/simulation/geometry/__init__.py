@@ -1,6 +1,7 @@
 from .capsule import Capsule2D, CapsuleShape2D
 from .circle import Circle2D, CircleShape2D, Sphere3D, SphereShape3D
 from .cone import Cone3D, ConeShape3D
+from .convex import ConvexShape2D, ConvexShape3D
 from .cylinder import Cylinder3D, CylinderShape3D
 from .ellipse import Ellipse2D, EllipseShape2D, Ellipsoid3D, EllipsoidShape3D
 from .entity import Entity2D, Entity3D
@@ -35,6 +36,8 @@ __all__ = [
     "CircleShape2D",
     "Cone3D",
     "ConeShape3D",
+    "ConvexShape2D",
+    "ConvexShape3D",
     "Cylinder3D",
     "CylinderShape3D",
     "Ellipse2D",

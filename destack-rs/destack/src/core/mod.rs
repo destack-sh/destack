@@ -7,9 +7,9 @@ pub use crate::core::builtin::*;
 pub use crate::core::common::*;
 pub use crate::core::definition::*;
 pub use crate::core::encoding::*;
-pub use crate::core::generation::*;
-pub use crate::core::local::*;
-pub use crate::core::persistence::*;
+pub(crate) use crate::core::generation::*;
+pub(crate) use crate::core::local::*;
+pub(crate) use crate::core::persistence::*;
 pub use crate::core::space::*;
 pub use crate::core::universe::*;
 

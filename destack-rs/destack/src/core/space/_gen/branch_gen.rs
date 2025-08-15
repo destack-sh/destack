@@ -1,6 +1,6 @@
-//! destack.core.common.branch@2025.08.15.1
+//! destack.core.space.branch@2025.08.15.1
 
-#![destack::generated(destack.core.common.branch, file)]
+#![destack::generated(destack.core.space.branch, file)]
 
 use crate::BranchType;
 

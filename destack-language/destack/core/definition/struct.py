@@ -125,10 +125,12 @@ class StructDefinition(ObjectDefinition):
         cls, struct_cls: type_[Struct], declaration: StructDeclaration
     ) -> "StructDefinition":
         """Create StructDefinition from a Struct class."""
-        from .constant import ConstantDefinition
-        from .method import MethodDefinition
-        from .property import PropertyDefinition
-        from .tag import TagDefinition
+        from destack import (
+            ConstantDefinition,
+            MethodDefinition,
+            PropertyDefinition,
+            TagDefinition,
+        )
 
         properties = sorted(
             [

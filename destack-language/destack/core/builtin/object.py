@@ -387,13 +387,13 @@ assert _session is not None, "no active Session for {cls.__name__}"
         elif prop.default_factory == ValueFactory.REGION:
             return f"""\
 {target_expr} = REGION"""
-        elif prop.default_factory == ValueFactory.SELF:
+        elif prop.default_factory == ValueFactory.SELF_NODE:
             assert object.kind == ObjectKind.NODE, (
                 f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
             )
             return f"""\
 {target_expr} = self.to_ref()"""
-        elif prop.default_factory == ValueFactory.SPACE:
+        elif prop.default_factory == ValueFactory.CURRENT_SPACE:
             assert object.kind == ObjectKind.NODE, (
                 f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
             )
@@ -402,13 +402,13 @@ space = ACTIVE_SPACE.get()
 if space is None:
     raise RuntimeError("no active Space for {cls.__name__}")
 {target_expr} = space.to_ref()"""
-        elif prop.default_factory == ValueFactory.BRANCH:
+        elif prop.default_factory == ValueFactory.CURRENT_BRANCH:
             return f"""\
 branch = ACTIVE_BRANCH.get()
 if branch is None:
     raise RuntimeError("no active Branch for {cls.__name__}")
 {target_expr} = branch.to_ref()"""
-        elif prop.default_factory == ValueFactory.SNAPSHOT:
+        elif prop.default_factory == ValueFactory.CURRENT_SNAPSHOT:
             return f"""\
 snapshot = ACTIVE_SNAPSHOT.get()
 if snapshot is None:

@@ -14,16 +14,17 @@ from ..builtin import (
 from .object import ObjectDefinition
 
 if TYPE_CHECKING:
-    from destack import ObjectDefinitionReference
-
-    from .action import ActionDefinition
-    from .constant import ConstantDefinition
-    from .constraint import ConstraintDefinition
-    from .index import IndexDefinition
-    from .method import MethodDefinition
-    from .permission import PermissionDefinition
-    from .property import PropertyDefinition
-    from .tag import TagDefinition
+    from destack import (
+        ActionDefinition,
+        ConstantDefinition,
+        ConstraintDefinition,
+        IndexDefinition,
+        MethodDefinition,
+        ObjectDefinitionReference,
+        PermissionDefinition,
+        PropertyDefinition,
+        TagDefinition,
+    )
 
 
 type_ = type
@@ -213,14 +214,16 @@ class NodeDefinition(ObjectDefinition):
         cls, node_cls: type_["Node"], declaration: NodeDeclaration
     ) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
-        from .action import ActionDefinition
-        from .constant import ConstantDefinition
-        from .constraint import ConstraintDefinition
-        from .index import IndexDefinition
-        from .method import MethodDefinition
-        from .permission import PermissionDefinition
-        from .property import PropertyDefinition
-        from .tag import TagDefinition
+        from destack import (
+            ActionDefinition,
+            ConstantDefinition,
+            ConstraintDefinition,
+            IndexDefinition,
+            MethodDefinition,
+            PermissionDefinition,
+            PropertyDefinition,
+            TagDefinition,
+        )
 
         properties = sorted(
             [
