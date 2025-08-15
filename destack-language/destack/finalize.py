@@ -128,6 +128,7 @@ def _index_module(
     constants: list[ConstantDefinition] = []
     if file_path.is_file():
         py_module = importlib.import_module(path)
+        description = py_module.__doc__ or ""
 
         # regular objects
         for obj_name, obj in py_module.__dict__.items():
@@ -159,6 +160,8 @@ def _index_module(
                 constants.append(constant)
 
         MODULE_BY_PATH[path] = py_module
+    else:
+        description = ""
 
     # create module
     module = ModuleDefinition(
@@ -168,6 +171,7 @@ def _index_module(
         path=path,
         domain=domain,
         category=category,
+        description=description,
         # content
         methods=sorted(methods, key=lambda m: m.id),
         constants=sorted(constants, key=lambda c: c.id),

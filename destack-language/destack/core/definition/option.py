@@ -35,6 +35,6 @@ class OptionDefinition(Definition):
             id=declaration.value,
             type=enum_type,
             name=declaration.name,
-            description=declaration.description,
+            description=declaration.description or "",
             is_internal=declaration.is_internal,
         )

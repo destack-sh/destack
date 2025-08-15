@@ -14,4 +14,4 @@ class Definition(Struct):
     """A builtin Definition."""
 
     name: str = declare_property(101, is_repr=True, tag=None)
-    description: str | None = declare_property(102, tag=None)
+    description: str = declare_property(102, tag=None)

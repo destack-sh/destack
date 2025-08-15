@@ -710,7 +710,7 @@ class ConstantDeclaration(Declaration):
     type: "Type | None"
     value: Any | Callable[[], Any]
     is_deferred: bool
-    description: str | None
+    description: str
     name: str | None
     component: type_["Object"] | None
     original_component: type_["Object"] | None
@@ -721,14 +721,14 @@ def declare_constant[T](
     value: T | Callable[[], T],
     *,
     name: str | None = None,
-    type: "Type | None" = None,
     description: str | None = None,
+    type: "Type | None" = None,
 ) -> Any:  # replaced with T after finalization
     """Declare a builtin Constant. Constants are replaced with their value during finalization."""
 
     declaration = ConstantDeclaration(
         id=id,
-        description=description,
+        description=description or "",
         value=value,
         is_deferred=isinstance(value, Callable),
         type=type,

@@ -361,4 +361,7 @@ def diff_rust_files(
                 )
             )
 
+    # sort operations by local path
+    operations.sort(key=lambda x: x.local_path)
+
     return operations

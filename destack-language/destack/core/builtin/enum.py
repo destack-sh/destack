@@ -23,7 +23,7 @@ class EnumDeclaration:
     id: int
     type: "EnumType"
     name: str
-    description: str | None
+    description: str
     is_flag: bool
 
     # content
@@ -100,7 +100,7 @@ def _process_enum_cls(
         id=enum_type.value,
         type=enum_type,
         name=cls.__name__,
-        description=cls.__doc__,
+        description=cls.__doc__ or "",
         is_flag=isinstance(cls, FlagEnum),
         options=options,
     )

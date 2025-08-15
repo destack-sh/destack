@@ -268,7 +268,7 @@ class NodeDefinition(ObjectDefinition):
             id=node_cls.metatype.value,
             type=node_cls.metatype,
             name=node_cls.__name__,
-            description=node_cls.__doc__,
+            description=node_cls.__doc__ or "",
             stability=declaration.stability,
             is_abstract=node_cls.__declaration__.is_abstract,
             is_final=node_cls.__declaration__.is_final,

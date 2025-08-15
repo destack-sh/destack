@@ -36,4 +36,5 @@ class ConstraintDefinition(Definition):
             id=declaration.id,
             type=declaration.type,
             name=declaration.name or "Constraint",
+            description=declaration.description or "",
         )
