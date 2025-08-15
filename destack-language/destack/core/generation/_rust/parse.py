@@ -756,6 +756,7 @@ def _parse_rust_mods(source: str) -> list[RustMod]:
             inner_content=outer_content,
             name=name,
             is_public=is_public,
+            is_inline=False,
         )
         mods.append(mod)
     return mods
@@ -959,11 +960,14 @@ def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
                     inner_content=outer_content,
                     name=mod_name,
                     is_public=mod_is_public,
+                    is_inline=True,
                 )
                 items.append(mod)
             else:
                 mod = RustCustomItem(
-                    children=[], outer_content=outer_content, inner_content=outer_content
+                    children=[],
+                    outer_content=outer_content,
+                    inner_content=outer_content,
                 )
                 items.append(mod)
 
