@@ -176,6 +176,19 @@ def render_rust_mod(mod: RustMod) -> str:
         return mod_str
 
 
+def render_rust_import(imp: RustImport) -> str:
+    """Render an import."""
+    if imp.is_glob:
+        imp_str = f"use {imp.rust_path}::*;"
+    elif imp.imports:
+        imp_str = f"use {imp.rust_path}::{{{', '.join(imp.imports)}}};"
+    else:
+        imp_str = f"use {imp.rust_path};"
+    if imp.is_public:
+        imp_str = f"pub {imp_str}"
+    return imp_str
+
+
 def render_rust_file(file: RustFile) -> str:
     """
     Render the file as a simple canonical string.
@@ -188,6 +201,9 @@ def render_rust_file(file: RustFile) -> str:
     if file.attributes:
         attrs_block = "\n".join(attr.content.strip() for attr in file.attributes)
         parts.append(attrs_block)
+    if file.imports:
+        imports_block = "\n".join(render_rust_import(imp) for imp in file.imports)
+        parts.append(imports_block)
 
     # body
     rendered_items = []
