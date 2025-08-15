@@ -22,6 +22,7 @@ from .core import (
     RustAttribute,
     RustFile,
     RustGenerationType,
+    RustImport,
     RustItemScope,
     RustManagedItem,
     RustMod,
@@ -210,17 +211,33 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         files_by_directory[directory].append(file)
     for directory, directory_files in files_by_directory.items():
         # generate items
-        items: list[RustMod] = []
+        mods: list[RustMod] = []
+        imports: list[RustImport] = []
         for file in directory_files:
+            inner_name = file.source_path.split(".")[-1]
+            inner_content = f"mod {inner_name};"
+
+            # mod
             mod = RustMod(
-                name=file.source_path.split("/")[-1],
+                name=inner_name,
                 children=EMPTY_LIST,
-                outer_content="",
-                inner_content="",
+                outer_content=inner_content,
+                inner_content=inner_content,
                 is_public=True,
                 is_inline=False,
             )
-            items.append(mod)
+            mods.append(mod)
+
+            # import
+            import_path = file.source_path.replace(".", "::")
+            imp = RustImport(
+                rust_path=import_path,
+                imports=EMPTY_LIST,
+                is_internal=True,
+                is_public=True,
+                is_glob=True,
+            )
+            imports.append(imp)
 
         # generate mod file
         source_path = directory + ".mod"
@@ -229,7 +246,8 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             type=RustGenerationType.PARTIAL,
             source_path=source_path,
             local_path=local_path,
-            items=items,
+            imports=imports,
+            items=mods,
             is_mod_rs=True,
             comment=f"//! {directory}@{VERSION}",
             attributes=[
@@ -238,5 +256,6 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
                 ),
             ],
         )
+        files[mod_file.local_path] = mod_file
 
     return files

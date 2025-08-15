@@ -765,17 +765,7 @@ def _parse_rust_mods(source: str) -> list[RustMod]:
 def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
     """
     Parse destack-annotated and custom items from a Rust source string.
-
-    Supports generated, partial and stub items, with line or block scopes.
-    For block items, children are parsed down one level from within the block body.
-    Any non-empty, non-annotated code is captured as `RustCustomItem` in order
-    to preserve handwritten code across regenerations.
-
-    The parsing strategy:
-    1. Skip blank lines and module-level docs/attributes
-    2. Parse destack attributes (#[destack::...]) and their associated content
-    3. Capture any non-annotated code as custom items to preserve handwritten code
-    4. For block items, recursively parse children from the block body
+    Top-level comments, attributes, mod declarations and imports are ignored.
     """
     lines = source.splitlines()
     items: list[RustItem] = []
@@ -786,10 +776,16 @@ def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
             i += 1
             continue
 
-        # skip module-level doc comments and attributes (//! and #![...])
-        # these are captured at the file level, not as individual items
+        # ignore top-level comments, attributes, mod declarations and imports
         head = lines[i].lstrip()
-        if head.startswith("//!") or head.startswith("#!["):
+        if (
+            head.startswith("//!")
+            or head.startswith("#![")
+            or head.startswith("use ")
+            or head.startswith("pub use ")
+            or (head.startswith("mod ") and head.endswith(";"))
+            or (head.startswith("pub mod ") and head.endswith(";"))
+        ):
             i += 1
             continue
 
@@ -1000,92 +996,33 @@ def parse_rust_file(
     Parse a Rust file into a `RustFile` with annotated and custom items.
     The type is determined based on the crate attributes.
     (If there is no crate attribute, it is assumed to be a fully custom file.)
-
-    Also includes module-level `//!` comments and `#![...]` attributes, plus
-    top-level `use` imports and `mod` declarations as items for roundtrip purposes.
-
-    The file structure preserved:
-    - Module-level documentation (//! comments)
-    - Module-level attributes (#![...])
-    - Import statements (use ...)
-    - Module declarations (mod ...)
-    - All destack-annotated items with their nested structure
-    - All custom (handwritten) code blocks
     """
-    items: list[RustItem] = []
-    comment_lines: list[str] = []
-    attributes: list[str] = []
 
-    # collect leading module-level comments and attributes in order
+    # parse header
+    attributes: list[str] = []
+    comment_lines: list[str] = []
     idx = 0
     lines = source.splitlines()
     while idx < len(lines):
         line = lines[idx]
-        stripped = line.strip()
-        if stripped.startswith("//!"):
+        if line.startswith("//!"):
             comment_lines.append(line)
             idx += 1
             continue
-        elif stripped.startswith("#!["):
-            attributes.append(stripped)
+        elif line.startswith("#!["):
+            attributes.append(line)
             idx += 1
             continue
-        elif not stripped:
+        elif not line:
             idx += 1
             continue
         else:
             break
 
-    # group contiguous top-level use/mod lines together to preserve exact blocks
-    # this maintains the original formatting and grouping of imports/mods
-    # only handle simple declarations (those ending with ;) not nested modules
-    # only look at top-level lines to avoid picking up imports from inside modules
-    top_level_lines = _extract_top_level_lines(source)
-    grouped_blocks: list[str] = []
-    current_block: list[str] = []
-    for raw_line in top_level_lines:
-        raw_line = raw_line.strip()
-        if not raw_line:
-            # blank line ends the current import/mod block
-            if current_block:
-                grouped_blocks.append("\n".join(current_block))
-                current_block = []
-            continue
-        if (
-            raw_line.startswith("use ")
-            or raw_line.startswith("pub use ")
-            or (raw_line.startswith("mod ") and raw_line.endswith(";"))
-            or (raw_line.startswith("pub mod ") and raw_line.endswith(";"))
-        ):
-            current_block.append(raw_line)
-        else:
-            if current_block:
-                grouped_blocks.append("\n".join(current_block))
-                current_block = []
-    if current_block:
-        grouped_blocks.append("\n".join(current_block))
-    for block in grouped_blocks:
-        item = RustCustomItem(children=[], outer_content=block, inner_content=block)
-        items.append(item)
-
-    # filter out top-level use/mod lines from structured items to avoid duplication
-    # (special imports already handled above)
-    # only filter simple mod declarations (ending with ;), not nested modules
-    inner_items = _parse_rust_items(source, parent=None)
-    for it in inner_items:
-        if isinstance(it, RustCustomItem):
-            head = it.outer_content.strip()
-            if (
-                head.startswith("use ")
-                or head.startswith("pub use ")
-                or (head.startswith("mod ") and head.endswith(";"))
-                or (head.startswith("pub mod ") and head.endswith(";"))
-            ):
-                continue
-        items.append(it)
-
+    # parse content
     imports = _parse_rust_imports(source)
     mods = _parse_rust_mods(source)
+    items = _parse_rust_items(source, parent=None)
 
     # derive type from attributes
     type = RustGenerationType.CUSTOM
