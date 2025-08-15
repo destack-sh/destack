@@ -24,20 +24,24 @@ def raw_path_to_local_path(raw_path: Path) -> str:
     Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/_gen/vector_gen.rs`
     """
     base_path = raw_path.relative_to(DESTACK_RS_PATH).with_suffix("")
-    if is_gen:
-        return str(base_path.parent / DESTACK_RS_GEN_POSTFIX / base_path.name) + ".rs"
-    else:
-        return str(base_path) + ".rs"
+    return str(base_path) + ".rs"
 
 
 def source_path_to_local_path(source_path: str, *, is_gen: bool) -> str:
     """
     Convert a source path to a local path.
-    Returns: like `simulation/geometry/vector.rs` or `simulation/geometry/_gen/vector_gen.rs`
+    Returns:
+       `simulation/geometry/vector.rs` (is_gen=False)
+       `simulation/geometry/_gen/vector_gen.rs` (is_gen=True)
     """
     local_path = source_path.replace("destack.", "").replace(".", "/")
     if is_gen:
-        local_path = local_path + "/" + DESTACK_RS_GEN_POSTFIX
+        # put into _gen subfolder, add postfix
+        local_path = (
+            *local_path.split("/")[:-1],
+            DESTACK_RS_GEN_POSTFIX,
+            local_path.split("/")[-1] + DESTACK_RS_GEN_POSTFIX,
+        )
         return str(local_path) + ".rs"
     else:
         return str(local_path) + ".rs"
@@ -46,7 +50,7 @@ def source_path_to_local_path(source_path: str, *, is_gen: bool) -> str:
 def local_path_to_raw_path(local_path: str) -> Path:
     """
     Convert a local path to a raw path.
-    Returns: like `destack/src/simulation/geometry/vector.rs`
+    Returns: actual Path like `destack/src/simulation/geometry/vector.rs`
     """
     return DESTACK_RS_PATH / local_path
 

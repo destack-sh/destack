@@ -1,4 +1,7 @@
+mod _gen;
 mod vector;
-mod vector_gen;
 
-pub use vector::Vector2;
+pub use vector::*;
+
+#[allow(unused_imports)]
+pub(crate) use _gen::vector_gen::*;
