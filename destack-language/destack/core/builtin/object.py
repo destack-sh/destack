@@ -1584,7 +1584,7 @@ def _declare_object[ObjectT: Object](
 
 @_declare_object()
 class Object:
-    """The base for all intrinsic Objects."""
+    """The internal-only base for intrinsic Objects (Nodes, Structs, Handles)."""
 
     """The kind of Object this is (static)."""
     metakind: ClassVar[ObjectKind] = UNSET

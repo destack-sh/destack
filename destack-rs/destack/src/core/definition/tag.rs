@@ -4,6 +4,4 @@
 
 #[destack::generated(TagDefinition, struct, block)]
 /// Definition of a builtin Tag to associate builtin definitions to.
-pub struct TagDefinition {
-
-}
+pub struct TagDefinition {}

@@ -5,6 +5,4 @@
 #[destack::generated(Message, struct, block)]
 /// A Message contains data for communicating with Nodes via Actions.
 /// Because Message are as-is provided by Clients, they only contain client-authority data.
-pub struct Message {
-
-}
+pub struct Message {}

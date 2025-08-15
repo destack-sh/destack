@@ -4,6 +4,4 @@
 
 #[destack::generated(SchemaDefinition, struct, block)]
 /// Definition of the entire Destack Schema ("language definition").
-pub struct SchemaDefinition {
-
-}
+pub struct SchemaDefinition {}

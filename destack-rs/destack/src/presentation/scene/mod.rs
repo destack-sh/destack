@@ -1,11 +1,12 @@
-//! presentation/scene@2025.08.15.1
+//! destack.presentation.scene@2025.08.15.1
 
 #![destack::partial(presentation/scene, file)]
+#![allow(unused_imports)]
 
-pub use stage::*;
-pub use layer::*;
-pub use scene::*;
+pub(crate) use crate::presentation::scene::layer::*;
+pub(crate) use crate::presentation::scene::scene::*;
+pub(crate) use crate::presentation::scene::stage::*;
 
-mod stage;
 mod layer;
 mod scene;
+mod stage;

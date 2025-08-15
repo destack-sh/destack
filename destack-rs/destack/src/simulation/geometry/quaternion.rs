@@ -4,6 +4,4 @@
 
 #[destack::generated(Quaternion, struct, block)]
 /// A quaternion.
-pub struct Quaternion {
-
-}
+pub struct Quaternion {}

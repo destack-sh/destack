@@ -5,8 +5,8 @@
 #[destack::generated(StringCasing, enum, block)]
 /// StringCasing
 pub enum StringCasing {
-    SNAKE = 1,
-    UPPER_CAMEL = 2,
-    LOWER_CAMEL = 3,
-    ALL_CAPS = 4
+    Snake = 1,
+    UpperCamel = 2,
+    LowerCamel = 3,
+    AllCaps = 4,
 }

@@ -4,53 +4,51 @@
 
 #[destack::generated(Fill, struct, block)]
 /// A fill value.
-pub struct Fill {
-
-}
+pub struct Fill {}
 
 #[destack::generated(FillType, enum, block)]
 /// FillType
 pub enum FillType {
     /// A solid fill
-    SOLID = 10,
+    Solid = 10,
     /// A gradient fill
-    GRADIENT = 11,
+    Gradient = 11,
     /// An image fill
-    IMAGE = 12
+    Image = 12,
 }
 
 #[destack::generated(FillPosition, enum, block)]
 /// FillPosition
 pub enum FillPosition {
     /// A top left fill position
-    TOP_LEFT = 1,
+    TopLeft = 1,
     /// A top center fill position
-    TOP_CENTER = 2,
+    TopCenter = 2,
     /// A top right fill position
-    TOP_RIGHT = 3,
+    TopRight = 3,
     /// A left fill position
-    LEFT = 10,
+    Left = 10,
     /// A center fill position
-    CENTER = 11,
+    Center = 11,
     /// A right fill position
-    RIGHT = 12,
+    Right = 12,
     /// A bottom left fill position
-    BOTTOM_LEFT = 20,
+    BottomLeft = 20,
     /// A bottom center fill position
-    BOTTOM_CENTER = 21,
+    BottomCenter = 21,
     /// A bottom right fill position
-    BOTTOM_RIGHT = 22
+    BottomRight = 22,
 }
 
 #[destack::generated(FillSize, enum, block)]
 /// FillSize
 pub enum FillSize {
     /// A fill size
-    FILL = 1,
+    Fill = 1,
     /// A stretch size
-    STRETCH = 2,
+    Stretch = 2,
     /// A fit size
-    FIT = 3,
+    Fit = 3,
     /// A tile size
-    TILE = 4
+    Tile = 4,
 }

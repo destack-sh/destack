@@ -6,13 +6,13 @@
 /// A Status of a Notification.
 pub enum NotificationStatus {
     /// Pending
-    UNREAD = 1,
+    Unread = 1,
     /// Read
-    READ = 2,
+    Read = 2,
     /// Dismissed
-    DISMISSED = 3,
+    Dismissed = 3,
     /// Expired
-    EXPIRED = 4,
+    Expired = 4,
     /// Rescinded
-    RESCINDED = 5
+    Rescinded = 5,
 }

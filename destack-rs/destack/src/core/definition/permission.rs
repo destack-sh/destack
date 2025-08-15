@@ -4,6 +4,4 @@
 
 #[destack::generated(PermissionDefinition, struct, block)]
 /// Definition of a builtin Permission for a builtin Node.
-pub struct PermissionDefinition {
-
-}
+pub struct PermissionDefinition {}

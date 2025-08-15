@@ -4,6 +4,4 @@
 
 #[destack::generated(IndexDefinition, struct, block)]
 /// Definition of a builtin Index.
-pub struct IndexDefinition {
-
-}
+pub struct IndexDefinition {}

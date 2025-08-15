@@ -4,6 +4,4 @@
 
 #[destack::generated(Cylinder3D, struct, block)]
 /// A Cylinder is aligned with the local z axis with a radius and height.
-pub struct Cylinder3D {
-
-}
+pub struct Cylinder3D {}

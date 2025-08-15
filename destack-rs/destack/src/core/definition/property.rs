@@ -4,6 +4,4 @@
 
 #[destack::generated(PropertyDefinition, struct, block)]
 /// Definition of a builtin Property.
-pub struct PropertyDefinition {
-
-}
+pub struct PropertyDefinition {}

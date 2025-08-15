@@ -5,7 +5,7 @@
 #[destack::generated(BranchType, enum, block)]
 /// The type of a Branch.
 pub enum BranchType {
-    PARTIAL = 2,
-    FULL = 10,
-    ROOT = 11
+    Partial = 2,
+    Full = 10,
+    Root = 11,
 }

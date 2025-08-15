@@ -6,7 +6,7 @@
 /// A Type of Entitlement.
 pub enum EntitlementType {
     /// A Permission
-    PERMISSION = 1,
+    Permission = 1,
     /// A Role
-    ROLE = 2
+    Role = 2,
 }

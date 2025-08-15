@@ -8,11 +8,11 @@ _ENCODERS: dict[Encoding, Encoder] = {}
 
 def _generate_encoder(encoding: Encoding) -> Encoder:
     if encoding == Encoding.JSON:
-        from .json.encoder import JsonEncoder
+        from ._json.encoder import JsonEncoder
 
         encoder = JsonEncoder.generate()
     elif encoding == Encoding.KOMPAKT:
-        from .kompakt.encoder import KompaktEncoder
+        from ._kompakt.encoder import KompaktEncoder
 
         encoder = KompaktEncoder.generate()
     elif encoding == Encoding.BREIT:

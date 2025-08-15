@@ -6,5 +6,5 @@
 /// TriggerType
 pub enum TriggerType {
     /// A Trigger that runs on an Event
-    EVENT = 1
+    Event = 1,
 }

@@ -4,6 +4,4 @@
 
 #[destack::generated(EnumDefinition, struct, block)]
 /// Definition of a builtin Enum.
-pub struct EnumDefinition {
-
-}
+pub struct EnumDefinition {}

@@ -4,6 +4,4 @@
 
 #[destack::generated(ConstantDefinition, struct, block)]
 /// Definition of a builtin Constant.
-pub struct ConstantDefinition {
-
-}
+pub struct ConstantDefinition {}

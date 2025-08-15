@@ -4,6 +4,4 @@
 
 #[destack::generated(StructDefinition, struct, block)]
 /// Definition of a builtin Struct.
-pub struct StructDefinition {
-
-}
+pub struct StructDefinition {}

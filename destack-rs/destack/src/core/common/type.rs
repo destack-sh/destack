@@ -11,24 +11,16 @@
 /// - Array: a fixed n-dimensional sequence of homogeneous values (Type.value_type * Type.dimensions)
 /// - Map: a dynamic mapping of homogenous keys to homogeneous values (Type.key_type->Type.value_type)
 /// - Union: a union of heterogeneous values (Type.element_types)
-pub struct Type {
-
-}
+pub struct Type {}
 
 #[destack::generated(NumberConstraint, struct, block)]
 /// The constraint of a number.
-pub struct NumberConstraint {
-
-}
+pub struct NumberConstraint {}
 
 #[destack::generated(StringConstraint, struct, block)]
 /// The constraint of a string.
-pub struct StringConstraint {
-
-}
+pub struct StringConstraint {}
 
 #[destack::generated(CollectionConstraint, struct, block)]
 /// The constraint of a collection.
-pub struct CollectionConstraint {
-
-}
+pub struct CollectionConstraint {}

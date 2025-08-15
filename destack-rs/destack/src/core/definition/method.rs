@@ -4,6 +4,4 @@
 
 #[destack::generated(MethodDefinition, struct, block)]
 /// Definition of a builtin Method.
-pub struct MethodDefinition {
-
-}
+pub struct MethodDefinition {}

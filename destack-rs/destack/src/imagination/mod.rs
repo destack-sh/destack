@@ -1,19 +1,20 @@
-//! imagination@2025.08.15.1
+//! destack.imagination@2025.08.15.1
 
 #![destack::partial(imagination, file)]
+#![allow(unused_imports)]
 
-pub use document::*;
-pub use animation::*;
-pub use audio::*;
-pub use model::*;
-pub use style::*;
-pub use video::*;
-pub use image::*;
+pub use crate::imagination::animation::*;
+pub(crate) use crate::imagination::audio::*;
+pub(crate) use crate::imagination::document::*;
+pub(crate) use crate::imagination::image::*;
+pub(crate) use crate::imagination::model::*;
+pub use crate::imagination::style::*;
+pub(crate) use crate::imagination::video::*;
 
-mod document;
 mod animation;
 mod audio;
+mod document;
+mod image;
 mod model;
 mod style;
 mod video;
-mod image;

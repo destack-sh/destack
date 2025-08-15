@@ -1,9 +1,10 @@
-//! production@2025.08.15.1
+//! destack.production@2025.08.15.1
 
 #![destack::partial(production, file)]
+#![allow(unused_imports)]
 
-pub use cloud::*;
-pub use observability::*;
+pub use crate::production::cloud::*;
+pub(crate) use crate::production::observability::*;
 
 mod cloud;
 mod observability;

@@ -4,6 +4,4 @@
 
 #[destack::generated(ActionDefinition, struct, block)]
 /// Definition of a builtin Action.
-pub struct ActionDefinition {
-
-}
+pub struct ActionDefinition {}

@@ -4,6 +4,4 @@
 
 #[destack::generated(HandleDefinition, struct, block)]
 /// Definition of a builtin Handle.
-pub struct HandleDefinition {
-
-}
+pub struct HandleDefinition {}

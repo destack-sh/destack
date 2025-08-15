@@ -4,6 +4,4 @@
 
 #[destack::generated(ConstraintDefinition, struct, block)]
 /// Definition of a builtin Constraint.
-pub struct ConstraintDefinition {
-
-}
+pub struct ConstraintDefinition {}

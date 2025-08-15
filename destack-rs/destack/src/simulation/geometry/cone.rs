@@ -4,6 +4,4 @@
 
 #[destack::generated(Cone3D, struct, block)]
 /// A Cone is aligned with the local z axis with a base radius and height.
-pub struct Cone3D {
-
-}
+pub struct Cone3D {}

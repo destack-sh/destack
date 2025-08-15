@@ -1,5 +1,6 @@
 import collections
 import textwrap
+from collections.abc import Sequence
 
 from destack.core import (
     EMPTY_LIST,
@@ -10,8 +11,10 @@ from destack.core import (
     NodeDefinition,
     PrimitiveType,
     SchemaDefinition,
+    StringCasing,
     StructDefinition,
     Type,
+    to_casing,
 )
 from destack.registry import (
     ENUM_DEFINITION_BY_TYPE,
@@ -26,6 +29,7 @@ from .core import (
     RustItemScope,
     RustManagedItem,
     RustModDeclaration,
+    local_path_to_source_path,
     source_path_to_local_path,
 )
 
@@ -112,7 +116,8 @@ def _generate_enum_definition(enum: EnumDefinition) -> RustManagedItem:
     # inner content
     inner_content_parts: list[str] = []
     for option in enum.options:
-        option_declaration = f"{option.name} = {option.id}"
+        rs_name = to_casing(option.name, StringCasing.UPPER_CAMEL)
+        option_declaration = f"{rs_name} = {option.id}"
         if option.description:
             option_declaration = (
                 f"{_generate_doc_comment(option.name, option.description)}\n{option_declaration}"
@@ -140,6 +145,62 @@ pub enum {enum.name} {{
     return item
 
 
+def _generate_enum_debug(enum: EnumDefinition) -> RustManagedItem:
+    """Generate a Rust impl Debug for an Enum."""
+
+    object_key = _get_object_key(enum)
+
+    # inner content
+    inner_content_parts: list[str] = []
+    for option in enum.options:
+        rs_name = to_casing(option.name, StringCasing.UPPER_CAMEL)
+        inner_content_parts.append(f'{enum.name}::{rs_name} => write!(f, "{option.name}"),')
+    inner_content = f"""\
+fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{
+    match self {{
+{textwrap.indent("\n".join(inner_content_parts), " " * 8)}
+    }}
+}}"""
+
+    # outer content
+    outer_content = f"""\
+impl std::fmt::Debug for {object_key} {{
+{textwrap.indent(inner_content, " " * 4)}
+}}
+"""
+
+    item = RustManagedItem(
+        type=RustGenerationType.GENERATED,
+        scope=RustItemScope.BLOCK,
+        object_key=object_key,
+        inner_key="Debug",
+        children=EMPTY_LIST,
+        outer_content=outer_content,
+        inner_content=inner_content,
+        dependencies=(enum.name,),
+    )
+    return item
+
+
+def _collect_dependencies(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
+    """Collect all dependencies from a list of items."""
+    dependencies: set[str] = set()
+    for item in items:
+        if item.dependencies:
+            dependencies.update(item.dependencies)
+    if dependencies:
+        imp = RustImport(
+            rust_path="crate",
+            imports=list(dependencies),
+            is_internal=True,
+            is_public=False,
+            is_glob=False,
+        )
+        return (imp,)
+    else:
+        return ()
+
+
 def _generate_object_module(
     module: ModuleDefinition,
 ) -> tuple[list[RustManagedItem], list[RustManagedItem]]:
@@ -159,6 +220,8 @@ def _generate_object_module(
         enum_def = ENUM_DEFINITION_BY_TYPE[enum_type]
         enum_item = _generate_enum_definition(enum_def)
         partial_items.append(enum_item)
+        enum_debug_item = _generate_enum_debug(enum_def)
+        gen_items.append(enum_debug_item)
 
     return partial_items, gen_items
 
@@ -176,12 +239,14 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         partial_items, gen_items = _generate_object_module(module)
 
         # partial file (always exists)
+        partial_imports = _collect_dependencies(partial_items)
         partial_file = RustFile(
             type=RustGenerationType.PARTIAL,
             source_path=module.path,
             local_path=source_path_to_local_path(module.path, is_gen=False),
+            imports=partial_imports,
             items=partial_items,
-            comment=f"//! {module.path}@{VERSION}",
+            comment=f"//! {module.name}@{VERSION}",
             attributes=[
                 RustAttribute(
                     content=f"#![destack::{RustGenerationType.PARTIAL.value}({module.path}, file)]"
@@ -192,12 +257,14 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
 
         # generated file (only if there are generated items)
         if gen_items:
+            gen_imports = _collect_dependencies(gen_items)
             gen_file = RustFile(
                 type=RustGenerationType.GENERATED,
                 source_path=module.path,
                 local_path=source_path_to_local_path(module.path, is_gen=True),
+                imports=gen_imports,
                 items=gen_items,
-                comment=f"//! {module.path}@{VERSION}",
+                comment=f"//! {module.name}@{VERSION}",
                 attributes=[
                     RustAttribute(
                         content=f"#![destack::{RustGenerationType.GENERATED.value}({module.path}, file)]"
@@ -207,19 +274,19 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             files[gen_file.local_path] = gen_file
 
     # add files for 'mod.rs' in each module
-
     # group files by directory
     mods_by_directory: dict[str, set[str]] = collections.defaultdict(set)
     for file in files.values():
         directory = file.local_path.rsplit("/", 1)[0]
-        inner_name = file.source_path.split(".")[-1]
+        inner_name = file.local_path.split("/")[-1].split(".", maxsplit=1)[0]
         mods_by_directory[directory].add(inner_name)
     # group directories "recursively"
     # (e.g. for basics/access/membership we also want basics->access and access->membership)
     for directory in list(mods_by_directory.keys()):
         directory_parts = directory.split("/")
         for i in range(len(directory_parts) - 1):
-            mods_by_directory[directory_parts[i]].add(directory_parts[i + 1])
+            parent_directory = "/".join(directory_parts[: i + 1])
+            mods_by_directory[parent_directory].add(directory_parts[i + 1])
     # generate mod.rs files
     for directory, directory_files in mods_by_directory.items():
         # generate items
@@ -230,8 +297,9 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             mod = RustModDeclaration(name=inner_name, is_public=False)
             mods.append(mod)
             # import
+            full_name = f"crate/{directory}/{inner_name}".replace("/", "::")
             imp = RustImport(
-                rust_path=inner_name,
+                rust_path=full_name,
                 imports=EMPTY_LIST,
                 is_internal=True,
                 is_public=True,
@@ -240,8 +308,8 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             imports.append(imp)
 
         # generate mod file
-        source_path = directory + ".mod"
-        local_path = source_path_to_local_path(source_path, is_gen=False)
+        local_path = directory + "/mod.rs"
+        source_path = local_path_to_source_path(local_path)[:-7]  # minus mod.rs
         mod_file = RustFile(
             type=RustGenerationType.PARTIAL,
             source_path=source_path,
@@ -250,11 +318,12 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             mods=mods,
             items=(),
             is_mod_rs=True,
-            comment=f"//! {directory}@{VERSION}",
+            comment=f"//! {source_path}@{VERSION}",
             attributes=[
                 RustAttribute(
                     content=f"#![destack::{RustGenerationType.PARTIAL.value}({directory}, file)]"
                 ),
+                RustAttribute(content="#![allow(unused_imports)]"),
             ],
         )
         files[mod_file.local_path] = mod_file

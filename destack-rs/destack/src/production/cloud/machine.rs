@@ -6,13 +6,13 @@
 /// MachineType
 pub enum MachineType {
     /// The main Destack runtime
-    RUNTIME = 10,
+    Runtime = 10,
     /// A Linux machine running Ubuntu
-    UBUNTU = 1000,
+    Ubuntu = 1000,
     /// A Mac machine
-    MAC = 1100,
+    Mac = 1100,
     /// A Windows machine
-    WINDOWS = 1200,
+    Windows = 1200,
     /// A custom Docker image
-    CUSTOM = 9000
+    Custom = 9000,
 }

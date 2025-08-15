@@ -19,6 +19,15 @@ def raw_path_to_source_path(raw_path: Path) -> str:
     return "destack." + source_path
 
 
+def local_path_to_source_path(local_path: str) -> str:
+    """
+    Convert a local path to a source path.
+    Returns: like `simulation.geometry.vector`
+    """
+    source_path = local_path.replace("/", ".")
+    return "destack." + source_path
+
+
 def raw_path_to_local_path(raw_path: Path) -> str:
     """
     Convert a raw path to a local path.
@@ -98,6 +107,7 @@ class RustManagedItem(RustItem):
     inner_key: str  # like 'struct', 'PartialEq', 'Add:Vector2'
     type: RustGenerationType
     scope: RustItemScope
+    dependencies: Sequence[str] | None = None  # like ['MouseButtonType', 'TextSpan']
     _key: str = dataclasses.field(init=False)
 
     def __post_init__(self):
@@ -168,7 +178,7 @@ def render_rust_destack_attribute(item: RustManagedItem) -> str:
 def render_rust_mod(mod: RustModDeclaration) -> str:
     """Render a module declaration."""
     # just a declaration
-    mod_str = f"mod {mod.name};"
+    mod_str = f"mod {ecsape_rust_identifier(mod.name)};"
     if mod.is_public:
         mod_str = f"pub {mod_str}"
     return mod_str
@@ -176,15 +186,21 @@ def render_rust_mod(mod: RustModDeclaration) -> str:
 
 def render_rust_import(imp: RustImport) -> str:
     """Render an import."""
+    escaped_path = ecsape_rust_identifier(imp.rust_path, keep=("crate",))
     if imp.is_glob:
-        imp_str = f"use {imp.rust_path}::*;"
+        use_stmt = f"use {escaped_path}::*;"
     elif imp.imports:
-        imp_str = f"use {imp.rust_path}::{{{', '.join(imp.imports)}}};"
+        escaped_imports = [ecsape_rust_identifier(item) for item in imp.imports]
+        if len(escaped_imports) == 1:
+            use_stmt = f"use {escaped_path}::{escaped_imports[0]};"
+        else:
+            imports_list = ", ".join(escaped_imports)
+            use_stmt = f"use {escaped_path}::{{{imports_list}}};"
     else:
-        imp_str = f"use {imp.rust_path};"
+        use_stmt = f"use {escaped_path};"
     if imp.is_public:
-        imp_str = f"pub {imp_str}"
-    return imp_str
+        use_stmt = f"pub {use_stmt}"
+    return use_stmt
 
 
 def render_rust_file(file: RustFile) -> str:
@@ -219,3 +235,74 @@ def render_rust_file(file: RustFile) -> str:
     parts.append("\n\n".join(s for s in rendered_items if s))
 
     return "\n\n".join(s for s in parts if s)
+
+
+RUST_RESERVED_KEYWORDS = {
+    "as",
+    "async",
+    "await",
+    "break",
+    "const",
+    "continue",
+    "crate",
+    "dyn",
+    "else",
+    "enum",
+    "extern",
+    "false",
+    "fn",
+    "for",
+    "if",
+    "impl",
+    "in",
+    "let",
+    "loop",
+    "match",
+    "mod",
+    "move",
+    "mut",
+    "pub",
+    "ref",
+    "return",
+    "self",
+    "Self",
+    "static",
+    "struct",
+    "super",
+    "trait",
+    "true",
+    "type",
+    "unsafe",
+    "use",
+    "where",
+    "while",
+    # weak keywords (contextual)
+    "abstract",
+    "become",
+    "box",
+    "do",
+    "final",
+    "macro",
+    "override",
+    "priv",
+    "typeof",
+    "unsized",
+    "virtual",
+    "yield",
+}
+
+
+def ecsape_rust_identifier(identifier: str, *, keep: Sequence[str] | None = None) -> str:
+    """Escape an identifier (prefix keywords with 'r#')"""
+    if "::" in identifier:
+        identifier_parts = identifier.split("::")
+        if identifier.startswith("crate::"):
+            return "crate::" + "::".join(
+                ecsape_rust_identifier(part) for part in identifier_parts[1:]
+            )
+        else:
+            return "::".join(ecsape_rust_identifier(part) for part in identifier_parts)
+    elif identifier in RUST_RESERVED_KEYWORDS and (keep is None or identifier not in keep):
+        return f"r#{identifier}"
+    else:
+        return identifier
