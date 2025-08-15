@@ -1,3 +1,4 @@
+import collections
 import textwrap
 
 from destack.core import (
@@ -23,6 +24,7 @@ from .core import (
     RustGenerationType,
     RustItemScope,
     RustManagedItem,
+    RustMod,
     source_path_to_local_path,
 )
 
@@ -202,6 +204,39 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             files[gen_file.local_path] = gen_file
 
     # add files for 'mod.rs' in each module
-    # ...
+    files_by_directory: dict[str, list[RustFile]] = collections.defaultdict(list)
+    for file in files.values():
+        directory = file.local_path.rsplit("/", 1)[0]
+        files_by_directory[directory].append(file)
+    for directory, directory_files in files_by_directory.items():
+        # generate items
+        items: list[RustMod] = []
+        for file in directory_files:
+            mod = RustMod(
+                name=file.source_path.split("/")[-1],
+                children=EMPTY_LIST,
+                outer_content="",
+                inner_content="",
+                is_public=True,
+                is_inline=False,
+            )
+            items.append(mod)
+
+        # generate mod file
+        source_path = directory + ".mod"
+        local_path = source_path_to_local_path(source_path, is_gen=False)
+        mod_file = RustFile(
+            type=RustGenerationType.PARTIAL,
+            source_path=source_path,
+            local_path=local_path,
+            items=items,
+            is_mod_rs=True,
+            comment=f"//! {directory}@{VERSION}",
+            attributes=[
+                RustAttribute(
+                    content=f"#![destack::{RustGenerationType.PARTIAL.value}({directory}, file)]"
+                ),
+            ],
+        )
 
     return files

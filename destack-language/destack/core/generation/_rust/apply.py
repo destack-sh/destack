@@ -23,7 +23,9 @@ def regenerate():
         execute_operation(op)
 
     # format
-    subprocess.run(["cargo", "fmt"], cwd=Path("..").absolute())
+    rs_dir = Path("..").absolute()
+    subprocess.run(["cargo", "fmt"], cwd=rs_dir)
+    subprocess.run(["cargo", "fix", "--allow-dirty"], cwd=rs_dir)
 
 
 _OPERATION_STRING_LENGTH = max(len(t.upper()) for t in RustFileOperationType)

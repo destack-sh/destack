@@ -251,30 +251,25 @@ def diff_rust_file(old_file: RustFile, new_file: RustFile) -> RustFileOperation:
             combined_content=None,
         )
 
-    # determine operation type based on file type
+    # replace fully generated files
     if old_file.type == RustGenerationType.GENERATED:
-        # replace fully generated files
         operation_type = RustFileOperationType.REPLACE
+        combined_file = new_file
+        combined_content = render_rust_file(combined_file)
+
+    # patch partial files
     elif old_file.type == RustGenerationType.PARTIAL:
-        # patch partial files
         operation_type = RustFileOperationType.PATCH
+        combined_file = _patch_rust_file(old_file, new_file)
+        combined_content = render_rust_file(combined_file)
+
+    # custom files shouldn't be diffed
     elif old_file.type == RustGenerationType.CUSTOM:
         raise ValueError(f"unexpected custom old file: {old_file!r}")
+
+    #
     else:
         assert_never(old_file.type)
-
-    # create the combined file for PATCH or REPLACE
-    if operation_type in (RustFileOperationType.PATCH, RustFileOperationType.REPLACE):
-        if operation_type == RustFileOperationType.REPLACE:
-            # for REPLACE, just use the new file
-            combined_file = new_file
-        else:
-            # for PATCH, merge the files
-            combined_file = _patch_rust_file(old_file, new_file)
-
-        combined_content = render_rust_file(combined_file)
-    else:
-        combined_content = None
 
     op = RustFileOperation(
         type=operation_type,

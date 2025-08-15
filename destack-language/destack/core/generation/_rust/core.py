@@ -120,6 +120,7 @@ class RustMod(RustItem):
 
     name: str
     is_public: bool
+    is_inline: bool
 
 
 @dataclass(slots=True)
@@ -163,24 +164,41 @@ def render_rust_destack_attribute(item: RustManagedItem) -> str:
     return f"#[destack::{item.type}({item.object_key}, {item.inner_key}, {item.scope})]"
 
 
+def render_rust_mod(mod: RustMod) -> str:
+    """Render a module declaration."""
+    if mod.is_inline:
+        return mod.outer_content
+    else:
+        # just a declaration
+        mod_str = f"mod {mod.name};"
+        if mod.is_public:
+            mod_str = f"pub {mod_str}"
+        return mod_str
+
+
 def render_rust_file(file: RustFile) -> str:
     """
     Render the file as a simple canonical string.
     """
     parts: list[str] = []
+
+    # header
     if file.comment:
         parts.append(file.comment.strip())
     if file.attributes:
         attrs_block = "\n".join(attr.content.strip() for attr in file.attributes)
         parts.append(attrs_block)
+
+    # body
     rendered_items = []
     for item in file.items:
         if isinstance(item, RustManagedItem):
             attr = render_rust_destack_attribute(item)
             rendered_items.append(f"{attr}\n{item.outer_content}".strip())
         elif isinstance(item, RustMod):
-            rendered_items.append(item.outer_content.strip())
+            rendered_items.append(render_rust_mod(item))
         else:
             rendered_items.append(item.outer_content.strip())
     parts.append("\n\n".join(s for s in rendered_items if s))
+
     return "\n\n".join(s for s in parts if s)
