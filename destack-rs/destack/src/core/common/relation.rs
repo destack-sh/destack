@@ -4,30 +4,20 @@
 
 #[destack::generated(NodeIdentityReference, struct, block)]
 /// A reference to a Node in an unknown space.
-pub struct NodeIdentityReference {
-
-}
+pub struct NodeIdentityReference {}
 
 #[destack::generated(NodeSpatialReference, struct, block)]
 /// A reference to a Node in space.
-pub struct NodeSpatialReference {
-
-}
+pub struct NodeSpatialReference {}
 
 #[destack::generated(NodeTemporalReference, struct, block)]
 /// A reference to a Node in spacetime.
-pub struct NodeTemporalReference {
-
-}
+pub struct NodeTemporalReference {}
 
 #[destack::generated(ObjectDefinitionReference, struct, block)]
 /// Reference to an object "type" (builtin, custom or trait).
-pub struct ObjectDefinitionReference {
-
-}
+pub struct ObjectDefinitionReference {}
 
 #[destack::generated(PropertyReference, struct, block)]
 /// A reference to a builtin object's Property.
-pub struct PropertyReference {
-
-}
+pub struct PropertyReference {}

@@ -1,25 +1,28 @@
-//! imagination/style@2025.08.15.1
+//! destack.imagination.style@2025.08.15.1
 
 #![destack::partial(imagination/style, file)]
+#![allow(unused_imports)]
 
-pub use gradient::*;
-pub use color::*;
-pub use style::*;
-pub use palette::*;
-pub use font::*;
-pub use stroke::*;
-pub use theme::*;
-pub use fill::*;
-pub use shadow::*;
-pub use border::*;
+pub(crate) use crate::imagination::style::_gen::*;
+pub use crate::imagination::style::border::*;
+pub use crate::imagination::style::color::*;
+pub use crate::imagination::style::fill::*;
+pub use crate::imagination::style::font::*;
+pub use crate::imagination::style::gradient::*;
+pub(crate) use crate::imagination::style::palette::*;
+pub use crate::imagination::style::shadow::*;
+pub use crate::imagination::style::stroke::*;
+pub(crate) use crate::imagination::style::style::*;
+pub(crate) use crate::imagination::style::theme::*;
 
-mod gradient;
-mod color;
-mod style;
-mod palette;
-mod font;
-mod stroke;
-mod theme;
-mod fill;
-mod shadow;
+mod _gen;
 mod border;
+mod color;
+mod fill;
+mod font;
+mod gradient;
+mod palette;
+mod shadow;
+mod stroke;
+mod style;
+mod theme;

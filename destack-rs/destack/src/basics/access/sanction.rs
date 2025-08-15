@@ -6,7 +6,7 @@
 /// A Type of Sanction.
 pub enum SanctionType {
     /// A Ban
-    BAN = 1,
+    Ban = 1,
     /// A Mute
-    MUTE = 2
+    Mute = 2,
 }

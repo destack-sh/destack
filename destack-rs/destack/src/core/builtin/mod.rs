@@ -1,39 +1,42 @@
-//! core/builtin@2025.08.15.1
+//! destack.core.builtin@2025.08.15.1
 
 #![destack::partial(core/builtin, file)]
+#![allow(unused_imports)]
 
-pub use casing::*;
-pub use struct::*;
-pub use event::*;
-pub use type::*;
-pub use fractional::*;
-pub use node::*;
-pub use handle::*;
-pub use enum::*;
-pub use uuid::*;
-pub use message::*;
-pub use universe::*;
-pub use property::*;
-pub use object::*;
-pub use declaration::*;
-pub use error::*;
-pub use types::*;
-pub use entity::*;
+pub(crate) use crate::core::builtin::_gen::*;
+pub use crate::core::builtin::casing::*;
+pub(crate) use crate::core::builtin::declaration::*;
+pub use crate::core::builtin::entity::*;
+pub(crate) use crate::core::builtin::r#enum::*;
+pub use crate::core::builtin::error::*;
+pub use crate::core::builtin::event::*;
+pub use crate::core::builtin::fractional::*;
+pub(crate) use crate::core::builtin::handle::*;
+pub use crate::core::builtin::message::*;
+pub(crate) use crate::core::builtin::node::*;
+pub(crate) use crate::core::builtin::object::*;
+pub(crate) use crate::core::builtin::property::*;
+pub use crate::core::builtin::r#struct::*;
+pub(crate) use crate::core::builtin::r#type::*;
+pub(crate) use crate::core::builtin::types::*;
+pub use crate::core::builtin::universe::*;
+pub(crate) use crate::core::builtin::uuid::*;
 
+mod _gen;
 mod casing;
-mod struct;
-mod event;
-mod type;
-mod fractional;
-mod node;
-mod handle;
-mod enum;
-mod uuid;
-mod message;
-mod universe;
-mod property;
-mod object;
 mod declaration;
-mod error;
-mod types;
 mod entity;
+mod r#enum;
+mod error;
+mod event;
+mod fractional;
+mod handle;
+mod message;
+mod node;
+mod object;
+mod property;
+mod r#struct;
+mod r#type;
+mod types;
+mod universe;
+mod uuid;

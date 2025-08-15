@@ -1,23 +1,26 @@
-//! core/common@2025.08.15.1
+//! destack.core.common@2025.08.15.1
 
 #![destack::partial(core/common, file)]
+#![allow(unused_imports)]
 
-pub use type::*;
-pub use branch::*;
-pub use icon::*;
-pub use change::*;
-pub use text::*;
-pub use relation::*;
-pub use value::*;
-pub use query::*;
-pub use snapshot::*;
+pub(crate) use crate::core::common::_gen::*;
+pub use crate::core::common::branch::*;
+pub use crate::core::common::change::*;
+pub use crate::core::common::icon::*;
+pub use crate::core::common::query::*;
+pub use crate::core::common::relation::*;
+pub use crate::core::common::snapshot::*;
+pub use crate::core::common::text::*;
+pub use crate::core::common::r#type::*;
+pub use crate::core::common::value::*;
 
-mod type;
+mod _gen;
 mod branch;
-mod icon;
 mod change;
-mod text;
-mod relation;
-mod value;
+mod icon;
 mod query;
+mod relation;
 mod snapshot;
+mod text;
+mod r#type;
+mod value;

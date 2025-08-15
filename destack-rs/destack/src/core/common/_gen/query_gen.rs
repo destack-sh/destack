@@ -1,0 +1,104 @@
+//! destack.core.common.query@2025.08.15.1
+
+#![destack::generated(destack.core.common.query, file)]
+
+use crate::{
+    AggregationType, ConditionalType, ExpressionType, JoinType, QueryType, SortMode, SortType,
+};
+
+#[destack::generated(ConditionalType, Debug, block)]
+impl std::fmt::Debug for ConditionalType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConditionalType::Not => write!(f, "NOT"),
+            ConditionalType::And => write!(f, "AND"),
+            ConditionalType::Or => write!(f, "OR"),
+            ConditionalType::Equals => write!(f, "EQUALS"),
+            ConditionalType::NotEquals => write!(f, "NOT_EQUALS"),
+            ConditionalType::GreaterThan => write!(f, "GREATER_THAN"),
+            ConditionalType::GreaterThanOrEquals => write!(f, "GREATER_THAN_OR_EQUALS"),
+            ConditionalType::LessThan => write!(f, "LESS_THAN"),
+            ConditionalType::LessThanOrEquals => write!(f, "LESS_THAN_OR_EQUALS"),
+            ConditionalType::Matches => write!(f, "MATCHES"),
+            ConditionalType::StartsWith => write!(f, "STARTS_WITH"),
+            ConditionalType::EndsWith => write!(f, "ENDS_WITH"),
+            ConditionalType::In => write!(f, "IN"),
+            ConditionalType::NotIn => write!(f, "NOT_IN"),
+            ConditionalType::Exists => write!(f, "EXISTS"),
+            ConditionalType::NotExists => write!(f, "NOT_EXISTS"),
+        }
+    }
+}
+
+#[destack::generated(AggregationType, Debug, block)]
+impl std::fmt::Debug for AggregationType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AggregationType::Exists => write!(f, "EXISTS"),
+            AggregationType::Count => write!(f, "COUNT"),
+            AggregationType::Sum => write!(f, "SUM"),
+            AggregationType::Min => write!(f, "MIN"),
+            AggregationType::Max => write!(f, "MAX"),
+            AggregationType::Average => write!(f, "AVERAGE"),
+        }
+    }
+}
+
+#[destack::generated(SortMode, Debug, block)]
+impl std::fmt::Debug for SortMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SortMode::Max => write!(f, "MAX"),
+            SortMode::Min => write!(f, "MIN"),
+            SortMode::Average => write!(f, "AVERAGE"),
+            SortMode::Sum => write!(f, "SUM"),
+            SortMode::Median => write!(f, "MEDIAN"),
+        }
+    }
+}
+
+#[destack::generated(SortType, Debug, block)]
+impl std::fmt::Debug for SortType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SortType::Ascending => write!(f, "ASCENDING"),
+            SortType::Descending => write!(f, "DESCENDING"),
+        }
+    }
+}
+
+#[destack::generated(JoinType, Debug, block)]
+impl std::fmt::Debug for JoinType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JoinType::Left => write!(f, "LEFT"),
+            JoinType::Parent => write!(f, "PARENT"),
+            JoinType::Child => write!(f, "CHILD"),
+        }
+    }
+}
+
+#[destack::generated(ExpressionType, Debug, block)]
+impl std::fmt::Debug for ExpressionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExpressionType::Literal => write!(f, "LITERAL"),
+            ExpressionType::Attribute => write!(f, "ATTRIBUTE"),
+            ExpressionType::Condition => write!(f, "CONDITION"),
+            ExpressionType::Function => write!(f, "FUNCTION"),
+            ExpressionType::Aggregation => write!(f, "AGGREGATION"),
+        }
+    }
+}
+
+#[destack::generated(QueryType, Debug, block)]
+impl std::fmt::Debug for QueryType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueryType::Node => write!(f, "NODE"),
+            QueryType::Scalar => write!(f, "SCALAR"),
+            QueryType::GroupedNode => write!(f, "GROUPED_NODE"),
+            QueryType::GroupedScalar => write!(f, "GROUPED_SCALAR"),
+        }
+    }
+}

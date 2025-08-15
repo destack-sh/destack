@@ -6,15 +6,15 @@
 /// LogLevel
 pub enum LogLevel {
     /// A Trace
-    TRACE = 1,
+    Trace = 1,
     /// A Debug
-    DEBUG = 2,
+    Debug = 2,
     /// An Info
-    INFO = 3,
+    Info = 3,
     /// A Warning
-    WARNING = 4,
+    Warning = 4,
     /// An Error
-    ERROR = 5,
+    Error = 5,
     /// A Panic
-    PANIC = 6
+    Panic = 6,
 }

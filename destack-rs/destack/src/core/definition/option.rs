@@ -4,6 +4,4 @@
 
 #[destack::generated(OptionDefinition, struct, block)]
 /// Definition of a builtin Enum Option.
-pub struct OptionDefinition {
-
-}
+pub struct OptionDefinition {}

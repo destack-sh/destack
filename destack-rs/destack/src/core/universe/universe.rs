@@ -4,24 +4,16 @@
 
 #[destack::generated(UniverseSignupRequest, struct, block)]
 /// UniverseSignupRequest
-pub struct UniverseSignupRequest {
-
-}
+pub struct UniverseSignupRequest {}
 
 #[destack::generated(UniverseSignupResponse, struct, block)]
 /// UniverseSignupResponse
-pub struct UniverseSignupResponse {
-
-}
+pub struct UniverseSignupResponse {}
 
 #[destack::generated(UniverseSpawnRequest, struct, block)]
 /// UniverseSpawnRequest
-pub struct UniverseSpawnRequest {
-
-}
+pub struct UniverseSpawnRequest {}
 
 #[destack::generated(UniverseSpawnResponse, struct, block)]
 /// UniverseSpawnResponse
-pub struct UniverseSpawnResponse {
-
-}
+pub struct UniverseSpawnResponse {}

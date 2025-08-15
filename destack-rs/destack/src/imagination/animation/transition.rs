@@ -4,20 +4,18 @@
 
 #[destack::generated(Transition, struct, block)]
 /// A transition value.
-pub struct Transition {
-
-}
+pub struct Transition {}
 
 #[destack::generated(TransitionType, enum, block)]
 /// Built-in transition types.
 pub enum TransitionType {
-    TWEEN = 10,
-    SPRING = 11
+    Tween = 10,
+    Spring = 11,
 }
 
 #[destack::generated(SpringType, enum, block)]
 /// Built-in spring types.
 pub enum SpringType {
-    TIME = 1,
-    PHYSICAL = 2
+    Time = 1,
+    Physical = 2,
 }

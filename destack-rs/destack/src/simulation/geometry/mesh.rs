@@ -4,12 +4,8 @@
 
 #[destack::generated(Mesh2, struct, block)]
 /// A Mesh2D is defined by vertices and triangle indices.
-pub struct Mesh2 {
-
-}
+pub struct Mesh2 {}
 
 #[destack::generated(Mesh3, struct, block)]
 /// A Mesh3D is defined by vertices and triangle indices.
-pub struct Mesh3 {
-
-}
+pub struct Mesh3 {}

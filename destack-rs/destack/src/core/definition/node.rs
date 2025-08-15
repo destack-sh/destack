@@ -4,6 +4,4 @@
 
 #[destack::generated(NodeDefinition, struct, block)]
 /// Definition of a builtin Node.
-pub struct NodeDefinition {
-
-}
+pub struct NodeDefinition {}

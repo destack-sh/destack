@@ -1,27 +1,30 @@
-//! presentation/view@2025.08.15.1
+//! destack.presentation.view@2025.08.15.1
 
 #![destack::partial(presentation/view, file)]
+#![allow(unused_imports)]
 
-pub use relative::*;
-pub use label::*;
-pub use text::*;
-pub use slider::*;
-pub use input::*;
-pub use frame::*;
-pub use split::*;
-pub use number::*;
-pub use layout::*;
-pub use content::*;
-pub use view::*;
+pub(crate) use crate::presentation::view::_gen::*;
+pub(crate) use crate::presentation::view::content::*;
+pub(crate) use crate::presentation::view::frame::*;
+pub(crate) use crate::presentation::view::input::*;
+pub(crate) use crate::presentation::view::label::*;
+pub(crate) use crate::presentation::view::layout::*;
+pub(crate) use crate::presentation::view::number::*;
+pub use crate::presentation::view::relative::*;
+pub(crate) use crate::presentation::view::slider::*;
+pub(crate) use crate::presentation::view::split::*;
+pub(crate) use crate::presentation::view::text::*;
+pub(crate) use crate::presentation::view::view::*;
 
-mod relative;
-mod label;
-mod text;
-mod slider;
-mod input;
-mod frame;
-mod split;
-mod number;
-mod layout;
+mod _gen;
 mod content;
+mod frame;
+mod input;
+mod label;
+mod layout;
+mod number;
+mod relative;
+mod slider;
+mod split;
+mod text;
 mod view;

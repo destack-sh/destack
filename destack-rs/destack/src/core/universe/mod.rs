@@ -1,15 +1,16 @@
-//! core/universe@2025.08.15.1
+//! destack.core.universe@2025.08.15.1
 
 #![destack::partial(core/universe, file)]
+#![allow(unused_imports)]
 
-pub use organization::*;
-pub use client::*;
-pub use user::*;
-pub use universe::*;
-pub use team::*;
+pub(crate) use crate::core::universe::client::*;
+pub(crate) use crate::core::universe::organization::*;
+pub(crate) use crate::core::universe::team::*;
+pub use crate::core::universe::universe::*;
+pub(crate) use crate::core::universe::user::*;
 
-mod organization;
 mod client;
-mod user;
-mod universe;
+mod organization;
 mod team;
+mod universe;
+mod user;

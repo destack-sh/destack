@@ -6,15 +6,15 @@
 /// The consensus status of an Event.
 pub enum EventStatus {
     /// Pending application on client
-    PENDING = 1,
+    Pending = 1,
     /// Optimistically staged on client
-    STAGED = 2,
+    Staged = 2,
     /// Successfully applied in system
-    APPROVED = 10,
+    Approved = 10,
     /// Skipped and ignored in system
-    SKIPPED = 11,
+    Skipped = 11,
     /// Could not apply in system
-    FAILED = 12,
+    Failed = 12,
     /// Denied by the system
-    REJECTED = 13
+    Rejected = 13,
 }

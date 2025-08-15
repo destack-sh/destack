@@ -4,6 +4,4 @@
 
 #[destack::generated(FractionalIntegerError, struct, block)]
 /// An Error raised when a fractional integer operation fails.
-pub struct FractionalIntegerError {
-
-}
+pub struct FractionalIntegerError {}

@@ -1,7 +1,8 @@
-//! imagination/video@2025.08.15.1
+//! destack.imagination.video@2025.08.15.1
 
 #![destack::partial(imagination/video, file)]
+#![allow(unused_imports)]
 
-pub use video::*;
+pub(crate) use crate::imagination::video::video::*;
 
 mod video;

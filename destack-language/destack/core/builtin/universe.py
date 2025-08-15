@@ -27,12 +27,12 @@ class UniverseDomain(OptionEnum):
     SIMULATION = declare_option(
         20_000_000,
         "Simulation",
-        description="Modeling: The Universe as a complete simulation.",
+        description="Modeling: The Universe as a simulation.",
     )
     IMAGINATION = declare_option(
         30_000_000,
         "Imagination",
-        description="Imagining: The Universe as a creative canvas.",
+        description="Imagining: The Universe as a canvas.",
     )
     PRESENTATION = declare_option(
         40_000_000,
@@ -42,12 +42,12 @@ class UniverseDomain(OptionEnum):
     PRODUCTION = declare_option(
         50_000_000,
         "Production",
-        description="Operating: The Universe as a complete system.",
+        description="Operating: Building the Universe.",
     )
     DISTRIBUTION = declare_option(
         60_000_000,
         "Distribution",
-        description="Distributing: Integrating the Universe with everything.",
+        description="Distributing: Integrating the Universe.",
     )
 
 
@@ -1137,6 +1137,7 @@ class NodeType(OptionEnum):
     #
 
     # localization [60_000_000]
+    LOCALE = declare_option(60_000_000, "Locale")
     # LOCALIZATION, STRING, TRANSLATION, ...
     # LOCALIZATION_VARIANT, GEO_VARIANT, ...
 

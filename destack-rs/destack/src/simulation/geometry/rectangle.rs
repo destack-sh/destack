@@ -4,12 +4,8 @@
 
 #[destack::generated(Rectangle2D, struct, block)]
 /// A Rectangle is a rectangle.
-pub struct Rectangle2D {
-
-}
+pub struct Rectangle2D {}
 
 #[destack::generated(Box3D, struct, block)]
 /// A Box is an axis-aligned box defined by width, height and depth.
-pub struct Box3D {
-
-}
+pub struct Box3D {}

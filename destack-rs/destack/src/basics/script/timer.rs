@@ -6,7 +6,7 @@
 /// TimerType
 pub enum TimerType {
     /// A one-time timer
-    ONCE = 1,
+    Once = 1,
     /// A recurring timer
-    RECURRING = 2
+    Recurring = 2,
 }

@@ -6,9 +6,9 @@
 /// A MouseButton is a button on a mouse.
 pub enum MouseButton {
     /// Left button
-    LEFT = 1,
+    Left = 1,
     /// Right button
-    RIGHT = 2,
+    Right = 2,
     /// Middle button
-    MIDDLE = 3
+    Middle = 3,
 }

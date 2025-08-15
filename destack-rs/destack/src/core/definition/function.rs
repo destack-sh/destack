@@ -4,6 +4,4 @@
 
 #[destack::generated(FunctionDefinition, struct, block)]
 /// Definition of a builtin Function.
-pub struct FunctionDefinition {
-
-}
+pub struct FunctionDefinition {}

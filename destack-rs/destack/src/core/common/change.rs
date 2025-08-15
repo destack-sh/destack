@@ -4,30 +4,28 @@
 
 #[destack::generated(EditOperation, struct, block)]
 /// A specific Edit of an Entity.
-pub struct EditOperation {
-
-}
+pub struct EditOperation {}
 
 #[destack::generated(ChangeType, enum, block)]
 /// The type of Change.
 pub enum ChangeType {
     /// Create a new Entity
-    CREATE = 20,
+    Create = 20,
     /// Upsert an Entity (create if not exists, update if exists)
-    UPSERT = 21,
+    Upsert = 21,
     /// Update an existing Entity
-    UPDATE = 30,
+    Update = 30,
     /// Move an Entity to a new parent Entity (or detach)
-    MOVE = 31,
+    Move = 31,
     /// Delete an Entity (and its descendants)
-    DELETE = 40,
+    Delete = 40,
     /// Restore a deleted Entity (and its descendants)
-    RESTORE = 41
+    Restore = 41,
 }
 
 #[destack::generated(EditOperationType, enum, block)]
 /// The update operation to perform on a Node.
 pub enum EditOperationType {
     /// Set a Property to a value (may be an empty value)
-    SET = 1
+    Set = 1,
 }

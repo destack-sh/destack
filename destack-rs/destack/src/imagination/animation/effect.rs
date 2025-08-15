@@ -4,58 +4,56 @@
 
 #[destack::generated(Effect, struct, block)]
 /// An effect value.
-pub struct Effect {
-
-}
+pub struct Effect {}
 
 #[destack::generated(RepeatType, enum, block)]
 /// RepeatType
 pub enum RepeatType {
     /// Restart from beginning
-    LOOP = 1,
+    Loop = 1,
     /// Yoyo back and forth
-    REVERSE = 2,
+    Reverse = 2,
     /// Mirror keyframes
-    MIRROR = 3
+    Mirror = 3,
 }
 
 #[destack::generated(EffectType, enum, block)]
 /// When the effect fires.
 pub enum EffectType {
     /// Initial render in
-    APPEAR = 10,
+    Appear = 10,
     /// Enters viewport
-    ENTER = 11,
+    Enter = 11,
     /// Leaves viewport
-    EXIT = 12,
+    Exit = 12,
     /// While hover
-    HOVER = 20,
+    Hover = 20,
     /// While tap
-    PRESS = 21,
+    Press = 21,
     /// While drag / drag
-    DRAG = 22,
+    Drag = 22,
     /// While focus
-    FOCUS = 23,
+    Focus = 23,
     /// Continuous loop
-    LOOP = 30
+    Loop = 30,
 }
 
 #[destack::generated(TextSplitType, enum, block)]
 /// TextSplitType
 pub enum TextSplitType {
     /// Split by character
-    CHAR = 1,
+    Char = 1,
     /// Split by word
-    WORD = 2,
+    Word = 2,
     /// Split by line
-    LINE = 3
+    Line = 3,
 }
 
 #[destack::generated(OffscreenBehavior, enum, block)]
 /// What happens when the element is offscreen.
 pub enum OffscreenBehavior {
     /// Play the animation
-    PLAY = 1,
+    Play = 1,
     /// Pause the animation
-    PAUSE = 2
+    Pause = 2,
 }

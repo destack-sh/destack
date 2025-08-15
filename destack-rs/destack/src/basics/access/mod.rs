@@ -1,17 +1,20 @@
-//! basics/access@2025.08.15.1
+//! destack.basics.access@2025.08.15.1
 
 #![destack::partial(basics/access, file)]
+#![allow(unused_imports)]
 
-pub use invite::*;
-pub use entitlement::*;
-pub use sanction::*;
-pub use permission::*;
-pub use membership::*;
-pub use role::*;
+pub(crate) use crate::basics::access::_gen::*;
+pub use crate::basics::access::entitlement::*;
+pub(crate) use crate::basics::access::invite::*;
+pub(crate) use crate::basics::access::membership::*;
+pub(crate) use crate::basics::access::permission::*;
+pub(crate) use crate::basics::access::role::*;
+pub use crate::basics::access::sanction::*;
 
-mod invite;
+mod _gen;
 mod entitlement;
-mod sanction;
-mod permission;
+mod invite;
 mod membership;
+mod permission;
 mod role;
+mod sanction;

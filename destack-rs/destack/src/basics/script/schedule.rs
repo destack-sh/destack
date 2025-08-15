@@ -4,71 +4,69 @@
 
 #[destack::generated(Schedule, struct, block)]
 /// The time-based schedule of something (compatible with rrule).
-pub struct Schedule {
-
-}
+pub struct Schedule {}
 
 #[destack::generated(DayOfWeek, enum, block)]
 /// DayOfWeek
 pub enum DayOfWeek {
     /// Monday
-    MONDAY = 1,
+    Monday = 1,
     /// Tuesday
-    TUESDAY = 2,
+    Tuesday = 2,
     /// Wednesday
-    WEDNESDAY = 3,
+    Wednesday = 3,
     /// Thursday
-    THURSDAY = 4,
+    Thursday = 4,
     /// Friday
-    FRIDAY = 5,
+    Friday = 5,
     /// Saturday
-    SATURDAY = 6,
+    Saturday = 6,
     /// Sunday
-    SUNDAY = 7
+    Sunday = 7,
 }
 
 #[destack::generated(Month, enum, block)]
 /// Month
 pub enum Month {
     /// January
-    JANUARY = 1,
+    January = 1,
     /// February
-    FEBRUARY = 2,
+    February = 2,
     /// March
-    MARCH = 3,
+    March = 3,
     /// April
-    APRIL = 4,
+    April = 4,
     /// May
-    MAY = 5,
+    May = 5,
     /// June
-    JUNE = 6,
+    June = 6,
     /// July
-    JULY = 7,
+    July = 7,
     /// August
-    AUGUST = 8,
+    August = 8,
     /// September
-    SEPTEMBER = 9,
+    September = 9,
     /// October
-    OCTOBER = 10,
+    October = 10,
     /// November
-    NOVEMBER = 11,
+    November = 11,
     /// December
-    DECEMBER = 12
+    December = 12,
 }
 
 #[destack::generated(ScheduleFrequency, enum, block)]
 /// ScheduleFrequency
 pub enum ScheduleFrequency {
     /// Yearly
-    YEAR = 1,
+    Year = 1,
     /// Monthly
-    MONTH = 2,
+    Month = 2,
     /// Weekly
-    WEEK = 3,
+    Week = 3,
     /// Daily
-    DAY = 4,
+    Day = 4,
     /// Hourly
-    HOUR = 5,
+    Hour = 5,
     /// Minutely
-    MINUTE = 6
+    Minute = 6,
 }

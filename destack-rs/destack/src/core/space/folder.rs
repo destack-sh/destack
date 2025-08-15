@@ -6,13 +6,13 @@
 /// FolderType
 pub enum FolderType {
     /// The root folder of a Space
-    SYSTEM = 1,
+    System = 1,
     /// The home folder of a Space
-    HOME = 2,
+    Home = 2,
     /// A general folder
-    GENERAL = 3,
+    General = 3,
     /// A module
-    MODULE = 4,
+    Module = 4,
     /// An app folder
-    APP = 5
+    App = 5,
 }

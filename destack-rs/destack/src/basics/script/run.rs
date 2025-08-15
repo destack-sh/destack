@@ -6,19 +6,19 @@
 /// RunStatus
 pub enum RunStatus {
     /// Scheduled for sometime
-    SCHEDULED = 2,
+    Scheduled = 2,
     /// Actively running
-    RUNNING = 10,
+    Running = 10,
     /// Paused manually
-    PAUSED = 21,
+    Paused = 21,
     /// Yielded to someone
-    YIELDED = 23,
+    Yielded = 23,
     /// Cancelled before running
-    CANCELLED = 51,
+    Cancelled = 51,
     /// Aborted while running
-    ABORTED = 52,
+    Aborted = 52,
     /// Failed due to an error
-    FAILED = 53,
+    Failed = 53,
     /// Completed successfully
-    COMPLETED = 54
+    Completed = 54,
 }

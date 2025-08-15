@@ -4,12 +4,8 @@
 
 #[destack::generated(Path2D, struct, block)]
 /// A Path is a polyline of multiple points.
-pub struct Path2D {
-
-}
+pub struct Path2D {}
 
 #[destack::generated(Polyline3D, struct, block)]
 /// A Polyline3D is a polygonal chain in 3D space.
-pub struct Polyline3D {
-
-}
+pub struct Polyline3D {}
