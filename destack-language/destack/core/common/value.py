@@ -64,3 +64,16 @@ class Value(Struct):
                 value = [item.to_ref() if isinstance(item, Node) else item for item in value]
 
         return Value(type=type, value=value)
+
+
+@declare_struct(
+    StructType.NAMED_VALUE,
+    stability=ObjectStability.STATIC,
+    is_final=True,
+)
+@final
+class NamedValue(Struct):
+    """A named Value."""
+
+    name: str = declare_property(110, is_repr=True, tag=None)
+    value: Value = declare_property(111, is_repr=True, tag=None)

@@ -40,7 +40,7 @@ from .type import (
     infer_type,
     invert_type,
 )
-from .value import Value
+from .value import NamedValue, Value
 
 __all__ = [
     "Aggregation",
@@ -60,6 +60,7 @@ __all__ = [
     "IconType",
     "Join",
     "JoinType",
+    "NamedValue",
     "NodeIdentityReference",
     "NodeSpatialReference",
     "NodeTemporalReference",

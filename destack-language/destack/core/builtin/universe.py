@@ -1190,11 +1190,12 @@ class StructType(OptionEnum):
 
     # common [200_000]
     # type/value
-    VALUE = declare_option(200_000)
-    TYPE = declare_option(200_001)
-    NUMBER_CONSTRAINT = declare_option(200_010)
-    STRING_CONSTRAINT = declare_option(200_011)
-    COLLECTION_CONSTRAINT = declare_option(200_012)
+    TYPE = declare_option(200_000)
+    NUMBER_CONSTRAINT = declare_option(200_001)
+    STRING_CONSTRAINT = declare_option(200_002)
+    COLLECTION_CONSTRAINT = declare_option(200_003)
+    VALUE = declare_option(200_050)
+    NAMED_VALUE = declare_option(200_051)
     # expressions
     EXPRESSION = declare_option(200_100)
     JOIN = declare_option(200_101)
