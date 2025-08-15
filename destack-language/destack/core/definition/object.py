@@ -7,6 +7,8 @@ from ..builtin import (
     StructType,
     TagDeclaration,
     UInt32,
+    UniverseCategory,
+    UniverseDomain,
     declare_property,
     declare_struct,
 )
@@ -77,6 +79,8 @@ class ObjectDefinition(Definition):
         is_repr=True,
         tag="meta",
     )
+    domain: UniverseDomain = declare_property(103, tag="meta")
+    category: UniverseCategory = declare_property(104, tag="meta")
 
     @abc.abstractmethod
     def to_ref(self) -> "ObjectDefinitionReference":

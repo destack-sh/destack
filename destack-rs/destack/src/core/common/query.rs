@@ -2,22 +2,8 @@
 
 #![destack::partial(destack.core.common.query, file)]
 
-use crate::Aggregation;
-use crate::AggregationType;
-use crate::Condition;
-use crate::ConditionalType;
-use crate::Expression;
-use crate::ExpressionType;
-use crate::Join;
-use crate::JoinType;
 use crate::ObjectDefinitionReference;
 use crate::PropertyReference;
-use crate::Query;
-use crate::QueryType;
-use crate::Select;
-use crate::Sort;
-use crate::SortMode;
-use crate::SortType;
 use crate::Uuid;
 use crate::Value;
 
@@ -27,8 +13,6 @@ pub struct Expression {
     r#type: ExpressionType,
     literal: Option<Value>,
     attribute: Option<PropertyReference>,
-    condition: Option<Condition>,
-    aggregation: Option<Aggregation>,
 }
 
 #[destack::generated(Join, , block)]
@@ -151,8 +135,7 @@ pub enum ExpressionType {
     Literal = 1,
     Attribute = 2,
     Condition = 3,
-    Function = 4,
-    Aggregation = 5,
+    Aggregation = 4,
 }
 
 #[destack::generated(QueryType, , block)]

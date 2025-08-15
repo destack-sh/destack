@@ -157,6 +157,8 @@ class StructDefinition(ObjectDefinition):
             name=struct_cls.__name__,
             description=struct_cls.__doc__ or "",
             stability=declaration.stability,
+            domain=declaration.domain,
+            category=declaration.category,
             is_abstract=declaration.is_abstract,
             is_immutable=declaration.is_immutable,
             is_interned=declaration.is_interned,

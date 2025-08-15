@@ -4,8 +4,6 @@
 
 use crate::Axis2;
 use crate::Color;
-use crate::GradientStop;
-use crate::GradientType;
 
 #[destack::generated(Gradient, , block)]
 /// A gradient value.

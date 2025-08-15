@@ -89,7 +89,6 @@ impl std::fmt::Debug for ExpressionType {
             ExpressionType::Literal => write!(f, "LITERAL"),
             ExpressionType::Attribute => write!(f, "ATTRIBUTE"),
             ExpressionType::Condition => write!(f, "CONDITION"),
-            ExpressionType::Function => write!(f, "FUNCTION"),
             ExpressionType::Aggregation => write!(f, "AGGREGATION"),
         }
     }

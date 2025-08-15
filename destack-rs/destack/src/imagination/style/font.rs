@@ -3,13 +3,7 @@
 #![destack::partial(destack.imagination.style.font, file)]
 
 use crate::Fill;
-use crate::FontSize;
-use crate::FontType;
-use crate::FontWeight;
 use crate::Length;
-use crate::TextAlign;
-use crate::TextDecoration;
-use crate::TextTransform;
 
 #[destack::generated(Font, , block)]
 /// A font value.

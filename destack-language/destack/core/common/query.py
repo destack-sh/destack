@@ -110,14 +110,15 @@ class Aggregation(Struct):
 # Expression
 #
 
+# nocheckin: tagged Unions?
+
 
 @declare_enum(EnumType.EXPRESSION_TYPE)
 class ExpressionType(OptionEnum):
     LITERAL = declare_option(1)
     ATTRIBUTE = declare_option(2)
     CONDITION = declare_option(3)
-    FUNCTION = declare_option(4)
-    AGGREGATION = declare_option(5)
+    AGGREGATION = declare_option(4)
     # SUBQUERY?
 
 
@@ -132,8 +133,8 @@ class Expression(Struct):
     type: ExpressionType = declare_property(100, is_repr=True, tag=None)
     literal: Optional["Value"] = declare_property(101, is_repr=True, tag=None)
     attribute: Optional["PropertyReference"] = declare_property(102, is_repr=True, tag=None)
-    condition: Optional[Condition] = declare_property(103, is_repr=True, tag=None)
-    aggregation: Optional[Aggregation] = declare_property(105, is_repr=True, tag=None)
+    # condition: Optional[Condition] = declare_property(103, is_repr=True, tag=None)
+    # aggregation: Optional[Aggregation] = declare_property(104, is_repr=True, tag=None)
     # subquery?
 
 

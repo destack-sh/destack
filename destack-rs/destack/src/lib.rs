@@ -22,5 +22,7 @@ pub use destack_json::*;
 pub use destack_time::*;
 pub use destack_uuid::*;
 
+pub use std::collections::HashMap;
+
 #[cfg(test)]
 mod test;

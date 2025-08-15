@@ -118,6 +118,8 @@ class HandleDefinition(ObjectDefinition):
             name=declaration.name,
             description=declaration.description,
             stability=declaration.stability,
+            domain=declaration.domain,
+            category=declaration.category,
             is_abstract=declaration.is_abstract,
             # content
             properties=[

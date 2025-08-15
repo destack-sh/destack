@@ -14,6 +14,8 @@ use crate::PropertyDefinition;
 use crate::StructType;
 use crate::TagDefinition;
 use crate::TraitType;
+use crate::UniverseCategory;
+use crate::UniverseDomain;
 
 #[destack::generated(NodeDefinition, , block)]
 /// Definition of a builtin Node.
@@ -22,6 +24,8 @@ pub struct NodeDefinition {
     r#type: NodeType,
     name: String,
     description: String,
+    domain: UniverseDomain,
+    category: UniverseCategory,
     stability: ObjectStability,
     is_abstract: bool,
     is_final: bool,

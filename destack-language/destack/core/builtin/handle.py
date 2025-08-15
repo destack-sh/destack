@@ -8,7 +8,7 @@ from typing import (
 from destack.registry import HANDLE_CLASS_BY_TYPE, HANDLE_TYPE_BY_CLASS
 
 from .declaration import HandleDeclaration, TagDeclaration
-from .object import Object, _process_object_cls
+from .object import Object, _get_universe_domain, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS
 from .universe import HandleType, NodeType, ObjectKind, ObjectStability
 
@@ -41,6 +41,7 @@ def _process_handle_cls(
                         all_event_types.append(event_type)
 
     # declaration
+    domain, category = _get_universe_domain(handle_type.value)
     declaration = HandleDeclaration(
         # meta
         cls=cls,
@@ -50,6 +51,8 @@ def _process_handle_cls(
         description=cls.__doc__ or "",
         kind=ObjectKind.HANDLE,
         stability=stability,
+        domain=domain,
+        category=category,
         is_abstract=is_abstract,
         is_immutable=False,
         is_final=is_final,

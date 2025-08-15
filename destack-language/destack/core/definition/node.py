@@ -270,6 +270,8 @@ class NodeDefinition(ObjectDefinition):
             name=node_cls.__name__,
             description=node_cls.__doc__ or "",
             stability=declaration.stability,
+            domain=declaration.domain,
+            category=declaration.category,
             is_abstract=node_cls.__declaration__.is_abstract,
             is_final=node_cls.__declaration__.is_final,
             is_singleton=node_cls.__declaration__.is_singleton,

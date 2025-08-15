@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from ._const import UNSET
 from .enum import OptionEnum, declare_enum, declare_option
 
 if TYPE_CHECKING:
@@ -9,6 +10,19 @@ if TYPE_CHECKING:
 #
 # Enums
 #
+
+
+def _get_universe_domain(metatype: int) -> tuple["UniverseDomain", "UniverseCategory"]:
+    """Find the UniverseDomain / UniverseCategory from a class's module (from the module names)."""
+    if metatype < 10_000_000:
+        universe_domain = UniverseDomain.CORE
+    else:
+        universe_domain = UniverseDomain((metatype // 10_000_000) * 10_000_000)
+    if metatype < 100_000:
+        universe_category = UniverseCategory.BUILTIN
+    else:
+        universe_category = UniverseCategory((metatype // 100_000) * 100_000)
+    return universe_domain, universe_category
 
 
 class UniverseDomain(OptionEnum):
@@ -59,6 +73,8 @@ class UniverseCategory(OptionEnum):
     #
 
     BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
+    # NOTE :Architecture: it would be nice to merge Definitions and CustomDefinitions
+    #  (but would require much deeper integration with a custom language and I don't even know)
     DEFINITION = declare_option(100_000, "Definition", description="Builtin definitions")
     COMMON = declare_option(200_000, "Common", description="Shared definitions")
     ENCODING = declare_option(1_000_000, "Encoding", description="Serialization and packing")
@@ -101,7 +117,7 @@ class UniverseCategory(OptionEnum):
     # ML/MODEL_SERVING, ...
     # CHARACTER/HUMAN?, FLESH/FUR/...?, CLOTH, FLUID?, ...
     # NAVIGATION, ACTUATION, ...
-    # LOGIC, NETWORKING, STATISTICS, ...
+    # script, NETWORKING, STATISTICS, ...
     # MECHANICAL, MOLECULAR, ELECTRICAL, AERODYNAMIC, LIGHT, SUBSTANCE, ...
     # GEOLOGY, BIOLOGY, CHEMISTRY, ECOLOGICAL, CIVIL, ...
 
@@ -244,7 +260,7 @@ class EnumType(OptionEnum):
     CONSTRAINT_TYPE = declare_option(10_000_200)
     MIGRATION_TYPE = declare_option(10_000_300)
 
-    # logic [10_100_000]
+    # script [10_100_000]
     RUN_STATUS = declare_option(10_101_000)
     FUNCTION_OPERATOR = declare_option(10_100_400)
     METHOD_TYPE = declare_option(10_100_500)
@@ -407,9 +423,20 @@ class EnumType(OptionEnum):
     # ...
 
 
-EnumType = declare_enum(EnumType.ENUM_TYPE)(EnumType)
-UniverseDomain = declare_enum(EnumType.UNIVERSE_DOMAIN)(UniverseDomain)
-UniverseCategory = declare_enum(EnumType.UNIVERSE_CATEGORY)(UniverseCategory)
+# circular definitions
+EnumType = declare_enum(EnumType.ENUM_TYPE, domain=UNSET, category=UNSET)(EnumType)
+UniverseDomain = declare_enum(EnumType.UNIVERSE_DOMAIN, domain=UNSET, category=UNSET)(
+    UniverseDomain
+)
+UniverseCategory = declare_enum(EnumType.UNIVERSE_CATEGORY, domain=UNSET, category=UNSET)(
+    UniverseCategory
+)
+EnumType.__declaration__.domain = UniverseDomain.CORE
+EnumType.__declaration__.category = UniverseCategory.BUILTIN
+UniverseDomain.__declaration__.domain = UniverseDomain.CORE
+UniverseDomain.__declaration__.category = UniverseCategory.BUILTIN
+UniverseCategory.__declaration__.domain = UniverseDomain.CORE
+UniverseCategory.__declaration__.category = UniverseCategory.BUILTIN
 
 
 @declare_enum(EnumType.OBJECT_KIND)
@@ -496,7 +523,7 @@ class TraitType(OptionEnum):
     # entity [10_000_000]
     # ...
 
-    # logic [10_100_000]
+    # script [10_100_000]
     RUNNABLE = declare_option(10_100_000, "Runnable", description="Can be run")
 
     # intelligence [10_200_000]
@@ -753,7 +780,7 @@ class NodeType(OptionEnum):
     # REMOTE, FOREIGN_DATA/ENTITY_WRAPPER, ...
     # SECRET, ...
 
-    # logic [10_100_000]
+    # script [10_100_000]
     ENVIRONMENT = declare_option(10_100_100, "Environment")
     SCRIPT = declare_option(10_100_200, "Script")
     CUSTOM_EVENT = declare_option(10_100_300, "Signal", description="Custom Event instance")
@@ -1266,7 +1293,7 @@ class StructType(OptionEnum):
     )
     # ...
 
-    # logic [10_100_000]
+    # script [10_100_000]
     SCHEDULE = declare_option(10_100_810)
     # ...
 

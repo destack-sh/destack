@@ -11,7 +11,7 @@ from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLAS
 from ._const import UNSET
 from ._hoisted import ReferenceType
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
-from .object import Object, ValueFactory, _process_object_cls
+from .object import Object, ValueFactory, _get_universe_domain, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
 from .universe import (
     EnumType,
@@ -88,6 +88,7 @@ def _process_node_cls(
         is_immutable = True  # Events are always frozen
 
     # declaration
+    domain, category = _get_universe_domain(node_type.value)
     declaration = NodeDeclaration(
         # meta
         cls=cls,
@@ -97,6 +98,8 @@ def _process_node_cls(
         description=cls.__doc__ or "",
         kind=ObjectKind.NODE,
         stability=ObjectStability.DYNAMIC,
+        domain=domain,
+        category=category,
         is_abstract=is_abstract,
         is_immutable=is_immutable,
         is_final=is_final,

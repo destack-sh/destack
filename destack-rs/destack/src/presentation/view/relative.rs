@@ -2,10 +2,6 @@
 
 #![destack::partial(destack.presentation.view.relative, file)]
 
-use crate::Anchor;
-use crate::Length;
-use crate::LengthType;
-
 #[destack::generated(Length, , block)]
 /// An absolute or relative length value.
 pub struct Length {

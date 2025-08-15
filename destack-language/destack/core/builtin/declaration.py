@@ -31,6 +31,8 @@ if TYPE_CHECKING:
         ObjectStability,
         StructType,
         TraitType,
+        UniverseCategory,
+        UniverseDomain,
     )
 
 
@@ -102,6 +104,8 @@ class ObjectDeclaration(Declaration):
     name: str
     description: str
     stability: "ObjectStability"
+    domain: "UniverseDomain"
+    category: "UniverseCategory"
     is_abstract: bool
     is_immutable: bool
     is_final: bool

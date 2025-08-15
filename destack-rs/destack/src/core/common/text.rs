@@ -2,10 +2,6 @@
 
 #![destack::partial(destack.core.common.text, file)]
 
-use crate::TextSpan;
-use crate::TextSpanType;
-use crate::TextStyleFlag;
-
 #[destack::generated(Text, , block)]
 /// Text is a single paragraph composed of TextSpans with inline styling.
 pub struct Text {

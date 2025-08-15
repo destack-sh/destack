@@ -11,7 +11,7 @@ from destack.registry import ENUM_CLASS_BY_TYPE, ENUM_TYPE_BY_CLASS
 from ._const import UNSET
 
 if TYPE_CHECKING:
-    from destack import EnumType
+    from destack import EnumType, UniverseCategory, UniverseDomain
 
 
 type_ = type
@@ -24,6 +24,8 @@ class EnumDeclaration:
     type: "EnumType"
     name: str
     description: str
+    domain: "UniverseDomain"
+    category: "UniverseCategory"
     is_flag: bool
 
     # content
@@ -69,7 +71,10 @@ class OptionDeclaration(int):  # pretend to be an enum member
 
 
 def _process_enum_cls(
-    cls: type_["Enum"], enum_type: "EnumType"
+    cls: type_["Enum"],
+    enum_type: "EnumType",
+    domain: "UniverseDomain | None" = None,
+    category: "UniverseCategory | None" = None,
 ) -> tuple[type["Enum"], EnumDeclaration]:
     # walk the class defiition and collect options
     options: list[OptionDeclaration] = []
@@ -95,12 +100,19 @@ def _process_enum_cls(
                 f"{cls.__name__}.{name} is not a OptionDeclaration: {attribute} ({type(attribute)})"
             )
 
+    if domain is None or category is None:
+        from .universe import _get_universe_domain  # circular import
+
+        domain, category = _get_universe_domain(enum_type.value)  # type: ignore
+
     # enum declaration
     declaration = EnumDeclaration(
         id=enum_type.value,
         type=enum_type,
         name=cls.__name__,
         description=cls.__doc__ or "",
+        domain=domain,
+        category=category,
         is_flag=isinstance(cls, FlagEnum),
         options=options,
     )
@@ -148,11 +160,20 @@ def declare_option(
 _ALLOWED_FLAG_POSTFIXES = ("FLAG", "OPTION")
 
 
-def declare_enum(enum_type: "EnumType"):
+def declare_enum(
+    enum_type: "EnumType",
+    domain: "UniverseDomain | None" = None,
+    category: "UniverseCategory | None" = None,
+):
     """Register a builtin Enum."""
 
     def decorate[T: type_["OptionEnum | FlagEnum"]](cls: T) -> T:
-        processed_cls, declaration = _process_enum_cls(cast(type_["Enum"], cls), enum_type)
+        processed_cls, declaration = _process_enum_cls(
+            cast(type_["Enum"], cls),
+            enum_type,
+            domain,
+            category,
+        )
         cls = cast(T, processed_cls)
         cls.metatype = enum_type  # type: ignore
 

@@ -111,7 +111,10 @@ class RustManagedItem(RustItem):
     _key: str = dataclasses.field(init=False)
 
     def __post_init__(self):
-        self._key = self.object_key + "." + self.inner_key
+        if self.inner_key:
+            self._key = self.object_key + "." + self.inner_key
+        else:
+            self._key = self.object_key
 
 
 @dataclass(slots=True)

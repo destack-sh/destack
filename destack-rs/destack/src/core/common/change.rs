@@ -2,8 +2,6 @@
 
 #![destack::partial(destack.core.common.change, file)]
 
-use crate::EditOperation;
-use crate::EditOperationType;
 use crate::Value;
 
 #[destack::generated(EditOperation, , block)]

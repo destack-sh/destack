@@ -4,9 +4,6 @@
 
 use crate::Color;
 use crate::Easing;
-use crate::StrokeCap;
-use crate::StrokePoint;
-use crate::StrokeType;
 use crate::Vector2;
 
 #[destack::generated(Stroke, , block)]

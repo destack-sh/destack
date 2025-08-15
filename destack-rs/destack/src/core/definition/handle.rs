@@ -8,6 +8,8 @@ use crate::MethodDefinition;
 use crate::ObjectStability;
 use crate::PropertyDefinition;
 use crate::TagDefinition;
+use crate::UniverseCategory;
+use crate::UniverseDomain;
 
 #[destack::generated(HandleDefinition, , block)]
 /// Definition of a builtin Handle.
@@ -16,6 +18,8 @@ pub struct HandleDefinition {
     r#type: HandleType,
     name: String,
     description: String,
+    domain: UniverseDomain,
+    category: UniverseCategory,
     stability: ObjectStability,
     tag: Option<u8>,
     is_abstract: bool,
