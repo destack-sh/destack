@@ -2,4 +2,6 @@
 
 #![destack::partial(imagination/image, file)]
 
-pub mod image;
+pub use image::*;
+
+mod image;

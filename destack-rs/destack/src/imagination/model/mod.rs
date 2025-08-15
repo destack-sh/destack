@@ -2,4 +2,6 @@
 
 #![destack::partial(imagination/model, file)]
 
-pub mod model;
+pub use model::*;
+
+mod model;

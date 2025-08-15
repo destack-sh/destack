@@ -25,7 +25,7 @@ from .core import (
     RustImport,
     RustItemScope,
     RustManagedItem,
-    RustMod,
+    RustModDeclaration,
     source_path_to_local_path,
 )
 
@@ -114,7 +114,9 @@ def _generate_enum_definition(enum: EnumDefinition) -> RustManagedItem:
     for option in enum.options:
         option_declaration = f"{option.name} = {option.id}"
         if option.description:
-            option_declaration = f"/// {option.description}\n{option_declaration}"
+            option_declaration = (
+                f"{_generate_doc_comment(option.name, option.description)}\n{option_declaration}"
+            )
         inner_content_parts.append(option_declaration)
     inner_content = ",\n".join(inner_content_parts)
 
@@ -205,33 +207,31 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             files[gen_file.local_path] = gen_file
 
     # add files for 'mod.rs' in each module
-    files_by_directory: dict[str, list[RustFile]] = collections.defaultdict(list)
+
+    # group files by directory
+    mods_by_directory: dict[str, set[str]] = collections.defaultdict(set)
     for file in files.values():
         directory = file.local_path.rsplit("/", 1)[0]
-        files_by_directory[directory].append(file)
-    for directory, directory_files in files_by_directory.items():
+        inner_name = file.source_path.split(".")[-1]
+        mods_by_directory[directory].add(inner_name)
+    # group directories "recursively"
+    # (e.g. for basics/access/membership we also want basics->access and access->membership)
+    for directory in list(mods_by_directory.keys()):
+        directory_parts = directory.split("/")
+        for i in range(len(directory_parts) - 1):
+            mods_by_directory[directory_parts[i]].add(directory_parts[i + 1])
+    # generate mod.rs files
+    for directory, directory_files in mods_by_directory.items():
         # generate items
-        mods: list[RustMod] = []
+        mods: list[RustModDeclaration] = []
         imports: list[RustImport] = []
-        for file in directory_files:
-            inner_name = file.source_path.split(".")[-1]
-            inner_content = f"mod {inner_name};"
-
+        for inner_name in directory_files:
             # mod
-            mod = RustMod(
-                name=inner_name,
-                children=EMPTY_LIST,
-                outer_content=inner_content,
-                inner_content=inner_content,
-                is_public=True,
-                is_inline=False,
-            )
+            mod = RustModDeclaration(name=inner_name, is_public=False)
             mods.append(mod)
-
             # import
-            import_path = file.source_path.replace(".", "::")
             imp = RustImport(
-                rust_path=import_path,
+                rust_path=inner_name,
                 imports=EMPTY_LIST,
                 is_internal=True,
                 is_public=True,
@@ -247,7 +247,8 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             source_path=source_path,
             local_path=local_path,
             imports=imports,
-            items=mods,
+            mods=mods,
+            items=(),
             is_mod_rs=True,
             comment=f"//! {directory}@{VERSION}",
             attributes=[

@@ -2,38 +2,40 @@
 
 #![destack::partial(core/definition, file)]
 
-pub mod constraint;
+pub use schema::*;
+pub use node::*;
+pub use function::*;
+pub use index::*;
+pub use constraint::*;
+pub use option::*;
+pub use handle::*;
+pub use definition::*;
+pub use permission::*;
+pub use method::*;
+pub use constant::*;
+pub use enum::*;
+pub use tag::*;
+pub use object::*;
+pub use property::*;
+pub use action::*;
+pub use module::*;
+pub use struct::*;
 
-pub mod index;
-
-pub mod option;
-
-pub mod permission;
-
-pub mod object;
-
-pub mod property;
-
-pub mod handle;
-
-pub mod action;
-
-pub mod definition;
-
-pub mod method;
-
-pub mod module;
-
-pub mod constant;
-
-pub mod node;
-
-pub mod enum;
-
-pub mod function;
-
-pub mod tag;
-
-pub mod struct;
-
-pub mod schema;
+mod schema;
+mod node;
+mod function;
+mod index;
+mod constraint;
+mod option;
+mod handle;
+mod definition;
+mod permission;
+mod method;
+mod constant;
+mod enum;
+mod tag;
+mod object;
+mod property;
+mod action;
+mod module;
+mod struct;

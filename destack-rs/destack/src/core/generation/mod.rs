@@ -2,4 +2,6 @@
 
 #![destack::partial(core/generation, file)]
 
-pub mod layout;
+pub use layout::*;
+
+mod layout;

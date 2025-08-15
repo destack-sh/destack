@@ -1,4 +1,4 @@
-//! destack.basics.script.schedule@2025.08.15.0
+//! destack.basics.script.schedule@2025.08.15.1
 
 #![destack::partial(destack.basics.script.schedule, file)]
 

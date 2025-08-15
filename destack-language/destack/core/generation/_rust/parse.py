@@ -11,7 +11,7 @@ from .core import (
     RustItem,
     RustItemScope,
     RustManagedItem,
-    RustMod,
+    RustModDeclaration,
 )
 
 
@@ -725,13 +725,13 @@ def _parse_rust_imports(source: str) -> list[RustImport]:
     return imports
 
 
-def _parse_rust_mods(source: str) -> list[RustMod]:
+def _parse_rust_mods(source: str) -> list[RustModDeclaration]:
     """
     Parse simple module declarations like `mod foo;` or `pub mod foo;`.
     Ignore inline/nested module definitions like `mod test { ... }`.
     Only parses top-level declarations.
     """
-    mods: list[RustMod] = []
+    mods: list[RustModDeclaration] = []
     top_level_lines = _extract_top_level_lines(source)
 
     for raw_line in top_level_lines:
@@ -749,15 +749,7 @@ def _parse_rust_mods(source: str) -> list[RustMod]:
         )
         if not name:
             continue
-        outer_content = stripped[:-1]
-        mod = RustMod(
-            children=[],
-            outer_content=outer_content,
-            inner_content=outer_content,
-            name=name,
-            is_public=is_public,
-            is_inline=False,
-        )
+        mod = RustModDeclaration(name=name, is_public=is_public)
         mods.append(mod)
     return mods
 
@@ -946,26 +938,10 @@ def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
             truncated = block_lines[: rel_close + 1]
             combined = collected_custom + truncated if collected_custom else truncated
             outer_content = _dedent_block(combined)
-
-            # if this is a module declaration, create a RustMod item
-            if is_module and mod_name:
-                # for nested modules, the entire content including attributes goes in content
-                mod = RustMod(
-                    children=[],
-                    outer_content=outer_content,
-                    inner_content=outer_content,
-                    name=mod_name,
-                    is_public=mod_is_public,
-                    is_inline=True,
-                )
-                items.append(mod)
-            else:
-                mod = RustCustomItem(
-                    children=[],
-                    outer_content=outer_content,
-                    inner_content=outer_content,
-                )
-                items.append(mod)
+            mod = RustCustomItem(
+                children=[], outer_content=outer_content, inner_content=outer_content
+            )
+            items.append(mod)
 
             new_end_index = header_start + rel_close
             i = new_end_index + 1
@@ -1040,4 +1016,5 @@ def parse_rust_file(
         attributes=[RustAttribute(content=a) for a in attributes],
         imports=imports,
         mods=mods,
+        raw_content=source,
     )

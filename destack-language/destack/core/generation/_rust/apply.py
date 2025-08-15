@@ -10,7 +10,7 @@ from .generate import generate_files
 from .scan import scan_files
 
 
-def regenerate():
+def regenerate(log_skip: bool = False):
     """Regenerate the entire Rust library / runtime."""
     from destack import SCHEMA
 
@@ -20,7 +20,7 @@ def regenerate():
     # diff
     ops = diff_rust_files(old_rust_files, new_rust_files)
     for op in ops:
-        execute_operation(op)
+        execute_operation(op, log_skip=log_skip)
 
     # format
     rs_dir = Path("..").absolute()
@@ -36,6 +36,7 @@ COLOR_BY_OPERATION_TYPE: dict[RustFileOperationType, _console.Color] = {
     RustFileOperationType.REMOVE: "red",
     RustFileOperationType.ADD: "green",
     RustFileOperationType.WARN: "bright_yellow",
+    RustFileOperationType.SKIP: "dim",
 }
 
 
@@ -43,7 +44,7 @@ def _render_operation_type(ty: RustFileOperationType) -> str:
     return _console.color(ty.upper().ljust(_OPERATION_STRING_LENGTH), COLOR_BY_OPERATION_TYPE[ty])
 
 
-def execute_operation(operation: RustFileOperation):
+def execute_operation(operation: RustFileOperation, *, log_skip: bool):
     """Execute a Rust file operation."""
 
     path = local_path_to_raw_path(operation.local_path)
@@ -82,6 +83,10 @@ def execute_operation(operation: RustFileOperation):
     elif operation.type == RustFileOperationType.WARN:
         _console.info(f"{_render_operation_type(operation.type)}  {operation.local_path}")
 
-    #
+    # skip
+    elif operation.type == RustFileOperationType.SKIP:
+        if log_skip:
+            _console.info(f"{_render_operation_type(operation.type)}  {operation.local_path}")
+
     else:
         assert_never(operation.type)

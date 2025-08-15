@@ -1,14 +1,19 @@
 import textwrap
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import assert_never
 
 from .core import (
+    RustAttribute,
     RustCustomItem,
     RustFile,
     RustGenerationType,
+    RustImport,
+    RustItem,
     RustItemScope,
     RustManagedItem,
+    RustModDeclaration,
     render_rust_destack_attribute,
     render_rust_file,
 )
@@ -22,6 +27,7 @@ class RustFileOperationType(StrEnum):
     REMOVE = "remove"
     ADD = "add"
     WARN = "warn"  # warn and do nothing
+    SKIP = "skip"  # skip and do nothing
 
 
 @dataclass(slots=True)
@@ -36,22 +42,26 @@ class RustFileOperation:
     combined_content: str | None  # for REPLACE, PATCH and ADD
 
 
-def _patch_rust_file(old_file: RustFile, new_file: RustFile) -> RustFile:
+def _patch_rust_file_items(
+    old_items: Sequence[RustItem], new_items: Sequence[RustItem]
+) -> Sequence[RustItem]:
     """
-    Patch a managed Rust file by merging managed items from new with custom items from old.
+    Patch a list of managed items by merging managed items from new with custom items from old.
     """
-    old_managed_by_key: dict[str, RustManagedItem] = {}
-    for item in old_file.items:
+
+    # collect old managed items by key
+    old_managed_items_by_key: dict[str, RustManagedItem] = {}
+    for item in old_items:
         if isinstance(item, RustManagedItem):
-            old_managed_by_key[item._key] = item
+            old_managed_items_by_key[item._key] = item
 
     # collect top-level custom items from old and attach them to the closest
     # preceding managed item from old that still exists in new
     customs_after_key: dict[str, list[RustCustomItem]] = {}
     unattached_customs: list[RustCustomItem] = []
     current_owner_key: str | None = None
-    existing_keys_in_new = {i._key for i in new_file.items if isinstance(i, RustManagedItem)}
-    for item in old_file.items:
+    existing_keys_in_new = {i._key for i in new_items if isinstance(i, RustManagedItem)}
+    for item in old_items:
         if isinstance(item, RustManagedItem):
             current_owner_key = (
                 item._key if item._key in existing_keys_in_new else current_owner_key
@@ -63,15 +73,15 @@ def _patch_rust_file(old_file: RustFile, new_file: RustFile) -> RustFile:
                 customs_after_key.setdefault(current_owner_key, []).append(item)
 
     # merge in the order of the new file's items
-    patched_items = []
-    for new_item in new_file.items:
+    patched_items: list[RustItem] = []
+    for new_item in new_items:
         # keep non-managed items in the new order unchanged
         if not isinstance(new_item, RustManagedItem):
             patched_items.append(new_item)
             continue
 
         # for managed items, merge against old if present
-        old_item = old_managed_by_key.get(new_item._key)
+        old_item = old_managed_items_by_key.get(new_item._key)
         merged_item = new_item if old_item is None else _merge_managed_item(old_item, new_item)
         patched_items.append(merged_item)
 
@@ -82,13 +92,51 @@ def _patch_rust_file(old_file: RustFile, new_file: RustFile) -> RustFile:
     # add any unattached customs
     patched_items.extend(unattached_customs)
 
-    # create the patched file
+    return patched_items
+
+
+def _patch_rust_file_attributes(
+    old_attributes: Sequence[RustAttribute], new_attributes: Sequence[RustAttribute]
+) -> Sequence[RustAttribute]:
+    """
+    Patch a list of attributes by merging attributes from new with attributes from old.
+    """
+    return new_attributes
+
+
+def _patch_rust_file_imports(
+    old_imports: Sequence[RustImport], new_imports: Sequence[RustImport]
+) -> Sequence[RustImport]:
+    """
+    Patch a list of imports by merging imports from new with imports from old.
+    """
+    return new_imports
+
+
+def _patch_rust_file_mods(
+    old_mods: Sequence[RustModDeclaration], new_mods: Sequence[RustModDeclaration]
+) -> Sequence[RustModDeclaration]:
+    """
+    Patch a list of mods by merging mods from new with mods from old.
+    """
+    return new_mods
+
+
+def _patch_rust_file(old_file: RustFile, new_file: RustFile) -> RustFile:
+    """
+    Patch a managed Rust file by merging managed items from new with custom items from old.
+    """
+    patched_attributes = _patch_rust_file_attributes(old_file.attributes, new_file.attributes)
+    patched_imports = _patch_rust_file_imports(old_file.imports or (), new_file.imports or ())
+    patched_mods = _patch_rust_file_mods(old_file.mods or (), new_file.mods or ())
+    patched_items = _patch_rust_file_items(old_file.items, new_file.items)
     patched_file = replace(
         new_file,
         items=patched_items,
-        comment=old_file.comment,
-        attributes=old_file.attributes,
-        imports=old_file.imports,
+        comment=new_file.comment,
+        attributes=patched_attributes,
+        imports=patched_imports,
+        mods=patched_mods,
     )
     return patched_file
 
@@ -109,11 +157,8 @@ def _merge_managed_item(old_item: RustManagedItem, new_item: RustManagedItem) ->
     elif new_item.type == RustGenerationType.PARTIAL:
         if new_item.scope == RustItemScope.LINE:
             raise ValueError(f"unexpected partial line: {new_item!r}")
-
-        # for BLOCK items
         elif new_item.scope == RustItemScope.BLOCK:
             return _merge_managed_item_block(old_item, new_item)
-
         else:
             assert_never(new_item.scope)
 
@@ -271,6 +316,10 @@ def diff_rust_file(old_file: RustFile, new_file: RustFile) -> RustFileOperation:
     else:
         assert_never(old_file.type)
 
+    # if content stays the same just mark as skip
+    if old_file.raw_content == combined_content:
+        operation_type = RustFileOperationType.SKIP
+
     op = RustFileOperation(
         type=operation_type,
         normalized_path=old_file.local_path,
@@ -306,7 +355,6 @@ def diff_rust_files(
 
         # case 1: old file exists, new file does not exist
         if old_file is not None and new_file is None:
-            # case 1: old file exists, new file does not exist
             if old_file.type == RustGenerationType.GENERATED:
                 # remove generated files
                 operations.append(
@@ -338,13 +386,11 @@ def diff_rust_files(
 
         # case 2: both files exist, diff them
         elif old_file is not None and new_file is not None:
-            # case 2: both files exist, diff them
             operation = diff_rust_file(old_file, new_file)
             operations.append(operation)
 
         # case 3: new file exists, old file does not exist
         elif old_file is None and new_file is not None:
-            # case 3: new file exists, old file does not exist
             operations.append(
                 RustFileOperation(
                     type=RustFileOperationType.ADD,

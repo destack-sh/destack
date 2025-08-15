@@ -2,24 +2,26 @@
 
 #![destack::partial(presentation/view, file)]
 
-pub mod layout;
+pub use relative::*;
+pub use label::*;
+pub use text::*;
+pub use slider::*;
+pub use input::*;
+pub use frame::*;
+pub use split::*;
+pub use number::*;
+pub use layout::*;
+pub use content::*;
+pub use view::*;
 
-pub mod number;
-
-pub mod relative;
-
-pub mod slider;
-
-pub mod content;
-
-pub mod view;
-
-pub mod split;
-
-pub mod label;
-
-pub mod input;
-
-pub mod frame;
-
-pub mod text;
+mod relative;
+mod label;
+mod text;
+mod slider;
+mod input;
+mod frame;
+mod split;
+mod number;
+mod layout;
+mod content;
+mod view;

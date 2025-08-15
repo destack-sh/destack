@@ -1,4 +1,4 @@
-//! destack.basics.entity.migration@2025.08.14.0
+//! destack.basics.entity.migration@2025.08.15.1
 
 #![destack::partial(destack.basics.entity.migration, file)]
 

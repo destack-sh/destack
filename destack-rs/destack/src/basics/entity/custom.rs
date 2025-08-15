@@ -1,4 +1,4 @@
-//! destack.basics.entity.custom@2025.08.14.0
+//! destack.basics.entity.custom@2025.08.15.1
 
 #![destack::partial(destack.basics.entity.custom, file)]
 

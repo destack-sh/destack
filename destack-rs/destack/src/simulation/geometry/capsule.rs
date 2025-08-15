@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.capsule@2025.08.14.0
+//! destack.simulation.geometry.capsule@2025.08.15.1
 
 #![destack::partial(destack.simulation.geometry.capsule, file)]
 

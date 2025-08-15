@@ -1,4 +1,4 @@
-//! destack.imagination.animation.effect@2025.08.14.0
+//! destack.imagination.animation.effect@2025.08.15.1
 
 #![destack::partial(destack.imagination.animation.effect, file)]
 

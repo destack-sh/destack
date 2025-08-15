@@ -2,4 +2,6 @@
 
 #![destack::partial(imagination/document, file)]
 
-pub mod document;
+pub use document::*;
+
+mod document;

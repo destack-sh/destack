@@ -2,22 +2,24 @@
 
 #![destack::partial(imagination/style, file)]
 
-pub mod color;
+pub use gradient::*;
+pub use color::*;
+pub use style::*;
+pub use palette::*;
+pub use font::*;
+pub use stroke::*;
+pub use theme::*;
+pub use fill::*;
+pub use shadow::*;
+pub use border::*;
 
-pub mod theme;
-
-pub mod style;
-
-pub mod fill;
-
-pub mod gradient;
-
-pub mod font;
-
-pub mod palette;
-
-pub mod stroke;
-
-pub mod shadow;
-
-pub mod border;
+mod gradient;
+mod color;
+mod style;
+mod palette;
+mod font;
+mod stroke;
+mod theme;
+mod fill;
+mod shadow;
+mod border;
