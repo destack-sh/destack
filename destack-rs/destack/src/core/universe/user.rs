@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.universe.user, file)]
 
-#[destack::generated(ClientType, , block)]
+#[destack::generated(ClientType, -, block)]
 /// ClientType
 pub enum ClientType {
     Web = 1,

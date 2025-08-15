@@ -122,7 +122,7 @@ def _dedent_block(lines: Sequence[str]) -> str:
 def _parse_attr(line: str) -> tuple[RustGenerationType, str, str, RustItemScope] | None:
     """
     Parse a destack attribute line like:
-    #[destack::generated(Vector2, struct, block)]
+    #[destack::generated(Vector2, -, block)]
     #[destack::partial(Vector2, impl, block)]
     #[destack::generated(Vector2, ZERO, line)]
     #[destack::stub(Vector2, x, block)]
@@ -143,6 +143,8 @@ def _parse_attr(line: str) -> tuple[RustGenerationType, str, str, RustItemScope]
         if len(raw_args) != 3:
             return None
         object_key, inner_key, scope_raw = raw_args
+        if inner_key == "-":
+            inner_key = ""
         scope: RustItemScope
         if scope_raw == "block":
             scope = RustItemScope.BLOCK

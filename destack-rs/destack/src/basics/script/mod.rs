@@ -30,3 +30,51 @@ mod script;
 mod span;
 mod timer;
 mod trigger;
+
+pub(crate) use crate::basics::script::_gen::*;
+
+pub(crate) use crate::basics::script::custom::*;
+
+pub(crate) use crate::basics::script::environment::*;
+
+pub(crate) use crate::basics::script::function::*;
+
+pub(crate) use crate::basics::script::script::*;
+
+pub(crate) use crate::basics::script::span::*;
+
+pub(crate) use crate::basics::script::_gen::*;
+
+pub(crate) use crate::basics::script::custom::*;
+
+pub(crate) use crate::basics::script::environment::*;
+
+pub(crate) use crate::basics::script::function::*;
+
+pub(crate) use crate::basics::script::script::*;
+
+pub(crate) use crate::basics::script::span::*;
+
+pub(crate) use crate::basics::script::_gen::*;
+
+pub(crate) use crate::basics::script::custom::*;
+
+pub(crate) use crate::basics::script::environment::*;
+
+pub(crate) use crate::basics::script::function::*;
+
+pub(crate) use crate::basics::script::script::*;
+
+pub(crate) use crate::basics::script::span::*;
+
+pub(crate) use crate::basics::script::_gen::*;
+
+pub(crate) use crate::basics::script::custom::*;
+
+pub(crate) use crate::basics::script::environment::*;
+
+pub(crate) use crate::basics::script::function::*;
+
+pub(crate) use crate::basics::script::script::*;
+
+pub(crate) use crate::basics::script::span::*;

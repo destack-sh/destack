@@ -7,23 +7,23 @@ use crate::Type;
 use crate::Value;
 use crate::ValueFactory;
 
-#[destack::generated(PropertyDefinition, , block)]
+#[destack::generated(PropertyDefinition, -, block)]
 /// Definition of a builtin Property.
 pub struct PropertyDefinition {
-    id: u8,
-    r#type: Type,
-    name: String,
-    description: String,
-    tag: Option<u8>,
-    default_value: Option<Value>,
-    default_factory: Option<ValueFactory>,
-    reference_type: Option<ReferenceType>,
-    is_readonly: bool,
-    is_repr: bool,
-    is_hash: bool,
-    is_eq: bool,
-    is_managed: bool,
-    is_static: bool,
-    is_runtime_only: bool,
-    is_interned: bool,
+    pub id: u8,
+    pub r#type: Type,
+    pub name: String,
+    pub description: String,
+    pub tag: Option<u8>,
+    pub default_value: Option<Value>,
+    pub default_factory: Option<ValueFactory>,
+    pub reference_type: Option<ReferenceType>,
+    pub is_readonly: bool,
+    pub is_repr: bool,
+    pub is_hash: bool,
+    pub is_eq: bool,
+    pub is_managed: bool,
+    pub is_static: bool,
+    pub is_runtime_only: bool,
+    pub is_interned: bool,
 }

@@ -5,22 +5,22 @@
 use crate::Fill;
 use crate::Length;
 
-#[destack::generated(Font, , block)]
+#[destack::generated(Font, -, block)]
 /// A font value.
 pub struct Font {
-    r#type: FontType,
-    template: Option<i64 /* TODO */>,
-    weight: Option<FontWeight>,
-    fill: Option<Fill>,
-    size: Option<FontSize>,
-    align: Option<TextAlign>,
-    line_height: Option<Length>,
-    letter_spacing: Option<Length>,
-    decoration: Option<TextDecoration>,
-    transform: Option<TextTransform>,
+    pub r#type: FontType,
+    pub template: Option<i64 /* TODO */>,
+    pub weight: Option<FontWeight>,
+    pub fill: Option<Fill>,
+    pub size: Option<FontSize>,
+    pub align: Option<TextAlign>,
+    pub line_height: Option<Length>,
+    pub letter_spacing: Option<Length>,
+    pub decoration: Option<TextDecoration>,
+    pub transform: Option<TextTransform>,
 }
 
-#[destack::generated(FontType, , block)]
+#[destack::generated(FontType, -, block)]
 /// FontType
 pub enum FontType {
     /// A serif font
@@ -31,7 +31,7 @@ pub enum FontType {
     Mono = 12,
 }
 
-#[destack::generated(FontWeight, , block)]
+#[destack::generated(FontWeight, -, block)]
 /// FontWeight
 pub enum FontWeight {
     /// A thin font weight
@@ -54,7 +54,7 @@ pub enum FontWeight {
     Black = 900,
 }
 
-#[destack::generated(FontSize, , block)]
+#[destack::generated(FontSize, -, block)]
 /// FontSize
 pub enum FontSize {
     /// An XS font size
@@ -81,7 +81,7 @@ pub enum FontSize {
     Xl7 = 72,
 }
 
-#[destack::generated(TextAlign, , block)]
+#[destack::generated(TextAlign, -, block)]
 /// TextAlign
 pub enum TextAlign {
     /// A left text alignment
@@ -94,7 +94,7 @@ pub enum TextAlign {
     Justify = 4,
 }
 
-#[destack::generated(TextDecoration, , block)]
+#[destack::generated(TextDecoration, -, block)]
 /// TextDecoration
 pub enum TextDecoration {
     /// No text decoration
@@ -105,7 +105,7 @@ pub enum TextDecoration {
     Strikethrough = 3,
 }
 
-#[destack::generated(TextTransform, , block)]
+#[destack::generated(TextTransform, -, block)]
 /// TextTransform
 pub enum TextTransform {
     /// No text transform

@@ -4,11 +4,75 @@
 
 use crate::Align;
 use crate::Anchor;
+use crate::Axis2;
+use crate::Axis3;
+use crate::Corner2;
 use crate::Direction;
 use crate::Distribute;
+use crate::Grid2;
+use crate::GridSpan2;
+use crate::Inset2;
 use crate::Layout;
+use crate::Length;
 use crate::LengthType;
+use crate::Offset2;
 use crate::Overflow;
+
+#[destack::generated(Length, Debug, block)]
+impl std::fmt::Debug for Length {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Length")
+    }
+}
+
+#[destack::generated(Offset2, Debug, block)]
+impl std::fmt::Debug for Offset2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Offset2")
+    }
+}
+
+#[destack::generated(Grid2, Debug, block)]
+impl std::fmt::Debug for Grid2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Grid2")
+    }
+}
+
+#[destack::generated(GridSpan2, Debug, block)]
+impl std::fmt::Debug for GridSpan2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "GridSpan2")
+    }
+}
+
+#[destack::generated(Inset2, Debug, block)]
+impl std::fmt::Debug for Inset2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Inset2")
+    }
+}
+
+#[destack::generated(Corner2, Debug, block)]
+impl std::fmt::Debug for Corner2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Corner2")
+    }
+}
+
+#[destack::generated(Axis2, Debug, block)]
+impl std::fmt::Debug for Axis2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Axis2")
+    }
+}
+
+#[destack::generated(Axis3, Debug, block)]
+impl std::fmt::Debug for Axis3 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Axis3")
+    }
+}
 
 #[destack::generated(LengthType, Debug, block)]
 impl std::fmt::Debug for LengthType {

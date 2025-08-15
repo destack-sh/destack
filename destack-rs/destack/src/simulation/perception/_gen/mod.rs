@@ -6,3 +6,11 @@
 pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
 
 mod mouse_gen;
+
+pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
+
+pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
+
+pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
+
+pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;

@@ -5,17 +5,17 @@
 use crate::Timestamp;
 use crate::Uuid;
 
-#[destack::generated(FractionalIntegerError, , block)]
+#[destack::generated(FractionalIntegerError, -, block)]
 /// An Error raised when a fractional integer operation fails.
 pub struct FractionalIntegerError {
-    id: Uuid,
-    client: i64, /* TODO */
-    client_nonce: u8,
-    client_created_at: Timestamp,
-    client_remote_epoch: u64,
-    client_local_epoch: u64,
-    description: Option<String>,
-    head: Option<String>,
-    a: Option<String>,
-    b: Option<String>,
+    pub id: Uuid,
+    pub client: i64, /* TODO */
+    pub client_nonce: u8,
+    pub client_created_at: Timestamp,
+    pub client_remote_epoch: u64,
+    pub client_local_epoch: u64,
+    pub description: Option<String>,
+    pub head: Option<String>,
+    pub a: Option<String>,
+    pub b: Option<String>,
 }

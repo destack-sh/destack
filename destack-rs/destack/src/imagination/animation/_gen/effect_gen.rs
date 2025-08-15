@@ -2,10 +2,18 @@
 
 #![destack::generated(destack.imagination.animation.effect, file)]
 
+use crate::Effect;
 use crate::EffectType;
 use crate::OffscreenBehavior;
 use crate::RepeatType;
 use crate::TextSplitType;
+
+#[destack::generated(Effect, Debug, block)]
+impl std::fmt::Debug for Effect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Effect")
+    }
+}
 
 #[destack::generated(RepeatType, Debug, block)]
 impl std::fmt::Debug for RepeatType {

@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.access.entitlement, file)]
 
-#[destack::generated(RoleType, , block)]
+#[destack::generated(RoleType, -, block)]
 /// RoleType
 pub enum RoleType {
     System = 1,
@@ -13,7 +13,7 @@ pub enum RoleType {
     Spectator = 10,
 }
 
-#[destack::generated(EntitlementType, , block)]
+#[destack::generated(EntitlementType, -, block)]
 /// A Type of Entitlement.
 pub enum EntitlementType {
     /// A Permission

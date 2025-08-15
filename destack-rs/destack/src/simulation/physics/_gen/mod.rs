@@ -8,3 +8,19 @@ pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
 
 mod joint_gen;
 mod rigid_gen;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;

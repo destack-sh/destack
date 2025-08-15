@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.builtin.event, file)]
 
-#[destack::generated(RuntimePlatform, , block)]
+#[destack::generated(RuntimePlatform, -, block)]
 /// The platform of the Runtime.
 pub enum RuntimePlatform {
     /// Core platform
@@ -19,7 +19,7 @@ pub enum RuntimePlatform {
     Desktop = 600,
 }
 
-#[destack::generated(RuntimeLanguage, , block)]
+#[destack::generated(RuntimeLanguage, -, block)]
 /// The language of the Runtime.
 pub enum RuntimeLanguage {
     Python = 1,
@@ -27,7 +27,7 @@ pub enum RuntimeLanguage {
     Rust = 3,
 }
 
-#[destack::generated(RuntimeType, , block)]
+#[destack::generated(RuntimeType, -, block)]
 /// The specific Runtime (RuntimeLanguage x RuntimePlatform).
 pub enum RuntimeType {
     /// Destack Python library
@@ -48,7 +48,7 @@ pub enum RuntimeType {
     WebTypescript = 402,
 }
 
-#[destack::generated(EventStatus, , block)]
+#[destack::generated(EventStatus, -, block)]
 /// The consensus status of an Event.
 pub enum EventStatus {
     /// Pending application on client

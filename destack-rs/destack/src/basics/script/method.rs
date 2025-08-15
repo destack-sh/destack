@@ -8,19 +8,19 @@ use crate::RuntimeLanguage;
 use crate::RuntimePlatform;
 use crate::RuntimeType;
 
-#[destack::generated(MethodDefinition, , block)]
+#[destack::generated(MethodDefinition, -, block)]
 /// Definition of a builtin Method.
 pub struct MethodDefinition {
-    id: u16,
-    r#type: MethodType,
-    name: String,
-    description: String,
-    is_async: bool,
-    is_managed: bool,
-    alias_of: Option<u16>,
-    input_properties: Vec<PropertyDefinition>,
-    output_property: Option<PropertyDefinition>,
-    platforms: Option<Vec<RuntimePlatform>>,
-    languages: Option<Vec<RuntimeLanguage>>,
-    runtimes: Option<Vec<RuntimeType>>,
+    pub id: u16,
+    pub r#type: MethodType,
+    pub name: String,
+    pub description: String,
+    pub is_async: bool,
+    pub is_managed: bool,
+    pub alias_of: Option<u16>,
+    pub input_properties: Vec<PropertyDefinition>,
+    pub output_property: Option<PropertyDefinition>,
+    pub platforms: Option<Vec<RuntimePlatform>>,
+    pub languages: Option<Vec<RuntimeLanguage>>,
+    pub runtimes: Option<Vec<RuntimeType>>,
 }

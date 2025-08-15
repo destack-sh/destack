@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.imagination.animation.easing, file)]
 
-#[destack::generated(Easing, , block)]
+#[destack::generated(Easing, -, block)]
 /// Built-in easing types.
 pub enum Easing {
     Linear = 1,

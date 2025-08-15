@@ -5,14 +5,14 @@
 use crate::EnumType;
 use crate::OptionDefinition;
 
-#[destack::generated(EnumDefinition, , block)]
+#[destack::generated(EnumDefinition, -, block)]
 /// Definition of a builtin Enum.
 pub struct EnumDefinition {
-    id: u32,
-    r#type: EnumType,
-    name: String,
-    description: String,
-    taggings: Vec<u8>,
-    is_flag: bool,
-    options: Vec<OptionDefinition>,
+    pub id: u32,
+    pub r#type: EnumType,
+    pub name: String,
+    pub description: String,
+    pub taggings: Vec<u8>,
+    pub is_flag: bool,
+    pub options: Vec<OptionDefinition>,
 }

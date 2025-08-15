@@ -193,7 +193,7 @@ def _generate_struct_definition(struct: StructDefinition) -> RustManagedItem:
         if prop.type.struct_type == struct.type:
             # auto-box self references
             prop_type_str = f"Box<{prop_type_str}>"
-        inner_content_parts.append(f"{ecsape_rust_identifier(prop_name)}: {prop_type_str}")
+        inner_content_parts.append(f"pub {ecsape_rust_identifier(prop_name)}: {prop_type_str}")
     inner_content = ",\n".join(inner_content_parts)
 
     # outer content
@@ -213,6 +213,40 @@ pub struct {struct.name} {{
         outer_content=outer_content,
         inner_content=inner_content,
         dependencies=list(dependencies),
+    )
+    return item
+
+
+def _generate_struct_debug(struct: StructDefinition) -> RustManagedItem:
+    """Generate a Rust impl Debug for a Struct."""
+
+    object_key = _get_object_key(struct)
+
+    # inner content
+    inner_content_parts: list[str] = [
+        # just the struct name for now
+        f'write!(f, "{struct.name}")'
+    ]
+    inner_content = ",\n".join(inner_content_parts)
+
+    # outer content
+    outer_content = f"""\
+impl std::fmt::Debug for {struct.name} {{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{
+{textwrap.indent(inner_content, " " * 8)}
+    }}
+}}
+"""
+
+    item = RustManagedItem(
+        type=RustGenerationType.GENERATED,
+        scope=RustItemScope.BLOCK,
+        object_key=object_key,
+        inner_key="Debug",
+        children=EMPTY_LIST,
+        outer_content=outer_content,
+        inner_content=inner_content,
+        dependencies=(struct.name,),
     )
     return item
 
@@ -274,7 +308,7 @@ fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{
 
     # outer content
     outer_content = f"""\
-impl std::fmt::Debug for {object_key} {{
+impl std::fmt::Debug for {enum.name} {{
 {textwrap.indent(inner_content, " " * 4)}
 }}
 """
@@ -330,6 +364,8 @@ def _generate_object_module(
             continue  # ignore abstract structs
         struct_item = _generate_struct_definition(struct_def)
         partial_items.append(struct_item)
+        struct_debug_item = _generate_struct_debug(struct_def)
+        gen_items.append(struct_debug_item)
 
     # generate enums
     for enum_type in module.enum_types:

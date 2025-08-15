@@ -4,19 +4,19 @@
 
 use crate::Color;
 
-#[destack::generated(Icon, , block)]
+#[destack::generated(Icon, -, block)]
 /// An icon to be displayed in some view.
 pub struct Icon {
-    r#type: IconType,
-    emoji: Option<String>,
-    fa_name: Option<String>,
-    vsc_name: Option<String>,
-    file: Option<i64 /* TODO */>,
-    file_url: Option<String>,
-    color: Option<Color>,
+    pub r#type: IconType,
+    pub emoji: Option<String>,
+    pub fa_name: Option<String>,
+    pub vsc_name: Option<String>,
+    pub file: Option<i64 /* TODO */>,
+    pub file_url: Option<String>,
+    pub color: Option<Color>,
 }
 
-#[destack::generated(PrimitiveType, , block)]
+#[destack::generated(PrimitiveType, -, block)]
 /// A fundamental scalar data type.
 pub enum PrimitiveType {
     /// Null value
@@ -93,7 +93,7 @@ pub enum PrimitiveType {
     Json = 557,
 }
 
-#[destack::generated(TypeCardinality, , block)]
+#[destack::generated(TypeCardinality, -, block)]
 /// The order of a Type (scalar, list, map, etc.).
 pub enum TypeCardinality {
     /// Single value
@@ -106,7 +106,7 @@ pub enum TypeCardinality {
     Map = 10,
 }
 
-#[destack::generated(ScalarType, , block)]
+#[destack::generated(ScalarType, -, block)]
 /// The type of a scalar (single value like primitive, enum, struct, etc.).
 pub enum ScalarType {
     /// Primitive value (boolean, number, time, string, etc.)
@@ -131,7 +131,7 @@ pub enum ScalarType {
     Union = 10,
 }
 
-#[destack::generated(ValueFactory, , block)]
+#[destack::generated(ValueFactory, -, block)]
 /// The factory to use for generating values.
 pub enum ValueFactory {
     /// Generate a random (time-sorted) UUIDv7
@@ -156,14 +156,13 @@ pub enum ValueFactory {
     CurrentSpace = 41,
     /// Get the current Branch
     CurrentBranch = 42,
-    
     /// Get the current Snapshot
     CurrentSnapshot = 43,
     /// Generate a relevant name
     Name = 50,
 }
 
-#[destack::generated(PropertyZone, , block)]
+#[destack::generated(PropertyZone, -, block)]
 /// PropertyZone
 pub enum PropertyZone {
     Member = 1,
@@ -171,7 +170,7 @@ pub enum PropertyZone {
     Output = 11,
 }
 
-#[destack::generated(ReferenceType, , block)]
+#[destack::generated(ReferenceType, -, block)]
 /// The type of a Node reference.
 pub enum ReferenceType {
     /// Raw untyped reference (id only, for internal use)
@@ -184,7 +183,7 @@ pub enum ReferenceType {
     Temporal = 4,
 }
 
-#[destack::generated(IconType, , block)]
+#[destack::generated(IconType, -, block)]
 /// IconType
 pub enum IconType {
     Emoji = 1,

@@ -2,13 +2,69 @@
 
 #![destack::generated(destack.core.common.query, file)]
 
+use crate::Aggregation;
 use crate::AggregationType;
+use crate::Condition;
 use crate::ConditionalType;
+use crate::Expression;
 use crate::ExpressionType;
+use crate::Join;
 use crate::JoinType;
+use crate::Query;
 use crate::QueryType;
+use crate::Select;
+use crate::Sort;
 use crate::SortMode;
 use crate::SortType;
+
+#[destack::generated(Expression, Debug, block)]
+impl std::fmt::Debug for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Expression")
+    }
+}
+
+#[destack::generated(Join, Debug, block)]
+impl std::fmt::Debug for Join {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Join")
+    }
+}
+
+#[destack::generated(Aggregation, Debug, block)]
+impl std::fmt::Debug for Aggregation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Aggregation")
+    }
+}
+
+#[destack::generated(Condition, Debug, block)]
+impl std::fmt::Debug for Condition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Condition")
+    }
+}
+
+#[destack::generated(Sort, Debug, block)]
+impl std::fmt::Debug for Sort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sort")
+    }
+}
+
+#[destack::generated(Select, Debug, block)]
+impl std::fmt::Debug for Select {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Select")
+    }
+}
+
+#[destack::generated(Query, Debug, block)]
+impl std::fmt::Debug for Query {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Query")
+    }
+}
 
 #[destack::generated(ConditionalType, Debug, block)]
 impl std::fmt::Debug for ConditionalType {

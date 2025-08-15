@@ -2,8 +2,16 @@
 
 #![destack::generated(destack.basics.entity.constraint, file)]
 
+use crate::ConstraintDefinition;
 use crate::ConstraintType;
 use crate::IndexType;
+
+#[destack::generated(ConstraintDefinition, Debug, block)]
+impl std::fmt::Debug for ConstraintDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ConstraintDefinition")
+    }
+}
 
 #[destack::generated(IndexType, Debug, block)]
 impl std::fmt::Debug for IndexType {

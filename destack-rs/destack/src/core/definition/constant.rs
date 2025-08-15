@@ -4,13 +4,13 @@
 
 use crate::Value;
 
-#[destack::generated(ConstantDefinition, , block)]
+#[destack::generated(ConstantDefinition, -, block)]
 /// Definition of a builtin Constant.
 pub struct ConstantDefinition {
-    id: u8,
-    name: String,
-    description: String,
-    taggings: Vec<u8>,
-    value: Value,
-    _is_deferred: bool,
+    pub id: u8,
+    pub name: String,
+    pub description: String,
+    pub taggings: Vec<u8>,
+    pub value: Value,
+    pub _is_deferred: bool,
 }

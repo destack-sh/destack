@@ -4,23 +4,23 @@
 
 use crate::PropertyReference;
 
-#[destack::generated(ConstraintDefinition, , block)]
+#[destack::generated(ConstraintDefinition, -, block)]
 /// Definition of a builtin Constraint.
 pub struct ConstraintDefinition {
-    id: u8,
-    r#type: ConstraintType,
-    name: String,
-    description: String,
-    properties: Vec<PropertyReference>,
+    pub id: u8,
+    pub r#type: ConstraintType,
+    pub name: String,
+    pub description: String,
+    pub properties: Vec<PropertyReference>,
 }
 
-#[destack::generated(IndexType, , block)]
+#[destack::generated(IndexType, -, block)]
 /// Type of an Index.
 pub enum IndexType {
     Btree = 1,
 }
 
-#[destack::generated(ConstraintType, , block)]
+#[destack::generated(ConstraintType, -, block)]
 /// Type of a Constraint.
 pub enum ConstraintType {
     Unique = 1,

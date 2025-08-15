@@ -6,3 +6,11 @@
 pub(crate) use crate::basics::intelligence::model::*;
 
 mod model;
+
+pub(crate) use crate::basics::intelligence::model::*;
+
+pub(crate) use crate::basics::intelligence::model::*;
+
+pub(crate) use crate::basics::intelligence::model::*;
+
+pub(crate) use crate::basics::intelligence::model::*;

@@ -3,7 +3,15 @@
 #![destack::generated(destack.imagination.animation.transition, file)]
 
 use crate::SpringType;
+use crate::Transition;
 use crate::TransitionType;
+
+#[destack::generated(Transition, Debug, block)]
+impl std::fmt::Debug for Transition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Transition")
+    }
+}
 
 #[destack::generated(TransitionType, Debug, block)]
 impl std::fmt::Debug for TransitionType {

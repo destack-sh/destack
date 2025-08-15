@@ -8,3 +8,11 @@ pub use crate::production::cloud::machine::*;
 
 mod _gen;
 mod machine;
+
+pub(crate) use crate::production::cloud::_gen::*;
+
+pub(crate) use crate::production::cloud::_gen::*;
+
+pub(crate) use crate::production::cloud::_gen::*;
+
+pub(crate) use crate::production::cloud::_gen::*;

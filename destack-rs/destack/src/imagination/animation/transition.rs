@@ -2,29 +2,29 @@
 
 #![destack::partial(destack.imagination.animation.transition, file)]
 
-#[destack::generated(Transition, , block)]
+#[destack::generated(Transition, -, block)]
 /// A transition value.
 pub struct Transition {
-    r#type: TransitionType,
-    template: Option<i64 /* TODO */>,
-    delay: Option<f32>,
-    duration: Option<f32>,
-    ease: Vec<f32>,
-    stiffness: Option<f32>,
-    damping: Option<f32>,
-    mass: Option<f32>,
-    bounce: Option<f32>,
-    spring_type: Option<SpringType>,
+    pub r#type: TransitionType,
+    pub template: Option<i64 /* TODO */>,
+    pub delay: Option<f32>,
+    pub duration: Option<f32>,
+    pub ease: Vec<f32>,
+    pub stiffness: Option<f32>,
+    pub damping: Option<f32>,
+    pub mass: Option<f32>,
+    pub bounce: Option<f32>,
+    pub spring_type: Option<SpringType>,
 }
 
-#[destack::generated(TransitionType, , block)]
+#[destack::generated(TransitionType, -, block)]
 /// Built-in transition types.
 pub enum TransitionType {
     Tween = 10,
     Spring = 11,
 }
 
-#[destack::generated(SpringType, , block)]
+#[destack::generated(SpringType, -, block)]
 /// Built-in spring types.
 pub enum SpringType {
     Time = 1,

@@ -12,21 +12,21 @@ use crate::StructType;
 use crate::UniverseCategory;
 use crate::UniverseDomain;
 
-#[destack::generated(ModuleDefinition, , block)]
+#[destack::generated(ModuleDefinition, -, block)]
 /// Definition of a builtin Module.
 pub struct ModuleDefinition {
-    r#type: ModuleType,
-    name: String,
-    description: String,
-    path: String,
-    domain: Option<UniverseDomain>,
-    category: Option<UniverseCategory>,
-    methods: Vec<MethodDefinition>,
-    constants: Vec<ConstantDefinition>,
-    node_types: Vec<NodeType>,
-    struct_types: Vec<StructType>,
-    handle_types: Vec<HandleType>,
-    enum_types: Vec<EnumType>,
-    parent_path: Option<String>,
-    children_paths: Vec<String>,
+    pub r#type: ModuleType,
+    pub name: String,
+    pub description: String,
+    pub path: String,
+    pub domain: Option<UniverseDomain>,
+    pub category: Option<UniverseCategory>,
+    pub methods: Vec<MethodDefinition>,
+    pub constants: Vec<ConstantDefinition>,
+    pub node_types: Vec<NodeType>,
+    pub struct_types: Vec<StructType>,
+    pub handle_types: Vec<HandleType>,
+    pub enum_types: Vec<EnumType>,
+    pub parent_path: Option<String>,
+    pub children_paths: Vec<String>,
 }

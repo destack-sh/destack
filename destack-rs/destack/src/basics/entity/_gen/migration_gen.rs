@@ -2,7 +2,23 @@
 
 #![destack::generated(destack.basics.entity.migration, file)]
 
+use crate::MigrationDefinition;
+use crate::MigrationOperationDefinition;
 use crate::MigrationType;
+
+#[destack::generated(MigrationDefinition, Debug, block)]
+impl std::fmt::Debug for MigrationDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MigrationDefinition")
+    }
+}
+
+#[destack::generated(MigrationOperationDefinition, Debug, block)]
+impl std::fmt::Debug for MigrationOperationDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MigrationOperationDefinition")
+    }
+}
 
 #[destack::generated(MigrationType, Debug, block)]
 impl std::fmt::Debug for MigrationType {

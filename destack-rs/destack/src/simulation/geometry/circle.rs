@@ -5,16 +5,16 @@
 use crate::Vector2;
 use crate::Vector3;
 
-#[destack::generated(Circle2D, , block)]
+#[destack::generated(Circle2D, -, block)]
 /// A Circle is centered at a point with a radius.
 pub struct Circle2D {
-    position: Vector2,
-    radius: f32,
+    pub position: Vector2,
+    pub radius: f32,
 }
 
-#[destack::generated(Sphere3D, , block)]
+#[destack::generated(Sphere3D, -, block)]
 /// A Sphere is centered at a point with a radius.
 pub struct Sphere3D {
-    position: Vector3,
-    radius: f32,
+    pub position: Vector3,
+    pub radius: f32,
 }

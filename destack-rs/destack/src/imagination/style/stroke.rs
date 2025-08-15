@@ -6,48 +6,48 @@ use crate::Color;
 use crate::Easing;
 use crate::Vector2;
 
-#[destack::generated(Stroke, , block)]
+#[destack::generated(Stroke, -, block)]
 /// A stroke value.
 pub struct Stroke {
-    r#type: StrokeType,
-    template: Option<i64 /* TODO */>,
-    size: u8,
-    thinning: f32,
-    smoothing: f32,
-    streamline: f32,
-    easing: Easing,
-    color: Option<Color>,
-    start: Option<StrokeCap>,
-    end: Option<StrokeCap>,
+    pub r#type: StrokeType,
+    pub template: Option<i64 /* TODO */>,
+    pub size: u8,
+    pub thinning: f32,
+    pub smoothing: f32,
+    pub streamline: f32,
+    pub easing: Easing,
+    pub color: Option<Color>,
+    pub start: Option<StrokeCap>,
+    pub end: Option<StrokeCap>,
 }
 
-#[destack::generated(StrokeCap, , block)]
+#[destack::generated(StrokeCap, -, block)]
 /// A stroke cap.
 pub struct StrokeCap {
-    cap: bool,
-    taper: bool,
-    easing: Easing,
+    pub cap: bool,
+    pub taper: bool,
+    pub easing: Easing,
 }
 
-#[destack::generated(StrokePath, , block)]
+#[destack::generated(StrokePath, -, block)]
 /// A stroke path.
 pub struct StrokePath {
-    points: Vec<StrokePoint>,
+    pub points: Vec<StrokePoint>,
 }
 
-#[destack::generated(StrokePoint, , block)]
+#[destack::generated(StrokePoint, -, block)]
 /// A computed point in a stroke.
 pub struct StrokePoint {
-    point: Vector2,
-    original_point: Vector2,
-    pressure: f32,
-    direction: Vector2,
-    distance: f32,
-    running_length: f32,
-    radius: f32,
+    pub point: Vector2,
+    pub original_point: Vector2,
+    pub pressure: f32,
+    pub direction: Vector2,
+    pub distance: f32,
+    pub running_length: f32,
+    pub radius: f32,
 }
 
-#[destack::generated(StrokeType, , block)]
+#[destack::generated(StrokeType, -, block)]
 /// StrokeType
 pub enum StrokeType {
     /// A solid stroke

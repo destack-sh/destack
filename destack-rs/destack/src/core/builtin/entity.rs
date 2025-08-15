@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.builtin.entity, file)]
 
-#[destack::generated(Materialization, , block)]
+#[destack::generated(Materialization, -, block)]
 /// The materialization level of an Entity.
 pub enum Materialization {
     /// Entity matches its definition, only exists when queried
@@ -15,7 +15,7 @@ pub enum Materialization {
     Root = 4,
 }
 
-#[destack::generated(ProcessFlag, , block)]
+#[destack::generated(ProcessFlag, -, block)]
 /// How an Entity should be treated for processing by the system.
 pub enum ProcessFlag {
     Default = 0,
@@ -31,7 +31,7 @@ pub enum ProcessFlag {
     SleepingInput = 16,
 }
 
-#[destack::generated(ExtensionFlag, , block)]
+#[destack::generated(ExtensionFlag, -, block)]
 /// How an Entity should be treated for extension by the system.
 pub enum ExtensionFlag {
     Default = 0,

@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.encoding.time, file)]
 
-#[destack::generated(Encoding, , block)]
+#[destack::generated(Encoding, -, block)]
 /// Encoding scheme.
 pub enum Encoding {
     /// JSON encoding
@@ -11,7 +11,7 @@ pub enum Encoding {
     Kompakt = 3,
 }
 
-#[destack::generated(EncoderFlag, , block)]
+#[destack::generated(EncoderFlag, -, block)]
 /// Flags for Encoders.
 pub enum EncoderFlag {
     Default = 0,
@@ -20,7 +20,7 @@ pub enum EncoderFlag {
     UnwrapValue = 16,
 }
 
-#[destack::generated(EncoderStability, , block)]
+#[destack::generated(EncoderStability, -, block)]
 /// Stability of an Encoder's encoded format.
 pub enum EncoderStability {
     /// Can handle version drift

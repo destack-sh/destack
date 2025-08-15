@@ -4,13 +4,13 @@
 
 use crate::EnumType;
 
-#[destack::generated(OptionDefinition, , block)]
+#[destack::generated(OptionDefinition, -, block)]
 /// Definition of a builtin Enum Option.
 pub struct OptionDefinition {
-    id: u8,
-    r#type: EnumType,
-    name: String,
-    description: String,
-    taggings: Vec<u8>,
-    is_internal: bool,
+    pub id: u8,
+    pub r#type: EnumType,
+    pub name: String,
+    pub description: String,
+    pub taggings: Vec<u8>,
+    pub is_internal: bool,
 }

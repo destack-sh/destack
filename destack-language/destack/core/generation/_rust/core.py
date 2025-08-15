@@ -174,7 +174,7 @@ class RustFile:
 
 def render_rust_destack_attribute(item: RustManagedItem) -> str:
     """Render a destack attribute."""
-    return f"#[destack::{item.type}({item.object_key}, {item.inner_key}, {item.scope})]"
+    return f"#[destack::{item.type}({item.object_key}, {item.inner_key or '-'}, {item.scope})]"
 
 
 def render_rust_mod(mod: RustModDeclaration) -> str:

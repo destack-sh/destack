@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.script.log, file)]
 
-#[destack::generated(LogLevel, , block)]
+#[destack::generated(LogLevel, -, block)]
 /// LogLevel
 pub enum LogLevel {
     /// A Trace

@@ -2,6 +2,7 @@
 
 #![destack::generated(destack.core.common.icon, file)]
 
+use crate::Icon;
 use crate::IconType;
 use crate::PrimitiveType;
 use crate::PropertyZone;
@@ -9,6 +10,13 @@ use crate::ReferenceType;
 use crate::ScalarType;
 use crate::TypeCardinality;
 use crate::ValueFactory;
+
+#[destack::generated(Icon, Debug, block)]
+impl std::fmt::Debug for Icon {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Icon")
+    }
+}
 
 #[destack::generated(PrimitiveType, Debug, block)]
 impl std::fmt::Debug for PrimitiveType {

@@ -3,6 +3,7 @@
 #![destack::partial(destack.core.definition, file)]
 #![allow(unused_imports)]
 
+pub(crate) use crate::core::definition::_gen::*;
 pub(crate) use crate::core::definition::action::*;
 pub use crate::core::definition::constant::*;
 pub(crate) use crate::core::definition::definition::*;
@@ -18,6 +19,7 @@ pub use crate::core::definition::property::*;
 pub use crate::core::definition::schema::*;
 pub use crate::core::definition::r#struct::*;
 
+mod _gen;
 mod action;
 mod constant;
 mod definition;
@@ -32,3 +34,49 @@ mod option;
 mod property;
 mod schema;
 mod r#struct;
+
+pub(crate) use crate::core::definition::_gen::*;
+
+pub(crate) use crate::core::definition::action::*;
+
+pub(crate) use crate::core::definition::definition::*;
+
+pub(crate) use crate::core::definition::index::*;
+
+pub(crate) use crate::core::definition::method::*;
+
+pub(crate) use crate::core::definition::object::*;
+
+pub(crate) use crate::core::definition::_gen::*;
+
+pub(crate) use crate::core::definition::action::*;
+
+pub(crate) use crate::core::definition::definition::*;
+
+pub(crate) use crate::core::definition::index::*;
+
+pub(crate) use crate::core::definition::method::*;
+
+pub(crate) use crate::core::definition::object::*;
+
+pub(crate) use crate::core::definition::_gen::*;
+
+pub(crate) use crate::core::definition::action::*;
+
+pub(crate) use crate::core::definition::definition::*;
+
+pub(crate) use crate::core::definition::index::*;
+
+pub(crate) use crate::core::definition::method::*;
+
+pub(crate) use crate::core::definition::object::*;
+
+pub(crate) use crate::core::definition::action::*;
+
+pub(crate) use crate::core::definition::definition::*;
+
+pub(crate) use crate::core::definition::index::*;
+
+pub(crate) use crate::core::definition::method::*;
+
+pub(crate) use crate::core::definition::object::*;

@@ -40,3 +40,107 @@ mod r#type;
 mod types;
 mod universe;
 mod uuid;
+
+pub(crate) use crate::core::builtin::_gen::*;
+
+pub(crate) use crate::core::builtin::declaration::*;
+
+pub(crate) use crate::core::builtin::r#enum::*;
+
+pub(crate) use crate::core::builtin::error::*;
+
+pub(crate) use crate::core::builtin::handle::*;
+
+pub(crate) use crate::core::builtin::message::*;
+
+pub(crate) use crate::core::builtin::node::*;
+
+pub(crate) use crate::core::builtin::object::*;
+
+pub(crate) use crate::core::builtin::property::*;
+
+pub(crate) use crate::core::builtin::r#struct::*;
+
+pub(crate) use crate::core::builtin::r#type::*;
+
+pub(crate) use crate::core::builtin::types::*;
+
+pub(crate) use crate::core::builtin::uuid::*;
+
+pub(crate) use crate::core::builtin::_gen::*;
+
+pub(crate) use crate::core::builtin::declaration::*;
+
+pub(crate) use crate::core::builtin::r#enum::*;
+
+pub(crate) use crate::core::builtin::error::*;
+
+pub(crate) use crate::core::builtin::handle::*;
+
+pub(crate) use crate::core::builtin::message::*;
+
+pub(crate) use crate::core::builtin::node::*;
+
+pub(crate) use crate::core::builtin::object::*;
+
+pub(crate) use crate::core::builtin::property::*;
+
+pub(crate) use crate::core::builtin::r#struct::*;
+
+pub(crate) use crate::core::builtin::r#type::*;
+
+pub(crate) use crate::core::builtin::types::*;
+
+pub(crate) use crate::core::builtin::uuid::*;
+
+pub(crate) use crate::core::builtin::_gen::*;
+
+pub(crate) use crate::core::builtin::declaration::*;
+
+pub(crate) use crate::core::builtin::r#enum::*;
+
+pub(crate) use crate::core::builtin::error::*;
+
+pub(crate) use crate::core::builtin::handle::*;
+
+pub(crate) use crate::core::builtin::message::*;
+
+pub(crate) use crate::core::builtin::node::*;
+
+pub(crate) use crate::core::builtin::object::*;
+
+pub(crate) use crate::core::builtin::property::*;
+
+pub(crate) use crate::core::builtin::r#struct::*;
+
+pub(crate) use crate::core::builtin::r#type::*;
+
+pub(crate) use crate::core::builtin::types::*;
+
+pub(crate) use crate::core::builtin::uuid::*;
+
+pub(crate) use crate::core::builtin::_gen::*;
+
+pub(crate) use crate::core::builtin::declaration::*;
+
+pub(crate) use crate::core::builtin::r#enum::*;
+
+pub(crate) use crate::core::builtin::error::*;
+
+pub(crate) use crate::core::builtin::handle::*;
+
+pub(crate) use crate::core::builtin::message::*;
+
+pub(crate) use crate::core::builtin::node::*;
+
+pub(crate) use crate::core::builtin::object::*;
+
+pub(crate) use crate::core::builtin::property::*;
+
+pub(crate) use crate::core::builtin::r#struct::*;
+
+pub(crate) use crate::core::builtin::r#type::*;
+
+pub(crate) use crate::core::builtin::types::*;
+
+pub(crate) use crate::core::builtin::uuid::*;

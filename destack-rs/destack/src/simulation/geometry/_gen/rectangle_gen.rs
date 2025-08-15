@@ -1,0 +1,20 @@
+//! destack.simulation.geometry.rectangle@2025.08.15.1
+
+#![destack::generated(destack.simulation.geometry.rectangle, file)]
+
+use crate::Box3D;
+use crate::Rectangle2D;
+
+#[destack::generated(Rectangle2D, Debug, block)]
+impl std::fmt::Debug for Rectangle2D {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Rectangle2D")
+    }
+}
+
+#[destack::generated(Box3D, Debug, block)]
+impl std::fmt::Debug for Box3D {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Box3D")
+    }
+}

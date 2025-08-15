@@ -7,28 +7,28 @@ use crate::Duration;
 use crate::Transition;
 use crate::Vector2;
 
-#[destack::generated(Effect, , block)]
+#[destack::generated(Effect, -, block)]
 /// An effect value.
 pub struct Effect {
-    r#type: EffectType,
-    template: Option<i64 /* TODO */>,
-    opacity: Option<f32>,
-    offset: Option<Vector2>,
-    scale: Option<f32>,
-    rotate: Option<Axis3>,
-    skew: Option<Vector2>,
-    perspective: Option<f32>,
-    delay: Option<Duration>,
-    duration: Option<f32>,
-    threshold: Option<f32>,
-    once: Option<bool>,
-    repeat: Option<RepeatType>,
-    split: Option<TextSplitType>,
-    offscreen: Option<OffscreenBehavior>,
-    transition: Option<Transition>,
+    pub r#type: EffectType,
+    pub template: Option<i64 /* TODO */>,
+    pub opacity: Option<f32>,
+    pub offset: Option<Vector2>,
+    pub scale: Option<f32>,
+    pub rotate: Option<Axis3>,
+    pub skew: Option<Vector2>,
+    pub perspective: Option<f32>,
+    pub delay: Option<Duration>,
+    pub duration: Option<f32>,
+    pub threshold: Option<f32>,
+    pub once: Option<bool>,
+    pub repeat: Option<RepeatType>,
+    pub split: Option<TextSplitType>,
+    pub offscreen: Option<OffscreenBehavior>,
+    pub transition: Option<Transition>,
 }
 
-#[destack::generated(RepeatType, , block)]
+#[destack::generated(RepeatType, -, block)]
 /// RepeatType
 pub enum RepeatType {
     /// Restart from beginning
@@ -39,7 +39,7 @@ pub enum RepeatType {
     Mirror = 3,
 }
 
-#[destack::generated(TextSplitType, , block)]
+#[destack::generated(TextSplitType, -, block)]
 /// TextSplitType
 pub enum TextSplitType {
     /// Split by character
@@ -50,7 +50,7 @@ pub enum TextSplitType {
     Line = 3,
 }
 
-#[destack::generated(OffscreenBehavior, , block)]
+#[destack::generated(OffscreenBehavior, -, block)]
 /// What happens when the element is offscreen.
 pub enum OffscreenBehavior {
     /// Play the animation
@@ -59,7 +59,7 @@ pub enum OffscreenBehavior {
     Pause = 2,
 }
 
-#[destack::generated(EffectType, , block)]
+#[destack::generated(EffectType, -, block)]
 /// When the effect fires.
 pub enum EffectType {
     /// Initial render in

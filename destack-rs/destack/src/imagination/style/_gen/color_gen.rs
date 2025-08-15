@@ -2,10 +2,18 @@
 
 #![destack::generated(destack.imagination.style.color, file)]
 
+use crate::Color;
 use crate::ColorHue;
 use crate::ColorIntent;
 use crate::ColorShade;
 use crate::ColorType;
+
+#[destack::generated(Color, Debug, block)]
+impl std::fmt::Debug for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Color")
+    }
+}
 
 #[destack::generated(ColorType, Debug, block)]
 impl std::fmt::Debug for ColorType {

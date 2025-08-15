@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.space.folder, file)]
 
-#[destack::generated(FolderType, , block)]
+#[destack::generated(FolderType, -, block)]
 /// FolderType
 pub enum FolderType {
     /// The root folder of a Space
