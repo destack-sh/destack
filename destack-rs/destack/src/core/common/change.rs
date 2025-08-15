@@ -2,9 +2,19 @@
 
 #![destack::partial(destack.core.common.change, file)]
 
+use crate::Value;
+
 #[destack::generated(EditOperation, struct, block)]
 /// A specific Edit of an Entity.
-pub struct EditOperation {}
+pub struct EditOperation {
+    r#type: EditOperationType,
+    property_id: u8,
+    custom_property_name: String,
+    key: Value,
+    value: Value,
+    reverse_operation: EditOperation,
+    reverse_value: Value
+}
 
 #[destack::generated(ChangeType, enum, block)]
 /// The type of Change.
@@ -20,12 +30,12 @@ pub enum ChangeType {
     /// Delete an Entity (and its descendants)
     Delete = 40,
     /// Restore a deleted Entity (and its descendants)
-    Restore = 41,
+    Restore = 41
 }
 
 #[destack::generated(EditOperationType, enum, block)]
 /// The update operation to perform on a Node.
 pub enum EditOperationType {
     /// Set a Property to a value (may be an empty value)
-    Set = 1,
+    Set = 1
 }

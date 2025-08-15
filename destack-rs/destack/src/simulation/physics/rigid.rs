@@ -10,5 +10,5 @@ pub enum RigidMotionMode {
     /// Interacts with the physics simulation but does not move by itself.
     Kinematic = 2,
     /// Interacts with the physics simulation and moves by itself.
-    Dynamic = 3,
+    Dynamic = 3
 }

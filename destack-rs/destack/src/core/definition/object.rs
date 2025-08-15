@@ -4,4 +4,8 @@
 
 #[destack::generated(ObjectDefinition, struct, block)]
 /// Definition of a builtin Trait, Node or Struct.
-pub struct ObjectDefinition {}
+pub struct ObjectDefinition {
+    id: u32,
+    name: String,
+    description: String
+}

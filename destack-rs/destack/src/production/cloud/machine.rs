@@ -14,5 +14,5 @@ pub enum MachineType {
     /// A Windows machine
     Windows = 1200,
     /// A custom Docker image
-    Custom = 9000,
+    Custom = 9000
 }

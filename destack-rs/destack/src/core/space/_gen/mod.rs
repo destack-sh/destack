@@ -3,6 +3,12 @@
 #![destack::partial(core/space/_gen, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::core::space::_gen::folder_gen::*;
+pub use crate::core::space::_gen::folder_gen::*;
 
 mod folder_gen;
+
+pub(crate) use crate::core::space::_gen::folder_gen::*;
+
+pub(crate) use crate::core::space::_gen::folder_gen::*;
+
+pub(crate) use crate::core::space::_gen::folder_gen::*;

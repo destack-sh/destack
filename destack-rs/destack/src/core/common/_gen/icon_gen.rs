@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.core.common.icon, file)]
 
-use crate::IconType;
-
 #[destack::generated(IconType, Debug, block)]
 impl std::fmt::Debug for IconType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

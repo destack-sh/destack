@@ -2,9 +2,28 @@
 
 #![destack::partial(destack.imagination.animation.effect, file)]
 
+use crate::{Axis3, Duration, Transition, Vector2};
+
 #[destack::generated(Effect, struct, block)]
 /// An effect value.
-pub struct Effect {}
+pub struct Effect {
+    r#type: EffectType,
+    template: i64, /* TODO */
+    opacity: f32,
+    offset: Vector2,
+    scale: f32,
+    rotate: Axis3,
+    skew: Vector2,
+    perspective: f32,
+    delay: Duration,
+    duration: f32,
+    threshold: f32,
+    once: bool,
+    repeat: RepeatType,
+    split: TextSplitType,
+    offscreen: OffscreenBehavior,
+    transition: Transition,
+}
 
 #[destack::generated(RepeatType, enum, block)]
 /// RepeatType

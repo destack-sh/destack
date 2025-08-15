@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.core.common.change, file)]
 
-use crate::{ChangeType, EditOperationType};
-
 #[destack::generated(ChangeType, Debug, block)]
 impl std::fmt::Debug for ChangeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

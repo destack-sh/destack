@@ -14,5 +14,5 @@ pub enum NotificationStatus {
     /// Expired
     Expired = 4,
     /// Rescinded
-    Rescinded = 5,
+    Rescinded = 5
 }

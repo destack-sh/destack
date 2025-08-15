@@ -1,6 +1,7 @@
 import collections
 import textwrap
 from collections.abc import Sequence
+from typing import Optional, assert_never
 
 from destack.core import (
     EMPTY_LIST,
@@ -10,10 +11,12 @@ from destack.core import (
     ModuleType,
     NodeDefinition,
     PrimitiveType,
+    ScalarType,
     SchemaDefinition,
     StringCasing,
     StructDefinition,
     Type,
+    TypeCardinality,
     to_casing,
 )
 from destack.registry import (
@@ -29,40 +32,40 @@ from .core import (
     RustItemScope,
     RustManagedItem,
     RustModDeclaration,
+    ecsape_rust_identifier,
     local_path_to_source_path,
     source_path_to_local_path,
 )
 
-INTRINSIC_PRIMITIVE_TYPES: dict[PrimitiveType, str] = {
-    PrimitiveType.BOOLEAN: "bool",
+RUST_PRIMITIVE_TYPES: dict[PrimitiveType, tuple[str, Optional[tuple[str, str]]]] = {
+    PrimitiveType.BOOLEAN: ("bool", None),
     # integer
-    PrimitiveType.INT8: "i8",
-    PrimitiveType.INT16: "i16",
-    PrimitiveType.INT32: "i32",
-    PrimitiveType.INT64: "i64",
-    PrimitiveType.INT128: "i128",
-    PrimitiveType.UINT8: "u8",
-    PrimitiveType.UINT16: "u16",
-    PrimitiveType.UINT32: "u32",
-    PrimitiveType.UINT64: "u64",
-    PrimitiveType.UINT128: "u128",
+    PrimitiveType.INT8: ("i8", None),
+    PrimitiveType.INT16: ("i16", None),
+    PrimitiveType.INT32: ("i32", None),
+    PrimitiveType.INT64: ("i64", None),
+    PrimitiveType.INT128: ("i128", None),
+    PrimitiveType.UINT8: ("u8", None),
+    PrimitiveType.UINT16: ("u16", None),
+    PrimitiveType.UINT32: ("u32", None),
+    PrimitiveType.UINT64: ("u64", None),
+    PrimitiveType.UINT128: ("u128", None),
+    # time
+    PrimitiveType.DATETIME: ("DateTime", ("destack_time", "DateTime")),
+    PrimitiveType.DATE: ("Date", ("destack_time", "Date")),
+    PrimitiveType.TIME: ("Time", ("destack_time", "Time")),
+    PrimitiveType.TIMESTAMP: ("Timestamp", ("destack_time", "Timestamp")),
+    PrimitiveType.DURATION: ("Duration", ("destack_time", "Duration")),
     # float
-    PrimitiveType.FLOAT32: "f32",
-    PrimitiveType.FLOAT64: "f64",
+    PrimitiveType.FLOAT32: ("f32", None),
+    PrimitiveType.FLOAT64: ("f64", None),
     # string
-    PrimitiveType.STRING: "String",
-    PrimitiveType.CHARACTER: "char",
+    PrimitiveType.CHARACTER: ("char", None),
+    PrimitiveType.STRING: ("String", None),
+    PrimitiveType.UUID: ("Uuid", ("destack_uuid", "Uuid")),
+    PrimitiveType.BYTES: ("Vec<u8>", None),
+    PrimitiveType.JSON: ("JsonValue", ("destack_json", "JsonValue")),
 }
-
-
-def _generate_type(type: Type) -> str:
-    """Map a Destack type to its Rust declaration."""
-    raise NotImplementedError
-
-
-def _generate_type_scalar(type: Type) -> str:
-    """Map a Destack scalar type to its Rust declaration."""
-    raise NotImplementedError
 
 
 def _generate_doc_comment(object_key: str, doc: str) -> str:
@@ -71,6 +74,96 @@ def _generate_doc_comment(object_key: str, doc: str) -> str:
         return "\n".join(f"/// {line.strip()}" for line in doc.splitlines() if line)
     else:
         return f"/// {object_key}"
+
+
+def _generate_type_scalar(type: Type, dependencies: set[str]) -> str:
+    """Map a Destack type to its Rust declaration."""
+    assert type.scalar_type is not None, f"no scalar type for {type!r}"
+
+    # primitive
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        assert type.primitive_type is not None, f"no primitive type for {type!r}"
+        if type.primitive_type == PrimitiveType.NONE:
+            return "() /* TODO */ "
+
+        primitive_mapping = RUST_PRIMITIVE_TYPES.get(type.primitive_type)
+        assert primitive_mapping is not None, f"no Rust type for {type!r}"
+        type_str, rust_dep = primitive_mapping
+        if rust_dep:
+            dependencies.add(rust_dep[1])
+        return type_str
+
+    # enum
+    elif type.scalar_type == ScalarType.ENUM:
+        assert type.enum_type is not None, f"no enum type for {type!r}"
+        enum_definition = ENUM_DEFINITION_BY_TYPE[type.enum_type]
+        dependencies.add(enum_definition.name)
+        return enum_definition.name
+
+    # node
+    elif type.scalar_type == ScalarType.NODE:
+        return "i64 /* TODO */ "
+    # node_raw
+    elif type.scalar_type == ScalarType.NODE_RAW:
+        return "i64 /* TODO */ "
+    # node_identity
+    elif type.scalar_type == ScalarType.NODE_IDENTITY:
+        return "i64 /* TODO */ "
+    # node_spatial
+    elif type.scalar_type == ScalarType.NODE_SPATIAL:
+        return "i64 /* TODO */ "
+    # node_temporal
+    elif type.scalar_type == ScalarType.NODE_TEMPORAL:
+        return "i64 /* TODO */ "
+
+    # struct
+    elif type.scalar_type == ScalarType.STRUCT:
+        assert type.struct_type is not None, f"no struct type for {type!r}"
+        struct_definition = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
+        dependencies.add(struct_definition.name)
+        return struct_definition.name
+
+    # handle
+    elif type.scalar_type == ScalarType.HANDLE:
+        raise NotImplementedError(f"cannot generate type for {type!r}")
+
+    # union
+    elif type.scalar_type == ScalarType.UNION:
+        raise NotImplementedError(f"cannot generate type for {type!r}")
+
+    #
+    else:
+        assert_never(type.scalar_type)
+
+
+def _generate_type(type: Type, dependencies: set[str]) -> str:
+    """Map a Destack scalar type to its Rust declaration."""
+
+    # scalar
+    if type.cardinality == TypeCardinality.SCALAR:
+        return _generate_type_scalar(type, dependencies)
+    # list
+    elif type.cardinality == TypeCardinality.LIST:
+        assert type.value_type is not None, f"no value type for {type!r}"
+        scalar_type_str = _generate_type_scalar(type.value_type, dependencies)
+        return f"Vec<{scalar_type_str}>"
+    # tuple
+    elif type.cardinality == TypeCardinality.TUPLE:
+        assert type.element_types is not None, f"no element types for {type!r}"
+        element_types_str = ", ".join(
+            _generate_type_scalar(element_type, dependencies) for element_type in type.element_types
+        )
+        return f"({element_types_str})"
+    # map
+    elif type.cardinality == TypeCardinality.MAP:
+        assert type.key_type is not None, f"no key type for {type!r}"
+        assert type.value_type is not None, f"no value type for {type!r}"
+        key_type_str = _generate_type_scalar(type.key_type, dependencies)
+        value_type_str = _generate_type_scalar(type.value_type, dependencies)
+        return f"HashMap<{key_type_str}, {value_type_str}>"
+    #
+    else:
+        assert_never(type.cardinality)
 
 
 def _get_object_key(object: StructDefinition | EnumDefinition | NodeDefinition | ModuleDefinition):
@@ -85,8 +178,14 @@ def _generate_struct_definition(struct: StructDefinition) -> RustManagedItem:
 
     # inner content
     inner_content_parts: list[str] = []
-
-    inner_content = "\n".join(inner_content_parts)
+    dependencies: set[str] = set()
+    for prop in struct.properties:
+        if prop.is_static:
+            continue
+        prop_name = prop.name
+        prop_type_str = _generate_type(prop.type, dependencies)
+        inner_content_parts.append(f"{ecsape_rust_identifier(prop_name)}: {prop_type_str}")
+    inner_content = ",\n".join(inner_content_parts)
 
     # outer content
     outer_content = f"""\
@@ -104,6 +203,7 @@ pub struct {struct.name} {{
         children=EMPTY_LIST,
         outer_content=outer_content,
         inner_content=inner_content,
+        dependencies=list(dependencies),
     )
     return item
 
@@ -182,12 +282,16 @@ impl std::fmt::Debug for {object_key} {{
     return item
 
 
-def _collect_dependencies(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
-    """Collect all dependencies from a list of items."""
+def _get_imports(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
+    """Get all imports from a list of items."""
+    # collect dependencies
     dependencies: set[str] = set()
     for item in items:
         if item.dependencies:
             dependencies.update(item.dependencies)
+    # discard self
+    dependencies.difference_update(item.object_key for item in items)
+    # generate imports
     if dependencies:
         imp = RustImport(
             rust_path="crate",
@@ -239,7 +343,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         partial_items, gen_items = _generate_object_module(module)
 
         # partial file (always exists)
-        partial_imports = _collect_dependencies(partial_items)
+        partial_imports = _get_imports(partial_items)
         partial_file = RustFile(
             type=RustGenerationType.PARTIAL,
             source_path=module.path,
@@ -257,7 +361,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
 
         # generated file (only if there are generated items)
         if gen_items:
-            gen_imports = _collect_dependencies(gen_items)
+            gen_imports = _get_imports(gen_items)
             gen_file = RustFile(
                 type=RustGenerationType.GENERATED,
                 source_path=module.path,

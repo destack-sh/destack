@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.core.common.branch, file)]
 
-use crate::BranchType;
-
 #[destack::generated(BranchType, Debug, block)]
 impl std::fmt::Debug for BranchType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

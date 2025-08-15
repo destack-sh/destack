@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.core.space.folder, file)]
 
-use crate::FolderType;
-
 #[destack::generated(FolderType, Debug, block)]
 impl std::fmt::Debug for FolderType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

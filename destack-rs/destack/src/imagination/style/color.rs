@@ -4,14 +4,19 @@
 
 #[destack::generated(Color, struct, block)]
 /// A color value.
-pub struct Color {}
+pub struct Color {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32
+}
 
 #[destack::generated(ColorType, enum, block)]
 /// Built-in color formats.
 pub enum ColorType {
     Rgb = 10,
     Hsl = 11,
-    P3 = 12,
+    P3 = 12
 }
 
 #[destack::generated(ColorShade, enum, block)]
@@ -28,7 +33,7 @@ pub enum ColorShade {
     S700 = 700,
     S800 = 800,
     S900 = 900,
-    S950 = 950,
+    S950 = 950
 }
 
 #[destack::generated(ColorHue, enum, block)]
@@ -51,7 +56,7 @@ pub enum ColorHue {
     Purple = 44,
     Fuchsia = 45,
     Pink = 46,
-    Rose = 47,
+    Rose = 47
 }
 
 #[destack::generated(ColorIntent, enum, block)]
@@ -74,5 +79,5 @@ pub enum ColorIntent {
     /// An Error intent
     Error = 13,
     /// A Critical intent
-    Critical = 14,
+    Critical = 14
 }

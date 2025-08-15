@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.imagination.style.stroke, file)]
 
-use crate::StrokeType;
-
 #[destack::generated(StrokeType, Debug, block)]
 impl std::fmt::Debug for StrokeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

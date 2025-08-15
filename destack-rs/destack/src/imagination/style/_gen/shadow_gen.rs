@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.imagination.style.shadow, file)]
 
-use crate::{ShadowPosition, ShadowType};
-
 #[destack::generated(ShadowType, Debug, block)]
 impl std::fmt::Debug for ShadowType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

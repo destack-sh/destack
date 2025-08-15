@@ -16,5 +16,5 @@ pub enum LogLevel {
     /// An Error
     Error = 5,
     /// A Panic
-    Panic = 6,
+    Panic = 6
 }

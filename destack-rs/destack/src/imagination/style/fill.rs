@@ -2,9 +2,19 @@
 
 #![destack::partial(destack.imagination.style.fill, file)]
 
+use crate::{Gradient, Color};
+
 #[destack::generated(Fill, struct, block)]
 /// A fill value.
-pub struct Fill {}
+pub struct Fill {
+    r#type: FillType,
+    template: i64 /* TODO */ ,
+    color: Color,
+    gradient: Gradient,
+    image: i64 /* TODO */ ,
+    position: FillPosition,
+    size: FillSize
+}
 
 #[destack::generated(FillType, enum, block)]
 /// FillType
@@ -14,7 +24,7 @@ pub enum FillType {
     /// A gradient fill
     Gradient = 11,
     /// An image fill
-    Image = 12,
+    Image = 12
 }
 
 #[destack::generated(FillPosition, enum, block)]
@@ -37,7 +47,7 @@ pub enum FillPosition {
     /// A bottom center fill position
     BottomCenter = 21,
     /// A bottom right fill position
-    BottomRight = 22,
+    BottomRight = 22
 }
 
 #[destack::generated(FillSize, enum, block)]
@@ -50,5 +60,5 @@ pub enum FillSize {
     /// A fit size
     Fit = 3,
     /// A tile size
-    Tile = 4,
+    Tile = 4
 }

@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.imagination.style.font, file)]
 
-use crate::{FontSize, FontType, FontWeight, TextAlign, TextDecoration, TextTransform};
-
 #[destack::generated(FontType, Debug, block)]
 impl std::fmt::Debug for FontType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

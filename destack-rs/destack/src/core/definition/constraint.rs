@@ -2,6 +2,14 @@
 
 #![destack::partial(destack.core.definition.constraint, file)]
 
+use crate::{ConstraintType, PropertyReference};
+
 #[destack::generated(ConstraintDefinition, struct, block)]
 /// Definition of a builtin Constraint.
-pub struct ConstraintDefinition {}
+pub struct ConstraintDefinition {
+    id: u8,
+    r#type: ConstraintType,
+    name: String,
+    description: String,
+    properties: Vec<PropertyReference>
+}

@@ -2,8 +2,6 @@
 
 #![destack::generated(destack.imagination.animation.effect, file)]
 
-use crate::{EffectType, OffscreenBehavior, RepeatType, TextSplitType};
-
 #[destack::generated(RepeatType, Debug, block)]
 impl std::fmt::Debug for RepeatType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

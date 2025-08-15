@@ -20,5 +20,5 @@ pub enum RunStatus {
     /// Failed due to an error
     Failed = 53,
     /// Completed successfully
-    Completed = 54,
+    Completed = 54
 }

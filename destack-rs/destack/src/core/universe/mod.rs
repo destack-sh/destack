@@ -3,14 +3,38 @@
 #![destack::partial(core/universe, file)]
 #![allow(unused_imports)]
 
-pub(crate) use crate::core::universe::client::*;
-pub(crate) use crate::core::universe::organization::*;
-pub(crate) use crate::core::universe::team::*;
+pub use crate::core::universe::team::*;
+pub use crate::core::universe::organization::*;
 pub use crate::core::universe::universe::*;
-pub(crate) use crate::core::universe::user::*;
+pub use crate::core::universe::user::*;
+pub use crate::core::universe::client::*;
 
-mod client;
-mod organization;
 mod team;
+mod organization;
 mod universe;
 mod user;
+mod client;
+
+pub(crate) use crate::core::universe::client::*;
+
+pub(crate) use crate::core::universe::organization::*;
+
+pub(crate) use crate::core::universe::team::*;
+
+pub(crate) use crate::core::universe::user::*;
+
+pub(crate) use crate::core::universe::client::*;
+
+pub(crate) use crate::core::universe::organization::*;
+
+pub(crate) use crate::core::universe::team::*;
+
+pub(crate) use crate::core::universe::user::*;
+
+pub(crate) use crate::core::universe::client::*;
+
+pub(crate) use crate::core::universe::organization::*;
+
+pub(crate) use crate::core::universe::team::*;
+
+pub(crate) use crate::core::universe::user::*;
