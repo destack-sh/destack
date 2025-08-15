@@ -144,10 +144,28 @@ def _index_module(
                 if obj.__module__ != py_module.__name__:
                     continue  # imported object
                 elif issubclass(obj, Node):
+                    assert obj.__definition__.domain == domain, (
+                        f"node {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
+                    )
+                    assert obj.__definition__.category == category, (
+                        f"node {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
+                    )
                     node_types.append(obj.metatype)
                 elif issubclass(obj, Struct):
+                    assert obj.__definition__.domain == domain, (
+                        f"struct {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
+                    )
+                    assert obj.__definition__.category == category, (
+                        f"struct {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
+                    )
                     struct_types.append(obj.metatype)
                 elif issubclass(obj, Handle):
+                    assert obj.__definition__.domain == domain, (
+                        f"handle {obj.__name__} has domain {obj.__definition__.domain} but is in {domain} ({path})"
+                    )
+                    assert obj.__definition__.category == category, (
+                        f"handle {obj.__name__} has category {obj.__definition__.category} but is in {category} ({path})"
+                    )
                     handle_types.append(obj.metatype)
                 elif issubclass(obj, Enum) and obj not in (Enum, OptionEnum, FlagEnum):
                     enum_types.append(obj.metatype)
@@ -165,6 +183,11 @@ def _index_module(
         MODULE_BY_PATH[path] = py_module
     else:
         description = ""
+
+    # add any hoisted objects to the module
+    if category is not None:
+        hoisted_module_path = Path("destack.core.builtin._hoisted")
+        hoisted_module = importlib.import_module(str(hoisted_module_path))
 
     # create module
     module = ModuleDefinition(
@@ -409,6 +432,28 @@ def finalize():
     # collect modules
     root_module_path = Path(__file__).parent
     _ = _index_module("destack", root_module_path, parent=None)
+
+    # check that the modules are complete
+    #  (should cover BUILTIN_CLASS_BY_NAME completely)
+    module_objects_by_name: dict[str, Any] = {}
+    for module in MODULE_DEFINITION_BY_PATH.values():
+        for node_type in module.node_types:
+            node_cls = NODE_CLASS_BY_TYPE[node_type]
+            module_objects_by_name[node_cls.__name__] = node_cls
+        for struct_type in module.struct_types:
+            struct_cls = STRUCT_CLASS_BY_TYPE[struct_type]
+            module_objects_by_name[struct_cls.__name__] = struct_cls
+        for handle_type in module.handle_types:
+            handle_cls = HANDLE_CLASS_BY_TYPE[handle_type]
+            module_objects_by_name[handle_cls.__name__] = handle_cls
+        for enum_type in module.enum_types:
+            enum_cls = ENUM_CLASS_BY_TYPE[enum_type]
+            module_objects_by_name[enum_cls.__name__] = enum_cls
+    if len(module_objects_by_name) != len(BUILTIN_CLASS_BY_NAME):
+        missing_objects = set(BUILTIN_CLASS_BY_NAME.keys()) - set(module_objects_by_name.keys())
+        raise ValueError(
+            f"missing {len(missing_objects)} objects in {len(MODULE_DEFINITION_BY_PATH)} modules: {list(missing_objects)}"
+        )
 
     # index definitions by name
     for definition in chain(

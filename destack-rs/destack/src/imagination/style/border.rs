@@ -2,7 +2,6 @@
 
 #![destack::partial(destack.imagination.style.border, file)]
 
-use crate::BorderType;
 use crate::Color;
 use crate::Inset2;
 

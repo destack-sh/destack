@@ -3,7 +3,6 @@
 #![destack::partial(destack.core.common.value, file)]
 
 use crate::Type;
-use crate::Value;
 
 #[destack::generated(Value, , block)]
 /// A generic Value of any Type.

@@ -6,7 +6,6 @@ use crate::ConstantDefinition;
 use crate::EnumType;
 use crate::HandleType;
 use crate::MethodDefinition;
-use crate::ModuleType;
 use crate::NodeType;
 use crate::StructType;
 use crate::UniverseCategory;

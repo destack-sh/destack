@@ -2,6 +2,7 @@
 
 #![destack::partial(destack.basics.entity.custom, file)]
 
+use crate::HashMap;
 use crate::Timestamp;
 use crate::Uuid;
 use crate::Value;

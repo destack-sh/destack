@@ -9,7 +9,7 @@ from typing import (
 from destack.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 
 from .declaration import StructDeclaration, TagDeclaration, declare_method
-from .object import Object, _process_object_cls
+from .object import Object, _get_universe_domain, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS
 from .universe import NodeType, ObjectKind, ObjectStability, StructType
 
@@ -44,6 +44,7 @@ def _process_struct_cls(
                     inherits.append(base.metatype)
 
     # declaration
+    domain, category = _get_universe_domain(struct_type)
     declaration = StructDeclaration(
         # meta
         cls=cls,
@@ -53,6 +54,8 @@ def _process_struct_cls(
         name=cls.__name__,
         description=cls.__doc__ or "",
         stability=stability,
+        domain=domain,
+        category=category,
         is_abstract=is_abstract,
         is_immutable=is_immutable,
         is_final=is_final,

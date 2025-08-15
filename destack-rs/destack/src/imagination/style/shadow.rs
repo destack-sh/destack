@@ -4,8 +4,6 @@
 
 use crate::Axis2;
 use crate::Color;
-use crate::ShadowPosition;
-use crate::ShadowType;
 
 #[destack::generated(Shadow, , block)]
 /// A shadow value.

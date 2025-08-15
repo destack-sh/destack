@@ -4,7 +4,6 @@ from destack.core import (
     Condition,
     Entity,
     Error,
-    Event,
     Message,
     NodeType,
     ReferenceType,
@@ -14,7 +13,6 @@ from destack.core import (
     Type,
     declare_entity,
     declare_error,
-    declare_event,
     declare_message,
     declare_method,
     declare_property,
@@ -34,22 +32,6 @@ class CustomEventDefinition(
     is_abstract: bool = declare_property(
         112,
         default=False,
-        tag=None,
-    )
-
-
-@declare_event(NodeType.CUSTOM_EVENT, is_abstract=True)
-class CustomEvent(Event):
-    """
-    A CustomEvent is an instance of a CustomEventDefinition.
-    """
-
-    definition: "CustomEventDefinition" = declare_property(
-        10,
-        is_managed=True,
-        is_readonly=True,
-        reference_type=ReferenceType.SPATIAL,
-        description="The CustomEvent this Signal is an instance of.",
         tag=None,
     )
 

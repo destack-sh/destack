@@ -2,9 +2,6 @@
 
 #![destack::partial(destack.imagination.animation.transition, file)]
 
-use crate::SpringType;
-use crate::TransitionType;
-
 #[destack::generated(Transition, , block)]
 /// A transition value.
 pub struct Transition {

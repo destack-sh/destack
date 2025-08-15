@@ -4,10 +4,6 @@
 
 use crate::Axis3;
 use crate::Duration;
-use crate::EffectType;
-use crate::OffscreenBehavior;
-use crate::RepeatType;
-use crate::TextSplitType;
 use crate::Transition;
 use crate::Vector2;
 

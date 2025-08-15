@@ -9,6 +9,8 @@ use crate::ObjectStability;
 use crate::PropertyDefinition;
 use crate::StructType;
 use crate::TagDefinition;
+use crate::UniverseCategory;
+use crate::UniverseDomain;
 
 #[destack::generated(StructDefinition, , block)]
 /// Definition of a builtin Struct.
@@ -17,6 +19,8 @@ pub struct StructDefinition {
     r#type: StructType,
     name: String,
     description: String,
+    domain: UniverseDomain,
+    category: UniverseCategory,
     stability: ObjectStability,
     taggings: Vec<u8>,
     is_immutable: bool,

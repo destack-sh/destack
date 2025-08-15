@@ -2,8 +2,6 @@
 
 #![destack::partial(destack.basics.entity.migration, file)]
 
-use crate::MigrationType;
-
 #[destack::generated(MigrationDefinition, , block)]
 /// Definition of a builtin Migration.
 pub struct MigrationDefinition {

@@ -8,7 +8,6 @@ use crate::NodeType;
 use crate::PrimitiveType;
 use crate::ScalarType;
 use crate::StructType;
-use crate::Type;
 use crate::TypeCardinality;
 
 #[destack::generated(Type, , block)]

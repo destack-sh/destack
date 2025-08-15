@@ -10,7 +10,6 @@ cli = create_cli(
 @cli.command()
 def generate():
     """Generate the libraries / runtimes."""
-    # nocheckin(all): generate libraries
     from ..generation._rust import regenerate
 
     regenerate()

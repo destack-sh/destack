@@ -3,7 +3,6 @@
 #![destack::partial(destack.core.common.icon, file)]
 
 use crate::Color;
-use crate::IconType;
 
 #[destack::generated(Icon, , block)]
 /// An icon to be displayed in some view.

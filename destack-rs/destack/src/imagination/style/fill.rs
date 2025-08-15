@@ -3,9 +3,6 @@
 #![destack::partial(destack.imagination.style.fill, file)]
 
 use crate::Color;
-use crate::FillPosition;
-use crate::FillSize;
-use crate::FillType;
 use crate::Gradient;
 
 #[destack::generated(Fill, , block)]

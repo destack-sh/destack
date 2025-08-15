@@ -160,6 +160,7 @@ def _generate_type(type: Type, dependencies: set[str]) -> str:
         key_type_str = _generate_type_scalar(type.key_type, dependencies)
         value_type_str = _generate_type_scalar(type.value_type, dependencies)
         type_str = f"HashMap<{key_type_str}, {value_type_str}>"
+        dependencies.add("HashMap")
     #
     else:
         assert_never(type.cardinality)
@@ -324,6 +325,8 @@ def _generate_object_module(
     # generate structs
     for struct_type in module.struct_types:
         struct_def = STRUCT_DEFINITION_BY_TYPE[struct_type]
+        if struct_def.is_abstract:
+            continue  # ignore abstract structs
         struct_item = _generate_struct_definition(struct_def)
         partial_items.append(struct_item)
 

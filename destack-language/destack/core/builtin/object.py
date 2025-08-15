@@ -46,7 +46,13 @@ from .declaration import (
 from .enum import OptionDeclaration
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration
 from .types import Int64
-from .universe import NodeType, ObjectKind, ObjectStability, StructType
+from .universe import (
+    NodeType,
+    ObjectKind,
+    ObjectStability,
+    StructType,
+    _get_universe_domain,
+)
 from .uuid import UUID, uuid7
 
 if TYPE_CHECKING:
@@ -1555,6 +1561,7 @@ def _declare_object[ObjectT: Object](
     """
 
     def decorate(cls_in: type[ObjectT]) -> type[ObjectT]:
+        domain, category = _get_universe_domain(object_type or NodeType.NODE.value)
         declaration = ObjectDeclaration(
             # meta
             cls=cls_in,
@@ -1564,6 +1571,8 @@ def _declare_object[ObjectT: Object](
             name=cls_in.__name__,
             description=cls_in.__doc__ or "",
             stability=ObjectStability.DYNAMIC,
+            domain=domain,
+            category=category,
             is_abstract=True,
             is_immutable=frozen,
             is_final=False,

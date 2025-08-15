@@ -2,9 +2,6 @@
 
 #![destack::partial(destack.basics.script.schedule, file)]
 
-use crate::DayOfWeek;
-use crate::Month;
-use crate::ScheduleFrequency;
 use crate::Timestamp;
 
 #[destack::generated(Schedule, , block)]
