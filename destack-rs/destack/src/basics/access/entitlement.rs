@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.access.entitlement, file)]
 
-#[destack::generated(EntitlementType, enum, block)]
+#[destack::generated(EntitlementType, , block)]
 /// A Type of Entitlement.
 pub enum EntitlementType {
     /// A Permission

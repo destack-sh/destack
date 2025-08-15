@@ -2,6 +2,8 @@
 
 #![destack::generated(destack.basics.social.notification, file)]
 
+use crate::NotificationStatus;
+
 #[destack::generated(NotificationStatus, Debug, block)]
 impl std::fmt::Debug for NotificationStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

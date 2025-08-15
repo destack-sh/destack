@@ -5,7 +5,7 @@
 use crate::Vector2;
 use crate::Vector3;
 
-#[destack::generated(Capsule2D, struct, block)]
+#[destack::generated(Capsule2D, , block)]
 /// A Capsule2D is a segment with rounded ends with a common radius.
 pub struct Capsule2D {
     position: Vector2,
@@ -14,7 +14,7 @@ pub struct Capsule2D {
     radius: f32,
 }
 
-#[destack::generated(Capsule3D, struct, block)]
+#[destack::generated(Capsule3D, , block)]
 /// A Capsule3D is a segment with rounded ends in 3D with a common radius.
 pub struct Capsule3D {
     position: Vector3,

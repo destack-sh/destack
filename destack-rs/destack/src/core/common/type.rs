@@ -8,9 +8,10 @@ use crate::NodeType;
 use crate::PrimitiveType;
 use crate::ScalarType;
 use crate::StructType;
+use crate::Type;
 use crate::TypeCardinality;
 
-#[destack::generated(Type, struct, block)]
+#[destack::generated(Type, , block)]
 /// A Type in the type system.
 /// Types compose like a tree with scalars at the leaves:
 /// - Scalar: a single value (self, Type.scalar_type)
@@ -21,39 +22,39 @@ use crate::TypeCardinality;
 /// - Union: a union of heterogeneous values (Type.element_types)
 pub struct Type {
     cardinality: TypeCardinality,
-    key_type: Type,
-    value_type: Type,
-    element_types: Vec<Type>,
-    length: u32,
-    dimensions: Vec<u32>,
+    key_type: Box<Option<Type>>,
+    value_type: Box<Option<Type>>,
+    element_types: Option<Vec<Type>>,
+    length: Option<u32>,
+    dimensions: Option<Vec<u32>>,
     is_required: bool,
-    scalar_type: ScalarType,
-    primitive_type: PrimitiveType,
-    enum_type: EnumType,
-    node_types: Vec<NodeType>,
-    struct_type: StructType,
-    handle_type: HandleType,
+    scalar_type: Option<ScalarType>,
+    primitive_type: Option<PrimitiveType>,
+    enum_type: Option<EnumType>,
+    node_types: Option<Vec<NodeType>>,
+    struct_type: Option<StructType>,
+    handle_type: Option<HandleType>,
 }
 
-#[destack::generated(NumberConstraint, struct, block)]
+#[destack::generated(NumberConstraint, , block)]
 /// The constraint of a number.
 pub struct NumberConstraint {
-    min_value: f32,
-    max_value: f32,
-    step_value: f32,
+    min_value: Option<f32>,
+    max_value: Option<f32>,
+    step_value: Option<f32>,
 }
 
-#[destack::generated(StringConstraint, struct, block)]
+#[destack::generated(StringConstraint, , block)]
 /// The constraint of a string.
 pub struct StringConstraint {
-    regex: String,
-    starts_with: String,
-    ends_with: String,
+    regex: Option<String>,
+    starts_with: Option<String>,
+    ends_with: Option<String>,
 }
 
-#[destack::generated(CollectionConstraint, struct, block)]
+#[destack::generated(CollectionConstraint, , block)]
 /// The constraint of a collection.
 pub struct CollectionConstraint {
-    min_length: u32,
-    max_length: u32,
+    min_length: Option<u32>,
+    max_length: Option<u32>,
 }

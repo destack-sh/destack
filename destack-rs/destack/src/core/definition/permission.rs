@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.definition.permission, file)]
 
-#[destack::generated(PermissionDefinition, struct, block)]
+#[destack::generated(PermissionDefinition, , block)]
 /// Definition of a builtin Permission for a builtin Node.
 pub struct PermissionDefinition {
     id: u8,

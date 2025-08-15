@@ -9,7 +9,7 @@ use crate::ObjectStability;
 use crate::PropertyDefinition;
 use crate::TagDefinition;
 
-#[destack::generated(HandleDefinition, struct, block)]
+#[destack::generated(HandleDefinition, , block)]
 /// Definition of a builtin Handle.
 pub struct HandleDefinition {
     id: u32,
@@ -17,13 +17,13 @@ pub struct HandleDefinition {
     name: String,
     description: String,
     stability: ObjectStability,
-    tag: u8,
+    tag: Option<u8>,
     is_abstract: bool,
     properties: Vec<PropertyDefinition>,
     methods: Vec<MethodDefinition>,
     constants: Vec<ConstantDefinition>,
     tags: Vec<TagDefinition>,
-    base_type: HandleType,
+    base_type: Option<HandleType>,
     extended_by: Vec<HandleType>,
     inherits: Vec<HandleType>,
     inherited_by: Vec<HandleType>,

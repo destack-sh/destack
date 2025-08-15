@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.builtin.casing, file)]
 
-#[destack::generated(StringCasing, enum, block)]
+#[destack::generated(StringCasing, , block)]
 /// StringCasing
 pub enum StringCasing {
     Snake = 1,

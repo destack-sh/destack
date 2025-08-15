@@ -1,6 +1,6 @@
 //! destack.basics@2025.08.15.1
 
-#![destack::partial(basics, file)]
+#![destack::partial(destack.basics, file)]
 #![allow(unused_imports)]
 
 pub use crate::basics::access::*;
@@ -14,9 +14,3 @@ mod entity;
 mod intelligence;
 mod script;
 mod social;
-
-pub(crate) use crate::basics::intelligence::*;
-
-pub(crate) use crate::basics::intelligence::*;
-
-pub(crate) use crate::basics::intelligence::*;

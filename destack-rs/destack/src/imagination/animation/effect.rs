@@ -4,31 +4,35 @@
 
 use crate::Axis3;
 use crate::Duration;
+use crate::EffectType;
+use crate::OffscreenBehavior;
+use crate::RepeatType;
+use crate::TextSplitType;
 use crate::Transition;
 use crate::Vector2;
 
-#[destack::generated(Effect, struct, block)]
+#[destack::generated(Effect, , block)]
 /// An effect value.
 pub struct Effect {
     r#type: EffectType,
-    template: i64, /* TODO */
-    opacity: f32,
-    offset: Vector2,
-    scale: f32,
-    rotate: Axis3,
-    skew: Vector2,
-    perspective: f32,
-    delay: Duration,
-    duration: f32,
-    threshold: f32,
-    once: bool,
-    repeat: RepeatType,
-    split: TextSplitType,
-    offscreen: OffscreenBehavior,
-    transition: Transition,
+    template: Option<i64 /* TODO */>,
+    opacity: Option<f32>,
+    offset: Option<Vector2>,
+    scale: Option<f32>,
+    rotate: Option<Axis3>,
+    skew: Option<Vector2>,
+    perspective: Option<f32>,
+    delay: Option<Duration>,
+    duration: Option<f32>,
+    threshold: Option<f32>,
+    once: Option<bool>,
+    repeat: Option<RepeatType>,
+    split: Option<TextSplitType>,
+    offscreen: Option<OffscreenBehavior>,
+    transition: Option<Transition>,
 }
 
-#[destack::generated(RepeatType, enum, block)]
+#[destack::generated(RepeatType, , block)]
 /// RepeatType
 pub enum RepeatType {
     /// Restart from beginning
@@ -39,7 +43,7 @@ pub enum RepeatType {
     Mirror = 3,
 }
 
-#[destack::generated(EffectType, enum, block)]
+#[destack::generated(EffectType, , block)]
 /// When the effect fires.
 pub enum EffectType {
     /// Initial render in
@@ -60,7 +64,7 @@ pub enum EffectType {
     Loop = 30,
 }
 
-#[destack::generated(TextSplitType, enum, block)]
+#[destack::generated(TextSplitType, , block)]
 /// TextSplitType
 pub enum TextSplitType {
     /// Split by character
@@ -71,7 +75,7 @@ pub enum TextSplitType {
     Line = 3,
 }
 
-#[destack::generated(OffscreenBehavior, enum, block)]
+#[destack::generated(OffscreenBehavior, , block)]
 /// What happens when the element is offscreen.
 pub enum OffscreenBehavior {
     /// Play the animation

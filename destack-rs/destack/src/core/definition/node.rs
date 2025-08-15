@@ -15,7 +15,7 @@ use crate::StructType;
 use crate::TagDefinition;
 use crate::TraitType;
 
-#[destack::generated(NodeDefinition, struct, block)]
+#[destack::generated(NodeDefinition, , block)]
 /// Definition of a builtin Node.
 pub struct NodeDefinition {
     id: u32,
@@ -34,7 +34,7 @@ pub struct NodeDefinition {
     actions: Vec<ActionDefinition>,
     constants: Vec<ConstantDefinition>,
     tags: Vec<TagDefinition>,
-    base_type: NodeType,
+    base_type: Option<NodeType>,
     extended_by: Vec<NodeType>,
     inherits: Vec<NodeType>,
     inherited_by: Vec<NodeType>,
@@ -50,5 +50,5 @@ pub struct NodeDefinition {
     expected_descendant_types: Vec<NodeType>,
     event_types: Vec<NodeType>,
     self_event_types: Vec<NodeType>,
-    base_struct_type: StructType,
+    base_struct_type: Option<StructType>,
 }

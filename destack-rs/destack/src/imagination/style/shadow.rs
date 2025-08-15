@@ -4,21 +4,23 @@
 
 use crate::Axis2;
 use crate::Color;
+use crate::ShadowPosition;
+use crate::ShadowType;
 
-#[destack::generated(Shadow, struct, block)]
+#[destack::generated(Shadow, , block)]
 /// A shadow value.
 pub struct Shadow {
     r#type: ShadowType,
-    template: i64, /* TODO */
-    color: Color,
+    template: Option<i64 /* TODO */>,
+    color: Option<Color>,
     position: ShadowPosition,
-    offset: Axis2,
-    blur: f32,
-    spread: f32,
-    diffusion: f32,
+    offset: Option<Axis2>,
+    blur: Option<f32>,
+    spread: Option<f32>,
+    diffusion: Option<f32>,
 }
 
-#[destack::generated(ShadowType, enum, block)]
+#[destack::generated(ShadowType, , block)]
 /// Built-in shadow types.
 pub enum ShadowType {
     /// A box shadow
@@ -27,7 +29,7 @@ pub enum ShadowType {
     Realistic = 11,
 }
 
-#[destack::generated(ShadowPosition, enum, block)]
+#[destack::generated(ShadowPosition, , block)]
 /// Built-in shadow positions.
 pub enum ShadowPosition {
     /// An outside shadow

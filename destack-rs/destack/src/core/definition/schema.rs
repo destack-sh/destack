@@ -8,7 +8,7 @@ use crate::ModuleDefinition;
 use crate::NodeDefinition;
 use crate::StructDefinition;
 
-#[destack::generated(SchemaDefinition, struct, block)]
+#[destack::generated(SchemaDefinition, , block)]
 /// Definition of the entire Destack Schema ("language definition").
 pub struct SchemaDefinition {
     name: String,

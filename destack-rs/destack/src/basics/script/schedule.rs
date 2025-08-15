@@ -2,30 +2,33 @@
 
 #![destack::partial(destack.basics.script.schedule, file)]
 
+use crate::DayOfWeek;
+use crate::Month;
+use crate::ScheduleFrequency;
 use crate::Timestamp;
 
-#[destack::generated(Schedule, struct, block)]
+#[destack::generated(Schedule, , block)]
 /// The time-based schedule of something (compatible with rrule).
 pub struct Schedule {
     frequency: ScheduleFrequency,
     interval: u32,
-    start: Timestamp,
-    end: Timestamp,
-    count: u32,
-    week_start: DayOfWeek,
-    by_set_pos: Vec<u32>,
-    by_month: Vec<Month>,
-    by_month_day: Vec<u8>,
-    by_year_day: Vec<u16>,
-    by_easter: Vec<u8>,
-    by_week_no: Vec<u8>,
-    by_week_day: Vec<DayOfWeek>,
-    by_hour: Vec<u8>,
-    by_minute: Vec<u8>,
-    by_second: Vec<u8>,
+    start: Option<Timestamp>,
+    end: Option<Timestamp>,
+    count: Option<u32>,
+    week_start: Option<DayOfWeek>,
+    by_set_pos: Option<Vec<u32>>,
+    by_month: Option<Vec<Month>>,
+    by_month_day: Option<Vec<u8>>,
+    by_year_day: Option<Vec<u16>>,
+    by_easter: Option<Vec<u8>>,
+    by_week_no: Option<Vec<u8>>,
+    by_week_day: Option<Vec<DayOfWeek>>,
+    by_hour: Option<Vec<u8>>,
+    by_minute: Option<Vec<u8>>,
+    by_second: Option<Vec<u8>>,
 }
 
-#[destack::generated(DayOfWeek, enum, block)]
+#[destack::generated(DayOfWeek, , block)]
 /// DayOfWeek
 pub enum DayOfWeek {
     /// Monday
@@ -44,7 +47,7 @@ pub enum DayOfWeek {
     Sunday = 7,
 }
 
-#[destack::generated(Month, enum, block)]
+#[destack::generated(Month, , block)]
 /// Month
 pub enum Month {
     /// January
@@ -73,7 +76,7 @@ pub enum Month {
     December = 12,
 }
 
-#[destack::generated(ScheduleFrequency, enum, block)]
+#[destack::generated(ScheduleFrequency, , block)]
 /// ScheduleFrequency
 pub enum ScheduleFrequency {
     /// Yearly

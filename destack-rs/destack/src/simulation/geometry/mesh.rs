@@ -5,14 +5,14 @@
 use crate::Vector2;
 use crate::Vector3;
 
-#[destack::generated(Mesh2, struct, block)]
+#[destack::generated(Mesh2, , block)]
 /// A Mesh2D is defined by vertices and triangle indices.
 pub struct Mesh2 {
     vertices: Vec<Vector2>,
     triangles: Vec<u32>,
 }
 
-#[destack::generated(Mesh3, struct, block)]
+#[destack::generated(Mesh3, , block)]
 /// A Mesh3D is defined by vertices and triangle indices.
 pub struct Mesh3 {
     vertices: Vec<Vector3>,

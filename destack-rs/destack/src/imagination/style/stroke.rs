@@ -4,24 +4,27 @@
 
 use crate::Color;
 use crate::Easing;
+use crate::StrokeCap;
+use crate::StrokePoint;
+use crate::StrokeType;
 use crate::Vector2;
 
-#[destack::generated(Stroke, struct, block)]
+#[destack::generated(Stroke, , block)]
 /// A stroke value.
 pub struct Stroke {
     r#type: StrokeType,
-    template: i64, /* TODO */
+    template: Option<i64 /* TODO */>,
     size: u8,
     thinning: f32,
     smoothing: f32,
     streamline: f32,
     easing: Easing,
-    color: Color,
-    start: StrokeCap,
-    end: StrokeCap,
+    color: Option<Color>,
+    start: Option<StrokeCap>,
+    end: Option<StrokeCap>,
 }
 
-#[destack::generated(StrokeCap, struct, block)]
+#[destack::generated(StrokeCap, , block)]
 /// A stroke cap.
 pub struct StrokeCap {
     cap: bool,
@@ -29,13 +32,13 @@ pub struct StrokeCap {
     easing: Easing,
 }
 
-#[destack::generated(StrokePath, struct, block)]
+#[destack::generated(StrokePath, , block)]
 /// A stroke path.
 pub struct StrokePath {
     points: Vec<StrokePoint>,
 }
 
-#[destack::generated(StrokePoint, struct, block)]
+#[destack::generated(StrokePoint, , block)]
 /// A computed point in a stroke.
 pub struct StrokePoint {
     point: Vector2,
@@ -47,7 +50,7 @@ pub struct StrokePoint {
     radius: f32,
 }
 
-#[destack::generated(StrokeType, enum, block)]
+#[destack::generated(StrokeType, , block)]
 /// StrokeType
 pub enum StrokeType {
     /// A solid stroke

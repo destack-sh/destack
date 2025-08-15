@@ -2,6 +2,9 @@
 
 #![destack::generated(destack.core.common.snapshot, file)]
 
+use crate::SnapshotStatus;
+use crate::SnapshotType;
+
 #[destack::generated(SnapshotType, Debug, block)]
 impl std::fmt::Debug for SnapshotType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

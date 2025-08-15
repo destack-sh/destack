@@ -7,17 +7,17 @@ use crate::Type;
 use crate::Value;
 use crate::ValueFactory;
 
-#[destack::generated(PropertyDefinition, struct, block)]
+#[destack::generated(PropertyDefinition, , block)]
 /// Definition of a builtin Property.
 pub struct PropertyDefinition {
     id: u8,
     r#type: Type,
     name: String,
     description: String,
-    tag: u8,
-    default_value: Value,
-    default_factory: ValueFactory,
-    reference_type: ReferenceType,
+    tag: Option<u8>,
+    default_value: Option<Value>,
+    default_factory: Option<ValueFactory>,
+    reference_type: Option<ReferenceType>,
     is_readonly: bool,
     is_repr: bool,
     is_hash: bool,

@@ -2,6 +2,10 @@
 
 #![destack::generated(destack.core.builtin.entity, file)]
 
+use crate::ExtensionFlag;
+use crate::Materialization;
+use crate::ProcessFlag;
+
 #[destack::generated(Materialization, Debug, block)]
 impl std::fmt::Debug for Materialization {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

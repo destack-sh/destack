@@ -2,6 +2,8 @@
 
 #![destack::generated(destack.basics.access.sanction, file)]
 
+use crate::SanctionType;
+
 #[destack::generated(SanctionType, Debug, block)]
 impl std::fmt::Debug for SanctionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

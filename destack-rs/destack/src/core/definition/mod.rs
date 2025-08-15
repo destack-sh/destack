@@ -1,6 +1,6 @@
 //! destack.core.definition@2025.08.15.1
 
-#![destack::partial(core/definition, file)]
+#![destack::partial(destack.core.definition, file)]
 #![allow(unused_imports)]
 
 pub use crate::core::definition::_gen::*;
@@ -42,9 +42,3 @@ mod property;
 mod schema;
 mod r#struct;
 mod tag;
-
-pub(crate) use crate::core::definition::_gen::*;
-
-pub(crate) use crate::core::definition::_gen::*;
-
-pub(crate) use crate::core::definition::_gen::*;

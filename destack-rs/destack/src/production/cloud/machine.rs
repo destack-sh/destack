@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.production.cloud.machine, file)]
 
-#[destack::generated(MachineType, enum, block)]
+#[destack::generated(MachineType, , block)]
 /// MachineType
 pub enum MachineType {
     /// The main Destack runtime

@@ -2,6 +2,14 @@
 
 #![destack::generated(destack.core.common.query, file)]
 
+use crate::AggregationType;
+use crate::ConditionalType;
+use crate::ExpressionType;
+use crate::JoinType;
+use crate::QueryType;
+use crate::SortMode;
+use crate::SortType;
+
 #[destack::generated(ConditionalType, Debug, block)]
 impl std::fmt::Debug for ConditionalType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

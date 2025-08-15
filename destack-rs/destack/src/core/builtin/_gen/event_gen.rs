@@ -2,6 +2,8 @@
 
 #![destack::generated(destack.core.builtin.event, file)]
 
+use crate::EventStatus;
+
 #[destack::generated(EventStatus, Debug, block)]
 impl std::fmt::Debug for EventStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

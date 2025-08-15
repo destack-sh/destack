@@ -5,7 +5,7 @@
 use crate::Vector2;
 use crate::Vector3;
 
-#[destack::generated(Halfspace2D, struct, block)]
+#[destack::generated(Halfspace2D, , block)]
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.
 pub struct Halfspace2D {
     position: Vector2,
@@ -13,7 +13,7 @@ pub struct Halfspace2D {
     distance: f32,
 }
 
-#[destack::generated(Plane3D, struct, block)]
+#[destack::generated(Plane3D, , block)]
 /// A Plane3D splits 3D space by a plane with normal and distance from origin.
 pub struct Plane3D {
     position: Vector3,

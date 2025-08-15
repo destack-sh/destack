@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.builtin.event, file)]
 
-#[destack::generated(EventStatus, enum, block)]
+#[destack::generated(EventStatus, , block)]
 /// The consensus status of an Event.
 pub enum EventStatus {
     /// Pending application on client

@@ -10,7 +10,7 @@ use crate::PropertyDefinition;
 use crate::StructType;
 use crate::TagDefinition;
 
-#[destack::generated(StructDefinition, struct, block)]
+#[destack::generated(StructDefinition, , block)]
 /// Definition of a builtin Struct.
 pub struct StructDefinition {
     id: u32,
@@ -26,7 +26,7 @@ pub struct StructDefinition {
     methods: Vec<MethodDefinition>,
     constants: Vec<ConstantDefinition>,
     tags: Vec<TagDefinition>,
-    base_type: StructType,
+    base_type: Option<StructType>,
     extended_by: Vec<StructType>,
     inherits: Vec<StructType>,
     inherited_by: Vec<StructType>,

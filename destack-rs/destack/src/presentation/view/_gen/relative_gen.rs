@@ -2,6 +2,14 @@
 
 #![destack::generated(destack.presentation.view.relative, file)]
 
+use crate::Align;
+use crate::Anchor;
+use crate::Direction;
+use crate::Distribute;
+use crate::Layout;
+use crate::LengthType;
+use crate::Overflow;
+
 #[destack::generated(LengthType, Debug, block)]
 impl std::fmt::Debug for LengthType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

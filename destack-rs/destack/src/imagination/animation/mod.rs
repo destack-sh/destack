@@ -1,6 +1,6 @@
 //! destack.imagination.animation@2025.08.15.1
 
-#![destack::partial(imagination/animation, file)]
+#![destack::partial(destack.imagination.animation, file)]
 #![allow(unused_imports)]
 
 pub use crate::imagination::animation::_gen::*;
@@ -12,9 +12,3 @@ mod _gen;
 mod easing;
 mod effect;
 mod transition;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;

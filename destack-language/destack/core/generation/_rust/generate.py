@@ -140,29 +140,35 @@ def _generate_type(type: Type, dependencies: set[str]) -> str:
 
     # scalar
     if type.cardinality == TypeCardinality.SCALAR:
-        return _generate_type_scalar(type, dependencies)
+        type_str = _generate_type_scalar(type, dependencies)
     # list
     elif type.cardinality == TypeCardinality.LIST:
         assert type.value_type is not None, f"no value type for {type!r}"
         scalar_type_str = _generate_type_scalar(type.value_type, dependencies)
-        return f"Vec<{scalar_type_str}>"
+        type_str = f"Vec<{scalar_type_str}>"
     # tuple
     elif type.cardinality == TypeCardinality.TUPLE:
         assert type.element_types is not None, f"no element types for {type!r}"
         element_types_str = ", ".join(
             _generate_type_scalar(element_type, dependencies) for element_type in type.element_types
         )
-        return f"({element_types_str})"
+        type_str = f"({element_types_str})"
     # map
     elif type.cardinality == TypeCardinality.MAP:
         assert type.key_type is not None, f"no key type for {type!r}"
         assert type.value_type is not None, f"no value type for {type!r}"
         key_type_str = _generate_type_scalar(type.key_type, dependencies)
         value_type_str = _generate_type_scalar(type.value_type, dependencies)
-        return f"HashMap<{key_type_str}, {value_type_str}>"
+        type_str = f"HashMap<{key_type_str}, {value_type_str}>"
     #
     else:
         assert_never(type.cardinality)
+
+    # wrap in Option if not required
+    if not type.is_required:
+        type_str = f"Option<{type_str}>"
+
+    return type_str
 
 
 def _get_object_key(object: StructDefinition | EnumDefinition | NodeDefinition | ModuleDefinition):
@@ -183,6 +189,9 @@ def _generate_struct_definition(struct: StructDefinition) -> RustManagedItem:
             continue
         prop_name = prop.name
         prop_type_str = _generate_type(prop.type, dependencies)
+        if prop.type.struct_type == struct.type:
+            # auto-box self references
+            prop_type_str = f"Box<{prop_type_str}>"
         inner_content_parts.append(f"{ecsape_rust_identifier(prop_name)}: {prop_type_str}")
     inner_content = ",\n".join(inner_content_parts)
 
@@ -289,7 +298,7 @@ def _get_imports(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
         if item.dependencies:
             dependencies.update(item.dependencies)
     # discard self
-    dependencies.difference_update(item.object_key for item in items)
+    dependencies.difference_update(item._key for item in items)
     # generate imports
     if dependencies:
         imp = RustImport(

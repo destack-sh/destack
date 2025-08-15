@@ -8,7 +8,7 @@ use crate::RuntimeLanguage;
 use crate::RuntimePlatform;
 use crate::RuntimeType;
 
-#[destack::generated(MethodDefinition, struct, block)]
+#[destack::generated(MethodDefinition, , block)]
 /// Definition of a builtin Method.
 pub struct MethodDefinition {
     id: u16,
@@ -17,10 +17,10 @@ pub struct MethodDefinition {
     description: String,
     is_async: bool,
     is_managed: bool,
-    alias_of: u16,
+    alias_of: Option<u16>,
     input_properties: Vec<PropertyDefinition>,
-    output_property: PropertyDefinition,
-    platforms: Vec<RuntimePlatform>,
-    languages: Vec<RuntimeLanguage>,
-    runtimes: Vec<RuntimeType>,
+    output_property: Option<PropertyDefinition>,
+    platforms: Option<Vec<RuntimePlatform>>,
+    languages: Option<Vec<RuntimeLanguage>>,
+    runtimes: Option<Vec<RuntimeType>>,
 }

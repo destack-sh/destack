@@ -2,6 +2,8 @@
 
 #![destack::generated(destack.imagination.style.border, file)]
 
+use crate::BorderType;
+
 #[destack::generated(BorderType, Debug, block)]
 impl std::fmt::Debug for BorderType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

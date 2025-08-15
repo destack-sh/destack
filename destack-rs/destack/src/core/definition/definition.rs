@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.definition.definition, file)]
 
-#[destack::generated(Definition, struct, block)]
+#[destack::generated(Definition, , block)]
 /// A builtin Definition.
 pub struct Definition {
     name: String,

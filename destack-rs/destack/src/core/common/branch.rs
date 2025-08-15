@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.common.branch, file)]
 
-#[destack::generated(BranchType, enum, block)]
+#[destack::generated(BranchType, , block)]
 /// The type of a Branch.
 pub enum BranchType {
     Partial = 2,

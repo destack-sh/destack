@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.imagination.style.color, file)]
 
-#[destack::generated(Color, struct, block)]
+#[destack::generated(Color, , block)]
 /// A color value.
 pub struct Color {
     r: f32,
@@ -11,7 +11,7 @@ pub struct Color {
     a: f32,
 }
 
-#[destack::generated(ColorType, enum, block)]
+#[destack::generated(ColorType, , block)]
 /// Built-in color formats.
 pub enum ColorType {
     Rgb = 10,
@@ -19,7 +19,7 @@ pub enum ColorType {
     P3 = 12,
 }
 
-#[destack::generated(ColorShade, enum, block)]
+#[destack::generated(ColorShade, , block)]
 /// Built-in color shades a la Tailwind.
 pub enum ColorShade {
     S25 = 25,
@@ -36,7 +36,7 @@ pub enum ColorShade {
     S950 = 950,
 }
 
-#[destack::generated(ColorHue, enum, block)]
+#[destack::generated(ColorHue, , block)]
 /// Built-in colors a la SwiftUI or Tailwind.
 pub enum ColorHue {
     Gray = 30,
@@ -59,7 +59,7 @@ pub enum ColorHue {
     Rose = 47,
 }
 
-#[destack::generated(ColorIntent, enum, block)]
+#[destack::generated(ColorIntent, , block)]
 /// Built-in color intents.
 pub enum ColorIntent {
     /// A Primary intent

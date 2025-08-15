@@ -3,20 +3,21 @@
 #![destack::partial(destack.core.common.icon, file)]
 
 use crate::Color;
+use crate::IconType;
 
-#[destack::generated(Icon, struct, block)]
+#[destack::generated(Icon, , block)]
 /// An icon to be displayed in some view.
 pub struct Icon {
     r#type: IconType,
-    emoji: String,
-    fa_name: String,
-    vsc_name: String,
-    file: i64, /* TODO */
-    file_url: String,
-    color: Color,
+    emoji: Option<String>,
+    fa_name: Option<String>,
+    vsc_name: Option<String>,
+    file: Option<i64 /* TODO */>,
+    file_url: Option<String>,
+    color: Option<Color>,
 }
 
-#[destack::generated(IconType, enum, block)]
+#[destack::generated(IconType, , block)]
 /// IconType
 pub enum IconType {
     Emoji = 1,

@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.quaternion, file)]
 
-#[destack::generated(Quaternion, struct, block)]
+#[destack::generated(Quaternion, , block)]
 /// A quaternion.
 pub struct Quaternion {
     x: f32,

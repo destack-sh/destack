@@ -1,5 +1,9 @@
 //! Parse utilities for `Uuid`.
 
+use std::num::NonZeroU128;
+
+use crate::Uuid;
+
 /// Parse errors for UUID strings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UuidParseError {
@@ -7,6 +11,8 @@ pub enum UuidParseError {
     InvalidHex,
     /// After ignoring dashes, the number of hexadecimal digits is not exactly 32.
     InvalidLength,
+    /// Zero value.
+    Zero,
 }
 
 #[inline]
@@ -24,7 +30,7 @@ const fn hex_val_const(b: u8) -> u8 {
 /// Accepts either the simple 32-hex form or hyphenated form. Any '-' characters are ignored.
 /// Panics at compile time if the string is invalid.
 #[allow(dead_code)]
-pub(crate) const fn const_parse_uuid(s: &str) -> u128 {
+pub(crate) const fn const_parse_uuid(s: &str) -> NonZeroU128 {
     let bytes = s.as_bytes();
     let mut acc: u128 = 0;
     let mut n_hex: usize = 0;
@@ -46,7 +52,10 @@ pub(crate) const fn const_parse_uuid(s: &str) -> u128 {
     if n_hex != 32 {
         panic!("uuid requires exactly 32 hexadecimal digits");
     }
-    acc
+    if acc == 0 {
+        panic!("zero uuid is invalid")
+    }
+    NonZeroU128::new(acc).unwrap()
 }
 
 #[inline]
@@ -63,7 +72,7 @@ fn hex_val_runtime(b: u8) -> Option<u8> {
 ///
 /// Accepts either the simple 32-hex form or hyphenated form. Any '-' characters are ignored.
 #[inline]
-pub(crate) fn parse_uuid(s: &str) -> Result<u128, UuidParseError> {
+pub(crate) fn parse_uuid(s: &str) -> Result<Uuid, UuidParseError> {
     let bytes = s.as_bytes();
     let mut acc: u128 = 0;
     let mut n_hex: usize = 0;
@@ -86,14 +95,18 @@ pub(crate) fn parse_uuid(s: &str) -> Result<u128, UuidParseError> {
     if n_hex != 32 {
         return Err(UuidParseError::InvalidLength);
     }
-    Ok(acc)
+    if acc == 0 {
+        return Err(UuidParseError::Zero);
+    }
+    let uuid = Uuid(NonZeroU128::new(acc).unwrap());
+    Ok(uuid)
 }
 
 /// Macro to construct a `Uuid` at compile time from a string literal.
 #[macro_export]
 macro_rules! uuid {
     ($s:literal) => {{
-        const __VAL: ::core::primitive::u128 = $crate::parse::const_parse_uuid($s);
+        const __VAL: NonZeroU128 = $crate::parse::const_parse_uuid($s);
         $crate::Uuid(__VAL)
     }};
 }
@@ -114,7 +127,7 @@ mod tests {
         let c = parse_uuid(upper).unwrap();
         assert_eq!(a, b);
         assert_eq!(b, c);
-        assert_eq!(a, 0x00112233445566778899aabbccddeeffu128);
+        assert_eq!(a.as_u128(), 0x00112233445566778899aabbccddeeffu128);
     }
 
     #[test]
@@ -140,10 +153,13 @@ mod tests {
     #[test]
     /// Compile-time macro parses to the same value.
     fn macro_const_parse() {
-        const U: u128 = const_parse_uuid("00112233-4455-6677-8899-aabbccddeeff");
-        assert_eq!(U, 0x00112233445566778899aabbccddeeffu128);
+        const U: NonZeroU128 = const_parse_uuid("00112233-4455-6677-8899-aabbccddeeff");
+        assert_eq!(
+            U,
+            NonZeroU128::new(0x00112233445566778899aabbccddeeffu128).unwrap()
+        );
 
         let v = parse_uuid("00112233-4455-6677-8899-aabbccddeeff").unwrap();
-        assert_eq!(U, v);
+        assert_eq!(U, NonZeroU128::new(v.as_u128()).unwrap());
     }
 }

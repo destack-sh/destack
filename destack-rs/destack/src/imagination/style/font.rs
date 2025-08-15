@@ -3,24 +3,30 @@
 #![destack::partial(destack.imagination.style.font, file)]
 
 use crate::Fill;
+use crate::FontSize;
+use crate::FontType;
+use crate::FontWeight;
 use crate::Length;
+use crate::TextAlign;
+use crate::TextDecoration;
+use crate::TextTransform;
 
-#[destack::generated(Font, struct, block)]
+#[destack::generated(Font, , block)]
 /// A font value.
 pub struct Font {
     r#type: FontType,
-    template: i64, /* TODO */
-    weight: FontWeight,
-    fill: Fill,
-    size: FontSize,
-    align: TextAlign,
-    line_height: Length,
-    letter_spacing: Length,
-    decoration: TextDecoration,
-    transform: TextTransform,
+    template: Option<i64 /* TODO */>,
+    weight: Option<FontWeight>,
+    fill: Option<Fill>,
+    size: Option<FontSize>,
+    align: Option<TextAlign>,
+    line_height: Option<Length>,
+    letter_spacing: Option<Length>,
+    decoration: Option<TextDecoration>,
+    transform: Option<TextTransform>,
 }
 
-#[destack::generated(FontType, enum, block)]
+#[destack::generated(FontType, , block)]
 /// FontType
 pub enum FontType {
     /// A serif font
@@ -31,7 +37,7 @@ pub enum FontType {
     Mono = 12,
 }
 
-#[destack::generated(FontWeight, enum, block)]
+#[destack::generated(FontWeight, , block)]
 /// FontWeight
 pub enum FontWeight {
     /// A thin font weight
@@ -54,7 +60,7 @@ pub enum FontWeight {
     Black = 900,
 }
 
-#[destack::generated(FontSize, enum, block)]
+#[destack::generated(FontSize, , block)]
 /// FontSize
 pub enum FontSize {
     /// An XS font size
@@ -81,7 +87,7 @@ pub enum FontSize {
     Xl7 = 72,
 }
 
-#[destack::generated(TextAlign, enum, block)]
+#[destack::generated(TextAlign, , block)]
 /// TextAlign
 pub enum TextAlign {
     /// A left text alignment
@@ -94,7 +100,7 @@ pub enum TextAlign {
     Justify = 4,
 }
 
-#[destack::generated(TextDecoration, enum, block)]
+#[destack::generated(TextDecoration, , block)]
 /// TextDecoration
 pub enum TextDecoration {
     /// No text decoration
@@ -105,7 +111,7 @@ pub enum TextDecoration {
     Strikethrough = 3,
 }
 
-#[destack::generated(TextTransform, enum, block)]
+#[destack::generated(TextTransform, , block)]
 /// TextTransform
 pub enum TextTransform {
     /// No text transform
