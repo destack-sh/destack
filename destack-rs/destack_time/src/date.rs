@@ -2,7 +2,8 @@
 //! We provide the `Date` type and some conversions.
 
 use std::fmt;
-use std::ops::{Add, Sub};
+use std::ops::Add;
+use std::ops::Sub;
 use std::str::FromStr;
 use std::time::SystemTime;
 

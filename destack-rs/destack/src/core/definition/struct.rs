@@ -2,7 +2,13 @@
 
 #![destack::partial(destack.core.definition.struct, file)]
 
-use crate::{StructType, MethodDefinition, ObjectStability, ConstantDefinition, TagDefinition, NodeType, PropertyDefinition};
+use crate::ConstantDefinition;
+use crate::MethodDefinition;
+use crate::NodeType;
+use crate::ObjectStability;
+use crate::PropertyDefinition;
+use crate::StructType;
+use crate::TagDefinition;
 
 #[destack::generated(StructDefinition, struct, block)]
 /// Definition of a builtin Struct.
@@ -24,6 +30,5 @@ pub struct StructDefinition {
     extended_by: Vec<StructType>,
     inherits: Vec<StructType>,
     inherited_by: Vec<StructType>,
-    into_node_types: Vec<NodeType>
+    into_node_types: Vec<NodeType>,
 }
-

@@ -3,13 +3,13 @@
 #![destack::partial(presentation/scene, file)]
 #![allow(unused_imports)]
 
+pub use crate::presentation::scene::layer::*;
 pub use crate::presentation::scene::scene::*;
 pub use crate::presentation::scene::stage::*;
-pub use crate::presentation::scene::layer::*;
 
+mod layer;
 mod scene;
 mod stage;
-mod layer;
 
 pub(crate) use crate::presentation::scene::layer::*;
 

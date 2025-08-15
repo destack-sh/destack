@@ -16,5 +16,5 @@ pub enum EventStatus {
     /// Could not apply in system
     Failed = 12,
     /// Denied by the system
-    Rejected = 13
+    Rejected = 13,
 }

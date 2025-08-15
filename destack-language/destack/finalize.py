@@ -77,6 +77,9 @@ _IGNORED_MODULES = (
 )
 _IGNORED_MODULES_EXTENSIONS = (".pyc", ".egg-info")
 
+# nocheckin: ensure all objects are properly indexed into their modules
+#  (and move the _hoisted ones into their proper module definitions)
+
 
 def _index_module(
     path: str, file_path: Path, parent: "ModuleDefinition | None"

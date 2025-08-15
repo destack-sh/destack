@@ -3,19 +3,19 @@
 #![destack::partial(simulation/physics, file)]
 #![allow(unused_imports)]
 
-pub use crate::simulation::physics::collider::*;
 pub use crate::simulation::physics::_gen::*;
-pub use crate::simulation::physics::soft::*;
 pub use crate::simulation::physics::body::*;
-pub use crate::simulation::physics::rigid::*;
+pub use crate::simulation::physics::collider::*;
 pub use crate::simulation::physics::joint::*;
+pub use crate::simulation::physics::rigid::*;
+pub use crate::simulation::physics::soft::*;
 
-mod collider;
 mod _gen;
-mod soft;
 mod body;
-mod rigid;
+mod collider;
 mod joint;
+mod rigid;
+mod soft;
 
 pub(crate) use crate::simulation::physics::_gen::*;
 

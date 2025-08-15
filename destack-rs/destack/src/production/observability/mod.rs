@@ -3,15 +3,15 @@
 #![destack::partial(production/observability, file)]
 #![allow(unused_imports)]
 
-pub use crate::production::observability::gauge::*;
 pub use crate::production::observability::counter::*;
-pub use crate::production::observability::metric::*;
+pub use crate::production::observability::gauge::*;
 pub use crate::production::observability::histogram::*;
+pub use crate::production::observability::metric::*;
 
-mod gauge;
 mod counter;
-mod metric;
+mod gauge;
 mod histogram;
+mod metric;
 
 pub(crate) use crate::production::observability::counter::*;
 

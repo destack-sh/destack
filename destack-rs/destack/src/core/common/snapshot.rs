@@ -6,7 +6,7 @@
 /// The type of a Snapshot.
 pub enum SnapshotType {
     Full = 10,
-    Root = 11
+    Root = 11,
 }
 
 #[destack::generated(SnapshotStatus, enum, block)]
@@ -17,5 +17,5 @@ pub enum SnapshotStatus {
     /// Live and editable
     Active = 10,
     /// Inactive and read-only
-    Passive = 50
+    Passive = 50,
 }

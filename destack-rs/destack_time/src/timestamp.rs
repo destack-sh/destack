@@ -3,16 +3,18 @@
 
 use std::convert::TryFrom;
 use std::fmt;
-use std::ops::{Add, Sub};
+use std::ops::Add;
+use std::ops::Sub;
 use std::str::FromStr;
 use std::time::SystemTime;
 
+use crate::Date;
+use crate::Duration;
+use crate::format::write_hms_ns;
+use crate::parse::TimeParseError;
 use crate::parse::parse_hh_mm_ss;
-use crate::{
-    Date, Duration,
-    format::write_hms_ns,
-    parse::{TimeParseError, parse_tz_offset, split_time_and_tz},
-};
+use crate::parse::parse_tz_offset;
+use crate::parse::split_time_and_tz;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

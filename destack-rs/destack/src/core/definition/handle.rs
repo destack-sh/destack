@@ -2,10 +2,12 @@
 
 #![destack::partial(destack.core.definition.handle, file)]
 
-use crate::{
-    ConstantDefinition, HandleType, MethodDefinition, ObjectStability, PropertyDefinition,
-    TagDefinition,
-};
+use crate::ConstantDefinition;
+use crate::HandleType;
+use crate::MethodDefinition;
+use crate::ObjectStability;
+use crate::PropertyDefinition;
+use crate::TagDefinition;
 
 #[destack::generated(HandleDefinition, struct, block)]
 /// Definition of a builtin Handle.

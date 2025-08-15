@@ -8,5 +8,5 @@ pub enum EntitlementType {
     /// A Permission
     Permission = 1,
     /// A Role
-    Role = 2
+    Role = 2,
 }

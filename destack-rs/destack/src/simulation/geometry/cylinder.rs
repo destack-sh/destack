@@ -9,5 +9,5 @@ use crate::Vector3;
 pub struct Cylinder3D {
     position: Vector3,
     radius: f32,
-    height: f32
+    height: f32,
 }

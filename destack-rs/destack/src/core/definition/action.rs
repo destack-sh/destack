@@ -2,7 +2,12 @@
 
 #![destack::partial(destack.core.definition.action, file)]
 
-use crate::{RuntimeLanguage, StructType, ActionType, RuntimePlatform, RuntimeType, NodeType};
+use crate::ActionType;
+use crate::NodeType;
+use crate::RuntimeLanguage;
+use crate::RuntimePlatform;
+use crate::RuntimeType;
+use crate::StructType;
 
 #[destack::generated(ActionDefinition, struct, block)]
 /// Definition of a builtin Action.
@@ -18,5 +23,5 @@ pub struct ActionDefinition {
     emits_event_types: Vec<NodeType>,
     platforms: Vec<RuntimePlatform>,
     languages: Vec<RuntimeLanguage>,
-    runtimes: Vec<RuntimeType>
+    runtimes: Vec<RuntimeType>,
 }

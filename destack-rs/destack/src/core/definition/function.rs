@@ -2,7 +2,9 @@
 
 #![destack::partial(destack.core.definition.function, file)]
 
-use crate::{RuntimeLanguage, RuntimeType, RuntimePlatform};
+use crate::RuntimeLanguage;
+use crate::RuntimePlatform;
+use crate::RuntimeType;
 
 #[destack::generated(FunctionDefinition, struct, block)]
 /// Definition of a builtin Function.
@@ -14,5 +16,5 @@ pub struct FunctionDefinition {
     is_managed: bool,
     platforms: Vec<RuntimePlatform>,
     languages: Vec<RuntimeLanguage>,
-    runtimes: Vec<RuntimeType>
+    runtimes: Vec<RuntimeType>,
 }

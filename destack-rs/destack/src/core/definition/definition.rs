@@ -6,5 +6,5 @@
 /// A builtin Definition.
 pub struct Definition {
     name: String,
-    description: String
+    description: String,
 }

@@ -12,5 +12,5 @@ pub struct ConstantDefinition {
     description: String,
     taggings: Vec<u8>,
     value: Value,
-    _is_deferred: bool
+    _is_deferred: bool,
 }

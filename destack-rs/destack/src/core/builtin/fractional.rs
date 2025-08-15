@@ -2,13 +2,14 @@
 
 #![destack::partial(destack.core.builtin.fractional, file)]
 
-use crate::{Uuid, Timestamp};
+use crate::Timestamp;
+use crate::Uuid;
 
 #[destack::generated(FractionalIntegerError, struct, block)]
 /// An Error raised when a fractional integer operation fails.
 pub struct FractionalIntegerError {
     id: Uuid,
-    client: i64 /* TODO */ ,
+    client: i64, /* TODO */
     client_nonce: u8,
     client_created_at: Timestamp,
     client_remote_epoch: u64,
@@ -16,5 +17,5 @@ pub struct FractionalIntegerError {
     description: String,
     head: String,
     a: String,
-    b: String
+    b: String,
 }

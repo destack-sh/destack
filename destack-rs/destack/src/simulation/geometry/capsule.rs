@@ -2,7 +2,8 @@
 
 #![destack::partial(destack.simulation.geometry.capsule, file)]
 
-use crate::{Vector3, Vector2};
+use crate::Vector2;
+use crate::Vector3;
 
 #[destack::generated(Capsule2D, struct, block)]
 /// A Capsule2D is a segment with rounded ends with a common radius.
@@ -10,7 +11,7 @@ pub struct Capsule2D {
     position: Vector2,
     center_a_offset: Vector2,
     center_b_offset: Vector2,
-    radius: f32
+    radius: f32,
 }
 
 #[destack::generated(Capsule3D, struct, block)]
@@ -19,5 +20,5 @@ pub struct Capsule3D {
     position: Vector3,
     center_a_offset: Vector3,
     center_b_offset: Vector3,
-    radius: f32
+    radius: f32,
 }

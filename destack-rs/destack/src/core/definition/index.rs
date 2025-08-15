@@ -2,7 +2,8 @@
 
 #![destack::partial(destack.core.definition.index, file)]
 
-use crate::{PropertyReference, IndexType};
+use crate::IndexType;
+use crate::PropertyReference;
 
 #[destack::generated(IndexDefinition, struct, block)]
 /// Definition of a builtin Index.
@@ -12,5 +13,5 @@ pub struct IndexDefinition {
     name: String,
     description: String,
     properties: Vec<PropertyReference>,
-    cover: Vec<PropertyReference>
+    cover: Vec<PropertyReference>,
 }

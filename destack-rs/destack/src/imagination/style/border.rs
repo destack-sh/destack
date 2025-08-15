@@ -2,7 +2,8 @@
 
 #![destack::partial(destack.imagination.style.border, file)]
 
-use crate::{Inset2, Color};
+use crate::Color;
+use crate::Inset2;
 
 #[destack::generated(Border, struct, block)]
 /// A border value.
@@ -10,7 +11,7 @@ pub struct Border {
     r#type: BorderType,
     color: Color,
     width: Inset2,
-    template: i64 /* TODO */ 
+    template: i64, /* TODO */
 }
 
 #[destack::generated(BorderType, enum, block)]
@@ -25,5 +26,5 @@ pub enum BorderType {
     /// A dotted border
     Dotted = 12,
     /// A double border
-    Double = 13
+    Double = 13,
 }

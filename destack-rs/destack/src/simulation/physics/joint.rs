@@ -2,7 +2,9 @@
 
 #![destack::partial(destack.simulation.physics.joint, file)]
 
-use crate::{Quaternion, Vector3, Vector2};
+use crate::Quaternion;
+use crate::Vector2;
+use crate::Vector3;
 
 #[destack::generated(JointSpring, struct, block)]
 /// Spring parameters for soft constraints.
@@ -10,7 +12,7 @@ use crate::{Quaternion, Vector3, Vector2};
 /// constraint harder; higher damping reduces oscillation.
 pub struct JointSpring {
     stiffness: f32,
-    damping: f32
+    damping: f32,
 }
 
 #[destack::generated(JointScalarLimit, struct, block)]
@@ -21,7 +23,7 @@ pub struct JointScalarLimit {
     min_value: f32,
     max_value: f32,
     restitution: f32,
-    contact_distance: f32
+    contact_distance: f32,
 }
 
 #[destack::generated(JointConeLimit, struct, block)]
@@ -32,7 +34,7 @@ pub struct JointConeLimit {
     swing_y: f32,
     swing_z: f32,
     restitution: f32,
-    contact_distance: f32
+    contact_distance: f32,
 }
 
 #[destack::generated(JointTwistLimit, struct, block)]
@@ -42,14 +44,14 @@ pub struct JointTwistLimit {
     min_angle: f32,
     max_angle: f32,
     restitution: f32,
-    contact_distance: f32
+    contact_distance: f32,
 }
 
 #[destack::generated(JointBreakLimit, struct, block)]
 /// Break thresholds for a Joint.
 pub struct JointBreakLimit {
     force: f32,
-    torque: f32
+    torque: f32,
 }
 
 #[destack::generated(JointMotor, struct, block)]
@@ -61,7 +63,7 @@ pub struct JointMotor {
     max_impulse: f32,
     target_position: f32,
     stiffness: f32,
-    damping: f32
+    damping: f32,
 }
 
 #[destack::generated(JointFrame2D, struct, block)]
@@ -69,7 +71,7 @@ pub struct JointMotor {
 /// Defines the local anchor point and orientation used by the Joint on a body.
 pub struct JointFrame2D {
     position: Vector2,
-    rotation: f32
+    rotation: f32,
 }
 
 #[destack::generated(JointFrame3D, struct, block)]
@@ -77,7 +79,7 @@ pub struct JointFrame2D {
 /// Defines the local anchor point and orientation used by the Joint on a body.
 pub struct JointFrame3D {
     position: Vector3,
-    rotation: Quaternion
+    rotation: Quaternion,
 }
 
 #[destack::generated(JointFlag, enum, block)]
@@ -86,5 +88,5 @@ pub enum JointFlag {
     Default = 0,
     /// If enabled, the two bodies connected by the Joint are allowed to collide
     /// with each other. Otherwise, contacts between them are suppressed.
-    CollideConnected = 1
+    CollideConnected = 1,
 }

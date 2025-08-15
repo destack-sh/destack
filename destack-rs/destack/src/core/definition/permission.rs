@@ -7,5 +7,5 @@
 pub struct PermissionDefinition {
     id: u8,
     name: String,
-    description: String
+    description: String,
 }

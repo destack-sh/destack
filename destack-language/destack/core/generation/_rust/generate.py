@@ -85,7 +85,6 @@ def _generate_type_scalar(type: Type, dependencies: set[str]) -> str:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.NONE:
             return "() /* TODO */ "
-
         primitive_mapping = RUST_PRIMITIVE_TYPES.get(type.primitive_type)
         assert primitive_mapping is not None, f"no Rust type for {type!r}"
         type_str, rust_dep = primitive_mapping
@@ -199,7 +198,7 @@ pub struct {struct.name} {{
         type=RustGenerationType.GENERATED,
         scope=RustItemScope.BLOCK,
         object_key=object_key,
-        inner_key="struct",
+        inner_key="",
         children=EMPTY_LIST,
         outer_content=outer_content,
         inner_content=inner_content,
@@ -237,7 +236,7 @@ pub enum {enum.name} {{
         type=RustGenerationType.GENERATED,
         scope=RustItemScope.BLOCK,
         object_key=_get_object_key(enum),
-        inner_key="enum",
+        inner_key="",
         children=EMPTY_LIST,
         outer_content=outer_content,
         inner_content=inner_content,
@@ -294,7 +293,7 @@ def _get_imports(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
     # generate imports
     if dependencies:
         imp = RustImport(
-            rust_path="crate",
+            source="crate",
             imports=list(dependencies),
             is_internal=True,
             is_public=False,
@@ -403,7 +402,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             # import
             full_name = f"crate/{directory}/{inner_name}".replace("/", "::")
             imp = RustImport(
-                rust_path=full_name,
+                source=full_name,
                 imports=EMPTY_LIST,
                 is_internal=True,
                 is_public=True,
@@ -425,7 +424,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             comment=f"//! {source_path}@{VERSION}",
             attributes=[
                 RustAttribute(
-                    content=f"#![destack::{RustGenerationType.PARTIAL.value}({directory}, file)]"
+                    content=f"#![destack::{RustGenerationType.PARTIAL.value}({source_path}, file)]"
                 ),
                 RustAttribute(content="#![allow(unused_imports)]"),
             ],

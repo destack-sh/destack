@@ -4,14 +4,14 @@
 #![allow(unused_imports)]
 
 pub use crate::imagination::animation::_gen::*;
-pub use crate::imagination::animation::transition::*;
-pub use crate::imagination::animation::effect::*;
 pub use crate::imagination::animation::easing::*;
+pub use crate::imagination::animation::effect::*;
+pub use crate::imagination::animation::transition::*;
 
 mod _gen;
-mod transition;
-mod effect;
 mod easing;
+mod effect;
+mod transition;
 
 pub(crate) use crate::imagination::animation::_gen::*;
 

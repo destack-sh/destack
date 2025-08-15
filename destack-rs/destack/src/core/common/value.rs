@@ -9,12 +9,12 @@ use crate::Type;
 /// Values are used to represent any generic data.
 pub struct Value {
     r#type: Type,
-    value: () /* TODO */ 
+    value: (), /* TODO */
 }
 
 #[destack::generated(NamedValue, struct, block)]
 /// A named Value.
 pub struct NamedValue {
     name: String,
-    value: Value
+    value: Value,
 }

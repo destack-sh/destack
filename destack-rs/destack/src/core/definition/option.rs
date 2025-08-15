@@ -12,5 +12,5 @@ pub struct OptionDefinition {
     name: String,
     description: String,
     taggings: Vec<u8>,
-    is_internal: bool
+    is_internal: bool,
 }

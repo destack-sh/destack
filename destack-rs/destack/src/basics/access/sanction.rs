@@ -8,5 +8,5 @@ pub enum SanctionType {
     /// A Ban
     Ban = 1,
     /// A Mute
-    Mute = 2
+    Mute = 2,
 }

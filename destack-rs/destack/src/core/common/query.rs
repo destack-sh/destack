@@ -2,7 +2,10 @@
 
 #![destack::partial(destack.core.common.query, file)]
 
-use crate::{ObjectDefinitionReference, PropertyReference, Uuid, Value};
+use crate::ObjectDefinitionReference;
+use crate::PropertyReference;
+use crate::Uuid;
+use crate::Value;
 
 #[destack::generated(Expression, struct, block)]
 /// Wrapper to unify any scalar / boolean / aggregate sub-tree.

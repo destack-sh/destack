@@ -12,7 +12,7 @@ pub enum ObjectKind {
     /// Object with data and logic (embedded elsewhere)
     Struct = 3,
     /// Object with special data and logic (runtime only)
-    Handle = 4
+    Handle = 4,
 }
 
 #[destack::generated(EnumType, enum, block)]
@@ -117,7 +117,7 @@ pub enum EnumType {
     Region = 50000001,
     RegionArea = 50000002,
     RegionContinent = 50000003,
-    MachineType = 50000000
+    MachineType = 50000000,
 }
 
 #[destack::generated(NodeType, enum, block)]
@@ -387,7 +387,7 @@ pub enum NodeType {
     CounterMeasurementEvent = 50100201,
     HistogramMetric = 50100300,
     HistogramMeasurementEvent = 50100301,
-    Locale = 60000000
+    Locale = 60000000,
 }
 
 #[destack::generated(StructType, enum, block)]
@@ -510,7 +510,7 @@ pub enum StructType {
     Inset2 = 40100004,
     Corner2 = 40100005,
     Axis2 = 40100006,
-    Axis3 = 40100007
+    Axis3 = 40100007,
 }
 
 #[destack::generated(TraitType, enum, block)]
@@ -545,7 +545,7 @@ pub enum TraitType {
     /// Can be dragged
     Draggable = 20300001,
     /// Can be selected
-    Selectable = 20300002
+    Selectable = 20300002,
 }
 
 #[destack::generated(HandleType, enum, block)]
@@ -556,7 +556,7 @@ pub enum HandleType {
     Session = 2100000,
     Context = 2100100,
     Logger = 2100200,
-    Tracer = 2100300
+    Tracer = 2100300,
 }
 
 #[destack::generated(ObjectStability, enum, block)]
@@ -565,7 +565,7 @@ pub enum ObjectStability {
     /// Definition may change in every compatible way
     Dynamic = 1,
     /// Definition may never change
-    Static = 7
+    Static = 7,
 }
 
 #[destack::generated(UniverseDomain, enum, block)]
@@ -584,7 +584,7 @@ pub enum UniverseDomain {
     /// Operating: Building the Universe.
     Production = 50000000,
     /// Distributing: Integrating the Universe.
-    Distribution = 60000000
+    Distribution = 60000000,
 }
 
 #[destack::generated(UniverseCategory, enum, block)]
@@ -673,5 +673,5 @@ pub enum UniverseCategory {
     /// Legal, compliance and policy
     Legal = 60100000,
     /// Billing and monetization
-    Commerce = 60200000
+    Commerce = 60200000,
 }

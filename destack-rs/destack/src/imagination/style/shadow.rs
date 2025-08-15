@@ -2,19 +2,20 @@
 
 #![destack::partial(destack.imagination.style.shadow, file)]
 
-use crate::{Axis2, Color};
+use crate::Axis2;
+use crate::Color;
 
 #[destack::generated(Shadow, struct, block)]
 /// A shadow value.
 pub struct Shadow {
     r#type: ShadowType,
-    template: i64 /* TODO */ ,
+    template: i64, /* TODO */
     color: Color,
     position: ShadowPosition,
     offset: Axis2,
     blur: f32,
     spread: f32,
-    diffusion: f32
+    diffusion: f32,
 }
 
 #[destack::generated(ShadowType, enum, block)]
@@ -23,7 +24,7 @@ pub enum ShadowType {
     /// A box shadow
     Box = 10,
     /// A realistic shadow
-    Realistic = 11
+    Realistic = 11,
 }
 
 #[destack::generated(ShadowPosition, enum, block)]
@@ -32,5 +33,5 @@ pub enum ShadowPosition {
     /// An outside shadow
     Outside = 1,
     /// An inside shadow
-    Inside = 2
+    Inside = 2,
 }
