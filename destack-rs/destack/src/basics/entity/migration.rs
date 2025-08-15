@@ -7,7 +7,7 @@
 pub struct MigrationDefinition {
     r#type: MigrationType,
     name: String,
-    description: String
+    description: String,
 }
 
 #[destack::generated(MigrationOperationDefinition, struct, block)]
@@ -16,12 +16,12 @@ pub struct MigrationOperationDefinition {
     id: u32,
     r#type: MigrationType,
     name: String,
-    description: String
+    description: String,
 }
 
 #[destack::generated(MigrationType, enum, block)]
 /// Type of a builtin Migration.
 pub enum MigrationType {
     /// A Create Migration
-    Create = 1
+    Create = 1,
 }

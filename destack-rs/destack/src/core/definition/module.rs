@@ -2,7 +2,14 @@
 
 #![destack::partial(destack.core.definition.module, file)]
 
-use crate::{StructType, UniverseDomain, MethodDefinition, HandleType, UniverseCategory, ConstantDefinition, NodeType, EnumType};
+use crate::ConstantDefinition;
+use crate::EnumType;
+use crate::HandleType;
+use crate::MethodDefinition;
+use crate::NodeType;
+use crate::StructType;
+use crate::UniverseCategory;
+use crate::UniverseDomain;
 
 #[destack::generated(ModuleDefinition, struct, block)]
 /// Definition of a builtin Module.
@@ -20,7 +27,7 @@ pub struct ModuleDefinition {
     handle_types: Vec<HandleType>,
     enum_types: Vec<EnumType>,
     parent_path: String,
-    children_paths: Vec<String>
+    children_paths: Vec<String>,
 }
 
 #[destack::generated(ModuleType, enum, block)]
@@ -33,5 +40,5 @@ pub enum ModuleType {
     /// Module for an entire UniverseCategory
     Category = 3,
     /// Module for one or more Objects
-    Object = 4
+    Object = 4,
 }

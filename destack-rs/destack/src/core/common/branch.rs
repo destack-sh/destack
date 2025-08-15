@@ -7,5 +7,5 @@
 pub enum BranchType {
     Partial = 2,
     Full = 10,
-    Root = 11
+    Root = 11,
 }

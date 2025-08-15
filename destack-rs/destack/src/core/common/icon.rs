@@ -11,9 +11,9 @@ pub struct Icon {
     emoji: String,
     fa_name: String,
     vsc_name: String,
-    file: i64 /* TODO */ ,
+    file: i64, /* TODO */
     file_url: String,
-    color: Color
+    color: Color,
 }
 
 #[destack::generated(IconType, enum, block)]
@@ -21,5 +21,5 @@ pub struct Icon {
 pub enum IconType {
     Emoji = 1,
     File = 10,
-    FileUrl = 11
+    FileUrl = 11,
 }

@@ -2,16 +2,17 @@
 
 #![destack::partial(destack.simulation.geometry.shape, file)]
 
-use crate::{Vector3, Vector2};
+use crate::Vector2;
+use crate::Vector3;
 
 #[destack::generated(Form2D, struct, block)]
 /// Represent 2-dimensional geometric shapes with position in the abstract.
 pub struct Form2D {
-    position: Vector2
+    position: Vector2,
 }
 
 #[destack::generated(Form3D, struct, block)]
 /// Represent 3-dimensional geometric shapes with position in the abstract.
 pub struct Form3D {
-    position: Vector3
+    position: Vector3,
 }

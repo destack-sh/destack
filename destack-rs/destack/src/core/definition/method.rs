@@ -2,7 +2,11 @@
 
 #![destack::partial(destack.core.definition.method, file)]
 
-use crate::{MethodType, RuntimeLanguage, RuntimePlatform, RuntimeType, PropertyDefinition};
+use crate::MethodType;
+use crate::PropertyDefinition;
+use crate::RuntimeLanguage;
+use crate::RuntimePlatform;
+use crate::RuntimeType;
 
 #[destack::generated(MethodDefinition, struct, block)]
 /// Definition of a builtin Method.
@@ -18,5 +22,5 @@ pub struct MethodDefinition {
     output_property: PropertyDefinition,
     platforms: Vec<RuntimePlatform>,
     languages: Vec<RuntimeLanguage>,
-    runtimes: Vec<RuntimeType>
+    runtimes: Vec<RuntimeType>,
 }

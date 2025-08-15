@@ -12,7 +12,7 @@ from destack.core.generation._rust.parse import (
     RustItemScope,
     _parse_rust_imports,
     _parse_rust_items,
-    _parse_rust_mods,
+    _parse_rust_mod_declarations,
     parse_rust_file,
 )
 
@@ -174,55 +174,66 @@ def _assert_has_top_level_items(items: Sequence) -> None:
 
 
 def test_parse_rust_imports() -> None:
-    """Parse top-level use imports into structured paths and lists."""
-    imports = _parse_rust_imports(FILE_1)
-    assert len(imports) == 2
-    assert imports[0].rust_path == "core::fmt" and imports[0].imports == []
-    assert imports[1].rust_path == "core::ops"
-    assert set(imports[1].imports) >= {
-        "Add",
-        "AddAssign",
-        "Div",
-        "DivAssign",
-        "Mul",
-        "MulAssign",
-        "Neg",
-        "Sub",
-        "SubAssign",
-    }
-    # internal flags
-    assert imports[0].is_internal is False
-    assert imports[1].is_internal is False
-
-
-def test_parse_internal_rust_imports() -> None:
     """Detect internal import paths via crate/self/super prefixes."""
     src = """\
 use crate::foo;
-use self::bar::{Baz};
+use self::bar::Baz;
 use super::qux;
 use external::pkg::Thing;
 pub use core::*;
+use std::collections::{HashMap, HashSet};
+use crate::internal::module::{
+    InternalStruct,
+    AnotherStruct,
+    ThirdStruct,
+};
 """
-    imports = _parse_rust_imports(src)
-    assert len(imports) == 5
-    assert imports[0].rust_path == "crate::foo" and imports[0].is_internal is True
-    assert (
-        imports[1].rust_path == "self::bar"
-        and imports[1].imports == ["Baz"]
-        and imports[1].is_internal is True
-    )
-    assert imports[2].rust_path == "super::qux" and imports[2].is_internal is True
-    assert imports[3].rust_path == "external::pkg::Thing" and imports[3].is_internal is False
-    assert (
-        imports[4].rust_path == "core::*" or imports[4].rust_path == "core::"
-    )  # path retains star
-    assert imports[4].is_public is True and imports[4].is_glob is True
+    imports, _ = _parse_rust_imports(src)
+    assert len(imports) == 7
+
+    # use crate::foo;
+    assert imports[0].source == "crate"
+    assert imports[0].is_internal is True
+    assert imports[0].imports == ["foo"]
+
+    # use self::bar::Baz;
+    assert imports[1].source == "self::bar"
+    assert imports[1].is_internal is True
+    assert imports[1].imports == ["Baz"]
+
+    # use super::qux;
+    assert imports[2].source == "super"
+    assert imports[2].is_internal is True
+    assert imports[2].imports == ["qux"]
+
+    # use external::pkg::Thing;
+    assert imports[3].source == "external::pkg"
+    assert imports[3].is_internal is False
+    assert imports[3].imports == ["Thing"]
+
+    # pub use core::*;
+    assert imports[4].source == "core"
+    assert imports[4].is_glob is True
+    assert imports[4].imports == []  # should be empty, not ['*']
+
+    # use std::collections::{HashMap, HashSet};
+    assert imports[5].source == "std::collections"
+    assert imports[5].is_internal is False
+    assert set(imports[5].imports) == {"HashMap", "HashSet"}
+
+    # use crate::internal::module::{
+    #     InternalStruct,
+    #     AnotherStruct,
+    #     ThirdStruct
+    # };
+    assert imports[6].source == "crate::internal::module"
+    assert imports[6].is_internal is True
+    assert set(imports[6].imports) == {"InternalStruct", "AnotherStruct", "ThirdStruct"}
 
 
-def test_parse_top_level_block_items() -> None:
+def test_parse_block_items() -> None:
     """Parse top-level block-scoped annotated items (struct and impls)."""
-    items = _parse_rust_items(FILE_1, parent=None)
+    items = _parse_rust_items(FILE_1, parent=None, ignore_lines=())
     _assert_has_top_level_items(items)
     # verify content headers are present
     managed = [i for i in items if isinstance(i, RustManagedItem)]
@@ -245,7 +256,7 @@ def test_parse_top_level_block_items() -> None:
 
 def test_parse_children_in_partial_impl_block() -> None:
     """Parse nested line and block items inside a partial impl block."""
-    items = _parse_rust_items(FILE_1, parent=None)
+    items = _parse_rust_items(FILE_1, parent=None, ignore_lines=())
     managed = [i for i in items if isinstance(i, RustManagedItem)]
     partial_impl = managed[4]
     assert partial_impl.inner_key == "impl" and partial_impl.scope == RustItemScope.BLOCK
@@ -325,13 +336,13 @@ def test_parse_full_file_wrapper() -> None:
 
 def test_parse_full_source_string_end_to_end() -> None:
     """End-to-end: keep the full input and ensure we parse the expected count and order."""
-    items = _parse_rust_items(FILE_1, parent=None)
+    items = _parse_rust_items(FILE_1, parent=None, ignore_lines=())
     _assert_has_top_level_items(items)
 
 
 def test_parse_free_block() -> None:
     """Parse a free function stub annotated at top level."""
-    items = _parse_rust_items(FILE_2, parent=None)
+    items = _parse_rust_items(FILE_2, parent=None, ignore_lines=())
     stubs = [
         i
         for i in items
@@ -358,7 +369,7 @@ pub struct Thing {
     pub a: i32,
 }
 """
-    mods = _parse_rust_mods(src)
+    mods, _ = _parse_rust_mod_declarations(src)
     assert len(mods) == 1
     assert mods[0].name == "inner" and mods[0].is_public is False
 

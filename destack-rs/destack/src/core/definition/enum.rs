@@ -2,7 +2,8 @@
 
 #![destack::partial(destack.core.definition.enum, file)]
 
-use crate::{OptionDefinition, EnumType};
+use crate::EnumType;
+use crate::OptionDefinition;
 
 #[destack::generated(EnumDefinition, struct, block)]
 /// Definition of a builtin Enum.
@@ -13,5 +14,5 @@ pub struct EnumDefinition {
     description: String,
     taggings: Vec<u8>,
     is_flag: bool,
-    options: Vec<OptionDefinition>
+    options: Vec<OptionDefinition>,
 }

@@ -1,5 +1,5 @@
 import textwrap
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 
 from .core import (
@@ -563,198 +563,144 @@ def _find_first_token_outside_literals(
     return None
 
 
-def _is_internal_import_path(path: str) -> bool:
-    """Return True if a `use` path refers to internal crate paths."""
-    return path.startswith("crate::") or path.startswith("self::") or path.startswith("super::")
-
-
-def _extract_top_level_lines(source: str) -> list[str]:
+def _parse_rust_imports(source: str) -> tuple[list[RustImport], set[int]]:
     """
-    Extract only top-level lines from source, skipping content inside blocks.
-    This is used for parsing imports and module declarations.
+    Parse Rust `use` imports from top-level lines only (no indented):
+    ```rust
+    pub use core::*;
+    use std::collections::{HashMap, HashSet};
+    use crate::internal::module::{
+        InternalStruct,
+        AnotherStruct,
+        ThirdStruct,
+    };
+    ```
     """
-    lines = source.splitlines()
-    result: list[str] = []
-    parser = RustTokenParser()
-    depth = 0
-
-    for line in lines:
-        parser.reset_line()
-        i = 0
-        line_len = len(line)
-
-        # process the line to track brace depth
-        while i < line_len:
-            ch = line[i]
-            nxt = line[i + 1] if i + 1 < line_len else ""
-            prev = line[i - 1] if i > 0 else None
-
-            if parser.in_line_comment:
-                break
-
-            if parser.in_block_comment > 0:
-                if ch == "/" and prev == "*":
-                    parser.in_block_comment -= 1
-                elif ch == "/" and nxt == "*":
-                    parser.in_block_comment += 1
-                    i += 1
-                i += 1
-                continue
-
-            if parser.in_string:
-                if parser.raw_string_hashes is None:
-                    if ch == "\\":
-                        i += 2
-                        continue
-                    if ch == '"':
-                        parser.in_string = False
-                else:
-                    if ch == '"':
-                        j = i + 1
-                        count = 0
-                        while j < line_len and line[j] == "#":
-                            count += 1
-                            j += 1
-                        if count == parser.raw_string_hashes:
-                            parser.in_string = False
-                            parser.raw_string_hashes = None
-                            i = j - 1
-                i += 1
-                continue
-
-            if parser.in_char:
-                if ch == "\\":
-                    i += 2
-                    continue
-                if ch == "'":
-                    parser.in_char = False
-                i += 1
-                continue
-
-            # check for comment/string starts
-            if ch == "/" and nxt == "/":
-                parser.in_line_comment = True
-                break
-            if ch == "/" and nxt == "*":
-                parser.in_block_comment += 1
-                i += 2
-                continue
-
-            # detect raw string start
-            if ch == "r":
-                j = i + 1
-                hash_count = 0
-                while j < line_len and line[j] == "#":
-                    hash_count += 1
-                    j += 1
-                if j < line_len and line[j] == '"':
-                    parser.in_string = True
-                    parser.raw_string_hashes = hash_count
-                    i = j + 1
-                    continue
-
-            if ch == '"':
-                parser.in_string = True
-                parser.raw_string_hashes = None
-                i += 1
-                continue
-
-            if ch == "'":
-                parser.in_char = True
-                i += 1
-                continue
-
-            # track brace depth
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-
-            i += 1
-
-        # only include lines that are at depth 0 (top-level)
-        if depth == 0:
-            result.append(line)
-
-    return result
-
-
-def _parse_rust_imports(source: str) -> list[RustImport]:
-    """Parse Rust `use` imports from top-level lines only."""
     imports: list[RustImport] = []
-    top_level_lines = _extract_top_level_lines(source)
+    covered_lines: set[int] = set()
 
-    for raw_line in top_level_lines:
-        stripped = raw_line.strip()
-        if not (stripped.startswith("use ") or stripped.startswith("pub use ")):
+    def _is_internal_import_path(path: str) -> bool:
+        """Return True if a `use` path refers to internal crate paths."""
+        return (
+            path == "crate"
+            or path.startswith("crate::")
+            or path == "self"
+            or path.startswith("self::")
+            or path == "super"
+            or path.startswith("super::")
+        )
+
+    lines = source.splitlines()
+    i = 0
+
+    while i < len(lines):
+        line = lines[i]
+        if not (line.startswith("use ") or line.startswith("pub use ")):
+            i += 1
             continue
-        # remove trailing ';'
-        if not stripped.endswith(";"):
-            continue  # skip malformed or incomplete lines
-        is_public = False
-        if stripped.startswith("pub use "):
-            is_public = True
-            use_body = stripped[len("pub use ") : -1].strip()
+
+        # find the terminating semicolon using the robust helper
+        result = _find_first_token_outside_literals(lines, i, {";"}, max_lookahead_lines=50)
+
+        if result is None:
+            # malformed import without terminating semicolon
+            i += 1
+            continue
+
+        end_line_idx, _, _ = result
+
+        # collect all lines from i to end_line_idx (inclusive)
+        import_lines = lines[i : end_line_idx + 1]
+
+        # join all lines to form the complete import statement
+        full_import = " ".join(line.strip() for line in import_lines)
+
+        # ensure it ends with semicolon
+        if not full_import.endswith(";"):
+            # this shouldn't happen given the find result, but be defensive
+            i = end_line_idx + 1
+            continue
+
+        is_public = full_import.startswith("pub use ")
+        if is_public:
+            use_body = full_import[len("pub use ") : -1].strip()
         else:
-            use_body = stripped[len("use ") : -1].strip()
+            use_body = full_import[len("use ") : -1].strip()
 
-        is_glob = use_body.endswith("::*")
-        if "::{" in use_body and use_body.endswith("}"):
-            path, names = use_body.split("::{", 1)
-            names = names[:-1]
-            imports_list = [n.strip() for n in names.split(",") if n.strip()]
-            imports.append(
-                RustImport(
-                    rust_path=path,
-                    imports=imports_list,
-                    is_internal=_is_internal_import_path(path),
-                    is_public=is_public,
-                    is_glob=False,
-                )
-            )
+        # split on the last :: to separate source from imports
+        if "::" in use_body:
+            source, after_last_separator = use_body.rsplit("::", 1)
         else:
-            imports.append(
-                RustImport(
-                    rust_path=use_body,
-                    imports=[] if not is_glob else ["*"],
-                    is_internal=_is_internal_import_path(use_body),
-                    is_public=is_public,
-                    is_glob=is_glob,
-                )
+            # no :: separator means it's a simple module import (e.g., "use std;")
+            source = use_body
+            after_last_separator = ""
+
+        # determine what comes after the last ::
+        is_glob = False
+        imports_list = []
+
+        if after_last_separator == "*":
+            # glob import: use path::*;
+            is_glob = True
+            imports_list = []
+        elif after_last_separator.startswith("{") and after_last_separator.endswith("}"):
+            # multiple items: use path::{Item1, Item2};
+            items_str = after_last_separator[1:-1]  # remove { and }
+            for item in items_str.split(","):
+                item = item.strip()
+                if item:
+                    imports_list.append(item)
+        elif after_last_separator:
+            # single item: use path::Item;
+            imports_list = [after_last_separator]
+        # else: no imports (just the path itself, like `use std;`)
+
+        imports.append(
+            RustImport(
+                source=source,
+                imports=imports_list,
+                is_internal=_is_internal_import_path(source),
+                is_public=is_public,
+                is_glob=is_glob,
             )
-    return imports
+        )
+
+        # mark all lines as covered
+        covered_lines.update(range(i, end_line_idx + 1))
+
+        i = end_line_idx + 1
+
+    return imports, covered_lines
 
 
-def _parse_rust_mods(source: str) -> list[RustModDeclaration]:
+def _parse_rust_mod_declarations(source: str) -> tuple[list[RustModDeclaration], set[int]]:
     """
     Parse simple module declarations like `mod foo;` or `pub mod foo;`.
     Ignore inline/nested module definitions like `mod test { ... }`.
     Only parses top-level declarations.
     """
     mods: list[RustModDeclaration] = []
-    top_level_lines = _extract_top_level_lines(source)
+    covered_lines: set[int] = set()
 
-    for raw_line in top_level_lines:
-        stripped = raw_line.strip()
-        if not (stripped.startswith("mod ") or stripped.startswith("pub mod ")):
+    for i, line in enumerate(source.splitlines()):
+        if not (line.startswith("mod ") or line.startswith("pub mod ")):
             continue
         # skip nested modules (those without semicolon)
-        if not stripped.endswith(";"):
+        if not line.endswith(";"):
             continue
-        is_public = stripped.startswith("pub mod ")
-        name = (
-            stripped[len("pub mod ") : -1].strip()
-            if is_public
-            else stripped[len("mod ") : -1].strip()
-        )
+        is_public = line.startswith("pub mod ")
+        name = line[len("pub mod ") : -1].strip() if is_public else line[len("mod ") : -1].strip()
         if not name:
             continue
+        covered_lines.add(i)
         mod = RustModDeclaration(name=name, is_public=is_public)
         mods.append(mod)
-    return mods
+    return mods, covered_lines
 
 
-def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
+def _parse_rust_items(
+    source: str, parent: RustItem | None, ignore_lines: Collection[int]
+) -> list[RustItem]:
     """
     Parse destack-annotated and custom items from a Rust source string.
     Top-level comments, attributes, mod declarations and imports are ignored.
@@ -763,6 +709,10 @@ def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
     items: list[RustItem] = []
     i = 0
     while i < len(lines):
+        # skip lines that are already covered
+        if i in ignore_lines:
+            i += 1
+            continue
         # skip blank lines up front
         if not lines[i].strip():
             i += 1
@@ -834,7 +784,9 @@ def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
 
             # parse one level down inside the block body (exclude header and closing brace)
             if parent is None and body_lines:
-                item.children = _parse_rust_items("\n".join(body_lines), parent=item)
+                item.children = _parse_rust_items(
+                    "\n".join(body_lines), parent=item, ignore_lines=()
+                )
             else:
                 item.children = []
             items.append(item)
@@ -869,43 +821,7 @@ def _parse_rust_items(source: str, parent: RustItem | None) -> list[RustItem]:
             i = code_index
             continue
 
-        # check if this is a module declaration (mod name { ... } or pub mod name { ... })
         header_line = lines[code_index]
-        header_stripped = header_line.strip()
-        is_module = False
-        mod_name = ""
-        mod_is_public = False
-
-        # check for module declaration patterns
-        if header_stripped.startswith("mod ") and not header_stripped.endswith(";"):
-            # could be "mod name {" or "mod name"
-            mod_parts = header_stripped[4:].split(None, 1)  # split on whitespace
-            if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
-                mod_name = mod_parts[0].rstrip("{").strip()
-                is_module = True
-                mod_is_public = False
-        elif header_stripped.startswith("pub mod ") and not header_stripped.endswith(";"):
-            mod_parts = header_stripped[8:].split(None, 1)
-            if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
-                mod_name = mod_parts[0].rstrip("{").strip()
-                is_module = True
-                mod_is_public = True
-        # also check for attributed modules like #[cfg(test)] mod tests { ... }
-        elif collected_custom:
-            # check if the last attribute is something like #[cfg(test)]
-            # and the current line is a module declaration
-            if header_stripped.startswith("mod ") and not header_stripped.endswith(";"):
-                mod_parts = header_stripped[4:].split(None, 1)
-                if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
-                    mod_name = mod_parts[0].rstrip("{").strip()
-                    is_module = True
-                    mod_is_public = False
-            elif header_stripped.startswith("pub mod ") and not header_stripped.endswith(";"):
-                mod_parts = header_stripped[8:].split(None, 1)
-                if mod_parts and mod_parts[0] and not mod_parts[0].startswith("{"):
-                    mod_name = mod_parts[0].rstrip("{").strip()
-                    is_module = True
-                    mod_is_public = True
 
         # determine if this custom item is a block (with {}) or a single line (with ;)
         # by finding the first '{' or ';' outside of strings/comments
@@ -996,9 +912,9 @@ def parse_rust_file(
             break
 
     # parse content
-    imports = _parse_rust_imports(source)
-    mods = _parse_rust_mods(source)
-    items = _parse_rust_items(source, parent=None)
+    imports, import_lines = _parse_rust_imports(source)
+    mods, mod_lines = _parse_rust_mod_declarations(source)
+    items = _parse_rust_items(source, parent=None, ignore_lines=import_lines | mod_lines)
 
     # derive type from attributes
     type = RustGenerationType.CUSTOM

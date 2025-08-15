@@ -2,7 +2,18 @@
 
 #![destack::partial(destack.core.definition.node, file)]
 
-use crate::{StructType, ActionDefinition, MethodDefinition, ObjectStability, TraitType, PropertyDefinition, ConstantDefinition, TagDefinition, ConstraintDefinition, NodeType, IndexDefinition, PermissionDefinition};
+use crate::ActionDefinition;
+use crate::ConstantDefinition;
+use crate::ConstraintDefinition;
+use crate::IndexDefinition;
+use crate::MethodDefinition;
+use crate::NodeType;
+use crate::ObjectStability;
+use crate::PermissionDefinition;
+use crate::PropertyDefinition;
+use crate::StructType;
+use crate::TagDefinition;
+use crate::TraitType;
 
 #[destack::generated(NodeDefinition, struct, block)]
 /// Definition of a builtin Node.
@@ -39,5 +50,5 @@ pub struct NodeDefinition {
     expected_descendant_types: Vec<NodeType>,
     event_types: Vec<NodeType>,
     self_event_types: Vec<NodeType>,
-    base_struct_type: StructType
+    base_struct_type: StructType,
 }

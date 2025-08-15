@@ -2,7 +2,10 @@
 
 #![destack::partial(destack.core.definition.property, file)]
 
-use crate::{Value, Type, ValueFactory, ReferenceType};
+use crate::ReferenceType;
+use crate::Type;
+use crate::Value;
+use crate::ValueFactory;
 
 #[destack::generated(PropertyDefinition, struct, block)]
 /// Definition of a builtin Property.
@@ -22,5 +25,5 @@ pub struct PropertyDefinition {
     is_managed: bool,
     is_static: bool,
     is_runtime_only: bool,
-    is_interned: bool
+    is_interned: bool,
 }

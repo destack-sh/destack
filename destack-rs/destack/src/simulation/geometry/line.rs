@@ -2,14 +2,15 @@
 
 #![destack::partial(destack.simulation.geometry.line, file)]
 
-use crate::{Vector3, Vector2};
+use crate::Vector2;
+use crate::Vector3;
 
 #[destack::generated(Segment2D, struct, block)]
 /// A Segment is a line between two points.
 pub struct Segment2D {
     position: Vector2,
     start_offset: Vector2,
-    end_offset: Vector2
+    end_offset: Vector2,
 }
 
 #[destack::generated(Segment3D, struct, block)]
@@ -17,5 +18,5 @@ pub struct Segment2D {
 pub struct Segment3D {
     position: Vector3,
     start_offset: Vector3,
-    end_offset: Vector3
+    end_offset: Vector3,
 }

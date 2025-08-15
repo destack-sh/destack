@@ -8,5 +8,5 @@ pub enum StringCasing {
     Snake = 1,
     UpperCamel = 2,
     LowerCamel = 3,
-    AllCaps = 4
+    AllCaps = 4,
 }

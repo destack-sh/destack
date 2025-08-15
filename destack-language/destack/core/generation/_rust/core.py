@@ -136,9 +136,8 @@ class RustModDeclaration:
 class RustImport:
     """An import at the top of the file."""
 
-    """"""
-    rust_path: str  # like 'core::fmt'
-    imports: list[str]  # like '["Add", "AddAssign", ...]'
+    source: str  # like 'core (up to the imported items, but excluding them)
+    imports: list[str]  # like '["fmt", "Add", "AddAssign", ...]'
     is_internal: bool  # whether this import referes to the crate itself
     is_public: bool  # whether the import is declared with a public visibility
     is_glob: bool  # whether the import uses '*'
@@ -186,7 +185,7 @@ def render_rust_mod(mod: RustModDeclaration) -> str:
 
 def render_rust_import(imp: RustImport) -> str:
     """Render an import."""
-    escaped_path = ecsape_rust_identifier(imp.rust_path, keep=("crate",))
+    escaped_path = ecsape_rust_identifier(imp.source, keep=("crate",))
     if imp.is_glob:
         use_stmt = f"use {escaped_path}::*;"
     elif imp.imports:
@@ -197,7 +196,7 @@ def render_rust_import(imp: RustImport) -> str:
             imports_list = ", ".join(escaped_imports)
             use_stmt = f"use {escaped_path}::{{{imports_list}}};"
     else:
-        use_stmt = f"use {escaped_path};"
+        raise ValueError(f"no imports for: {imp!r}")
     if imp.is_public:
         use_stmt = f"pub {use_stmt}"
     return use_stmt

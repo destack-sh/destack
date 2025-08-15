@@ -2,14 +2,15 @@
 
 #![destack::partial(destack.simulation.geometry.rectangle, file)]
 
-use crate::{Vector3, Vector2};
+use crate::Vector2;
+use crate::Vector3;
 
 #[destack::generated(Rectangle2D, struct, block)]
 /// A Rectangle is a rectangle.
 pub struct Rectangle2D {
     position: Vector2,
     width: f32,
-    height: f32
+    height: f32,
 }
 
 #[destack::generated(Box3D, struct, block)]
@@ -18,5 +19,5 @@ pub struct Box3D {
     position: Vector3,
     width: f32,
     height: f32,
-    depth: f32
+    depth: f32,
 }

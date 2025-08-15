@@ -2,7 +2,8 @@
 
 #![destack::partial(destack.core.builtin.error, file)]
 
-use crate::{Uuid, Timestamp};
+use crate::Timestamp;
+use crate::Uuid;
 
 #[destack::generated(Error, struct, block)]
 /// An Error is a structured error message.
@@ -10,10 +11,10 @@ use crate::{Uuid, Timestamp};
 /// Like Messages, Errors are as-is provided by Clients and tagged with client-authority tracking.
 pub struct Error {
     id: Uuid,
-    client: i64 /* TODO */ ,
+    client: i64, /* TODO */
     client_nonce: u8,
     client_created_at: Timestamp,
     client_remote_epoch: u64,
     client_local_epoch: u64,
-    description: String
+    description: String,
 }

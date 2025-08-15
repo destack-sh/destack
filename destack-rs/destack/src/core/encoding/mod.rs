@@ -3,13 +3,13 @@
 #![destack::partial(core/encoding, file)]
 #![allow(unused_imports)]
 
-pub use crate::core::encoding::encoder::*;
 pub use crate::core::encoding::binary::*;
+pub use crate::core::encoding::encoder::*;
 pub use crate::core::encoding::hasher::*;
 pub use crate::core::encoding::time::*;
 
-mod encoder;
 mod binary;
+mod encoder;
 mod hasher;
 mod time;
 

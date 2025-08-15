@@ -13,7 +13,7 @@ pub struct EditOperation {
     key: Value,
     value: Value,
     reverse_operation: EditOperation,
-    reverse_value: Value
+    reverse_value: Value,
 }
 
 #[destack::generated(ChangeType, enum, block)]
@@ -30,12 +30,12 @@ pub enum ChangeType {
     /// Delete an Entity (and its descendants)
     Delete = 40,
     /// Restore a deleted Entity (and its descendants)
-    Restore = 41
+    Restore = 41,
 }
 
 #[destack::generated(EditOperationType, enum, block)]
 /// The update operation to perform on a Node.
 pub enum EditOperationType {
     /// Set a Property to a value (may be an empty value)
-    Set = 1
+    Set = 1,
 }

@@ -2,7 +2,11 @@
 
 #![destack::partial(destack.core.definition.schema, file)]
 
-use crate::{EnumDefinition, NodeDefinition, StructDefinition, HandleDefinition, ModuleDefinition};
+use crate::EnumDefinition;
+use crate::HandleDefinition;
+use crate::ModuleDefinition;
+use crate::NodeDefinition;
+use crate::StructDefinition;
 
 #[destack::generated(SchemaDefinition, struct, block)]
 /// Definition of the entire Destack Schema ("language definition").
@@ -14,5 +18,5 @@ pub struct SchemaDefinition {
     nodes: Vec<NodeDefinition>,
     structs: Vec<StructDefinition>,
     handles: Vec<HandleDefinition>,
-    enums: Vec<EnumDefinition>
+    enums: Vec<EnumDefinition>,
 }

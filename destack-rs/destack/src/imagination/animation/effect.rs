@@ -2,7 +2,10 @@
 
 #![destack::partial(destack.imagination.animation.effect, file)]
 
-use crate::{Axis3, Duration, Transition, Vector2};
+use crate::Axis3;
+use crate::Duration;
+use crate::Transition;
+use crate::Vector2;
 
 #[destack::generated(Effect, struct, block)]
 /// An effect value.

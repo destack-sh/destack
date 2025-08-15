@@ -22,7 +22,7 @@ pub struct Schedule {
     by_week_day: Vec<DayOfWeek>,
     by_hour: Vec<u8>,
     by_minute: Vec<u8>,
-    by_second: Vec<u8>
+    by_second: Vec<u8>,
 }
 
 #[destack::generated(DayOfWeek, enum, block)]
@@ -41,7 +41,7 @@ pub enum DayOfWeek {
     /// Saturday
     Saturday = 6,
     /// Sunday
-    Sunday = 7
+    Sunday = 7,
 }
 
 #[destack::generated(Month, enum, block)]
@@ -70,7 +70,7 @@ pub enum Month {
     /// November
     November = 11,
     /// December
-    December = 12
+    December = 12,
 }
 
 #[destack::generated(ScheduleFrequency, enum, block)]
@@ -87,5 +87,5 @@ pub enum ScheduleFrequency {
     /// Hourly
     Hour = 5,
     /// Minutely
-    Minute = 6
+    Minute = 6,
 }

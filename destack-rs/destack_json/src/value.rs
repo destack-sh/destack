@@ -1,4 +1,5 @@
-use crate::format::{FormatOptions, format_json};
+use crate::format::FormatOptions;
+use crate::format::format_json;
 use std::fmt;
 
 /// A JSON value representation.
@@ -137,7 +138,8 @@ impl fmt::Display for JsonValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{format::FormatOptions, parse::parse_json};
+    use crate::format::FormatOptions;
+    use crate::parse::parse_json;
 
     #[test]
     fn display_and_debug_compact() {

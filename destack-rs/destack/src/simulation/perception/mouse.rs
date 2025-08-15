@@ -10,5 +10,5 @@ pub enum MouseButton {
     /// Right button
     Right = 2,
     /// Middle button
-    Middle = 3
+    Middle = 3,
 }

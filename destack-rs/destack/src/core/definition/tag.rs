@@ -8,5 +8,5 @@ pub struct TagDefinition {
     id: u8,
     name: String,
     description: String,
-    is_internal: bool
+    is_internal: bool,
 }

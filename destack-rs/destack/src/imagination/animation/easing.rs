@@ -24,5 +24,5 @@ pub enum Easing {
     EaseInExpo = 60,
     EaseOutExpo = 61,
     EaseInOutExpo = 62,
-    EasePen = 70
+    EasePen = 70,
 }

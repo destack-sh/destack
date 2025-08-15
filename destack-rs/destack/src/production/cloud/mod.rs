@@ -3,11 +3,11 @@
 #![destack::partial(production/cloud, file)]
 #![allow(unused_imports)]
 
-pub use crate::production::cloud::machine::*;
 pub use crate::production::cloud::_gen::*;
+pub use crate::production::cloud::machine::*;
 
-mod machine;
 mod _gen;
+mod machine;
 
 pub(crate) use crate::production::cloud::_gen::*;
 

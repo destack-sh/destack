@@ -7,5 +7,5 @@
 pub struct ObjectDefinition {
     id: u32,
     name: String,
-    description: String
+    description: String,
 }
