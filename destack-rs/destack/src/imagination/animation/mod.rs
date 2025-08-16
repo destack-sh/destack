@@ -2,49 +2,14 @@
 
 #![destack::partial(destack.imagination.animation, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::imagination::animation::_gen::*;
+pub use crate::imagination::animation::_gen::*;
 pub use crate::imagination::animation::easing::*;
 pub use crate::imagination::animation::effect::*;
 pub use crate::imagination::animation::transition::*;
 
-mod _gen;
-mod easing;
-mod effect;
-mod transition;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
-
-pub(crate) use crate::imagination::animation::_gen::*;
+pub mod _gen;
+pub mod easing;
+pub mod effect;
+pub mod transition;

@@ -21,12 +21,12 @@ impl Default for Vector2 {
 
 #[destack::partial(Vector2, impl, block)]
 impl Vector2 {
-    pub(crate) const INTERNAL_CONST: Vector2 = Vector2 { x: 111.0, y: 222.0 };
+    pub const INTERNAL_CONST: Vector2 = Vector2 { x: 111.0, y: 222.0 };
 
     #[destack::generated(Vector2, ZERO, line)]
     pub const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
 
-    pub(crate) const INTERNAL_CONST_2: Vector2 = Vector2 { x: 111.0, y: 222.0 };
+    pub const INTERNAL_CONST_2: Vector2 = Vector2 { x: 111.0, y: 222.0 };
 
     #[destack::partial(Vector2, distance_squared, block)]
     #[inline]
@@ -131,12 +131,12 @@ impl fmt::Display for Vector2 {
 
 #[destack::partial(Vector2, impl, block)]
 impl Vector2 {
-    pub(crate) const INTERNAL_CONST: Vector2 = Vector2 { x: 111.0, y: 222.0 };
+    pub const INTERNAL_CONST: Vector2 = Vector2 { x: 111.0, y: 222.0 };
 
     #[destack::generated(Vector2, ZERO, line)]
     pub const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
 
-    pub(crate) const INTERNAL_CONST_2: Vector2 = Vector2 { x: 111.0, y: 222.0 };
+    pub const INTERNAL_CONST_2: Vector2 = Vector2 { x: 111.0, y: 222.0 };
 
     #[destack::generated(Vector2, ONE, line)]
     pub const ONE: Vector2 = Vector2 { x: 1.0, y: 1.0 };

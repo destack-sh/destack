@@ -2,13 +2,13 @@
 #![feature(custom_inner_attributes)]
 #![register_tool(destack)]
 
-mod basics;
-mod core;
-mod distribution;
-mod imagination;
-mod presentation;
-mod production;
-mod simulation;
+pub mod basics;
+pub mod core;
+pub mod distribution;
+pub mod imagination;
+pub mod presentation;
+pub mod production;
+pub mod simulation;
 
 pub use crate::basics::*;
 pub use crate::core::*;

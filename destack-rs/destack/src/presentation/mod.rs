@@ -2,45 +2,10 @@
 
 #![destack::partial(destack.presentation, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::presentation::scene::*;
+pub use crate::presentation::scene::*;
 pub use crate::presentation::view::*;
 
-mod scene;
-mod view;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
-
-pub(crate) use crate::presentation::scene::*;
+pub mod scene;
+pub mod view;

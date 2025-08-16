@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.imagination.document, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::imagination::document::document::*;
+pub use crate::imagination::document::document::*;
 
-mod document;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
-
-pub(crate) use crate::imagination::document::document::*;
+pub mod document;

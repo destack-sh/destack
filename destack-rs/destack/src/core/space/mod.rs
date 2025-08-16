@@ -2,87 +2,16 @@
 
 #![destack::partial(destack.core.space, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::core::space::_gen::*;
+pub use crate::core::space::_gen::*;
 pub use crate::core::space::branch::*;
 pub use crate::core::space::folder::*;
 pub use crate::core::space::snapshot::*;
-pub(crate) use crate::core::space::space::*;
+pub use crate::core::space::space::*;
 
-mod _gen;
-mod branch;
-mod folder;
-mod snapshot;
-mod space;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
-
-pub(crate) use crate::core::space::_gen::*;
-
-pub(crate) use crate::core::space::space::*;
+pub mod _gen;
+pub mod branch;
+pub mod folder;
+pub mod snapshot;
+pub mod space;

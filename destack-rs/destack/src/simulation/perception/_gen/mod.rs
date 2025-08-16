@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.simulation.perception._gen, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
+pub use crate::simulation::perception::_gen::mouse_gen::*;
 
-mod mouse_gen;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
-
-pub(crate) use crate::simulation::perception::_gen::mouse_gen::*;
+pub mod mouse_gen;

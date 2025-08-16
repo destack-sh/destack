@@ -28,10 +28,10 @@ from destack.registry import (
 from .core import (
     RustAttribute,
     RustFile,
-    RustGenerationType,
     RustImport,
     RustItemScope,
     RustManagedItem,
+    RustManagedType,
     RustModDeclaration,
     ecsape_rust_identifier,
     local_path_to_source_path,
@@ -205,7 +205,7 @@ pub fn {signature} {{
 """
 
     item = RustManagedItem(
-        type=RustGenerationType.PARTIAL,
+        type=RustManagedType.PARTIAL,
         scope=RustItemScope.BLOCK,
         object_key=object_key,
         inner_key=inner_key,
@@ -258,7 +258,7 @@ pub struct {struct.name} {{
 """
 
     item = RustManagedItem(
-        type=RustGenerationType.GENERATED,
+        type=RustManagedType.GENERATED,
         scope=RustItemScope.BLOCK,
         object_key=object_key,
         inner_key="",
@@ -292,7 +292,7 @@ impl std::fmt::Debug for {struct.name} {{
 """
 
     item = RustManagedItem(
-        type=RustGenerationType.GENERATED,
+        type=RustManagedType.GENERATED,
         scope=RustItemScope.BLOCK,
         object_key=object_key,
         inner_key="Debug",
@@ -336,7 +336,7 @@ pub enum {enum.name} {{
 """
 
     item = RustManagedItem(
-        type=RustGenerationType.GENERATED,
+        type=RustManagedType.GENERATED,
         scope=RustItemScope.BLOCK,
         object_key=enum.name,
         inner_key="",
@@ -372,7 +372,7 @@ impl std::fmt::Debug for {enum.name} {{
 """
 
     item = RustManagedItem(
-        type=RustGenerationType.GENERATED,
+        type=RustManagedType.GENERATED,
         scope=RustItemScope.BLOCK,
         object_key=object_key,
         inner_key="Debug",
@@ -468,7 +468,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         # partial file
         partial_imports = _get_imports(partial_items)
         partial_file = RustFile(
-            type=RustGenerationType.PARTIAL,
+            type=RustManagedType.PARTIAL,
             source_path=module.path,
             local_path=source_path_to_local_path(module.path, is_gen=False),
             imports=partial_imports,
@@ -476,7 +476,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             comment=f"//! {module.name}@{VERSION}",
             attributes=[
                 RustAttribute(
-                    content=f"#![destack::{RustGenerationType.PARTIAL.value}({module.path}, file)]"
+                    content=f"#![destack::{RustManagedType.PARTIAL.value}({module.path}, file)]"
                 ),
             ],
         )
@@ -486,7 +486,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         if gen_items:
             gen_imports = _get_imports(gen_items)
             gen_file = RustFile(
-                type=RustGenerationType.GENERATED,
+                type=RustManagedType.GENERATED,
                 source_path=module.path,
                 local_path=source_path_to_local_path(module.path, is_gen=True),
                 imports=gen_imports,
@@ -494,7 +494,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
                 comment=f"//! {module.name}@{VERSION}",
                 attributes=[
                     RustAttribute(
-                        content=f"#![destack::{RustGenerationType.GENERATED.value}({module.path}, file)]"
+                        content=f"#![destack::{RustManagedType.GENERATED.value}({module.path}, file)]"
                     ),
                 ],
             )
@@ -521,7 +521,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         imports: list[RustImport] = []
         for inner_name in directory_files:
             # mod
-            mod = RustModDeclaration(name=inner_name, is_public=False)
+            mod = RustModDeclaration(name=inner_name, is_public=True)
             mods.append(mod)
             # import
             full_name = f"crate/{directory}/{inner_name}".replace("/", "::")
@@ -538,7 +538,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         local_path = directory + "/mod.rs"
         source_path = local_path_to_source_path(local_path)[:-7]  # minus mod.rs
         mod_file = RustFile(
-            type=RustGenerationType.PARTIAL,
+            type=RustManagedType.PARTIAL,
             source_path=source_path,
             local_path=local_path,
             imports=imports,
@@ -548,9 +548,10 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             comment=f"//! {source_path}@{VERSION}",
             attributes=[
                 RustAttribute(
-                    content=f"#![destack::{RustGenerationType.PARTIAL.value}({source_path}, file)]"
+                    content=f"#![destack::{RustManagedType.PARTIAL.value}({source_path}, file)]"
                 ),
                 RustAttribute(content="#![allow(unused_imports)]"),
+                RustAttribute(content="#![allow(unreachable_pub)]"),
             ],
         )
         files[mod_file.local_path] = mod_file

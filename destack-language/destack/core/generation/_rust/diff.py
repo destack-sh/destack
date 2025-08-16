@@ -8,11 +8,11 @@ from .core import (
     RustAttribute,
     RustCustomItem,
     RustFile,
-    RustGenerationType,
     RustImport,
     RustItem,
     RustItemScope,
     RustManagedItem,
+    RustManagedType,
     RustModDeclaration,
     render_rust_destack_attribute,
     render_rust_file,
@@ -150,11 +150,11 @@ def _merge_managed_item(old_item: RustManagedItem, new_item: RustManagedItem) ->
     )
 
     # for generated items, always use new
-    if new_item.type == RustGenerationType.GENERATED:
+    if new_item.type == RustManagedType.GENERATED:
         return new_item
 
     # for partial items, merge based on scope
-    elif new_item.type == RustGenerationType.PARTIAL:
+    elif new_item.type == RustManagedType.PARTIAL:
         if new_item.scope == RustItemScope.LINE:
             raise ValueError(f"unexpected partial line: {new_item!r}")
         elif new_item.scope == RustItemScope.BLOCK:
@@ -163,7 +163,7 @@ def _merge_managed_item(old_item: RustManagedItem, new_item: RustManagedItem) ->
             assert_never(new_item.scope)
 
     # custom shouldn't get here
-    elif new_item.type == RustGenerationType.CUSTOM:
+    elif new_item.type == RustManagedType.CUSTOM:
         raise ValueError(f"cannot merge custom: {new_item!r}")
 
     else:
@@ -297,19 +297,19 @@ def diff_rust_file(old_file: RustFile, new_file: RustFile) -> RustFileOperation:
         )
 
     # replace fully generated files
-    if old_file.type == RustGenerationType.GENERATED:
+    if old_file.type == RustManagedType.GENERATED:
         operation_type = RustFileOperationType.REPLACE
         combined_file = new_file
         combined_content = render_rust_file(combined_file)
 
     # patch partial files
-    elif old_file.type == RustGenerationType.PARTIAL:
+    elif old_file.type == RustManagedType.PARTIAL:
         operation_type = RustFileOperationType.PATCH
         combined_file = _patch_rust_file(old_file, new_file)
         combined_content = render_rust_file(combined_file)
 
     # custom files shouldn't be diffed
-    elif old_file.type == RustGenerationType.CUSTOM:
+    elif old_file.type == RustManagedType.CUSTOM:
         raise ValueError(f"unexpected custom old file: {old_file!r}")
 
     #
@@ -355,7 +355,7 @@ def diff_rust_files(
 
         # case 1: old file exists, new file does not exist
         if old_file is not None and new_file is None:
-            if old_file.type == RustGenerationType.GENERATED:
+            if old_file.type == RustManagedType.GENERATED:
                 # remove generated files
                 operations.append(
                     RustFileOperation(
@@ -367,7 +367,7 @@ def diff_rust_files(
                         combined_content=None,
                     )
                 )
-            elif old_file.type == RustGenerationType.PARTIAL:
+            elif old_file.type == RustManagedType.PARTIAL:
                 # warn for partial files
                 operations.append(
                     RustFileOperation(
@@ -379,7 +379,7 @@ def diff_rust_files(
                         combined_content=None,
                     )
                 )
-            elif old_file.type == RustGenerationType.CUSTOM:
+            elif old_file.type == RustManagedType.CUSTOM:
                 pass  # do nothing
             else:
                 assert_never(old_file.type)

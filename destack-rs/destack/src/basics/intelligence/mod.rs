@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.basics.intelligence, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::basics::intelligence::model::*;
+pub use crate::basics::intelligence::model::*;
 
-mod model;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
-
-pub(crate) use crate::basics::intelligence::model::*;
+pub mod model;

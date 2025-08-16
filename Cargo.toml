@@ -46,6 +46,7 @@ perf = "warn"
 uninlined_format_args = "warn"
 expect_used = "warn"
 manual_range_contains = { level = "allow", priority = 1 }
+module_inception = { level = "allow", priority = 1 }
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"

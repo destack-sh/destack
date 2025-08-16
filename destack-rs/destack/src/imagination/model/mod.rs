@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.imagination.model, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::imagination::model::model::*;
+pub use crate::imagination::model::model::*;
 
-mod model;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
-
-pub(crate) use crate::imagination::model::model::*;
+pub mod model;

@@ -2,161 +2,18 @@
 
 #![destack::partial(destack.core.universe, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::core::universe::_gen::*;
-pub(crate) use crate::core::universe::client::*;
-pub(crate) use crate::core::universe::organization::*;
-pub(crate) use crate::core::universe::team::*;
+pub use crate::core::universe::_gen::*;
+pub use crate::core::universe::client::*;
+pub use crate::core::universe::organization::*;
+pub use crate::core::universe::team::*;
 pub use crate::core::universe::universe::*;
 pub use crate::core::universe::user::*;
 
-mod _gen;
-mod client;
-mod organization;
-mod team;
-mod universe;
-mod user;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
-
-pub(crate) use crate::core::universe::_gen::*;
-
-pub(crate) use crate::core::universe::client::*;
-
-pub(crate) use crate::core::universe::organization::*;
-
-pub(crate) use crate::core::universe::team::*;
+pub mod _gen;
+pub mod client;
+pub mod organization;
+pub mod team;
+pub mod universe;
+pub mod user;

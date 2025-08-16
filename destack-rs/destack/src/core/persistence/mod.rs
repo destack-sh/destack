@@ -2,119 +2,12 @@
 
 #![destack::partial(destack.core.persistence, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::core::persistence::connection::*;
-pub(crate) use crate::core::persistence::graph::*;
-pub(crate) use crate::core::persistence::stream::*;
+pub use crate::core::persistence::connection::*;
+pub use crate::core::persistence::graph::*;
+pub use crate::core::persistence::stream::*;
 
-mod connection;
-mod graph;
-mod stream;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
-
-pub(crate) use crate::core::persistence::connection::*;
-
-pub(crate) use crate::core::persistence::graph::*;
-
-pub(crate) use crate::core::persistence::stream::*;
+pub mod connection;
+pub mod graph;
+pub mod stream;

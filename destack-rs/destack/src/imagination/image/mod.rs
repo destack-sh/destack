@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.imagination.image, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::imagination::image::image::*;
+pub use crate::imagination::image::image::*;
 
-mod image;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
-
-pub(crate) use crate::imagination::image::image::*;
+pub mod image;

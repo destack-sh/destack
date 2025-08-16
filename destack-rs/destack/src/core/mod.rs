@@ -2,131 +2,24 @@
 
 #![destack::partial(destack.core, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
 pub use crate::core::builtin::*;
 pub use crate::core::common::*;
 pub use crate::core::definition::*;
 pub use crate::core::encoding::*;
-pub(crate) use crate::core::generation::*;
-pub(crate) use crate::core::local::*;
-pub(crate) use crate::core::persistence::*;
+pub use crate::core::generation::*;
+pub use crate::core::local::*;
+pub use crate::core::persistence::*;
 pub use crate::core::space::*;
 pub use crate::core::universe::*;
 
-mod builtin;
-mod common;
-mod definition;
-mod encoding;
-mod generation;
-mod local;
-mod persistence;
-mod space;
-mod universe;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
-
-pub(crate) use crate::core::generation::*;
-
-pub(crate) use crate::core::local::*;
-
-pub(crate) use crate::core::persistence::*;
+pub mod builtin;
+pub mod common;
+pub mod definition;
+pub mod encoding;
+pub mod generation;
+pub mod local;
+pub mod persistence;
+pub mod space;
+pub mod universe;

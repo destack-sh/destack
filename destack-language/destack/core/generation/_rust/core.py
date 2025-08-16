@@ -66,15 +66,15 @@ def local_path_to_raw_path(local_path: str) -> Path:
     return DESTACK_RS_SRC_PATH / local_path
 
 
-class RustGenerationType(StrEnum):
+class RustManagedType(StrEnum):
     """What type of generation."""
 
+    """Fully generated part."""
+    GENERATED = "generated"
+    """Partially custom, partially generated."""
+    PARTIAL = "partial"
     """Fully custom part."""
     CUSTOM = "custom"
-    """Fully managed part."""
-    GENERATED = "generated"
-    """Partially custom, partially managed."""
-    PARTIAL = "partial"
 
 
 class RustItemScope(StrEnum):
@@ -105,7 +105,7 @@ class RustCustomItem(RustItem):
 class RustManagedItem(RustItem):
     object_key: str  # like 'Vector2'
     inner_key: str  # like 'struct', 'PartialEq', 'Add:Vector2'
-    type: RustGenerationType
+    type: RustManagedType
     scope: RustItemScope
     dependencies: Sequence[str] | None = None  # like ['MouseButtonType', 'TextSpan']
     _key: str = dataclasses.field(init=False)
@@ -142,7 +142,7 @@ class RustImport:
     source: str  # like 'core (up to the imported items, but excluding them)
     imports: list[str]  # like '["fmt", "Add", "AddAssign", ...]'
     is_internal: bool  # whether this import referes to the crate itself
-    is_public: bool  # whether the import is declared with a public visibility
+    is_public: bool  # whether the import is declared with 'pub'
     is_glob: bool  # whether the import uses '*'
 
 
@@ -151,7 +151,7 @@ class RustFile:
     """A specific RustFile."""
 
     """The type of RustFile (set manually or determined via crate attributes)."""
-    type: RustGenerationType
+    type: RustManagedType
     """Raw local path like destack/src/simulation/geometry/vector.rs"""
     local_path: str
     """Normalized source path like `destack.simulation.geometry.vector.Vector2`"""

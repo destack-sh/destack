@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.core.generation, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::core::generation::layout::*;
+pub use crate::core::generation::layout::*;
 
-mod layout;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
-
-pub(crate) use crate::core::generation::layout::*;
+pub mod layout;

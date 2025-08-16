@@ -2,6 +2,8 @@
 
 #![destack::partial(destack.simulation.geometry.vector, file)]
 
+use crate::Rectangle2D;
+
 #[destack::generated(Vector2, -, block)]
 /// A 2D floating point Vector.
 pub struct Vector2 {
