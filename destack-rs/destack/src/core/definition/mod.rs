@@ -71,6 +71,18 @@ pub(crate) use crate::core::definition::method::*;
 
 pub(crate) use crate::core::definition::object::*;
 
+pub(crate) use crate::core::definition::_gen::*;
+
+pub(crate) use crate::core::definition::action::*;
+
+pub(crate) use crate::core::definition::definition::*;
+
+pub(crate) use crate::core::definition::index::*;
+
+pub(crate) use crate::core::definition::method::*;
+
+pub(crate) use crate::core::definition::object::*;
+
 pub(crate) use crate::core::definition::action::*;
 
 pub(crate) use crate::core::definition::definition::*;

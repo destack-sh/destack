@@ -5,10 +5,8 @@
 #[destack::generated(Encoding, -, block)]
 /// Encoding scheme.
 pub enum Encoding {
-    /// JSON encoding
-    Json = 1,
     /// KOMPAKT encoding (optimized for size)
-    Kompakt = 3,
+    Kompakt = 1,
 }
 
 #[destack::generated(EncoderFlag, -, block)]

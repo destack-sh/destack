@@ -34,3 +34,9 @@ pub(crate) use crate::imagination::animation::_gen::easing_gen::*;
 pub(crate) use crate::imagination::animation::_gen::effect_gen::*;
 
 pub(crate) use crate::imagination::animation::_gen::transition_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::easing_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::effect_gen::*;
+
+pub(crate) use crate::imagination::animation::_gen::transition_gen::*;

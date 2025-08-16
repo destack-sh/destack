@@ -10,7 +10,6 @@ use crate::Encoding;
 impl std::fmt::Debug for Encoding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Encoding::Json => write!(f, "JSON"),
             Encoding::Kompakt => write!(f, "KOMPAKT"),
         }
     }

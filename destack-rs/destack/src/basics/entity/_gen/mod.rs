@@ -47,4 +47,14 @@ pub(crate) use crate::basics::entity::_gen::tag_gen::*;
 
 pub(crate) use crate::basics::entity::_gen::constraint_gen::*;
 
+pub(crate) use crate::basics::entity::_gen::custom_gen::*;
+
+pub(crate) use crate::basics::entity::_gen::index_gen::*;
+
+pub(crate) use crate::basics::entity::_gen::migration_gen::*;
+
+pub(crate) use crate::basics::entity::_gen::tag_gen::*;
+
+pub(crate) use crate::basics::entity::_gen::constraint_gen::*;
+
 pub(crate) use crate::basics::entity::_gen::migration_gen::*;

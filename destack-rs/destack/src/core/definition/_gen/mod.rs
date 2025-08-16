@@ -76,3 +76,21 @@ pub(crate) use crate::core::definition::_gen::property_gen::*;
 pub(crate) use crate::core::definition::_gen::schema_gen::*;
 
 pub(crate) use crate::core::definition::_gen::struct_gen::*;
+
+pub(crate) use crate::core::definition::_gen::constant_gen::*;
+
+pub(crate) use crate::core::definition::_gen::enum_gen::*;
+
+pub(crate) use crate::core::definition::_gen::handle_gen::*;
+
+pub(crate) use crate::core::definition::_gen::module_gen::*;
+
+pub(crate) use crate::core::definition::_gen::node_gen::*;
+
+pub(crate) use crate::core::definition::_gen::option_gen::*;
+
+pub(crate) use crate::core::definition::_gen::property_gen::*;
+
+pub(crate) use crate::core::definition::_gen::schema_gen::*;
+
+pub(crate) use crate::core::definition::_gen::struct_gen::*;

@@ -434,8 +434,6 @@ class KompaktEncoder(Encoder):
                 encoder.write_character(value)
             elif type.primitive_type == PrimitiveType.UUID:
                 encoder.write_uuid(value)
-            elif type.primitive_type == PrimitiveType.BYTES:
-                encoder.write_bytes(value)
             elif type.primitive_type == PrimitiveType.JSON:
                 encoder.write_json(value)
             else:
@@ -534,8 +532,6 @@ class KompaktEncoder(Encoder):
                 return decoder.read_character()
             elif type.primitive_type == PrimitiveType.UUID:
                 return decoder.read_uuid()
-            elif type.primitive_type == PrimitiveType.BYTES:
-                return decoder.read_bytes()
             elif type.primitive_type == PrimitiveType.JSON:
                 return decoder.read_json()
             else:

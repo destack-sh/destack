@@ -1,4 +1,3 @@
-from ._json import JsonEncoder
 from ._kompakt import KompaktEncoder
 from .binary import BinaryDecoder, BinaryEncoder
 from .encoder import Encoder, EncoderFlag
@@ -11,6 +10,5 @@ __all__ = [
     "EncoderFlag",
     "Hasher",
     "Hasher",
-    "JsonEncoder",
     "KompaktEncoder",
 ]

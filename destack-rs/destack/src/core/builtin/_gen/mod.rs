@@ -51,4 +51,14 @@ pub(crate) use crate::core::builtin::_gen::entity_gen::*;
 
 pub(crate) use crate::core::builtin::_gen::event_gen::*;
 
+pub(crate) use crate::core::builtin::_gen::fractional_gen::*;
+
+pub(crate) use crate::core::builtin::_gen::universe_gen::*;
+
+pub(crate) use crate::core::builtin::_gen::casing_gen::*;
+
+pub(crate) use crate::core::builtin::_gen::entity_gen::*;
+
+pub(crate) use crate::core::builtin::_gen::event_gen::*;
+
 pub(crate) use crate::core::builtin::_gen::universe_gen::*;

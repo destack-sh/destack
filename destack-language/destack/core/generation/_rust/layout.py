@@ -176,9 +176,6 @@ class RustObjectSizer(ObjectSizer):
                 return ObjectSize(self.DURATION_SIZE, self.DURATION_SIZE)
             elif type.primitive_type == PrimitiveType.UUID:
                 return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
-            elif type.primitive_type == PrimitiveType.BYTES:
-                # Vec<u8> header
-                return ObjectSize(self.VEC_HEADER_SIZE, None)
             elif type.primitive_type == PrimitiveType.STRING:
                 # String header
                 return ObjectSize(self.STRING_HEADER_SIZE, None)

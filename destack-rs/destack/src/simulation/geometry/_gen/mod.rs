@@ -108,3 +108,29 @@ pub(crate) use crate::simulation::geometry::_gen::quaternion_gen::*;
 pub(crate) use crate::simulation::geometry::_gen::rectangle_gen::*;
 
 pub(crate) use crate::simulation::geometry::_gen::vector_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::capsule_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::circle_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::cone_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::cylinder_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::ellipse_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::line_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::mesh_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::path_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::plane_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::point_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::quaternion_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::rectangle_gen::*;
+
+pub(crate) use crate::simulation::geometry::_gen::vector_gen::*;

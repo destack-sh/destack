@@ -34,3 +34,9 @@ pub(crate) use crate::presentation::scene::layer::*;
 pub(crate) use crate::presentation::scene::scene::*;
 
 pub(crate) use crate::presentation::scene::stage::*;
+
+pub(crate) use crate::presentation::scene::layer::*;
+
+pub(crate) use crate::presentation::scene::scene::*;
+
+pub(crate) use crate::presentation::scene::stage::*;

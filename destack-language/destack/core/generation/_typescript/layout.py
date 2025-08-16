@@ -153,9 +153,6 @@ class TypeScriptObjectSizer(ObjectSizer):
                 # 36 UTF-16 code units = 72 bytes
                 uuid_bytes = 36 * 2
                 return ObjectSize(uuid_bytes, uuid_bytes)
-            elif type.primitive_type == PrimitiveType.BYTES:
-                # ArrayBuffer with unknown payload length
-                return ObjectSize(self.BYTES_EMPTY_SIZE, None)
             elif type.primitive_type == PrimitiveType.STRING:
                 # dynamic payload length (UTF-16)
                 return ObjectSize(self.STRING_EMPTY_SIZE, None)
@@ -248,8 +245,6 @@ class TypeScriptObjectSizer(ObjectSizer):
                     return False
                 elif primitive == PrimitiveType.UUID:
                     return False
-                elif primitive == PrimitiveType.BYTES:
-                    return True
                 elif primitive == PrimitiveType.DATETIME:
                     return True
                 elif primitive == PrimitiveType.DATE:

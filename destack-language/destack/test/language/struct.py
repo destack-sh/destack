@@ -1,13 +1,12 @@
 from destack import (
     Form2D,
     Rectangle2D,
-    Session,
     Struct,
     StructType,
 )
 
 
-def test_struct_inheritance(session: Session):
+def test_struct_inheritance():
     """Test the Struct inheritance hierarchy."""
     # test Struct as base
     assert Struct.metatype == StructType.STRUCT
