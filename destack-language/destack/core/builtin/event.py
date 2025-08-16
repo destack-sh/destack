@@ -171,17 +171,6 @@ class Event(Node):
         description="The nonce of the Client that created this Event (client).",
         tag="tracking",
     )
-    client_created_at: Timestamp = declare_property(
-        25,
-        is_eq=False,
-        is_hash=False,
-        is_repr=False,
-        is_managed=True,
-        is_readonly=True,
-        default_factory=ValueFactory.NOW,
-        description="The time in the Client when it created this Event (client).",
-        tag="tracking",
-    )
     client_remote_epoch: UInt64 = declare_property(
         26,
         is_eq=False,

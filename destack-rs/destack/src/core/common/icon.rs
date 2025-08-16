@@ -82,7 +82,6 @@ pub enum PrimitiveType {
     /// Range: 0 to 2^32-1
     Character = 51,
     /// Universally unique identifier (UUID7, 128-bit)
-    /// The zero UUID is invalid (00000000-0000-0000-0000-000000000000).
     /// Range: 0 to 2^128-1
     Uuid = 54,
     /// JSON (32-bit variable length)

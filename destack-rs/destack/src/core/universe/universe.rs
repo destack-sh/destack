@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.universe.universe, file)]
 
-use crate::{Region, Timestamp, Uuid};
+use crate::{Region, Uuid};
 
 #[destack::generated(UniverseSignupRequest, -, block)]
 /// UniverseSignupRequest
@@ -10,7 +10,6 @@ pub struct UniverseSignupRequest {
     pub id: Uuid,
     pub client: i64, /* TODO */
     pub client_nonce: u8,
-    pub client_created_at: Timestamp,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
     pub name: String,
@@ -24,7 +23,6 @@ pub struct UniverseSignupResponse {
     pub id: Uuid,
     pub client: i64, /* TODO */
     pub client_nonce: u8,
-    pub client_created_at: Timestamp,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
     pub user: i64, /* TODO */
@@ -36,7 +34,6 @@ pub struct UniverseSpawnRequest {
     pub id: Uuid,
     pub client: i64, /* TODO */
     pub client_nonce: u8,
-    pub client_created_at: Timestamp,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
     pub name: String,
@@ -50,7 +47,6 @@ pub struct UniverseSpawnResponse {
     pub id: Uuid,
     pub client: i64, /* TODO */
     pub client_nonce: u8,
-    pub client_created_at: Timestamp,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
     pub space: i64, /* TODO */

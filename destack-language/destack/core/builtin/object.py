@@ -176,19 +176,11 @@ class ObjectGenerator:
             # node setup
             body_properties.pop("id")
             if NodeType.ENTITY in declaration.inherits:
-                body_properties.pop("created_at")
                 body_properties.pop("created_epoch")
-                body_properties.pop("created_by")
-                body_properties.pop("updated_at")
                 body_properties.pop("updated_epoch")
-                body_properties.pop("updated_by")
             elif NodeType.EVENT in declaration.inherits:
-                body_properties.pop("created_at")
                 body_properties.pop("created_epoch")
-                body_properties.pop("created_by")
                 body_properties.pop("client")
-                body_properties.pop("client_created_at")
-                body_properties.pop("client_remote_epoch")
                 body_properties.pop("client_local_epoch")
             else:
                 raise NotImplementedError(f"unexpected node {cls.__name__}")
@@ -207,25 +199,18 @@ if id is None:
                 method_body_lines.append("""\
     id = uuid7()
     _now = _session.context.now()
-    created_at = _now
     created_epoch = _session.remote_epoch
-    created_by_ref = _session.context.actor_ref
-    updated_at = _now
     updated_epoch = _session.remote_epoch
-    updated_by_ref = _session.context.actor_ref
 """)
             elif NodeType.EVENT in declaration.inherits:
                 method_body_lines.append("""\
     id = uuid7()
     _now = _session.context.now()
     created_epoch = _session.remote_epoch
-    created_at = _now
-    created_by_ref = _session.context.actor_ref
     client_ref = _session.context.client_ref
     client_nonce = _session.context.client_nonce
     client_remote_epoch = _session.remote_epoch
     client_local_epoch = _session.local_epoch
-    client_created_at = _now
 """)
             else:
                 raise NotImplementedError(f"unexpected node {cls.__name__}")
@@ -238,21 +223,14 @@ else:
 
             if NodeType.ENTITY in declaration.inherits:
                 method_body_lines.append(f"""\
-{set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
-{set_template_str.format("created_by_ref", "created_by_ref")}
-{set_template_str.format("updated_at", "updated_at")}
 {set_template_str.format("updated_epoch", "updated_epoch")}
-{set_template_str.format("updated_by_ref", "updated_by_ref")}
 """)
             elif NodeType.EVENT in declaration.inherits:
                 method_body_lines.append(f"""\
-{set_template_str.format("created_at", "created_at")}
 {set_template_str.format("created_epoch", "created_epoch")}
-{set_template_str.format("created_by_ref", "created_by_ref")}
 {set_template_str.format("client_ref", "client_ref")}
 {set_template_str.format("client_nonce", "client_nonce")}
-{set_template_str.format("client_created_at", "client_created_at")}
 {set_template_str.format("client_remote_epoch", "client_remote_epoch")}
 {set_template_str.format("client_local_epoch", "client_local_epoch")}
 """)
