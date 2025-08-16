@@ -1,6 +1,9 @@
 #![feature(register_tool)]
 #![feature(custom_inner_attributes)]
 #![register_tool(destack)]
+#![doc(test(attr(feature(register_tool))))]
+#![doc(test(attr(feature(custom_inner_attributes))))]
+#![doc(test(attr(register_tool(destack))))]
 
 pub mod basics;
 pub mod core;
