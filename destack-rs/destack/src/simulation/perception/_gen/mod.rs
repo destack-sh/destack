@@ -4,6 +4,4 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::perception::_gen::mouse_gen::*;
-
 pub mod mouse_gen;

@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.rectangle, file)]
 
-use crate::Box3D;
-use crate::Rectangle2D;
+use crate::{Box3D, Rectangle2D};
 
 #[destack::generated(Rectangle2D, Debug, block)]
 impl std::fmt::Debug for Rectangle2D {

@@ -2,11 +2,7 @@
 
 #![destack::partial(destack.core.common.relation, file)]
 
-use crate::HandleType;
-use crate::NodeType;
-use crate::ObjectKind;
-use crate::StructType;
-use crate::Uuid;
+use crate::{HandleType, NodeType, ObjectKind, StructType, Uuid};
 
 #[destack::generated(NodeIdentityReference, -, block)]
 /// A reference to a Node in an unknown space.

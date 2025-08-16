@@ -2,16 +2,10 @@
 
 #![destack::generated(destack.core.builtin.universe, file)]
 
-use crate::EnumType;
-use crate::HandleType;
-use crate::ModuleType;
-use crate::NodeType;
-use crate::ObjectKind;
-use crate::ObjectStability;
-use crate::StructType;
-use crate::TraitType;
-use crate::UniverseCategory;
-use crate::UniverseDomain;
+use crate::{
+    EnumType, HandleType, ModuleType, NodeType, ObjectKind, ObjectStability, StructType, TraitType,
+    UniverseCategory, UniverseDomain,
+};
 
 #[destack::generated(ObjectKind, Debug, block)]
 impl std::fmt::Debug for ObjectKind {

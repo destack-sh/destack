@@ -2,11 +2,7 @@
 
 #![destack::partial(destack.core.definition.schema, file)]
 
-use crate::EnumDefinition;
-use crate::HandleDefinition;
-use crate::ModuleDefinition;
-use crate::NodeDefinition;
-use crate::StructDefinition;
+use crate::{EnumDefinition, HandleDefinition, ModuleDefinition, NodeDefinition, StructDefinition};
 
 #[destack::generated(SchemaDefinition, -, block)]
 /// Definition of the entire Destack Schema ("language definition").

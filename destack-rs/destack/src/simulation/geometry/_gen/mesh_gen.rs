@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.mesh, file)]
 
-use crate::Mesh2;
-use crate::Mesh3;
+use crate::{Mesh2, Mesh3};
 
 #[destack::generated(Mesh2, Debug, block)]
 impl std::fmt::Debug for Mesh2 {

@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.rectangle, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Rectangle2D, -, block)]
 /// A Rectangle is a rectangle.

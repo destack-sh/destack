@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.core.builtin.entity, file)]
 
-use crate::ExtensionFlag;
-use crate::Materialization;
-use crate::ProcessFlag;
+use crate::{ExtensionFlag, Materialization, ProcessFlag};
 
 #[destack::generated(Materialization, Debug, block)]
 impl std::fmt::Debug for Materialization {

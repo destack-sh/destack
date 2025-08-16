@@ -2,12 +2,7 @@
 
 #![destack::partial(destack.basics.script.action, file)]
 
-use crate::ActionType;
-use crate::NodeType;
-use crate::RuntimeLanguage;
-use crate::RuntimePlatform;
-use crate::RuntimeType;
-use crate::StructType;
+use crate::{ActionType, NodeType, RuntimeLanguage, RuntimePlatform, RuntimeType, StructType};
 
 #[destack::generated(ActionDefinition, -, block)]
 /// Definition of a builtin Action.

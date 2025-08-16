@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.core.common.value, file)]
 
-use crate::NamedValue;
-use crate::Value;
+use crate::{NamedValue, Value};
 
 #[destack::generated(Value, Debug, block)]
 impl std::fmt::Debug for Value {

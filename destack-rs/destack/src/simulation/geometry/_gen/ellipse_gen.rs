@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.ellipse, file)]
 
-use crate::Ellipse2D;
-use crate::Ellipsoid3D;
+use crate::{Ellipse2D, Ellipsoid3D};
 
 #[destack::generated(Ellipse2D, Debug, block)]
 impl std::fmt::Debug for Ellipse2D {

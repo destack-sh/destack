@@ -4,16 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::definition::_gen::constant_gen::*;
-pub use crate::core::definition::_gen::enum_gen::*;
-pub use crate::core::definition::_gen::handle_gen::*;
-pub use crate::core::definition::_gen::module_gen::*;
-pub use crate::core::definition::_gen::node_gen::*;
-pub use crate::core::definition::_gen::option_gen::*;
-pub use crate::core::definition::_gen::property_gen::*;
-pub use crate::core::definition::_gen::schema_gen::*;
-pub use crate::core::definition::_gen::struct_gen::*;
-
 pub mod constant_gen;
 pub mod enum_gen;
 pub mod handle_gen;

@@ -458,6 +458,10 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
     """Generate the new clean files for a given Destack schema (by local path)."""
     files: dict[str, RustFile] = {}
 
+    #
+    # Object Modules
+    #
+
     # map object modules to files
     for module in schema.modules:
         if module.type != ModuleType.OBJECT:
@@ -501,7 +505,10 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             )
             files[gen_file.local_path] = gen_file
 
-    # add files for 'mod.rs' in each module
+    #
+    # mod.rs files
+    #
+
     # group files by directory
     mods_by_directory: dict[str, set[str]] = collections.defaultdict(set)
     for file in files.values():
@@ -515,27 +522,48 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         for i in range(len(directory_parts) - 1):
             parent_directory = "/".join(directory_parts[: i + 1])
             mods_by_directory[parent_directory].add(directory_parts[i + 1])
+
+    # gather all declared items per directory
+    items_by_directory: dict[str, set[str]] = collections.defaultdict(set)
+    for file in files.values():
+        directory = file.local_path.split(".", maxsplit=1)[0]
+        for item in file.items:
+            if isinstance(item, RustManagedItem) and not item.inner_key:  # main item only
+                items_by_directory[directory].add(item.object_key)
+    # accumulate declared items up to the root
+    # (e.g. basics/access/membership -> basics/access -> basics)
+    for directory in list(items_by_directory.keys()):
+        directory_parts = directory.split("/")
+        for i in range(len(directory_parts) - 1):
+            parent_directory = "/".join(directory_parts[: i + 1])
+            items_by_directory[parent_directory].update(items_by_directory[directory])
+
     # generate mod.rs files
     for directory, directory_files in mods_by_directory.items():
         # generate items
         mods: list[RustModDeclaration] = []
-        imports: list[RustImport] = []
         for inner_name in directory_files:
-            is_internal = inner_name.startswith("_")
             # mod declaration
             mod = RustModDeclaration(name=inner_name, visibility=RustVisibility.PUBLIC)
             mods.append(mod)
-            # import
-            if not is_internal:
-                full_name = f"crate/{directory}/{inner_name}".replace("/", "::")
-                imp = RustImport(
-                    source=full_name,
-                    imports=EMPTY_LIST,
-                    is_internal=True,
-                    visibility=RustVisibility.PUBLIC,
-                    is_glob=True,
-                )
-                imports.append(imp)
+
+        # accumulated imports from subdirectories
+        imports: list[RustImport] = []
+        for inner_name in directory_files:
+            if inner_name.startswith("_"):
+                continue  # skip internal items
+            full_name = f"crate/{directory}/{inner_name}".replace("/", "::")
+            inner_items = items_by_directory[f"{directory}/{inner_name}"]
+            if not inner_items:
+                continue  # nothing to re-export
+            imp = RustImport(
+                source=full_name,
+                imports=list(inner_items),
+                is_glob=False,
+                is_internal=True,
+                visibility=RustVisibility.PUBLIC,
+            )
+            imports.append(imp)
 
         # generate mod file
         local_path = directory + "/mod.rs"

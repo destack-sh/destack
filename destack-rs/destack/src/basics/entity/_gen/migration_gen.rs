@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.basics.entity.migration, file)]
 
-use crate::MigrationDefinition;
-use crate::MigrationOperationDefinition;
-use crate::MigrationType;
+use crate::{MigrationDefinition, MigrationOperationDefinition, MigrationType};
 
 #[destack::generated(MigrationDefinition, Debug, block)]
 impl std::fmt::Debug for MigrationDefinition {

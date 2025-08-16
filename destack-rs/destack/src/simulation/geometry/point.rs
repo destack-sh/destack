@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.point, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Point2D, -, block)]
 /// A Point is a zero-area shape with an optional local offset.

@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.core.definition.enum, file)]
 
-use crate::EnumType;
-use crate::OptionDefinition;
+use crate::{EnumType, OptionDefinition};
 
 #[destack::generated(EnumDefinition, -, block)]
 /// Definition of a builtin Enum.

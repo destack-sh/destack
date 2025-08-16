@@ -2,11 +2,10 @@
 
 #![destack::generated(destack.core.common.relation, file)]
 
-use crate::NodeIdentityReference;
-use crate::NodeSpatialReference;
-use crate::NodeTemporalReference;
-use crate::ObjectDefinitionReference;
-use crate::PropertyReference;
+use crate::{
+    NodeIdentityReference, NodeSpatialReference, NodeTemporalReference, ObjectDefinitionReference,
+    PropertyReference,
+};
 
 #[destack::generated(NodeIdentityReference, Debug, block)]
 impl std::fmt::Debug for NodeIdentityReference {

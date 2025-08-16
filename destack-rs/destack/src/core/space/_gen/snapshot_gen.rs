@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.core.space.snapshot, file)]
 
-use crate::SnapshotStatus;
-use crate::SnapshotType;
+use crate::{SnapshotStatus, SnapshotType};
 
 #[destack::generated(SnapshotType, Debug, block)]
 impl std::fmt::Debug for SnapshotType {

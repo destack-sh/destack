@@ -2,10 +2,7 @@
 
 #![destack::partial(destack.core.definition.property, file)]
 
-use crate::ReferenceType;
-use crate::Type;
-use crate::Value;
-use crate::ValueFactory;
+use crate::{ReferenceType, Type, Value, ValueFactory};
 
 #[destack::generated(PropertyDefinition, -, block)]
 /// Definition of a builtin Property.

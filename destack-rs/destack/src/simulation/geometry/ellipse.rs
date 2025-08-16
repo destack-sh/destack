@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.ellipse, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Ellipse2D, -, block)]
 /// An Ellipse is centered at a point with radii along x and y and a rotation.

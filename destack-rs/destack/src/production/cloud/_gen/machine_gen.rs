@@ -2,10 +2,7 @@
 
 #![destack::generated(destack.production.cloud.machine, file)]
 
-use crate::MachineType;
-use crate::Region;
-use crate::RegionArea;
-use crate::RegionContinent;
+use crate::{MachineType, Region, RegionArea, RegionContinent};
 
 #[destack::generated(MachineType, Debug, block)]
 impl std::fmt::Debug for MachineType {

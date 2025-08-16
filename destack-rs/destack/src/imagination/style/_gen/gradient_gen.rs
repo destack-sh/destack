@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.imagination.style.gradient, file)]
 
-use crate::Gradient;
-use crate::GradientStop;
-use crate::GradientType;
+use crate::{Gradient, GradientStop, GradientType};
 
 #[destack::generated(Gradient, Debug, block)]
 impl std::fmt::Debug for Gradient {

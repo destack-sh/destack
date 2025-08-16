@@ -2,11 +2,7 @@
 
 #![destack::generated(destack.imagination.style.color, file)]
 
-use crate::Color;
-use crate::ColorHue;
-use crate::ColorIntent;
-use crate::ColorShade;
-use crate::ColorType;
+use crate::{Color, ColorHue, ColorIntent, ColorShade, ColorType};
 
 #[destack::generated(Color, Debug, block)]
 impl std::fmt::Debug for Color {

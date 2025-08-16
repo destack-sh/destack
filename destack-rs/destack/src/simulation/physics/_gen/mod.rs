@@ -4,8 +4,5 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::physics::_gen::joint_gen::*;
-pub use crate::simulation::physics::_gen::rigid_gen::*;
-
 pub mod joint_gen;
 pub mod rigid_gen;

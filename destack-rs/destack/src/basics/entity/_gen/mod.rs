@@ -4,12 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::basics::entity::_gen::constraint_gen::*;
-pub use crate::basics::entity::_gen::custom_gen::*;
-pub use crate::basics::entity::_gen::index_gen::*;
-pub use crate::basics::entity::_gen::migration_gen::*;
-pub use crate::basics::entity::_gen::tag_gen::*;
-
 pub mod constraint_gen;
 pub mod custom_gen;
 pub mod index_gen;

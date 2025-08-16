@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.basics.entity.index, file)]
 
-use crate::IndexType;
-use crate::PropertyReference;
+use crate::{IndexType, PropertyReference};
 
 #[destack::generated(IndexDefinition, -, block)]
 /// Definition of a builtin Index.

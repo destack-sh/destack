@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.point, file)]
 
-use crate::Point2D;
-use crate::Point3D;
+use crate::{Point2D, Point3D};
 
 #[destack::generated(Point2D, Debug, block)]
 impl std::fmt::Debug for Point2D {

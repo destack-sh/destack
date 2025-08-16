@@ -2,10 +2,9 @@
 
 #![destack::generated(destack.core.universe.universe, file)]
 
-use crate::UniverseSignupRequest;
-use crate::UniverseSignupResponse;
-use crate::UniverseSpawnRequest;
-use crate::UniverseSpawnResponse;
+use crate::{
+    UniverseSignupRequest, UniverseSignupResponse, UniverseSpawnRequest, UniverseSpawnResponse,
+};
 
 #[destack::generated(UniverseSignupRequest, Debug, block)]
 impl std::fmt::Debug for UniverseSignupRequest {

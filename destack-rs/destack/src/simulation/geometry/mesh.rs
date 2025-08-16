@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.mesh, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Mesh2, -, block)]
 /// A Mesh2D is defined by vertices and triangle indices.

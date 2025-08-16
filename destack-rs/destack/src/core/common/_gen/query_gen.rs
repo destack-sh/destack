@@ -2,20 +2,10 @@
 
 #![destack::generated(destack.core.common.query, file)]
 
-use crate::Aggregation;
-use crate::AggregationType;
-use crate::Condition;
-use crate::ConditionalType;
-use crate::Expression;
-use crate::ExpressionType;
-use crate::Join;
-use crate::JoinType;
-use crate::Query;
-use crate::QueryType;
-use crate::Select;
-use crate::Sort;
-use crate::SortMode;
-use crate::SortType;
+use crate::{
+    Aggregation, AggregationType, Condition, ConditionalType, Expression, ExpressionType, Join,
+    JoinType, Query, QueryType, Select, Sort, SortMode, SortType,
+};
 
 #[destack::generated(Expression, Debug, block)]
 impl std::fmt::Debug for Expression {

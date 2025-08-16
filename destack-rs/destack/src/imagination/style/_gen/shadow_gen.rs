@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.imagination.style.shadow, file)]
 
-use crate::Shadow;
-use crate::ShadowPosition;
-use crate::ShadowType;
+use crate::{Shadow, ShadowPosition, ShadowType};
 
 #[destack::generated(Shadow, Debug, block)]
 impl std::fmt::Debug for Shadow {

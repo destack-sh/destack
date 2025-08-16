@@ -2,9 +2,7 @@
 
 #![destack::partial(destack.simulation.physics.joint, file)]
 
-use crate::Quaternion;
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Quaternion, Vector2, Vector3};
 
 #[destack::generated(JointSpring, -, block)]
 /// Spring parameters for soft constraints.

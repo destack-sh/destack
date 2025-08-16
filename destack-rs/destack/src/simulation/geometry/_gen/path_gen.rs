@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.path, file)]
 
-use crate::Path2D;
-use crate::Polyline3D;
+use crate::{Path2D, Polyline3D};
 
 #[destack::generated(Path2D, Debug, block)]
 impl std::fmt::Debug for Path2D {

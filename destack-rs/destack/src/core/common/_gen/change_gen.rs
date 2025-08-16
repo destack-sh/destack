@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.core.common.change, file)]
 
-use crate::ChangeType;
-use crate::EditOperation;
-use crate::EditOperationType;
+use crate::{ChangeType, EditOperation, EditOperationType};
 
 #[destack::generated(EditOperation, Debug, block)]
 impl std::fmt::Debug for EditOperation {

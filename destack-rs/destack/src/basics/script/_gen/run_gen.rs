@@ -2,10 +2,7 @@
 
 #![destack::generated(destack.basics.script.run, file)]
 
-use crate::ActionType;
-use crate::FunctionOperator;
-use crate::MethodType;
-use crate::RunStatus;
+use crate::{ActionType, FunctionOperator, MethodType, RunStatus};
 
 #[destack::generated(FunctionOperator, Debug, block)]
 impl std::fmt::Debug for FunctionOperator {

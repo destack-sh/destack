@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.capsule, file)]
 
-use crate::Capsule2D;
-use crate::Capsule3D;
+use crate::{Capsule2D, Capsule3D};
 
 #[destack::generated(Capsule2D, Debug, block)]
 impl std::fmt::Debug for Capsule2D {

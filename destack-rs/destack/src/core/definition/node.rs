@@ -2,20 +2,11 @@
 
 #![destack::partial(destack.core.definition.node, file)]
 
-use crate::ActionDefinition;
-use crate::ConstantDefinition;
-use crate::ConstraintDefinition;
-use crate::IndexDefinition;
-use crate::MethodDefinition;
-use crate::NodeType;
-use crate::ObjectStability;
-use crate::PermissionDefinition;
-use crate::PropertyDefinition;
-use crate::StructType;
-use crate::TagDefinition;
-use crate::TraitType;
-use crate::UniverseCategory;
-use crate::UniverseDomain;
+use crate::{
+    ActionDefinition, ConstantDefinition, ConstraintDefinition, IndexDefinition, MethodDefinition,
+    NodeType, ObjectStability, PermissionDefinition, PropertyDefinition, StructType, TagDefinition,
+    TraitType, UniverseCategory, UniverseDomain,
+};
 
 #[destack::generated(NodeDefinition, -, block)]
 /// Definition of a builtin Node.

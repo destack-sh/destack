@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.circle, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Circle2D, -, block)]
 /// A Circle is centered at a point with a radius.

@@ -4,6 +4,4 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::encoding::_gen::time_gen::*;
-
 pub mod time_gen;

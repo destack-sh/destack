@@ -5,8 +5,7 @@ use core::num::NonZeroU128;
 use core::str::FromStr;
 
 use crate::format::format_uuid;
-use crate::parse::UuidParseError;
-use crate::parse::parse_uuid;
+use crate::parse::{UuidParseError, parse_uuid};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 /// A Universally Unique Identifier (UUID) is a 128-bit identifier.

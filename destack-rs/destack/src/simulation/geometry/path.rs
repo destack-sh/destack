@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.path, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Path2D, -, block)]
 /// A Path is a polyline of multiple points.

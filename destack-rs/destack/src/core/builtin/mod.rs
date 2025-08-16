@@ -4,23 +4,14 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::builtin::casing::*;
-pub use crate::core::builtin::declaration::*;
-pub use crate::core::builtin::entity::*;
-pub use crate::core::builtin::r#enum::*;
-pub use crate::core::builtin::error::*;
-pub use crate::core::builtin::event::*;
-pub use crate::core::builtin::fractional::*;
-pub use crate::core::builtin::handle::*;
-pub use crate::core::builtin::message::*;
-pub use crate::core::builtin::node::*;
-pub use crate::core::builtin::object::*;
-pub use crate::core::builtin::property::*;
-pub use crate::core::builtin::r#struct::*;
-pub use crate::core::builtin::r#type::*;
-pub use crate::core::builtin::types::*;
-pub use crate::core::builtin::universe::*;
-pub use crate::core::builtin::uuid::*;
+pub use crate::core::builtin::casing::StringCasing;
+pub use crate::core::builtin::entity::{ExtensionFlag, Materialization, ProcessFlag};
+pub use crate::core::builtin::event::{EventStatus, RuntimeLanguage, RuntimePlatform, RuntimeType};
+pub use crate::core::builtin::fractional::FractionalIntegerError;
+pub use crate::core::builtin::universe::{
+    EnumType, HandleType, ModuleType, NodeType, ObjectKind, ObjectStability, StructType, TraitType,
+    UniverseCategory, UniverseDomain,
+};
 
 pub mod _gen;
 pub mod casing;
