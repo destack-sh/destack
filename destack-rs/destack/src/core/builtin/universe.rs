@@ -412,7 +412,6 @@ pub enum StructType {
     Error = 2,
     /// Message
     Message = 3,
-    FractionalIntegerError = 10000,
     Definition = 100000,
     SchemaDefinition = 100001,
     ModuleDefinition = 100002,

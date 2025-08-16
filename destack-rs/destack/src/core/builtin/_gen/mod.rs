@@ -7,5 +7,4 @@
 pub mod casing_gen;
 pub mod entity_gen;
 pub mod event_gen;
-pub mod fractional_gen;
 pub mod universe_gen;

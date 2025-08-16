@@ -1217,7 +1217,6 @@ class StructType(OptionEnum):
     MESSAGE = declare_option(3, "Message", description="Message")
 
     # error [10_000]
-    FRACTIONAL_INTEGER_ERROR = declare_option(10_000)
 
     # definition [100_000]
     # nocheckin: remove definition, spread definitions into relevant custom stuff?

@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
 	"destack-rs/destack",
-	"destack-rs/destack_fractional",
+	"destack-rs/destack_order",
 	"destack-rs/destack_time",
 	"destack-rs/destack_json",
 	"destack-rs/destack_uuid",
@@ -20,7 +20,7 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 destack = { path = "destack-rs/destack" }
 destack_macros = { path = "destack-rs/destack_macros" }
-destack_fractional = { path = "destack-rs/destack_fractional" }
+destack_order = { path = "destack-rs/destack_order" }
 destack_json = { path = "destack-rs/destack_json" }
 destack_time = { path = "destack-rs/destack_time" }
 destack_uuid = { path = "destack-rs/destack_uuid" }

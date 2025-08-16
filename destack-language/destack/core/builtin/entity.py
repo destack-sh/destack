@@ -291,7 +291,7 @@ class Entity(Node):
         is_eq=False,
         is_interned=True,
         is_managed=True,
-        description="The absolute order of this Entity (in its parent, as a fractional integer).",
+        description="The absolute order of this Entity (in its parent, as a order key).",
         tag="tree",
     )
     # icon: Optional["Icon"]?
