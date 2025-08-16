@@ -33,6 +33,7 @@ from .core import (
     RustManagedItem,
     RustManagedType,
     RustModDeclaration,
+    RustVisibility,
     ecsape_rust_identifier,
     local_path_to_source_path,
     source_path_to_local_path,
@@ -404,7 +405,7 @@ def _get_imports(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
             source="crate",
             imports=list(dependencies),
             is_internal=True,
-            is_public=False,
+            visibility=RustVisibility.PRIVATE,
             is_glob=False,
         )
         return (imp,)
@@ -522,7 +523,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         for inner_name in directory_files:
             is_internal = inner_name.startswith("_")
             # mod declaration
-            mod = RustModDeclaration(name=inner_name, is_public=True)
+            mod = RustModDeclaration(name=inner_name, visibility=RustVisibility.PUBLIC)
             mods.append(mod)
             # import
             if not is_internal:
@@ -531,7 +532,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
                     source=full_name,
                     imports=EMPTY_LIST,
                     is_internal=True,
-                    is_public=True,
+                    visibility=RustVisibility.PUBLIC,
                     is_glob=True,
                 )
                 imports.append(imp)

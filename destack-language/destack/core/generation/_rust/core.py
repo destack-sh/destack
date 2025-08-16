@@ -142,7 +142,7 @@ class RustModDeclaration:
     """A module declaration like `mod foo;` or `pub mod foo;`."""
 
     name: str
-    is_public: bool
+    visibility: "RustVisibility"
 
 
 @dataclass(slots=True)
@@ -153,7 +153,7 @@ class RustImport:
     imports: list[str]  # like '["fmt", "Add", "AddAssign", ...]'
     is_glob: bool  # whether the import uses '*'
     is_internal: bool  # whether this import referes to the crate itself
-    is_public: bool  # whether the import is declared with 'pub'
+    visibility: "RustVisibility"  # full visibility; PRIVATE means no prefix
 
 
 @dataclass(slots=True)
@@ -190,9 +190,15 @@ def render_rust_destack_attribute(item: RustManagedItem) -> str:
 def render_rust_mod(mod: RustModDeclaration) -> str:
     """Render a module declaration."""
     # just a declaration
-    mod_str = f"mod {ecsape_rust_identifier(mod.name)};"
-    if mod.is_public:
-        mod_str = f"pub {mod_str}"
+    visibility_prefix = ""
+    if mod.visibility == RustVisibility.PUBLIC:
+        visibility_prefix = "pub "
+    elif mod.visibility == RustVisibility.CRATE:
+        visibility_prefix = "pub(crate) "
+    elif mod.visibility == RustVisibility.SUPER:
+        visibility_prefix = "pub(super) "
+    # PRIVATE -> no prefix
+    mod_str = f"{visibility_prefix}mod {ecsape_rust_identifier(mod.name)};"
     return mod_str
 
 
@@ -210,8 +216,13 @@ def render_rust_import(imp: RustImport) -> str:
             use_stmt = f"use {escaped_path}::{{{imports_list}}};"
     else:
         raise ValueError(f"no imports for: {imp!r}")
-    if imp.is_public:
+    if imp.visibility == RustVisibility.PUBLIC:
         use_stmt = f"pub {use_stmt}"
+    elif imp.visibility == RustVisibility.CRATE:
+        use_stmt = f"pub(crate) {use_stmt}"
+    elif imp.visibility == RustVisibility.SUPER:
+        use_stmt = f"pub(super) {use_stmt}"
+    # PRIVATE -> no prefix
     return use_stmt
 
 

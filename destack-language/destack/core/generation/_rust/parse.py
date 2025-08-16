@@ -12,6 +12,7 @@ from .core import (
     RustManagedItem,
     RustManagedType,
     RustModDeclaration,
+    RustVisibility,
     unescape_rust_identifier,
 )
 
@@ -598,7 +599,12 @@ def _parse_rust_imports(source: str) -> tuple[list[RustImport], set[int]]:
 
     while i < len(lines):
         line = lines[i]
-        if not (line.startswith("use ") or line.startswith("pub use ")):
+        if not (
+            line.startswith("use ")
+            or line.startswith("pub use ")
+            or line.startswith("pub(crate) use ")
+            or line.startswith("pub(super) use ")
+        ):
             i += 1
             continue
 
@@ -624,11 +630,24 @@ def _parse_rust_imports(source: str) -> tuple[list[RustImport], set[int]]:
             i = end_line_idx + 1
             continue
 
-        is_public = full_import.startswith("pub use ")
-        if is_public:
+        visibility: RustVisibility
+        use_body: str
+        if full_import.startswith("pub(crate) use "):
+            visibility = RustVisibility.CRATE
+            use_body = full_import[len("pub(crate) use ") : -1].strip()
+        elif full_import.startswith("pub(super) use "):
+            visibility = RustVisibility.SUPER
+            use_body = full_import[len("pub(super) use ") : -1].strip()
+        elif full_import.startswith("pub use "):
+            visibility = RustVisibility.PUBLIC
             use_body = full_import[len("pub use ") : -1].strip()
-        else:
+        elif full_import.startswith("use "):
+            visibility = RustVisibility.PRIVATE
             use_body = full_import[len("use ") : -1].strip()
+        else:
+            # fallback to private if unknown prefix
+            visibility = RustVisibility.PRIVATE
+            use_body = full_import[:-1].strip()
 
         # split on the last :: to separate source from imports
         if "::" in use_body:
@@ -663,7 +682,7 @@ def _parse_rust_imports(source: str) -> tuple[list[RustImport], set[int]]:
                 source=source,
                 imports=imports_list,
                 is_internal=_is_internal_import_path(source),
-                is_public=is_public,
+                visibility=visibility,
                 is_glob=is_glob,
             )
         )
@@ -686,17 +705,34 @@ def _parse_rust_mod_declarations(source: str) -> tuple[list[RustModDeclaration],
     covered_lines: set[int] = set()
 
     for i, line in enumerate(source.splitlines()):
-        if not (line.startswith("mod ") or line.startswith("pub mod ")):
+        if not (
+            line.startswith("mod ")
+            or line.startswith("pub mod ")
+            or line.startswith("pub(crate) mod ")
+            or line.startswith("pub(super) mod ")
+        ):
             continue
         # skip nested modules (those without semicolon)
         if not line.endswith(";"):
             continue
-        is_public = line.startswith("pub mod ")
-        name = line[len("pub mod ") : -1].strip() if is_public else line[len("mod ") : -1].strip()
+        visibility: RustVisibility
+        name: str
+        if line.startswith("pub(crate) mod "):
+            visibility = RustVisibility.CRATE
+            name = line[len("pub(crate) mod ") : -1].strip()
+        elif line.startswith("pub(super) mod "):
+            visibility = RustVisibility.SUPER
+            name = line[len("pub(super) mod ") : -1].strip()
+        elif line.startswith("pub mod "):
+            visibility = RustVisibility.PUBLIC
+            name = line[len("pub mod ") : -1].strip()
+        else:
+            visibility = RustVisibility.PRIVATE
+            name = line[len("mod ") : -1].strip()
         if not name:
             continue
         covered_lines.add(i)
-        mod = RustModDeclaration(name=unescape_rust_identifier(name), is_public=is_public)
+        mod = RustModDeclaration(name=unescape_rust_identifier(name), visibility=visibility)
         mods.append(mod)
     return mods, covered_lines
 
