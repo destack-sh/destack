@@ -5,10 +5,8 @@
   "type": "module",
   "workspaces": {
     "packages": [
-      "destack-ts",
-      "destack-ts-web",
-      "destack-ts-system",
-      "destack-ts-server"
+      "destack-ts/destack",
+      "destack-ts/destack_web"
     ],
     "catalog": {
       "temporal-polyfill": "^0.3.0"

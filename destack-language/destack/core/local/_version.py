@@ -54,13 +54,12 @@ def bump(revision: int | None = None):
         "package.json",
         "Cargo.toml",
         "destack-language/destack/core/builtin/_const.py",
-        "destack-py-server/pyproject.toml",
-        "destack-py/pyproject.toml",
         "destack-language/pyproject.toml",
-        "destack-ts/package.json",
-        "destack-ts-web/package.json",
-        "destack-ts-server/package.json",
-        "destack-ts-system/package.json",
+        "destack-py/pyproject.toml",
+        "destack-ts/destack/package.json",
+        "destack-ts/destack_web/package.json",
+        "destack-ts/destack_server/package.json",
+        "destack-ts/destack_system/package.json",
     )
 
     file_texts = {}

@@ -4,7 +4,7 @@
     "": {
       "name": "destack-monorepo",
     },
-    "destack-ts": {
+    "destack-ts/destack": {
       "name": "destack",
       "dependencies": {
         "temporal-polyfill": "catalog:",
@@ -24,54 +24,10 @@
         "vite-tsconfig-paths": "catalog:build",
       },
     },
-    "destack-ts-server": {
-      "name": "destack-ts-server",
-      "dependencies": {
-        "destack": "link:destack-ts",
-        "temporal-polyfill": "catalog:",
-      },
-      "devDependencies": {
-        "@babel/plugin-proposal-class-static-block": "catalog:build",
-        "@babel/plugin-proposal-decorators": "catalog:build",
-        "@babel/plugin-transform-class-static-block": "catalog:build",
-        "@babel/plugin-transform-typescript": "catalog:build",
-        "@babel/preset-typescript": "catalog:build",
-        "@biomejs/biome": "catalog:build",
-        "@types/bun": "catalog:types",
-        "@types/node": "catalog:types",
-        "fake-indexeddb": "catalog:test",
-        "fast-check": "catalog:test",
-        "jsdom": "catalog:test",
-        "mitata": "catalog:test",
-        "typescript": "catalog:build",
-      },
-    },
-    "destack-ts-system": {
-      "name": "destack-ts-system",
-      "dependencies": {
-        "destack": "link:destack-ts",
-        "temporal-polyfill": "catalog:",
-      },
-      "devDependencies": {
-        "@babel/plugin-proposal-class-static-block": "catalog:build",
-        "@babel/plugin-proposal-decorators": "catalog:build",
-        "@babel/plugin-transform-class-static-block": "catalog:build",
-        "@babel/plugin-transform-typescript": "catalog:build",
-        "@babel/preset-typescript": "catalog:build",
-        "@biomejs/biome": "catalog:build",
-        "@types/bun": "catalog:types",
-        "@types/node": "catalog:types",
-        "fake-indexeddb": "catalog:test",
-        "fast-check": "catalog:test",
-        "jsdom": "catalog:test",
-        "mitata": "catalog:test",
-        "typescript": "catalog:build",
-      },
-    },
-    "destack-ts-web": {
+    "destack-ts/destack_web": {
       "name": "destack-ts-web",
       "dependencies": {
-        "destack": "link:destack-ts",
+        "destack": "link:../destack",
         "temporal-polyfill": "catalog:",
       },
       "devDependencies": {
@@ -373,13 +329,9 @@
 
     "decimal.js": ["decimal.js@10.6.0", "", {}, "sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg=="],
 
-    "destack": ["destack@workspace:destack-ts"],
+    "destack": ["destack@workspace:destack-ts/destack"],
 
-    "destack-ts-server": ["destack-ts-server@workspace:destack-ts-server"],
-
-    "destack-ts-system": ["destack-ts-system@workspace:destack-ts-system"],
-
-    "destack-ts-web": ["destack-ts-web@workspace:destack-ts-web"],
+    "destack-ts-web": ["destack-ts-web@workspace:destack-ts/destack_web"],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.190", "", {}, "sha512-k4McmnB2091YIsdCgkS0fMVMPOJgxl93ltFzaryXqwip1AaxeDqKCGLxkXODDA5Ab/D+tV5EL5+aTx76RvLRxw=="],
 
@@ -537,11 +489,7 @@
 
     "anymatch/picomatch": ["picomatch@2.3.1", "", {}, "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA=="],
 
-    "destack-ts-server/destack": ["destack@link:destack-ts", {}],
-
-    "destack-ts-system/destack": ["destack@link:destack-ts", {}],
-
-    "destack-ts-web/destack": ["destack@link:destack-ts", {}],
+    "destack-ts-web/destack": ["destack-monorepo@link:../destack", {}],
 
     "readdirp/picomatch": ["picomatch@2.3.1", "", {}, "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA=="],
   }

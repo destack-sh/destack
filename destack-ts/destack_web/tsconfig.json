@@ -14,7 +14,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@destack/*": ["../destack-ts/src/*"],
+      "@destack/*": ["../destack/src/*"],
       "@destack-web/*": ["src/*"]
     },
     "lib": ["esnext", "dom", "dom.iterable", "scripthost"]

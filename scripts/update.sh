@@ -7,32 +7,19 @@
 
 # destack
 uv pip compile \
-    destack/requirements/dev.in \
-    --output-file destack/requirements/requirements-dev.txt
-source destack/venv/bin/activate && \
-    uv pip sync destack/requirements/requirements-dev.txt && \
-    uv pip install -e destack
+    destack-language/destack/requirements/dev.in \
+    --output-file destack-language/destack/requirements/requirements-dev.txt
+source destack-language/destack/venv/bin/activate && \
+    uv pip sync destack-language/destack/requirements/requirements-dev.txt && \
+    uv pip install -e destack-language/destack
 
 # destack-py
 uv pip compile \
-    destack/requirements/dev.in \
-    destack-py/requirements/dev.in \
-    --output-file destack-py/requirements/requirements-dev.txt
-source destack-py/venv/bin/activate && \
-    uv pip sync destack-py/requirements/requirements-dev.txt
-
-# destack-py-server
-uv pip compile \
-    destack-py-server/requirements/requirements.in \
-    --output-file destack-py-server/requirements/requirements.txt
-uv pip compile \
-    destack/requirements/dev.in \
-    destack-py/requirements/dev.in \
-    destack-py-server/requirements/requirements.in \
-    destack-py-server/requirements/dev.in \
-    --output-file destack-py-server/requirements/requirements-dev.txt
-source destack-py-server/venv/bin/activate && \
-    uv pip sync destack-py-server/requirements/requirements-dev.txt &&
+    destack-py/destack/requirements/dev.in \
+    --output-file destack-py/destack/requirements/requirements-dev.txt
+source destack-py/destack/venv/bin/activate && \
+    uv pip sync destack-py/destack/requirements/requirements-dev.txt && \
+    uv pip install -e destack-py/destack
 
 #
 # Javascript

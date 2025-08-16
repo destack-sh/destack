@@ -94,23 +94,23 @@ class RuntimePlatform(OptionEnum):
 class RuntimeType(OptionEnum):
     """The specific Runtime (RuntimeLanguage x RuntimePlatform)."""
 
-    CORE_PYTHON = declare_option(101, "destack-py", description="Destack Python library")
-    CORE_TYPESCRIPT = declare_option(102, "destack-ts", description="Destack TypeScript library")
-    CORE_RUST = declare_option(103, "destack-rs", description="Destack Rust library")
+    CORE_PYTHON = declare_option(101, "destack-py/destack", description="Destack Python library",)
+    CORE_TYPESCRIPT = declare_option(102, "destack-ts/destack", description="Destack TypeScript library",)
+    CORE_RUST = declare_option(103, "destack-rs/destack", description="Destack Rust library",)
     SYSTEM_TYPESCRIPT = declare_option(
-        202, "destack-ts-system", description="Destack TypeScript system runtime (internal)"
+        202, "destack-ts/destack_system", description="Destack TypeScript system runtime (internal)"
     )
     SYSTEM_RUST = declare_option(
-        203, "destack-rs-system", description="Destack Rust system runtime (internal)"
+        203, "destack-rs/destack_system", description="Destack Rust system runtime (internal)"
     )
     SERVER_PYTHON = declare_option(
-        301, "destack-py-server", description="Destack Python server runtime"
+        301, "destack-py/destack_server", description="Destack Python server runtime"
     )
     SERVER_TYPESCRIPT = declare_option(
-        302, "destack-ts-server", description="Destack TypeScript server runtime"
+        302, "destack-ts/destack_server", description="Destack TypeScript server runtime"
     )
     WEB_TYPESCRIPT = declare_option(
-        402, "destack-ts-web", description="Destack TypeScript web runtime"
+        402, "destack-ts/destack_web", description="Destack TypeScript web runtime"
     )
 
 
