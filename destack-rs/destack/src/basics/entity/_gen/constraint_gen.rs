@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.basics.entity.constraint, file)]
 
-use crate::ConstraintDefinition;
-use crate::ConstraintType;
-use crate::IndexType;
+use crate::{ConstraintDefinition, ConstraintType, IndexType};
 
 #[destack::generated(ConstraintDefinition, Debug, block)]
 impl std::fmt::Debug for ConstraintDefinition {

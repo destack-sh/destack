@@ -2,15 +2,10 @@
 
 #![destack::partial(destack.core.definition.struct, file)]
 
-use crate::ConstantDefinition;
-use crate::MethodDefinition;
-use crate::NodeType;
-use crate::ObjectStability;
-use crate::PropertyDefinition;
-use crate::StructType;
-use crate::TagDefinition;
-use crate::UniverseCategory;
-use crate::UniverseDomain;
+use crate::{
+    ConstantDefinition, MethodDefinition, NodeType, ObjectStability, PropertyDefinition,
+    StructType, TagDefinition, UniverseCategory, UniverseDomain,
+};
 
 #[destack::generated(StructDefinition, -, block)]
 /// Definition of a builtin Struct.

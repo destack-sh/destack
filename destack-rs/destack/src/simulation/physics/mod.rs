@@ -4,11 +4,11 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::physics::body::*;
-pub use crate::simulation::physics::collider::*;
-pub use crate::simulation::physics::joint::*;
-pub use crate::simulation::physics::rigid::*;
-pub use crate::simulation::physics::soft::*;
+pub use crate::simulation::physics::joint::{
+    JointBreakLimit, JointConeLimit, JointFlag, JointFrame2D, JointFrame3D, JointMotor,
+    JointScalarLimit, JointSpring, JointTwistLimit,
+};
+pub use crate::simulation::physics::rigid::RigidMotionMode;
 
 pub mod _gen;
 pub mod body;

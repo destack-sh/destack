@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.line, file)]
 
-use crate::Segment2D;
-use crate::Segment3D;
+use crate::{Segment2D, Segment3D};
 
 #[destack::generated(Segment2D, Debug, block)]
 impl std::fmt::Debug for Segment2D {

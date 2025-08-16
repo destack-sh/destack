@@ -2,10 +2,7 @@
 
 #![destack::generated(destack.core.common.type, file)]
 
-use crate::CollectionConstraint;
-use crate::NumberConstraint;
-use crate::StringConstraint;
-use crate::Type;
+use crate::{CollectionConstraint, NumberConstraint, StringConstraint, Type};
 
 #[destack::generated(Type, Debug, block)]
 impl std::fmt::Debug for Type {

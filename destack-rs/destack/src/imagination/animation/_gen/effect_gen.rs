@@ -2,11 +2,7 @@
 
 #![destack::generated(destack.imagination.animation.effect, file)]
 
-use crate::Effect;
-use crate::EffectType;
-use crate::OffscreenBehavior;
-use crate::RepeatType;
-use crate::TextSplitType;
+use crate::{Effect, EffectType, OffscreenBehavior, RepeatType, TextSplitType};
 
 #[destack::generated(Effect, Debug, block)]
 impl std::fmt::Debug for Effect {

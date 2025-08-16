@@ -2,9 +2,7 @@
 
 #![destack::partial(destack.core.universe.universe, file)]
 
-use crate::Region;
-use crate::Timestamp;
-use crate::Uuid;
+use crate::{Region, Timestamp, Uuid};
 
 #[destack::generated(UniverseSignupRequest, -, block)]
 /// UniverseSignupRequest

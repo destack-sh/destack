@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.capsule, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Capsule2D, -, block)]
 /// A Capsule2D is a segment with rounded ends with a common radius.

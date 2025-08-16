@@ -4,6 +4,4 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::production::cloud::_gen::machine_gen::*;
-
 pub mod machine_gen;

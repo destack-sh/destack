@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.imagination.style.shadow, file)]
 
-use crate::Axis2;
-use crate::Color;
+use crate::{Axis2, Color};
 
 #[destack::generated(Shadow, -, block)]
 /// A shadow value.

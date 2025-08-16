@@ -2,10 +2,7 @@
 
 #![destack::generated(destack.core.common.text, file)]
 
-use crate::Text;
-use crate::TextSpan;
-use crate::TextSpanType;
-use crate::TextStyleFlag;
+use crate::{Text, TextSpan, TextSpanType, TextStyleFlag};
 
 #[destack::generated(Text, Debug, block)]
 impl std::fmt::Debug for Text {

@@ -2,13 +2,9 @@
 
 #![destack::partial(destack.core.common.type, file)]
 
-use crate::EnumType;
-use crate::HandleType;
-use crate::NodeType;
-use crate::PrimitiveType;
-use crate::ScalarType;
-use crate::StructType;
-use crate::TypeCardinality;
+use crate::{
+    EnumType, HandleType, NodeType, PrimitiveType, ScalarType, StructType, TypeCardinality,
+};
 
 #[destack::generated(Type, -, block)]
 /// A Type in the type system.

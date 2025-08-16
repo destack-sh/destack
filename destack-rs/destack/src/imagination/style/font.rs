@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.imagination.style.font, file)]
 
-use crate::Fill;
-use crate::Length;
+use crate::{Fill, Length};
 
 #[destack::generated(Font, -, block)]
 /// A font value.

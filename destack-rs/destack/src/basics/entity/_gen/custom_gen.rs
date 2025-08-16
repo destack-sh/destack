@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.basics.entity.custom, file)]
 
-use crate::CustomError;
-use crate::CustomMessage;
-use crate::CustomStruct;
+use crate::{CustomError, CustomMessage, CustomStruct};
 
 #[destack::generated(CustomStruct, Debug, block)]
 impl std::fmt::Debug for CustomStruct {

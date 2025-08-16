@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.line, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Segment2D, -, block)]
 /// A Segment is a line between two points.

@@ -1,5 +1,4 @@
-use crate::format::FormatOptions;
-use crate::format::format_json;
+use crate::format::{FormatOptions, format_json};
 use std::fmt;
 
 /// A JSON value representation.

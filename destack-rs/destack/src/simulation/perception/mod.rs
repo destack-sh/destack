@@ -4,13 +4,7 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::perception::clipboard::*;
-pub use crate::simulation::perception::drag::*;
-pub use crate::simulation::perception::focus::*;
-pub use crate::simulation::perception::input::*;
-pub use crate::simulation::perception::key::*;
-pub use crate::simulation::perception::mouse::*;
-pub use crate::simulation::perception::pointer::*;
+pub use crate::simulation::perception::mouse::MouseButton;
 
 pub mod _gen;
 pub mod clipboard;

@@ -2,13 +2,7 @@
 
 #![destack::generated(destack.imagination.style.font, file)]
 
-use crate::Font;
-use crate::FontSize;
-use crate::FontType;
-use crate::FontWeight;
-use crate::TextAlign;
-use crate::TextDecoration;
-use crate::TextTransform;
+use crate::{Font, FontSize, FontType, FontWeight, TextAlign, TextDecoration, TextTransform};
 
 #[destack::generated(Font, Debug, block)]
 impl std::fmt::Debug for Font {

@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.plane, file)]
 
-use crate::Halfspace2D;
-use crate::Plane3D;
+use crate::{Halfspace2D, Plane3D};
 
 #[destack::generated(Halfspace2D, Debug, block)]
 impl std::fmt::Debug for Halfspace2D {

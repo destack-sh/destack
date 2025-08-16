@@ -2,15 +2,10 @@
 
 #![destack::generated(destack.simulation.physics.joint, file)]
 
-use crate::JointBreakLimit;
-use crate::JointConeLimit;
-use crate::JointFlag;
-use crate::JointFrame2D;
-use crate::JointFrame3D;
-use crate::JointMotor;
-use crate::JointScalarLimit;
-use crate::JointSpring;
-use crate::JointTwistLimit;
+use crate::{
+    JointBreakLimit, JointConeLimit, JointFlag, JointFrame2D, JointFrame3D, JointMotor,
+    JointScalarLimit, JointSpring, JointTwistLimit,
+};
 
 #[destack::generated(JointSpring, Debug, block)]
 impl std::fmt::Debug for JointSpring {

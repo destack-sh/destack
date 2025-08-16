@@ -4,20 +4,15 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::definition::action::*;
-pub use crate::core::definition::constant::*;
-pub use crate::core::definition::definition::*;
-pub use crate::core::definition::r#enum::*;
-pub use crate::core::definition::handle::*;
-pub use crate::core::definition::index::*;
-pub use crate::core::definition::method::*;
-pub use crate::core::definition::module::*;
-pub use crate::core::definition::node::*;
-pub use crate::core::definition::object::*;
-pub use crate::core::definition::option::*;
-pub use crate::core::definition::property::*;
-pub use crate::core::definition::schema::*;
-pub use crate::core::definition::r#struct::*;
+pub use crate::core::definition::constant::ConstantDefinition;
+pub use crate::core::definition::r#enum::EnumDefinition;
+pub use crate::core::definition::handle::HandleDefinition;
+pub use crate::core::definition::module::ModuleDefinition;
+pub use crate::core::definition::node::NodeDefinition;
+pub use crate::core::definition::option::OptionDefinition;
+pub use crate::core::definition::property::PropertyDefinition;
+pub use crate::core::definition::schema::SchemaDefinition;
+pub use crate::core::definition::r#struct::StructDefinition;
 
 pub mod _gen;
 pub mod action;

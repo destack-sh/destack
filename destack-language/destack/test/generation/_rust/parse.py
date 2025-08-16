@@ -5,6 +5,7 @@ import pytest
 from destack.core.generation._rust.core import (
     RustCustomItem,
     RustManagedItem,
+    RustVisibility,
     render_rust_file,
 )
 from destack.core.generation._rust.parse import (
@@ -15,7 +16,6 @@ from destack.core.generation._rust.parse import (
     _parse_rust_mod_declarations,
     parse_rust_file,
 )
-from destack.core.generation._rust.core import RustVisibility
 
 FILE_1: str = """\
 //! Module level comment.

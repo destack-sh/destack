@@ -4,6 +4,4 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::distribution::localization::locale::*;
-
 pub mod locale;

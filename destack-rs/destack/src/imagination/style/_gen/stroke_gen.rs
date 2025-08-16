@@ -2,11 +2,7 @@
 
 #![destack::generated(destack.imagination.style.stroke, file)]
 
-use crate::Stroke;
-use crate::StrokeCap;
-use crate::StrokePath;
-use crate::StrokePoint;
-use crate::StrokeType;
+use crate::{Stroke, StrokeCap, StrokePath, StrokePoint, StrokeType};
 
 #[destack::generated(Stroke, Debug, block)]
 impl std::fmt::Debug for Stroke {

@@ -4,6 +4,4 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::basics::social::_gen::notification_gen::*;
-
 pub mod notification_gen;

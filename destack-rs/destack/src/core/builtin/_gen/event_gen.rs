@@ -2,10 +2,7 @@
 
 #![destack::generated(destack.core.builtin.event, file)]
 
-use crate::EventStatus;
-use crate::RuntimeLanguage;
-use crate::RuntimePlatform;
-use crate::RuntimeType;
+use crate::{EventStatus, RuntimeLanguage, RuntimePlatform, RuntimeType};
 
 #[destack::generated(RuntimePlatform, Debug, block)]
 impl std::fmt::Debug for RuntimePlatform {

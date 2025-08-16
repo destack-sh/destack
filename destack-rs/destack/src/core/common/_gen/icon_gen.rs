@@ -2,14 +2,10 @@
 
 #![destack::generated(destack.core.common.icon, file)]
 
-use crate::Icon;
-use crate::IconType;
-use crate::PrimitiveType;
-use crate::PropertyZone;
-use crate::ReferenceType;
-use crate::ScalarType;
-use crate::TypeCardinality;
-use crate::ValueFactory;
+use crate::{
+    Icon, IconType, PrimitiveType, PropertyZone, ReferenceType, ScalarType, TypeCardinality,
+    ValueFactory,
+};
 
 #[destack::generated(Icon, Debug, block)]
 impl std::fmt::Debug for Icon {

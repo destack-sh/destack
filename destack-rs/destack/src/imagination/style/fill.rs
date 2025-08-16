@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.imagination.style.fill, file)]
 
-use crate::Color;
-use crate::Gradient;
+use crate::{Color, Gradient};
 
 #[destack::generated(Fill, -, block)]
 /// A fill value.

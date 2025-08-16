@@ -4,13 +4,24 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::common::change::*;
-pub use crate::core::common::icon::*;
-pub use crate::core::common::query::*;
-pub use crate::core::common::relation::*;
-pub use crate::core::common::text::*;
-pub use crate::core::common::r#type::*;
-pub use crate::core::common::value::*;
+pub use crate::core::common::change::{ChangeType, EditOperation, EditOperationType};
+pub use crate::core::common::icon::{
+    Icon, IconType, PrimitiveType, PropertyZone, ReferenceType, ScalarType, TypeCardinality,
+    ValueFactory,
+};
+pub use crate::core::common::query::{
+    Aggregation, AggregationType, Condition, ConditionalType, Expression, ExpressionType, Join,
+    JoinType, Query, QueryType, Select, Sort, SortMode, SortType,
+};
+pub use crate::core::common::relation::{
+    NodeIdentityReference, NodeSpatialReference, NodeTemporalReference, ObjectDefinitionReference,
+    PropertyReference,
+};
+pub use crate::core::common::text::{Text, TextSpan, TextSpanType, TextStyleFlag};
+pub use crate::core::common::r#type::{
+    CollectionConstraint, NumberConstraint, StringConstraint, Type,
+};
+pub use crate::core::common::value::{NamedValue, Value};
 
 pub mod _gen;
 pub mod change;

@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.basics.access.entitlement, file)]
 
-use crate::EntitlementType;
-use crate::RoleType;
+use crate::{EntitlementType, RoleType};
 
 #[destack::generated(RoleType, Debug, block)]
 impl std::fmt::Debug for RoleType {

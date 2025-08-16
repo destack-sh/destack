@@ -4,14 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::imagination::style::_gen::border_gen::*;
-pub use crate::imagination::style::_gen::color_gen::*;
-pub use crate::imagination::style::_gen::fill_gen::*;
-pub use crate::imagination::style::_gen::font_gen::*;
-pub use crate::imagination::style::_gen::gradient_gen::*;
-pub use crate::imagination::style::_gen::shadow_gen::*;
-pub use crate::imagination::style::_gen::stroke_gen::*;
-
 pub mod border_gen;
 pub mod color_gen;
 pub mod fill_gen;

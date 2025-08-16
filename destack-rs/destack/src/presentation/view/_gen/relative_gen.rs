@@ -2,21 +2,10 @@
 
 #![destack::generated(destack.presentation.view.relative, file)]
 
-use crate::Align;
-use crate::Anchor;
-use crate::Axis2;
-use crate::Axis3;
-use crate::Corner2;
-use crate::Direction;
-use crate::Distribute;
-use crate::Grid2;
-use crate::GridSpan2;
-use crate::Inset2;
-use crate::Layout;
-use crate::Length;
-use crate::LengthType;
-use crate::Offset2;
-use crate::Overflow;
+use crate::{
+    Align, Anchor, Axis2, Axis3, Corner2, Direction, Distribute, Grid2, GridSpan2, Inset2, Layout,
+    Length, LengthType, Offset2, Overflow,
+};
 
 #[destack::generated(Length, Debug, block)]
 impl std::fmt::Debug for Length {

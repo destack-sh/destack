@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.imagination.animation.transition, file)]
 
-use crate::SpringType;
-use crate::Transition;
-use crate::TransitionType;
+use crate::{SpringType, Transition, TransitionType};
 
 #[destack::generated(Transition, Debug, block)]
 impl std::fmt::Debug for Transition {

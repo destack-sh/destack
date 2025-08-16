@@ -2,9 +2,7 @@
 
 #![destack::generated(destack.core.encoding.time, file)]
 
-use crate::EncoderFlag;
-use crate::EncoderStability;
-use crate::Encoding;
+use crate::{EncoderFlag, EncoderStability, Encoding};
 
 #[destack::generated(Encoding, Debug, block)]
 impl std::fmt::Debug for Encoding {

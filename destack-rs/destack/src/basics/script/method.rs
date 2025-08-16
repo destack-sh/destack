@@ -2,11 +2,7 @@
 
 #![destack::partial(destack.basics.script.method, file)]
 
-use crate::MethodType;
-use crate::PropertyDefinition;
-use crate::RuntimeLanguage;
-use crate::RuntimePlatform;
-use crate::RuntimeType;
+use crate::{MethodType, PropertyDefinition, RuntimeLanguage, RuntimePlatform, RuntimeType};
 
 #[destack::generated(MethodDefinition, -, block)]
 /// Definition of a builtin Method.

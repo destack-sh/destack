@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.simulation.geometry.plane, file)]
 
-use crate::Vector2;
-use crate::Vector3;
+use crate::{Vector2, Vector3};
 
 #[destack::generated(Halfspace2D, -, block)]
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.

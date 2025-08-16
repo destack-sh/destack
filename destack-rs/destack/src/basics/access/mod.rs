@@ -4,12 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::basics::access::entitlement::*;
-pub use crate::basics::access::invite::*;
-pub use crate::basics::access::membership::*;
-pub use crate::basics::access::permission::*;
-pub use crate::basics::access::role::*;
-pub use crate::basics::access::sanction::*;
+pub use crate::basics::access::entitlement::{EntitlementType, RoleType};
+pub use crate::basics::access::permission::PermissionDefinition;
+pub use crate::basics::access::sanction::SanctionType;
 
 pub mod _gen;
 pub mod entitlement;

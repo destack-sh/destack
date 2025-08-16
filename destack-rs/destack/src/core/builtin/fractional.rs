@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.core.builtin.fractional, file)]
 
-use crate::Timestamp;
-use crate::Uuid;
+use crate::{Timestamp, Uuid};
 
 #[destack::generated(FractionalIntegerError, -, block)]
 /// An Error raised when a fractional integer operation fails.

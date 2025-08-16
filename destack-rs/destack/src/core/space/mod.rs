@@ -4,10 +4,9 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::space::branch::*;
-pub use crate::core::space::folder::*;
-pub use crate::core::space::snapshot::*;
-pub use crate::core::space::space::*;
+pub use crate::core::space::branch::BranchType;
+pub use crate::core::space::folder::FolderType;
+pub use crate::core::space::snapshot::{SnapshotStatus, SnapshotType};
 
 pub mod _gen;
 pub mod branch;

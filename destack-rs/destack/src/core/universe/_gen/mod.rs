@@ -4,8 +4,5 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::universe::_gen::universe_gen::*;
-pub use crate::core::universe::_gen::user_gen::*;
-
 pub mod universe_gen;
 pub mod user_gen;

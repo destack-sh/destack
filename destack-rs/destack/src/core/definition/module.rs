@@ -2,15 +2,10 @@
 
 #![destack::partial(destack.core.definition.module, file)]
 
-use crate::ConstantDefinition;
-use crate::EnumType;
-use crate::HandleType;
-use crate::MethodDefinition;
-use crate::ModuleType;
-use crate::NodeType;
-use crate::StructType;
-use crate::UniverseCategory;
-use crate::UniverseDomain;
+use crate::{
+    ConstantDefinition, EnumType, HandleType, MethodDefinition, ModuleType, NodeType, StructType,
+    UniverseCategory, UniverseDomain,
+};
 
 #[destack::generated(ModuleDefinition, -, block)]
 /// Definition of a builtin Module.

@@ -4,10 +4,7 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::basics::social::follow::*;
-pub use crate::basics::social::notification::*;
-pub use crate::basics::social::reaction::*;
-pub use crate::basics::social::star::*;
+pub use crate::basics::social::notification::NotificationStatus;
 
 pub mod _gen;
 pub mod follow;

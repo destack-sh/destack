@@ -2,10 +2,7 @@
 
 #![destack::partial(destack.basics.entity.custom, file)]
 
-use crate::HashMap;
-use crate::Timestamp;
-use crate::Uuid;
-use crate::Value;
+use crate::{HashMap, Timestamp, Uuid, Value};
 
 #[destack::generated(CustomStruct, -, block)]
 /// A CustomStruct is a generic instance of a custom Struct with custom Values.

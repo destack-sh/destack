@@ -2,9 +2,7 @@
 
 #![destack::partial(destack.imagination.style.stroke, file)]
 
-use crate::Color;
-use crate::Easing;
-use crate::Vector2;
+use crate::{Color, Easing, Vector2};
 
 #[destack::generated(Stroke, -, block)]
 /// A stroke value.

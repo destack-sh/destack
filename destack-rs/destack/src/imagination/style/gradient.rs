@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.imagination.style.gradient, file)]
 
-use crate::Axis2;
-use crate::Color;
+use crate::{Axis2, Color};
 
 #[destack::generated(Gradient, -, block)]
 /// A gradient value.

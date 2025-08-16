@@ -4,22 +4,21 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::geometry::capsule::*;
-pub use crate::simulation::geometry::circle::*;
-pub use crate::simulation::geometry::cone::*;
-pub use crate::simulation::geometry::convex::*;
-pub use crate::simulation::geometry::cylinder::*;
-pub use crate::simulation::geometry::ellipse::*;
-pub use crate::simulation::geometry::entity::*;
-pub use crate::simulation::geometry::line::*;
-pub use crate::simulation::geometry::mesh::*;
-pub use crate::simulation::geometry::path::*;
-pub use crate::simulation::geometry::plane::*;
-pub use crate::simulation::geometry::point::*;
-pub use crate::simulation::geometry::quaternion::*;
-pub use crate::simulation::geometry::rectangle::*;
-pub use crate::simulation::geometry::shape::*;
-pub use crate::simulation::geometry::vector::*;
+pub use crate::simulation::geometry::capsule::{Capsule2D, Capsule3D};
+pub use crate::simulation::geometry::circle::{Circle2D, Sphere3D};
+pub use crate::simulation::geometry::cone::Cone3D;
+pub use crate::simulation::geometry::cylinder::Cylinder3D;
+pub use crate::simulation::geometry::ellipse::{Ellipse2D, Ellipsoid3D};
+pub use crate::simulation::geometry::line::{Segment2D, Segment3D};
+pub use crate::simulation::geometry::mesh::{Mesh2, Mesh3};
+pub use crate::simulation::geometry::path::{Path2D, Polyline3D};
+pub use crate::simulation::geometry::plane::{Halfspace2D, Plane3D};
+pub use crate::simulation::geometry::point::{Point2D, Point3D};
+pub use crate::simulation::geometry::quaternion::Quaternion;
+pub use crate::simulation::geometry::rectangle::{Box3D, Rectangle2D};
+pub use crate::simulation::geometry::vector::{
+    Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i,
+};
 
 pub mod _gen;
 pub mod capsule;

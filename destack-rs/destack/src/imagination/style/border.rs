@@ -2,8 +2,7 @@
 
 #![destack::partial(destack.imagination.style.border, file)]
 
-use crate::Color;
-use crate::Inset2;
+use crate::{Color, Inset2};
 
 #[destack::generated(Border, -, block)]
 /// A border value.

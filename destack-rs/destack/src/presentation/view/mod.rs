@@ -4,17 +4,10 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::presentation::view::content::*;
-pub use crate::presentation::view::frame::*;
-pub use crate::presentation::view::input::*;
-pub use crate::presentation::view::label::*;
-pub use crate::presentation::view::layout::*;
-pub use crate::presentation::view::number::*;
-pub use crate::presentation::view::relative::*;
-pub use crate::presentation::view::slider::*;
-pub use crate::presentation::view::split::*;
-pub use crate::presentation::view::text::*;
-pub use crate::presentation::view::view::*;
+pub use crate::presentation::view::relative::{
+    Align, Anchor, Axis2, Axis3, Corner2, Direction, Distribute, Grid2, GridSpan2, Inset2, Layout,
+    Length, LengthType, Offset2, Overflow,
+};
 
 pub mod _gen;
 pub mod content;

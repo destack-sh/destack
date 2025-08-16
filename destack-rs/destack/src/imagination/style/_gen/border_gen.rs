@@ -2,8 +2,7 @@
 
 #![destack::generated(destack.imagination.style.border, file)]
 
-use crate::Border;
-use crate::BorderType;
+use crate::{Border, BorderType};
 
 #[destack::generated(Border, Debug, block)]
 impl std::fmt::Debug for Border {

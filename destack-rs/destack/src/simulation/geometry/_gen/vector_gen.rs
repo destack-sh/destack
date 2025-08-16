@@ -2,12 +2,7 @@
 
 #![destack::generated(destack.simulation.geometry.vector, file)]
 
-use crate::Vector2;
-use crate::Vector2i;
-use crate::Vector3;
-use crate::Vector3i;
-use crate::Vector4;
-use crate::Vector4i;
+use crate::{Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i};
 
 #[destack::generated(Vector2, Debug, block)]
 impl std::fmt::Debug for Vector2 {
