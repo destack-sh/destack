@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, cast, dataclass_transform
 
-from ._hoisted import ReferenceType, Timestamp, ValueFactory
+from ._hoisted import ReferenceType, ValueFactory
 from .declaration import TagDeclaration
 from .property import _PROPERTY_SPECIFIERS, declare_property
 from .struct import Struct, _process_struct_cls
@@ -100,14 +100,6 @@ class Message(Struct):
         is_readonly=True,
         default_factory=ValueFactory.CLIENT_NONCE,
         description="The nonce of the Client that created this Message (client).",
-        tag="tracking",
-    )
-    client_created_at: Timestamp = declare_property(
-        25,
-        is_managed=True,
-        is_readonly=True,
-        default_factory=ValueFactory.NOW,
-        description="The time in the Client when it created this Message (client).",
         tag="tracking",
     )
     client_remote_epoch: UInt64 = declare_property(

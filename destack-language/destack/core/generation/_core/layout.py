@@ -63,12 +63,12 @@ class KompaktObjectSizer(ObjectSizer):
     INT8_SIZE = 1
     UINT8_SIZE = 1
     INT16_SIZE = 2
-    INT32_SIZE = 4
-    INT64_SIZE = 8
-    INT128_SIZE = 16
     UINT16_SIZE = 2
+    INT32_SIZE = 4
     UINT32_SIZE = 4
+    INT64_SIZE = 8
     UINT64_SIZE = 8
+    INT128_SIZE = 16
     UINT128_SIZE = 16
     FLOAT32_SIZE = 4
     FLOAT64_SIZE = 8

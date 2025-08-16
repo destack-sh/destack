@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.basics.entity.custom, file)]
 
-use crate::{HashMap, Timestamp, Uuid, Value};
+use crate::{HashMap, Uuid, Value};
 
 #[destack::generated(CustomStruct, -, block)]
 /// A CustomStruct is a generic instance of a custom Struct with custom Values.
@@ -18,7 +18,6 @@ pub struct CustomError {
     pub definition: i64, /* TODO */
     pub client: i64,     /* TODO */
     pub client_nonce: u8,
-    pub client_created_at: Timestamp,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
     pub custom_values: Option<HashMap<String, Value>>,
@@ -32,7 +31,6 @@ pub struct CustomMessage {
     pub definition: i64, /* TODO */
     pub client: i64,     /* TODO */
     pub client_nonce: u8,
-    pub client_created_at: Timestamp,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
     pub custom_values: Option<HashMap<String, Value>>,

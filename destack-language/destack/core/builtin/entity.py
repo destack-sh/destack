@@ -8,7 +8,7 @@ from typing import (
 )
 
 from ._const import UNSET
-from ._hoisted import ReferenceType, Timestamp, UInt64, ValueFactory
+from ._hoisted import ReferenceType, UInt64, ValueFactory
 from .declaration import (
     ConstraintDeclaration,
     IndexDeclaration,
@@ -24,6 +24,7 @@ from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 if TYPE_CHECKING:
     from destack import (
         Branch,
+        NamedValue,
         NodeSpatialReference,
         Script,
         Tag,
@@ -218,18 +219,8 @@ class Entity(Node):
     )
 
     # 20-40: tracking
-    created_at: Timestamp = declare_property(
-        20,
-        is_managed=True,
-        is_hash=False,
-        is_eq=False,
-        is_readonly=True,
-        default_factory=ValueFactory.NOW,
-        description="The time this Entity was created (system time).",
-        tag="tracking",
-    )
     created_epoch: UInt64 = declare_property(
-        21,
+        20,
         is_managed=True,
         is_hash=False,
         is_eq=False,
@@ -237,28 +228,8 @@ class Entity(Node):
         description="The logical time this Entity was created (system time).",
         tag="tracking",
     )
-    created_by: "Entity" = declare_property(
-        22,
-        is_managed=True,
-        is_hash=False,
-        is_eq=False,
-        is_readonly=True,
-        default_factory=ValueFactory.ACTOR,
-        reference_type=ReferenceType.SPATIAL,
-        description="The Actor that created this Entity.",
-        tag="tracking",
-    )
-    updated_at: Timestamp = declare_property(
-        23,
-        is_managed=True,
-        is_hash=False,
-        is_eq=False,
-        default_factory=ValueFactory.NOW,
-        description="The time this Entity was last updated (system time).",
-        tag="tracking",
-    )
     updated_epoch: UInt64 = declare_property(
-        24,
+        21,
         is_managed=True,
         is_hash=False,
         is_eq=False,
@@ -266,26 +237,16 @@ class Entity(Node):
         description="The logical time this Entity was last updated (system time).",
         tag="tracking",
     )
-    updated_by: "Entity" = declare_property(
-        25,
-        is_managed=True,
-        is_hash=False,
-        is_eq=False,
-        default_factory=ValueFactory.ACTOR,
-        reference_type=ReferenceType.SPATIAL,
-        description="The Actor that last updated this Entity.",
-        tag="tracking",
-    )
-    owned_by: "Entity" = declare_property(
-        26,
+    owner: "Entity" = declare_property(
+        22,
         is_repr=True,
         description="The exclusive owner of this Entity (the root on access).",
         reference_type=ReferenceType.SPATIAL,
         default_factory=ValueFactory.ACTOR,
         tag="tracking",
     )
-    controlled_by: "Entity" = declare_property(
-        27,
+    controller: "Entity" = declare_property(
+        23,
         is_repr=True,
         description="The exclusive controller of this Entity (the authority on Changes).",
         reference_type=ReferenceType.SPATIAL,
@@ -341,7 +302,7 @@ class Entity(Node):
         description="The extension flags of this Entity.",
         tag="custom",
     )
-    custom_values: dict[str, "Value"] | None = declare_property(
+    custom_values: list["NamedValue"] | None = declare_property(
         51,
         description="The custom Values of this Entity, keyed by custom Property or Tag name.",
         tag="custom",
@@ -364,11 +325,6 @@ class Entity(Node):
     @declare_method(2)
     def to_ref(self) -> "NodeSpatialReference":
         """Gets a reference to this Node."""
-        raise NotImplementedError
-
-    @declare_method(3)
-    def set(self, key: str, value: Any):
-        """Set a Property on this Node (direct SET operations)."""
         raise NotImplementedError
 
     @declare_method(20)
