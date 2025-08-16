@@ -169,12 +169,15 @@ class PythonObjectSizer(ObjectSizer):
                 return ObjectSize(size, size)
             elif primitive == PrimitiveType.DURATION:
                 return ObjectSize(self.TIMEDELTA_OBJECT_SIZE, self.TIMEDELTA_OBJECT_SIZE)
-            elif primitive == PrimitiveType.UUID:
-                return ObjectSize(self.UUID_OBJECT_SIZE, self.UUID_OBJECT_SIZE)
             elif primitive == PrimitiveType.STRING:
                 return ObjectSize(self.STRING_EMPTY_SIZE, None)
             elif primitive == PrimitiveType.CHARACTER:
                 return ObjectSize(self.STRING_EMPTY_SIZE + 1, self.STRING_EMPTY_SIZE + 1)
+            elif primitive == PrimitiveType.ORDER_KEY:
+                # variable length byte array
+                return ObjectSize(8, None)
+            elif primitive == PrimitiveType.UUID:
+                return ObjectSize(self.UUID_OBJECT_SIZE, self.UUID_OBJECT_SIZE)
             elif primitive == PrimitiveType.JSON:
                 return ObjectSize(0, 0)
             else:

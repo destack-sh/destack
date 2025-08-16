@@ -159,6 +159,9 @@ class TypeScriptObjectSizer(ObjectSizer):
             elif type.primitive_type == PrimitiveType.CHARACTER:
                 # single UTF-16 code unit
                 return ObjectSize(2, 2)
+            elif type.primitive_type == PrimitiveType.ORDER_KEY:
+                # variable length byte array (interned)
+                return ObjectSize(1, None)
             elif type.primitive_type == PrimitiveType.JSON:
                 # opaque
                 return ObjectSize(0, 0)
@@ -237,14 +240,6 @@ class TypeScriptObjectSizer(ObjectSizer):
                     PrimitiveType.FLOAT64,
                 ):
                     return False
-                elif primitive == PrimitiveType.STRING:
-                    return False
-                elif primitive == PrimitiveType.CHARACTER:
-                    return False
-                elif primitive == PrimitiveType.JSON:
-                    return False
-                elif primitive == PrimitiveType.UUID:
-                    return False
                 elif primitive == PrimitiveType.DATETIME:
                     return True
                 elif primitive == PrimitiveType.DATE:
@@ -255,6 +250,16 @@ class TypeScriptObjectSizer(ObjectSizer):
                     return True
                 elif primitive == PrimitiveType.DURATION:
                     return True
+                elif primitive == PrimitiveType.STRING:
+                    return False
+                elif primitive == PrimitiveType.CHARACTER:
+                    return False
+                elif primitive == PrimitiveType.UUID:
+                    return False
+                elif primitive == PrimitiveType.ORDER_KEY:
+                    return False
+                elif primitive == PrimitiveType.JSON:
+                    return False
                 else:
                     assert_never(primitive)
             # enums as shared singletons

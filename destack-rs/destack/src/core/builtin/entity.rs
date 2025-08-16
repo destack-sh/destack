@@ -5,14 +5,14 @@
 #[destack::generated(Materialization, -, block)]
 /// The materialization level of an Entity.
 pub enum Materialization {
-    /// Entity matches its definition, only exists when queried
-    Virtual = 1,
+    /// Entity is instance of its definition without override (only exists when queried)
+    Virtual = 3,
     /// Entity is a partial override of its definition
-    Partial = 2,
+    Partial = 4,
     /// Entity is a full copy of its definition
-    Full = 3,
+    Full = 6,
     /// Entity is its own root (no other definition)
-    Root = 4,
+    Root = 7,
 }
 
 #[destack::generated(ProcessFlag, -, block)]
