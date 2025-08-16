@@ -27,6 +27,7 @@ type Duration = timedelta
 # string
 type String = str
 type Character = str
+type Order = str
 # type UUID = UUID
 type Bytes = bytes
 type Json = Any
@@ -56,6 +57,7 @@ __all__ = [  # noqa: RUF022
     # string
     "String",
     "Character",
+    "Order",
     "UUID",
     "Bytes",
     "Json",

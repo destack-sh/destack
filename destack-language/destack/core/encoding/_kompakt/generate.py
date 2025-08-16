@@ -467,6 +467,8 @@ for _ in range({key}_length):
                 return f"_binary_encoder.write_character({source_expr})"
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"_binary_encoder.write_uuid({source_expr})"
+            elif type.primitive_type == PrimitiveType.ORDER_KEY:
+                return f"_binary_encoder.write_order({source_expr})"
             elif type.primitive_type == PrimitiveType.JSON:
                 return f"_binary_encoder.write_json({source_expr})"
             else:
@@ -560,6 +562,8 @@ for _ in range({key}_length):
                 return "_binary_decoder.read_character()"
             elif type.primitive_type == PrimitiveType.UUID:
                 return "_binary_decoder.read_uuid()"
+            elif type.primitive_type == PrimitiveType.ORDER_KEY:
+                return "_binary_decoder.read_order()"
             elif type.primitive_type == PrimitiveType.JSON:
                 return "_binary_decoder.read_json()"
             else:

@@ -19,6 +19,7 @@ from .declaration import (
 from .enum import FlagEnum, OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property
+from .types import Order
 from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
 
 if TYPE_CHECKING:
@@ -42,12 +43,26 @@ class Materialization(OptionEnum):
     The materialization level of an Entity.
     """
 
+    # PREDICTED?, SIMULATED? (does not even exist?)
     VIRTUAL = declare_option(
-        1, description="Entity matches its definition, only exists when queried"
+        3,
+        description="Entity is instance of its definition without override (only exists when queried)",
     )
-    PARTIAL = declare_option(2, description="Entity is a partial override of its definition")
-    FULL = declare_option(3, description="Entity is a full copy of its definition")
-    ROOT = declare_option(4, description="Entity is its own root (no other definition)")
+    PARTIAL = declare_option(
+        4,
+        description="Entity is a partial override of its definition",
+    )
+    FULL = declare_option(
+        6,
+        description="Entity is a full copy of its definition",
+    )
+    ROOT = declare_option(
+        7,
+        description="Entity is its own root (no other definition)",
+    )
+
+
+assert max(Materialization) < 8, "Materialization must be less than 8"  # :Encoding
 
 
 @declare_enum(EnumType.PROCESS_FLAG)
@@ -286,12 +301,11 @@ class Entity(Node):
         description="The key of this Entity (for reconciliation and querying).",
         tag="tree",
     )
-    order_key: str | None = declare_property(
+    order: Order | None = declare_property(
         43,
         is_eq=False,
-        is_interned=True,
         is_managed=True,
-        description="The absolute order of this Entity (in its parent, as a order key).",
+        description="The relative order of this Entity (in its parent).",
         tag="tree",
     )
     # icon: Optional["Icon"]?

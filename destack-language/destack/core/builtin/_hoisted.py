@@ -21,6 +21,7 @@ from .types import (
     Int64,
     Int128,
     Json,
+    Order,
     String,
     Time,
     Timestamp,
@@ -94,9 +95,21 @@ class RuntimePlatform(OptionEnum):
 class RuntimeType(OptionEnum):
     """The specific Runtime (RuntimeLanguage x RuntimePlatform)."""
 
-    CORE_PYTHON = declare_option(101, "destack-py/destack", description="Destack Python library",)
-    CORE_TYPESCRIPT = declare_option(102, "destack-ts/destack", description="Destack TypeScript library",)
-    CORE_RUST = declare_option(103, "destack-rs/destack", description="Destack Rust library",)
+    CORE_PYTHON = declare_option(
+        101,
+        "destack-py/destack",
+        description="Destack Python library",
+    )
+    CORE_TYPESCRIPT = declare_option(
+        102,
+        "destack-ts/destack",
+        description="Destack TypeScript library",
+    )
+    CORE_RUST = declare_option(
+        103,
+        "destack-rs/destack",
+        description="Destack Rust library",
+    )
     SYSTEM_TYPESCRIPT = declare_option(
         202, "destack-ts/destack_system", description="Destack TypeScript system runtime (internal)"
     )
@@ -498,8 +511,15 @@ Single character (UTF-8, 32-bit)
 Range: 0 to 2^32-1
 """,
     )
+    ORDER_KEY = declare_option(
+        52,
+        "Order",
+        description="""\
+Order key (variable length byte array)
+""",
+    )
     UUID = declare_option(
-        54,
+        53,
         "UUID",
         description="""\
 Universally unique identifier (UUID7, 128-bit)
@@ -508,7 +528,7 @@ Range: 0 to 2^128-1
     )
     # VECTOR?
     JSON = declare_option(
-        57,
+        60,
         "JSON",
         description="""\
 JSON (32-bit variable length)
@@ -556,6 +576,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     str: PrimitiveType.STRING,
     String: PrimitiveType.STRING,
     Character: PrimitiveType.CHARACTER,
+    Order: PrimitiveType.ORDER_KEY,
     UUID: PrimitiveType.UUID,
     Json: PrimitiveType.JSON,
 }

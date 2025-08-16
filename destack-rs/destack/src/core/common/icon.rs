@@ -81,9 +81,11 @@ pub enum PrimitiveType {
     /// Single character (UTF-8, 32-bit)
     /// Range: 0 to 2^32-1
     Character = 51,
+    /// Order key (variable length byte array)
+    Order = 52,
     /// Universally unique identifier (UUID7, 128-bit)
     /// Range: 0 to 2^128-1
-    Uuid = 54,
+    Uuid = 53,
     /// JSON (32-bit variable length)
     /// Range: 0 to 2^32-1
     Json = 57,

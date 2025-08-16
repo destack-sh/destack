@@ -37,10 +37,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-# nocheckin: Alias definitions for e.g. OrderKey? Epoch? (and Email, that sort of thing?)
-#  (or just support transparent Structs?)
-
-
 @declare_struct(StructType.TYPE, is_final=True)
 @final
 class Type(Struct):

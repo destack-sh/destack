@@ -1,354 +1,181 @@
-//! see https://observablehq.com/@dgreensp/implementing-fractional-indexing
-//! sync with `destack/core/builtin/fractional.py` and `destack-ts/src/utils/fractional.ts`
-// base 95 digits used for fractional indexing integers
-const _BASE_95_DIGITS: &str =
-    "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+//! Fractional indexing using raw bytes (base-256).
+//!
+//! Invariant: stored keys contain **no 0x00 bytes**. We reserve 0x00 internally
+//! as a virtual padding symbol during midpoint computation. Lexicographic byte
+//! order (`Ord` for `[u8]`) is the total order.
 
-/// canonical zero integer for fractional indexing
-pub const ORDER_KEY_ZERO: &str = "a0";
-/// minimum representable integer for fractional indexing
-pub const ORDER_KEY_MIN: &str = "A00000000000000000000000000";
-/// maximum representable integer for fractional indexing
-pub const ORDER_KEY_MAX: &str = "aZZZZZZZZZZZZZZZZZZZZZZZZZ";
+use std::fmt;
 
-#[derive(Debug)]
-pub enum OrderKeyError {
-    InvalidOrderKeyHead { head: char },
-    TrailingZero,
-    InvalidOrderKey { key: String },
-    InvalidComparison { a: String, b: String },
-}
+/// Zero constant.
+pub const ORDER_KEY_ZERO: &[u8] = &[0x80];
 
-impl std::fmt::Display for OrderKeyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OrderKeyError::InvalidOrderKeyHead { head } => {
-                write!(f, "invalid order key head: {head}")
-            }
-            OrderKeyError::TrailingZero => write!(f, "trailing zero"),
-            OrderKeyError::InvalidOrderKey { key } => write!(f, "invalid order key: {key}"),
-            OrderKeyError::InvalidComparison { a, b } => write!(f, "{a} >= {b}"),
+/// A position token in a sequence. Immutable, orderable, and compact.
+///
+/// Internally stored as `Box<[u8]>` (no 0x00 bytes). Lexicographic order of
+/// the byte slice is the sort order.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Order(Box<[u8]>);
+
+impl Order {
+    /// Construct from bytes (fails if any byte is 0).
+    pub fn new<B: AsRef<[u8]>>(bytes: B) -> Result<Self, OrderError> {
+        let b = bytes.as_ref();
+        if b.contains(&0) {
+            return Err(OrderError::InvalidByteZero);
         }
-    }
-}
-
-impl std::error::Error for OrderKeyError {}
-
-/// Gets the length of the integer part of the given order key
-fn _get_integer_length(head: char) -> Result<usize, OrderKeyError> {
-    if head >= 'a' && head <= 'z' {
-        Ok(head as usize - 'a' as usize + 2)
-    } else if head >= 'A' && head <= 'Z' {
-        Ok('Z' as usize - head as usize + 2)
-    } else {
-        Err(OrderKeyError::InvalidOrderKeyHead { head })
-    }
-}
-
-/// Gets the midpoint between two strings, `a` and `b` in base 95
-/// `a` may be empty string, `b` is `None` or non-empty string
-/// `a < b` lexicographically if `b` is non-null
-/// No trailing zeros allowed
-fn _midpoint(a: &str, b: Option<&str>) -> Result<String, OrderKeyError> {
-    // errors
-    if let Some(bv) = b
-        && a >= bv
-    {
-        return Err(OrderKeyError::InvalidComparison {
-            a: a.to_string(),
-            b: bv.to_string(),
-        });
-    }
-    if (!a.is_empty() && a.ends_with('0')) || (b.is_some() && b.unwrap().ends_with('0')) {
-        return Err(OrderKeyError::TrailingZero);
+        Ok(Self(b.into()))
     }
 
-    if let Some(bv) = b {
-        // remove the longest common prefix; pad `a` with '0' as we go
-        let mut n = 0usize;
-        loop {
-            let a_char = if n < a.len() {
-                a.chars().nth(n).unwrap()
-            } else {
-                '0'
-            };
-            let b_char_opt = bv.chars().nth(n);
-            if b_char_opt.is_none() || a_char != b_char_opt.unwrap() {
-                break;
-            }
-            n += 1;
+    /// Get the bytes view of the key.
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    /// Get the human-friendly hex for debugging (not order-preserving as text).
+    pub fn to_hex(&self) -> String {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut out = String::with_capacity(self.0.len() * 2);
+        for &b in self.0.iter() {
+            out.push(HEX[(b >> 4) as usize] as char);
+            out.push(HEX[(b & 0x0f) as usize] as char);
         }
-        if n > 0 {
-            let inner_midpoint = _midpoint(&a[n..], Some(&bv[n..]))?;
-            return Ok(bv[..n].to_string() + &inner_midpoint);
-        }
+        out
     }
 
-    // first digits (or lack of digit) are different
-    let digit_a = if !a.is_empty() {
-        _BASE_95_DIGITS
-            .find(a.chars().next().unwrap())
-            .ok_or_else(|| OrderKeyError::InvalidOrderKey { key: a.to_string() })?
-    } else {
-        0
-    };
-    let digit_b = if let Some(bv) = b {
-        if !bv.is_empty() {
-            _BASE_95_DIGITS
-                .find(bv.chars().next().unwrap())
-                .ok_or_else(|| OrderKeyError::InvalidOrderKey { key: a.to_string() })?
-        } else {
-            _BASE_95_DIGITS.len()
-        }
-    } else {
-        _BASE_95_DIGITS.len()
-    };
+    /// Get the smallest element strictly greater than `a` by minimal extension.
+    pub fn next_after(a: &Order) -> Order {
+        let mut v = a.0.to_vec();
+        v.push(1);
+        Order(v.into_boxed_slice())
+    }
 
-    if digit_b - digit_a > 1 {
-        // midpoint digit (round half up)
-        let mid_digit = (digit_a + digit_b).div_ceil(2);
-        Ok(_BASE_95_DIGITS.chars().nth(mid_digit).unwrap().to_string())
-    } else {
-        // first digits are consecutive
-        if let Some(bv) = b
-            && bv.len() > 1
+    /// Get the greatest element strictly less than `b`, if it exists.
+    ///
+    /// Decrements the last byte that is `> 0x01` and appends `0xFF` to make it
+    /// the maximal key below `b`. Returns `None` if there is no predecessor
+    /// within the allowed alphabet (all bytes were `0x01`).
+    pub fn prev_before(b: &Order) -> Option<Order> {
+        let mut v = b.0.to_vec();
+        if v.is_empty() {
+            return None;
+        }
+        let mut i = v.len();
+        while i > 0 && v[i - 1] == 1 {
+            i -= 1;
+        }
+        if i == 0 {
+            return None;
+        }
+        v[i - 1] -= 1;
+        v.truncate(i);
+        v.push(0xFF);
+        Some(Order(v.into_boxed_slice()))
+    }
+
+    /// Get the midpoint between `a` and `b` with logarithmic growth.
+    ///
+    /// Use `None` for open ends. Requires `a < b` when both are `Some`.
+    ///
+    /// Properties:
+    /// - `between(None, None)` returns the canonical seed (`0x80`).
+    /// - `between(Some(a), None)` returns a key `> a` (the lexicographic midpoint to the open end).
+    /// - `between(None, Some(b))` returns a key `< b`.
+    pub fn between(a: Option<&Order>, b: Option<&Order>) -> Result<Order, OrderError> {
+        if let (Some(x), Some(y)) = (a, b)
+            && x >= y
         {
-            return Ok(bv.chars().next().unwrap().to_string());
+            return Err(OrderError::InvalidComparison {
+                a: x.to_hex(),
+                b: y.to_hex(),
+            });
         }
-        // `b` is null or has length 1 (a single digit).
-        // the first digit of `a` is the previous digit to `b`, or '9' if `b` is null.
-        // given, for example, midpoint('49', '5'), return
-        // '4' + midpoint('9', null), which will become '4' + '9' + midpoint('', null) => '495'
-        let mut result = String::new();
-        result.push(_BASE_95_DIGITS.chars().nth(digit_a).unwrap());
-        result.push_str(&_midpoint(&a[1..], None)?);
-        Ok(result)
+
+        let ab = a.map_or(&[][..], |r| r.as_bytes());
+        let bb = b.map_or(&[][..], |r| r.as_bytes());
+
+        // remove common prefix
+        let mut i = 0usize;
+        while i < ab.len() && i < bb.len() && ab[i] == bb[i] {
+            i += 1;
+        }
+
+        // virtual padded digits at position i:
+        // - a_pad: ab[i] if present else 0 (reserved padding)
+        // - b_pad: bb[i] if present else 256 if open-end
+        let a_pad: u16 = if i < ab.len() { ab[i] as u16 } else { 0 };
+        let b_pad: u16 = if b.is_some() {
+            if i < bb.len() { bb[i] as u16 } else { 256 }
+        } else {
+            256
+        };
+
+        let mut out = Vec::with_capacity(i + 1);
+        out.extend_from_slice(&ab[..i]);
+
+        if b_pad.saturating_sub(a_pad) >= 2 {
+            // choose ceil midpoint; guaranteed to be in 1..=255 here
+            let mid = (a_pad + b_pad).div_ceil(2); // ceil((a+b)/2)
+            debug_assert!((1..=255).contains(&mid));
+            out.push(mid as u8);
+            return Order::new(out);
+        }
+
+        // consecutive: copy a's byte (if any) and recurse on the tail vs open end
+        if i < ab.len() {
+            out.push(ab[i]); // ab[i] != 0 by invariant
+            let tail = Order::between(
+                // construct a temporary Order from the tail slice (no zeros by invariant)
+                Some(&Order(ab[i + 1..].into())),
+                None,
+            )?;
+            out.extend_from_slice(tail.as_bytes());
+            return Order::new(out);
+        }
+
+        // `a` ended; minimal extension above `a` is to append 0x01
+        out.push(1);
+        Order::new(out)
     }
 }
 
-/// Gets the integer part of the given order key
-fn _get_integer_part(key: &str) -> Result<String, OrderKeyError> {
-    let head = key
-        .chars()
-        .next()
-        .ok_or_else(|| OrderKeyError::InvalidOrderKey {
-            key: key.to_string(),
-        })?;
-    let integer_part_length = _get_integer_length(head)?;
-    if integer_part_length > key.len() {
-        return Err(OrderKeyError::InvalidOrderKey {
-            key: key.to_string(),
-        });
-    }
-    Ok(key[..integer_part_length].to_string())
+/// Generate a key between `a` and `b` (open ends allowed).
+pub fn get_order(a: Option<&Order>, b: Option<&Order>) -> Result<Order, OrderError> {
+    Order::between(a, b)
 }
 
-fn _is_valid_order_key(key: &str) -> bool {
-    if key == ORDER_KEY_MIN {
-        return false;
-    }
-    let integer_part = match _get_integer_part(key) {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-    let fractional_part = &key[integer_part.len()..];
-    fractional_part.is_empty() || !fractional_part.ends_with('0')
-}
-
-/// Validates that the given key is a valid order key
-fn _validate_order_key(key: &str) -> Result<(), OrderKeyError> {
-    if !_is_valid_order_key(key) {
-        return Err(OrderKeyError::InvalidOrderKey {
-            key: key.to_string(),
-        });
-    }
-    Ok(())
-}
-
-/// Increments the given integer `x` in base 95
-/// Returns `None` if the result is too large
-pub fn increment_integer(x: &str) -> Option<String> {
-    // Increments integer part in base 95; returns None if result too large
-    let mut chars = x.chars();
-    let head = chars.next()?;
-    let mut digs: Vec<char> = chars.collect();
-    let mut carry = true;
-    for i in (0..digs.len()).rev() {
-        let d_index = _BASE_95_DIGITS.find(digs[i]).unwrap() + 1;
-        if d_index == _BASE_95_DIGITS.len() {
-            digs[i] = '0';
-        } else {
-            digs[i] = _BASE_95_DIGITS.chars().nth(d_index).unwrap();
-            carry = false;
-            break;
-        }
-    }
-    if carry {
-        if head == 'Z' {
-            return Some("a0".to_string());
-        }
-        if head == 'z' {
-            return None;
-        }
-        let h = (head as u8 + 1) as char;
-        if h > 'a' {
-            digs.push('0');
-        } else {
-            digs.pop();
-        }
-        let mut out = String::new();
-        out.push(h);
-        out.extend(digs);
-        Some(out)
-    } else {
-        let mut out = String::new();
-        out.push(head);
-        out.extend(digs);
-        Some(out)
-    }
-}
-
-/// Decrements the given integer `x` in base 95
-pub fn decrement_integer(x: &str) -> Option<String> {
-    // Decrements integer part in base 95; returns None if result too small
-    let mut chars = x.chars();
-    let head = chars.next()?;
-    let mut digs: Vec<char> = chars.collect();
-    let mut borrow = true;
-    for i in (0..digs.len()).rev() {
-        let d_index = _BASE_95_DIGITS.find(digs[i]).unwrap() as isize - 1;
-        if d_index == -1 {
-            digs[i] = _BASE_95_DIGITS.chars().last().unwrap();
-        } else {
-            digs[i] = _BASE_95_DIGITS.chars().nth(d_index as usize).unwrap();
-            borrow = false;
-        }
-    }
-    if borrow {
-        if head == 'a' {
-            let mut out = String::new();
-            out.push('Z');
-            out.push(_BASE_95_DIGITS.chars().last().unwrap());
-            return Some(out);
-        }
-        if head == 'A' {
-            return None;
-        }
-        let h = (head as u8 - 1) as char;
-        if h < 'Z' {
-            digs.push(_BASE_95_DIGITS.chars().last().unwrap());
-        } else {
-            digs.pop();
-        }
-        let mut out = String::new();
-        out.push(h);
-        out.extend(digs);
-        Some(out)
-    } else {
-        let mut out = String::new();
-        out.push(head);
-        out.extend(digs);
-        Some(out)
-    }
-}
-
-/// Generates a key between the given keys `a` and `b` (inclusive) with logarithmic fraction growth
-pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, OrderKeyError> {
-    // validate
-    if let Some(av) = a {
-        _validate_order_key(av)?;
-    }
-    if let Some(bv) = b {
-        _validate_order_key(bv)?;
-    }
-    if let (Some(av), Some(bv)) = (a, b)
-        && av >= bv
-    {
-        return Err(OrderKeyError::InvalidComparison {
-            a: av.to_string(),
-            b: bv.to_string(),
-        });
-    }
-
-    if a.is_none() {
-        if b.is_none() {
-            return Ok(ORDER_KEY_ZERO.to_string());
-        }
-        let b = b.unwrap();
-        let ib = _get_integer_part(b)?;
-        let fb = &b[ib.len()..];
-        if ib == ORDER_KEY_MIN {
-            return Ok(ib + &_midpoint("", Some(fb))?);
-        }
-        if ib.as_str() < b {
-            return Ok(ib);
-        } else {
-            return Ok(decrement_integer(&ib).unwrap());
-        }
-    }
-    if let Some(b) = b {
-        let a = a.unwrap();
-        let ia = _get_integer_part(a)?;
-        let fa = &a[ia.len()..];
-        let ib = _get_integer_part(b)?;
-        let fb = &b[ib.len()..];
-        if ia == ib {
-            Ok(ia + &_midpoint(fa, Some(fb))?)
-        } else {
-            let i = increment_integer(&ia).unwrap();
-            if i.as_str() < b {
-                Ok(i)
-            } else {
-                Ok(ia + &_midpoint(fa, None)?)
-            }
-        }
-    } else {
-        let a = a.unwrap();
-        let ia = _get_integer_part(a)?;
-        let fa = &a[ia.len()..];
-        if let Some(i) = increment_integer(&ia) {
-            Ok(i)
-        } else {
-            Ok(ia + &_midpoint(fa, None)?)
-        }
-    }
-}
-
-/// Generates evenly spread `n` keys between the given keys `a` and `b` (inclusive)
-pub fn get_order_keys(
-    a: Option<&str>,
-    b: Option<&str>,
-    n: u32,
-) -> Result<Vec<String>, OrderKeyError> {
+/// Generate `n` evenly spread keys between `a` and `b` (inclusive-ish),
+/// using recursive bisection (logarithmic fraction growth).
+pub fn get_orders(a: Option<&Order>, b: Option<&Order>, n: u32) -> Result<Vec<Order>, OrderError> {
     if n == 0 {
         return Ok(vec![]);
     }
     if n == 1 {
-        return Ok(vec![get_order_key(a, b)?]);
+        return Ok(vec![get_order(a, b)?]);
     }
     if b.is_none() {
-        let mut c = get_order_key(a, b)?;
+        let mut c = get_order(a, b)?;
         let mut result = vec![c.clone()];
         for _ in 0..(n - 1) {
-            c = get_order_key(Some(&c), b)?;
+            c = get_order(Some(&c), b)?;
             result.push(c.clone());
         }
         return Ok(result);
     }
     if a.is_none() {
-        let mut c = get_order_key(a, b)?;
+        let mut c = get_order(a, b)?;
         let mut result = vec![c.clone()];
         for _ in 0..(n - 1) {
-            c = get_order_key(a, Some(&c))?;
+            c = get_order(a, Some(&c))?;
             result.push(c.clone());
         }
         result.reverse();
         return Ok(result);
     }
     let mid = n / 2;
-    let c = get_order_key(a, b)?;
-    let mut left = get_order_keys(a, Some(&c), mid)?;
-    let right = get_order_keys(Some(&c), b, n - mid - 1)?;
+    let c = get_order(a, b)?;
+    let mut left = get_orders(a, Some(&c), mid)?;
+    let right = get_orders(Some(&c), b, n - mid - 1)?;
     let mut res = Vec::with_capacity(left.len() + 1 + right.len());
     res.append(&mut left);
     res.push(c);
@@ -356,94 +183,133 @@ pub fn get_order_keys(
     Ok(res)
 }
 
+/// Errors for order key operations.
+#[derive(Debug)]
+pub enum OrderError {
+    /// Provided bytes contained a 0x00.
+    InvalidByteZero,
+    /// a >= b when a < b was required.
+    InvalidComparison { a: String, b: String },
+}
+
+impl fmt::Display for OrderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OrderError::InvalidByteZero => write!(f, "order contains disallowed 0x00 byte"),
+            OrderError::InvalidComparison { a, b } => write!(f, "invalid comparison: {a} >= {b}"),
+        }
+    }
+}
+
+impl std::error::Error for OrderError {}
+
+impl fmt::Debug for Order {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Order").field(&self.to_hex()).finish()
+    }
+}
+
+impl From<Vec<u8>> for Order {
+    fn from(v: Vec<u8>) -> Self {
+        debug_assert!(!v.contains(&0));
+        Order(v.into_boxed_slice())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn assert_fractional_ok(a: Option<&str>, b: Option<&str>, expected: &str) {
-        let result = get_order_key(a, b);
-        match result {
-            Ok(actual) => assert_eq!(actual, expected, "case ({a:?}, {b:?})"),
-            Err(e) => panic!("expected Ok({expected}), got error {e:?} for case ({a:?}, {b:?})"),
+    fn _mk(bytes: &[u8]) -> Order {
+        Order::new(bytes).unwrap()
+    }
+
+    #[test]
+    fn test_seed_is_constant_and_0x80() {
+        // seed is constant and 0x80
+        let o = get_order(None, None).unwrap();
+        assert_eq!(o.as_bytes(), ORDER_KEY_ZERO);
+        assert_eq!(o.as_bytes(), &[0x80]);
+    }
+
+    #[test]
+    fn test_open_right_grows() {
+        // open right grows
+        let a = _mk(&[0x80]);
+        let b = get_order(Some(&a), None).unwrap();
+        assert!(a < b);
+        // midpoint between 0x80 and open-end (virtual 256) is ceil((128+256)/2)=192=0xC0
+        assert_eq!(b.as_bytes(), &[0xC0]);
+    }
+
+    #[test]
+    fn test_open_left_shrinks() {
+        // open left shrinks
+        let b = _mk(&[0x80]);
+        let a = get_order(None, Some(&b)).unwrap();
+        assert!(a < b);
+        // midpoint between 0 and 0x80 is ceil((0+128)/2)=64=0x40
+        assert_eq!(a.as_bytes(), &[0x40]);
+    }
+
+    #[test]
+    fn test_between_simple_gap() {
+        // between simple gap
+        let a = _mk(&[0x40]);
+        let b = _mk(&[0x80]);
+        let m = get_order(Some(&a), Some(&b)).unwrap();
+        assert!(a < m && m < b);
+        assert_eq!(m.as_bytes(), &[0x60]); // ceil((0x40+0x80)/2)=0x60
+    }
+
+    #[test]
+    fn test_between_consecutive_prefixes() {
+        // between consecutive prefixes
+        // a: 0x40,0xFF ; b: 0x41
+        let a = _mk(&[0x40, 0xFF]);
+        let b = _mk(&[0x41]);
+        let m = get_order(Some(&a), Some(&b)).unwrap();
+        assert!(a < m && m < b);
+        assert_eq!(m.as_bytes(), &[0x40, 0xFF, 0x80]);
+    }
+
+    #[test]
+    fn test_get_orders_balanced() {
+        // get orders balanced
+        let a = _mk(&[0x40]);
+        let b = _mk(&[0xC0]);
+        let out = get_orders(Some(&a), Some(&b), 5).unwrap();
+        assert_eq!(out.len(), 5);
+        for w in out.windows(2) {
+            assert!(w[0] < w[1]);
         }
     }
 
-    fn assert_fractional_err(a: Option<&str>, b: Option<&str>, expected_err: &str) {
-        let result = get_order_key(a, b);
-        match expected_err {
-            "InvalidOrderKey" => assert!(
-                matches!(result, Err(OrderKeyError::InvalidOrderKey { .. })),
-                "expected InvalidOrderKey for case ({a:?}, {b:?}), got {result:?}"
-            ),
-            "InvalidComparison" => assert!(
-                matches!(result, Err(OrderKeyError::InvalidComparison { .. })),
-                "expected InvalidComparison for case ({a:?}, {b:?}), got {result:?}"
-            ),
-            other => panic!("unknown expected error kind: {other}"),
-        }
+    #[test]
+    fn test_prev_and_next() {
+        // prev and next
+        let a = _mk(&[0x80]);
+        let next = Order::next_after(&a);
+        assert_eq!(next.as_bytes(), &[0x80, 0x01]);
+
+        let b = _mk(&[0x81, 0x01, 0x01]);
+        let prev = Order::prev_before(&b).unwrap();
+        assert!(prev < b);
+        // decrement last non-0x01 (0x81 -> 0x80), truncate, then append 0xFF
+        assert_eq!(prev.as_bytes(), &[0x80, 0xFF]);
     }
 
-    macro_rules! fractional_ok_case {
-        ($name:ident, $a:expr, $b:expr, $expected:expr) => {
-            #[test]
-            fn $name() {
-                assert_fractional_ok($a, $b, $expected);
-            }
-        };
+    #[test]
+    fn test_rejects_zero_byte() {
+        // rejects zero byte
+        assert!(Order::new([0x01, 0x00, 0x02]).is_err());
     }
 
-    macro_rules! fractional_err_case {
-        ($name:ident, $a:expr, $b:expr, $err:expr) => {
-            #[test]
-            fn $name() {
-                assert_fractional_err($a, $b, $err);
-            }
-        };
+    #[test]
+    fn test_comparison_invariant() {
+        // comparison invariant
+        let a = get_order(None, None).unwrap();
+        let b = get_order(Some(&a), None).unwrap();
+        assert!(Order::between(Some(&b), Some(&a)).is_err());
     }
-
-    fractional_ok_case!(case_none_none_is_a0, None, None, "a0");
-    fractional_ok_case!(case_none_a0, None, Some("a0"), "a/");
-    fractional_ok_case!(case_a0_none, Some("a0"), None, "a1");
-    fractional_ok_case!(case_a0_a1, Some("a0"), Some("a1"), "a0P");
-    fractional_ok_case!(case_a0v_a1, Some("a0V"), Some("a1"), "a0k");
-    fractional_ok_case!(case_zz_a0, Some("Zz"), Some("a0"), "Z{");
-    fractional_ok_case!(case_zz_a1, Some("Zz"), Some("a1"), "Z{");
-    fractional_ok_case!(case_none_y00, None, Some("Y00"), "Y//");
-    fractional_ok_case!(case_bzz_none, Some("bzz"), None, "bz{");
-    fractional_ok_case!(case_a0_a0v, Some("a0"), Some("a0V"), "a0<");
-    fractional_ok_case!(case_a0_a0g, Some("a0"), Some("a0G"), "a05");
-    fractional_ok_case!(case_b125_b129, Some("b125"), Some("b129"), "b127");
-    fractional_ok_case!(case_a0_a1v, Some("a0"), Some("a1V"), "a1");
-    fractional_ok_case!(case_zz_a01, Some("Zz"), Some("a01"), "Z{");
-    fractional_ok_case!(case_none_a0v, None, Some("a0V"), "a0");
-    fractional_ok_case!(case_none_b999, None, Some("b999"), "b99");
-    fractional_ok_case!(
-        case_none_a_min_plus_one,
-        None,
-        Some("A000000000000000000000000001"),
-        "A00000000000000000000000000*"
-    );
-    fractional_ok_case!(
-        case_zs_many_y_none,
-        Some("zzzzzzzzzzzzzzzzzzzzzzzzzzy"),
-        None,
-        "zzzzzzzzzzzzzzzzzzzzzzzzzzz"
-    );
-    fractional_ok_case!(
-        case_zs_many_none,
-        Some("zzzzzzzzzzzzzzzzzzzzzzzzzzz"),
-        None,
-        "zzzzzzzzzzzzzzzzzzzzzzzzzz{"
-    );
-
-    fractional_err_case!(
-        case_none_a_min,
-        None,
-        Some("A00000000000000000000000000"),
-        "InvalidOrderKey"
-    );
-    fractional_err_case!(case_a00_none, Some("a00"), None, "InvalidOrderKey");
-    fractional_err_case!(case_a00_a1, Some("a00"), Some("a1"), "InvalidOrderKey");
-    fractional_err_case!(case_zero_one, Some("0"), Some("1"), "InvalidOrderKey");
-    fractional_err_case!(case_a1_a0, Some("a1"), Some("a0"), "InvalidComparison");
 }
