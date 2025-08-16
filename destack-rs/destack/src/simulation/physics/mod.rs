@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::physics::_gen::*;
 pub use crate::simulation::physics::body::*;
 pub use crate::simulation::physics::collider::*;
 pub use crate::simulation::physics::joint::*;

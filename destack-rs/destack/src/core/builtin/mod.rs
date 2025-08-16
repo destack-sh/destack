@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::builtin::_gen::*;
 pub use crate::core::builtin::casing::*;
 pub use crate::core::builtin::declaration::*;
 pub use crate::core::builtin::entity::*;

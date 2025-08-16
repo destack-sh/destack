@@ -127,6 +127,16 @@ class RustAttribute:
     content: str
 
 
+class RustVisibility(StrEnum):
+    """The visibility of a Rust item."""
+
+    PUBLIC = "pub"
+    CRATE = "pub(crate)"
+    SUPER = "pub(super)"
+    PRIVATE = "private"
+    # we don't use pub(in ...)
+
+
 @dataclass(slots=True)
 class RustModDeclaration:
     """A module declaration like `mod foo;` or `pub mod foo;`."""
@@ -141,9 +151,9 @@ class RustImport:
 
     source: str  # like 'core (up to the imported items, but excluding them)
     imports: list[str]  # like '["fmt", "Add", "AddAssign", ...]'
+    is_glob: bool  # whether the import uses '*'
     is_internal: bool  # whether this import referes to the crate itself
     is_public: bool  # whether the import is declared with 'pub'
-    is_glob: bool  # whether the import uses '*'
 
 
 @dataclass(slots=True)
@@ -306,5 +316,21 @@ def ecsape_rust_identifier(identifier: str, *, keep: Sequence[str] | None = None
             return "::".join(ecsape_rust_identifier(part) for part in identifier_parts)
     elif identifier in RUST_RESERVED_KEYWORDS and (keep is None or identifier not in keep):
         return f"r#{identifier}"
+    else:
+        return identifier
+
+
+def unescape_rust_identifier(identifier: str) -> str:
+    """Remove r# prefix from escaped identifiers."""
+    if "::" in identifier:
+        identifier_parts = identifier.split("::")
+        if identifier.startswith("crate::"):
+            return "crate::" + "::".join(
+                unescape_rust_identifier(part) for part in identifier_parts[1:]
+            )
+        else:
+            return "::".join(unescape_rust_identifier(part) for part in identifier_parts)
+    elif identifier.startswith("r#"):
+        return identifier[2:]
     else:
         return identifier

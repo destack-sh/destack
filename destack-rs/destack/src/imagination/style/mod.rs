@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::imagination::style::_gen::*;
 pub use crate::imagination::style::border::*;
 pub use crate::imagination::style::color::*;
 pub use crate::imagination::style::fill::*;

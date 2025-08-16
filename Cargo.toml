@@ -40,6 +40,7 @@ wasm-bindgen-test = "0.3.50"
 missing_debug_implementations = "warn"
 rust_2018_idioms = "warn"
 unreachable_pub = "warn"
+ambiguous_glob_reexports = { level = "forbid", priority = 1 }
 
 [workspace.lints.clippy]
 perf = "warn"

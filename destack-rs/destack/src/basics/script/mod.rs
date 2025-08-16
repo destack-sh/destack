@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::basics::script::_gen::*;
 pub use crate::basics::script::action::*;
 pub use crate::basics::script::custom::*;
 pub use crate::basics::script::environment::*;

@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::space::_gen::*;
 pub use crate::core::space::branch::*;
 pub use crate::core::space::folder::*;
 pub use crate::core::space::snapshot::*;

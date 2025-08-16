@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::basics::entity::_gen::*;
 pub use crate::basics::entity::constraint::*;
 pub use crate::basics::entity::custom::*;
 pub use crate::basics::entity::file::*;
