@@ -71,7 +71,7 @@ RUST_PRIMITIVE_TYPES: dict[PrimitiveType, tuple[str, Optional[tuple[str, str]]]]
     # string
     PrimitiveType.CHARACTER: ("char", None),
     PrimitiveType.STRING: ("String", None),
-    PrimitiveType.ORDER_KEY: ("Order", ("destack_order", "Order")),
+    PrimitiveType.ORDER: ("Order", ("destack_order", "Order")),
     PrimitiveType.UUID: ("Uuid", ("destack_uuid", "Uuid")),
     PrimitiveType.JSON: ("JsonValue", ("destack_json", "JsonValue")),
 }

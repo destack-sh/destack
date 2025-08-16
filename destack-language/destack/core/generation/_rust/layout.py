@@ -36,15 +36,12 @@ class RustObjectSizer(ObjectSizer):
     UINT128_SIZE = 16
     FLOAT32_SIZE = 4
     FLOAT64_SIZE = 8
-
-    # datetime sizes
     DATETIME_SIZE = 8
     DATE_SIZE = 8
     TIME_SIZE = 8
     TIMESTAMP_SIZE = 8
     DURATION_SIZE = 8
-
-    # uuid size
+    ORDER_SIZE = 8
     UUID_SIZE = 16
 
     # interned sizes
@@ -174,14 +171,12 @@ class RustObjectSizer(ObjectSizer):
                 return ObjectSize(self.TIMESTAMP_SIZE, self.TIMESTAMP_SIZE)
             elif type.primitive_type == PrimitiveType.DURATION:
                 return ObjectSize(self.DURATION_SIZE, self.DURATION_SIZE)
+            elif type.primitive_type == PrimitiveType.STRING:
+                return ObjectSize(self.STRING_HEADER_SIZE, None)
+            elif type.primitive_type == PrimitiveType.ORDER:
+                return ObjectSize(self.ORDER_SIZE, self.ORDER_SIZE)
             elif type.primitive_type == PrimitiveType.UUID:
                 return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
-            elif type.primitive_type == PrimitiveType.ORDER_KEY:
-                # variable length byte array (interned)
-                return ObjectSize(1, None)
-            elif type.primitive_type == PrimitiveType.STRING:
-                # String header
-                return ObjectSize(self.STRING_HEADER_SIZE, None)
             elif type.primitive_type == PrimitiveType.JSON:
                 # opaque / serde_json::Value varies; treat as unknown
                 return ObjectSize(8, 8)

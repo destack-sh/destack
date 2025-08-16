@@ -73,6 +73,7 @@ class KompaktObjectSizer(ObjectSizer):
     FLOAT32_SIZE = 4
     FLOAT64_SIZE = 8
     CHARACTER_SIZE = 4
+    ORDER_SIZE = 8
     UUID_SIZE = 16
     DATETIME_SIZE = 8
     DATE_SIZE = 8
@@ -204,15 +205,15 @@ class KompaktObjectSizer(ObjectSizer):
                 return ObjectSize(self.TIMESTAMP_SIZE, self.TIMESTAMP_SIZE)
             elif primitive == PrimitiveType.DURATION:
                 return ObjectSize(self.DURATION_SIZE, self.DURATION_SIZE)
-            elif primitive == PrimitiveType.UUID:
-                return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
-            elif primitive == PrimitiveType.ORDER_KEY:
-                return ObjectSize(1, None)
             elif primitive == PrimitiveType.STRING:
                 # length (4 bytes) + payload
                 return ObjectSize(4, None)
             elif primitive == PrimitiveType.CHARACTER:
                 return ObjectSize(self.CHARACTER_SIZE, self.CHARACTER_SIZE)
+            elif primitive == PrimitiveType.ORDER:
+                return ObjectSize(self.ORDER_SIZE, self.ORDER_SIZE)
+            elif primitive == PrimitiveType.UUID:
+                return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
             elif primitive == PrimitiveType.JSON:
                 # at least a 1-byte tag, contents vary
                 return ObjectSize(1, None)

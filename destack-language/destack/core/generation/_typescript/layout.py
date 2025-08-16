@@ -159,7 +159,7 @@ class TypeScriptObjectSizer(ObjectSizer):
             elif type.primitive_type == PrimitiveType.CHARACTER:
                 # single UTF-16 code unit
                 return ObjectSize(2, 2)
-            elif type.primitive_type == PrimitiveType.ORDER_KEY:
+            elif type.primitive_type == PrimitiveType.ORDER:
                 # variable length byte array (interned)
                 return ObjectSize(1, None)
             elif type.primitive_type == PrimitiveType.JSON:
@@ -256,7 +256,7 @@ class TypeScriptObjectSizer(ObjectSizer):
                     return False
                 elif primitive == PrimitiveType.UUID:
                     return False
-                elif primitive == PrimitiveType.ORDER_KEY:
+                elif primitive == PrimitiveType.ORDER:
                     return False
                 elif primitive == PrimitiveType.JSON:
                     return False

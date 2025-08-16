@@ -10,7 +10,6 @@ rust-version.workspace = true
 [[bin]]
 name = "destack_fuzz"
 path = "src/main.rs"
-cargo-fuzz = true
 
 [dependencies]
 destack = { workspace = true }
