@@ -19,6 +19,7 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 destack = { path = "destack-rs/destack" }
+destack_macros = { path = "destack-rs/destack_macros" }
 destack_fractional = { path = "destack-rs/destack_fractional" }
 destack_json = { path = "destack-rs/destack_json" }
 destack_time = { path = "destack-rs/destack_time" }

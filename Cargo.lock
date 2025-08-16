@@ -59,6 +59,7 @@ version = "2025.8.15-1"
 dependencies = [
  "destack_fractional",
  "destack_json",
+ "destack_macros",
  "destack_time",
  "destack_uuid",
  "pretty_assertions",
@@ -74,6 +75,14 @@ version = "2025.8.15-1"
 
 [[package]]
 name = "destack_json"
+version = "2025.8.15-1"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "destack_macros"
 version = "2025.8.15-1"
 dependencies = [
  "quickcheck",

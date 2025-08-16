@@ -7,11 +7,17 @@ authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[lib]
+# NOTE :Test: would be nice to use doctests but they don't support custom tool macros yet
+#  (and we don't really use them anyway)
+doctest = false
+
 [[bin]]
 name = "destack"
 path = "src/main.rs"
 
 [dependencies]
+destack_macros = { workspace = true }
 destack_fractional = { workspace = true }
 destack_time = { workspace = true }
 destack_uuid = { workspace = true }
