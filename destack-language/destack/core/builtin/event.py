@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, dataclass_transform
 
-from ._hoisted import ReferenceType, Timestamp
+from ._hoisted import ReferenceType
 from .declaration import TagDeclaration, declare_method
 from .entity import Entity
 from .enum import OptionEnum, declare_enum, declare_option
@@ -115,18 +115,8 @@ class Event(Node):
     )
 
     # 20-40: Event tracking
-    created_at: Timestamp = declare_property(
-        20,
-        is_managed=True,
-        is_eq=False,
-        is_hash=False,
-        is_readonly=True,
-        default_factory=ValueFactory.NOW,
-        description="The time this Event was created (system).",
-        tag="tracking",
-    )
     created_epoch: UInt64 = declare_property(
-        21,
+        20,
         is_managed=True,
         is_eq=False,
         is_hash=False,
@@ -136,20 +126,16 @@ class Event(Node):
         description="The logical time this Event was created (system).",
         tag="tracking",
     )
-    created_by: "Entity" = declare_property(
-        22,
-        is_managed=True,
-        is_eq=False,
-        is_hash=False,
-        is_repr=False,
-        is_readonly=True,
-        default_factory=ValueFactory.ACTOR,
+    owner: "Entity" = declare_property(
+        21,
+        is_repr=True,
+        description="The exclusive owner of this Entity (the root on access).",
         reference_type=ReferenceType.SPATIAL,
-        description="The Actor that created this Event.",
+        default_factory=ValueFactory.ACTOR,
         tag="tracking",
     )
     client: "Client" = declare_property(
-        23,
+        22,
         is_managed=True,
         is_eq=False,
         is_hash=False,
@@ -161,7 +147,7 @@ class Event(Node):
         tag="tracking",
     )
     client_nonce: UInt8 = declare_property(
-        24,
+        23,
         is_eq=False,
         is_hash=False,
         is_repr=False,
@@ -172,7 +158,7 @@ class Event(Node):
         tag="tracking",
     )
     client_remote_epoch: UInt64 = declare_property(
-        26,
+        24,
         is_eq=False,
         is_hash=False,
         is_repr=True,
@@ -183,7 +169,7 @@ class Event(Node):
         tag="tracking",
     )
     client_local_epoch: UInt64 = declare_property(
-        27,
+        25,
         is_eq=False,
         is_hash=False,
         is_repr=True,
