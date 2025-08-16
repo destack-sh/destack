@@ -5,43 +5,43 @@ const _BASE_95_DIGITS: &str =
     "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
 /// canonical zero integer for fractional indexing
-pub const FRACTIONAL_INTEGER_ZERO: &str = "a0";
+pub const ORDER_KEY_ZERO: &str = "a0";
 /// minimum representable integer for fractional indexing
-pub const FRACTIONAL_INTEGER_MIN: &str = "A00000000000000000000000000";
+pub const ORDER_KEY_MIN: &str = "A00000000000000000000000000";
 /// maximum representable integer for fractional indexing
-pub const FRACTIONAL_INTEGER_MAX: &str = "aZZZZZZZZZZZZZZZZZZZZZZZZZ";
+pub const ORDER_KEY_MAX: &str = "aZZZZZZZZZZZZZZZZZZZZZZZZZ";
 
 #[derive(Debug)]
-pub enum FractionalError {
+pub enum OrderKeyError {
     InvalidOrderKeyHead { head: char },
     TrailingZero,
     InvalidOrderKey { key: String },
     InvalidComparison { a: String, b: String },
 }
 
-impl std::fmt::Display for FractionalError {
+impl std::fmt::Display for OrderKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FractionalError::InvalidOrderKeyHead { head } => {
+            OrderKeyError::InvalidOrderKeyHead { head } => {
                 write!(f, "invalid order key head: {head}")
             }
-            FractionalError::TrailingZero => write!(f, "trailing zero"),
-            FractionalError::InvalidOrderKey { key } => write!(f, "invalid order key: {key}"),
-            FractionalError::InvalidComparison { a, b } => write!(f, "{a} >= {b}"),
+            OrderKeyError::TrailingZero => write!(f, "trailing zero"),
+            OrderKeyError::InvalidOrderKey { key } => write!(f, "invalid order key: {key}"),
+            OrderKeyError::InvalidComparison { a, b } => write!(f, "{a} >= {b}"),
         }
     }
 }
 
-impl std::error::Error for FractionalError {}
+impl std::error::Error for OrderKeyError {}
 
 /// Gets the length of the integer part of the given order key
-fn _get_integer_length(head: char) -> Result<usize, FractionalError> {
+fn _get_integer_length(head: char) -> Result<usize, OrderKeyError> {
     if head >= 'a' && head <= 'z' {
         Ok(head as usize - 'a' as usize + 2)
     } else if head >= 'A' && head <= 'Z' {
         Ok('Z' as usize - head as usize + 2)
     } else {
-        Err(FractionalError::InvalidOrderKeyHead { head })
+        Err(OrderKeyError::InvalidOrderKeyHead { head })
     }
 }
 
@@ -49,18 +49,18 @@ fn _get_integer_length(head: char) -> Result<usize, FractionalError> {
 /// `a` may be empty string, `b` is `None` or non-empty string
 /// `a < b` lexicographically if `b` is non-null
 /// No trailing zeros allowed
-fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
+fn _midpoint(a: &str, b: Option<&str>) -> Result<String, OrderKeyError> {
     // errors
     if let Some(bv) = b
         && a >= bv
     {
-        return Err(FractionalError::InvalidComparison {
+        return Err(OrderKeyError::InvalidComparison {
             a: a.to_string(),
             b: bv.to_string(),
         });
     }
     if (!a.is_empty() && a.ends_with('0')) || (b.is_some() && b.unwrap().ends_with('0')) {
-        return Err(FractionalError::TrailingZero);
+        return Err(OrderKeyError::TrailingZero);
     }
 
     if let Some(bv) = b {
@@ -88,7 +88,7 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
     let digit_a = if !a.is_empty() {
         _BASE_95_DIGITS
             .find(a.chars().next().unwrap())
-            .ok_or_else(|| FractionalError::InvalidOrderKey { key: a.to_string() })?
+            .ok_or_else(|| OrderKeyError::InvalidOrderKey { key: a.to_string() })?
     } else {
         0
     };
@@ -96,7 +96,7 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
         if !bv.is_empty() {
             _BASE_95_DIGITS
                 .find(bv.chars().next().unwrap())
-                .ok_or_else(|| FractionalError::InvalidOrderKey { key: a.to_string() })?
+                .ok_or_else(|| OrderKeyError::InvalidOrderKey { key: a.to_string() })?
         } else {
             _BASE_95_DIGITS.len()
         }
@@ -127,16 +127,16 @@ fn _midpoint(a: &str, b: Option<&str>) -> Result<String, FractionalError> {
 }
 
 /// Gets the integer part of the given order key
-fn _get_integer_part(key: &str) -> Result<String, FractionalError> {
+fn _get_integer_part(key: &str) -> Result<String, OrderKeyError> {
     let head = key
         .chars()
         .next()
-        .ok_or_else(|| FractionalError::InvalidOrderKey {
+        .ok_or_else(|| OrderKeyError::InvalidOrderKey {
             key: key.to_string(),
         })?;
     let integer_part_length = _get_integer_length(head)?;
     if integer_part_length > key.len() {
-        return Err(FractionalError::InvalidOrderKey {
+        return Err(OrderKeyError::InvalidOrderKey {
             key: key.to_string(),
         });
     }
@@ -144,7 +144,7 @@ fn _get_integer_part(key: &str) -> Result<String, FractionalError> {
 }
 
 fn _is_valid_order_key(key: &str) -> bool {
-    if key == FRACTIONAL_INTEGER_MIN {
+    if key == ORDER_KEY_MIN {
         return false;
     }
     let integer_part = match _get_integer_part(key) {
@@ -156,9 +156,9 @@ fn _is_valid_order_key(key: &str) -> bool {
 }
 
 /// Validates that the given key is a valid order key
-fn _validate_order_key(key: &str) -> Result<(), FractionalError> {
+fn _validate_order_key(key: &str) -> Result<(), OrderKeyError> {
     if !_is_valid_order_key(key) {
-        return Err(FractionalError::InvalidOrderKey {
+        return Err(OrderKeyError::InvalidOrderKey {
             key: key.to_string(),
         });
     }
@@ -253,7 +253,7 @@ pub fn decrement_integer(x: &str) -> Option<String> {
 }
 
 /// Generates a key between the given keys `a` and `b` (inclusive) with logarithmic fraction growth
-pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, FractionalError> {
+pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, OrderKeyError> {
     // validate
     if let Some(av) = a {
         _validate_order_key(av)?;
@@ -264,7 +264,7 @@ pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, Fractio
     if let (Some(av), Some(bv)) = (a, b)
         && av >= bv
     {
-        return Err(FractionalError::InvalidComparison {
+        return Err(OrderKeyError::InvalidComparison {
             a: av.to_string(),
             b: bv.to_string(),
         });
@@ -272,12 +272,12 @@ pub fn get_order_key(a: Option<&str>, b: Option<&str>) -> Result<String, Fractio
 
     if a.is_none() {
         if b.is_none() {
-            return Ok(FRACTIONAL_INTEGER_ZERO.to_string());
+            return Ok(ORDER_KEY_ZERO.to_string());
         }
         let b = b.unwrap();
         let ib = _get_integer_part(b)?;
         let fb = &b[ib.len()..];
-        if ib == FRACTIONAL_INTEGER_MIN {
+        if ib == ORDER_KEY_MIN {
             return Ok(ib + &_midpoint("", Some(fb))?);
         }
         if ib.as_str() < b {
@@ -319,7 +319,7 @@ pub fn get_order_keys(
     a: Option<&str>,
     b: Option<&str>,
     n: u32,
-) -> Result<Vec<String>, FractionalError> {
+) -> Result<Vec<String>, OrderKeyError> {
     if n == 0 {
         return Ok(vec![]);
     }
@@ -372,11 +372,11 @@ mod tests {
         let result = get_order_key(a, b);
         match expected_err {
             "InvalidOrderKey" => assert!(
-                matches!(result, Err(FractionalError::InvalidOrderKey { .. })),
+                matches!(result, Err(OrderKeyError::InvalidOrderKey { .. })),
                 "expected InvalidOrderKey for case ({a:?}, {b:?}), got {result:?}"
             ),
             "InvalidComparison" => assert!(
-                matches!(result, Err(FractionalError::InvalidComparison { .. })),
+                matches!(result, Err(OrderKeyError::InvalidComparison { .. })),
                 "expected InvalidComparison for case ({a:?}, {b:?}), got {result:?}"
             ),
             other => panic!("unknown expected error kind: {other}"),

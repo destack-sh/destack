@@ -1,5 +1,5 @@
 [package]
-name = "destack_fractional"
+name = "destack_order"
 description = "Destack Fractional Integers"
 version.workspace = true
 edition.workspace = true

@@ -383,7 +383,6 @@ impl std::fmt::Debug for StructType {
             StructType::Struct => write!(f, "STRUCT"),
             StructType::Error => write!(f, "ERROR"),
             StructType::Message => write!(f, "MESSAGE"),
-            StructType::FractionalIntegerError => write!(f, "FRACTIONAL_INTEGER_ERROR"),
             StructType::Definition => write!(f, "DEFINITION"),
             StructType::SchemaDefinition => write!(f, "SCHEMA_DEFINITION"),
             StructType::ModuleDefinition => write!(f, "MODULE_DEFINITION"),

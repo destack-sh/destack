@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 destack_macros = { workspace = true }
-destack_fractional = { workspace = true }
+destack_order = { workspace = true }
 destack_time = { workspace = true }
 destack_uuid = { workspace = true }
 destack_json = { workspace = true }

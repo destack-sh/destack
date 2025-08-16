@@ -7,7 +7,6 @@
 pub use crate::core::builtin::casing::StringCasing;
 pub use crate::core::builtin::entity::{ExtensionFlag, Materialization, ProcessFlag};
 pub use crate::core::builtin::event::{EventStatus, RuntimeLanguage, RuntimePlatform, RuntimeType};
-pub use crate::core::builtin::fractional::FractionalIntegerError;
 pub use crate::core::builtin::universe::{
     EnumType, HandleType, ModuleType, NodeType, ObjectKind, ObjectStability, StructType, TraitType,
     UniverseCategory, UniverseDomain,
@@ -20,11 +19,11 @@ pub mod entity;
 pub mod r#enum;
 pub mod error;
 pub mod event;
-pub mod fractional;
 pub mod handle;
 pub mod message;
 pub mod node;
 pub mod object;
+pub mod order;
 pub mod property;
 pub mod r#struct;
 pub mod r#type;

@@ -57,9 +57,9 @@ checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
 name = "destack"
 version = "2025.8.15-1"
 dependencies = [
- "destack_fractional",
  "destack_json",
  "destack_macros",
+ "destack_order",
  "destack_time",
  "destack_uuid",
  "pretty_assertions",
@@ -68,10 +68,6 @@ dependencies = [
  "static_assertions",
  "tokio",
 ]
-
-[[package]]
-name = "destack_fractional"
-version = "2025.8.15-1"
 
 [[package]]
 name = "destack_json"
@@ -88,6 +84,10 @@ dependencies = [
  "quickcheck",
  "quickcheck_macros",
 ]
+
+[[package]]
+name = "destack_order"
+version = "2025.8.15-1"
 
 [[package]]
 name = "destack_system"

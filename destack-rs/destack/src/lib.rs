@@ -20,8 +20,8 @@ pub use crate::presentation::*;
 pub use crate::production::*;
 pub use crate::simulation::*;
 
-pub use destack_fractional::*;
 pub use destack_json::*;
+pub use destack_order::*;
 pub use destack_time::*;
 pub use destack_uuid::*;
 
