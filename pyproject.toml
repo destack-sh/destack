@@ -11,9 +11,6 @@ description = "Universe simulation engine (i.e. insanely integrated full stack t
 workspace = { members = [
 	"destack-language",
 	"destack-py",
-	"destack-py-system",
-	"destack-py-server",
-	"destack-py-web",
 ] }
 
 [tool.ty.environment]
@@ -25,7 +22,7 @@ root = ["./destack-language"]
 
 [tool.ruff]
 line-length = 100
-src = ["destack-language", "destack-py", "destack-py-server"]
+src = ["destack-language", "destack-py"]
 
 [tool.ruff.lint]
 preview = true
@@ -91,10 +88,10 @@ known-first-party = ["destack"]
 #
 
 [tool.pyright]
-include = ["destack-language", "destack-py", "destack-py-server"]
+include = ["destack-language", "destack-py"]
 ignore = ["*/venv*"]
-venv = "destack-py-server/venv"
-extraPaths = ["destack-language", "destack-py", "destack-py-server"]
+venv = "destack-language/venv"
+extraPaths = ["destack-language", "destack-py"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true

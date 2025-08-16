@@ -1,5 +1,4 @@
 # run ./scripts/update.sh
-# NOTE: we only have dev requirements because Destack must remain dependency-free
 
 pip-tools==7.3.0
 pre-commit==3.3.3

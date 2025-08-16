@@ -1,43 +1,48 @@
 {
-  "name": "destack-ts-system",
+  "name": "destack-ts-web",
   "version": "2025.08.15.1",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "bun": {
     "alias": {
-      "@destack/*": "../destack-ts/src/*",
-      "@destack-system/*": "../destack-ts-system/src/*"
+      "@destack/*": "../destack/src/*"
     }
   },
   "scripts": {
-    "dev": "bun --env-file ../.env.dev --env-file ../.env.dev.local run src/cli/index.ts",
-    "build": "tsc",
+    "dev": "vite",
+    "preview": "vite preview",
     "test": "bun --env-file ../.env.test --env-file ../.env.test.local test",
+    "build": "vite build",
     "check": "tsc --noEmit && biome check --write --unsafe src/",
-    "fmt": "biome check --write --unsafe src/"
+    "format": "biome check --write --unsafe src/"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "destack": "link:destack-ts",
+    "destack": "link:../destack",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "catalog:build",
     "@babel/plugin-proposal-class-static-block": "catalog:build",
     "@babel/plugin-proposal-decorators": "catalog:build",
     "@babel/plugin-transform-class-static-block": "catalog:build",
     "@babel/plugin-transform-typescript": "catalog:build",
     "@babel/preset-typescript": "catalog:build",
     "@biomejs/biome": "catalog:build",
+    "@tsconfig/node20": "catalog:build",
     "@types/bun": "catalog:types",
+    "@types/jsdom": "catalog:types",
     "@types/node": "catalog:types",
     "fake-indexeddb": "catalog:test",
     "fast-check": "catalog:test",
     "jsdom": "catalog:test",
     "mitata": "catalog:test",
-    "typescript": "catalog:build"
+    "postcss": "catalog:build",
+    "typescript": "catalog:build",
+    "vite": "catalog:build",
+    "vite-plugin-static-copy": "catalog:build",
+    "vite-tsconfig-paths": "catalog:build"
   }
 }

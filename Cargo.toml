@@ -6,8 +6,8 @@ members = [
 	"destack-rs/destack_time",
 	"destack-rs/destack_json",
 	"destack-rs/destack_uuid",
-	"destack-rs-system/destack_system",
-	"destack-rs-test/destack_test",
+	"destack-rs/destack_system",
+	"destack-rs/destack_test",
 ]
 
 [workspace.package]
@@ -24,7 +24,7 @@ destack_fractional = { path = "destack-rs/destack_fractional" }
 destack_json = { path = "destack-rs/destack_json" }
 destack_time = { path = "destack-rs/destack_time" }
 destack_uuid = { path = "destack-rs/destack_uuid" }
-destack_system = { path = "destack-rs-system/destack_system" }
+destack_system = { path = "destack-rs/destack_system" }
 
 # dependencies
 tokio = "1.47.1"
