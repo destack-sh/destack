@@ -15,6 +15,7 @@ from destack.core.generation._rust.parse import (
     _parse_rust_mod_declarations,
     parse_rust_file,
 )
+from destack.core.generation._rust.core import RustVisibility
 
 FILE_1: str = """\
 //! Module level comment.
@@ -185,39 +186,47 @@ use crate::internal::module::{
     AnotherStruct,
     ThirdStruct,
 };
+pub(crate) use alloc::vec::Vec;
+pub(super) use crate::m::Inner;
 """
     imports, _ = _parse_rust_imports(src)
-    assert len(imports) == 7
+    assert len(imports) == 9
 
     # use crate::foo;
     assert imports[0].source == "crate"
     assert imports[0].is_internal is True
     assert imports[0].imports == ["foo"]
+    assert imports[0].visibility == RustVisibility.PRIVATE
 
     # use self::bar::Baz;
     assert imports[1].source == "self::bar"
     assert imports[1].is_internal is True
     assert imports[1].imports == ["Baz"]
+    assert imports[1].visibility == RustVisibility.PRIVATE
 
     # use super::qux;
     assert imports[2].source == "super"
     assert imports[2].is_internal is True
     assert imports[2].imports == ["qux"]
+    assert imports[2].visibility == RustVisibility.PRIVATE
 
     # use external::pkg::Thing;
     assert imports[3].source == "external::pkg"
     assert imports[3].is_internal is False
     assert imports[3].imports == ["Thing"]
+    assert imports[3].visibility == RustVisibility.PRIVATE
 
     # pub use core::*;
     assert imports[4].source == "core"
     assert imports[4].is_glob is True
     assert imports[4].imports == []  # should be empty, not ['*']
+    assert imports[4].visibility == RustVisibility.PUBLIC
 
     # use std::collections::{HashMap, HashSet};
     assert imports[5].source == "std::collections"
     assert imports[5].is_internal is False
     assert set(imports[5].imports) == {"HashMap", "HashSet"}
+    assert imports[5].visibility == RustVisibility.PRIVATE
 
     # use crate::internal::module::{
     #     InternalStruct,
@@ -227,6 +236,19 @@ use crate::internal::module::{
     assert imports[6].source == "crate::internal::module"
     assert imports[6].is_internal is True
     assert set(imports[6].imports) == {"InternalStruct", "AnotherStruct", "ThirdStruct"}
+    assert imports[6].visibility == RustVisibility.PRIVATE
+
+    # pub(crate) use alloc::vec::Vec;
+    assert imports[7].source == "alloc::vec"
+    assert imports[7].is_internal is False
+    assert imports[7].imports == ["Vec"]
+    assert imports[7].visibility == RustVisibility.CRATE
+
+    # pub(super) use crate::m::Inner;
+    assert imports[8].source == "crate::m"
+    assert imports[8].is_internal is True
+    assert imports[8].imports == ["Inner"]
+    assert imports[8].visibility == RustVisibility.SUPER
 
 
 def test_parse_block_items() -> None:
@@ -359,6 +381,9 @@ def test_parse_mods() -> None:
 // header
 pub use core::*;
 mod inner;
+pub mod public_mod;
+pub(crate) mod crate_mod;
+pub(super) mod super_mod;
 
 #[destack::generated(Thing, struct, block)]
 pub struct Thing {
@@ -366,8 +391,11 @@ pub struct Thing {
 }
 """
     mods, _ = _parse_rust_mod_declarations(src)
-    assert len(mods) == 1
-    assert mods[0].name == "inner" and mods[0].is_public is False
+    assert len(mods) == 4
+    assert mods[0].name == "inner" and mods[0].visibility == RustVisibility.PRIVATE
+    assert mods[1].name == "public_mod" and mods[1].visibility == RustVisibility.PUBLIC
+    assert mods[2].name == "crate_mod" and mods[2].visibility == RustVisibility.CRATE
+    assert mods[3].name == "super_mod" and mods[3].visibility == RustVisibility.SUPER
 
 
 def test_parse_file_type() -> None:
