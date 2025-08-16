@@ -511,11 +511,11 @@ Single character (UTF-8, 32-bit)
 Range: 0 to 2^32-1
 """,
     )
-    ORDER_KEY = declare_option(
+    ORDER = declare_option(
         52,
         "Order",
         description="""\
-Order key (variable length byte array)
+Relative order (64-bit "integer" with special encoding)
 """,
     )
     UUID = declare_option(
@@ -576,7 +576,7 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     str: PrimitiveType.STRING,
     String: PrimitiveType.STRING,
     Character: PrimitiveType.CHARACTER,
-    Order: PrimitiveType.ORDER_KEY,
+    Order: PrimitiveType.ORDER,
     UUID: PrimitiveType.UUID,
     Json: PrimitiveType.JSON,
 }
