@@ -503,7 +503,6 @@ Range: 0 to 2^32-1
         "UUID",
         description="""\
 Universally unique identifier (UUID7, 128-bit)
-The zero UUID is invalid (00000000-0000-0000-0000-000000000000).
 Range: 0 to 2^128-1
 """,
     )
