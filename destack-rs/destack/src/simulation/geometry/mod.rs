@@ -2,15 +2,16 @@
 
 #![destack::partial(destack.simulation.geometry, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::simulation::geometry::_gen::*;
+pub use crate::simulation::geometry::_gen::*;
 pub use crate::simulation::geometry::capsule::*;
 pub use crate::simulation::geometry::circle::*;
 pub use crate::simulation::geometry::cone::*;
-pub(crate) use crate::simulation::geometry::convex::*;
+pub use crate::simulation::geometry::convex::*;
 pub use crate::simulation::geometry::cylinder::*;
 pub use crate::simulation::geometry::ellipse::*;
-pub(crate) use crate::simulation::geometry::entity::*;
+pub use crate::simulation::geometry::entity::*;
 pub use crate::simulation::geometry::line::*;
 pub use crate::simulation::geometry::mesh::*;
 pub use crate::simulation::geometry::path::*;
@@ -18,165 +19,23 @@ pub use crate::simulation::geometry::plane::*;
 pub use crate::simulation::geometry::point::*;
 pub use crate::simulation::geometry::quaternion::*;
 pub use crate::simulation::geometry::rectangle::*;
-pub(crate) use crate::simulation::geometry::shape::*;
+pub use crate::simulation::geometry::shape::*;
 pub use crate::simulation::geometry::vector::*;
 
-mod _gen;
-mod capsule;
-mod circle;
-mod cone;
-mod convex;
-mod cylinder;
-mod ellipse;
-mod entity;
-mod line;
-mod mesh;
-mod path;
-mod plane;
-mod point;
-mod quaternion;
-mod rectangle;
-mod shape;
-mod vector;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::_gen::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
-
-pub(crate) use crate::simulation::geometry::convex::*;
-
-pub(crate) use crate::simulation::geometry::entity::*;
-
-pub(crate) use crate::simulation::geometry::shape::*;
+pub mod _gen;
+pub mod capsule;
+pub mod circle;
+pub mod cone;
+pub mod convex;
+pub mod cylinder;
+pub mod ellipse;
+pub mod entity;
+pub mod line;
+pub mod mesh;
+pub mod path;
+pub mod plane;
+pub mod point;
+pub mod quaternion;
+pub mod rectangle;
+pub mod shape;
+pub mod vector;

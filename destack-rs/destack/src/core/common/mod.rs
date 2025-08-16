@@ -2,8 +2,9 @@
 
 #![destack::partial(destack.core.common, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::core::common::_gen::*;
+pub use crate::core::common::_gen::*;
 pub use crate::core::common::change::*;
 pub use crate::core::common::icon::*;
 pub use crate::core::common::query::*;
@@ -12,47 +13,11 @@ pub use crate::core::common::text::*;
 pub use crate::core::common::r#type::*;
 pub use crate::core::common::value::*;
 
-mod _gen;
-mod change;
-mod icon;
-mod query;
-mod relation;
-mod text;
-mod r#type;
-mod value;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
-
-pub(crate) use crate::core::common::_gen::*;
+pub mod _gen;
+pub mod change;
+pub mod icon;
+pub mod query;
+pub mod relation;
+pub mod text;
+pub mod r#type;
+pub mod value;

@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.core.encoding._gen, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
+pub use crate::core::encoding::_gen::time_gen::*;
 
-mod time_gen;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
-
-pub(crate) use crate::core::encoding::_gen::time_gen::*;
+pub mod time_gen;

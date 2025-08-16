@@ -8,8 +8,8 @@ from destack.core.generation._rust.core import (
     render_rust_file,
 )
 from destack.core.generation._rust.parse import (
-    RustGenerationType,
     RustItemScope,
+    RustManagedType,
     _parse_rust_imports,
     _parse_rust_items,
     _parse_rust_mod_declarations,
@@ -58,7 +58,7 @@ impl fmt::Display for Vector2 {
 
 #[destack::partial(Vector2, impl, block)]
 impl Vector2 {
-    pub(crate) const INTERNAL_CONST: Vector2 = Vector2 { x: 111.0, y: 222.0 };
+    pub const INTERNAL_CONST: Vector2 = Vector2 { x: 111.0, y: 222.0 };
 
     #[destack::generated(Vector2, ZERO, line)]
     pub const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
@@ -66,7 +66,7 @@ impl Vector2 {
     #[destack::generated(Vector2, ONE, line)]
     pub const ONE: Vector2 = Vector2 { x: 1.0, y: 1.0 };
 
-    pub(crate) const INTERNAL_CONST_2: Vector2 = Vector2 { x: 111.0, y: 222.0 };
+    pub const INTERNAL_CONST_2: Vector2 = Vector2 { x: 111.0, y: 222.0 };
     
     #[destack::generated(Vector2, X_AXIS, line)]
     pub const X_AXIS: Vector2 = Vector2 { x: 1.0, y: 0.0 };
@@ -163,14 +163,12 @@ def _assert_has_top_level_items(items: Sequence) -> None:
     # 6 top-level managed items: struct, PartialEq, Default, Display, impl Vector2 (partial), Add (partial)
     assert len(managed) == 6
     assert managed[0].object_key == "Vector2" and managed[0].inner_key == "struct"
-    assert (
-        managed[0].type == RustGenerationType.GENERATED and managed[0].scope == RustItemScope.BLOCK
-    )
-    assert managed[1].inner_key == "PartialEq" and managed[1].type == RustGenerationType.GENERATED
-    assert managed[2].inner_key == "Default" and managed[2].type == RustGenerationType.GENERATED
-    assert managed[3].inner_key == "Display" and managed[3].type == RustGenerationType.GENERATED
-    assert managed[4].inner_key == "impl" and managed[4].type == RustGenerationType.PARTIAL
-    assert managed[5].inner_key == "Add:Vector2" and managed[5].type == RustGenerationType.PARTIAL
+    assert managed[0].type == RustManagedType.GENERATED and managed[0].scope == RustItemScope.BLOCK
+    assert managed[1].inner_key == "PartialEq" and managed[1].type == RustManagedType.GENERATED
+    assert managed[2].inner_key == "Default" and managed[2].type == RustManagedType.GENERATED
+    assert managed[3].inner_key == "Display" and managed[3].type == RustManagedType.GENERATED
+    assert managed[4].inner_key == "impl" and managed[4].type == RustManagedType.PARTIAL
+    assert managed[5].inner_key == "Add:Vector2" and managed[5].type == RustManagedType.PARTIAL
 
 
 def test_parse_rust_imports() -> None:
@@ -268,7 +266,7 @@ def test_parse_children_in_partial_impl_block() -> None:
         c
         for c in children
         if isinstance(c, RustManagedItem)
-        and c.type == RustGenerationType.GENERATED
+        and c.type == RustManagedType.GENERATED
         and c.scope == RustItemScope.LINE
     ]
     assert {c.inner_key for c in generated_lines} == {"ZERO", "ONE", "X_AXIS", "Y_AXIS"}
@@ -276,9 +274,7 @@ def test_parse_children_in_partial_impl_block() -> None:
         assert c.outer_content.endswith(";") and c.inner_key in c.outer_content
     # stubbed function is a block
     stubs = [
-        c
-        for c in children
-        if isinstance(c, RustManagedItem) and c.type == RustGenerationType.PARTIAL
+        c for c in children if isinstance(c, RustManagedItem) and c.type == RustManagedType.PARTIAL
     ]
     assert len(stubs) == 1
     stub = stubs[0]
@@ -347,7 +343,7 @@ def test_parse_free_block() -> None:
         i
         for i in items
         if isinstance(i, RustManagedItem)
-        and i.type == RustGenerationType.PARTIAL
+        and i.type == RustManagedType.PARTIAL
         and i.inner_key == "vector2"
     ]
     assert len(stubs) == 1
@@ -384,7 +380,7 @@ def test_parse_file_type() -> None:
 //! Module level documentation.
 """
     file = parse_rust_file(source=file_content, source_path="", local_path="")
-    assert file.type == RustGenerationType.PARTIAL
+    assert file.type == RustManagedType.PARTIAL
 
     # explicit generated attribute -> GENERATED
     file_content = """\
@@ -395,7 +391,7 @@ def test_parse_file_type() -> None:
 //! Module level documentation.
 """
     file = parse_rust_file(source=file_content, source_path="", local_path="")
-    assert file.type == RustGenerationType.GENERATED
+    assert file.type == RustManagedType.GENERATED
 
     # no attributes -> CUSTOM
     file_content = """\
@@ -403,7 +399,7 @@ def test_parse_file_type() -> None:
 //! Module level documentation.
 """
     file = parse_rust_file(source=file_content, source_path="", local_path="")
-    assert file.type == RustGenerationType.CUSTOM
+    assert file.type == RustManagedType.CUSTOM
 
 
 @pytest.mark.parametrize("file_name", ["FILE_1", "FILE_2"])

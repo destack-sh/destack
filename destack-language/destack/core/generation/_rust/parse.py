@@ -6,11 +6,11 @@ from .core import (
     RustAttribute,
     RustCustomItem,
     RustFile,
-    RustGenerationType,
     RustImport,
     RustItem,
     RustItemScope,
     RustManagedItem,
+    RustManagedType,
     RustModDeclaration,
 )
 
@@ -119,7 +119,7 @@ def _dedent_block(lines: Sequence[str]) -> str:
     return "\n".join(dedented).strip("\n")
 
 
-def _parse_attr(line: str) -> tuple[RustGenerationType, str, str, RustItemScope] | None:
+def _parse_attr(line: str) -> tuple[RustManagedType, str, str, RustItemScope] | None:
     """
     Parse a destack attribute line like:
     #[destack::generated(Vector2, -, block)]
@@ -137,7 +137,7 @@ def _parse_attr(line: str) -> tuple[RustGenerationType, str, str, RustItemScope]
         inside = stripped[len("#[destack::") : -1]
         mode_part, args_part = inside.split("(", 1)
         args_part = args_part.rstrip(")")
-        mode = RustGenerationType(mode_part)
+        mode = RustManagedType(mode_part)
         # split by commas, expecting exactly 3 args
         raw_args = [a.strip() for a in args_part.split(",")]
         if len(raw_args) != 3:
@@ -160,7 +160,7 @@ def _parse_attr(line: str) -> tuple[RustGenerationType, str, str, RustItemScope]
 
 def _parse_block(lines: Sequence[str], start_index: int) -> tuple[int, list[str]]:
     """
-    Collect a syntactic block starting at start_index, robustly.
+    Collect a syntactic block starting at start_index.
 
     Start at start_index (inclusive) and read lines until the matching braces close.
     Ignore braces found inside string and character literals, raw strings,
@@ -919,11 +919,11 @@ def parse_rust_file(
     items = _parse_rust_items(source, parent=None, ignore_lines=import_lines | mod_lines)
 
     # derive type from attributes
-    type = RustGenerationType.CUSTOM
+    type = RustManagedType.CUSTOM
     if any(a.startswith("#![destack::generated") for a in attributes):
-        type = RustGenerationType.GENERATED
+        type = RustManagedType.GENERATED
     elif any(a.startswith("#![destack::partial") for a in attributes):
-        type = RustGenerationType.PARTIAL
+        type = RustManagedType.PARTIAL
 
     return RustFile(
         type=type,

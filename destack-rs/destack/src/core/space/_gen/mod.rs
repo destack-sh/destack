@@ -2,119 +2,12 @@
 
 #![destack::partial(destack.core.space._gen, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
+pub use crate::core::space::_gen::branch_gen::*;
+pub use crate::core::space::_gen::folder_gen::*;
+pub use crate::core::space::_gen::snapshot_gen::*;
 
-mod branch_gen;
-mod folder_gen;
-mod snapshot_gen;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
-
-pub(crate) use crate::core::space::_gen::branch_gen::*;
-
-pub(crate) use crate::core::space::_gen::folder_gen::*;
-
-pub(crate) use crate::core::space::_gen::snapshot_gen::*;
+pub mod branch_gen;
+pub mod folder_gen;
+pub mod snapshot_gen;

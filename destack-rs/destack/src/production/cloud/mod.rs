@@ -2,45 +2,10 @@
 
 #![destack::partial(destack.production.cloud, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::production::cloud::_gen::*;
+pub use crate::production::cloud::_gen::*;
 pub use crate::production::cloud::machine::*;
 
-mod _gen;
-mod machine;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
-
-pub(crate) use crate::production::cloud::_gen::*;
+pub mod _gen;
+pub mod machine;

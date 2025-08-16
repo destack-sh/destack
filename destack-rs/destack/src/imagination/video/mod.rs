@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.imagination.video, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::imagination::video::video::*;
+pub use crate::imagination::video::video::*;
 
-mod video;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
-
-pub(crate) use crate::imagination::video::video::*;
+pub mod video;

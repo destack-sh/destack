@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.basics.social._gen, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
+pub use crate::basics::social::_gen::notification_gen::*;
 
-mod notification_gen;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
-
-pub(crate) use crate::basics::social::_gen::notification_gen::*;
+pub mod notification_gen;

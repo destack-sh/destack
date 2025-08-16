@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.imagination.audio, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::imagination::audio::audio::*;
+pub use crate::imagination::audio::audio::*;
 
-mod audio;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
-
-pub(crate) use crate::imagination::audio::audio::*;
+pub mod audio;

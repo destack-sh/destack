@@ -2,43 +2,8 @@
 
 #![destack::partial(destack.distribution, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::distribution::localization::*;
+pub use crate::distribution::localization::*;
 
-mod localization;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
-
-pub(crate) use crate::distribution::localization::*;
+pub mod localization;

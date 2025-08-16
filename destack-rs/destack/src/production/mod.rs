@@ -2,45 +2,10 @@
 
 #![destack::partial(destack.production, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
 pub use crate::production::cloud::*;
-pub(crate) use crate::production::observability::*;
+pub use crate::production::observability::*;
 
-mod cloud;
-mod observability;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
-
-pub(crate) use crate::production::observability::*;
+pub mod cloud;
+pub mod observability;

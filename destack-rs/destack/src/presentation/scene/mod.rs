@@ -2,119 +2,12 @@
 
 #![destack::partial(destack.presentation.scene, file)]
 #![allow(unused_imports)]
+#![allow(unreachable_pub)]
 
-pub(crate) use crate::presentation::scene::layer::*;
-pub(crate) use crate::presentation::scene::scene::*;
-pub(crate) use crate::presentation::scene::stage::*;
+pub use crate::presentation::scene::layer::*;
+pub use crate::presentation::scene::scene::*;
+pub use crate::presentation::scene::stage::*;
 
-mod layer;
-mod scene;
-mod stage;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
-
-pub(crate) use crate::presentation::scene::layer::*;
-
-pub(crate) use crate::presentation::scene::scene::*;
-
-pub(crate) use crate::presentation::scene::stage::*;
+pub mod layer;
+pub mod scene;
+pub mod stage;
