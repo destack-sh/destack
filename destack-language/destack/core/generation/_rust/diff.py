@@ -249,7 +249,7 @@ def _merge_managed_item_block(
             raise ValueError(f"unexpected item: {new_child!r}")
 
     # prepend any unattached customs to beginning of block
-    merged_items.insert(0, *unattached_customs)
+    merged_items = [*unattached_customs, *merged_items]
 
     # patch inner and outer content
     new_inner_content_parts: list[str] = []

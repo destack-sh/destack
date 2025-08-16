@@ -24,3 +24,29 @@ pub(crate) use crate::basics::intelligence::*;
 pub(crate) use crate::basics::intelligence::*;
 
 pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;
+
+pub(crate) use crate::basics::intelligence::*;

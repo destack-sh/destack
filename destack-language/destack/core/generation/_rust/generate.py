@@ -1,7 +1,7 @@
 import collections
 import textwrap
 from collections.abc import Sequence
-from typing import Optional, assert_never
+from typing import TYPE_CHECKING, Optional, assert_never
 
 from destack.core import (
     EMPTY_LIST,
@@ -11,6 +11,7 @@ from destack.core import (
     ModuleType,
     NodeDefinition,
     PrimitiveType,
+    RuntimeLanguage,
     ScalarType,
     SchemaDefinition,
     StringCasing,
@@ -36,6 +37,13 @@ from .core import (
     local_path_to_source_path,
     source_path_to_local_path,
 )
+
+if TYPE_CHECKING:
+    from destack import MethodDefinition
+
+#
+# Types
+#
 
 RUST_PRIMITIVE_TYPES: dict[PrimitiveType, tuple[str, Optional[tuple[str, str]]]] = {
     PrimitiveType.BOOLEAN: ("bool", None),
@@ -67,14 +75,6 @@ RUST_PRIMITIVE_TYPES: dict[PrimitiveType, tuple[str, Optional[tuple[str, str]]]]
 }
 
 
-def _generate_doc_comment(object_key: str, doc: str) -> str:
-    """Generate a Rust doc comment."""
-    if doc:
-        return "\n".join(f"/// {line.strip()}" for line in doc.splitlines() if line)
-    else:
-        return f"/// {object_key}"
-
-
 def _generate_type_scalar(type: Type, dependencies: set[str]) -> str:
     """Map a Destack type to its Rust declaration."""
     assert type.scalar_type is not None, f"no scalar type for {type!r}"
@@ -99,19 +99,13 @@ def _generate_type_scalar(type: Type, dependencies: set[str]) -> str:
         return enum_definition.name
 
     # node
-    elif type.scalar_type == ScalarType.NODE:
-        return "i64 /* TODO */ "
-    # node_raw
-    elif type.scalar_type == ScalarType.NODE_RAW:
-        return "i64 /* TODO */ "
-    # node_identity
-    elif type.scalar_type == ScalarType.NODE_IDENTITY:
-        return "i64 /* TODO */ "
-    # node_spatial
-    elif type.scalar_type == ScalarType.NODE_SPATIAL:
-        return "i64 /* TODO */ "
-    # node_temporal
-    elif type.scalar_type == ScalarType.NODE_TEMPORAL:
+    elif type.scalar_type in (
+        ScalarType.NODE,
+        ScalarType.NODE_RAW,
+        ScalarType.NODE_IDENTITY,
+        ScalarType.NODE_SPATIAL,
+        ScalarType.NODE_TEMPORAL,
+    ):
         return "i64 /* TODO */ "
 
     # struct
@@ -171,15 +165,75 @@ def _generate_type(type: Type, dependencies: set[str]) -> str:
     return type_str
 
 
-def _get_object_key(object: StructDefinition | EnumDefinition | NodeDefinition | ModuleDefinition):
-    """Gets the RustManagedItem.object_key for an Object definition."""
-    return object.name
+#
+# Functions
+#
+
+
+def _generate_method_definition(
+    object: ModuleDefinition | StructDefinition | NodeDefinition,
+    method: "MethodDefinition",
+) -> RustManagedItem:
+    """Map a Method to its Rust definition item."""
+
+    object_key = object.name
+    inner_key = method.name
+    dependencies: set[str] = set()
+
+    # arguments
+    arguments_parts: list[str] = []
+    for prop in method.input_properties:
+        arguments_parts.append(f"{prop.name}: {_generate_type(prop.type, dependencies)}")
+    arguments_str = ", ".join(arguments_parts)
+    # return type
+    if method.output_property:
+        return_type_str = _generate_type(method.output_property.type, dependencies)
+    else:
+        return_type_str = None
+    # signature
+    if return_type_str:
+        signature = f"{method.name}({arguments_str}) -> {return_type_str}"
+    else:
+        signature = f"{method.name}({arguments_str})"
+
+    # outer content
+    outer_content = f"""\
+{_generate_doc_comment(object_key, method.description)}
+pub fn {signature} {{
+    todo!("{"nocheck" + "in"}: implement {method.name}")
+}}
+"""
+
+    item = RustManagedItem(
+        type=RustGenerationType.PARTIAL,
+        scope=RustItemScope.BLOCK,
+        object_key=object_key,
+        inner_key=inner_key,
+        children=EMPTY_LIST,
+        outer_content=outer_content,
+        inner_content=outer_content,
+        dependencies=list(dependencies),
+    )
+    return item
+
+
+#
+# Struct
+#
+
+
+def _generate_doc_comment(object_key: str, doc: str) -> str:
+    """Generate a Rust doc comment."""
+    if doc:
+        return "\n".join(f"/// {line.strip()}" for line in doc.splitlines() if line)
+    else:
+        return f"/// {object_key}"
 
 
 def _generate_struct_definition(struct: StructDefinition) -> RustManagedItem:
     """Map a Struct to its Rust definition item."""
 
-    object_key = _get_object_key(struct)
+    object_key = struct.name
 
     # inner content
     inner_content_parts: list[str] = []
@@ -219,7 +273,7 @@ pub struct {struct.name} {{
 def _generate_struct_debug(struct: StructDefinition) -> RustManagedItem:
     """Generate a Rust impl Debug for a Struct."""
 
-    object_key = _get_object_key(struct)
+    object_key = struct.name
 
     # inner content
     inner_content_parts: list[str] = [
@@ -250,10 +304,15 @@ impl std::fmt::Debug for {struct.name} {{
     return item
 
 
+#
+# Enum
+#
+
+
 def _generate_enum_definition(enum: EnumDefinition) -> RustManagedItem:
     """Map an Enum to its Rust definition item."""
 
-    object_key = _get_object_key(enum)
+    object_key = enum.name
 
     # inner content
     inner_content_parts: list[str] = []
@@ -279,7 +338,7 @@ pub enum {enum.name} {{
     item = RustManagedItem(
         type=RustGenerationType.GENERATED,
         scope=RustItemScope.BLOCK,
-        object_key=_get_object_key(enum),
+        object_key=enum.name,
         inner_key="",
         children=EMPTY_LIST,
         outer_content=outer_content,
@@ -291,7 +350,7 @@ pub enum {enum.name} {{
 def _generate_enum_debug(enum: EnumDefinition) -> RustManagedItem:
     """Generate a Rust impl Debug for an Enum."""
 
-    object_key = _get_object_key(enum)
+    object_key = enum.name
 
     # inner content
     inner_content_parts: list[str] = []
@@ -323,6 +382,11 @@ impl std::fmt::Debug for {enum.name} {{
         dependencies=(enum.name,),
     )
     return item
+
+
+#
+# Module
+#
 
 
 def _get_imports(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
@@ -374,7 +438,19 @@ def _generate_object_module(
         enum_debug_item = _generate_enum_debug(enum_def)
         gen_items.append(enum_debug_item)
 
+    # generate methods
+    for method in module.methods:
+        if method.languages and RuntimeLanguage.RUST not in method.languages:
+            continue
+        method_item = _generate_method_definition(module, method)
+        partial_items.append(method_item)
+
     return partial_items, gen_items
+
+
+#
+# Files
+#
 
 
 def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
@@ -389,7 +465,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         # map
         partial_items, gen_items = _generate_object_module(module)
 
-        # partial file (always exists)
+        # partial file
         partial_imports = _get_imports(partial_items)
         partial_file = RustFile(
             type=RustGenerationType.PARTIAL,
@@ -406,7 +482,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         )
         files[partial_file.local_path] = partial_file
 
-        # generated file (only if there are generated items)
+        # generated file
         if gen_items:
             gen_imports = _get_imports(gen_items)
             gen_file = RustFile(

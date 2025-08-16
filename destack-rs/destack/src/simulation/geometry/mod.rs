@@ -71,6 +71,110 @@ pub(crate) use crate::simulation::geometry::entity::*;
 
 pub(crate) use crate::simulation::geometry::shape::*;
 
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
+pub(crate) use crate::simulation::geometry::_gen::*;
+
+pub(crate) use crate::simulation::geometry::convex::*;
+
+pub(crate) use crate::simulation::geometry::entity::*;
+
+pub(crate) use crate::simulation::geometry::shape::*;
+
 pub(crate) use crate::simulation::geometry::convex::*;
 
 pub(crate) use crate::simulation::geometry::entity::*;

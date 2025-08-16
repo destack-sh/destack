@@ -145,6 +145,8 @@ class CustomError(Error):
 class CustomEnumDefinition(Entity):
     """A CustomEnum describes a custom Enum with custom Options."""
 
+    pass
+
 
 @declare_entity(NodeType.CUSTOM_OPTION_DEFINITION)
 class CustomOptionDefinition(Entity):

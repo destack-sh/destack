@@ -54,3 +54,107 @@ pub(crate) use crate::basics::social::follow::*;
 pub(crate) use crate::basics::social::reaction::*;
 
 pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
+
+pub(crate) use crate::basics::social::_gen::*;
+
+pub(crate) use crate::basics::social::follow::*;
+
+pub(crate) use crate::basics::social::reaction::*;
+
+pub(crate) use crate::basics::social::star::*;
