@@ -20,7 +20,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "destack": "link:../destack",
+    "destack": "workspace:*",
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
