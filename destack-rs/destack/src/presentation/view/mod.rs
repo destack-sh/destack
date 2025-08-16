@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::presentation::view::_gen::*;
 pub use crate::presentation::view::content::*;
 pub use crate::presentation::view::frame::*;
 pub use crate::presentation::view::input::*;

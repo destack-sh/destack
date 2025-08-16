@@ -4,7 +4,7 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::builtin::*;
+pub use crate::core::builtin::EnumType;
 pub use crate::core::common::*;
 pub use crate::core::definition::*;
 pub use crate::core::encoding::*;

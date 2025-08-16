@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::basics::social::_gen::*;
 pub use crate::basics::social::follow::*;
 pub use crate::basics::social::notification::*;
 pub use crate::basics::social::reaction::*;

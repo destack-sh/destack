@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::perception::_gen::*;
 pub use crate::simulation::perception::clipboard::*;
 pub use crate::simulation::perception::drag::*;
 pub use crate::simulation::perception::focus::*;

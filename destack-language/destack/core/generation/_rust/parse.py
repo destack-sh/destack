@@ -12,6 +12,7 @@ from .core import (
     RustManagedItem,
     RustManagedType,
     RustModDeclaration,
+    unescape_rust_identifier,
 )
 
 
@@ -695,7 +696,7 @@ def _parse_rust_mod_declarations(source: str) -> tuple[list[RustModDeclaration],
         if not name:
             continue
         covered_lines.add(i)
-        mod = RustModDeclaration(name=name, is_public=is_public)
+        mod = RustModDeclaration(name=unescape_rust_identifier(name), is_public=is_public)
         mods.append(mod)
     return mods, covered_lines
 

@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::universe::_gen::*;
 pub use crate::core::universe::client::*;
 pub use crate::core::universe::organization::*;
 pub use crate::core::universe::team::*;

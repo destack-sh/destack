@@ -119,7 +119,15 @@ def _patch_rust_file_mods(
     """
     Patch a list of mods by merging mods from new with mods from old.
     """
-    return new_mods
+    # create a set of new mod names for quick lookup
+    new_mod_names = {mod.name for mod in new_mods}
+    # start with all new mods
+    result_mods = list(new_mods)
+    # retain old mods that aren't in new
+    for old_mod in old_mods:
+        if old_mod.name not in new_mod_names:
+            result_mods.append(old_mod)
+    return result_mods
 
 
 def _patch_rust_file(old_file: RustFile, new_file: RustFile) -> RustFile:

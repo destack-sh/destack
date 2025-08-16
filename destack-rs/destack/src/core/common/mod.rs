@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::common::_gen::*;
 pub use crate::core::common::change::*;
 pub use crate::core::common::icon::*;
 pub use crate::core::common::query::*;

@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::simulation::geometry::_gen::*;
 pub use crate::simulation::geometry::capsule::*;
 pub use crate::simulation::geometry::circle::*;
 pub use crate::simulation::geometry::cone::*;

@@ -4,7 +4,6 @@
 #![allow(unused_imports)]
 #![allow(unreachable_pub)]
 
-pub use crate::core::definition::_gen::*;
 pub use crate::core::definition::action::*;
 pub use crate::core::definition::constant::*;
 pub use crate::core::definition::definition::*;

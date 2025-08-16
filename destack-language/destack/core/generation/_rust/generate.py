@@ -520,19 +520,21 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
         mods: list[RustModDeclaration] = []
         imports: list[RustImport] = []
         for inner_name in directory_files:
-            # mod
+            is_internal = inner_name.startswith("_")
+            # mod declaration
             mod = RustModDeclaration(name=inner_name, is_public=True)
             mods.append(mod)
             # import
-            full_name = f"crate/{directory}/{inner_name}".replace("/", "::")
-            imp = RustImport(
-                source=full_name,
-                imports=EMPTY_LIST,
-                is_internal=True,
-                is_public=True,
-                is_glob=True,
-            )
-            imports.append(imp)
+            if not is_internal:
+                full_name = f"crate/{directory}/{inner_name}".replace("/", "::")
+                imp = RustImport(
+                    source=full_name,
+                    imports=EMPTY_LIST,
+                    is_internal=True,
+                    is_public=True,
+                    is_glob=True,
+                )
+                imports.append(imp)
 
         # generate mod file
         local_path = directory + "/mod.rs"
