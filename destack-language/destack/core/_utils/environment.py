@@ -132,6 +132,9 @@ def setup_environment():
 
 
 ENVIRONMENT = get_from_env(
-    "ENVIRONMENT", typ=Environment, description="The current system Environment"
+    "ENVIRONMENT",
+    typ=Environment,
+    description="The current system Environment",
+    default=Environment.DEVELOPMENT,
 )
 setup_environment()

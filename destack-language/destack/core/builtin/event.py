@@ -105,14 +105,7 @@ class Event(Node):
     """
 
     # 10-20: Event identity
-    definition: Optional["Entity"] = declare_property(
-        10,
-        is_managed=True,
-        is_readonly=True,
-        reference_type=ReferenceType.SPATIAL,
-        description="The definition this Event is an instance of.",
-        tag="identity",
-    )
+    # ...?
 
     # 20-40: Event tracking
     created_epoch: UInt64 = declare_property(
