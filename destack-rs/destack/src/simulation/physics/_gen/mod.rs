@@ -28,3 +28,55 @@ pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
 pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
 
 pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::joint_gen::*;
+
+pub(crate) use crate::simulation::physics::_gen::rigid_gen::*;

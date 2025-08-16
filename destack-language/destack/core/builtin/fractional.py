@@ -4,7 +4,7 @@
 
 from typing import Optional, cast
 
-from .declaration import declare_constant, declare_method
+from .declaration import declare_constant
 from .error import Error, declare_error
 from .property import declare_property
 from .types import UInt32
@@ -89,7 +89,6 @@ def _midpoint(a: str, b: Optional[str]) -> str:
             return _BASE_95_DIGITS[digit_a] + _midpoint(a[1:], None)
 
 
-@declare_method(301, is_implemented=True)
 def increment_integer(x: str) -> Optional[str]:
     """
     Increments the given integer `x` in base 95.
@@ -120,7 +119,6 @@ def increment_integer(x: str) -> Optional[str]:
         return head + "".join(digs)
 
 
-@declare_method(302, is_implemented=True)
 def decrement_integer(x: str) -> Optional[str]:
     """
     Decrements the given integer `x` in base 95.
@@ -175,7 +173,6 @@ def _validate_order_key(key: str) -> None:
         raise ValueError(f"invalid order key: {key}")
 
 
-@declare_method(303, is_implemented=True)
 def get_order_key(a: Optional[str], b: Optional[str]) -> str:
     """
     Generates a key between the given keys `a` and `b` (inclusive) with logarithmic fraction growth.
@@ -209,7 +206,6 @@ def get_order_key(a: Optional[str], b: Optional[str]) -> str:
     return i if i < b else ia + _midpoint(fa, None)
 
 
-@declare_method(304, is_implemented=True)
 def get_order_keys(a: Optional[str], b: Optional[str], n: UInt32) -> list[str]:
     """
     Generates evenly spread n keys between the given keys `a` and `b` (inclusive).

@@ -90,3 +90,185 @@ pub(crate) use crate::simulation::perception::input::*;
 pub(crate) use crate::simulation::perception::key::*;
 
 pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;
+
+pub(crate) use crate::simulation::perception::_gen::*;
+
+pub(crate) use crate::simulation::perception::clipboard::*;
+
+pub(crate) use crate::simulation::perception::drag::*;
+
+pub(crate) use crate::simulation::perception::focus::*;
+
+pub(crate) use crate::simulation::perception::input::*;
+
+pub(crate) use crate::simulation::perception::key::*;
+
+pub(crate) use crate::simulation::perception::pointer::*;

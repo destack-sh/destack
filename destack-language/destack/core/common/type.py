@@ -241,7 +241,11 @@ _PRIMITIVE_PY_TYPES: tuple[type, ...] = tuple(
 )
 
 
-@declare_method(301, is_implemented=True)
+@declare_method(
+    301,
+    is_implemented=True,
+    languages=(RuntimeLanguage.PYTHON,),
+)
 def infer_type(
     value_or_type: Any, reference_type: ReferenceType | None = ReferenceType.TEMPORAL
 ) -> "Type":
