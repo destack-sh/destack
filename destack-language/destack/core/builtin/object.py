@@ -663,8 +663,6 @@ if ({map_expr} := {source_expr}):
                 return f"{value_expr}!r"
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"str({value_expr})"
-            elif type.primitive_type == PrimitiveType.BYTES:
-                return f"{value_expr}!r"
             elif type.primitive_type == PrimitiveType.JSON:
                 return f"{value_expr}!r"
             else:
@@ -899,7 +897,6 @@ if {self_source_expr} != {other_source_expr}:
                 PrimitiveType.STRING,
                 PrimitiveType.CHARACTER,
                 PrimitiveType.UUID,
-                PrimitiveType.BYTES,
             ):
                 return "{self_val} == {other_val}", True
             elif type.primitive_type == PrimitiveType.JSON:
@@ -1100,8 +1097,6 @@ if ({map_source_expr} := {source_expr}):
                 return f"{hasher_expr}.hash_character({source_expr})"
             elif type.primitive_type == PrimitiveType.UUID:
                 return f"{hasher_expr}.hash_uuid({source_expr})"
-            elif type.primitive_type == PrimitiveType.BYTES:
-                return f"{hasher_expr}.hash_bytes({source_expr})"
             elif type.primitive_type == PrimitiveType.JSON:
                 return f"{hasher_expr}.hash_json({source_expr})"
             else:

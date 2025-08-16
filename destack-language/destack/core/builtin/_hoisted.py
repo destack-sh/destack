@@ -9,7 +9,6 @@ from .enum import FlagEnum, OptionEnum, declare_enum, declare_option
 from .types import (
     UUID,
     Boolean,
-    Bytes,
     Character,
     Date,
     DateTime,
@@ -211,9 +210,8 @@ class ReferenceType(OptionEnum):
 class Encoding(OptionEnum):
     """Encoding scheme."""
 
-    JSON = declare_option(1, "JSON", description="JSON encoding")
-    KOMPAKT = declare_option(3, "KOMPAKT", description="KOMPAKT encoding (optimized for size)")
-    # KONSTANT, ...
+    KOMPAKT = declare_option(1, "KOMPAKT", description="KOMPAKT encoding (optimized for size)")
+    # JSON,
     # C?
 
 
@@ -501,21 +499,12 @@ Range: 0 to 2^32-1
 """,
     )
     UUID = declare_option(
-        55,
+        54,
         "UUID",
         description="""\
 Universally unique identifier (UUID7, 128-bit)
 The zero UUID is invalid (00000000-0000-0000-0000-000000000000).
 Range: 0 to 2^128-1
-""",
-    )
-    # nocheckin: remove PrimitiveType.Bytes?
-    BYTES = declare_option(
-        56,
-        "Bytes",
-        description="""\
-Binary data (32-bit variable length)
-Range: 0 to 2^32-1
 """,
     )
     # VECTOR?
@@ -569,9 +558,6 @@ PRIMITIVE_TYPE_BY_ANNOTATION: dict[type | TypeAliasType, PrimitiveType] = {
     String: PrimitiveType.STRING,
     Character: PrimitiveType.CHARACTER,
     UUID: PrimitiveType.UUID,
-    bytes: PrimitiveType.BYTES,
-    Bytes: PrimitiveType.BYTES,
-    bytearray: PrimitiveType.BYTES,
     Json: PrimitiveType.JSON,
 }
 PRIMITIVE_PY_ANNOTATION_BY_TYPE: dict[PrimitiveType, type | TypeAliasType] = {

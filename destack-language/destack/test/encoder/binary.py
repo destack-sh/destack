@@ -313,25 +313,6 @@ def test_character():
     assert decoder.remaining == 0
 
 
-def test_bytes():
-    """Test bytes encoding with length prefix."""
-    test_bytes = [
-        b"",
-        b"hello",
-        b"\x00\x01\x02\x03",
-        bytes(range(256)),
-    ]
-
-    encoder = BinaryEncoder()
-    for b in test_bytes:
-        encoder.write_bytes(b)
-
-    decoder = BinaryDecoder(buffer=encoder.to_bytes())
-    for b in test_bytes:
-        assert decoder.read_bytes() == b
-    assert decoder.remaining == 0
-
-
 def test_mixed_types():
     """Test encoding and decoding mixed types."""
     encoder = BinaryEncoder()
@@ -346,7 +327,6 @@ def test_mixed_types():
     encoder.write_float32(math.pi)
     encoder.write_float64(math.e)
     encoder.write_string("test string")
-    encoder.write_bytes(b"\x01\x02\x03")
     encoder.write_character("Z")
 
     # read them back
@@ -360,7 +340,6 @@ def test_mixed_types():
     assert decoder.read_float32() == pytest.approx(math.pi, rel=1e-6)
     assert decoder.read_float64() == pytest.approx(math.e)
     assert decoder.read_string() == "test string"
-    assert decoder.read_bytes() == b"\x01\x02\x03"
     assert decoder.read_character() == "Z"
     assert decoder.remaining == 0
 

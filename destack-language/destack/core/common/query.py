@@ -110,7 +110,8 @@ class Aggregation(Struct):
 # Expression
 #
 
-# nocheckin: tagged Unions?
+# TODO :Incomplete: tagged Unions?
+#  (and replace/remove current fake unions?)
 
 
 @declare_enum(EnumType.EXPRESSION_TYPE)

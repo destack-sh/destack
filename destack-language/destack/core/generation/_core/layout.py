@@ -206,9 +206,6 @@ class KompaktObjectSizer(ObjectSizer):
                 return ObjectSize(self.DURATION_SIZE, self.DURATION_SIZE)
             elif primitive == PrimitiveType.UUID:
                 return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
-            elif primitive == PrimitiveType.BYTES:
-                # length (4 bytes) + payload
-                return ObjectSize(4, None)
             elif primitive == PrimitiveType.STRING:
                 # length (4 bytes) + payload
                 return ObjectSize(4, None)

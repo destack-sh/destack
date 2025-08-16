@@ -74,3 +74,17 @@ pub(crate) use crate::imagination::style::_gen::gradient_gen::*;
 pub(crate) use crate::imagination::style::_gen::shadow_gen::*;
 
 pub(crate) use crate::imagination::style::_gen::stroke_gen::*;
+
+pub(crate) use crate::imagination::style::_gen::border_gen::*;
+
+pub(crate) use crate::imagination::style::_gen::color_gen::*;
+
+pub(crate) use crate::imagination::style::_gen::fill_gen::*;
+
+pub(crate) use crate::imagination::style::_gen::font_gen::*;
+
+pub(crate) use crate::imagination::style::_gen::gradient_gen::*;
+
+pub(crate) use crate::imagination::style::_gen::shadow_gen::*;
+
+pub(crate) use crate::imagination::style::_gen::stroke_gen::*;

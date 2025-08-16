@@ -1220,6 +1220,11 @@ class StructType(OptionEnum):
     FRACTIONAL_INTEGER_ERROR = declare_option(10_000)
 
     # definition [100_000]
+    # nocheckin: remove definition, spread definitions into relevant custom stuff?
+    #  (should map for everything? if not do we need those Nodes?)
+    #  (also maybe invert *_definition and *_custom_definition so that custom has no prefix
+    #    but *_builtin does?)
+    #  (where does Entity belong anyway?)
     DEFINITION = declare_option(100_000)
     SCHEMA_DEFINITION = declare_option(100_001)
     MODULE_DEFINITION = declare_option(100_002)

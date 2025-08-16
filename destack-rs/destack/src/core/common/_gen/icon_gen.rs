@@ -44,7 +44,6 @@ impl std::fmt::Debug for PrimitiveType {
             PrimitiveType::String => write!(f, "STRING"),
             PrimitiveType::Character => write!(f, "CHARACTER"),
             PrimitiveType::Uuid => write!(f, "UUID"),
-            PrimitiveType::Bytes => write!(f, "BYTES"),
             PrimitiveType::Json => write!(f, "JSON"),
         }
     }

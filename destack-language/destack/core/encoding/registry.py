@@ -7,16 +7,10 @@ _ENCODERS: dict[Encoding, Encoder] = {}
 
 
 def _generate_encoder(encoding: Encoding) -> Encoder:
-    if encoding == Encoding.JSON:
-        from ._json.encoder import JsonEncoder
-
-        encoder = JsonEncoder.generate()
-    elif encoding == Encoding.KOMPAKT:
+    if encoding == Encoding.KOMPAKT:
         from ._kompakt.encoder import KompaktEncoder
 
         encoder = KompaktEncoder.generate()
-    elif encoding == Encoding.BREIT:
-        raise NotImplementedError("Breit encoding is not implemented yet")
     else:
         assert_never(encoding)
 

@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 from ..builtin import (
     UUID,
-    Bytes,
     Character,
     Date,
     DateTime,
@@ -182,12 +181,6 @@ class BinaryEncoder:
     def write_uuid(self, value: UUID) -> None:
         """Write a UUID."""
         self.buffer.extend(value.bytes)
-
-    # PrimitiveType.BYTES
-    def write_bytes(self, value: Bytes) -> None:
-        """Write raw bytes."""
-        self.buffer.extend(struct.pack("<I", len(value)))
-        self.buffer.extend(value)
 
     # PrimitiveType.JSON
     def write_json(self, value: Any) -> None:
@@ -472,19 +465,6 @@ class BinaryDecoder:
         uuid_bytes = self.buffer[self.pos : self.pos + 16]
         self.pos += 16
         return UUID(bytes=uuid_bytes)
-
-    # PrimitiveType.BYTES
-    def read_bytes(self) -> Bytes:
-        """Read raw bytes."""
-        if self.pos + 4 > len(self.buffer):
-            raise BinaryError(f"unexpected end of buffer at {self.pos}")
-        length = struct.unpack("<I", self.buffer[self.pos : self.pos + 4])[0]
-        self.pos += 4
-        if self.pos + length > len(self.buffer):
-            raise BinaryError(f"unexpected end of buffer at {self.pos}")
-        value = self.buffer[self.pos : self.pos + length]
-        self.pos += length
-        return value
 
     # PrimitiveType.JSON
     def read_json(self) -> Any:
