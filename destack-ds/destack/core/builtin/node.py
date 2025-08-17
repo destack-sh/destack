@@ -9,9 +9,9 @@ from typing import (
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLASS_BY_TYPE
 
 from ._const import UNSET
-from ._hoisted import EncoderStability, ReferenceType
+from ._hoisted import EncoderStability, ReferenceType, ValueFactory
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
-from .object import ValueFactory, _get_universe_domain, _process_object_cls
+from .object import _get_universe_domain, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -21,7 +21,6 @@ from .property import (
 from .universe import (
     EnumType,
     NodeType,
-    ObjectKind,
     StructType,
     TraitType,
 )
@@ -100,7 +99,6 @@ def _process_node_cls(
         id=node_type.value,
         name=cls.__name__,
         description=cls.__doc__ or "",
-        kind=ObjectKind.NODE,
         stability=EncoderStability.DYNAMIC,
         domain=domain,
         category=category,
@@ -188,7 +186,7 @@ def _process_node_cls(
             node_prop = cls.__properties_by_alias__.get(struct_prop.name)
             if node_prop is None:
                 if struct_prop.name == "template":
-                    # nocheckin: proper mechanism for "struct with partial overrides to node/struct"
+                    # nocheckin: proper mechanism for "struct with partial overrides to entity/struct"
                     #  (like Styles or TransitionTemplate or any template really..
                     #   .. similarity to Entity partials?
                     #    .. generic ScalarType.PARTIAL? (or PARTIAL_STRUCT/PARTIAL_NODE?)
@@ -278,14 +276,15 @@ def _declare_node(
     ),
 )
 class Node:
+    # nocheckin: split Node into just Entity and Event? (also split NodeType?)
+    # (related to Modules as Entities but without having to declare every Module with its own id?
+    #  do we still need overlapping id spaces?)
     """
     A Node with properties and a persistent identity (its id).
 
     Nodes belong to a Space and are thus identifiable by their (space_id, id) tuple.
     """
 
-    """The kind of Object this is (static)."""
-    metakind: ClassVar[ObjectKind] = ObjectKind.NODE
     """The type of Node this is (static)."""
     metatype: ClassVar[NodeType] = UNSET
     """The declaration of this Node (static)."""

@@ -6,11 +6,11 @@ from .entity import Entity
 from .enum import OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, ValueFactory, declare_property
-from .types import UInt8, UInt64
+from .types import UUID, UInt8, UInt64
 from .universe import EnumType, NodeType, StructType
 
 if TYPE_CHECKING:
-    from destack import Client, NodeSpatialReference
+    from destack import Branch, Client, NodeSpatialReference, Snapshot, Space
 
 
 @declare_enum(EnumType.EVENT_STATUS)
@@ -105,7 +105,49 @@ class Event(Node):
     """
 
     # 10-20: Event identity
-    # ...?
+    id: UUID = declare_property(
+        2,
+        is_managed=True,
+        is_eq=False,
+        is_readonly=True,
+        is_interned=True,
+        default_factory=ValueFactory.UUID7,
+        description="The universally unique identifier of this Node.",
+        tag="identity",
+    )
+    space: "Space" = declare_property(
+        3,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        is_readonly=True,
+        reference_type=ReferenceType.RAW,
+        default_factory=ValueFactory.CURRENT_SPACE,
+        description="The Space this Node is in.",
+        tag="identity",
+    )
+    branch: "Branch" = declare_property(
+        4,
+        is_readonly=True,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        reference_type=ReferenceType.RAW,
+        default_factory=ValueFactory.CURRENT_BRANCH,
+        description="The Branch this Node is part of (in its Space).",
+        tag="identity",
+    )
+    snapshot: "Snapshot" = declare_property(
+        5,
+        is_readonly=True,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        reference_type=ReferenceType.RAW,
+        default_factory=ValueFactory.CURRENT_SNAPSHOT,
+        description="The Snapshot this Node is part of (in its Space and Branch).",
+        tag="identity",
+    )
 
     # 20-40: Event tracking
     created_epoch: UInt64 = declare_property(

@@ -1,8 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Optional,
-    Union,
-    assert_never,
     final,
 )
 
@@ -11,9 +9,7 @@ from destack.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from ..builtin import (
     UUID,
     EncoderStability,
-    HandleType,
     NodeType,
-    ObjectKind,
     PropertyDeclaration,
     ReferenceType,
     Struct,
@@ -27,8 +23,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack import (
         CustomPropertyDefinition,
-        Entity,
-        Handle,
         Node,
         PropertyDefinition,
         Type,
@@ -36,57 +30,6 @@ if TYPE_CHECKING:
 
 
 type_ = type
-
-
-@declare_struct(StructType.OBJECT_DEFINITION_REFERENCE, is_final=True)
-@final
-class ObjectDefinitionReference(Struct):
-    """Reference to an object "type" (builtin, custom or trait)."""
-
-    kind: ObjectKind = declare_property(101, is_repr=True, tag=None)
-    node_type: Optional[NodeType] = declare_property(102, is_repr=True, tag=None)
-    struct_type: Optional[StructType] = declare_property(103, is_repr=True, tag=None)
-    handle_type: Optional[HandleType] = declare_property(104, is_repr=True, tag=None)
-    definition: Optional["Entity"] = declare_property(
-        106,
-        is_repr=True,
-        reference_type=ReferenceType.SPATIAL,
-        tag=None,
-    )
-
-    @classmethod
-    def of(
-        cls,
-        definition: Union[
-            "NodeType",
-            "type[Node]",
-            "type[Struct]",
-            "type[Handle]",
-        ],
-    ) -> "ObjectDefinitionReference":
-        from destack import Handle, Node
-
-        if isinstance(definition, NodeType):
-            return ObjectDefinitionReference(kind=ObjectKind.NODE, node_type=definition)
-        elif isinstance(definition, StructType):
-            return ObjectDefinitionReference(kind=ObjectKind.STRUCT, struct_type=definition)
-        elif isinstance(definition, type):
-            if issubclass(definition, Node):
-                return ObjectDefinitionReference(
-                    kind=ObjectKind.NODE, node_type=definition.metatype
-                )
-            elif issubclass(definition, Struct):
-                return ObjectDefinitionReference(
-                    kind=ObjectKind.STRUCT, struct_type=definition.metatype
-                )
-            elif issubclass(definition, Handle):
-                return ObjectDefinitionReference(
-                    kind=ObjectKind.HANDLE, handle_type=definition.metatype
-                )
-            else:
-                assert_never(definition)
-        else:
-            assert_never(definition)
 
 
 @declare_struct(

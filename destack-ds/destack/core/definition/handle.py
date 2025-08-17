@@ -1,10 +1,9 @@
-from typing import TYPE_CHECKING, final, override
+from typing import TYPE_CHECKING, final
 
 from ..builtin import (
     EncoderStability,
     HandleDeclaration,
     HandleType,
-    ObjectKind,
     StructType,
     UInt8,
     declare_property,
@@ -16,7 +15,6 @@ if TYPE_CHECKING:
     from destack import (
         ConstantDefinition,
         MethodDefinition,
-        ObjectDefinitionReference,
         PropertyDefinition,
         TagDefinition,
     )
@@ -97,12 +95,6 @@ class HandleDefinition(ObjectDefinition):
     )
 
     # associations
-
-    @override
-    def to_ref(self) -> "ObjectDefinitionReference":
-        from ..common import ObjectDefinitionReference
-
-        return ObjectDefinitionReference(kind=ObjectKind.HANDLE, handle_type=self.type)
 
     @classmethod
     def from_declaration(cls, declaration: HandleDeclaration) -> "HandleDefinition":

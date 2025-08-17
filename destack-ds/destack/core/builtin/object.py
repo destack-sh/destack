@@ -19,24 +19,20 @@ from ._const import (
     ACTIVE_SESSION,
     EPSILON,
     EPSILON_EXPONENT,
-    METAKIND_PROPERTY_ID,
     METATYPE_PROPERTY_ID,
     UNSET,
 )
 from ._hoisted import (
     EncoderStability,
-    EnumType,
     PrimitiveType,
     ScalarType,
     TypeCardinality,
-    ValueFactory,
 )
 from .casing import StringCasing, to_casing
 from .declaration import (
     ActionDeclaration,
     ConstantDeclaration,
     MethodDeclaration,
-    NodeDeclaration,
     ObjectDeclaration,
     TypeDeclaration,
 )
@@ -45,7 +41,6 @@ from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration
 from .types import Int64
 from .universe import (
     NodeType,
-    ObjectKind,
     StructType,
     _get_universe_domain,
 )
@@ -93,8 +88,6 @@ class ObjectGenerator:
         header_properties = {
             prop.name: prop for prop in cls.__properties__.values() if not prop.is_static
         }
-        if declaration.kind == ObjectKind.NODE:
-            header_properties.pop("_is_new")
         properties_in_order = list(header_properties.values())
         properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
         required_properties = [
@@ -156,246 +149,12 @@ class ObjectGenerator:
         extra_glbls["EMPTY_DICT"] = frozendict()
         extra_glbls["uuid7"] = uuid7
 
-        method_body_lines = []
-        body_properties = {prop.name: prop for prop in declaration.properties}
-        if not declaration.is_immutable and declaration.kind == ObjectKind.NODE:
-            method_body_lines.append("__setattr__ = object.__setattr__")
-            set_template_str = "__setattr__(self, '{0}', {1})"
-        else:
-            set_template_str = "self.{0} = {1}"
-
-        # setup
-        if declaration.kind == ObjectKind.NODE:
-            assert isinstance(declaration, NodeDeclaration), (
-                f"unexpected declaration: {declaration!r}"
-            )
-            # node setup
-            body_properties.pop("id")
-            if NodeType.ENTITY in declaration.inherits:
-                body_properties.pop("created_epoch")
-                body_properties.pop("updated_epoch")
-            elif NodeType.EVENT in declaration.inherits:
-                body_properties.pop("created_epoch")
-                body_properties.pop("client")
-                body_properties.pop("client_local_epoch")
-            else:
-                raise NotImplementedError(f"unexpected node {cls.__name__}")
-            body_properties.pop("_is_new")
-            method_body_lines.append(f"""\
-# session
-if _session is None:
-    _session = ACTIVE_SESSION.get()
-    if _session is None:
-        raise RuntimeError("no active session for {cls.__name__}")
-
-# node identity
-if id is None:
-    """)
-            if NodeType.ENTITY in declaration.inherits:
-                method_body_lines.append("""\
-    id = uuid7()
-    _now = _session.context.now()
-    created_epoch = _session.remote_epoch
-    updated_epoch = _session.remote_epoch
-""")
-            elif NodeType.EVENT in declaration.inherits:
-                method_body_lines.append("""\
-    id = uuid7()
-    _now = _session.context.now()
-    created_epoch = _session.remote_epoch
-    client_ref = _session.context.client_ref
-    client_nonce = _session.context.client_nonce
-    client_remote_epoch = _session.remote_epoch
-    client_local_epoch = _session.local_epoch
-""")
-            else:
-                raise NotImplementedError(f"unexpected node {cls.__name__}")
-            method_body_lines.append(f"""\
-    _is_new = True
-else:
-    _is_new = False
-{set_template_str.format("id", "id")}
-""")
-
-            if NodeType.ENTITY in declaration.inherits:
-                method_body_lines.append(f"""\
-{set_template_str.format("created_epoch", "created_epoch")}
-{set_template_str.format("updated_epoch", "updated_epoch")}
-""")
-            elif NodeType.EVENT in declaration.inherits:
-                method_body_lines.append(f"""\
-{set_template_str.format("created_epoch", "created_epoch")}
-{set_template_str.format("client_ref", "client_ref")}
-{set_template_str.format("client_nonce", "client_nonce")}
-{set_template_str.format("client_remote_epoch", "client_remote_epoch")}
-{set_template_str.format("client_local_epoch", "client_local_epoch")}
-""")
-            else:
-                raise NotImplementedError(f"unexpected node {cls.__name__}")
-            method_body_lines.append(f"""\
-{set_template_str.format("_ref", "None")}
-{set_template_str.format("_is_new", "_is_new")}
-""")
-
-        # property assignments
-        method_body_lines.append("# properties")
-        body_properties_in_order = list(body_properties.values())
-        body_properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
-        for prop in body_properties_in_order:
-            if prop.is_static:
-                # computed, can't assign
-                continue
-
-            arg_name = prop.name
-            self_name = (
-                prop.name
-                if prop.type.scalar_type != ScalarType.NODE_TEMPORAL
-                else f"{prop.name}_ref"
-            )
-
-            # cast node to node_ref
-            if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
-                method_body_lines.append(f"""\
-if {arg_name} is not None:
-    {self_name} = {arg_name}.to_ref()""")
-
-            # init default factory
-            if prop.default_factory_callable is not None:
-                extra_glbls[f"_{prop.name}_default"] = prop.default_factory_callable
-                method_body_lines.append(f"""\
-if {self_name} is None:
-    {self_name} = _{prop.name}_default()""")
-            elif prop.default_factory is not None:
-                default_factory_str = self.generate_prop_default(
-                    cls, declaration, prop, target_expr=self_name
-                )
-                method_body_lines.append(f"""\
-if {self_name} is None:
-{textwrap.indent(default_factory_str, " " * 4)}
-""")
-
-            # check/init required properties
-            if prop.type.is_required:
-                if prop.type.cardinality == TypeCardinality.SCALAR:
-                    if self.check_required:
-                        method_body_lines.append(f"""\
-if {self_name} is None:
-    raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
-                elif prop.type.cardinality == TypeCardinality.LIST:
-                    method_body_lines.append(f"""\
-if {arg_name} is None:
-    {arg_name} = {"[]" if not declaration.is_immutable else "EMPTY_LIST"}""")
-                elif prop.type.cardinality == TypeCardinality.MAP:
-                    method_body_lines.append(f"""\
-if {arg_name} is None:
-    {arg_name} = {"{}" if not declaration.is_immutable else "EMPTY_DICT"}""")
-
-            # regular assignment
-            if declaration.kind == ObjectKind.NODE and not declaration.is_immutable:
-                method_body_lines.append(f"__setattr__(self, '{self_name}', {self_name})")
-            else:
-                method_body_lines.append(f"self.{self_name} = {self_name}")
-
-        method_body = "\n".join(method_body_lines) or "pass"
+        method_body = "pass"
         if len(method_body.splitlines()) < 2:
             method_body += "\npass"  # just in case we don't have any real lines
         method_body = textwrap.indent(method_body, " " * 4)
         init_str = f"{method_header}:\n{method_body}"
         return init_str, extra_glbls
-
-    def generate_prop_default(
-        self,
-        cls: type["Struct | Node"],
-        object: ObjectDeclaration,
-        prop: PropertyDeclaration,
-        target_expr: str,
-    ) -> str:
-        """Generate the default factory for an unset property."""
-
-        assert prop.default_factory is not None, f"no default factory for {prop!r}"
-        if prop.default_factory == ValueFactory.UUID7:
-            return f"{target_expr} = uuid7()"
-        elif prop.default_factory == ValueFactory.NOW:
-            if cls.__declaration__.kind == ObjectKind.NODE:
-                return f"""\
-{target_expr} = _session.context.now()"""
-            else:
-                return f"""\
-assert _session is not None, "no active Session for {cls.__name__}"
-{target_expr} = _session.context.now()"""
-        elif prop.default_factory == ValueFactory.REMOTE_EPOCH:
-            assert object.kind is not None, f"unexpected declaration: {object!r}"
-            if object.kind == ObjectKind.NODE:
-                return f"""\
-{target_expr} = _session.remote_epoch"""
-            elif object.kind == ObjectKind.STRUCT:
-                return f"""\
-assert _session is not None, "no active Session for {cls.__name__}"
-{target_expr} = _session.remote_epoch"""
-            elif object.kind in (ObjectKind.HANDLE, ObjectKind.MODULE):
-                raise NotImplementedError(f"cannot use {prop.default_factory} for {cls.__name__}")
-            else:
-                assert_never(object.kind)
-        elif prop.default_factory == ValueFactory.LOCAL_EPOCH:
-            assert object.kind is not None, f"unexpected declaration: {object!r}"
-            if object.kind == ObjectKind.NODE:
-                return f"""\
-{target_expr} = _session.local_epoch"""
-            elif object.kind == ObjectKind.STRUCT:
-                return f"""\
-assert _session is not None, "no active Session for {cls.__name__}"
-{target_expr} = _session.local_epoch"""
-            elif object.kind in (ObjectKind.HANDLE, ObjectKind.MODULE):
-                raise NotImplementedError(f"cannot use {prop.default_factory} for {cls.__name__}")
-            else:
-                assert_never(object.kind)
-        elif prop.default_factory == ValueFactory.ACTOR:
-            return f"""\
-{target_expr}_ref = _session.context.actor_ref"""
-        elif prop.default_factory == ValueFactory.CLIENT:
-            return f"""\
-{target_expr}_ref = _session.context.client_ref"""
-        elif prop.default_factory == ValueFactory.CLIENT_NONCE:
-            return f"""\
-{target_expr} = _session.context.client_nonce"""
-        elif prop.default_factory == ValueFactory.REGION:
-            return f"""\
-{target_expr} = REGION"""
-        elif prop.default_factory == ValueFactory.SELF_NODE:
-            assert object.kind == ObjectKind.NODE, (
-                f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
-            )
-            return f"""\
-{target_expr} = self.to_ref()"""
-        elif prop.default_factory == ValueFactory.CURRENT_SPACE:
-            assert object.kind == ObjectKind.NODE, (
-                f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
-            )
-            return f"""\
-space = ACTIVE_SPACE.get()
-if space is None:
-    raise RuntimeError("no active Space for {cls.__name__}")
-{target_expr} = space.to_ref()"""
-        elif prop.default_factory == ValueFactory.CURRENT_BRANCH:
-            return f"""\
-branch = ACTIVE_BRANCH.get()
-if branch is None:
-    raise RuntimeError("no active Branch for {cls.__name__}")
-{target_expr} = branch.to_ref()"""
-        elif prop.default_factory == ValueFactory.CURRENT_SNAPSHOT:
-            return f"""\
-snapshot = ACTIVE_SNAPSHOT.get()
-if snapshot is None:
-    raise RuntimeError("no active Snapshot for {cls.__name__}")
-{target_expr} = snapshot.to_ref()"""
-        elif prop.default_factory == ValueFactory.NAME:
-            assert object.kind == ObjectKind.NODE, (
-                f"{cls.__name__} is not a Node, cannot use {prop.default_factory} in {prop!r}"
-            )
-            return f"""\
-{target_expr} = "{cls.__name__}" """
-        else:
-            assert_never(prop.default_factory)
 
     #
     # Repr
@@ -408,14 +167,7 @@ if snapshot is None:
         """Generate Object.__repr__."""
         repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
         if not repr_properties:
-            if cls.__declaration__.kind == ObjectKind.NODE:
-                repr_impl = f"""\
-def __repr__(self) -> str:
-    return f"<{cls.__name__} \\"{{self.path}}\\">"
-__str__ = __repr__
-"""
-            else:
-                repr_impl = f"""\
+            repr_impl = f"""\
 def __repr__(self) -> str:
     return "<{cls.__name__}>"
 __str__ = __repr__
@@ -452,28 +204,13 @@ if {target_expr} is not UNSET:
 
         # wrap in repr
         repr_parts_str = "\n".join(repr_parts_lines)
-        if cls.__declaration__.kind == ObjectKind.NODE:
-            if has_required_repr_props:
-                inner_repr_impl = f"""\
-{repr_parts_str}
-return f"<{cls.__name__} \\"{{self.path}}\\" {{' '.join(_property_reprs)}}>"
-"""
-            else:
-                inner_repr_impl = f"""\
-{repr_parts_str}
-if _property_reprs:
-    return f"<{cls.__name__} \\"{{self.path}}\\" {{' '.join(_property_reprs)}}>"
-else:
-    return f"<{cls.__name__} \\"{{self.path}}\\">"
-"""
-        else:
-            if has_required_repr_props:
-                inner_repr_impl = f"""\
+        if has_required_repr_props:
+            inner_repr_impl = f"""\
 {repr_parts_str}
 return f"<{cls.__name__} {{' '.join(_property_reprs)}}>"
 """
-            else:
-                inner_repr_impl = f"""\
+        else:
+            inner_repr_impl = f"""\
 {repr_parts_str}
 if _property_reprs:
     return f"<{cls.__name__} {{' '.join(_property_reprs)}}>"
@@ -1110,147 +847,7 @@ if ({map_source_expr} := {source_expr}):
         else:
             assert_never(type.scalar_type)
 
-    #
-    # Path
-    #
 
-    def generate_path[NodeT: Node](self, cls: type[NodeT]) -> tuple[str, dict[str, Any]]:
-        """Generate Node.path property (and Node._path_key helper)."""
-        assert cls.__declaration__.kind == ObjectKind.NODE, f"{cls.__name__} is not a Node"
-
-        # Node.path
-        if cls.metatype == NodeType.SPACE:
-            path_str = """\
-path = _path_key
-"""
-        else:
-            path_str = f"""\
-@property
-def path(self) -> str:
-    path_parts: list[str] = []
-    node = self
-    last_node = self
-    while node is not None:
-        path_parts.append(node._path_key)
-        last_node = node
-        node = node.parent
-    if last_node.metatype != {NodeType.SPACE.value}:
-        path_parts.append("<detached>")
-    return "/".join(reversed(path_parts))
-"""
-
-        path_key_str = self.generate_path_key_property(cls)
-        path_impl = f"{path_key_str}\n{path_str}"
-        return path_impl, {}
-
-    def generate_path_key_property(self, cls: type["Struct | Node"]) -> str:
-        """Generate a Node's path "key" property."""
-        assert cls.__declaration__.kind == ObjectKind.NODE, f"{cls.__name__} is not a Node"
-
-        # Node._path_key
-        if "slug" in cls.__properties__:
-            if "name" in cls.__properties__:
-                return """\
-@property
-def _path_key(self) -> str:
-    return self.slug or self.name
-"""
-            else:
-                return """\
-@property
-def _path_key(self) -> str:
-    return self.slug or f"{self.metatype.destack_name}[id={self.id}]"
-"""
-        elif "name" in cls.__properties__:
-            return """\
-@property
-def _path_key(self) -> str:
-    return self.name
-"""
-        else:
-            return f"""\
-@property
-def _path_key(self) -> str:
-    return f"{cls.__name__}[id={{self.id}}]"
-"""
-
-    def generate_path_key[NodeT: Node](self, cls: type[NodeT]) -> str:
-        """Generate a Node's path "key"."""
-        assert cls.__declaration__.kind == ObjectKind.NODE, f"{cls.__name__} is not a Node"
-        if "slug" in cls.__properties__:
-            if "name" in cls.__properties__:
-                return """self.slug or self.name"""
-            else:
-                return """self.slug or f"{self.metatype.destack_name}[id={self.id}]" """
-        elif "name" in cls.__properties__:
-            return """self.name"""
-        else:
-            return f"""f"{cls.__name__}[id={{self.id}}]"""
-
-    #
-    # Node properties
-    #
-
-    def generate_node_property(self, prop: PropertyDeclaration) -> str:
-        """The computed get/set property for a Node reference."""
-        # NOTE @Performance: we could inline Graph.get into node property getters
-
-        assert prop.type.cardinality == TypeCardinality.SCALAR, (
-            f"node properties must be scalar: {prop!r}"
-        )
-        is_node = prop.component.__declaration__.kind == ObjectKind.NODE
-
-        if is_node:
-            getter = f"""\
-@property
-def {prop.name}(self: "Object") -> "Node | None":
-    node_ref: NodeReference | None = self.{prop.name}_ref
-    if node_ref is not None:
-        return _session.graph.get(node_ref.id, node_ref.space_id, node_ref.branch_id, node_ref.snapshot_id)
-    else:
-        return None
-"""
-        else:
-            getter = f"""\
-@property
-def {prop.name}(self: "Object") -> "Node | None":
-    node_ref: NodeReference | None = self.{prop.name}_ref
-    if node_ref is not None:
-        if _session is None:
-            return None
-        return _session.graph.get(node_ref.id, node_ref.space_id, node_ref.branch_id, node_ref.snapshot_id)
-    else:
-        return None
-"""
-
-        if is_node:
-            setter = f"""\
-@{prop.name}.setter
-def {prop.name}(self: "Object", value: "Node | None"):
-    if value is None:
-        self.set("{prop.name}_ref", None)
-    else:
-        self.set("{prop.name}_ref", value.to_ref())
-"""
-        else:
-            setter = f"""\
-@{prop.name}.setter
-def {prop.name}(self: "Object", value: "Node | None"):
-    if value is None:
-        self.{prop.name}_ref = None
-    else:
-        self.{prop.name}_ref = value.to_ref()
-"""
-
-        return getter + "\n\n" + setter
-
-
-_METAKIND_TYPE = TypeDeclaration(
-    cardinality=TypeCardinality.SCALAR,
-    primitive_type=PrimitiveType.INT32,
-    enum_type=EnumType.OBJECT_KIND,
-    is_required=True,
-)
 _METATYPE_TYPE = TypeDeclaration(
     cardinality=TypeCardinality.SCALAR,
     primitive_type=PrimitiveType.INT32,
@@ -1269,18 +866,6 @@ def _process_object_cls[ObjectT: "Struct | Node"](
 
     cls.__declaration__ = declaration  # type: ignore
 
-    # metatype
-    metakind_property = PropertyDeclaration(
-        id=METAKIND_PROPERTY_ID,
-        name="metakind",
-        description="The kind of the Object.",
-        py_type=Any,
-        type=_METAKIND_TYPE,
-        is_managed=True,
-        is_runtime_only=True,
-        is_static=True,
-        component=cls,
-    )
     metatype_property = PropertyDeclaration(
         id=METATYPE_PROPERTY_ID,
         name="metatype",
@@ -1314,7 +899,6 @@ def _process_object_cls[ObjectT: "Struct | Node"](
 
     # walk the class definition and collect class-level stuff
     properties: dict[str, PropertyDeclaration] = {
-        metakind_property.name: metakind_property,
         metatype_property.name: metatype_property,
     }
     for name, attribute in list(cls.__dict__.items()):
@@ -1454,7 +1038,7 @@ def __init__(self):
         )
         # equals
         equals_str, equals_glbls = _generator.generate_equals(
-            cls, is_node=declaration.kind == ObjectKind.NODE
+            cls, is_node=declaration.type == NodeType.NODE
         )
         execute_arbitrary_code(
             equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}.equals"
@@ -1462,23 +1046,6 @@ def __init__(self):
         # hash
         hash_str, hash_glbls = _generator.generate_hash(cls)
         execute_arbitrary_code(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}.hash")
-        if declaration.kind == ObjectKind.NODE:
-            assert (
-                isinstance(declaration.type, OptionDeclaration)
-                and declaration.type.component == NodeType
-            ), f"unexpected type: {declaration.type!r}"
-            # path
-            path_str, path_glbls = _generator.generate_path(cast(type["Node"], cls))
-            execute_arbitrary_code(
-                path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}.path"
-            )
-        # computed Node properties
-        for prop in properties.values():
-            if prop.reference_type is not None:
-                node_property_str = _generator.generate_node_property(prop)
-                execute_arbitrary_code(
-                    node_property_str, {}, cls_dict, f"{cls.__name__}.{prop.name}"
-                )
 
     # slots
     cls_dict.pop("__dict__", None)
@@ -1539,7 +1106,6 @@ def _declare_object(
         declaration = ObjectDeclaration(
             # meta
             cls=cls_in,
-            kind=ObjectKind.STRUCT,
             type=object_type,
             id=0,
             name=cls_in.__name__,

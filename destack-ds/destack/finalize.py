@@ -30,7 +30,6 @@ from .registry import (
     MODULE_DEFINITION_BY_PATH,
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
-    OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
 )
@@ -312,7 +311,6 @@ def finalize():
         HandleDefinition,
         Node,
         NodeDefinition,
-        ObjectDefinitionReference,
         PropertyDeclaration,
         StructDefinition,
     )
@@ -386,12 +384,6 @@ def finalize():
             if issubclass(base, Node) and base.__declaration__.self_event_types:
                 all_event_types.update(base.__declaration__.self_event_types)
         node_cls.__declaration__.event_types = list(all_event_types)
-
-    # generate definition refs
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
-    for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        OBJECT_DEFINITION_REFERENCE_BY_CLASS[struct_cls] = ObjectDefinitionReference.of(struct_cls)
 
     # generate meta info
     for node_cls in NODE_CLASS_BY_TYPE.values():

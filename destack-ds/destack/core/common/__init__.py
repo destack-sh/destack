@@ -20,7 +20,6 @@ from .relation import (
     NodeIdentityReference,
     NodeSpatialReference,
     NodeTemporalReference,
-    ObjectDefinitionReference,
     PropertyReference,
 )
 from .text import (
@@ -61,7 +60,6 @@ __all__ = [
     "NodeSpatialReference",
     "NodeTemporalReference",
     "NumberConstraint",
-    "ObjectDefinitionReference",
     "PropertyReference",
     "Query",
     "QueryType",

@@ -1,0 +1,5 @@
+
+
+entity BreakoutPaddle extends RigidBody2D {
+
+}

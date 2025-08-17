@@ -19,8 +19,8 @@ from .declaration import (
 from .enum import FlagEnum, OptionEnum, declare_enum, declare_option
 from .node import Node, _process_node_cls
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, declare_property
-from .types import Order
-from .universe import EnumType, NodeType, ObjectKind, StructType, TraitType
+from .types import UUID, Order
+from .universe import EnumType, NodeType, StructType, TraitType
 
 if TYPE_CHECKING:
     from destack import (
@@ -28,6 +28,8 @@ if TYPE_CHECKING:
         NamedValue,
         NodeSpatialReference,
         Script,
+        Snapshot,
+        Space,
         Tag,
         Value,
     )
@@ -186,7 +188,7 @@ def declare_entity(
 )
 class Entity(Node):
     """
-    An Entity is a named, versioned, mutable Node.
+    An Entity is a named, versioned, mutable object.
     Entities can be attached to (most) other Entities to compose richer structures.
 
     Updates to Entities are made through Events.
@@ -201,10 +203,52 @@ class Entity(Node):
     The name is normalized to a snake_case string.
     """
 
-    metakind = ObjectKind.NODE
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
     # 1-20: identity
+    id: UUID = declare_property(
+        2,
+        is_managed=True,
+        is_eq=False,
+        is_readonly=True,
+        is_interned=True,
+        default_factory=ValueFactory.UUID7,
+        description="The universally unique identifier of this Entity.",
+        tag="identity",
+    )
+    space: "Space" = declare_property(
+        3,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        is_readonly=True,
+        reference_type=ReferenceType.RAW,
+        default_factory=ValueFactory.CURRENT_SPACE,
+        description="The Space this Entity is in.",
+        tag="identity",
+    )
+    branch: "Branch" = declare_property(
+        4,
+        is_readonly=True,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        reference_type=ReferenceType.RAW,
+        default_factory=ValueFactory.CURRENT_BRANCH,
+        description="The Branch this Entity is part of (in its Space).",
+        tag="identity",
+    )
+    snapshot: "Snapshot" = declare_property(
+        5,
+        is_readonly=True,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        reference_type=ReferenceType.RAW,
+        default_factory=ValueFactory.CURRENT_SNAPSHOT,
+        description="The Snapshot this Entity is part of (in its Space and Branch).",
+        tag="identity",
+    )
     materialization: Materialization = declare_property(
         10,
         is_managed=True,
@@ -338,7 +382,7 @@ class Entity(Node):
 
     @declare_method(2)
     def to_ref(self) -> "NodeSpatialReference":
-        """Gets a reference to this Node."""
+        """Gets a reference to this Entity."""
         raise NotImplementedError
 
     @declare_method(20)

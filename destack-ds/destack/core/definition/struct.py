@@ -1,9 +1,8 @@
-from typing import TYPE_CHECKING, final, override
+from typing import TYPE_CHECKING, final
 
 from ..builtin import (
     EncoderStability,
     NodeType,
-    ObjectKind,
     Struct,
     StructDeclaration,
     StructType,
@@ -17,7 +16,6 @@ if TYPE_CHECKING:
     from destack import (
         ConstantDefinition,
         MethodDefinition,
-        ObjectDefinitionReference,
         PropertyDefinition,
         TagDefinition,
     )
@@ -113,12 +111,6 @@ class StructDefinition(ObjectDefinition):
         description="The node types that this Struct can be turned into.",
         tag="associations",
     )
-
-    @override
-    def to_ref(self) -> "ObjectDefinitionReference":
-        from ..common import ObjectDefinitionReference
-
-        return ObjectDefinitionReference(kind=ObjectKind.STRUCT, struct_type=self.type)
 
     @classmethod
     def from_declaration(

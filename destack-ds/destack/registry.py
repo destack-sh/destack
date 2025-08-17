@@ -12,7 +12,6 @@ if TYPE_CHECKING:
         Node,
         NodeDefinition,
         NodeType,
-        ObjectDefinitionReference,
         Struct,
         StructDefinition,
         StructType,
@@ -35,7 +34,6 @@ HANDLE_TYPE_BY_CLASS: dict[type["Handle"], "HandleType"] = {}
 
 MODULE_BY_PATH: dict[str, Any] = {}
 
-OBJECT_DEFINITION_REFERENCE_BY_CLASS: dict[type["Struct | Node"], "ObjectDefinitionReference"] = {}
 ENUM_DEFINITION_BY_TYPE: dict["EnumType", "EnumDefinition"] = {}
 NODE_DEFINITION_BY_TYPE: dict["NodeType", "NodeDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict["StructType", "StructDefinition"] = {}

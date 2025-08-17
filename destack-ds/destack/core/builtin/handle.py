@@ -11,7 +11,7 @@ from ._hoisted import EncoderStability
 from .declaration import HandleDeclaration, TagDeclaration
 from .object import _get_universe_domain
 from .property import _PROPERTY_SPECIFIERS
-from .universe import HandleType, NodeType, ObjectKind
+from .universe import HandleType, NodeType
 
 if TYPE_CHECKING:
     from destack import HandleDefinition
@@ -50,7 +50,6 @@ def _process_handle_cls(
         id=handle_type.value,
         name=cls.__name__,
         description=cls.__doc__ or "",
-        kind=ObjectKind.HANDLE,
         stability=stability,
         domain=domain,
         category=category,
@@ -152,7 +151,6 @@ class Handle:
     #   for every runtime and forcing a common definition would be meaningless and cumbersome.
 
     # meta
-    metakind: ClassVar[ObjectKind] = ObjectKind.HANDLE
     metatype: ClassVar[HandleType]
     __declaration__: ClassVar["HandleDeclaration"]
     __definition__: ClassVar["HandleDefinition"]

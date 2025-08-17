@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING, final, override
+from typing import TYPE_CHECKING, final
 
 from ..builtin import (
     EncoderStability,
     Node,
     NodeDeclaration,
     NodeType,
-    ObjectKind,
     StructType,
     TraitType,
     declare_property,
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
         ConstraintDefinition,
         IndexDefinition,
         MethodDefinition,
-        ObjectDefinitionReference,
         PermissionDefinition,
         PropertyDefinition,
         TagDefinition,
@@ -202,12 +200,6 @@ class NodeDefinition(ObjectDefinition):
         description="The Struct type this Node implements (if any).",
         tag="inheritance",
     )
-
-    @override
-    def to_ref(self) -> "ObjectDefinitionReference":
-        from ..common import ObjectDefinitionReference
-
-        return ObjectDefinitionReference(kind=ObjectKind.NODE, node_type=self.type)
 
     @classmethod
     def from_declaration(

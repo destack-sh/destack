@@ -72,7 +72,6 @@ impl std::fmt::Debug for EnumType {
             EnumType::QueryType => write!(f, "QUERY_TYPE"),
             EnumType::Encoding => write!(f, "ENCODING"),
             EnumType::EncoderFlag => write!(f, "ENCODER_FLAG"),
-            EnumType::EncoderStability => write!(f, "ENCODER_STABILITY"),
             EnumType::ClientType => write!(f, "CLIENT_TYPE"),
             EnumType::BranchType => write!(f, "BRANCH_TYPE"),
             EnumType::SnapshotType => write!(f, "SNAPSHOT_TYPE"),
