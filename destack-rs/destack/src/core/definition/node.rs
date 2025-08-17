@@ -3,9 +3,9 @@
 #![destack::partial(destack.core.definition.node, file)]
 
 use crate::{
-    ActionDefinition, ConstantDefinition, ConstraintDefinition, IndexDefinition, MethodDefinition,
-    NodeType, ObjectStability, PermissionDefinition, PropertyDefinition, StructType, TagDefinition,
-    TraitType, UniverseCategory, UniverseDomain,
+    ActionDefinition, ConstantDefinition, ConstraintDefinition, EncoderStability, IndexDefinition,
+    MethodDefinition, NodeType, PermissionDefinition, PropertyDefinition, StructType,
+    TagDefinition, TraitType, UniverseCategory, UniverseDomain,
 };
 
 #[destack::generated(NodeDefinition, -, block)]
@@ -17,7 +17,7 @@ pub struct NodeDefinition {
     pub description: String,
     pub domain: UniverseDomain,
     pub category: UniverseCategory,
-    pub stability: ObjectStability,
+    pub stability: EncoderStability,
     pub is_abstract: bool,
     pub is_final: bool,
     pub is_singleton: bool,

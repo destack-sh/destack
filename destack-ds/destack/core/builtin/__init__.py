@@ -77,7 +77,7 @@ from .event import Event, EventStatus, declare_event
 from .handle import Handle, declare_handle
 from .message import Message, declare_message
 from .node import Node
-from .object import Object, _is_finalized
+from .object import _is_finalized
 from .property import (
     PropertyDeclaration,
     TypeDeclaration,
@@ -116,7 +116,6 @@ from .universe import (
     ModuleType,
     NodeType,
     ObjectKind,
-    ObjectStability,
     StructType,
     TraitType,
     UniverseCategory,
@@ -187,10 +186,8 @@ __all__ = [
     "Node",
     "NodeDeclaration",
     "NodeType",
-    "Object",
     "ObjectDeclaration",
     "ObjectKind",
-    "ObjectStability",
     "OptionDeclaration",
     "OptionEnum",
     "PermissionDeclaration",

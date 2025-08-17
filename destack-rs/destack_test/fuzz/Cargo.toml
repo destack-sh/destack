@@ -16,7 +16,8 @@ destack_order = { path = "../../destack_order" }
 destack_uuid = { path = "../../destack_uuid" }
 destack_json = { path = "../../destack_json" }
 
-libfuzzer-sys = { version = "0.4" }
+arbitrary = { workspace = true }
+libfuzzer-sys = { workspace = true }
 
 [[bin]]
 name = "destack_time_time"
@@ -62,5 +63,3 @@ doc = false
 
 [profile.release]
 panic = "abort"
-
-

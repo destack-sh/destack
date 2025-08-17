@@ -8,11 +8,12 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Self
 from ._const import UNSET
 
 if TYPE_CHECKING:
-    from destack import Handle, Node, Object, PropertyDeclaration, Struct, Type
+    from destack import Handle, Node, PropertyDeclaration, Struct, Type
 
     from ._hoisted import (
         ActionType,
         ConstraintType,
+        EncoderStability,
         FunctionOperator,
         IndexType,
         MethodType,
@@ -28,7 +29,6 @@ if TYPE_CHECKING:
         HandleType,
         NodeType,
         ObjectKind,
-        ObjectStability,
         StructType,
         TraitType,
         UniverseCategory,
@@ -97,13 +97,13 @@ class TypeDeclaration(Declaration):
 @dataclass(slots=True, repr=False)
 class ObjectDeclaration(Declaration):
     # meta
-    cls: type_["Object"]
+    cls: type_["Struct | Node"]
     kind: "ObjectKind"
     type: int | None
     id: int
     name: str
     description: str
-    stability: "ObjectStability"
+    stability: "EncoderStability"
     domain: "UniverseDomain"
     category: "UniverseCategory"
     is_abstract: bool
@@ -255,8 +255,8 @@ class FunctionDeclaration(Declaration):
     inner_func: Callable
     is_async: bool
     is_managed: bool
-    component: type_["Object"] | None
-    original_component: type_["Object"] | None
+    component: type_["Struct | Node"] | None
+    original_component: type_["Struct | Node"] | None
 
     # availability
     platforms: tuple["RuntimePlatform", ...]
@@ -716,8 +716,8 @@ class ConstantDeclaration(Declaration):
     is_deferred: bool
     description: str
     name: str | None
-    component: type_["Object"] | None
-    original_component: type_["Object"] | None
+    component: type_["Struct | Node"] | None
+    original_component: type_["Struct | Node"] | None
 
 
 def declare_constant[T](

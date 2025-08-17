@@ -13,7 +13,6 @@ from .core.builtin import (
     HandleType,
     MethodDeclaration,
     NodeType,
-    Object,
     StructType,
     UniverseCategory,
     UniverseDomain,
@@ -41,13 +40,15 @@ if TYPE_CHECKING:
         ActionDefinition,
         MethodDefinition,
         ModuleDefinition,
+        Node,
         SchemaDefinition,
+        Struct,
     )
 
 type_ = type
 
 
-def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
+def _index_inheritance(cls_by_type: Mapping[Any, type["Struct | Node"]]):
     # index Object extended_by (direct) / inherited_by (direct and indirect)
     object_type_extended_by: dict[int, list[int]] = defaultdict(list)
     for object_cls in cls_by_type.values():
@@ -56,7 +57,7 @@ def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
                 object_cls.metatype
             )
     for object_cls in cls_by_type.values():
-        object_cls.__declaration__.extended_by = list(object_type_extended_by[object_cls.metatype])
+        object_cls.__declaration__.extended_by = list(object_type_extended_by[object_cls.metatype])  # type: ignore
 
     # index Object inherited_by (recursive)
     for object_cls in cls_by_type.values():
@@ -69,7 +70,7 @@ def _index_inheritance(cls_by_type: Mapping[Any, type["Object"]]):
                 inherited_by_objects.append(inheriting_type)
                 inheriting_cls = cls_by_type[inheriting_type]
                 to_visit.extend(reversed(inheriting_cls.__declaration__.extended_by))
-        object_cls.__declaration__.inherited_by = list(inherited_by_objects)
+        object_cls.__declaration__.inherited_by = list(inherited_by_objects)  # type: ignore
 
 
 _IGNORED_MODULES = (
@@ -332,7 +333,6 @@ def finalize():
     # index inheritance
     _index_inheritance(NODE_CLASS_BY_TYPE)
     _index_inheritance(STRUCT_CLASS_BY_TYPE)
-    _index_inheritance(HANDLE_CLASS_BY_TYPE)
 
     # index Node parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -392,8 +392,6 @@ def finalize():
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[node_cls] = ObjectDefinitionReference.of(node_cls)
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
         OBJECT_DEFINITION_REFERENCE_BY_CLASS[struct_cls] = ObjectDefinitionReference.of(struct_cls)
-    for handle_cls in HANDLE_CLASS_BY_TYPE.values():
-        OBJECT_DEFINITION_REFERENCE_BY_CLASS[handle_cls] = ObjectDefinitionReference.of(handle_cls)
 
     # generate meta info
     for node_cls in NODE_CLASS_BY_TYPE.values():

@@ -193,7 +193,6 @@ class EnumType(OptionEnum):
     STRUCT_TYPE = declare_option(5)
     TRAIT_TYPE = declare_option(6)
     HANDLE_TYPE = declare_option(7)
-    OBJECT_STABILITY = declare_option(8)
     UNIVERSE_DOMAIN = declare_option(10)
     UNIVERSE_CATEGORY = declare_option(11)
     MATERIALIZATION = declare_option(20)
@@ -467,22 +466,6 @@ class ObjectKind(OptionEnum):
     )
 
 
-@declare_enum(EnumType.OBJECT_STABILITY)
-class ObjectStability(OptionEnum):
-    DYNAMIC = declare_option(
-        1,
-        "Dynamic",
-        description="Definition may change in every compatible way",
-    )
-    # GROWABLE = 2, "Definition may change with new properties at the end (only)"
-    # NOTE @Performance: ObjectStability.GROWABLE is annoying to implement but probably worth it
-    STATIC = declare_option(
-        7,
-        "Static",
-        description="Definition may never change",
-    )
-
-
 @declare_enum(EnumType.MODULE_TYPE)
 class ModuleType(OptionEnum):
     """Built-in module types."""
@@ -746,6 +729,8 @@ class NodeType(OptionEnum):
     # entity [10_000_000]
     # nocheckin: move entity into core?
     # nocheckin: CustomTraitDefinition? CustomSystemDefinition? CustomComponentDefinition?
+    #  .. also revisit *_definition/*_builtin mappings..
+    #   (Property vs PropertyDefinition? Module? Entity? Event? Struct?)
     CUSTOM_EVENT_DEFINITION = declare_option(
         10_000_000,
         "Custom Event",
