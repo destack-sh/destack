@@ -7,10 +7,11 @@ from typing import (
 
 from destack.registry import HANDLE_CLASS_BY_TYPE, HANDLE_TYPE_BY_CLASS
 
+from ._hoisted import EncoderStability
 from .declaration import HandleDeclaration, TagDeclaration
-from .object import Object, _get_universe_domain, _process_object_cls
+from .object import _get_universe_domain
 from .property import _PROPERTY_SPECIFIERS
-from .universe import HandleType, NodeType, ObjectKind, ObjectStability
+from .universe import HandleType, NodeType, ObjectKind
 
 if TYPE_CHECKING:
     from destack import HandleDefinition
@@ -22,7 +23,7 @@ type_ = type
 def _process_handle_cls(
     cls: type["Handle"],
     handle_type: HandleType,
-    stability: ObjectStability,
+    stability: EncoderStability,
     is_abstract: bool,
     is_final: bool,
     tags: tuple["TagDeclaration", ...],
@@ -72,7 +73,7 @@ def _process_handle_cls(
     )
 
     # process object class
-    cls, _ = _process_object_cls(cast(type["Handle"], cls), declaration)
+    cls.__declaration__ = declaration
     cls.metatype = handle_type
 
     # register handle
@@ -87,16 +88,6 @@ def _process_handle_cls(
     HANDLE_TYPE_BY_CLASS[cls] = handle_type
 
     # validate
-    if any(not prop.is_runtime_only for prop in cls.__properties__.values()):
-        non_runtime_properties = [
-            prop for prop in cls.__properties__.values() if not prop.is_runtime_only
-        ]
-        raise ValueError(f"{cls.__name__} has non-runtime properties: {non_runtime_properties}")
-    # abstract objects cannot extend non-abstract objects
-    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
-        raise ValueError(
-            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
-        )
     # cannot be both abstract and final
     if is_abstract and is_final:
         raise ValueError(f"{cls.__name__} cannot be both abstract and final")
@@ -125,7 +116,7 @@ def declare_handle(
     *,
     is_abstract: bool = False,
     is_final: bool = False,
-    stability: ObjectStability = ObjectStability.DYNAMIC,
+    stability: EncoderStability = EncoderStability.DYNAMIC,
     tags: tuple["TagDeclaration", ...] = (),
     event_types: tuple[NodeType, ...] = (),
 ):
@@ -147,7 +138,7 @@ def declare_handle(
 
 
 @declare_handle(HandleType.HANDLE, is_abstract=True)
-class Handle(Object):
+class Handle:
     """
     A Handle is a (runtime-only) Object for interacting with the runtime.
 

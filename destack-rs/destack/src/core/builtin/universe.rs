@@ -38,7 +38,6 @@ pub enum EnumType {
     StructType = 5,
     TraitType = 6,
     HandleType = 7,
-    ObjectStability = 8,
     UniverseDomain = 10,
     UniverseCategory = 11,
     Materialization = 20,
@@ -571,15 +570,6 @@ pub enum HandleType {
     Tracer = 2100300,
 }
 
-#[destack::generated(ObjectStability, -, block)]
-/// ObjectStability
-pub enum ObjectStability {
-    /// Definition may change in every compatible way
-    Dynamic = 1,
-    /// Definition may never change
-    Static = 7,
-}
-
 #[destack::generated(UniverseDomain, -, block)]
 /// The Destack Computational Universe is organized into domains.
 pub enum UniverseDomain {
@@ -635,7 +625,7 @@ pub enum UniverseCategory {
     /// Accounting and finance
     Finance = 11100000,
     /// Editing the Universe
-    Studio = 19000000,
+    Editor = 19000000,
     /// Geometric representations
     Geometry = 20000000,
     /// Geographic representations

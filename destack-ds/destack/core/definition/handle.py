@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, final, override
 
 from ..builtin import (
+    EncoderStability,
     HandleDeclaration,
     HandleType,
     ObjectKind,
-    ObjectStability,
     StructType,
     UInt8,
     declare_property,
@@ -39,7 +39,7 @@ class HandleDefinition(ObjectDefinition):
         is_repr=True,
         tag="meta",
     )
-    stability: ObjectStability = declare_property(
+    stability: EncoderStability = declare_property(
         105,
         description="The stability of this Handle (how its definition is expected to change).",
         tag="meta",

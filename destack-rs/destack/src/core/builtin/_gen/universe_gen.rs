@@ -3,7 +3,7 @@
 #![destack::generated(destack.core.builtin.universe, file)]
 
 use crate::{
-    EnumType, HandleType, ModuleType, NodeType, ObjectKind, ObjectStability, StructType, TraitType,
+    EnumType, HandleType, ModuleType, NodeType, ObjectKind, StructType, TraitType,
     UniverseCategory, UniverseDomain,
 };
 
@@ -42,7 +42,6 @@ impl std::fmt::Debug for EnumType {
             EnumType::StructType => write!(f, "STRUCT_TYPE"),
             EnumType::TraitType => write!(f, "TRAIT_TYPE"),
             EnumType::HandleType => write!(f, "HANDLE_TYPE"),
-            EnumType::ObjectStability => write!(f, "OBJECT_STABILITY"),
             EnumType::UniverseDomain => write!(f, "UNIVERSE_DOMAIN"),
             EnumType::UniverseCategory => write!(f, "UNIVERSE_CATEGORY"),
             EnumType::Materialization => write!(f, "MATERIALIZATION"),
@@ -532,16 +531,6 @@ impl std::fmt::Debug for HandleType {
     }
 }
 
-#[destack::generated(ObjectStability, Debug, block)]
-impl std::fmt::Debug for ObjectStability {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ObjectStability::Dynamic => write!(f, "DYNAMIC"),
-            ObjectStability::Static => write!(f, "STATIC"),
-        }
-    }
-}
-
 #[destack::generated(UniverseDomain, Debug, block)]
 impl std::fmt::Debug for UniverseDomain {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -577,7 +566,7 @@ impl std::fmt::Debug for UniverseCategory {
             UniverseCategory::Quality => write!(f, "QUALITY"),
             UniverseCategory::Social => write!(f, "SOCIAL"),
             UniverseCategory::Finance => write!(f, "FINANCE"),
-            UniverseCategory::Studio => write!(f, "STUDIO"),
+            UniverseCategory::Editor => write!(f, "EDITOR"),
             UniverseCategory::Geometry => write!(f, "GEOMETRY"),
             UniverseCategory::Geography => write!(f, "GEOGRAPHY"),
             UniverseCategory::Physics => write!(f, "PHYSICS"),

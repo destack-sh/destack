@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Optional, final
 
 from destack.core import (
+    EncoderStability,
     EnumType,
     Float32,
     NodeType,
-    ObjectStability,
     OptionEnum,
     Struct,
     StructType,
@@ -91,7 +91,7 @@ class ColorIntent(OptionEnum):
 
 @declare_struct(
     StructType.COLOR,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
     is_final=True,
     into_node_types=(NodeType.COLOR_STYLE,),
 )

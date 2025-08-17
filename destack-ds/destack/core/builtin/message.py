@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, cast, dataclass_transform
 
-from ._hoisted import ReferenceType, ValueFactory
+from ._hoisted import EncoderStability, ReferenceType, ValueFactory
 from .declaration import TagDeclaration
 from .property import _PROPERTY_SPECIFIERS, declare_property
 from .struct import Struct, _process_struct_cls
 from .types import UInt8, UInt64
-from .universe import ObjectStability, StructType
+from .universe import StructType
 from .uuid import UUID
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ def declare_message(
     *,
     is_abstract: bool = False,
     is_final: bool = False,
-    stability: ObjectStability = ObjectStability.DYNAMIC,
+    stability: EncoderStability = EncoderStability.DYNAMIC,
     # associations
     tags: tuple["TagDeclaration", ...] = (),
 ):

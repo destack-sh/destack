@@ -3,7 +3,7 @@
 #![destack::partial(destack.core.definition.handle, file)]
 
 use crate::{
-    ConstantDefinition, HandleType, MethodDefinition, ObjectStability, PropertyDefinition,
+    ConstantDefinition, EncoderStability, HandleType, MethodDefinition, PropertyDefinition,
     TagDefinition, UniverseCategory, UniverseDomain,
 };
 
@@ -16,7 +16,7 @@ pub struct HandleDefinition {
     pub description: String,
     pub domain: UniverseDomain,
     pub category: UniverseCategory,
-    pub stability: ObjectStability,
+    pub stability: EncoderStability,
     pub tag: Option<u8>,
     pub is_abstract: bool,
     pub properties: Vec<PropertyDefinition>,

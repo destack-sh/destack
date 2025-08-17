@@ -6,14 +6,14 @@ from typing import (
     final,
 )
 
-from destack.registry import HANDLE_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from destack.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
 from ..builtin import (
     UUID,
+    EncoderStability,
     HandleType,
     NodeType,
     ObjectKind,
-    ObjectStability,
     PropertyDeclaration,
     ReferenceType,
     Struct,
@@ -101,7 +101,6 @@ class PropertyReference(Struct):
 
     node_type: NodeType | None = declare_property(101, is_repr=True, tag=None)
     struct_type: StructType | None = declare_property(103, is_repr=True, tag=None)
-    handle_type: HandleType | None = declare_property(104, is_repr=True, tag=None)
     id: Optional[UInt8] = declare_property(
         105,
         is_repr=True,
@@ -131,8 +130,6 @@ class PropertyReference(Struct):
             object_cls = NODE_CLASS_BY_TYPE[node_type]
         elif (struct_type := self.struct_type) is not None:
             object_cls = STRUCT_CLASS_BY_TYPE[struct_type]
-        elif (handle_type := self.handle_type) is not None:
-            object_cls = HANDLE_CLASS_BY_TYPE[handle_type]
         else:
             object_cls = Node
         assert self.id is not None, f"no id for {self!r}"
@@ -159,7 +156,7 @@ class PropertyReference(Struct):
     is_immutable=True,
     is_interned=True,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class NodeIdentityReference(Struct):
@@ -176,7 +173,7 @@ class NodeIdentityReference(Struct):
     is_immutable=True,
     is_interned=True,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class NodeSpatialReference(Struct):
@@ -210,7 +207,7 @@ class NodeSpatialReference(Struct):
     is_immutable=True,
     is_interned=True,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class NodeTemporalReference(Struct):

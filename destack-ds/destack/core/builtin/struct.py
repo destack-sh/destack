@@ -1,17 +1,17 @@
 from typing import (
     TYPE_CHECKING,
     ClassVar,
-    Self,
     cast,
     dataclass_transform,
 )
 
 from destack.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 
-from .declaration import StructDeclaration, TagDeclaration, declare_method
-from .object import Object, _get_universe_domain, _process_object_cls
-from .property import _PROPERTY_SPECIFIERS
-from .universe import NodeType, ObjectKind, ObjectStability, StructType
+from ._hoisted import EncoderStability
+from .declaration import StructDeclaration, TagDeclaration
+from .object import _get_universe_domain, _process_object_cls
+from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration
+from .universe import NodeType, ObjectKind, StructType
 
 if TYPE_CHECKING:
     from destack import StructDefinition
@@ -24,7 +24,7 @@ def _process_struct_cls(
     # meta
     cls: type["Struct"],
     struct_type: StructType,
-    stability: ObjectStability,
+    stability: EncoderStability,
     is_immutable: bool,
     is_abstract: bool,
     is_final: bool,
@@ -105,9 +105,9 @@ def _process_struct_cls(
     ):
         raise ValueError(f"{cls.__name__} is not abstract but has no properties")
     # abstract objects cannot extend non-abstract objects
-    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+    if is_abstract and len(cls.__bases__) > 1 and not cls.__bases__[1].__is_abstract__:
         raise ValueError(
-            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[1].__name__}"
         )
     # cannot be both abstract and final
     if is_abstract and is_final:
@@ -136,7 +136,7 @@ def declare_struct(
     # meta
     struct_type: StructType,
     *,
-    stability: ObjectStability = ObjectStability.DYNAMIC,
+    stability: EncoderStability = EncoderStability.DYNAMIC,
     is_immutable: bool = False,
     is_abstract: bool = False,
     is_final: bool = False,
@@ -165,7 +165,7 @@ def declare_struct(
 
 
 @declare_struct(StructType.STRUCT, is_abstract=True)
-class Struct(Object):
+class Struct:
     """A Struct is a collection of Properties."""
 
     """The kind of Object this is (static)."""
@@ -177,7 +177,17 @@ class Struct(Object):
     """The definition of this Struct (static)."""
     __definition__: ClassVar["StructDefinition"]
 
-    @declare_method(60, is_implemented=True)
-    def clone(self) -> Self:
-        """Clone the Struct with new values."""
-        raise NotImplementedError
+    """The properties of this Object (runtime)."""
+    __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    """The properties of this Object by alias (runtime)."""
+    __properties_by_alias__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    """The properties of this Object by id (runtime)."""
+    __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
+
+    @classmethod
+    def property(cls, name: str) -> PropertyDeclaration:
+        """Get a Property by name."""
+        prop = cls.__properties_by_alias__.get(name)
+        if prop is not None:
+            return prop
+        raise ValueError(f"no property '{name}' in {cls.__name__}")

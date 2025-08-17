@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, final, override
 
 from ..builtin import (
+    EncoderStability,
     Node,
     NodeDeclaration,
     NodeType,
     ObjectKind,
-    ObjectStability,
     StructType,
     TraitType,
     declare_property,
@@ -44,7 +44,7 @@ class NodeDefinition(ObjectDefinition):
         is_repr=True,
         tag="meta",
     )
-    stability: ObjectStability = declare_property(
+    stability: EncoderStability = declare_property(
         105,
         description="The stability of this Node (how its definition is expected to change).",
         tag="meta",

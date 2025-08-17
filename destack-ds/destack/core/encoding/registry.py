@@ -1,5 +1,3 @@
-from typing import assert_never
-
 from ..builtin import Encoding
 from .encoder import Encoder
 
@@ -7,14 +5,7 @@ _ENCODERS: dict[Encoding, Encoder] = {}
 
 
 def _generate_encoder(encoding: Encoding) -> Encoder:
-    if encoding == Encoding.KOMPAKT:
-        from ._kompakt.encoder import KompaktEncoder
-
-        encoder = KompaktEncoder.generate()
-    else:
-        assert_never(encoding)
-
-    return encoder
+    raise NotImplementedError
 
 
 def get_encoder(encoding: Encoding) -> Encoder:

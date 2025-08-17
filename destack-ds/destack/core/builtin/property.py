@@ -28,10 +28,11 @@ from .universe import (
 if TYPE_CHECKING:
     from destack import (
         Condition,
-        Object,
+        Node,
         PropertyDefinition,
         PropertyReference,
         Sort,
+        Struct,
         Value,
     )
 
@@ -52,8 +53,8 @@ class PropertyDeclaration(Declaration):
     ord: int | None = None
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
-    component: type_["Object"] = UNSET  # builtin object component
-    original_component: type_["Object"] = UNSET  # original component (first in chain)
+    component: type_["Struct | Node"] = UNSET  # builtin object component
+    original_component: type_["Struct | Node"] = UNSET  # original component (first in chain)
     tag: str | None = None
 
     # type

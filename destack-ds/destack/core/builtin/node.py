@@ -9,15 +9,19 @@ from typing import (
 from destack.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS, STRUCT_CLASS_BY_TYPE
 
 from ._const import UNSET
-from ._hoisted import ReferenceType
+from ._hoisted import EncoderStability, ReferenceType
 from .declaration import NodeDeclaration, TagDeclaration, declare_method
-from .object import Object, ValueFactory, _get_universe_domain, _process_object_cls
-from .property import _PROPERTY_SPECIFIERS, declare_property, declare_property_runtime
+from .object import ValueFactory, _get_universe_domain, _process_object_cls
+from .property import (
+    _PROPERTY_SPECIFIERS,
+    PropertyDeclaration,
+    declare_property,
+    declare_property_runtime,
+)
 from .universe import (
     EnumType,
     NodeType,
     ObjectKind,
-    ObjectStability,
     StructType,
     TraitType,
 )
@@ -97,7 +101,7 @@ def _process_node_cls(
         name=cls.__name__,
         description=cls.__doc__ or "",
         kind=ObjectKind.NODE,
-        stability=ObjectStability.DYNAMIC,
+        stability=EncoderStability.DYNAMIC,
         domain=domain,
         category=category,
         is_abstract=is_abstract,
@@ -158,9 +162,9 @@ def _process_node_cls(
     ):
         raise ValueError(f"{cls.__name__} is not abstract but has no properties")
     # abstract nodes cannot extend non-abstract nodes
-    if is_abstract and cls.__bases__ and not cls.__bases__[0].__is_abstract__:
+    if is_abstract and len(cls.__bases__) > 1 and not cls.__bases__[1].__is_abstract__:
         raise ValueError(
-            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
+            f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[1].__name__}"
         )
     # cannot be both abstract and final
     if is_abstract and is_final:
@@ -273,9 +277,9 @@ def _declare_node(
         TagDeclaration(id=2, name="tracking", description="Node tracking"),
     ),
 )
-class Node(Object):
+class Node:
     """
-    A Node with some Properties and a persistent identity (its id).
+    A Node with properties and a persistent identity (its id).
 
     Nodes belong to a Space and are thus identifiable by their (space_id, id) tuple.
     """
@@ -288,6 +292,13 @@ class Node(Object):
     __declaration__: ClassVar["NodeDeclaration"]
     """The definition of this Node (static)."""
     __definition__: ClassVar["NodeDefinition"]
+
+    """The properties of this Object (runtime)."""
+    __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    """The properties of this Object by alias (runtime)."""
+    __properties_by_alias__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    """The properties of this Object by id (runtime)."""
+    __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
 
     # 1-20: node identity
     id: UUID = declare_property(
@@ -358,3 +369,11 @@ class Node(Object):
     def to_ref(self) -> "NodeSpatialReference":
         """Gets a reference to this Node."""
         raise NotImplementedError
+
+    @classmethod
+    def property(cls, name: str) -> PropertyDeclaration:
+        """Get a Property by name."""
+        prop = cls.__properties_by_alias__.get(name)
+        if prop is not None:
+            return prop
+        raise ValueError(f"no property '{name}' in {cls.__name__}")

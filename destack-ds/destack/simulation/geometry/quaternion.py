@@ -1,8 +1,8 @@
 from typing import final
 
 from destack.core import (
+    EncoderStability,
     Float32,
-    ObjectStability,
     Struct,
     StructType,
     declare_constant,
@@ -15,7 +15,7 @@ from destack.core import (
 
 @declare_struct(
     StructType.QUATERNION,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
     is_final=True,
 )
 @final

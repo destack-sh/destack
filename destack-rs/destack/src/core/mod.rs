@@ -6,8 +6,8 @@
 
 pub use crate::core::builtin::{
     EnumType, EventStatus, ExtensionFlag, HandleType, Materialization, ModuleType, NodeType,
-    ObjectKind, ObjectStability, ProcessFlag, RuntimeLanguage, RuntimePlatform, RuntimeType,
-    StringCasing, StructType, TraitType, UniverseCategory, UniverseDomain,
+    ObjectKind, ProcessFlag, RuntimeLanguage, RuntimePlatform, RuntimeType, StringCasing,
+    StructType, TraitType, UniverseCategory, UniverseDomain,
 };
 pub use crate::core::common::{
     Aggregation, AggregationType, ChangeType, CollectionConstraint, Condition, ConditionalType,

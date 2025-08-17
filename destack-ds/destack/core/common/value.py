@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, final
 
-from ..builtin import Node, ObjectStability, Struct, StructType, declare_property, declare_struct
+from ..builtin import EncoderStability, Node, Struct, StructType, declare_property, declare_struct
 from .type import ReferenceType, ScalarType, Type, TypeCardinality, infer_type
 
 if TYPE_CHECKING:
@@ -12,7 +12,7 @@ type_ = type
 
 @declare_struct(
     StructType.VALUE,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
     is_final=True,
 )
 @final
@@ -68,7 +68,7 @@ class Value(Struct):
 
 @declare_struct(
     StructType.NAMED_VALUE,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
     is_final=True,
 )
 @final

@@ -3,7 +3,7 @@
 #![destack::partial(destack.core.definition.struct, file)]
 
 use crate::{
-    ConstantDefinition, MethodDefinition, NodeType, ObjectStability, PropertyDefinition,
+    ConstantDefinition, EncoderStability, MethodDefinition, NodeType, PropertyDefinition,
     StructType, TagDefinition, UniverseCategory, UniverseDomain,
 };
 
@@ -16,7 +16,7 @@ pub struct StructDefinition {
     pub description: String,
     pub domain: UniverseDomain,
     pub category: UniverseCategory,
-    pub stability: ObjectStability,
+    pub stability: EncoderStability,
     pub taggings: Vec<u8>,
     pub is_immutable: bool,
     pub is_abstract: bool,

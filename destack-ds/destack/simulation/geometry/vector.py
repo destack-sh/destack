@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING, Union, final
 
 from destack.core import (
+    EncoderStability,
     Float32,
     FunctionOperator,
     Int32,
-    ObjectStability,
     RuntimeLanguage,
     Struct,
     StructType,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 @declare_struct(
     StructType.VECTOR2,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class Vector2(Struct):
@@ -245,7 +245,7 @@ class Vector2(Struct):
 @declare_struct(
     StructType.VECTOR3,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class Vector3(Struct):
@@ -475,7 +475,7 @@ class Vector3(Struct):
 @declare_struct(
     StructType.VECTOR4,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class Vector4(Struct):
@@ -711,7 +711,7 @@ class Vector4(Struct):
 @declare_struct(
     StructType.VECTOR2I,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class Vector2i(Struct):
@@ -935,7 +935,7 @@ class Vector2i(Struct):
 @declare_struct(
     StructType.VECTOR3I,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class Vector3i(Struct):
@@ -1165,7 +1165,7 @@ class Vector3i(Struct):
 @declare_struct(
     StructType.VECTOR4I,
     is_final=True,
-    stability=ObjectStability.STATIC,
+    stability=EncoderStability.STATIC,
 )
 @final
 class Vector4i(Struct):

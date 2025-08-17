@@ -1,12 +1,9 @@
 import inspect
 import textwrap
-from collections.abc import Mapping
 from sys import intern
 from typing import (
     TYPE_CHECKING,
     Any,
-    ClassVar,
-    Self,
     assert_never,
     cast,
     dataclass_transform,
@@ -20,7 +17,6 @@ from .._utils import (
 )
 from ._const import (
     ACTIVE_SESSION,
-    EMPTY_DICT,
     EPSILON,
     EPSILON_EXPONENT,
     METAKIND_PROPERTY_ID,
@@ -28,6 +24,7 @@ from ._const import (
     UNSET,
 )
 from ._hoisted import (
+    EncoderStability,
     EnumType,
     PrimitiveType,
     ScalarType,
@@ -49,14 +46,13 @@ from .types import Int64
 from .universe import (
     NodeType,
     ObjectKind,
-    ObjectStability,
     StructType,
     _get_universe_domain,
 )
 from .uuid import UUID, uuid7
 
 if TYPE_CHECKING:
-    from destack import Hasher, Node
+    from destack import Node, Struct
 
 
 __is_finalized__ = False
@@ -71,7 +67,7 @@ def _set_finalized():
     __is_finalized__ = True
 
 
-_processed_classes: dict[type["Object"], type["Object"]] = {}
+_processed_classes: dict[type["Struct | Node"], type["Struct | Node"]] = {}
 
 
 class ObjectGenerator:
@@ -86,8 +82,8 @@ class ObjectGenerator:
     # Init
     #
 
-    def generate_init[ObjectT: Object](
-        self, cls: type[ObjectT], declaration: ObjectDeclaration
+    def generate_init(
+        self, cls: type["Struct | Node"], declaration: ObjectDeclaration
     ) -> tuple[str, dict[str, Any]]:
         """Generate an __init__ for an Object class."""
 
@@ -309,7 +305,7 @@ if {arg_name} is None:
 
     def generate_prop_default(
         self,
-        cls: type["Object"],
+        cls: type["Struct | Node"],
         object: ObjectDeclaration,
         prop: PropertyDeclaration,
         target_expr: str,
@@ -405,9 +401,9 @@ if snapshot is None:
     # Repr
     #
 
-    def generate_repr[ObjectT: Object](
+    def generate_repr(
         self,
-        cls: type[ObjectT],
+        cls: type["Struct | Node"],
     ) -> tuple[str, dict[str, Any]]:
         """Generate Object.__repr__."""
         repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
@@ -682,9 +678,9 @@ if ({map_expr} := {source_expr}):
     # Equals
     #
 
-    def generate_equals[ObjectT: Object](
+    def generate_equals(
         self,
-        cls: type[ObjectT],
+        cls: type["Struct | Node"],
         is_node: bool,
     ) -> tuple[str, dict[str, Any]]:
         """Generate Object.equals method."""
@@ -919,9 +915,9 @@ if {self_source_expr} != {other_source_expr}:
     # Hash
     #
 
-    def generate_hash[ObjectT: Object](
+    def generate_hash(
         self,
-        cls: type[ObjectT],
+        cls: type["Struct | Node"],
     ) -> tuple[str, dict[str, Any]]:
         """Generate Object.hash method."""
         hash_properties = [
@@ -1147,7 +1143,7 @@ def path(self) -> str:
         path_impl = f"{path_key_str}\n{path_str}"
         return path_impl, {}
 
-    def generate_path_key_property(self, cls: type["Object"]) -> str:
+    def generate_path_key_property(self, cls: type["Struct | Node"]) -> str:
         """Generate a Node's path "key" property."""
         assert cls.__declaration__.kind == ObjectKind.NODE, f"{cls.__name__} is not a Node"
 
@@ -1263,7 +1259,7 @@ _METATYPE_TYPE = TypeDeclaration(
 _generator = ObjectGenerator(check_required=False)
 
 
-def _process_object_cls[ObjectT: Object](
+def _process_object_cls[ObjectT: "Struct | Node"](
     cls: type[ObjectT], declaration: ObjectDeclaration
 ) -> tuple[type[ObjectT], ObjectDeclaration]:
     """Process an Object base class and return the processed class and its properties."""
@@ -1271,7 +1267,7 @@ def _process_object_cls[ObjectT: Object](
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
 
-    cls.__declaration__ = declaration
+    cls.__declaration__ = declaration  # type: ignore
 
     # metatype
     metakind_property = PropertyDeclaration(
@@ -1310,7 +1306,7 @@ def _process_object_cls[ObjectT: Object](
                 )
 
     # collect all components from class hierarchy (including self)
-    components: list[type[Object]] = []
+    components: list[type[Struct | Node]] = []
     for base_cls in get_superclasses(cls):
         base_cls = _processed_classes.get(base_cls, base_cls)
         if hasattr(base_cls, "__properties__"):
@@ -1530,7 +1526,7 @@ def __init__(self):
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def _declare_object[ObjectT: Object](
+def _declare_object(
     object_type: NodeType | StructType | None = None,
     frozen: bool = False,
 ):
@@ -1538,7 +1534,7 @@ def _declare_object[ObjectT: Object](
     Mark a class as an object component (or concrete struct for a StructType).
     """
 
-    def decorate(cls_in: type[ObjectT]) -> type[ObjectT]:
+    def decorate(cls_in: type["Struct | Node"]) -> type["Struct | Node"]:
         domain, category = _get_universe_domain(object_type or NodeType.NODE.value)
         declaration = ObjectDeclaration(
             # meta
@@ -1548,7 +1544,7 @@ def _declare_object[ObjectT: Object](
             id=0,
             name=cls_in.__name__,
             description=cls_in.__doc__ or "",
-            stability=ObjectStability.DYNAMIC,
+            stability=EncoderStability.DYNAMIC,
             domain=domain,
             category=category,
             is_abstract=True,
@@ -1564,50 +1560,6 @@ def _declare_object[ObjectT: Object](
         )
         cls, _properties = _process_object_cls(cast(Any, cls_in), declaration)
         cls.__is_abstract__ = True
-        return cast(type[ObjectT], cls)
+        return cast(type["Struct | Node"], cls)
 
     return decorate
-
-
-@_declare_object()
-class Object:
-    """The internal-only base for intrinsic Objects (Nodes, Structs, Handles)."""
-
-    """The kind of Object this is (static)."""
-    metakind: ClassVar[ObjectKind] = UNSET
-    """The type of Object this is (static)."""
-    metatype: ClassVar[NodeType | StructType] = UNSET
-    """The declaration of this Object (static)."""
-    __declaration__: ClassVar[ObjectDeclaration] = UNSET
-
-    """The properties of this Object (runtime)."""
-    __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
-    """The properties of this Object by alias (runtime)."""
-    __properties_by_alias__: ClassVar[dict[str, PropertyDeclaration]] = {}
-    """The properties of this Object by id (runtime)."""
-    __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
-
-    __slots__: ClassVar[tuple[str, ...]] = ()
-
-    @classmethod
-    def property(cls, name: str) -> PropertyDeclaration:
-        """Get a Property by name."""
-        prop = cls.__properties_by_alias__.get(name)
-        if prop is not None:
-            return prop
-        raise ValueError(f"no property '{name}' in {cls.__name__}")
-
-    def equals(
-        self,
-        other: Self | Any,
-        _identity_map: Mapping[UUID, UUID] = EMPTY_DICT,
-    ) -> bool:
-        """Checks if the content of the two objects is equal (recursively)."""
-        raise NotImplementedError
-
-    def hash(self, _hasher: "Hasher | None" = None) -> Int64:
-        """Hash of content properties."""
-        raise NotImplementedError
-
-    def __bool__(self):
-        return True  # support truthy checks for objects
