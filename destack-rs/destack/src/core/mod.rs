@@ -6,17 +6,16 @@
 
 pub use crate::core::builtin::{
     EnumType, EventStatus, ExtensionFlag, HandleType, Materialization, ModuleType, NodeType,
-    ObjectKind, ProcessFlag, RuntimeLanguage, RuntimePlatform, RuntimeType, StringCasing,
-    StructType, TraitType, UniverseCategory, UniverseDomain,
+    ProcessFlag, RuntimeLanguage, RuntimePlatform, RuntimeType, StringCasing, StructType,
+    TraitType, UniverseCategory, UniverseDomain,
 };
 pub use crate::core::common::{
     Aggregation, AggregationType, ChangeType, CollectionConstraint, Condition, ConditionalType,
     EditOperation, EditOperationType, Expression, ExpressionType, Icon, IconType, Join, JoinType,
     NamedValue, NodeIdentityReference, NodeSpatialReference, NodeTemporalReference,
-    NumberConstraint, ObjectDefinitionReference, PrimitiveType, PropertyReference, PropertyZone,
-    Query, QueryType, ReferenceType, ScalarType, Select, Sort, SortMode, SortType,
-    StringConstraint, Text, TextSpan, TextSpanType, TextStyleFlag, Type, TypeCardinality, Value,
-    ValueFactory,
+    NumberConstraint, PrimitiveType, PropertyReference, PropertyZone, Query, QueryType,
+    ReferenceType, ScalarType, Select, Sort, SortMode, SortType, StringConstraint, Text, TextSpan,
+    TextSpanType, TextStyleFlag, Type, TypeCardinality, Value, ValueFactory,
 };
 pub use crate::core::definition::{
     ConstantDefinition, EnumDefinition, HandleDefinition, ModuleDefinition, NodeDefinition,

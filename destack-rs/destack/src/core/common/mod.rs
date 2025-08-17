@@ -14,8 +14,7 @@ pub use crate::core::common::query::{
     JoinType, Query, QueryType, Select, Sort, SortMode, SortType,
 };
 pub use crate::core::common::relation::{
-    NodeIdentityReference, NodeSpatialReference, NodeTemporalReference, ObjectDefinitionReference,
-    PropertyReference,
+    NodeIdentityReference, NodeSpatialReference, NodeTemporalReference, PropertyReference,
 };
 pub use crate::core::common::text::{Text, TextSpan, TextSpanType, TextStyleFlag};
 pub use crate::core::common::r#type::{
