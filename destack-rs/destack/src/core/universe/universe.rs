@@ -8,7 +8,7 @@ use crate::{Region, Uuid};
 /// UniverseSignupRequest
 pub struct UniverseSignupRequest {
     pub id: Uuid,
-    pub client: i64, /* TODO */
+    pub client: i64,
     pub client_nonce: u8,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
@@ -21,18 +21,18 @@ pub struct UniverseSignupRequest {
 /// UniverseSignupResponse
 pub struct UniverseSignupResponse {
     pub id: Uuid,
-    pub client: i64, /* TODO */
+    pub client: i64,
     pub client_nonce: u8,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
-    pub user: i64, /* TODO */
+    pub user: i64,
 }
 
 #[destack::generated(UniverseSpawnRequest, -, block)]
 /// UniverseSpawnRequest
 pub struct UniverseSpawnRequest {
     pub id: Uuid,
-    pub client: i64, /* TODO */
+    pub client: i64,
     pub client_nonce: u8,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
@@ -45,9 +45,9 @@ pub struct UniverseSpawnRequest {
 /// UniverseSpawnResponse
 pub struct UniverseSpawnResponse {
     pub id: Uuid,
-    pub client: i64, /* TODO */
+    pub client: i64,
     pub client_nonce: u8,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
-    pub space: i64, /* TODO */
+    pub space: i64,
 }

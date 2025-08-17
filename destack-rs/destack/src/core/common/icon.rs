@@ -11,7 +11,7 @@ pub struct Icon {
     pub emoji: Option<String>,
     pub fa_name: Option<String>,
     pub vsc_name: Option<String>,
-    pub file: Option<i64 /* TODO */>,
+    pub file: Option<i64>,
     pub file_url: Option<String>,
     pub color: Option<Color>,
 }
@@ -81,14 +81,14 @@ pub enum PrimitiveType {
     /// Single character (UTF-8, 32-bit)
     /// Range: 0 to 2^32-1
     Character = 51,
-    /// Order key (variable length byte array)
+    /// Relative order (64-bit "integer" with special encoding)
     Order = 52,
     /// Universally unique identifier (UUID7, 128-bit)
     /// Range: 0 to 2^128-1
     Uuid = 53,
     /// JSON (32-bit variable length)
     /// Range: 0 to 2^32-1
-    Json = 57,
+    Json = 60,
 }
 
 #[destack::generated(TypeCardinality, -, block)]

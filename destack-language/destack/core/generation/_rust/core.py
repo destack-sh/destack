@@ -168,13 +168,13 @@ class RustFile:
     source_path: str
     """All items in the file (managed and custom)."""
     items: Sequence[RustItem]
-    """Top level comment."""
+    """File comment."""
     comment: str
-    """Top level attributes."""
+    """File attributes."""
     attributes: Sequence[RustAttribute]
-    """Top level imports."""
+    """File imports (sorted)."""
     imports: Sequence["RustImport"] | None = None
-    """Declared modules."""
+    """Declared modules (sorted)."""
     mods: Sequence["RustModDeclaration"] | None = None
     """Whether this is the mod.rs file."""
     is_mod_rs: bool = False
@@ -209,6 +209,7 @@ def render_rust_import(imp: RustImport) -> str:
         use_stmt = f"use {escaped_path}::*;"
     elif imp.imports:
         escaped_imports = [ecsape_rust_identifier(item) for item in imp.imports]
+        escaped_imports.sort()
         if len(escaped_imports) == 1:
             use_stmt = f"use {escaped_path}::{escaped_imports[0]};"
         else:
@@ -239,10 +240,12 @@ def render_rust_file(file: RustFile) -> str:
         attrs_block = "\n".join(attr.content.strip() for attr in file.attributes)
         parts.append(attrs_block)
     if file.imports:
-        imports_block = "\n".join(render_rust_import(imp) for imp in file.imports)
+        imports = sorted(file.imports, key=lambda imp: imp.source)
+        imports_block = "\n".join(render_rust_import(imp) for imp in imports)
         parts.append(imports_block)
     if file.mods:
-        mods_block = "\n".join(render_rust_mod(mod) for mod in file.mods)
+        mods = sorted(file.mods, key=lambda mod: mod.name)
+        mods_block = "\n".join(render_rust_mod(mod) for mod in mods)
         parts.append(mods_block)
 
     # body

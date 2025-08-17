@@ -8,7 +8,7 @@ use crate::{Axis3, Duration, Transition, Vector2};
 /// An effect value.
 pub struct Effect {
     pub r#type: EffectType,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
     pub opacity: Option<f32>,
     pub offset: Option<Vector2>,
     pub scale: Option<f32>,

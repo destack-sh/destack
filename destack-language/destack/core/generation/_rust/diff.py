@@ -1,3 +1,4 @@
+import re
 import textwrap
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -99,7 +100,7 @@ def _patch_rust_file_attributes(
     old_attributes: Sequence[RustAttribute], new_attributes: Sequence[RustAttribute]
 ) -> Sequence[RustAttribute]:
     """
-    Patch a list of attributes by merging attributes from new with attributes from old.
+    Patch a list of attributes by merging attributes keyed by content.
     """
     return new_attributes
 
@@ -108,7 +109,7 @@ def _patch_rust_file_imports(
     old_imports: Sequence[RustImport], new_imports: Sequence[RustImport]
 ) -> Sequence[RustImport]:
     """
-    Patch a list of imports by merging imports from new with imports from old.
+    Patch a list of imports by merging imports keyed by source.
     """
     return new_imports
 
@@ -117,7 +118,7 @@ def _patch_rust_file_mods(
     old_mods: Sequence[RustModDeclaration], new_mods: Sequence[RustModDeclaration]
 ) -> Sequence[RustModDeclaration]:
     """
-    Patch a list of mods by merging mods from new with mods from old.
+    Patch a list of mods by merging mods keyed by name.
     """
     # create a set of new mod names for quick lookup
     new_mod_names = {mod.name for mod in new_mods}
@@ -132,7 +133,7 @@ def _patch_rust_file_mods(
 
 def _patch_rust_file(old_file: RustFile, new_file: RustFile) -> RustFile:
     """
-    Patch a managed Rust file by merging managed items from new with custom items from old.
+    Patch a managed Rust file by merging managed items keyed by some stable key.
     """
     patched_attributes = _patch_rust_file_attributes(old_file.attributes, new_file.attributes)
     patched_imports = _patch_rust_file_imports(old_file.imports or (), new_file.imports or ())
@@ -325,8 +326,15 @@ def diff_rust_file(old_file: RustFile, new_file: RustFile) -> RustFileOperation:
         assert_never(old_file.type)
 
     # if content stays the same just mark as skip
-    if old_file.raw_content == combined_content:
-        operation_type = RustFileOperationType.SKIP
+    #  (completely ignoring whitespace and trailing commas is technically wrong but mostly works,
+    #   and it's a lot simpler than trying to do a real semantic diff)
+    if old_file.raw_content is not None:
+        old_content_stripped = re.sub(r"\s+", "", old_file.raw_content).strip()
+        old_content_stripped = old_content_stripped.replace(",}", "}")
+        new_content_stripped = re.sub(r"\s+", "", combined_content).strip()
+        new_content_stripped = new_content_stripped.replace(",}", "}")
+        if old_content_stripped == new_content_stripped:
+            operation_type = RustFileOperationType.SKIP
 
     op = RustFileOperation(
         type=operation_type,

@@ -8,7 +8,7 @@ use crate::{Color, Easing, Vector2};
 /// A stroke value.
 pub struct Stroke {
     pub r#type: StrokeType,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
     pub size: u8,
     pub thinning: f32,
     pub smoothing: f32,

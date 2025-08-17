@@ -14,7 +14,7 @@ pub struct Text {
 pub struct TextSpan {
     pub r#type: TextSpanType,
     pub content: Option<String>,
-    pub node: Option<i64 /* TODO */>,
+    pub node: Option<i64>,
     pub url: Option<String>,
     pub style_flags: TextStyleFlag,
 }

@@ -8,7 +8,7 @@ use crate::{Axis2, Color};
 /// A shadow value.
 pub struct Shadow {
     pub r#type: ShadowType,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
     pub color: Option<Color>,
     pub position: ShadowPosition,
     pub offset: Option<Axis2>,
