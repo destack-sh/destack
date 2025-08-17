@@ -81,7 +81,9 @@ dist
 .pnp.*
 
 # Fuzzing
-hfuzz_target/
+**/hfuzz_target/**
+**/fuzz/corpus/**
+**/fuzz/artifacts/**
 
 # IDE/Editor
 .idea/

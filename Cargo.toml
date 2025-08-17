@@ -8,7 +8,6 @@ members = [
 	"destack-rs/destack_uuid",
 	"destack-rs/destack_system",
 	"destack-rs/destack_test",
-	"destack-rs/destack_fuzz",
 ]
 
 [workspace.package]

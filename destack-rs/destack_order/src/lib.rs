@@ -10,10 +10,11 @@ use std::hash::{Hash, Hasher};
 pub const ORDER_HEAD_INLINE_LENGTH: usize = 4;
 pub const ORDER_TAIL_INLINE_LENGTH: usize = 4;
 
-/// A position token in a sequence. Immutable, orderable, and compact.
-/// Internally stored in a single `u64`.
-/// - head: 4 bytes (32 bits)
-/// - tail: 4 bytes  tail bytes b0..b3 (big-endian, left-aligned in 32 bits; zeros on the right are padding)
+/// A position token in a sequence as a single u64. Immutable, orderable, and compact.
+/// - head 4 bytes (32 bits):
+///   incrementing integer for linear appends
+/// - tail 4 bytes (32 bits)
+///   big-endian, left-aligned in 32 bits; zeros on the right are padding
 #[derive(Copy, Clone)]
 pub struct Order(u64);
 
@@ -50,9 +51,9 @@ impl fmt::Debug for Order {
 pub const ORDER_KEY_ZERO: &[u8] = &[0x80];
 
 impl Order {
-    /// Construct an Order at head=0 from tail bytes (fails if any byte is 0 or len>4).
-    pub fn new<B: AsRef<[u8]>>(bytes: B) -> Result<Self, OrderError> {
-        Self::with_head_tail(0, bytes)
+    /// Construct an Order at head = u32, from tail bytes (fails if any byte is 0 or len>4).
+    pub fn new<B: AsRef<[u8]>>(head: u32, bytes: B) -> Result<Self, OrderError> {
+        Self::with_head_tail(head.to_be(), bytes)
     }
 
     /// Construct with explicit head and tail.
@@ -210,8 +211,8 @@ impl Order {
             && x >= y
         {
             return Err(OrderError::InvalidComparison {
-                a: format!("head={},tail={}", x.head(), x.to_hex()),
-                b: format!("head={},tail={}", y.head(), y.to_hex()),
+                a: format!("head={}, tail={}", x.head(), x.to_hex()),
+                b: format!("head={}, tail={}", y.head(), y.to_hex()),
             });
         }
 
@@ -298,42 +299,46 @@ impl Order {
 }
 
 /// Generate a key between `a` and `b` (open ends allowed).
-pub fn get_order(a: Option<&Order>, b: Option<&Order>) -> Result<Order, OrderError> {
+pub fn get_order_between(a: Option<&Order>, b: Option<&Order>) -> Result<Order, OrderError> {
     Order::between(a, b)
 }
 
 /// Generate `n` evenly spread keys between `a` and `b` (inclusive-ish),
 /// using recursive bisection (logarithmic fraction growth for tails, capped at 4 bytes).
-pub fn get_orders(a: Option<&Order>, b: Option<&Order>, n: u32) -> Result<Vec<Order>, OrderError> {
+pub fn get_orders_between(
+    a: Option<&Order>,
+    b: Option<&Order>,
+    n: u32,
+) -> Result<Vec<Order>, OrderError> {
     if n == 0 {
         return Ok(vec![]);
     }
     if n == 1 {
-        return Ok(vec![get_order(a, b)?]);
+        return Ok(vec![get_order_between(a, b)?]);
     }
     if b.is_none() {
-        let mut c = get_order(a, b)?;
+        let mut c = get_order_between(a, b)?;
         let mut result = vec![c];
         for _ in 0..(n - 1) {
-            c = get_order(Some(&c), b)?;
+            c = get_order_between(Some(&c), b)?;
             result.push(c);
         }
         return Ok(result);
     }
     if a.is_none() {
-        let mut c = get_order(a, b)?;
+        let mut c = get_order_between(a, b)?;
         let mut result = vec![c];
         for _ in 0..(n - 1) {
-            c = get_order(a, Some(&c))?;
+            c = get_order_between(a, Some(&c))?;
             result.push(c);
         }
         result.reverse();
         return Ok(result);
     }
     let mid = n / 2;
-    let c = get_order(a, b)?;
-    let mut left = get_orders(a, Some(&c), mid)?;
-    let right = get_orders(Some(&c), b, n - mid - 1)?;
+    let c = get_order_between(a, b)?;
+    let mut left = get_orders_between(a, Some(&c), mid)?;
+    let right = get_orders_between(Some(&c), b, n - mid - 1)?;
     let mut res = Vec::with_capacity(left.len() + 1 + right.len());
     res.append(&mut left);
     res.push(c);
@@ -484,7 +489,7 @@ mod tests {
     #[test]
     fn test_seed_is_constant_and_0x80() {
         // seed is head 0 and tail 0x80
-        let o = get_order(None, None).unwrap();
+        let o = get_order_between(None, None).unwrap();
         assert_eq!(o.head(), 0);
         assert_eq!(o.tail().as_slice(), ORDER_KEY_ZERO);
         assert_eq!(o.tail().as_slice(), &[0x80]);
@@ -495,9 +500,9 @@ mod tests {
         // append to the right: head+1, empty tail
         let a = {
             let bytes: &[u8] = &[0x80];
-            Order::new(bytes).unwrap()
+            Order::new(0, bytes).unwrap()
         }; // head 0
-        let b = get_order(Some(&a), None).unwrap();
+        let b = get_order_between(Some(&a), None).unwrap();
         assert!(a < b);
         assert_eq!(b.head(), 1);
         assert!(b.tail_is_empty());
@@ -507,7 +512,7 @@ mod tests {
     fn test_open_left_prefers_lower_head() {
         // open left: if b.head>0, choose head-1 with empty tail
         let b = Order::with_head_tail(5, [0x80]).unwrap();
-        let a = get_order(None, Some(&b)).unwrap();
+        let a = get_order_between(None, Some(&b)).unwrap();
         assert!(a < b);
         assert_eq!(a.head(), 4);
         assert!(a.tail_is_empty());
@@ -518,9 +523,9 @@ mod tests {
         // when no lower head, use tail midpoint within head 0
         let b = {
             let bytes: &[u8] = &[0x80];
-            Order::new(bytes).unwrap()
+            Order::new(0, bytes).unwrap()
         }; // head 0
-        let a = get_order(None, Some(&b)).unwrap();
+        let a = get_order_between(None, Some(&b)).unwrap();
         assert!(a < b);
         assert_eq!(a.head(), 0);
         assert_eq!(a.tail().as_slice(), &[0x40]);
@@ -530,13 +535,13 @@ mod tests {
     fn test_between_simple_gap_same_head_tail_midpoint() {
         let a = {
             let bytes: &[u8] = &[0x40];
-            Order::new(bytes).unwrap()
+            Order::new(0, bytes).unwrap()
         };
         let b = {
             let bytes: &[u8] = &[0x80];
-            Order::new(bytes).unwrap()
+            Order::new(0, bytes).unwrap()
         };
-        let m = get_order(Some(&a), Some(&b)).unwrap();
+        let m = get_order_between(Some(&a), Some(&b)).unwrap();
         assert_eq!(m.head(), 0);
         assert!(a < m && m < b);
         assert_eq!(m.tail().as_slice(), &[0x60]); // ceil((0x40+0x80)/2)=0x60
@@ -547,13 +552,13 @@ mod tests {
         // a: 0x40,0xFF ; b: 0x41 in same head
         let a = {
             let bytes: &[u8] = &[0x40, 0xFF];
-            Order::new(bytes).unwrap()
+            Order::new(0, bytes).unwrap()
         };
         let b = {
             let bytes: &[u8] = &[0x41];
-            Order::new(bytes).unwrap()
+            Order::new(0, bytes).unwrap()
         };
-        let m = get_order(Some(&a), Some(&b)).unwrap();
+        let m = get_order_between(Some(&a), Some(&b)).unwrap();
         assert_eq!(m.head(), 0);
         assert!(a < m && m < b);
         assert_eq!(m.tail().as_slice(), &[0x40, 0xFF, 0x80]); // midpoint-to-open for tail
@@ -563,7 +568,7 @@ mod tests {
     fn test_between_gapped_heads_chooses_mid_head() {
         let a = Order::with_head_tail(10, []).unwrap();
         let b = Order::with_head_tail(20, []).unwrap();
-        let m = get_order(Some(&a), Some(&b)).unwrap();
+        let m = get_order_between(Some(&a), Some(&b)).unwrap();
         assert!(a < m && m < b);
         assert!(m.tail_is_empty());
         assert_eq!(m.head(), 15);
@@ -573,7 +578,7 @@ mod tests {
     fn test_between_consecutive_heads_stays_in_left_head_with_tail() {
         let a = Order::with_head_tail(10, []).unwrap();
         let b = Order::with_head_tail(11, []).unwrap();
-        let m = get_order(Some(&a), Some(&b)).unwrap();
+        let m = get_order_between(Some(&a), Some(&b)).unwrap();
         assert!(a < m && m < b);
         assert_eq!(m.head(), 10);
         assert!(!m.tail_is_empty());
@@ -583,7 +588,7 @@ mod tests {
     fn test_prev_and_next_semantics() {
         let a = {
             let bytes: &[u8] = &[0x80];
-            Order::new(bytes).unwrap()
+            Order::new(0, bytes).unwrap()
         }; // head 0
         let next = Order::next_after(&a);
         assert_eq!(next.head(), 1);
@@ -598,14 +603,21 @@ mod tests {
 
     #[test]
     fn test_rejects_zero_byte() {
-        assert!(Order::new([0x01, 0x00, 0x02]).is_err());
+        assert!(Order::new(0, [0x01, 0x00, 0x02]).is_err());
         assert!(Order::with_head_tail(7, [0x00]).is_err());
     }
 
     #[test]
     fn test_comparison_invariant() {
-        let a = get_order(None, None).unwrap();
-        let b = get_order(Some(&a), None).unwrap();
+        let a = get_order_between(None, None).unwrap();
+        let b = get_order_between(Some(&a), None).unwrap();
         assert!(Order::between(Some(&b), Some(&a)).is_err());
+    }
+
+    #[test]
+    fn test_insert_between_full_tail() {
+        let a = Order::new(0, [0xff, 0xff, 0xff, 0xff]).unwrap();
+        let b = a;
+        assert!(get_order_between(Some(&a), Some(&b)).is_err());
     }
 }
