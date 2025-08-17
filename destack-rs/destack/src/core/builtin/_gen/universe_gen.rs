@@ -3,21 +3,9 @@
 #![destack::generated(destack.core.builtin.universe, file)]
 
 use crate::{
-    EnumType, HandleType, ModuleType, NodeType, ObjectKind, StructType, TraitType,
-    UniverseCategory, UniverseDomain,
+    EnumType, HandleType, ModuleType, NodeType, StructType, TraitType, UniverseCategory,
+    UniverseDomain,
 };
-
-#[destack::generated(ObjectKind, Debug, block)]
-impl std::fmt::Debug for ObjectKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ObjectKind::Module => write!(f, "MODULE"),
-            ObjectKind::Node => write!(f, "NODE"),
-            ObjectKind::Struct => write!(f, "STRUCT"),
-            ObjectKind::Handle => write!(f, "HANDLE"),
-        }
-    }
-}
 
 #[destack::generated(ModuleType, Debug, block)]
 impl std::fmt::Debug for ModuleType {
@@ -35,7 +23,6 @@ impl std::fmt::Debug for ModuleType {
 impl std::fmt::Debug for EnumType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EnumType::ObjectKind => write!(f, "OBJECT_KIND"),
             EnumType::ModuleType => write!(f, "MODULE_TYPE"),
             EnumType::EnumType => write!(f, "ENUM_TYPE"),
             EnumType::NodeType => write!(f, "NODE_TYPE"),
@@ -72,6 +59,7 @@ impl std::fmt::Debug for EnumType {
             EnumType::QueryType => write!(f, "QUERY_TYPE"),
             EnumType::Encoding => write!(f, "ENCODING"),
             EnumType::EncoderFlag => write!(f, "ENCODER_FLAG"),
+            EnumType::EncoderStability => write!(f, "ENCODER_STABILITY"),
             EnumType::ClientType => write!(f, "CLIENT_TYPE"),
             EnumType::BranchType => write!(f, "BRANCH_TYPE"),
             EnumType::SnapshotType => write!(f, "SNAPSHOT_TYPE"),
@@ -408,7 +396,6 @@ impl std::fmt::Debug for StructType {
             StructType::NodeIdentityReference => write!(f, "NODE_IDENTITY_REFERENCE"),
             StructType::NodeSpatialReference => write!(f, "NODE_SPATIAL_REFERENCE"),
             StructType::NodeTemporalReference => write!(f, "NODE_TEMPORAL_REFERENCE"),
-            StructType::ObjectDefinitionReference => write!(f, "OBJECT_DEFINITION_REFERENCE"),
             StructType::PropertyReference => write!(f, "PROPERTY_REFERENCE"),
             StructType::Text => write!(f, "TEXT"),
             StructType::TextSpan => write!(f, "TEXT_SPAN"),

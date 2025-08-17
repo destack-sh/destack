@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.common.query, file)]
 
-use crate::{ObjectDefinitionReference, PropertyReference, Uuid, Value};
+use crate::{PropertyReference, Uuid, Value};
 
 #[destack::generated(Expression, -, block)]
 /// Wrapper to unify any scalar / boolean / aggregate sub-tree.
@@ -56,7 +56,6 @@ pub struct Query {
     pub id: Uuid,
     pub r#type: QueryType,
     pub name: String,
-    pub definition: ObjectDefinitionReference,
     pub subqueries: Vec<Query>,
     pub join: Option<Join>,
     pub select: Option<Select>,

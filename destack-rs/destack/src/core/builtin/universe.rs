@@ -2,19 +2,6 @@
 
 #![destack::partial(destack.core.builtin.universe, file)]
 
-#[destack::generated(ObjectKind, -, block)]
-/// ObjectKind
-pub enum ObjectKind {
-    /// Object with static logic (runtime only)
-    Module = 1,
-    /// Object with data, logic and universally addressable identity
-    Node = 2,
-    /// Object with data and logic (embedded elsewhere)
-    Struct = 3,
-    /// Object with special data and logic (runtime only)
-    Handle = 4,
-}
-
 #[destack::generated(ModuleType, -, block)]
 /// Built-in module types.
 pub enum ModuleType {
@@ -31,7 +18,6 @@ pub enum ModuleType {
 #[destack::generated(EnumType, -, block)]
 /// EnumType
 pub enum EnumType {
-    ObjectKind = 1,
     ModuleType = 2,
     EnumType = 3,
     NodeType = 4,
@@ -68,6 +54,7 @@ pub enum EnumType {
     QueryType = 200320,
     Encoding = 1000000,
     EncoderFlag = 1000001,
+    EncoderStability = 1000002,
     ClientType = 3000200,
     BranchType = 3100300,
     SnapshotType = 3100400,
@@ -437,7 +424,6 @@ pub enum StructType {
     NodeIdentityReference = 200300,
     NodeSpatialReference = 200301,
     NodeTemporalReference = 200302,
-    ObjectDefinitionReference = 200350,
     PropertyReference = 200360,
     Text = 200400,
     TextSpan = 200401,

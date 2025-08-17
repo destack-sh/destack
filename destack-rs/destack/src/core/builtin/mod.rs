@@ -8,8 +8,8 @@ pub use crate::core::builtin::casing::StringCasing;
 pub use crate::core::builtin::entity::{ExtensionFlag, Materialization, ProcessFlag};
 pub use crate::core::builtin::event::{EventStatus, RuntimeLanguage, RuntimePlatform, RuntimeType};
 pub use crate::core::builtin::universe::{
-    EnumType, HandleType, ModuleType, NodeType, ObjectKind, StructType, TraitType,
-    UniverseCategory, UniverseDomain,
+    EnumType, HandleType, ModuleType, NodeType, StructType, TraitType, UniverseCategory,
+    UniverseDomain,
 };
 
 pub mod _gen;

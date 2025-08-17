@@ -2,7 +2,7 @@
 
 #![destack::partial(destack.core.common.relation, file)]
 
-use crate::{HandleType, NodeType, ObjectKind, StructType, Uuid};
+use crate::{NodeType, StructType, Uuid};
 
 #[destack::generated(NodeIdentityReference, -, block)]
 /// A reference to a Node in an unknown space.
@@ -28,16 +28,6 @@ pub struct NodeTemporalReference {
     pub branch_id: Uuid,
     pub snapshot_id: Uuid,
     pub epoch: u64,
-}
-
-#[destack::generated(ObjectDefinitionReference, -, block)]
-/// Reference to an object "type" (builtin, custom or trait).
-pub struct ObjectDefinitionReference {
-    pub kind: ObjectKind,
-    pub node_type: Option<NodeType>,
-    pub struct_type: Option<StructType>,
-    pub handle_type: Option<HandleType>,
-    pub definition: Option<i64>,
 }
 
 #[destack::generated(PropertyReference, -, block)]

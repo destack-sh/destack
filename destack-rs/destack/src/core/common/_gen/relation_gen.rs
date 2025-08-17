@@ -3,8 +3,7 @@
 #![destack::generated(destack.core.common.relation, file)]
 
 use crate::{
-    NodeIdentityReference, NodeSpatialReference, NodeTemporalReference, ObjectDefinitionReference,
-    PropertyReference,
+    NodeIdentityReference, NodeSpatialReference, NodeTemporalReference, PropertyReference,
 };
 
 #[destack::generated(NodeIdentityReference, Debug, block)]
@@ -25,13 +24,6 @@ impl std::fmt::Debug for NodeSpatialReference {
 impl std::fmt::Debug for NodeTemporalReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "NodeTemporalReference")
-    }
-}
-
-#[destack::generated(ObjectDefinitionReference, Debug, block)]
-impl std::fmt::Debug for ObjectDefinitionReference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ObjectDefinitionReference")
     }
 }
 

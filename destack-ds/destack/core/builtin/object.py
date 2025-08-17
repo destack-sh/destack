@@ -27,12 +27,14 @@ from ._hoisted import (
     PrimitiveType,
     ScalarType,
     TypeCardinality,
+    ValueFactory,
 )
 from .casing import StringCasing, to_casing
 from .declaration import (
     ActionDeclaration,
     ConstantDeclaration,
     MethodDeclaration,
+    NodeDeclaration,
     ObjectDeclaration,
     TypeDeclaration,
 )
@@ -77,8 +79,11 @@ class ObjectGenerator:
     # Init
     #
 
-    def generate_init(
-        self, cls: type["Struct | Node"], declaration: ObjectDeclaration
+    def generate_init[ObjectT: "Struct | Node"](
+        self,
+        cls: type[ObjectT],
+        declaration: ObjectDeclaration,
+        is_node: bool,
     ) -> tuple[str, dict[str, Any]]:
         """Generate an __init__ for an Object class."""
 
@@ -88,6 +93,8 @@ class ObjectGenerator:
         header_properties = {
             prop.name: prop for prop in cls.__properties__.values() if not prop.is_static
         }
+        if is_node:
+            header_properties.pop("_is_new")
         properties_in_order = list(header_properties.values())
         properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
         required_properties = [
@@ -149,25 +156,220 @@ class ObjectGenerator:
         extra_glbls["EMPTY_DICT"] = frozendict()
         extra_glbls["uuid7"] = uuid7
 
-        method_body = "pass"
+        method_body_lines = []
+        body_properties = {prop.name: prop for prop in declaration.properties}
+        if not declaration.is_immutable and is_node:
+            method_body_lines.append("__setattr__ = object.__setattr__")
+            set_template_str = "__setattr__(self, '{0}', {1})"
+        else:
+            set_template_str = "self.{0} = {1}"
+
+        # setup
+        if is_node:
+            assert isinstance(declaration, NodeDeclaration), (
+                f"unexpected declaration: {declaration!r}"
+            )
+            # node setup
+            body_properties.pop("id")
+            if NodeType.ENTITY in declaration.inherits:
+                body_properties.pop("created_epoch")
+                body_properties.pop("updated_epoch")
+            elif NodeType.EVENT in declaration.inherits:
+                body_properties.pop("created_epoch")
+                body_properties.pop("client")
+                body_properties.pop("client_local_epoch")
+            else:
+                raise NotImplementedError(f"unexpected node {cls.__name__}")
+            body_properties.pop("_is_new")
+            method_body_lines.append(f"""\
+# session
+if _session is None:
+    _session = ACTIVE_SESSION.get()
+    if _session is None:
+        raise RuntimeError("no active session for {cls.__name__}")
+
+# node identity
+if id is None:
+    """)
+            if NodeType.ENTITY in declaration.inherits:
+                method_body_lines.append("""\
+    id = uuid7()
+    _now = _session.context.now()
+    created_epoch = _session.remote_epoch
+    updated_epoch = _session.remote_epoch
+""")
+            elif NodeType.EVENT in declaration.inherits:
+                method_body_lines.append("""\
+    id = uuid7()
+    _now = _session.context.now()
+    created_epoch = _session.remote_epoch
+    client_ref = _session.context.client_ref
+    client_nonce = _session.context.client_nonce
+    client_remote_epoch = _session.remote_epoch
+    client_local_epoch = _session.local_epoch
+""")
+            else:
+                raise NotImplementedError(f"unexpected node {cls.__name__}")
+            method_body_lines.append(f"""\
+    _is_new = True
+else:
+    _is_new = False
+{set_template_str.format("id", "id")}
+""")
+
+            if NodeType.ENTITY in declaration.inherits:
+                method_body_lines.append(f"""\
+{set_template_str.format("created_epoch", "created_epoch")}
+{set_template_str.format("updated_epoch", "updated_epoch")}
+""")
+            elif NodeType.EVENT in declaration.inherits:
+                method_body_lines.append(f"""\
+{set_template_str.format("created_epoch", "created_epoch")}
+{set_template_str.format("client_ref", "client_ref")}
+{set_template_str.format("client_nonce", "client_nonce")}
+{set_template_str.format("client_remote_epoch", "client_remote_epoch")}
+{set_template_str.format("client_local_epoch", "client_local_epoch")}
+""")
+            else:
+                raise NotImplementedError(f"unexpected node {cls.__name__}")
+            method_body_lines.append(f"""\
+{set_template_str.format("_ref", "None")}
+{set_template_str.format("_is_new", "_is_new")}
+""")
+
+        # property assignments
+        method_body_lines.append("# properties")
+        body_properties_in_order = list(body_properties.values())
+        body_properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
+        for prop in body_properties_in_order:
+            if prop.is_static:
+                # computed, can't assign
+                continue
+
+            arg_name = prop.name
+            self_name = (
+                prop.name
+                if prop.type.scalar_type != ScalarType.NODE_TEMPORAL
+                else f"{prop.name}_ref"
+            )
+
+            # cast node to node_ref
+            if prop.type.scalar_type == ScalarType.NODE_TEMPORAL:
+                method_body_lines.append(f"""\
+if {arg_name} is not None:
+    {self_name} = {arg_name}.to_ref()""")
+
+            # init default factory
+            if prop.default_factory_callable is not None:
+                extra_glbls[f"_{prop.name}_default"] = prop.default_factory_callable
+                method_body_lines.append(f"""\
+if {self_name} is None:
+    {self_name} = _{prop.name}_default()""")
+            elif prop.default_factory is not None:
+                default_factory_str = self.generate_prop_default(
+                    cls, declaration, prop, target_expr=self_name, is_node=is_node
+                )
+                method_body_lines.append(f"""\
+if {self_name} is None:
+{textwrap.indent(default_factory_str, " " * 4)}
+""")
+
+            # check/init required properties
+            if prop.type.is_required:
+                if prop.type.cardinality == TypeCardinality.SCALAR:
+                    if self.check_required:
+                        method_body_lines.append(f"""\
+if {self_name} is None:
+    raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
+                elif prop.type.cardinality == TypeCardinality.LIST:
+                    method_body_lines.append(f"""\
+if {arg_name} is None:
+    {arg_name} = {"[]" if not declaration.is_immutable else "EMPTY_LIST"}""")
+                elif prop.type.cardinality == TypeCardinality.MAP:
+                    method_body_lines.append(f"""\
+if {arg_name} is None:
+    {arg_name} = {"{}" if not declaration.is_immutable else "EMPTY_DICT"}""")
+
+            # regular assignment
+            if is_node and not declaration.is_immutable:
+                method_body_lines.append(f"__setattr__(self, '{self_name}', {self_name})")
+            else:
+                method_body_lines.append(f"self.{self_name} = {self_name}")
+
+        method_body = "\n".join(method_body_lines) or "pass"
         if len(method_body.splitlines()) < 2:
             method_body += "\npass"  # just in case we don't have any real lines
         method_body = textwrap.indent(method_body, " " * 4)
         init_str = f"{method_header}:\n{method_body}"
         return init_str, extra_glbls
 
+    def generate_prop_default(
+        self,
+        cls: type["Struct | Node"],
+        declaration: ObjectDeclaration,
+        prop: PropertyDeclaration,
+        target_expr: str,
+        is_node: bool,
+    ) -> str:
+        """Generate the default factory for an unset property."""
+
+        assert prop.default_factory is not None, f"no default factory for {prop!r}"
+        if prop.default_factory == ValueFactory.UUID7:
+            return f"{target_expr} = uuid7()"
+        elif prop.default_factory == ValueFactory.NOW:
+            if is_node:
+                return f"""\
+{target_expr} = _session.context.now()"""
+            else:
+                return f"""\
+assert _session is not None, "no active Session for {cls.__name__}"
+{target_expr} = _session.context.now()"""
+        elif prop.default_factory == ValueFactory.REMOTE_EPOCH:
+            return "None"
+        elif prop.default_factory == ValueFactory.LOCAL_EPOCH:
+            return "None"
+        elif prop.default_factory == ValueFactory.ACTOR:
+            return "None"
+        elif prop.default_factory == ValueFactory.CLIENT:
+            return "None"
+        elif prop.default_factory == ValueFactory.CLIENT_NONCE:
+            return "None"
+        elif prop.default_factory == ValueFactory.REGION:
+            return "None"
+        elif prop.default_factory == ValueFactory.SELF_NODE:
+            return "None"
+        elif prop.default_factory == ValueFactory.CURRENT_SPACE:
+            return "None"
+        elif prop.default_factory == ValueFactory.CURRENT_BRANCH:
+            return "None"
+        elif prop.default_factory == ValueFactory.CURRENT_SNAPSHOT:
+            return "None"
+        elif prop.default_factory == ValueFactory.NAME:
+            return f'"{cls.__name__}"'
+        else:
+            assert_never(prop.default_factory)
+
     #
     # Repr
     #
 
-    def generate_repr(
+    def generate_repr[ObjectT: "Struct | Node"](
         self,
-        cls: type["Struct | Node"],
+        cls: type[ObjectT],
+        declaration: ObjectDeclaration,
+        is_node: bool,
     ) -> tuple[str, dict[str, Any]]:
         """Generate Object.__repr__."""
         repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
         if not repr_properties:
-            repr_impl = f"""\
+            if is_node:
+                repr_impl = f"""\
+def __repr__(self) -> str:
+    return f"<{cls.__name__} \\"{{self.path}}\\">"
+__str__ = __repr__
+"""
+            else:
+                repr_impl = f"""\
 def __repr__(self) -> str:
     return "<{cls.__name__}>"
 __str__ = __repr__
@@ -204,13 +406,28 @@ if {target_expr} is not UNSET:
 
         # wrap in repr
         repr_parts_str = "\n".join(repr_parts_lines)
-        if has_required_repr_props:
-            inner_repr_impl = f"""\
+        if is_node:
+            if has_required_repr_props:
+                inner_repr_impl = f"""\
+{repr_parts_str}
+return f"<{cls.__name__} \\"{{self.path}}\\" {{' '.join(_property_reprs)}}>"
+"""
+            else:
+                inner_repr_impl = f"""\
+{repr_parts_str}
+if _property_reprs:
+    return f"<{cls.__name__} \\"{{self.path}}\\" {{' '.join(_property_reprs)}}>"
+else:
+    return f"<{cls.__name__} \\"{{self.path}}\\">"
+"""
+        else:
+            if has_required_repr_props:
+                inner_repr_impl = f"""\
 {repr_parts_str}
 return f"<{cls.__name__} {{' '.join(_property_reprs)}}>"
 """
-        else:
-            inner_repr_impl = f"""\
+            else:
+                inner_repr_impl = f"""\
 {repr_parts_str}
 if _property_reprs:
     return f"<{cls.__name__} {{' '.join(_property_reprs)}}>"
@@ -415,9 +632,9 @@ if ({map_expr} := {source_expr}):
     # Equals
     #
 
-    def generate_equals(
+    def generate_equals[ObjectT: "Struct | Node"](
         self,
-        cls: type["Struct | Node"],
+        cls: type[ObjectT],
         is_node: bool,
     ) -> tuple[str, dict[str, Any]]:
         """Generate Object.equals method."""
@@ -652,9 +869,9 @@ if {self_source_expr} != {other_source_expr}:
     # Hash
     #
 
-    def generate_hash(
+    def generate_hash[ObjectT: "Struct | Node"](
         self,
-        cls: type["Struct | Node"],
+        cls: type[ObjectT],
     ) -> tuple[str, dict[str, Any]]:
         """Generate Object.hash method."""
         hash_properties = [
@@ -1027,12 +1244,16 @@ def __init__(self):
         execute_arbitrary_code(init_str, glbls, cls_dict, f"{cls.__name__}.__init__")
     else:
         # __init__
-        init_str, init_glbls = _generator.generate_init(cls, declaration)
+        init_str, init_glbls = _generator.generate_init(
+            cls, declaration, is_node=isinstance(declaration, NodeDeclaration)
+        )
         execute_arbitrary_code(
             init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}.__init__"
         )
         # __repr__
-        repr_str, repr_glbls = _generator.generate_repr(cls)
+        repr_str, repr_glbls = _generator.generate_repr(
+            cls, declaration, is_node=isinstance(declaration, NodeDeclaration)
+        )
         execute_arbitrary_code(
             repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}.__repr__"
         )

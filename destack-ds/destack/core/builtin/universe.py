@@ -186,7 +186,6 @@ class EnumType(OptionEnum):
     #
 
     # builtin [1]
-    OBJECT_KIND = declare_option(1)
     MODULE_TYPE = declare_option(2)
     ENUM_TYPE = declare_option(3)
     NODE_TYPE = declare_option(4)
@@ -692,6 +691,7 @@ class NodeType(OptionEnum):
     BRANCH = declare_option(3_100_300, "Branch")
     SNAPSHOT = declare_option(3_100_400, "Snapshot", description="Point in Space-time")
     FOLDER = declare_option(3_100_500, "Folder", description="Sub-space of a Space")
+    # nocheckin: Folder->Module (also see ModuleDefinition?)
     # APPLICATION (extends Folder?), ...
     # DEPENDENCY, VERSION, ...
     # HISTORY, REPLAY, TIMELINE, FORK, ...
