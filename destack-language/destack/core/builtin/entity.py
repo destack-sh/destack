@@ -43,7 +43,7 @@ class Materialization(OptionEnum):
     The materialization level of an Entity.
     """
 
-    # PREDICTED?, SIMULATED? (does not even exist?)
+    # PREDICTED?, SIMULATED?, FOREIGN?, ...
     VIRTUAL = declare_option(
         3,
         description="Entity is instance of its definition without override (only exists when queried)",
