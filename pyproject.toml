@@ -9,12 +9,12 @@ description = "Universal Software Engine (i.e. insanely integrated full stack te
 
 [tool.uv]
 workspace = { members = [
-	"destack-language",
+	"destack-ds",
 	"destack-py",
 ] }
 
 [tool.ty.environment]
-root = ["./destack-language"]
+root = ["./destack-ds"]
 
 #
 # Ruff
@@ -22,7 +22,7 @@ root = ["./destack-language"]
 
 [tool.ruff]
 line-length = 100
-src = ["destack-language", "destack-py"]
+src = ["destack-ds", "destack-py"]
 
 [tool.ruff.lint]
 preview = true
@@ -88,10 +88,10 @@ known-first-party = ["destack"]
 #
 
 [tool.pyright]
-include = ["destack-language", "destack-py"]
+include = ["destack-ds", "destack-py"]
 ignore = ["*/venv*"]
-venv = "destack-language/venv"
-extraPaths = ["destack-language", "destack-py"]
+venv = "destack-ds/venv"
+extraPaths = ["destack-ds", "destack-py"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true

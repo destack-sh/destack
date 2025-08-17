@@ -53,7 +53,7 @@ repos:
           - --force-scope
           - --verbose
           - --scopes
-          - all,language,py,py-server,py-system,py-web,ts,ts-system,ts-web,rs,rs-test,rs-system,scripts
+          - all,ds,ds-server,ds-system,ds-web,py,py-server,py-system,py-web,ts,ts-system,ts-web,rs,rs-test,rs-system,scripts
           - feat
           - fix
           - chore

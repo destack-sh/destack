@@ -7,10 +7,10 @@
 
 # destack
 uv pip compile \
-    destack-language/destack/requirements/dev.in \
-    --output-file destack-language/destack/requirements/requirements-dev.txt
-source destack-language/venv/bin/activate && \
-    uv pip sync destack-language/destack/requirements/requirements-dev.txt
+    destack-ds/destack/requirements/dev.in \
+    --output-file destack-ds/destack/requirements/requirements-dev.txt
+source destack-ds/venv/bin/activate && \
+    uv pip sync destack-ds/destack/requirements/requirements-dev.txt
 
 # destack-py
 uv pip compile \
