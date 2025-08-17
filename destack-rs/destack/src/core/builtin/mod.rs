@@ -23,7 +23,6 @@ pub mod handle;
 pub mod message;
 pub mod node;
 pub mod object;
-pub mod order;
 pub mod property;
 pub mod r#struct;
 pub mod r#type;

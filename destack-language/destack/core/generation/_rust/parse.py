@@ -692,6 +692,7 @@ def _parse_rust_imports(source: str) -> tuple[list[RustImport], set[int]]:
 
         i = end_line_idx + 1
 
+    imports.sort(key=lambda imp: imp.source)
     return imports, covered_lines
 
 
@@ -734,6 +735,8 @@ def _parse_rust_mod_declarations(source: str) -> tuple[list[RustModDeclaration],
         covered_lines.add(i)
         mod = RustModDeclaration(name=unescape_rust_identifier(name), visibility=visibility)
         mods.append(mod)
+
+    mods.sort(key=lambda mod: mod.name)
     return mods, covered_lines
 
 
@@ -971,5 +974,6 @@ def parse_rust_file(
         attributes=[RustAttribute(content=a) for a in attributes],
         imports=imports,
         mods=mods,
+        is_mod_rs=local_path.endswith("mod.rs"),
         raw_content=source,
     )

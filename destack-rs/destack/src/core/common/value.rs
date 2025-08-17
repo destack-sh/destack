@@ -9,7 +9,7 @@ use crate::Type;
 /// Values are used to represent any generic data.
 pub struct Value {
     pub r#type: Type,
-    pub value: Option<() /* TODO */>,
+    pub value: Option<()>,
 }
 
 #[destack::generated(NamedValue, -, block)]

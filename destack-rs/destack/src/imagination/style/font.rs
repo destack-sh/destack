@@ -8,7 +8,7 @@ use crate::{Fill, Length};
 /// A font value.
 pub struct Font {
     pub r#type: FontType,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
     pub weight: Option<FontWeight>,
     pub fill: Option<Fill>,
     pub size: Option<FontSize>,

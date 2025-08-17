@@ -37,7 +37,7 @@ pub struct ObjectDefinitionReference {
     pub node_type: Option<NodeType>,
     pub struct_type: Option<StructType>,
     pub handle_type: Option<HandleType>,
-    pub definition: Option<i64 /* TODO */>,
+    pub definition: Option<i64>,
 }
 
 #[destack::generated(PropertyReference, -, block)]
@@ -47,5 +47,5 @@ pub struct PropertyReference {
     pub struct_type: Option<StructType>,
     pub handle_type: Option<HandleType>,
     pub id: Option<u8>,
-    pub custom_property: Option<i64 /* TODO */>,
+    pub custom_property: Option<i64>,
 }

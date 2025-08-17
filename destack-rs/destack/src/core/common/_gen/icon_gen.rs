@@ -39,7 +39,7 @@ impl std::fmt::Debug for PrimitiveType {
             PrimitiveType::Duration => write!(f, "DURATION"),
             PrimitiveType::String => write!(f, "STRING"),
             PrimitiveType::Character => write!(f, "CHARACTER"),
-            PrimitiveType::Order => write!(f, "ORDER_KEY"),
+            PrimitiveType::Order => write!(f, "ORDER"),
             PrimitiveType::Uuid => write!(f, "UUID"),
             PrimitiveType::Json => write!(f, "JSON"),
         }

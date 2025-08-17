@@ -10,7 +10,7 @@ pub struct Border {
     pub r#type: BorderType,
     pub color: Option<Color>,
     pub width: Option<Inset2>,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
 }
 
 #[destack::generated(BorderType, -, block)]

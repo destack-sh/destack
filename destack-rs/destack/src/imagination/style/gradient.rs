@@ -8,7 +8,7 @@ use crate::{Axis2, Color};
 /// A gradient value.
 pub struct Gradient {
     pub r#type: GradientType,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
     pub angle: Option<f32>,
     pub stops: Vec<GradientStop>,
     pub center_anchor: Option<Axis2>,

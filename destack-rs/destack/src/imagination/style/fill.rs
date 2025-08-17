@@ -8,10 +8,10 @@ use crate::{Color, Gradient};
 /// A fill value.
 pub struct Fill {
     pub r#type: FillType,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
     pub color: Option<Color>,
     pub gradient: Option<Gradient>,
-    pub image: Option<i64 /* TODO */>,
+    pub image: Option<i64>,
     pub position: Option<FillPosition>,
     pub size: Option<FillSize>,
 }

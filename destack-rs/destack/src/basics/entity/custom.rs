@@ -7,7 +7,7 @@ use crate::{HashMap, Uuid, Value};
 #[destack::generated(CustomStruct, -, block)]
 /// A CustomStruct is a generic instance of a custom Struct with custom Values.
 pub struct CustomStruct {
-    pub definition: i64, /* TODO */
+    pub definition: i64,
     pub custom_values: Option<HashMap<String, Value>>,
 }
 
@@ -15,8 +15,8 @@ pub struct CustomStruct {
 /// A CustomError is an instance of a custom Error with custom Values.
 pub struct CustomError {
     pub id: Uuid,
-    pub definition: i64, /* TODO */
-    pub client: i64,     /* TODO */
+    pub definition: i64,
+    pub client: i64,
     pub client_nonce: u8,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
@@ -28,8 +28,8 @@ pub struct CustomError {
 /// A CustomMessage is an instance of a custom Message with custom Values.
 pub struct CustomMessage {
     pub id: Uuid,
-    pub definition: i64, /* TODO */
-    pub client: i64,     /* TODO */
+    pub definition: i64,
+    pub client: i64,
     pub client_nonce: u8,
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,

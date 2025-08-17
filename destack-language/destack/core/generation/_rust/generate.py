@@ -85,7 +85,7 @@ def _generate_type_scalar(type: Type, dependencies: set[str]) -> str:
     if type.scalar_type == ScalarType.PRIMITIVE:
         assert type.primitive_type is not None, f"no primitive type for {type!r}"
         if type.primitive_type == PrimitiveType.NONE:
-            return "() /* TODO */ "
+            return "()"  # TODO: handle None?
         primitive_mapping = RUST_PRIMITIVE_TYPES.get(type.primitive_type)
         assert primitive_mapping is not None, f"no Rust type for {type!r}"
         type_str, rust_dep = primitive_mapping
@@ -108,7 +108,7 @@ def _generate_type_scalar(type: Type, dependencies: set[str]) -> str:
         ScalarType.NODE_SPATIAL,
         ScalarType.NODE_TEMPORAL,
     ):
-        return "i64 /* TODO */ "
+        return "i64"  # TODO: interned UUID/NodeReferences
 
     # struct
     elif type.scalar_type == ScalarType.STRUCT:
@@ -248,8 +248,8 @@ def _generate_struct_definition(struct: StructDefinition) -> RustManagedItem:
         if prop.type.struct_type == struct.type:
             # auto-box self references
             prop_type_str = f"Box<{prop_type_str}>"
-        inner_content_parts.append(f"pub {ecsape_rust_identifier(prop_name)}: {prop_type_str}")
-    inner_content = ",\n".join(inner_content_parts)
+        inner_content_parts.append(f"pub {ecsape_rust_identifier(prop_name)}: {prop_type_str},")
+    inner_content = "\n".join(inner_content_parts)
 
     # outer content
     outer_content = f"""\
@@ -321,13 +321,13 @@ def _generate_enum_definition(enum: EnumDefinition) -> RustManagedItem:
     for option in enum.options:
         rs_name = to_casing(option.name, StringCasing.UPPER_CAMEL)
         rs_name = ecsape_rust_identifier(rs_name)
-        option_declaration = f"{rs_name} = {option.id}"
+        option_declaration = f"{rs_name} = {option.id},"
         if option.description:
             option_declaration = (
                 f"{_generate_doc_comment(option.name, option.description)}\n{option_declaration}"
             )
         inner_content_parts.append(option_declaration)
-    inner_content = ",\n".join(inner_content_parts)
+    inner_content = "\n".join(inner_content_parts)
 
     # outer content
     outer_content = f"""\
@@ -402,9 +402,11 @@ def _get_imports(items: Sequence[RustManagedItem]) -> Sequence[RustImport]:
     dependencies.difference_update(item._key for item in items)
     # generate imports
     if dependencies:
+        imports = list(dependencies)
+        imports.sort()
         imp = RustImport(
             source="crate",
-            imports=list(dependencies),
+            imports=imports,
             is_internal=True,
             visibility=RustVisibility.PRIVATE,
             is_glob=False,
@@ -547,6 +549,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             # mod declaration
             mod = RustModDeclaration(name=inner_name, visibility=RustVisibility.PUBLIC)
             mods.append(mod)
+        mods.sort(key=lambda mod: mod.name)
 
         # accumulated imports from subdirectories
         imports: list[RustImport] = []
@@ -565,6 +568,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
                 visibility=RustVisibility.PUBLIC,
             )
             imports.append(imp)
+        imports.sort(key=lambda imp: imp.source)
 
         # generate mod file
         local_path = directory + "/mod.rs"

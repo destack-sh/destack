@@ -15,7 +15,6 @@ pub use crate::core::definition::schema::SchemaDefinition;
 pub use crate::core::definition::r#struct::StructDefinition;
 
 pub mod _gen;
-pub mod action;
 pub mod constant;
 pub mod definition;
 pub mod r#enum;

@@ -6,7 +6,7 @@
 /// A transition value.
 pub struct Transition {
     pub r#type: TransitionType,
-    pub template: Option<i64 /* TODO */>,
+    pub template: Option<i64>,
     pub delay: Option<f32>,
     pub duration: Option<f32>,
     pub ease: Vec<f32>,
