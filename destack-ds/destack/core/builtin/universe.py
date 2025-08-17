@@ -106,7 +106,7 @@ class UniverseCategory(OptionEnum):
     SOCIAL = declare_option(11_000_000, "Social", description="Interactions, reputation and trust")
     FINANCE = declare_option(11_100_000, "Finance", description="Accounting and finance")
     # INTERNET, ...
-    STUDIO = declare_option(19_000_000, "Studio", description="Editing the Universe")
+    EDITOR = declare_option(19_000_000, "Editor", description="Editing the Universe")
 
     #
     # SIMULATION
@@ -292,7 +292,7 @@ class EnumType(OptionEnum):
     # finance [11_100_000]
     # ...
 
-    # studio [19_000_000]
+    # editor [19_000_000]
     # ...
 
     #
@@ -443,6 +443,7 @@ UniverseCategory.__declaration__.category = UniverseCategory.BUILTIN
 
 
 @declare_enum(EnumType.OBJECT_KIND)
+# nocheckin: remove ObjectKind and root _Object?
 class ObjectKind(OptionEnum):
     MODULE = declare_option(
         1,
@@ -727,7 +728,6 @@ class NodeType(OptionEnum):
 
     # space [3_100_000]
     SPACE = declare_option(3_100_000, "Space", description="Universal Space")
-    # TRAIT?
     # FRAGMENT (multiple disjoint trees)
     # SLOT (inside tree)
     # LINK/PORTAL (to another subtree)
@@ -744,6 +744,8 @@ class NodeType(OptionEnum):
     #
 
     # entity [10_000_000]
+    # nocheckin: move entity into core?
+    # nocheckin: CustomTraitDefinition? CustomSystemDefinition? CustomComponentDefinition?
     CUSTOM_EVENT_DEFINITION = declare_option(
         10_000_000,
         "Custom Event",
@@ -779,7 +781,7 @@ class NodeType(OptionEnum):
         "Custom Option",
         description="Custom Option Definition",
     )
-    # CUSTOM_ALIAS_DEFINITION, CUSTOM_UNION_DEFINITION, ...
+    # CUSTOM_UNION_DEFINITION, ...
     TAG = declare_option(10_010_000, "Tag")
     INDEX = declare_option(
         10_010_100,
