@@ -13,27 +13,19 @@ from ._hoisted import (
     PropertyZone,
     ReferenceType,
     ScalarType,
-    TypeCardinality,
     ValueFactory,
 )
 from .declaration import Declaration
 from .enum import OptionDeclaration
 from .type import NONE_TYPE_DECLARATION, TypeDeclaration, parse_type_declaration
-from .universe import (
-    NodeType,
-    ObjectKind,
-    StructType,
-)
+from .universe import NodeType, StructType
 
 if TYPE_CHECKING:
     from destack import (
-        Condition,
         Node,
         PropertyDefinition,
         PropertyReference,
-        Sort,
         Struct,
-        Value,
     )
 
 type_ = type
@@ -106,28 +98,6 @@ class PropertyDeclaration(Declaration):
             _definition=None,
         )
 
-    def to_ref(self) -> "PropertyReference":
-        """A pointer to this Property. `to_ref()` for consistency with `Node.to_ref()`."""
-
-        if self._ref is None:
-            from ..common import PropertyReference
-
-            assert self.component is not None, f"{self!r} has no component"
-            assert self.id is not None, f"{self!r} has no id"
-            metatype = getattr(self.component, "metatype", None)
-
-            if self.component.__declaration__.kind == ObjectKind.NODE:
-                ref = PropertyReference(node_type=metatype, id=self.id)
-            else:
-                ref = PropertyReference(struct_type=metatype, id=self.id)
-            self._ref = ref
-
-        return self._ref
-
-    @property
-    def code_name(self) -> str:
-        return self.name
-
     @property
     def has_id(self) -> int:
         return self.id is not None and self.id is not UNSET
@@ -186,162 +156,6 @@ class PropertyDeclaration(Declaration):
         # default to regular node references
         if self.type.scalar_type == ScalarType.NODE_TEMPORAL and self.reference_type is None:
             self.reference_type = ReferenceType.TEMPORAL
-        # references get a _ref property (which is wired/stored)
-        if (
-            self.type.value_type is not None
-            and self.type.value_type.scalar_type == ScalarType.NODE_TEMPORAL
-        ):
-            # (don't want lists of Node references or Property references in Nodes, it's a mess)
-            assert (
-                self.type.cardinality == TypeCardinality.SCALAR
-                or self.component.__declaration__.kind != ObjectKind.NODE
-            ), f"cannot have a list of Node references: {self!r}"
-
-    #
-    # Querying
-    #
-
-    def eq(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        if value is None:
-            return self.not_exists()
-        return Condition(
-            type=ConditionalType.EQUALS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=value),
-        )
-
-    def neq(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        if value is None:
-            return self.exists()
-        return Condition(
-            type=ConditionalType.NOT_EQUALS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=value),
-        )
-
-    def gt(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.GREATER_THAN,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=value),
-        )
-
-    def gte(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.GREATER_THAN_OR_EQUALS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=value),
-        )
-
-    def lt(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.LESS_THAN,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=value),
-        )
-
-    def lte(self, value: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.LESS_THAN_OR_EQUALS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=value),
-        )
-
-    def starts_with(self, value: str) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.STARTS_WITH,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(value)),
-        )
-
-    def ends_with(self, value: str) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.ENDS_WITH,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(value)),
-        )
-
-    def in_(self, *values: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.IN,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(values)),
-        )
-
-    def not_in(self, *values: Any) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.NOT_IN,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-            right=Expression(type=ExpressionType.LITERAL, literal=Value.of(values)),
-        )
-
-    def exists(self) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.EXISTS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-        )
-
-    def is_not_none(self) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.EXISTS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-        )
-
-    def not_exists(self) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.NOT_EXISTS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-        )
-
-    def is_none(self) -> "Condition":
-        from destack import Condition, ConditionalType, Expression, ExpressionType
-
-        return Condition(
-            type=ConditionalType.NOT_EXISTS,
-            left=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-        )
-
-    def asc(self) -> "Sort":
-        from destack import Expression, ExpressionType, Sort, SortType
-
-        return Sort(
-            type=SortType.ASCENDING,
-            by=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-        )
-
-    def desc(self) -> "Sort":
-        from destack import Expression, ExpressionType, Sort, SortType
-
-        return Sort(
-            type=SortType.DESCENDING,
-            by=Expression(type=ExpressionType.ATTRIBUTE, attribute=self.to_ref()),
-        )
 
 
 def declare_property(

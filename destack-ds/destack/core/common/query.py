@@ -19,7 +19,6 @@ from ..builtin import (
 if TYPE_CHECKING:
     from destack import (
         CustomPropertyDefinition,
-        ObjectDefinitionReference,
         PropertyDefinition,
         PropertyReference,
         Value,
@@ -273,12 +272,6 @@ class Query(Struct):
         105,
         description="Name for this subquery. Should be unique within the parent Query.",
         is_repr=True,
-        tag=None,
-    )
-    definition: "ObjectDefinitionReference" = declare_property(
-        106,
-        is_repr=True,
-        description="The Node definition this Query is about.",
         tag=None,
     )
     subqueries: list["Query"] = declare_property(

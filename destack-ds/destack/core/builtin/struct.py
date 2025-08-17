@@ -11,7 +11,7 @@ from ._hoisted import EncoderStability
 from .declaration import StructDeclaration, TagDeclaration
 from .object import _get_universe_domain, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration
-from .universe import NodeType, ObjectKind, StructType
+from .universe import NodeType, StructType
 
 if TYPE_CHECKING:
     from destack import StructDefinition
@@ -50,7 +50,6 @@ def _process_struct_cls(
         cls=cls,
         type=struct_type,
         id=struct_type.value,
-        kind=ObjectKind.STRUCT,
         name=cls.__name__,
         description=cls.__doc__ or "",
         stability=stability,
@@ -168,8 +167,6 @@ def declare_struct(
 class Struct:
     """A Struct is a collection of Properties."""
 
-    """The kind of Object this is (static)."""
-    metakind: ClassVar[ObjectKind] = ObjectKind.STRUCT
     """The type of Struct this is (static)."""
     metatype: ClassVar[StructType]
     """The declaration of this Struct (static)."""

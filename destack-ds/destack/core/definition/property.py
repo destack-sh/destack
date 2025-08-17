@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Any, final
 
 from ..builtin import (
-    UNSET,
     PropertyDeclaration,
     ReferenceType,
     StructType,
@@ -106,7 +105,7 @@ class PropertyDefinition(Definition):
             tag=resolve_tagging(object_cls, prop.tag).id if prop.tag else None,
             # type
             type=type,
-            default_value=Value.of(prop.default_value) if prop.default_value is not UNSET else None,
+            # default_value=Value.of(prop.default_value) if prop.default_value is not UNSET else None,
             default_factory=prop.default_factory,
             # node
             reference_type=prop.reference_type,

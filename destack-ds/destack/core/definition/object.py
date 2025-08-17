@@ -1,4 +1,3 @@
-import abc
 from typing import TYPE_CHECKING
 
 from ..builtin import (
@@ -15,7 +14,7 @@ from ..builtin import (
 from .definition import Definition
 
 if TYPE_CHECKING:
-    from destack import ObjectDefinitionReference, TagDefinition
+    from destack import TagDefinition
 
 
 type_ = type
@@ -79,8 +78,3 @@ class ObjectDefinition(Definition):
     )
     domain: UniverseDomain = declare_property(103, tag="meta")
     category: UniverseCategory = declare_property(104, tag="meta")
-
-    @abc.abstractmethod
-    def to_ref(self) -> "ObjectDefinitionReference":
-        """Get a reference to this ObjectDefinition."""
-        raise NotImplementedError

@@ -68,7 +68,6 @@ pub enum EnumType {
     QueryType = 200320,
     Encoding = 1000000,
     EncoderFlag = 1000001,
-    EncoderStability = 1000002,
     ClientType = 3000200,
     BranchType = 3100300,
     SnapshotType = 3100400,

@@ -28,7 +28,6 @@ if TYPE_CHECKING:
         EnumType,
         HandleType,
         NodeType,
-        ObjectKind,
         StructType,
         TraitType,
         UniverseCategory,
@@ -98,7 +97,6 @@ class TypeDeclaration(Declaration):
 class ObjectDeclaration(Declaration):
     # meta
     cls: type_["Struct | Node"]
-    kind: "ObjectKind"
     type: int | None
     id: int
     name: str
@@ -124,7 +122,6 @@ class ObjectDeclaration(Declaration):
 class StructDeclaration(ObjectDeclaration):
     # meta
     cls: type_["Struct"]
-    kind: "ObjectKind"
     type: "StructType"
 
     # inheritance
@@ -147,7 +144,6 @@ class StructDeclaration(ObjectDeclaration):
 class NodeDeclaration(ObjectDeclaration):
     # meta
     cls: type_["Node"]
-    kind: "ObjectKind"
     type: "NodeType"
     is_singleton: bool
 
@@ -189,7 +185,6 @@ class NodeDeclaration(ObjectDeclaration):
 class HandleDeclaration(ObjectDeclaration):
     # meta
     cls: type_["Handle"]
-    kind: "ObjectKind"
     type: "HandleType"
 
     # inheritance

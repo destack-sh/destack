@@ -73,7 +73,7 @@ class UniverseCategory(OptionEnum):
     #
 
     BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
-    # NOTE :Architecture: would be nice to "merge" *Definitions (Structs) and *CustomDefinitions (Nodes)
+    # nocheckin :Architecture: would be nice to "merge" *Definitions (Structs) and *CustomDefinitions (Nodes)
     #  Having Struct POD definitions statically known makes bootstrapping the runtime much easier (?);
     #   Structs are trivial to load and iterate but Nodes need more machinery (identity, graphs, etc).
     #   (so would require much deeper integration with a custom language and .. dunno, maybe)
@@ -441,31 +441,6 @@ UniverseCategory.__declaration__.domain = UniverseDomain.CORE
 UniverseCategory.__declaration__.category = UniverseCategory.BUILTIN
 
 
-@declare_enum(EnumType.OBJECT_KIND)
-# nocheckin: remove ObjectKind and root _Object?
-class ObjectKind(OptionEnum):
-    MODULE = declare_option(
-        1,
-        "Module",
-        description="Object with static logic (runtime only)",
-    )
-    NODE = declare_option(
-        2,
-        "Node",
-        description="Object with data, logic and universally addressable identity",
-    )
-    STRUCT = declare_option(
-        3,
-        "Struct",
-        description="Object with data and logic (embedded elsewhere)",
-    )
-    HANDLE = declare_option(
-        4,
-        "Handle",
-        description="Object with special data and logic (runtime only)",
-    )
-
-
 @declare_enum(EnumType.MODULE_TYPE)
 class ModuleType(OptionEnum):
     """Built-in module types."""
@@ -727,7 +702,7 @@ class NodeType(OptionEnum):
     #
 
     # entity [10_000_000]
-    # nocheckin: move entity into core?
+    # nocheckin: move entity into core? also events?
     # nocheckin: CustomTraitDefinition? CustomSystemDefinition? CustomComponentDefinition?
     #  .. also revisit *_definition/*_builtin mappings..
     #   (Property vs PropertyDefinition? Module? Entity? Event? Struct?)
@@ -1248,7 +1223,6 @@ class StructType(OptionEnum):
     NODE_SPATIAL_REFERENCE = declare_option(200_301)
     NODE_TEMPORAL_REFERENCE = declare_option(200_302)
     # NODE_PATH, NODE_PATH_TOKEN, ...
-    OBJECT_DEFINITION_REFERENCE = declare_option(200_350)
     PROPERTY_REFERENCE = declare_option(200_360)
     # text
     TEXT = declare_option(200_400)
