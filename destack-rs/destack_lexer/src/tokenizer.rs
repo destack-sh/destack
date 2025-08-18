@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 use std::str::Chars;
 
+use crate::memchr::find_byte;
+
 /// Peekable iterator over a char sequence.
 pub struct Tokenizer<'a> {
     len_remaining: usize,
-    /// Iterator over chars, which is faster than a &str according to rustc.
-    chars: Chars<'a>,
+    chars: Chars<'a>, // Chars is faster than a &str (according to rustc)
     #[cfg(debug_assertions)]
     prev: char,
 }
@@ -92,8 +93,8 @@ impl<'a> Tokenizer<'a> {
 
     /// Eats symbols while predicate returns true or until the end of file is reached.
     pub(crate) fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
-        // NOTE: @Performance: rustc tried making optimized version of this for eg. line comments,
-        // but LLVM can inline all of this and compile it down to fast iteration over bytes.
+        // NOTE: @Performance: rustc tried making optimized version of this for
+        //  e.g., line comments, but apparently LLVM inlines all this to fast iteration over bytes.
         while predicate(self.first()) && !self.is_eof() {
             self.bump();
         }
@@ -101,10 +102,19 @@ impl<'a> Tokenizer<'a> {
 
     /// Eats symbols until the first occurrence of the given byte is found.
     /// If the byte is not found, the entire string is consumed.
+    #[inline]
     pub(crate) fn eat_until(&mut self, byte: u8) {
-        self.chars = match memchr::memchr(byte, self.as_str().as_bytes()) {
-            Some(index) => self.as_str()[index..].chars(),
-            None => "".chars(),
+        debug_assert!(byte.is_ascii(), "eat_until requires ASCII needle: {byte}");
+        let s = self.as_str();
+        let bytes = s.as_bytes();
+        match find_byte(bytes, byte) {
+            Some(idx) => {
+                // idx is at a UTF-8 boundary because we only search ASCII bytes
+                self.chars = s[idx..].chars();
+            }
+            None => {
+                self.chars = "".chars();
+            }
         }
     }
 }
