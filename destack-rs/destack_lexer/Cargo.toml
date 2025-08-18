@@ -13,8 +13,6 @@ path = "src/lib.rs"
 [dependencies]
 destack_unicode = { path = "../destack_unicode" }
 
-memchr = "2.7.5"
-
 [dev-dependencies]
 
 [lints]

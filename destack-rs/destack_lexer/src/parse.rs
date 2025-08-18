@@ -1,7 +1,7 @@
 //! Low-level Destack lexer adapted from rustc.
 
 use crate::DocPosition;
-use crate::token::{LiteralType, NumberBase, RawStringError, Token, TokenType};
+use crate::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
 use crate::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_unicode::UnicodeEmoji;
 use destack_unicode::xid::UnicodeXID;
@@ -32,7 +32,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     let mut cursor = Tokenizer::new(input);
     std::iter::from_fn(move || {
         let token = cursor.advance_token();
-        if token.kind != TokenType::Eof {
+        if token.r#type != TokenType::Eof {
             Some(token)
         } else {
             None
@@ -102,14 +102,14 @@ impl Tokenizer<'_> {
 
             // raw identifier, raw string literal or identifier
             'r' => match (self.first(), self.second()) {
-                ('#', c1) if is_id_start(c1) => self.raw_ident(),
+                ('#', c1) if is_id_start(c1) => self.raw_identifier(),
                 ('#', _) | ('"', _) => {
                     let res = self.raw_double_quoted_string(1);
                     let suffix_start = self.pos_within_token();
                     if res.is_ok() {
                         self.eat_literal_suffix();
                     }
-                    let kind = LiteralType::RawString { n_hashes: res.ok() };
+                    let kind = LiteralTokenType::RawString { n_hashes: res.ok() };
                     TokenType::Literal { kind, suffix_start }
                 }
                 _ => self.identifier_or_unknown_prefix_with_first('r'),
@@ -117,9 +117,9 @@ impl Tokenizer<'_> {
 
             // byte literal, byte string literal, raw byte string literal or identifier
             'b' => self.c_or_byte_string(
-                |terminated| LiteralType::ByteString { terminated },
-                |n_hashes| LiteralType::RawByteString { n_hashes },
-                Some(|terminated| LiteralType::Byte { terminated }),
+                |terminated| LiteralTokenType::ByteString { terminated },
+                |n_hashes| LiteralTokenType::RawByteString { n_hashes },
+                Some(|terminated| LiteralTokenType::Byte { terminated }),
                 'b',
             ),
 
@@ -205,7 +205,7 @@ impl Tokenizer<'_> {
                 if terminated {
                     self.eat_literal_suffix();
                 }
-                let kind = LiteralType::Character { terminated };
+                let kind = LiteralTokenType::Character { terminated };
                 TokenType::Literal { kind, suffix_start }
             }
 
@@ -216,7 +216,7 @@ impl Tokenizer<'_> {
                 if terminated {
                     self.eat_literal_suffix();
                 }
-                let kind = LiteralType::String { terminated };
+                let kind = LiteralTokenType::String { terminated };
                 TokenType::Literal { kind, suffix_start }
             }
             // identifier starting with an emoji. Only lexed for graceful error recovery
@@ -253,7 +253,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw identifier.
-    fn raw_ident(&mut self) -> TokenType {
+    fn raw_identifier(&mut self) -> TokenType {
         debug_assert!(self.prev() == 'r' && self.first() == '#' && is_id_start(self.second()));
         // eat "#" symbol
         self.bump();
@@ -303,9 +303,9 @@ impl Tokenizer<'_> {
     /// Parses a c-string literal, raw c-string literal or identifier.
     fn c_or_byte_string(
         &mut self,
-        mk_kind: fn(bool) -> LiteralType,
-        mk_kind_raw: fn(Option<u8>) -> LiteralType,
-        single_quoted: Option<fn(bool) -> LiteralType>,
+        mk_kind: fn(bool) -> LiteralTokenType,
+        mk_kind_raw: fn(Option<u8>) -> LiteralTokenType,
+        single_quoted: Option<fn(bool) -> LiteralTokenType>,
         first_char: char,
     ) -> TokenType {
         match (self.first(), self.second(), single_quoted) {
@@ -344,7 +344,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a numeric literal.
-    fn number(&mut self, first_digit: char) -> LiteralType {
+    fn number(&mut self, first_digit: char) -> LiteralTokenType {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
@@ -354,7 +354,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Binary;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralType::Integer {
+                        return LiteralTokenType::Integer {
                             base,
                             empty_int: true,
                         };
@@ -364,7 +364,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Octal;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralType::Integer {
+                        return LiteralTokenType::Integer {
                             base,
                             empty_int: true,
                         };
@@ -374,7 +374,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Hexadecimal;
                     self.bump();
                     if !self.eat_hexadecimal_digits() {
-                        return LiteralType::Integer {
+                        return LiteralTokenType::Integer {
                             base,
                             empty_int: true,
                         };
@@ -390,7 +390,7 @@ impl Tokenizer<'_> {
 
                 // just a 0
                 _ => {
-                    return LiteralType::Integer {
+                    return LiteralTokenType::Integer {
                         base,
                         empty_int: false,
                     };
@@ -420,7 +420,7 @@ impl Tokenizer<'_> {
                         _ => (),
                     }
                 }
-                LiteralType::Float {
+                LiteralTokenType::Float {
                     base,
                     empty_exponent,
                 }
@@ -428,12 +428,12 @@ impl Tokenizer<'_> {
             'e' | 'E' => {
                 self.bump();
                 let empty_exponent = !self.eat_float_exponent();
-                LiteralType::Float {
+                LiteralTokenType::Float {
                     base,
                     empty_exponent,
                 }
             }
-            _ => LiteralType::Integer {
+            _ => LiteralTokenType::Integer {
                 base,
                 empty_int: false,
             },

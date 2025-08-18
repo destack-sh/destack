@@ -8,7 +8,7 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
     let mut offset: usize = 0;
     for tok in tokens {
         let len = tok.len as usize;
-        match tok.kind {
+        match tok.r#type {
             TokenType::LineComment { .. }
             | TokenType::Whitespace
             | TokenType::Identifier

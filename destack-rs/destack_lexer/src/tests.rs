@@ -1,6 +1,6 @@
 use super::*;
 use crate::parse::strip_shebang;
-use crate::token::{DocPosition, LiteralType, NumberBase, RawStringError, Token, TokenType};
+use crate::token::{DocPosition, LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
 use crate::tokenizer::Tokenizer;
 
 macro_rules! assert_tokens_eq {
@@ -77,55 +77,55 @@ fn test_spread_and_arrows() {
     assert_tokens_eq!(
         "a...b => c->d :: x",
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 1
         },
         Token {
-            kind: TokenType::DotDotDot,
+            r#type: TokenType::DotDotDot,
             len: 3
         },
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 1
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::FatArrow,
+            r#type: TokenType::FatArrow,
             len: 2
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 1
         },
         Token {
-            kind: TokenType::ThinArrow,
+            r#type: TokenType::ThinArrow,
             len: 2
         },
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 1
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::DoubleColon,
+            r#type: TokenType::DoubleColon,
             len: 2
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 1
         },
     );
@@ -217,74 +217,74 @@ fn test_smoke() {
     assert_tokens_eq!(
         "fn main() { println!(\"zebra\"); }\n",
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 2
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 4
         },
         Token {
-            kind: TokenType::OpenParenthesis,
+            r#type: TokenType::OpenParenthesis,
             len: 1
         },
         Token {
-            kind: TokenType::CloseParenthesis,
+            r#type: TokenType::CloseParenthesis,
             len: 1
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::OpenBrace,
+            r#type: TokenType::OpenBrace,
             len: 1
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Identifier,
+            r#type: TokenType::Identifier,
             len: 7
         },
         Token {
-            kind: TokenType::Bang,
+            r#type: TokenType::Bang,
             len: 1
         },
         Token {
-            kind: TokenType::OpenParenthesis,
+            r#type: TokenType::OpenParenthesis,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::String { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::String { terminated: true },
                 suffix_start: 7
             },
             len: 7
         },
         Token {
-            kind: TokenType::CloseParenthesis,
+            r#type: TokenType::CloseParenthesis,
             len: 1
         },
         Token {
-            kind: TokenType::Semi,
+            r#type: TokenType::Semi,
             len: 1
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::CloseBrace,
+            r#type: TokenType::CloseBrace,
             len: 1
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
     );
@@ -300,43 +300,43 @@ fn test_comment_flavors() {
 //! inner doc line
 ",
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::LineComment { doc_style: None },
+            r#type: TokenType::LineComment { doc_style: None },
             len: 7
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::LineComment { doc_style: None },
+            r#type: TokenType::LineComment { doc_style: None },
             len: 17
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::LineComment {
+            r#type: TokenType::LineComment {
                 doc_style: Some(DocPosition::Outer)
             },
             len: 18
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::LineComment {
+            r#type: TokenType::LineComment {
                 doc_style: Some(DocPosition::Inner)
             },
             len: 18
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
     );
@@ -347,30 +347,30 @@ fn test_characters() {
     assert_tokens_eq!(
         "'a' ' ' '\\n'",
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Character { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Character { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Character { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Character { terminated: true },
                 suffix_start: 4
             },
             len: 4
@@ -383,8 +383,8 @@ fn test_raw_string() {
     assert_tokens_eq!(
         "r###\"\"#a\\b\x00c\"\"###",
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::RawString { n_hashes: Some(3) },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::RawString { n_hashes: Some(3) },
                 suffix_start: 17
             },
             len: 17
@@ -410,56 +410,56 @@ r###"raw"###suffix
 br###"raw"###suffix
 "####,
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Character { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Byte { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Byte { terminated: true },
                 suffix_start: 4
             },
             len: 4
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::String { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::String { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::ByteString { terminated: true },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::ByteString { terminated: true },
                 suffix_start: 4
             },
             len: 4
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Integer {
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Integer {
                     base: NumberBase::Decimal,
                     empty_int: false
                 },
@@ -468,12 +468,12 @@ br###"raw"###suffix
             len: 4
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Integer {
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Integer {
                     base: NumberBase::Binary,
                     empty_int: false
                 },
@@ -482,12 +482,12 @@ br###"raw"###suffix
             len: 5
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Integer {
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Integer {
                     base: NumberBase::Hexadecimal,
                     empty_int: false
                 },
@@ -496,12 +496,12 @@ br###"raw"###suffix
             len: 5
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Float {
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Float {
                     base: NumberBase::Decimal,
                     empty_exponent: false
                 },
@@ -510,12 +510,12 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Float {
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Float {
                     base: NumberBase::Decimal,
                     empty_exponent: false
                 },
@@ -524,12 +524,12 @@ br###"raw"###suffix
             len: 6
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::Integer {
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::Integer {
                     base: NumberBase::Decimal,
                     empty_int: false
                 },
@@ -538,29 +538,29 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::RawString { n_hashes: Some(3) },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::RawString { n_hashes: Some(3) },
                 suffix_start: 12
             },
             len: 18
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenType::Literal {
-                kind: LiteralType::RawByteString { n_hashes: Some(3) },
+            r#type: TokenType::Literal {
+                kind: LiteralTokenType::RawByteString { n_hashes: Some(3) },
                 suffix_start: 13
             },
             len: 19
         },
         Token {
-            kind: TokenType::Whitespace,
+            r#type: TokenType::Whitespace,
             len: 1
         },
     );

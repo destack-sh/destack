@@ -3,6 +3,8 @@ pub mod parse;
 pub mod token;
 pub mod tokenizer;
 
+mod memchr;
+
 pub use format::*;
 pub use parse::*;
 pub use token::*;

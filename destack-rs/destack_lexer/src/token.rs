@@ -1,17 +1,17 @@
-pub use destack_unicode::UNICODE_VERSION as UNICODE_XID_VERSION;
+pub use destack_unicode::UNICODE_VERSION;
 
 /// A parsed Token.
 /// It doesn't contain information about data that has been parsed,
 /// only the type of the token and its size.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Token {
-    pub kind: TokenType,
+    pub r#type: TokenType,
     pub len: u32,
 }
 
 impl Token {
-    pub(crate) fn new(kind: TokenType, len: u32) -> Token {
-        Token { kind, len }
+    pub(crate) fn new(r#type: TokenType, len: u32) -> Token {
+        Token { r#type, len }
     }
 }
 
@@ -40,7 +40,7 @@ pub enum TokenType {
     /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`.
     /// NOTE: `_` is an invalid suffix, but may be present here on string and float literals.
     Literal {
-        kind: LiteralType,
+        kind: LiteralTokenType,
         suffix_start: u32,
     },
 
@@ -120,14 +120,14 @@ pub enum DocPosition {
     Inner,
 }
 
-/// Literal
+/// Literal Token
 ///
 /// NOTE: The suffix is *not* considered when deciding the `LiteralType` in
 /// this type. This means that float literals like `1f32` are classified by this
 /// type as `Int`. (Compare against `destackc_ast::token::LitKind` and
 /// `destackc_ast::ast::LitKind`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LiteralType {
+pub enum LiteralTokenType {
     /// `12_u8`, `0o100`, `0b120i99`, `1f32`.
     Integer { base: NumberBase, empty_int: bool },
     /// `12.34f32`, `1e3`, but not `1f32`.
