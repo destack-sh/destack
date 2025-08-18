@@ -1,0 +1,26 @@
+[package]
+name = "destack_lexer_fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+destack_lexer = { path = ".." }
+arbitrary = { workspace = true }
+libfuzzer-sys = { workspace = true }
+
+[[bin]]
+name = "destack_lexer_parse"
+path = "fuzz_targets/parse.rs"
+test = false
+doc = false
+
+[profile.release]
+panic = "abort"
+
+

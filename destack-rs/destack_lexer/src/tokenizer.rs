@@ -1,19 +1,31 @@
+use std::fmt::Debug;
 use std::str::Chars;
 
 /// Peekable iterator over a char sequence.
-pub(crate) struct Cursor<'a> {
+pub struct Tokenizer<'a> {
     len_remaining: usize,
-    /// Iterator over chars. Slightly faster than a &str.
+    /// Iterator over chars, which is faster than a &str according to rustc.
     chars: Chars<'a>,
     #[cfg(debug_assertions)]
     prev: char,
 }
 
-pub(crate) const EOF_CHAR: char = '\0';
+impl Debug for Tokenizer<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "<Tokenizer {{ len_remaining: {}, chars: {:?} }}>",
+            self.len_remaining, self.chars
+        )
+    }
+}
 
-impl<'a> Cursor<'a> {
-    pub(crate) fn new(input: &'a str) -> Cursor<'a> {
-        Cursor {
+pub const EOF_CHAR: char = '\0';
+
+impl<'a> Tokenizer<'a> {
+    /// Create a new tokenizer from a string.
+    pub(crate) fn new(input: &'a str) -> Tokenizer<'a> {
+        Tokenizer {
             len_remaining: input.len(),
             chars: input.chars(),
             #[cfg(debug_assertions)]
@@ -21,77 +33,74 @@ impl<'a> Cursor<'a> {
         }
     }
 
+    /// Gets the underlying string.
     pub(crate) fn as_str(&self) -> &'a str {
         self.chars.as_str()
     }
 
-    /// Return the last eaten symbol (or `'\0'` in release builds).
+    /// Gets the last eaten symbol (or `'\0'` in release builds).
     /// (For debug assertions only.)
     pub(crate) fn prev(&self) -> char {
         #[cfg(debug_assertions)]
         {
             self.prev
         }
-
         #[cfg(not(debug_assertions))]
         {
             EOF_CHAR
         }
     }
 
-    /// Peek the next symbol from the input stream without consuming it.
-    /// If requested position doesn't exist, `EOF_CHAR` is returned.
-    /// However, getting `EOF_CHAR` doesn't always mean actual end of file,
-    /// it should be checked with `is_eof` method.
+    /// Peeks the next symbol from the input stream without consuming it.
     pub(crate) fn first(&self) -> char {
-        // `.next()` optimizes better than `.nth(0)`
+        // NOTE: @Performance: `.next()` optimizes better than `.nth(0)`
         self.chars.clone().next().unwrap_or(EOF_CHAR)
     }
 
-    /// Peek the second symbol from the input stream without consuming it.
+    /// Peeks the second symbol from the input stream without consuming it.
     pub(crate) fn second(&self) -> char {
-        // `.next()` optimizes better than `.nth(1)`
+        // NOTE: @Performance: `.next()` optimizes better than `.nth(1)`
         let mut iter = self.chars.clone();
         iter.next();
         iter.next().unwrap_or(EOF_CHAR)
     }
 
-    /// Check if there is nothing more to consume.
+    /// Checks if there is nothing more to consume.
     pub(crate) fn is_eof(&self) -> bool {
         self.chars.as_str().is_empty()
     }
 
-    /// Return amount of already consumed symbols.
+    /// Gets the amount of already consumed symbols.
     pub(crate) fn pos_within_token(&self) -> u32 {
         (self.len_remaining - self.chars.as_str().len()) as u32
     }
 
-    /// Reset the number of bytes consumed to 0.
+    /// Resets the number of bytes consumed to 0.
     pub(crate) fn reset_pos_within_token(&mut self) {
         self.len_remaining = self.chars.as_str().len();
     }
 
-    /// Move to the next character.
+    /// Moves to the next character.
     pub(crate) fn bump(&mut self) -> Option<char> {
         let c = self.chars.next()?;
-
         #[cfg(debug_assertions)]
         {
             self.prev = c;
         }
-
         Some(c)
     }
 
-    /// Eat symbols while predicate returns true or until the end of file is reached.
+    /// Eats symbols while predicate returns true or until the end of file is reached.
     pub(crate) fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
-        // it was tried making optimized version of this for eg. line comments, but
-        // LLVM can inline all of this and compile it down to fast iteration over bytes
+        // NOTE: @Performance: rustc tried making optimized version of this for eg. line comments,
+        // but LLVM can inline all of this and compile it down to fast iteration over bytes.
         while predicate(self.first()) && !self.is_eof() {
             self.bump();
         }
     }
 
+    /// Eats symbols until the first occurrence of the given byte is found.
+    /// If the byte is not found, the entire string is consumed.
     pub(crate) fn eat_until(&mut self, byte: u8) {
         self.chars = match memchr::memchr(byte, self.as_str().as_bytes()) {
             Some(index) => self.as_str()[index..].chars(),

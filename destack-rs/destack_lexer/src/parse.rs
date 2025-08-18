@@ -1,30 +1,15 @@
 //! Low-level Destack lexer adapted from rustc.
 
-use crate::DocStyle;
-use crate::cursor::{Cursor, EOF_CHAR};
-use crate::token::{Base, LiteralKind, RawStrError, Token, TokenKind};
+use crate::DocPosition;
+use crate::token::{LiteralType, NumberBase, RawStringError, Token, TokenType};
+use crate::tokenizer::{EOF_CHAR, Tokenizer};
 use unicode_properties::UnicodeEmoji;
 pub use unicode_xid::UNICODE_VERSION as UNICODE_XID_VERSION;
 
-/// `destackc` allows files to have a shebang, e.g. "#!/usr/bin/destackrun",
-/// but shebang isn't a part of destack syntax.
 pub fn strip_shebang(input: &str) -> Option<usize> {
     // shebang must start with `#!` literally, without any preceding whitespace
-    // for simplicity we consider any line starting with `#!` a shebang,
-    // regardless of restrictions put on shebangs by specific platforms
     if let Some(input_tail) = input.strip_prefix("#!") {
-        // ok, this is a shebang but if the next non-whitespace token is `[`,
-        // then it may be valid Destack code, so consider it Destack code
-        let next_non_whitespace_token = tokenize(input_tail).map(|tok| tok.kind).find(|tok| {
-            !matches!(
-                tok,
-                TokenKind::Whitespace | TokenKind::LineComment { doc_style: None }
-            )
-        });
-        if next_non_whitespace_token != Some(TokenKind::OpenBracket) {
-            // no other choice than to consider this a shebang
-            return Some(2 + input_tail.lines().next().unwrap_or_default().len());
-        }
+        return Some(2 + input_tail.lines().next().unwrap_or_default().len());
     }
     None
 }
@@ -32,9 +17,9 @@ pub fn strip_shebang(input: &str) -> Option<usize> {
 /// Validates a raw string literal. Used for getting more information about a
 /// problem with a `RawStr`/`RawByteStr` with a `None` field.
 #[inline]
-pub fn validate_raw_str(input: &str, prefix_len: u32) -> Result<(), RawStrError> {
+pub fn validate_raw_str(input: &str, prefix_len: u32) -> Result<(), RawStringError> {
     debug_assert!(!input.is_empty());
-    let mut cursor = Cursor::new(input);
+    let mut cursor = Tokenizer::new(input);
     // move past the leading `r` or `br`
     for _ in 0..prefix_len {
         cursor.bump().unwrap();
@@ -44,10 +29,10 @@ pub fn validate_raw_str(input: &str, prefix_len: u32) -> Result<(), RawStrError>
 
 /// Creates an iterator that produces tokens from the input string.
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
-    let mut cursor = Cursor::new(input);
+    let mut cursor = Tokenizer::new(input);
     std::iter::from_fn(move || {
         let token = cursor.advance_token();
-        if token.kind != TokenKind::Eof {
+        if token.kind != TokenType::Eof {
             Some(token)
         } else {
             None
@@ -55,15 +40,8 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     })
 }
 
-/// True if `c` is considered a whitespace according to Destack language definition.
-/// See [Destack language reference](https://doc.destack-lang.org/reference/whitespace.html)
-/// for definitions of these classes.
+/// Checks if `c` is considered a whitespace according to Unicode `Pattern_White_Space``.
 pub fn is_whitespace(c: char) -> bool {
-    // this is Pattern_White_Space
-    //
-    // note that this set is stable (ie, it doesn't change with different
-    // Unicode versions), so it's ok to just hard-code the values
-
     matches!(
         c,
         // usual ASCII suspects
@@ -73,7 +51,6 @@ pub fn is_whitespace(c: char) -> bool {
         | '\u{000C}' // form feed
         | '\u{000D}' // \r
         | '\u{0020}' // space
-
         // NEXT LINE from latin1
         | '\u{0085}'
 
@@ -87,22 +64,18 @@ pub fn is_whitespace(c: char) -> bool {
     )
 }
 
-/// True if `c` is valid as a first character of an identifier.
-/// See [Destack language reference](https://doc.destack-lang.org/reference/identifiers.html) for
-/// a formal definition of valid identifier name.
+/// Checks if `c` is valid as a first character of an identifier.
 pub fn is_id_start(c: char) -> bool {
     // this is XID_Start OR '_' (which formally is not a XID_Start)
     c == '_' || unicode_xid::UnicodeXID::is_xid_start(c)
 }
 
-/// True if `c` is valid as a non-first character of an identifier.
-/// See [Destack language reference](https://doc.destack-lang.org/reference/identifiers.html) for
-/// a formal definition of valid identifier name.
+/// Checks if `c` is valid as a non-first character of an identifier.
 pub fn is_id_continue(c: char) -> bool {
     unicode_xid::UnicodeXID::is_xid_continue(c)
 }
 
-/// The passed string is lexically an identifier.
+/// Checks if the passed string is lexically an identifier.
 pub fn is_ident(string: &str) -> bool {
     let mut chars = string.chars();
     if let Some(start) = chars.next() {
@@ -112,18 +85,18 @@ pub fn is_ident(string: &str) -> bool {
     }
 }
 
-impl Cursor<'_> {
+impl Tokenizer<'_> {
     /// Parses a token from the input string.
     pub(crate) fn advance_token(&mut self) -> Token {
         let Some(first_char) = self.bump() else {
-            return Token::new(TokenKind::Eof, 0);
+            return Token::new(TokenType::Eof, 0);
         };
 
         let token_kind = match first_char {
             // slash, comment
             '/' => match self.first() {
                 '/' => self.line_comment(),
-                _ => TokenKind::Slash,
+                _ => TokenType::Slash,
             },
 
             // whitespace sequence
@@ -138,68 +111,94 @@ impl Cursor<'_> {
                     if res.is_ok() {
                         self.eat_literal_suffix();
                     }
-                    let kind = LiteralKind::RawStr { n_hashes: res.ok() };
-                    TokenKind::Literal { kind, suffix_start }
+                    let kind = LiteralType::RawString { n_hashes: res.ok() };
+                    TokenType::Literal { kind, suffix_start }
                 }
-                _ => self.ident_or_unknown_prefix(),
+                _ => self.identifier_or_unknown_prefix_with_first('r'),
             },
 
             // byte literal, byte string literal, raw byte string literal or identifier
             'b' => self.c_or_byte_string(
-                |terminated| LiteralKind::ByteStr { terminated },
-                |n_hashes| LiteralKind::RawByteStr { n_hashes },
-                Some(|terminated| LiteralKind::Byte { terminated }),
-            ),
-
-            // c-string literal, raw c-string literal or identifier
-            'c' => self.c_or_byte_string(
-                |terminated| LiteralKind::CStr { terminated },
-                |n_hashes| LiteralKind::RawCStr { n_hashes },
-                None,
+                |terminated| LiteralType::ByteString { terminated },
+                |n_hashes| LiteralType::RawByteString { n_hashes },
+                Some(|terminated| LiteralType::Byte { terminated }),
+                'b',
             ),
 
             // identifier (this should be checked after other variant that can
             // start as identifier)
-            c if is_id_start(c) => self.ident_or_unknown_prefix(),
+            c if is_id_start(c) => self.identifier_or_unknown_prefix_with_first(c),
 
             // numeric literal
             c @ '0'..='9' => {
                 let literal_kind = self.number(c);
                 let suffix_start = self.pos_within_token();
                 self.eat_literal_suffix();
-                TokenKind::Literal {
+                TokenType::Literal {
                     kind: literal_kind,
                     suffix_start,
                 }
             }
 
-            // one-symbol tokens
-            ';' => TokenKind::Semi,
-            ',' => TokenKind::Comma,
-            '.' => TokenKind::Dot,
-            '(' => TokenKind::OpenParen,
-            ')' => TokenKind::CloseParen,
-            '{' => TokenKind::OpenBrace,
-            '}' => TokenKind::CloseBrace,
-            '[' => TokenKind::OpenBracket,
-            ']' => TokenKind::CloseBracket,
-            '@' => TokenKind::At,
-            '#' => TokenKind::Pound,
-            '~' => TokenKind::Tilde,
-            '?' => TokenKind::Question,
-            ':' => TokenKind::Colon,
-            '$' => TokenKind::Dollar,
-            '=' => TokenKind::Eq,
-            '!' => TokenKind::Bang,
-            '<' => TokenKind::Lt,
-            '>' => TokenKind::Gt,
-            '-' => TokenKind::Minus,
-            '&' => TokenKind::And,
-            '|' => TokenKind::Or,
-            '+' => TokenKind::Plus,
-            '*' => TokenKind::Star,
-            '^' => TokenKind::Caret,
-            '%' => TokenKind::Percent,
+            // one or multi-symbol tokens
+            ';' => TokenType::Semi,
+            ',' => TokenType::Comma,
+            ':' => {
+                if self.first() == ':' {
+                    self.bump();
+                    TokenType::DoubleColon
+                } else {
+                    TokenType::Colon
+                }
+            }
+            '.' => {
+                if self.first() == '.' && self.second() == '.' {
+                    self.bump();
+                    self.bump();
+                    TokenType::DotDotDot
+                } else if self.first() == '.' {
+                    self.bump();
+                    TokenType::DotDot
+                } else {
+                    TokenType::Dot
+                }
+            }
+            '(' => TokenType::OpenParenthesis,
+            ')' => TokenType::CloseParenthesis,
+            '{' => TokenType::OpenBrace,
+            '}' => TokenType::CloseBrace,
+            '[' => TokenType::OpenBracket,
+            ']' => TokenType::CloseBracket,
+            '@' => TokenType::At,
+            '#' => TokenType::Pound,
+            '~' => TokenType::Tilde,
+            '?' => TokenType::Question,
+            '$' => TokenType::Dollar,
+            '=' => {
+                if self.first() == '>' {
+                    self.bump();
+                    TokenType::FatArrow
+                } else {
+                    TokenType::Equals
+                }
+            }
+            '!' => TokenType::Bang,
+            '<' => TokenType::LessThan,
+            '>' => TokenType::GreaterThan,
+            '-' => {
+                if self.first() == '>' {
+                    self.bump();
+                    TokenType::ThinArrow
+                } else {
+                    TokenType::Minus
+                }
+            }
+            '&' => TokenType::And,
+            '|' => TokenType::Or,
+            '+' => TokenType::Plus,
+            '*' => TokenType::Star,
+            '^' => TokenType::Caret,
+            '%' => TokenType::Percent,
 
             // character literal
             '\'' => {
@@ -208,8 +207,8 @@ impl Cursor<'_> {
                 if terminated {
                     self.eat_literal_suffix();
                 }
-                let kind = LiteralKind::Char { terminated };
-                TokenKind::Literal { kind, suffix_start }
+                let kind = LiteralType::Character { terminated };
+                TokenType::Literal { kind, suffix_start }
             }
 
             // string literal
@@ -219,63 +218,78 @@ impl Cursor<'_> {
                 if terminated {
                     self.eat_literal_suffix();
                 }
-                let kind = LiteralKind::Str { terminated };
-                TokenKind::Literal { kind, suffix_start }
+                let kind = LiteralType::String { terminated };
+                TokenType::Literal { kind, suffix_start }
             }
             // identifier starting with an emoji. Only lexed for graceful error recovery
             c if !c.is_ascii() && c.is_emoji_char() => self.invalid_ident(),
-            _ => TokenKind::Unknown,
+            _ => TokenType::Unknown,
         };
         let res = Token::new(token_kind, self.pos_within_token());
         self.reset_pos_within_token();
         res
     }
 
-    fn line_comment(&mut self) -> TokenKind {
+    /// Parses a line comment.
+    fn line_comment(&mut self) -> TokenType {
         debug_assert!(self.prev() == '/' && self.first() == '/');
         self.bump();
 
         let doc_style = match self.first() {
             // `//!` is an inner line doc comment
-            '!' => Some(DocStyle::Inner),
+            '!' => Some(DocPosition::Inner),
             // `////` (more than 3 slashes) is not considered a doc comment
-            '/' if self.second() != '/' => Some(DocStyle::Outer),
+            '/' if self.second() != '/' => Some(DocPosition::Outer),
             _ => None,
         };
 
         self.eat_until(b'\n');
-        TokenKind::LineComment { doc_style }
+        TokenType::LineComment { doc_style }
     }
 
-    fn whitespace(&mut self) -> TokenKind {
+    /// Parses a whitespace sequence.
+    fn whitespace(&mut self) -> TokenType {
         debug_assert!(is_whitespace(self.prev()));
         self.eat_while(is_whitespace);
-        TokenKind::Whitespace
+        TokenType::Whitespace
     }
 
-    fn raw_ident(&mut self) -> TokenKind {
+    /// Parses a raw identifier.
+    fn raw_ident(&mut self) -> TokenType {
         debug_assert!(self.prev() == 'r' && self.first() == '#' && is_id_start(self.second()));
         // eat "#" symbol
         self.bump();
         // eat the identifier part of RawIdent
         self.eat_identifier();
-        TokenKind::RawIdent
+        TokenType::RawIdentifier
     }
 
-    fn ident_or_unknown_prefix(&mut self) -> TokenKind {
-        debug_assert!(is_id_start(self.prev()));
-        // start is already eaten, eat the rest of identifier
-        self.eat_while(is_id_continue);
-        // known prefixes must have been handled earlier. So if
-        // we see a prefix here, it is definitely an unknown prefix
-        match self.first() {
-            '#' | '"' | '\'' => TokenKind::UnknownPrefix,
-            c if !c.is_ascii() && c.is_emoji_char() => self.invalid_ident(),
-            _ => TokenKind::Ident,
+    /// Parses an identifier or an unknown prefix.
+    fn identifier_or_unknown_prefix_with_first(&mut self, first_char: char) -> TokenType {
+        debug_assert!(is_id_start(first_char));
+        // build the identifier string while consuming continuation characters
+        let mut ident = String::new();
+        ident.push(first_char);
+        while is_id_continue(self.first()) {
+            if let Some(ch) = self.bump() {
+                ident.push(ch);
+            } else {
+                break;
+            }
         }
+
+        // known prefixes must have been handled earlier
+        match self.first() {
+            '#' | '"' | '\'' => return TokenType::UnknownPrefix,
+            c if !c.is_ascii() && c.is_emoji_char() => return self.invalid_ident(),
+            _ => {}
+        }
+
+        TokenType::Identifier
     }
 
-    fn invalid_ident(&mut self) -> TokenKind {
+    /// Parses an invalid identifier.
+    fn invalid_ident(&mut self) -> TokenType {
         // start is already eaten, eat the rest of identifier
         self.eat_while(|c| {
             const ZERO_WIDTH_JOINER: char = '\u{200d}';
@@ -285,15 +299,17 @@ impl Cursor<'_> {
         // interpreted as an invalid literal prefix. We don't bother doing that
         // because the treatment of invalid identifiers and invalid prefixes
         // would be the same
-        TokenKind::InvalidIdent
+        TokenType::InvalidIdentifier
     }
 
+    /// Parses a c-string literal, raw c-string literal or identifier.
     fn c_or_byte_string(
         &mut self,
-        mk_kind: fn(bool) -> LiteralKind,
-        mk_kind_raw: fn(Option<u8>) -> LiteralKind,
-        single_quoted: Option<fn(bool) -> LiteralKind>,
-    ) -> TokenKind {
+        mk_kind: fn(bool) -> LiteralType,
+        mk_kind_raw: fn(Option<u8>) -> LiteralType,
+        single_quoted: Option<fn(bool) -> LiteralType>,
+        first_char: char,
+    ) -> TokenType {
         match (self.first(), self.second(), single_quoted) {
             ('\'', _, Some(single_quoted)) => {
                 self.bump();
@@ -303,7 +319,7 @@ impl Cursor<'_> {
                     self.eat_literal_suffix();
                 }
                 let kind = single_quoted(terminated);
-                TokenKind::Literal { kind, suffix_start }
+                TokenType::Literal { kind, suffix_start }
             }
             ('"', _, _) => {
                 self.bump();
@@ -313,7 +329,7 @@ impl Cursor<'_> {
                     self.eat_literal_suffix();
                 }
                 let kind = mk_kind(terminated);
-                TokenKind::Literal { kind, suffix_start }
+                TokenType::Literal { kind, suffix_start }
             }
             ('r', '"', _) | ('r', '#', _) => {
                 self.bump();
@@ -323,43 +339,44 @@ impl Cursor<'_> {
                     self.eat_literal_suffix();
                 }
                 let kind = mk_kind_raw(res.ok());
-                TokenKind::Literal { kind, suffix_start }
+                TokenType::Literal { kind, suffix_start }
             }
-            _ => self.ident_or_unknown_prefix(),
+            _ => self.identifier_or_unknown_prefix_with_first(first_char),
         }
     }
 
-    fn number(&mut self, first_digit: char) -> LiteralKind {
+    /// Parses a numeric literal.
+    fn number(&mut self, first_digit: char) -> LiteralType {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
-        let mut base = Base::Decimal;
+        let mut base = NumberBase::Decimal;
         if first_digit == '0' {
             // attempt to parse encoding base
             match self.first() {
                 'b' => {
-                    base = Base::Binary;
+                    base = NumberBase::Binary;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralKind::Int {
+                        return LiteralType::Integer {
                             base,
                             empty_int: true,
                         };
                     }
                 }
                 'o' => {
-                    base = Base::Octal;
+                    base = NumberBase::Octal;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralKind::Int {
+                        return LiteralType::Integer {
                             base,
                             empty_int: true,
                         };
                     }
                 }
                 'x' => {
-                    base = Base::Hexadecimal;
+                    base = NumberBase::Hexadecimal;
                     self.bump();
                     if !self.eat_hexadecimal_digits() {
-                        return LiteralKind::Int {
+                        return LiteralType::Integer {
                             base,
                             empty_int: true,
                         };
@@ -375,7 +392,7 @@ impl Cursor<'_> {
 
                 // just a 0
                 _ => {
-                    return LiteralKind::Int {
+                    return LiteralType::Integer {
                         base,
                         empty_int: false,
                     };
@@ -405,7 +422,7 @@ impl Cursor<'_> {
                         _ => (),
                     }
                 }
-                LiteralKind::Float {
+                LiteralType::Float {
                     base,
                     empty_exponent,
                 }
@@ -413,18 +430,19 @@ impl Cursor<'_> {
             'e' | 'E' => {
                 self.bump();
                 let empty_exponent = !self.eat_float_exponent();
-                LiteralKind::Float {
+                LiteralType::Float {
                     base,
                     empty_exponent,
                 }
             }
-            _ => LiteralKind::Int {
+            _ => LiteralType::Integer {
                 base,
                 empty_int: false,
             },
         }
     }
 
+    /// Parses a single-quoted string.
     fn single_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '\'');
         // check if it's a one-symbol literal
@@ -466,8 +484,7 @@ impl Cursor<'_> {
         false
     }
 
-    /// Eats double-quoted string and returns true
-    /// if string is terminated.
+    /// Parses a double-quoted string.
     fn double_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '"');
         while let Some(c) = self.bump() {
@@ -486,19 +503,26 @@ impl Cursor<'_> {
         false
     }
 
-    /// Eats the double-quoted string and returns `n_hashes` and an error if encountered.
-    pub(crate) fn raw_double_quoted_string(&mut self, prefix_len: u32) -> Result<u8, RawStrError> {
+    /// Parses a raw double-quoted string.
+    pub(crate) fn raw_double_quoted_string(
+        &mut self,
+        prefix_len: u32,
+    ) -> Result<u8, RawStringError> {
         // wrap the actual function to handle the error with too many hashes
         // this way, it eats the whole raw string
         let n_hashes = self.raw_string_unvalidated(prefix_len)?;
         // only up to 255 `#`s are allowed in raw strings
         match u8::try_from(n_hashes) {
             Ok(num) => Ok(num),
-            Err(_) => Err(RawStrError::TooManyDelimiters { found: n_hashes }),
+            Err(_) => Err(RawStringError::TooManyDelimiters { found: n_hashes }),
         }
     }
 
-    pub(crate) fn raw_string_unvalidated(&mut self, prefix_len: u32) -> Result<u32, RawStrError> {
+    /// Parses a raw string.
+    pub(crate) fn raw_string_unvalidated(
+        &mut self,
+        prefix_len: u32,
+    ) -> Result<u32, RawStringError> {
         debug_assert!(self.prev() == 'r');
         let start_pos = self.pos_within_token();
         let mut possible_terminator_offset = None;
@@ -517,7 +541,7 @@ impl Cursor<'_> {
             Some('"') => (),
             c => {
                 let c = c.unwrap_or(EOF_CHAR);
-                return Err(RawStrError::InvalidStarter { bad_char: c });
+                return Err(RawStringError::InvalidStarter { bad_char: c });
             }
         }
 
@@ -527,7 +551,7 @@ impl Cursor<'_> {
             self.eat_until(b'"');
 
             if self.is_eof() {
-                return Err(RawStrError::NoTerminator {
+                return Err(RawStringError::NoTerminator {
                     expected: n_start_hashes,
                     found: max_hashes,
                     possible_terminator_offset,
@@ -560,6 +584,7 @@ impl Cursor<'_> {
         }
     }
 
+    /// Parses decimal digits.
     pub(crate) fn eat_decimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -577,6 +602,7 @@ impl Cursor<'_> {
         has_digits
     }
 
+    /// Parses hexadecimal digits.
     pub(crate) fn eat_hexadecimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -594,8 +620,7 @@ impl Cursor<'_> {
         has_digits
     }
 
-    /// Eats the float exponent. Returns true if at least one digit was met,
-    /// and returns false otherwise.
+    /// Parses the float exponent.
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
         debug_assert!(self.prev() == 'e' || self.prev() == 'E');
         if self.first() == '-' || self.first() == '+' {
@@ -604,19 +629,19 @@ impl Cursor<'_> {
         self.eat_decimal_digits()
     }
 
-    // eats the suffix of the literal, e.g. "u8"
+    /// Parses the suffix of the literal, e.g. "u8".
     pub(crate) fn eat_literal_suffix(&mut self) {
         self.eat_identifier();
     }
 
-    // eats the identifier. Note: succeeds on `_`, which isn't a valid
-    // identifier
+    /// Parses an identifier.
+    ///
+    /// NOTE: succeeds on `_`, which isn't a valid identifier.
     pub(crate) fn eat_identifier(&mut self) {
         if !is_id_start(self.first()) {
             return;
         }
         self.bump();
-
         self.eat_while(is_id_continue);
     }
 }
