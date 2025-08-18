@@ -9,12 +9,14 @@
 #[rustfmt::skip]
 mod table_gen;
 
+#[cfg(test)]
+mod tests;
+
+pub mod xid;
+
 pub use emoji::{EmojiStatus, UnicodeEmoji};
 pub use general_category::{GeneralCategory, GeneralCategoryGroup, UnicodeGeneralCategory};
 pub use table_gen::UNICODE_VERSION;
-
-#[cfg(test)]
-mod tests;
 
 /// Query the emoji character properties of a character.
 pub mod emoji {

@@ -1,4 +1,4 @@
-pub use unicode_xid::UNICODE_VERSION as UNICODE_XID_VERSION;
+pub use destack_unicode::UNICODE_VERSION as UNICODE_XID_VERSION;
 
 /// A parsed Token.
 /// It doesn't contain information about data that has been parsed,

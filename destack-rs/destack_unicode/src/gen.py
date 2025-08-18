@@ -1,4 +1,5 @@
 import fileinput
+import operator
 import os
 import re
 import sys
@@ -23,7 +24,7 @@ def _fetch_unidata(filename: str) -> None:
         sys.exit(1)
 
 
-def load_emoji_properties(filename: str) -> dict[str | None, list[tuple[int, int]]]:
+def _load_emoji_properties(filename: str) -> dict[str | None, list[tuple[int, int]]]:
     """
     Load code point data from emoji-data.txt.
     """
@@ -141,6 +142,100 @@ def load_general_category_properties(filename: str) -> list[tuple[int, int, str]
     return general_category_list
 
 
+def _merge_adjacent_and_overlapping(ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    """Merge overlapping or directly adjacent ranges.
+
+    This keeps the output small while preserving the same set membership.
+    """
+    if not ranges:
+        return []
+    ranges_sorted = sorted(ranges, key=operator.itemgetter(0, 1))
+    merged: list[tuple[int, int]] = []
+    cur_lo, cur_hi = ranges_sorted[0]
+    for lo, hi in ranges_sorted[1:]:
+        if lo <= cur_hi + 1:
+            if hi > cur_hi:
+                cur_hi = hi
+        else:
+            merged.append((cur_lo, cur_hi))
+            cur_lo, cur_hi = lo, hi
+    merged.append((cur_lo, cur_hi))
+    return merged
+
+
+def _subtract_range_from_list(
+    ranges: list[tuple[int, int]], sub_lo: int, sub_hi: int
+) -> list[tuple[int, int]]:
+    """Subtract a single [sub_lo, sub_hi] range from a list of ranges.
+
+    Returns a new list with the subtraction applied.
+    """
+    if not ranges:
+        return []
+    result: list[tuple[int, int]] = []
+    for lo, hi in ranges:
+        if hi < sub_lo or lo > sub_hi:
+            result.append((lo, hi))
+            continue
+        if lo < sub_lo:
+            result.append((lo, sub_lo - 1))
+        if hi > sub_hi:
+            result.append((sub_hi + 1, hi))
+    return result
+
+
+def load_derived_core_properties(
+    filename: str, interesting_props: list[str]
+) -> dict[str | None, list[tuple[int, int]]]:
+    """
+    Load selected properties from DerivedCoreProperties.txt.
+
+    Only properties listed in interesting_props are returned.
+    """
+    _fetch_unidata(filename)
+    props: dict[str | None, list[tuple[int, int]]] = {}
+
+    single_codepoint_regex = re.compile(r"^ *([0-9A-F]+) *; *([A-Za-z_]+)")
+    range_regex = re.compile(r"^ *([0-9A-F]+)\.\.([0-9A-F]+) *; *([A-Za-z_]+)")
+
+    with fileinput.input(
+        os.path.basename(filename), openhook=fileinput.hook_encoded("utf-8")
+    ) as file_input:
+        for line in file_input:
+            prop: Optional[str] = None
+            data_lo = 0
+            data_hi = 0
+
+            match = single_codepoint_regex.match(line)
+            if match:
+                data_lo = int(match.group(1), 16)
+                data_hi = data_lo
+                prop = match.group(2).strip()
+            else:
+                match = range_regex.match(line)
+                if match:
+                    data_lo = int(match.group(1), 16)
+                    data_hi = int(match.group(2), 16)
+                    prop = match.group(3).strip()
+                else:
+                    continue
+
+            if interesting_props and (prop not in interesting_props):
+                continue
+
+            if prop not in props:
+                props[prop] = []
+            props[prop].append((data_lo, data_hi))
+
+    # normalize tables: merge adjacent/overlapping and remove surrogate range
+    for prop in list(props.keys()):
+        props[prop] = _merge_adjacent_and_overlapping(props[prop])
+        # skip surrogates because they're not representable by Rust `char`
+        props[prop] = _subtract_range_from_list(props[prop], 0xD800, 0xDFFF)
+
+    return props
+
+
 def _format_table_content(file_handle: TextIO, content: str, indent: int) -> None:
     """Format table content with proper line wrapping."""
     line = " " * indent
@@ -182,7 +277,7 @@ def _generate_table(
     if not is_const:
         pub_string = "let"
     if is_pub:
-        pub_string = "pub " + pub_string
+        pub_string = "pub(crate) " + pub_string
 
     # write table header
     file_handle.write(f"    {pub_string} {name}: {table_type} = &[\n")
@@ -455,7 +550,7 @@ pub(crate) mod emoji {""")
 """)
 
     file_handle.write("    // Emoji status table:\n")
-    emoji_status_table = load_emoji_properties("emoji/emoji-data.txt")
+    emoji_status_table = _load_emoji_properties("emoji/emoji-data.txt")
 
     # we combine things together here
     # `Extended_Pictographic` is only for future proof usages, we ignore it here
@@ -590,9 +685,42 @@ pub(crate) mod util {
         }
     }
 
+    pub(crate) fn bsearch_range_table(c: char, r: &'static [(char, char)]) -> bool {
+        use core::cmp::Ordering::{Equal, Less, Greater};
+        r.binary_search_by(|&(lo, hi)| {
+            // favor ASCII by testing Greater before Less
+            if lo > c { Greater }
+            else if hi < c { Less }
+            else { Equal }
+        }).is_ok()
+    }
+
 }
 
 """)
+
+
+def _generate_derived_core_properties_module(file_handle: TextIO) -> None:
+    """Generate the derived core properties module (XID_Start and XID_Continue)."""
+    file_handle.write("""\
+pub(crate) mod derived_property {""")
+
+    file_handle.write("    // Derived core property tables (subset):\n")
+    wanted = ["XID_Start", "XID_Continue"]
+    derived = load_derived_core_properties("DerivedCoreProperties.txt", wanted)
+
+    # emit XID_Start and XID_Continue tables
+    for prop in wanted:
+        table_name = prop.upper().replace("_", "_")
+        _generate_table(
+            file_handle,
+            table_name,
+            derived.get(prop, []),
+            "&[(char, char)]",
+            is_pub=True,
+        )
+
+    file_handle.write("}\n\n")
 
 
 if __name__ == "__main__":
@@ -613,6 +741,7 @@ pub const UNICODE_VERSION: (u64, u64, u64) = ({}, {}, {});
         _generate_util_mod(rust_file)
         _generate_general_category_module(rust_file)
         _generate_emoji_module(rust_file)
+        _generate_derived_core_properties_module(rust_file)
 
     # cargo fmt
     os.system("cargo fmt")

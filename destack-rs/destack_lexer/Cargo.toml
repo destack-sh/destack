@@ -11,9 +11,9 @@ rust-version.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-memchr = "2.7.5"
-unicode-xid = "0.2.6"
 destack_unicode = { path = "../destack_unicode" }
+
+memchr = "2.7.5"
 
 [dev-dependencies]
 
