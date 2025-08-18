@@ -26,3 +26,9 @@ The allowable tags are:
  - @Incomplete: obvious/implicit feature is missing
  - @Security: should be hardened / may allow more access then intended
  - @Architecture: something larger than per-class/file code design to reconsider 
+
+ NOTE ALL "Note" comments MUST begin on a new line with uppercase NOTE and SHOULD have an @tag.
+ Sentences SHOULD start on their own line (except *very* short ones).
+ Prefer more specific verbs ("gets" or "computes" over plain "returns").
+
+ Custom types SHOULD be referred by their properly capiztalized names (like `Parse a Token.`).

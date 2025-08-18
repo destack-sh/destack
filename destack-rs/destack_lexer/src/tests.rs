@@ -1,11 +1,19 @@
 use super::*;
-use crate::cursor::Cursor;
 use crate::parse::strip_shebang;
-use crate::token::{Base, DocStyle, LiteralKind, RawStrError, Token, TokenKind};
+use crate::token::{DocPosition, LiteralType, NumberBase, RawStringError, Token, TokenType};
+use crate::tokenizer::Tokenizer;
 
-fn check_raw_str(s: &str, expected: Result<u8, RawStrError>) {
+macro_rules! assert_tokens_eq {
+    ($src:expr, $($expected:expr),* $(,)?) => {
+        let tokens: Vec<_> = tokenize($src).collect();
+        let expected = vec![$($expected),*];
+        assert_eq!(tokens, expected, "tokenize({:?})", $src);
+    };
+}
+
+fn check_raw_str(s: &str, expected: Result<u8, RawStringError>) {
     let s = &format!("r{s}");
-    let mut cursor = Cursor::new(s);
+    let mut cursor = Tokenizer::new(s);
     cursor.bump();
     let res = cursor.raw_double_quoted_string(0);
     assert_eq!(res, expected);
@@ -31,7 +39,7 @@ fn test_too_many_terminators() {
 fn test_unterminated() {
     check_raw_str(
         r#"#"abc"#,
-        Err(RawStrError::NoTerminator {
+        Err(RawStringError::NoTerminator {
             expected: 1,
             found: 0,
             possible_terminator_offset: None,
@@ -39,7 +47,7 @@ fn test_unterminated() {
     );
     check_raw_str(
         r###"##"abc"#"###,
-        Err(RawStrError::NoTerminator {
+        Err(RawStringError::NoTerminator {
             expected: 2,
             found: 1,
             possible_terminator_offset: Some(7),
@@ -48,7 +56,7 @@ fn test_unterminated() {
     // we're looking for "# not just any #
     check_raw_str(
         r###"##"abc#"###,
-        Err(RawStrError::NoTerminator {
+        Err(RawStringError::NoTerminator {
             expected: 2,
             found: 0,
             possible_terminator_offset: None,
@@ -60,7 +68,66 @@ fn test_unterminated() {
 fn test_invalid_start() {
     check_raw_str(
         r##"#~"abc"#"##,
-        Err(RawStrError::InvalidStarter { bad_char: '~' }),
+        Err(RawStringError::InvalidStarter { bad_char: '~' }),
+    );
+}
+
+#[test]
+fn test_spread_and_arrows() {
+    assert_tokens_eq!(
+        "a...b => c->d :: x",
+        Token {
+            kind: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            kind: TokenType::DotDotDot,
+            len: 3
+        },
+        Token {
+            kind: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            kind: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            kind: TokenType::FatArrow,
+            len: 2
+        },
+        Token {
+            kind: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            kind: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            kind: TokenType::ThinArrow,
+            len: 2
+        },
+        Token {
+            kind: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            kind: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            kind: TokenType::DoubleColon,
+            len: 2
+        },
+        Token {
+            kind: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            kind: TokenType::Identifier,
+            len: 1
+        },
     );
 }
 
@@ -69,7 +136,7 @@ fn test_unterminated_no_pound() {
     // https://github.com/rust-lang/rust/issues/70677
     check_raw_str(
         r#"""#,
-        Err(RawStrError::NoTerminator {
+        Err(RawStringError::NoTerminator {
             expected: 0,
             found: 0,
             possible_terminator_offset: None,
@@ -92,7 +159,7 @@ fn test_too_many_hashes() {
     // one more hash sign (256 = 2^8) becomes too many
     check_raw_str(
         &s2,
-        Err(RawStrError::TooManyDelimiters {
+        Err(RawStringError::TooManyDelimiters {
             found: u32::from(max_count) + 1,
         }),
     );
@@ -105,37 +172,37 @@ fn test_valid_shebang() {
     assert_eq!(strip_shebang(input), Some(input.len()));
 
     let input = "#![attribute]";
-    assert_eq!(strip_shebang(input), None);
+    assert_eq!(strip_shebang(input), Some(input.len()));
 
     let input = "#!    /bin/bash";
     assert_eq!(strip_shebang(input), Some(input.len()));
 
     let input = "#!    [attribute]";
-    assert_eq!(strip_shebang(input), None);
+    assert_eq!(strip_shebang(input), Some(input.len()));
 
     let input = "#! /* blah */  /bin/bash";
     assert_eq!(strip_shebang(input), Some(input.len()));
 
     let input = "#! /* blah */  [attribute]";
-    assert_eq!(strip_shebang(input), None);
+    assert_eq!(strip_shebang(input), Some(input.len()));
 
     let input = "#! // blah\n/bin/bash";
     assert_eq!(strip_shebang(input), Some(10)); // strip up to the newline
 
     let input = "#! // blah\n[attribute]";
-    assert_eq!(strip_shebang(input), None);
+    assert_eq!(strip_shebang(input), Some(10));
 
     let input = "#! /* blah\nblah\nblah */  /bin/bash";
     assert_eq!(strip_shebang(input), Some(10));
 
     let input = "#! /* blah\nblah\nblah */  [attribute]";
-    assert_eq!(strip_shebang(input), None);
+    assert_eq!(strip_shebang(input), Some(10));
 
     let input = "#!\n/bin/sh";
     assert_eq!(strip_shebang(input), Some(2));
 
     let input = "#!\n[attribute]";
-    assert_eq!(strip_shebang(input), None);
+    assert_eq!(strip_shebang(input), Some(2));
 
     // because shebangs are interpreted by the kernel, they must be on the first line
     let input = "\n#!/bin/bash";
@@ -145,91 +212,79 @@ fn test_valid_shebang() {
     assert_eq!(strip_shebang(input), None);
 }
 
-macro_rules! assert_tokens {
-    ($src:expr, $($expected:expr),* $(,)?) => {
-        let tokens: Vec<_> = tokenize($src).collect();
-        let expected = vec![$($expected),*];
-        assert_eq!(tokens, expected, "tokenize({:?})", $src);
-    };
-}
-
 #[test]
 fn test_smoke() {
-    assert_tokens!(
-        "/* my source file */ fn main() { println!(\"zebra\"); }\n",
+    assert_tokens_eq!(
+        "fn main() { println!(\"zebra\"); }\n",
         Token {
-            kind: TokenKind::Whitespace,
-            len: 1
-        },
-        Token {
-            kind: TokenKind::Ident,
+            kind: TokenType::Identifier,
             len: 2
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Ident,
+            kind: TokenType::Identifier,
             len: 4
         },
         Token {
-            kind: TokenKind::OpenParen,
+            kind: TokenType::OpenParenthesis,
             len: 1
         },
         Token {
-            kind: TokenKind::CloseParen,
+            kind: TokenType::CloseParenthesis,
             len: 1
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::OpenBrace,
+            kind: TokenType::OpenBrace,
             len: 1
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Ident,
+            kind: TokenType::Identifier,
             len: 7
         },
         Token {
-            kind: TokenKind::Bang,
+            kind: TokenType::Bang,
             len: 1
         },
         Token {
-            kind: TokenKind::OpenParen,
+            kind: TokenType::OpenParenthesis,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Str { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::String { terminated: true },
                 suffix_start: 7
             },
             len: 7
         },
         Token {
-            kind: TokenKind::CloseParen,
+            kind: TokenType::CloseParenthesis,
             len: 1
         },
         Token {
-            kind: TokenKind::Semi,
+            kind: TokenType::Semi,
             len: 1
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::CloseBrace,
+            kind: TokenType::CloseBrace,
             len: 1
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
     );
@@ -237,7 +292,7 @@ fn test_smoke() {
 
 #[test]
 fn test_comment_flavors() {
-    assert_tokens!(
+    assert_tokens_eq!(
         r"
 // line
 //// line as well
@@ -245,43 +300,43 @@ fn test_comment_flavors() {
 //! inner doc line
 ",
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::LineComment { doc_style: None },
+            kind: TokenType::LineComment { doc_style: None },
             len: 7
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::LineComment { doc_style: None },
+            kind: TokenType::LineComment { doc_style: None },
             len: 17
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::LineComment {
-                doc_style: Some(DocStyle::Outer)
+            kind: TokenType::LineComment {
+                doc_style: Some(DocPosition::Outer)
             },
             len: 18
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::LineComment {
-                doc_style: Some(DocStyle::Inner)
+            kind: TokenType::LineComment {
+                doc_style: Some(DocPosition::Inner)
             },
             len: 18
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
     );
@@ -289,33 +344,33 @@ fn test_comment_flavors() {
 
 #[test]
 fn test_characters() {
-    assert_tokens!(
+    assert_tokens_eq!(
         "'a' ' ' '\\n'",
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Char { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Char { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Char { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::Character { terminated: true },
                 suffix_start: 4
             },
             len: 4
@@ -325,11 +380,11 @@ fn test_characters() {
 
 #[test]
 fn test_raw_string() {
-    assert_tokens!(
+    assert_tokens_eq!(
         "r###\"\"#a\\b\x00c\"\"###",
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::RawStr { n_hashes: Some(3) },
+            kind: TokenType::Literal {
+                kind: LiteralType::RawString { n_hashes: Some(3) },
                 suffix_start: 17
             },
             len: 17
@@ -339,7 +394,7 @@ fn test_raw_string() {
 
 #[test]
 fn test_literal_suffixes() {
-    assert_tokens!(
+    assert_tokens_eq!(
         r####"
 'a'
 b'a'
@@ -355,57 +410,57 @@ r###"raw"###suffix
 br###"raw"###suffix
 "####,
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Char { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Byte { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::Byte { terminated: true },
                 suffix_start: 4
             },
             len: 4
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Str { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::String { terminated: true },
                 suffix_start: 3
             },
             len: 3
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::ByteStr { terminated: true },
+            kind: TokenType::Literal {
+                kind: LiteralType::ByteString { terminated: true },
                 suffix_start: 4
             },
             len: 4
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Int {
-                    base: Base::Decimal,
+            kind: TokenType::Literal {
+                kind: LiteralType::Integer {
+                    base: NumberBase::Decimal,
                     empty_int: false
                 },
                 suffix_start: 4
@@ -413,13 +468,13 @@ br###"raw"###suffix
             len: 4
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Int {
-                    base: Base::Binary,
+            kind: TokenType::Literal {
+                kind: LiteralType::Integer {
+                    base: NumberBase::Binary,
                     empty_int: false
                 },
                 suffix_start: 5
@@ -427,13 +482,13 @@ br###"raw"###suffix
             len: 5
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Int {
-                    base: Base::Hexadecimal,
+            kind: TokenType::Literal {
+                kind: LiteralType::Integer {
+                    base: NumberBase::Hexadecimal,
                     empty_int: false
                 },
                 suffix_start: 5
@@ -441,13 +496,13 @@ br###"raw"###suffix
             len: 5
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Float {
-                    base: Base::Decimal,
+            kind: TokenType::Literal {
+                kind: LiteralType::Float {
+                    base: NumberBase::Decimal,
                     empty_exponent: false
                 },
                 suffix_start: 3
@@ -455,13 +510,13 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Float {
-                    base: Base::Decimal,
+            kind: TokenType::Literal {
+                kind: LiteralType::Float {
+                    base: NumberBase::Decimal,
                     empty_exponent: false
                 },
                 suffix_start: 6
@@ -469,13 +524,13 @@ br###"raw"###suffix
             len: 6
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::Int {
-                    base: Base::Decimal,
+            kind: TokenType::Literal {
+                kind: LiteralType::Integer {
+                    base: NumberBase::Decimal,
                     empty_int: false
                 },
                 suffix_start: 1
@@ -483,30 +538,58 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::RawStr { n_hashes: Some(3) },
+            kind: TokenType::Literal {
+                kind: LiteralType::RawString { n_hashes: Some(3) },
                 suffix_start: 12
             },
             len: 18
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
         Token {
-            kind: TokenKind::Literal {
-                kind: LiteralKind::RawByteStr { n_hashes: Some(3) },
+            kind: TokenType::Literal {
+                kind: LiteralType::RawByteString { n_hashes: Some(3) },
                 suffix_start: 13
             },
             len: 19
         },
         Token {
-            kind: TokenKind::Whitespace,
+            kind: TokenType::Whitespace,
             len: 1
         },
     );
+}
+
+#[test]
+fn test_roundtrip() {
+    let input = r##"
+/// Base component for all tetris game objects
+struct TetrisComponent {
+	/// Game instance this object belongs to
+	game_id: u32,
+	/// Whether this object is active in the game
+	is_active: bool = true,
+}
+
+/// A single cell in the tetris grid
+struct TetrisCell {
+	/// Whether the cell is occupied by a placed piece
+	is_occupied: bool = false,
+	/// Color of the piece in this cell
+	color: Option<Color> = None,
+	/// Shape type that occupies this cell
+	shape_type: Option<TetrisShape> = None,
+}"##;
+
+    let tokens: Vec<_> = tokenize(input).collect();
+    let rendered_input = render_tokens(&tokens, input);
+    assert_eq!(rendered_input, input);
+    let reparsed_tokens: Vec<_> = tokenize(input).collect();
+    assert_eq!(reparsed_tokens, tokens)
 }
