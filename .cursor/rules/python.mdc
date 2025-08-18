@@ -3,6 +3,7 @@ globs: *.py
 alwaysApply: false
 ---
 Always type everything properly.
+Use modern lowercase type annotations like `list[str] | None`.
 Prefer Sequence/Mapping/.. and such as return annotation.
 
 Avoid getattr/hasattr.
@@ -15,3 +16,10 @@ When documenting with a multi-line string the first line should start on a newli
 This is a long documentation.
 More explanation here.
 """
+
+Asserts should have format strings:
+```
+assert a == b, f"a != b: {a!r} != {b!r}"
+```
+
+Match enum-like things exhaustively with assert_never on the else.

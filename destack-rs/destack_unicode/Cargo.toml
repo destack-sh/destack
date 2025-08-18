@@ -1,6 +1,6 @@
 [package]
-name = "destack_lexer"
-description = "Destack Lexer"
+name = "destack_unicode"
+description = "Destack Unicode support"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,9 +11,6 @@ rust-version.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-memchr = "2.7.5"
-unicode-xid = "0.2.6"
-destack_unicode = { path = "../destack_unicode" }
 
 [dev-dependencies]
 
