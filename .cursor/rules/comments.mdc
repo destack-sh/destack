@@ -8,7 +8,6 @@ Usually inline comments SHOULD be above a related code block (these blocks are u
 Most comments are <1 sentence and SHOULD not include a . at the end.
 
 Function, module, class, .. documentation must be proper sentences with punctuation. 
-Function documentation SHOULD NOT list out individual arguments.
 
 Comments MAY start with certain keywords:
  - NOTE: call out something important that should not be missed when reading this code.

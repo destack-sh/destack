@@ -2,5 +2,8 @@
 alwaysApply: true
 ---
 Naming should be obvious and clear (and idiomatic to the language), though not overly verbose.
-Avoid single or few letter variables, method and function names (`i` and `Vector.x` is fine).
+
+Avoid single or few letter variables, method and function names unlress absolutely clear.
+ (`i`, `x` and `Vector.x` are fine.)
+
 Booleans should start with is_.

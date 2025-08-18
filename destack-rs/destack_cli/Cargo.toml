@@ -1,0 +1,26 @@
+[package]
+name = "destack_cli"
+description = "Destack CLI"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+default-run = "destack_cli"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "destack_cli"
+path = "src/main.rs"
+
+[dependencies]
+destack = { workspace = true }
+destack_codegen = { workspace = true }
+destack_cli_macros = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

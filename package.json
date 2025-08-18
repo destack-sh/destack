@@ -1,6 +1,6 @@
 {
   "name": "destack-monorepo",
-  "version": "2025.08.18.0",
+  "version": "2025.08.18.5",
   "private": true,
   "type": "module",
   "workspaces": {

@@ -61,7 +61,7 @@ entity Entity {
 	@(type=.Spatial)
 	snapshot: Snapshot,
 	
-	materialization: Materialization
+	materialization: Materialization,
 	definition: Option<Entity>,
 	instance: Option<Entity>,
 
@@ -93,7 +93,7 @@ entity Entity2D {
 }
 
 impl Entity2D {
-
+	const Something: u8 = 4;
 }
 
 impl Reactable for Entity2D {
