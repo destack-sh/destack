@@ -1,0 +1,6 @@
+struct Vector<T: Type, L: u8> {
+	elems: T[L],
+}
+
+struct Vector2 = Vector<f32, 2>;
+struct Vector3 = Vector<f32, 3>;
