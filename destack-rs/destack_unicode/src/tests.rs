@@ -1,3 +1,5 @@
+use crate::xid::UnicodeXID;
+
 #[test]
 fn test_all_ascii_are_either_nonemoji_or_emojiother() {
     // All ASCII characters should have non-emoji or emoji-other status
@@ -47,4 +49,28 @@ fn test_general_category_properties() {
     assert_eq!('🦀'.general_category(), GeneralCategory::OtherSymbol);
     assert_eq!('🦀'.general_category_group(), GeneralCategoryGroup::Symbol);
     assert!(!('🦀'.is_letter_cased()));
+}
+
+/// Generates all valid Unicode scalar values (excluding surrogates).
+fn all_valid_chars() -> impl Iterator<Item = char> {
+    (0u32..=0xD7FF).chain(0xE000u32..=0x10FFFF).map(|u| {
+        core::convert::TryFrom::try_from(u)
+            .expect("The selected range should be infallible if the docs match impl")
+    })
+}
+
+#[test]
+fn test_all_valid_chars_do_not_panic_for_is_xid_start() {
+    // Verify XID start check doesn't panic on any valid Unicode character.
+    for c in all_valid_chars() {
+        let _ = UnicodeXID::is_xid_start(c);
+    }
+}
+
+#[test]
+fn test_all_valid_chars_do_not_panic_for_is_xid_continue() {
+    // Verify XID continue check doesn't panic on any valid Unicode character.
+    for c in all_valid_chars() {
+        let _ = UnicodeXID::is_xid_continue(c);
+    }
 }

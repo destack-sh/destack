@@ -4,6 +4,7 @@ use crate::DocPosition;
 use crate::token::{LiteralType, NumberBase, RawStringError, Token, TokenType};
 use crate::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_unicode::UnicodeEmoji;
+use destack_unicode::xid::UnicodeXID;
 
 pub fn strip_shebang(input: &str) -> Option<usize> {
     // shebang must start with `#!` literally, without any preceding whitespace
@@ -64,12 +65,12 @@ pub fn is_whitespace(c: char) -> bool {
 /// Checks if `c` is valid as a first character of an identifier.
 pub fn is_id_start(c: char) -> bool {
     // this is XID_Start OR '_' (which formally is not a XID_Start)
-    c == '_' || unicode_xid::UnicodeXID::is_xid_start(c)
+    c == '_' || UnicodeXID::is_xid_start(c)
 }
 
 /// Checks if `c` is valid as a non-first character of an identifier.
 pub fn is_id_continue(c: char) -> bool {
-    unicode_xid::UnicodeXID::is_xid_continue(c)
+    UnicodeXID::is_xid_continue(c)
 }
 
 /// Checks if the passed string is lexically an identifier.
