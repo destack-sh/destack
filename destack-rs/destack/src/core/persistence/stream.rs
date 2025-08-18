@@ -1,3 +1,3 @@
-//! destack.core.persistence.stream@2025.08.15.1
+//! destack.core.persistence.stream
 
 #![destack::partial(destack.core.persistence.stream, file)]

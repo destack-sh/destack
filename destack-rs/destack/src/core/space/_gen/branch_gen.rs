@@ -1,4 +1,4 @@
-//! destack.core.space.branch@2025.08.15.1
+//! destack.core.space.branch
 
 #![destack::generated(destack.core.space.branch, file)]
 

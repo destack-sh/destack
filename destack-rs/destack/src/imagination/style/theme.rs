@@ -1,3 +1,3 @@
-//! destack.imagination.style.theme@2025.08.15.1
+//! destack.imagination.style.theme
 
 #![destack::partial(destack.imagination.style.theme, file)]

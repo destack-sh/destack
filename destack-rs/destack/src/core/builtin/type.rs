@@ -1,3 +1,3 @@
-//! destack.core.builtin.type@2025.08.15.1
+//! destack.core.builtin.type
 
 #![destack::partial(destack.core.builtin.type, file)]

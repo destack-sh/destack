@@ -1,3 +1,3 @@
-//! destack.core.builtin.struct@2025.08.15.1
+//! destack.core.builtin.struct
 
 #![destack::partial(destack.core.builtin.struct, file)]

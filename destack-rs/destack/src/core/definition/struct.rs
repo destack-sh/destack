@@ -1,4 +1,4 @@
-//! destack.core.definition.struct@2025.08.15.1
+//! destack.core.definition.struct
 
 #![destack::partial(destack.core.definition.struct, file)]
 

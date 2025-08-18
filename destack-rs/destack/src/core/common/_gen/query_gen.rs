@@ -1,4 +1,4 @@
-//! destack.core.common.query@2025.08.15.1
+//! destack.core.common.query
 
 #![destack::generated(destack.core.common.query, file)]
 

@@ -1,4 +1,4 @@
-//! destack.presentation.scene@2025.08.15.1
+//! destack.presentation.scene
 
 #![destack::partial(destack.presentation.scene, file)]
 #![allow(unused_imports)]

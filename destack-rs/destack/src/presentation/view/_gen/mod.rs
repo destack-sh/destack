@@ -1,4 +1,4 @@
-//! destack.presentation.view._gen@2025.08.15.1
+//! destack.presentation.view._gen
 
 #![destack::partial(destack.presentation.view._gen, file)]
 #![allow(unused_imports)]

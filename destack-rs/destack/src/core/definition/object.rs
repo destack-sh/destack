@@ -1,3 +1,3 @@
-//! destack.core.definition.object@2025.08.15.1
+//! destack.core.definition.object
 
 #![destack::partial(destack.core.definition.object, file)]

@@ -1,4 +1,4 @@
-//! destack.core.space._gen@2025.08.15.1
+//! destack.core.space._gen
 
 #![destack::partial(destack.core.space._gen, file)]
 #![allow(unused_imports)]

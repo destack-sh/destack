@@ -1,4 +1,4 @@
-//! destack.basics.script.method@2025.08.15.1
+//! destack.basics.script.method
 
 #![destack::generated(destack.basics.script.method, file)]
 

@@ -1,3 +1,3 @@
-//! destack.imagination.model.model@2025.08.15.1
+//! destack.imagination.model.model
 
 #![destack::partial(destack.imagination.model.model, file)]

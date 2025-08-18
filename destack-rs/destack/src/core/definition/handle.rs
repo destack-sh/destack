@@ -1,4 +1,4 @@
-//! destack.core.definition.handle@2025.08.15.1
+//! destack.core.definition.handle
 
 #![destack::partial(destack.core.definition.handle, file)]
 

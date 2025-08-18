@@ -1,4 +1,4 @@
-//! destack.simulation.physics._gen@2025.08.15.1
+//! destack.simulation.physics._gen
 
 #![destack::partial(destack.simulation.physics._gen, file)]
 #![allow(unused_imports)]

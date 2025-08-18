@@ -1,4 +1,4 @@
-//! destack.basics.social.notification@2025.08.15.1
+//! destack.basics.social.notification
 
 #![destack::generated(destack.basics.social.notification, file)]
 

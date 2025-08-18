@@ -1,4 +1,4 @@
-//! destack.production@2025.08.15.1
+//! destack.production
 
 #![destack::partial(destack.production, file)]
 #![allow(unused_imports)]

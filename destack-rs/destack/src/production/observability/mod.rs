@@ -1,4 +1,4 @@
-//! destack.production.observability@2025.08.15.1
+//! destack.production.observability
 
 #![destack::partial(destack.production.observability, file)]
 #![allow(unused_imports)]

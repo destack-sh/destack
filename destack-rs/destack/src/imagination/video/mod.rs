@@ -1,4 +1,4 @@
-//! destack.imagination.video@2025.08.15.1
+//! destack.imagination.video
 
 #![destack::partial(destack.imagination.video, file)]
 #![allow(unused_imports)]

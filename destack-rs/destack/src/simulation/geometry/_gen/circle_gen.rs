@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.circle@2025.08.15.1
+//! destack.simulation.geometry.circle
 
 #![destack::generated(destack.simulation.geometry.circle, file)]
 

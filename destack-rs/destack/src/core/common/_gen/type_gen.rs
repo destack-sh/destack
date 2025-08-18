@@ -1,4 +1,4 @@
-//! destack.core.common.type@2025.08.15.1
+//! destack.core.common.type
 
 #![destack::generated(destack.core.common.type, file)]
 

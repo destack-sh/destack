@@ -1,3 +1,3 @@
-//! destack.core.persistence.graph@2025.08.15.1
+//! destack.core.persistence.graph
 
 #![destack::partial(destack.core.persistence.graph, file)]

@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.line@2025.08.15.1
+//! destack.simulation.geometry.line
 
 #![destack::partial(destack.simulation.geometry.line, file)]
 

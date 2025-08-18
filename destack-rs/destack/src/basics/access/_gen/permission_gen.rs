@@ -1,4 +1,4 @@
-//! destack.basics.access.permission@2025.08.15.1
+//! destack.basics.access.permission
 
 #![destack::generated(destack.basics.access.permission, file)]
 

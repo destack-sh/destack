@@ -1,4 +1,4 @@
-//! destack.imagination.style._gen@2025.08.15.1
+//! destack.imagination.style._gen
 
 #![destack::partial(destack.imagination.style._gen, file)]
 #![allow(unused_imports)]

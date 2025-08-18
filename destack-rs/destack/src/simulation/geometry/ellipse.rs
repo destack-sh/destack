@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.ellipse@2025.08.15.1
+//! destack.simulation.geometry.ellipse
 
 #![destack::partial(destack.simulation.geometry.ellipse, file)]
 

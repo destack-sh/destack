@@ -1,4 +1,4 @@
-//! destack.core.universe.user@2025.08.15.1
+//! destack.core.universe.user
 
 #![destack::partial(destack.core.universe.user, file)]
 

@@ -1,3 +1,3 @@
-//! destack.core.encoding.encoder@2025.08.15.1
+//! destack.core.encoding.encoder
 
 #![destack::partial(destack.core.encoding.encoder, file)]

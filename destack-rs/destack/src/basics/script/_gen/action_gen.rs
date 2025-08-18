@@ -1,4 +1,4 @@
-//! destack.basics.script.action@2025.08.15.1
+//! destack.basics.script.action
 
 #![destack::generated(destack.basics.script.action, file)]
 

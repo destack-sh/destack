@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Optional, assert_never
 
 from destack.core import (
     EMPTY_LIST,
-    VERSION,
     EnumDefinition,
     ModuleDefinition,
     ModuleType,
@@ -481,7 +480,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             local_path=source_path_to_local_path(module.path, is_gen=False),
             imports=partial_imports,
             items=partial_items,
-            comment=f"//! {module.name}@{VERSION}",
+            comment=f"//! {module.name}",
             attributes=[
                 RustAttribute(
                     content=f"#![destack::{RustManagedType.PARTIAL.value}({module.path}, file)]"
@@ -499,7 +498,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
                 local_path=source_path_to_local_path(module.path, is_gen=True),
                 imports=gen_imports,
                 items=gen_items,
-                comment=f"//! {module.name}@{VERSION}",
+                comment=f"//! {module.name}",
                 attributes=[
                     RustAttribute(
                         content=f"#![destack::{RustManagedType.GENERATED.value}({module.path}, file)]"
@@ -581,7 +580,7 @@ def generate_files(schema: SchemaDefinition) -> dict[str, RustFile]:
             mods=mods,
             items=(),
             is_mod_rs=True,
-            comment=f"//! {source_path}@{VERSION}",
+            comment=f"//! {source_path}",
             attributes=[
                 RustAttribute(
                     content=f"#![destack::{RustManagedType.PARTIAL.value}({source_path}, file)]"

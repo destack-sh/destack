@@ -1,4 +1,4 @@
-//! destack.imagination.animation.transition@2025.08.15.1
+//! destack.imagination.animation.transition
 
 #![destack::generated(destack.imagination.animation.transition, file)]
 

@@ -1,4 +1,4 @@
-//! destack.simulation@2025.08.15.1
+//! destack.simulation
 
 #![destack::partial(destack.simulation, file)]
 #![allow(unused_imports)]

@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.cylinder@2025.08.15.1
+//! destack.simulation.geometry.cylinder
 
 #![destack::partial(destack.simulation.geometry.cylinder, file)]
 

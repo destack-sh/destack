@@ -1,4 +1,4 @@
-//! destack.imagination.style.gradient@2025.08.15.1
+//! destack.imagination.style.gradient
 
 #![destack::partial(destack.imagination.style.gradient, file)]
 

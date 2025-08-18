@@ -1,4 +1,4 @@
-//! destack.basics.script._gen@2025.08.15.1
+//! destack.basics.script._gen
 
 #![destack::partial(destack.basics.script._gen, file)]
 #![allow(unused_imports)]

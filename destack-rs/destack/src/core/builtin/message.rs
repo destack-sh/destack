@@ -1,3 +1,3 @@
-//! destack.core.builtin.message@2025.08.15.1
+//! destack.core.builtin.message
 
 #![destack::partial(destack.core.builtin.message, file)]

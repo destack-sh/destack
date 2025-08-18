@@ -1,4 +1,4 @@
-//! destack.core.definition.module@2025.08.15.1
+//! destack.core.definition.module
 
 #![destack::partial(destack.core.definition.module, file)]
 

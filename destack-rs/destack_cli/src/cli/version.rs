@@ -78,12 +78,18 @@ pub fn app() -> App {
 ///
 /// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.
+/// Bump the version using CalVer format.
+///
+/// Increments the revision number if the date is the same, otherwise resets to 0.
+/// Updates all relevant files with the new version.
 pub fn bump(ctx: CommandArgs) -> i32 {
     let override_rev: Option<i32> = ctx.option("revision").and_then(|s| s.parse::<i32>().ok());
 
     let (root_kind, root_prefix, version_path) = detect_root();
     let current_version =
         read_current_version(&version_path).unwrap_or_else(|| "1970.01.01.0".to_string());
+
+    // extract date and revision from current version
     let current_date = current_version
         .split('.')
         .take(3)
@@ -97,6 +103,7 @@ pub fn bump(ctx: CommandArgs) -> i32 {
     let current_semver = to_semver(&current_version);
 
     let today = today_calver();
+
     // determine new revision number
     let new_rev = match override_rev {
         Some(r) => r,

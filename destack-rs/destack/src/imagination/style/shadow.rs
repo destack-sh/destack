@@ -1,4 +1,4 @@
-//! destack.imagination.style.shadow@2025.08.15.1
+//! destack.imagination.style.shadow
 
 #![destack::partial(destack.imagination.style.shadow, file)]
 

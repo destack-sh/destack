@@ -1,3 +1,3 @@
-//! destack.core.builtin.error@2025.08.15.1
+//! destack.core.builtin.error
 
 #![destack::partial(destack.core.builtin.error, file)]
