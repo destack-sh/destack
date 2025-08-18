@@ -1,5 +1,8 @@
 
+BreakoutComponent :: struct {
+	something: f32,
+}
 
-entity BreakoutPaddle extends RigidBody2D {
-
+BreakoutPaddle :: RigidBody2D {
+	...BreakoutComponent,
 }

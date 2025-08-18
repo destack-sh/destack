@@ -1,0 +1,55 @@
+///!
+///! The module for real gangsters
+///!
+
+@!(name="zurichai")
+@!module(hey)
+
+@(key=202)
+entity MeetupMembership extends Membership {
+
+}
+
+entity MeetupSeries {
+
+}
+
+@(version=22)
+entity Meetup {
+	capacity: u32,
+	series: MeetupSeries,
+	starts_at: datetime,
+	ends_at: datetime,
+}
+
+impl Meetup {
+	fn do_something(self) {
+
+	}
+
+	@action
+	/// Cancel the event.
+	fn cancel(self) -> struct { succes: bool } {
+
+	}
+
+	@action
+	fn start(self) {
+
+	}
+
+	@action
+	fn end(self) {
+
+	}
+}
+
+event MeetupEvent {
+	meetup: Meetup,
+}
+
+event MeetupAlmostFull extends MeetupEvent {}
+event MeetupFull extends MeetupEvent {}
+event MeetupCancelled extends MeetupEvent {}
+event MeetupStarted extends MeetupEvent {}
+event MeetupEnded extends MeetupEvent {}

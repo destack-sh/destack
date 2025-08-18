@@ -1,0 +1,35 @@
+struct TetrisComponent {
+
+}
+
+entity TetrisBoard {
+	...TetrisComponent,
+	cells: TetrisCell[][]
+}
+
+impl TetrisBoard {
+	fn spawn(width: u32, height: u32) {
+		let cells = TetrisCell[width][height];
+		TetrisBoard {
+			cells
+		}
+	}
+}
+
+enum TetrisShape {
+	I = 1,
+    J = 2,
+    L = 3,
+    O = 4,
+    S = 5,
+    T = 6,
+    Z = 7
+}
+
+enum TetrisPiece {
+	shape: TetrisShape
+}
+
+struct TetrisCell {
+	is_occupied: bool
+}

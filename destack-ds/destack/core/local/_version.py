@@ -58,8 +58,6 @@ def bump(revision: int | None = None):
         "destack-py/pyproject.toml",
         "destack-ts/destack/package.json",
         "destack-ts/destack_web/package.json",
-        "destack-ts/destack_server/package.json",
-        "destack-ts/destack_system/package.json",
     )
 
     file_texts = {}

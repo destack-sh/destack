@@ -21,7 +21,6 @@ pub struct CustomError {
     pub client_remote_epoch: u64,
     pub client_local_epoch: u64,
     pub custom_values: Option<HashMap<String, Value>>,
-    pub description: Option<String>,
 }
 
 #[destack::generated(CustomMessage, -, block)]
