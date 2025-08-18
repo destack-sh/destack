@@ -3,13 +3,16 @@ description:
 globs: 
 alwaysApply: false
 ---
+Long methods are allowed and encouraged if the logic isn't extractable.
+Otherwise, smaller functions are great especially in compiled languages.
+Avoid nesting function/class definitions (though it's fine if needed).
+
+Most methods/functions should have at least a one-line documentation.
+
+Prefer pure(ish) functions.
+
 For exhaustive matching, prefer if/else over match.
 If we're checking anything that should cover all cases use some variant of assert_never in an else branch.
-
-Long methods are allowed and encouraged if the logic isn't extractable.
-Otherwise, smaller functions are great especially in compiled languages. 
-Avoid nesting function/class definitions.
-Prefer pure(ish) functions.
 
 Larger code blocks - regardless of branching - should be broken up into logical chunks
  (demarcate with whitespace and/or preamble comments like `# parse HH:MM remainder`).
