@@ -1,5 +1,6 @@
 #![feature(register_tool)]
 #![feature(custom_inner_attributes)]
+#![feature(default_field_values)]
 #![register_tool(destack)]
 #![doc(test(attr(feature(register_tool))))]
 #![doc(test(attr(feature(custom_inner_attributes))))]

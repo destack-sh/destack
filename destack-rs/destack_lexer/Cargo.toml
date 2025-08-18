@@ -1,0 +1,18 @@
+[package]
+name = "destack_lexer"
+description = "Destack Lexer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
+
+[lints]
+workspace = true

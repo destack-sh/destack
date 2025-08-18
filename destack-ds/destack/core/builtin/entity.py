@@ -191,13 +191,12 @@ class Entity(Node):
     An Entity is a named, versioned, mutable object.
     Entities can be attached to (most) other Entities to compose richer structures.
 
-    Updates to Entities are made through Events.
-    Entities are always part of a Snapshot (in their Space).
-     (Technically, Entities are just a temporary materialization of the Event stream.)
-
     An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
      where Snapshots are 'shortcuts' to certain epochs:
      (id, definition_id) @ (branch_id, snapshot_id, epoch)
+
+    Updates to Entities are made through Events.
+    Entities are always part of a Snapshot (in their Space).
 
     Custom and context Values are keyed by name for convenience and clarity.
     The name is normalized to a snake_case string.

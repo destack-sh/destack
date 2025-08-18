@@ -119,9 +119,3 @@ class Error(Struct):
         description="The logical time in the Client when it created this Error (client).",
         tag="tracking",
     )
-
-    description: str | None = declare_property(
-        103,
-        is_repr=True,
-        tag=None,
-    )

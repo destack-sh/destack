@@ -1,0 +1,187 @@
+use destack::*;
+
+enum Materialization {
+	Virtual = 3,
+	Partial = 4,
+	Full = 6,
+	Root = 7
+}
+
+struct Transform2D {
+	position: Vector2,
+	scale: Vector2,
+	rotation: f32
+}
+
+struct Form2D {
+	...Transform2D,
+}
+
+impl Form2D {
+	fn rescale(self, factor: f32) {
+
+	}
+}
+
+struct Rectangle2D {
+	...Form2D,
+	width: f32,
+	height: f32
+}
+
+fn module_function_rect() -> Rectangle2D {
+
+}
+
+
+//
+// Entity
+//
+
+@flag
+enum ProcessFlag {
+	Default = 0,
+	Deleted = 1,
+	Inactive = 2,
+	InactiveInput = 4,
+	Sleeping = 8,
+	SleepingInput = 16
+}
+
+entity Entity {
+	/// The universally unique identifier.
+	id: uuid, 
+
+	@(type=.Spatial)
+	space: Space,
+	
+	@(type=.Spatial)
+	branch: Branch,
+	
+	@(type=.Spatial)
+	snapshot: Snapshot,
+	
+	materialization: Materialization
+	definition: Option<Entity>,
+	instance: Option<Entity>,
+
+	created_epoch: u64,
+	updated_epoch: u64,
+
+	owner: Entity,
+	controller: Entity,
+	process_flags: ProcessFlag,
+
+	parent: Option<Entity>,
+	name: string,
+	key: Option<string>,
+	order: Option<order>,
+
+	extension_flags: ExtensionFlag,
+	// custom_values: List<NamedValue>?
+	// custom_values: Map<string, Value>?
+	script: Option<Script>,
+}
+
+trait Reactable {
+
+} 
+
+entity Entity2D {
+	...Transform2D
+
+}
+
+impl Entity2D {
+
+}
+
+impl Reactable for Entity2D {
+	fn react() {
+
+	}
+}
+
+//
+// Systems
+//
+
+entity CustomPhysicsSystem {
+
+}
+
+impl System for CustomPhysicsSystem {
+	...
+}
+
+impl Service for ... {
+	
+}
+
+//
+// Events
+//
+
+event MyEvent extends InputEvent {
+
+}
+
+//
+// Errors
+//
+
+struct MyError {
+	...Error,
+}
+
+//
+// Messages
+//
+
+struct MyMessage {
+	...Message,
+}
+
+enum MyEnum {
+	A,
+	B,
+	C
+}
+
+union MyUnion {
+	A(name: string, alpha: string) = 2,
+	B = 4,
+	C(bool) = 5,
+	D(MyMessage) = 6
+}
+
+struct Vector2 {
+	x: f32,
+	y: f32
+}
+
+impl Vector2 {
+	fn add(self, other: Vector2) -> Vector2 {
+
+	}
+
+	fn add(self, other: f32) -> Vector2 {
+		Vector2 {
+			x: self.x + other,
+			y: self.x + other
+		}
+	}
+}
+
+trait Error {
+	id: uuid,
+	client: Client,
+	client_nonce: u8,
+	client_remote_epoch: u64,
+	client_local_epoch: u64
+}
+
+struct Position2(Vector2);
+// shorthand for => Position2 { ...Vector2 }
+
+struct CustomLength(f32); // newtype
