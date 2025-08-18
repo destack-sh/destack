@@ -4,7 +4,7 @@ globs:
 alwaysApply: true
 ---
 Inline comments SHOULD be short and begin with a lowercase letter.
-Usually inline comments SHOULD be above a related code block (these blocks are usually 3-10 lines).
+Inline comments SHOULD be above a related code block (these blocks are usually 2-10 lines).
 Most comments are <1 sentence and SHOULD not include a . at the end.
 
 Function, module, class, .. documentation must be proper sentences with punctuation. 
@@ -13,6 +13,7 @@ Comments MAY start with certain keywords:
  - NOTE: call out something important that should not be missed when reading this code.
  - TODO: something is missing / slow / imperfect about this code, should be addressed eventually.
  - nocheckin: this is temporary and should not be committed / checked in.
+ (Do not use lowercase Note:, always NOTE)
 Comments like that SHOULD also include one or more tags like:
  - NOTE @Performance: this clones the string, use custom alloc (?)
  - TODO @Cleanup: this seems unnecessarily confusing

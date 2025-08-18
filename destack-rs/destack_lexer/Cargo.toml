@@ -11,6 +11,9 @@ rust-version.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
+memchr = "2.7.5"
+unicode-properties = "0.1.3"
+unicode-xid = "0.2.6"
 
 [dev-dependencies]
 

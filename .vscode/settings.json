@@ -10,5 +10,11 @@
   "biome.requireConfiguration": true,
   "typescript.tsdk": "node_modules/typescript/lib",
   "css.lint.unknownAtRules": "ignore",
-  "scss.lint.unknownAtRules": "ignore"
+  "scss.lint.unknownAtRules": "ignore",
+  "vsicons.associations.files": [
+    {
+      "icon": "rust_toolchain",
+      "extensions": [".ds"]
+    }
+  ]
 }
