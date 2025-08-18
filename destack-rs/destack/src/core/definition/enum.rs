@@ -1,4 +1,4 @@
-//! destack.core.definition.enum@2025.08.15.1
+//! destack.core.definition.enum
 
 #![destack::partial(destack.core.definition.enum, file)]
 

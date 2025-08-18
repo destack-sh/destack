@@ -1,3 +1,3 @@
-//! destack.core.space.space@2025.08.15.1
+//! destack.core.space.space
 
 #![destack::partial(destack.core.space.space, file)]

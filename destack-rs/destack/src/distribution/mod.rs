@@ -1,4 +1,4 @@
-//! destack.distribution@2025.08.15.1
+//! destack.distribution
 
 #![destack::partial(destack.distribution, file)]
 #![allow(unused_imports)]

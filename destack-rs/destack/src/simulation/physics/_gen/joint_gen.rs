@@ -1,4 +1,4 @@
-//! destack.simulation.physics.joint@2025.08.15.1
+//! destack.simulation.physics.joint
 
 #![destack::generated(destack.simulation.physics.joint, file)]
 

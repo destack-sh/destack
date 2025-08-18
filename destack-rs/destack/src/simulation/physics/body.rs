@@ -1,3 +1,3 @@
-//! destack.simulation.physics.body@2025.08.15.1
+//! destack.simulation.physics.body
 
 #![destack::partial(destack.simulation.physics.body, file)]

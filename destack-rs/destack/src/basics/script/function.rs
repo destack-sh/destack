@@ -1,3 +1,3 @@
-//! destack.basics.script.function@2025.08.15.1
+//! destack.basics.script.function
 
 #![destack::partial(destack.basics.script.function, file)]

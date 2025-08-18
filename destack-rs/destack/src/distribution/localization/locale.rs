@@ -1,3 +1,3 @@
-//! destack.distribution.localization.locale@2025.08.15.1
+//! destack.distribution.localization.locale
 
 #![destack::partial(destack.distribution.localization.locale, file)]

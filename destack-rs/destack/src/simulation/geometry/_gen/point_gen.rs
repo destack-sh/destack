@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.point@2025.08.15.1
+//! destack.simulation.geometry.point
 
 #![destack::generated(destack.simulation.geometry.point, file)]
 

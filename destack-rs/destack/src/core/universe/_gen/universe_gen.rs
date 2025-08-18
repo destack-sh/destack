@@ -1,4 +1,4 @@
-//! destack.core.universe.universe@2025.08.15.1
+//! destack.core.universe.universe
 
 #![destack::generated(destack.core.universe.universe, file)]
 

@@ -1,4 +1,4 @@
-//! destack.imagination.style.fill@2025.08.15.1
+//! destack.imagination.style.fill
 
 #![destack::partial(destack.imagination.style.fill, file)]
 

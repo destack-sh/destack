@@ -1,4 +1,4 @@
-//! destack.production.cloud.machine@2025.08.15.1
+//! destack.production.cloud.machine
 
 #![destack::generated(destack.production.cloud.machine, file)]
 

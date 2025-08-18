@@ -1,4 +1,4 @@
-//! destack.imagination.animation.easing@2025.08.15.1
+//! destack.imagination.animation.easing
 
 #![destack::partial(destack.imagination.animation.easing, file)]
 

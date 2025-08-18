@@ -1,3 +1,3 @@
-//! destack.simulation.perception.key@2025.08.15.1
+//! destack.simulation.perception.key
 
 #![destack::partial(destack.simulation.perception.key, file)]

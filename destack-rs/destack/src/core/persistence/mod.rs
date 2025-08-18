@@ -1,4 +1,4 @@
-//! destack.core.persistence@2025.08.15.1
+//! destack.core.persistence
 
 #![destack::partial(destack.core.persistence, file)]
 #![allow(unused_imports)]

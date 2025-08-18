@@ -1,4 +1,4 @@
-//! destack.basics.access._gen@2025.08.15.1
+//! destack.basics.access._gen
 
 #![destack::partial(destack.basics.access._gen, file)]
 #![allow(unused_imports)]

@@ -1,4 +1,4 @@
-//! destack.core.definition.option@2025.08.15.1
+//! destack.core.definition.option
 
 #![destack::generated(destack.core.definition.option, file)]
 

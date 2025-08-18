@@ -1,4 +1,4 @@
-//! destack.basics.entity.tag@2025.08.15.1
+//! destack.basics.entity.tag
 
 #![destack::generated(destack.basics.entity.tag, file)]
 

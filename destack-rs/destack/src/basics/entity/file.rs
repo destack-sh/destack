@@ -1,3 +1,3 @@
-//! destack.basics.entity.file@2025.08.15.1
+//! destack.basics.entity.file
 
 #![destack::partial(destack.basics.entity.file, file)]

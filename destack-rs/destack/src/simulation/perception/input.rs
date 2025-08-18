@@ -1,3 +1,3 @@
-//! destack.simulation.perception.input@2025.08.15.1
+//! destack.simulation.perception.input
 
 #![destack::partial(destack.simulation.perception.input, file)]

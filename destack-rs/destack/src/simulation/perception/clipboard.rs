@@ -1,3 +1,3 @@
-//! destack.simulation.perception.clipboard@2025.08.15.1
+//! destack.simulation.perception.clipboard
 
 #![destack::partial(destack.simulation.perception.clipboard, file)]

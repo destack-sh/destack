@@ -1,4 +1,4 @@
-//! destack.simulation.physics.rigid@2025.08.15.1
+//! destack.simulation.physics.rigid
 
 #![destack::generated(destack.simulation.physics.rigid, file)]
 

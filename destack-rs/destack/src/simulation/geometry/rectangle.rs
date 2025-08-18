@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.rectangle@2025.08.15.1
+//! destack.simulation.geometry.rectangle
 
 #![destack::partial(destack.simulation.geometry.rectangle, file)]
 

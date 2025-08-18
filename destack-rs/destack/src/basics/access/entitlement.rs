@@ -1,4 +1,4 @@
-//! destack.basics.access.entitlement@2025.08.15.1
+//! destack.basics.access.entitlement
 
 #![destack::partial(destack.basics.access.entitlement, file)]
 

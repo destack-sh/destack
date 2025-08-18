@@ -1,4 +1,4 @@
-//! destack.core.common.change@2025.08.15.1
+//! destack.core.common.change
 
 #![destack::partial(destack.core.common.change, file)]
 

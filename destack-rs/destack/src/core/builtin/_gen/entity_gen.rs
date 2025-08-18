@@ -1,4 +1,4 @@
-//! destack.core.builtin.entity@2025.08.15.1
+//! destack.core.builtin.entity
 
 #![destack::generated(destack.core.builtin.entity, file)]
 

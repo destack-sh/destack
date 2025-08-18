@@ -1,4 +1,4 @@
-//! destack.imagination.animation._gen@2025.08.15.1
+//! destack.imagination.animation._gen
 
 #![destack::partial(destack.imagination.animation._gen, file)]
 #![allow(unused_imports)]

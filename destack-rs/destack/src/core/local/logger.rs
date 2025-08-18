@@ -1,3 +1,3 @@
-//! destack.core.local.logger@2025.08.15.1
+//! destack.core.local.logger
 
 #![destack::partial(destack.core.local.logger, file)]

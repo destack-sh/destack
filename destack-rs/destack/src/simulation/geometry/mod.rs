@@ -1,4 +1,4 @@
-//! destack.simulation.geometry@2025.08.15.1
+//! destack.simulation.geometry
 
 #![destack::partial(destack.simulation.geometry, file)]
 #![allow(unused_imports)]

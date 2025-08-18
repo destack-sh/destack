@@ -1,3 +1,3 @@
-//! destack.imagination.audio.audio@2025.08.15.1
+//! destack.imagination.audio.audio
 
 #![destack::partial(destack.imagination.audio.audio, file)]

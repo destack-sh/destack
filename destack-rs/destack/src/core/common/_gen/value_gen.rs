@@ -1,4 +1,4 @@
-//! destack.core.common.value@2025.08.15.1
+//! destack.core.common.value
 
 #![destack::generated(destack.core.common.value, file)]
 

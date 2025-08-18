@@ -1,4 +1,4 @@
-//! destack.simulation.perception@2025.08.15.1
+//! destack.simulation.perception
 
 #![destack::partial(destack.simulation.perception, file)]
 #![allow(unused_imports)]

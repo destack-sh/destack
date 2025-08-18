@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.quaternion@2025.08.15.1
+//! destack.simulation.geometry.quaternion
 
 #![destack::partial(destack.simulation.geometry.quaternion, file)]
 

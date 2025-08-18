@@ -1,4 +1,4 @@
-//! destack.distribution.localization@2025.08.15.1
+//! destack.distribution.localization
 
 #![destack::partial(destack.distribution.localization, file)]
 #![allow(unused_imports)]

@@ -1,4 +1,4 @@
-//! destack.simulation.perception.mouse@2025.08.15.1
+//! destack.simulation.perception.mouse
 
 #![destack::generated(destack.simulation.perception.mouse, file)]
 

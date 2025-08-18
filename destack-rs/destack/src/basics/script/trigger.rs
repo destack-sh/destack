@@ -1,4 +1,4 @@
-//! destack.basics.script.trigger@2025.08.15.1
+//! destack.basics.script.trigger
 
 #![destack::partial(destack.basics.script.trigger, file)]
 

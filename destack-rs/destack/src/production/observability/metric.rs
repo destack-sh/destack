@@ -1,3 +1,3 @@
-//! destack.production.observability.metric@2025.08.15.1
+//! destack.production.observability.metric
 
 #![destack::partial(destack.production.observability.metric, file)]

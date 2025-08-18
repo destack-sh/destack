@@ -1,4 +1,4 @@
-//! destack.core.space.snapshot@2025.08.15.1
+//! destack.core.space.snapshot
 
 #![destack::generated(destack.core.space.snapshot, file)]
 

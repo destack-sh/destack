@@ -1,4 +1,4 @@
-//! destack.core.builtin._gen@2025.08.15.1
+//! destack.core.builtin._gen
 
 #![destack::partial(destack.core.builtin._gen, file)]
 #![allow(unused_imports)]

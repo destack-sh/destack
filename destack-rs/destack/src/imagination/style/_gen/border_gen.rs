@@ -1,4 +1,4 @@
-//! destack.imagination.style.border@2025.08.15.1
+//! destack.imagination.style.border
 
 #![destack::generated(destack.imagination.style.border, file)]
 

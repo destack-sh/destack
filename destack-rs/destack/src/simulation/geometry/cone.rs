@@ -1,4 +1,4 @@
-//! destack.simulation.geometry.cone@2025.08.15.1
+//! destack.simulation.geometry.cone
 
 #![destack::partial(destack.simulation.geometry.cone, file)]
 

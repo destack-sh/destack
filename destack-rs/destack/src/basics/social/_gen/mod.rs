@@ -1,4 +1,4 @@
-//! destack.basics.social._gen@2025.08.15.1
+//! destack.basics.social._gen
 
 #![destack::partial(destack.basics.social._gen, file)]
 #![allow(unused_imports)]

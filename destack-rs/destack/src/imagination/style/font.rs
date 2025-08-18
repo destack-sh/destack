@@ -1,4 +1,4 @@
-//! destack.imagination.style.font@2025.08.15.1
+//! destack.imagination.style.font
 
 #![destack::partial(destack.imagination.style.font, file)]
 

@@ -1,4 +1,4 @@
-//! destack.core.common.icon@2025.08.15.1
+//! destack.core.common.icon
 
 #![destack::partial(destack.core.common.icon, file)]
 

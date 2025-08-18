@@ -1,4 +1,4 @@
-//! destack.core.encoding@2025.08.15.1
+//! destack.core.encoding
 
 #![destack::partial(destack.core.encoding, file)]
 #![allow(unused_imports)]

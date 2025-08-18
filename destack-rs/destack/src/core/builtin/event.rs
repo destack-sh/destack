@@ -1,4 +1,4 @@
-//! destack.core.builtin.event@2025.08.15.1
+//! destack.core.builtin.event
 
 #![destack::partial(destack.core.builtin.event, file)]
 

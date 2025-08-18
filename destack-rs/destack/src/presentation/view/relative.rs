@@ -1,4 +1,4 @@
-//! destack.presentation.view.relative@2025.08.15.1
+//! destack.presentation.view.relative
 
 #![destack::partial(destack.presentation.view.relative, file)]
 

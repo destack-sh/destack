@@ -1,4 +1,4 @@
-//! destack.core.builtin.casing@2025.08.15.1
+//! destack.core.builtin.casing
 
 #![destack::partial(destack.core.builtin.casing, file)]
 

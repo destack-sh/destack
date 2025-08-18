@@ -1,4 +1,4 @@
-//! destack.basics.access.sanction@2025.08.15.1
+//! destack.basics.access.sanction
 
 #![destack::partial(destack.basics.access.sanction, file)]
 

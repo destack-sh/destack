@@ -1,4 +1,4 @@
-//! destack.basics.script.timer@2025.08.15.1
+//! destack.basics.script.timer
 
 #![destack::generated(destack.basics.script.timer, file)]
 

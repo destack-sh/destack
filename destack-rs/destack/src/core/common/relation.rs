@@ -1,4 +1,4 @@
-//! destack.core.common.relation@2025.08.15.1
+//! destack.core.common.relation
 
 #![destack::partial(destack.core.common.relation, file)]
 

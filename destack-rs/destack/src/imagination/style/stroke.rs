@@ -1,4 +1,4 @@
-//! destack.imagination.style.stroke@2025.08.15.1
+//! destack.imagination.style.stroke
 
 #![destack::partial(destack.imagination.style.stroke, file)]
 

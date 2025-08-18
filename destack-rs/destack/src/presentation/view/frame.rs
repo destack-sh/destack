@@ -1,3 +1,3 @@
-//! destack.presentation.view.frame@2025.08.15.1
+//! destack.presentation.view.frame
 
 #![destack::partial(destack.presentation.view.frame, file)]

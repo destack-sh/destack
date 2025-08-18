@@ -1,4 +1,4 @@
-//! destack.core.space.folder@2025.08.15.1
+//! destack.core.space.folder
 
 #![destack::partial(destack.core.space.folder, file)]
 

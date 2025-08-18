@@ -1,4 +1,4 @@
-//! destack.core.definition._gen@2025.08.15.1
+//! destack.core.definition._gen
 
 #![destack::partial(destack.core.definition._gen, file)]
 #![allow(unused_imports)]
