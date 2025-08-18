@@ -1,7 +1,10 @@
+//! JSON parsing functionality
+
 use crate::JsonValue;
 use std::collections::HashMap;
 use std::fmt;
 
+/// Represents errors that can occur during JSON parsing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum JsonParseError {
     Eof,
@@ -35,6 +38,7 @@ impl fmt::Display for JsonParseError {
     }
 }
 
+/// Parse a JSON string into a JsonValue.
 #[inline]
 pub fn parse_json(s: &str) -> Result<JsonValue, JsonParseError> {
     let mut p = Parser {
@@ -50,17 +54,20 @@ pub fn parse_json(s: &str) -> Result<JsonValue, JsonParseError> {
     Ok(v)
 }
 
+/// Internal parser state for JSON parsing.
 struct Parser<'a> {
     s: &'a [u8],
     i: usize,
 }
 
 impl<'a> Parser<'a> {
+    /// Peek at the current byte without consuming it.
     #[inline]
     fn peek(&self) -> Option<u8> {
         self.s.get(self.i).copied()
     }
 
+    /// Consume and return the current byte.
     #[inline]
     fn bump(&mut self) -> Option<u8> {
         let b = self.s.get(self.i).copied();
@@ -70,6 +77,7 @@ impl<'a> Parser<'a> {
         b
     }
 
+    /// Expect a specific byte and consume it.
     #[inline]
     fn expect_byte(&mut self, b: u8) -> Result<(), JsonParseError> {
         match self.bump() {
@@ -78,6 +86,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Skip whitespace characters.
     #[inline]
     fn skip_ws(&mut self) {
         while let Some(&b) = self.s.get(self.i) {
@@ -88,6 +97,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse any JSON value.
     #[inline]
     fn parse_value(&mut self) -> Result<JsonValue, JsonParseError> {
         match self.peek().ok_or(JsonParseError::Eof)? {
@@ -102,6 +112,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse the literal "null".
     #[inline]
     fn parse_null(&mut self) -> Result<JsonValue, JsonParseError> {
         if self.s.get(self.i..self.i + 4) == Some(b"null") {
@@ -112,6 +123,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse the literal "true".
     #[inline]
     fn parse_true(&mut self) -> Result<JsonValue, JsonParseError> {
         if self.s.get(self.i..self.i + 4) == Some(b"true") {
@@ -122,6 +134,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse the literal "false".
     #[inline]
     fn parse_false(&mut self) -> Result<JsonValue, JsonParseError> {
         if self.s.get(self.i..self.i + 5) == Some(b"false") {
@@ -132,12 +145,17 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse a JSON number into f64.
     #[inline]
     fn parse_number(&mut self) -> Result<f64, JsonParseError> {
         let start = self.i;
+
+        // optional minus sign
         if self.peek() == Some(b'-') {
             self.i += 1;
         }
+
+        // integer part
         match self.peek() {
             Some(b'0') => {
                 self.i += 1;
@@ -150,6 +168,8 @@ impl<'a> Parser<'a> {
             }
             _ => return Err(JsonParseError::InvalidNumber),
         }
+
+        // optional fractional part
         if self.peek() == Some(b'.') {
             self.i += 1;
             let mut had_digit = false;
@@ -161,6 +181,8 @@ impl<'a> Parser<'a> {
                 return Err(JsonParseError::InvalidNumber);
             }
         }
+
+        // optional exponent part
         if let Some(b'e') | Some(b'E') = self.peek().map(|b| b.to_ascii_lowercase()) {
             self.i += 1;
             if let Some(b'+') | Some(b'-') = self.peek() {
@@ -175,17 +197,20 @@ impl<'a> Parser<'a> {
                 return Err(JsonParseError::InvalidNumber);
             }
         }
+
         let end = self.i;
         // SAFETY: slice is within original &str, utf8 boundary is fine since it's ascii digits/sign/dot
         let s = unsafe { std::str::from_utf8_unchecked(&self.s[start..end]) };
         s.parse::<f64>().map_err(|_| JsonParseError::InvalidNumber)
     }
 
+    /// Parse a JSON string with escape sequences.
     #[inline]
     fn parse_string(&mut self) -> Result<String, JsonParseError> {
         self.expect_byte(b'"')?;
         let mut out = String::new();
         let mut start = self.i;
+
         while let Some(b) = self.peek() {
             if b == b'"' {
                 // fast path: push slice
@@ -244,6 +269,7 @@ impl<'a> Parser<'a> {
         Err(JsonParseError::Eof)
     }
 
+    /// Parse 4 hex digits into a u16.
     #[inline]
     fn parse_u4(&mut self) -> Result<u16, JsonParseError> {
         let mut val: u16 = 0;
@@ -255,15 +281,19 @@ impl<'a> Parser<'a> {
         Ok(val)
     }
 
+    /// Parse a JSON array.
     #[inline]
     fn parse_array(&mut self) -> Result<JsonValue, JsonParseError> {
         self.expect_byte(b'[')?;
         self.skip_ws();
         let mut arr = Vec::new();
+
+        // empty array
         if self.peek() == Some(b']') {
             self.i += 1;
             return Ok(JsonValue::Array(arr));
         }
+
         loop {
             self.skip_ws();
             let v = self.parse_value()?;
@@ -280,15 +310,19 @@ impl<'a> Parser<'a> {
         Ok(JsonValue::Array(arr))
     }
 
+    /// Parse a JSON object.
     #[inline]
     fn parse_object(&mut self) -> Result<JsonValue, JsonParseError> {
         self.expect_byte(b'{')?;
         self.skip_ws();
         let mut map: HashMap<String, JsonValue> = HashMap::new();
+
+        // empty object
         if self.peek() == Some(b'}') {
             self.i += 1;
             return Ok(JsonValue::Object(map));
         }
+
         loop {
             self.skip_ws();
             if self.peek() != Some(b'"') {
@@ -315,6 +349,7 @@ impl<'a> Parser<'a> {
     }
 }
 
+/// Convert a hex digit byte to its numeric value.
 #[inline]
 fn hex_val(b: u8) -> Option<u8> {
     match b {
@@ -330,7 +365,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_scalars() {
+    fn test_parse_scalars() {
+        // parse basic scalar values
         assert_eq!(parse_json("null").unwrap(), JsonValue::Null);
         assert_eq!(parse_json("true").unwrap(), JsonValue::Bool(true));
         assert_eq!(parse_json("false").unwrap(), JsonValue::Bool(false));
@@ -343,7 +379,88 @@ mod tests {
     }
 
     #[test]
-    fn parse_arrays_objects() {
+    fn test_parse_numbers() {
+        // parse various number formats
+        assert_eq!(parse_json("0").unwrap(), JsonValue::Number(0.0));
+        assert_eq!(parse_json("-123").unwrap(), JsonValue::Number(-123.0));
+        assert_eq!(parse_json("1e10").unwrap(), JsonValue::Number(1e10));
+        assert_eq!(parse_json("2.5e-3").unwrap(), JsonValue::Number(2.5e-3));
+        assert_eq!(parse_json("-1.23E+4").unwrap(), JsonValue::Number(-1.23E+4));
+    }
+
+    #[test]
+    fn test_parse_strings() {
+        // parse various string formats and escapes
+        assert_eq!(parse_json("\"\"").unwrap(), JsonValue::String("".into()));
+        assert_eq!(
+            parse_json("\"hello\"").unwrap(),
+            JsonValue::String("hello".into())
+        );
+        assert_eq!(
+            parse_json("\"\\\"quoted\\\"\"").unwrap(),
+            JsonValue::String("\"quoted\"".into())
+        );
+        assert_eq!(
+            parse_json("\"\\\\backslash\"").unwrap(),
+            JsonValue::String("\\backslash".into())
+        );
+        assert_eq!(
+            parse_json("\"\\/slash\"").unwrap(),
+            JsonValue::String("/slash".into())
+        );
+        assert_eq!(
+            parse_json("\"\\b\\f\\n\\r\\t\"").unwrap(),
+            JsonValue::String("\u{08}\u{0C}\n\r\t".into())
+        );
+        assert_eq!(
+            parse_json("\"\\u0048\\u0065\\u006C\\u006C\\u006F\"").unwrap(),
+            JsonValue::String("Hello".into())
+        );
+    }
+
+    #[test]
+    fn test_parse_arrays() {
+        // parse various array formats
+        assert_eq!(parse_json("[]").unwrap(), JsonValue::Array(vec![]));
+
+        let single = parse_json("[42]").unwrap();
+        match single {
+            JsonValue::Array(a) => {
+                assert_eq!(a.len(), 1);
+                assert_eq!(a[0], JsonValue::Number(42.0));
+            }
+            _ => panic!("expected array"),
+        }
+
+        let mixed = parse_json("[null, true, \"test\", 123]").unwrap();
+        match mixed {
+            JsonValue::Array(a) => {
+                assert_eq!(a.len(), 4);
+                assert_eq!(a[0], JsonValue::Null);
+                assert_eq!(a[1], JsonValue::Bool(true));
+                assert_eq!(a[2], JsonValue::String("test".into()));
+                assert_eq!(a[3], JsonValue::Number(123.0));
+            }
+            _ => panic!("expected array"),
+        }
+
+        // nested arrays
+        let nested = parse_json("[[1, 2], [3, 4]]").unwrap();
+        match nested {
+            JsonValue::Array(a) => {
+                assert_eq!(a.len(), 2);
+                match &a[0] {
+                    JsonValue::Array(inner) => assert_eq!(inner.len(), 2),
+                    _ => panic!("expected nested array"),
+                }
+            }
+            _ => panic!("expected array"),
+        }
+    }
+
+    #[test]
+    fn test_parse_arrays_objects() {
+        // parse arrays and objects
         let v = parse_json("[1, 2, 3]").unwrap();
         match v {
             JsonValue::Array(a) => assert_eq!(a.len(), 3),
@@ -360,7 +477,69 @@ mod tests {
     }
 
     #[test]
-    fn errors() {
+    fn test_parse_objects() {
+        // parse various object formats
+        assert_eq!(parse_json("{}").unwrap(), JsonValue::Object(HashMap::new()));
+
+        let simple = parse_json("{\"key\": \"value\"}").unwrap();
+        match simple {
+            JsonValue::Object(m) => {
+                assert_eq!(m.len(), 1);
+                assert_eq!(m.get("key"), Some(&JsonValue::String("value".into())));
+            }
+            _ => panic!("expected object"),
+        }
+
+        let complex = parse_json("{\"num\": 42, \"bool\": true, \"arr\": [1, 2]}").unwrap();
+        match complex {
+            JsonValue::Object(m) => {
+                assert_eq!(m.len(), 3);
+                assert_eq!(m.get("num"), Some(&JsonValue::Number(42.0)));
+                assert_eq!(m.get("bool"), Some(&JsonValue::Bool(true)));
+                match m.get("arr") {
+                    Some(JsonValue::Array(a)) => assert_eq!(a.len(), 2),
+                    _ => panic!("expected array value"),
+                }
+            }
+            _ => panic!("expected object"),
+        }
+
+        // nested objects
+        let nested = parse_json("{\"outer\": {\"inner\": \"value\"}}").unwrap();
+        match nested {
+            JsonValue::Object(m) => match m.get("outer") {
+                Some(JsonValue::Object(inner)) => {
+                    assert_eq!(inner.get("inner"), Some(&JsonValue::String("value".into())));
+                }
+                _ => panic!("expected nested object"),
+            },
+            _ => panic!("expected object"),
+        }
+    }
+
+    #[test]
+    fn test_whitespace_handling() {
+        // parse with various whitespace
+        assert_eq!(parse_json("  null  ").unwrap(), JsonValue::Null);
+        assert_eq!(
+            parse_json("\t[\n\t1,\n\t2\n]\t").unwrap(),
+            JsonValue::Array(vec![JsonValue::Number(1.0), JsonValue::Number(2.0)])
+        );
+
+        let spaced_obj = parse_json("  {  \"a\"  :  1  ,  \"b\"  :  2  }  ").unwrap();
+        match spaced_obj {
+            JsonValue::Object(m) => {
+                assert_eq!(m.len(), 2);
+                assert_eq!(m.get("a"), Some(&JsonValue::Number(1.0)));
+                assert_eq!(m.get("b"), Some(&JsonValue::Number(2.0)));
+            }
+            _ => panic!("expected object"),
+        }
+    }
+
+    #[test]
+    fn test_errors() {
+        // parse error cases
         assert!(matches!(
             parse_json("[1 2]"),
             Err(JsonParseError::ExpectedCommaOrEnd)
@@ -370,5 +549,83 @@ mod tests {
             Err(JsonParseError::ExpectedColon)
         ));
         assert!(matches!(parse_json("\"bad"), Err(JsonParseError::Eof)));
+    }
+
+    #[test]
+    fn test_error_cases() {
+        // test various error conditions
+        assert!(matches!(parse_json(""), Err(JsonParseError::Eof)));
+        assert!(matches!(
+            parse_json("nul"),
+            Err(JsonParseError::InvalidValue)
+        ));
+        assert!(matches!(
+            parse_json("tru"),
+            Err(JsonParseError::InvalidValue)
+        ));
+        assert!(matches!(
+            parse_json("fals"),
+            Err(JsonParseError::InvalidValue)
+        ));
+        assert!(matches!(
+            parse_json("123abc"),
+            Err(JsonParseError::TrailingCharacters)
+        ));
+        assert!(matches!(
+            parse_json("\"\\x\""),
+            Err(JsonParseError::InvalidEscape)
+        ));
+        assert!(matches!(
+            parse_json("\"\\u123\""),
+            Err(JsonParseError::InvalidUnicodeEscape)
+        ));
+        assert!(matches!(
+            parse_json("[1,]"),
+            Err(JsonParseError::InvalidValue)
+        ));
+        assert!(matches!(
+            parse_json("{\"a\":}"),
+            Err(JsonParseError::InvalidValue)
+        ));
+        assert!(matches!(
+            parse_json("{123: \"value\"}"),
+            Err(JsonParseError::ExpectedKey)
+        ));
+        assert!(matches!(
+            parse_json("{\"a\": 1 \"b\": 2}"),
+            Err(JsonParseError::ExpectedCommaOrEnd)
+        ));
+        assert!(matches!(
+            parse_json("1.2.3"),
+            Err(JsonParseError::TrailingCharacters)
+        ));
+        assert!(matches!(
+            parse_json("1e"),
+            Err(JsonParseError::InvalidNumber)
+        ));
+    }
+
+    #[test]
+    fn test_roundtrip_values() {
+        // test that parsed values maintain their structure
+        let test_cases = vec![
+            "null",
+            "true",
+            "false",
+            "0",
+            "123",
+            "-456",
+            "3.14",
+            "\"hello\"",
+            "[]",
+            "[1,2,3]",
+            "{}",
+            "{\"a\":1,\"b\":2}",
+        ];
+
+        for case in test_cases {
+            let parsed = parse_json(case);
+            assert!(parsed.is_ok(), "failed to parse: {case}");
+        }
     }
 }

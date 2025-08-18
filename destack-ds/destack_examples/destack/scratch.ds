@@ -81,6 +81,9 @@ entity Entity {
 	// custom_values: List<NamedValue>?
 	// custom_values: Map<string, Value>?
 	script: Option<Script>,
+
+	@intrinsic
+	fn delete(self);
 }
 
 trait Reactable {
