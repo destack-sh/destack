@@ -4,7 +4,7 @@ globs: *.rs
 alwaysApply: false
 ---
 Performance is very important.
-Doc tests are a good idea where they make sense.
+
 Rust tests usually go in the bottom of the file in a `tests` mod.
 
 Import common stuff and use the inner name like:
@@ -19,6 +19,8 @@ fn foo() {
 Inline variables directly in format!-style macros:
 `format!("my name is {name}")`
 
-Never use expect or unwrap.
+Never use expect or unwrap (outside of tests).
 Try to avoid panics, if unavoidable, make it explicit with:
 `unwrap_or_else(|_| panic!("..."))`
+
+Public and complex function documentation SHOULD list out individual arguments / return.

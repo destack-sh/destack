@@ -1,5 +1,4 @@
 ---
 alwaysApply: true
 ---
-Private and internal functions, classes and structs should have a leading _ prefix.
-Yes, even in languages that don't usually do this.
+We program for adults and generally usually members should be public or at least module/crate public.

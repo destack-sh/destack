@@ -1,17 +1,21 @@
 [package]
-name = "destack_test"
-description = "Destack Rust integration test crate"
+name = "destack_cli_macros"
+description = "Destack CLI Macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[lib]
+path = "src/lib.rs"
+proc-macro = true
+
 [dependencies]
 destack = { workspace = true }
+destack_codegen = { workspace = true }
 
-pretty_assertions = { workspace = true }
-static_assertions = { workspace = true }
+[dev-dependencies]
 
 [lints]
 workspace = true

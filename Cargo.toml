@@ -6,12 +6,14 @@ members = [
 	"destack-rs/destack_time",
 	"destack-rs/destack_json",
 	"destack-rs/destack_uuid",
-	"destack-rs/destack_system",
 	"destack-rs/destack_test",
+	"destack-rs/destack_codegen",
+	"destack-rs/destack_cli",
+	"destack-rs/destack_cli_macros",
 ]
 
 [workspace.package]
-version = "2025.8.18-0"
+version = "2025.8.18-5"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -24,7 +26,9 @@ destack_order = { path = "destack-rs/destack_order" }
 destack_json = { path = "destack-rs/destack_json" }
 destack_time = { path = "destack-rs/destack_time" }
 destack_uuid = { path = "destack-rs/destack_uuid" }
-destack_system = { path = "destack-rs/destack_system" }
+destack_codegen = { path = "destack-rs/destack_codegen" }
+destack_cli = { path = "destack-rs/destack_cli" }
+destack_cli_macros = { path = "destack-rs/destack_cli_macros" }
 
 # dependencies
 tokio = "1.47.1"
