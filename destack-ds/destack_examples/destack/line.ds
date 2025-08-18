@@ -1,0 +1,17 @@
+use destack::*;
+
+struct Segment2D {
+	...Form2D,
+	start_offset: Vector2,
+	end_offset: Vector2
+}
+
+entity SegmentShape2D extends Shape2D {
+	...Segment2D
+}
+
+struct Segment3D {
+	...Form3D,
+	start_offset: Vector3,
+	end_offset: Vector3
+}

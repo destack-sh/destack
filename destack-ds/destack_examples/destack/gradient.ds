@@ -1,0 +1,32 @@
+
+
+enum GradientType {
+	/// Lienar gradient
+	Linear,
+	/// Radial gradient
+	Radial,
+	/// Conic gradient
+	Conic,
+	/// Diamond gradient
+	Diamond
+}
+
+struct GradientStop {
+	color: Option<Color>,
+	position: f32
+}
+
+struct Gradient {
+	type: GradientType,
+	angle: f32,
+	stops: List<GradientStop>
+}
+
+/// A gradient style.
+entity GradientStyle extends Style {
+	...Gradient
+}
+
+impl GradientStyle {
+
+}

@@ -453,6 +453,7 @@ Range: ±2^-1022 to ±2^1023-1
     # COMPLEX16, COMPLEX32, COMPLEX64, ...
     # DECIMAL, ...
     # time
+    # nocheckin: remove non-primitive PrimitiveTypes (time stuff, String, UUID, Json)
     DATETIME = declare_option(
         40,
         "DateTime",

@@ -1,8 +1,285 @@
-
-BreakoutComponent :: struct {
-	something: f32,
+/// Game state for the breakout game
+enum BreakoutGameState {
+	/// Game is ready to start
+	Ready,
+	/// Game is actively being played
+	Playing,
+	/// Game is paused
+	Paused,
+	/// Game over - player lost
+	GameOver,
+	/// Game won - all bricks destroyed
+	Victory
 }
 
-BreakoutPaddle :: RigidBody2D {
+/// Types of bricks in the breakout game
+enum BrickType {
+	/// Standard brick - 1 hit to destroy
+	Standard = 1,
+	/// Strong brick - 2 hits to destroy
+	Strong = 2,
+	/// Reinforced brick - 3 hits to destroy
+	Reinforced = 3,
+	/// Unbreakable brick - cannot be destroyed
+	Unbreakable = 99
+}
+
+/// Power-up types that can drop from bricks
+enum PowerUpType {
+	/// Increases paddle size
+	ExpandPaddle,
+	/// Decreases paddle size
+	ShrinkPaddle,
+	/// Increases ball speed
+	SpeedUp,
+	/// Decreases ball speed
+	SlowDown,
+	/// Creates multiple balls
+	MultiBall,
+	/// Makes ball pass through bricks
+	PenetrateBall,
+	/// Adds extra life
+	ExtraLife
+}
+
+/// Base component for all breakout game objects
+struct BreakoutComponent {
+	/// Game instance this object belongs to
+	game_id: u32,
+	/// Whether this object is active in the game
+	is_active: bool = true,
+}
+
+/// Component for objects that can be destroyed
+struct DestructibleComponent {
+	/// Current health/hits remaining
+	health: u32 = 1,
+	/// Maximum health
+	max_health: u32 = 1,
+	/// Points awarded when destroyed
+	points: u32 = 0,
+}
+
+/// Component for power-ups
+struct PowerUpComponent {
+	/// Type of power-up
+	power_type: PowerUpType,
+	/// Duration of effect in seconds
+	duration: f32 = 10.0,
+	/// Fall speed when dropped
+	fall_speed: f32 = 100.0,
+}
+
+/// The player's paddle
+entity BreakoutPaddle extends RigidBody2D {
 	...BreakoutComponent,
+	
+	/// Current paddle width
+	width: f32 = 100.0,
+	/// Default paddle width
+	default_width: f32 = 100.0,
+	/// Movement speed
+	speed: f32 = 300.0,
+	/// Whether paddle can move
+	can_move: bool = true,
+}
+
+/// The ball that bounces around
+entity BreakoutBall extends RigidBody2D {
+	...BreakoutComponent,
+	
+	/// Ball radius
+	radius: f32 = 8.0,
+	/// Current speed magnitude
+	speed: f32 = 200.0,
+	/// Whether ball can penetrate bricks
+	is_penetrating: bool = false,
+	/// Trail effect enabled
+	has_trail: bool = false,
+}
+
+/// Destructible bricks
+entity BreakoutBrick extends RigidBody2D {
+	...BreakoutComponent,
+	...DestructibleComponent,
+	
+	/// Type of brick
+	brick_type: BrickType = BrickType.Standard,
+	/// Width of the brick
+	width: f32 = 60.0,
+	/// Height of the brick
+	height: f32 = 20.0,
+	/// Color based on brick type
+	color: Color,
+	/// Chance to drop power-up when destroyed (0.0-1.0)
+	powerup_chance: f32 = 0.1,
+}
+
+/// Power-up items that fall from destroyed bricks
+entity BreakoutPowerUp extends RigidBody2D {
+	...BreakoutComponent,
+	...PowerUpComponent,
+	
+	/// Size of the power-up
+	size: f32 = 16.0,
+}
+
+/// Main game controller
+entity BreakoutGame {
+	...BreakoutComponent,
+	
+	/// Current game state
+	state: BreakoutGameState = BreakoutGameState.Ready,
+	/// Player's current score
+	score: u32 = 0,
+	/// Player's remaining lives
+	lives: u32 = 3,
+	/// Current level
+	level: u32 = 1,
+	/// Total bricks remaining
+	bricks_remaining: u32 = 0,
+	/// Game area width
+	game_width: f32 = 800.0,
+	/// Game area height
+	game_height: f32 = 600.0,
+	/// Active power-ups and their remaining time
+	active_powerups: Map<PowerUpType, f32>,
+}
+
+impl BreakoutGame {
+	/// Initialize a new breakout game
+	fn spawn(width: f32, height: f32) -> BreakoutGame {
+		BreakoutGame {
+			game_width: width,
+			game_height: height,
+			state: BreakoutGameState.Ready,
+			active_powerups: Map::new()
+		}
+	}
+	
+	/// Start or restart the game
+	fn start_game(self) {
+		self.state = BreakoutGameState.Playing;
+		self.score = 0;
+		self.lives = 3;
+		self.level = 1;
+	}
+	
+	/// Update game state each frame
+	fn update(self, delta_time: f32) {
+		// update active power-ups
+		self.update_powerups(delta_time);
+		
+		// check win/lose conditions
+		if self.bricks_remaining == 0 {
+			self.state = BreakoutGameState.Victory;
+		} else if self.lives == 0 {
+			self.state = BreakoutGameState.GameOver;
+		}
+	}
+	
+	/// Apply a power-up effect
+	fn apply_powerup(self, power_type: PowerUpType, duration: f32) {
+		self.active_powerups.insert(power_type, duration);
+	}
+	
+	/// Update active power-up timers
+	fn update_powerups(self, delta_time: f32) {
+		// TODO @Cleanup: implement power-up timer management
+	}
+}
+
+impl BreakoutPaddle {
+	/// Create a new paddle at the specified position
+	fn spawn(x: f32, y: f32) -> BreakoutPaddle {
+		BreakoutPaddle {
+			position: Vector2::new(x, y),
+			mode: RigidMotionMode.Kinematic
+		}
+	}
+	
+	/// Move paddle left
+	fn move_left(self, delta_time: f32) {
+		if self.can_move {
+			self.velocity.x = -self.speed;
+		}
+	}
+	
+	/// Move paddle right  
+	fn move_right(self, delta_time: f32) {
+		if self.can_move {
+			self.velocity.x = self.speed;
+		}
+	}
+	
+	/// Stop paddle movement
+	fn stop(self) {
+		self.velocity.x = 0.0;
+	}
+}
+
+impl BreakoutBall {
+	/// Create a new ball at the specified position
+	fn spawn(x: f32, y: f32) -> BreakoutBall {
+		BreakoutBall {
+			position: Vector2::new(x, y),
+			mode: RigidMotionMode.Dynamic,
+			velocity: Vector2::new(0.0, -200.0)
+		}
+	}
+	
+	/// Launch the ball in a random direction
+	fn launch(self, angle: f32) {
+		let direction = Vector2::from_angle(angle);
+		self.velocity = direction * self.speed;
+	}
+	
+	/// Reset ball to starting position
+	fn reset(self, x: f32, y: f32) {
+		self.position = Vector2::new(x, y);
+		self.velocity = Vector2::zero();
+	}
+}
+
+impl BreakoutBrick {
+	/// Create a brick at the specified position
+	fn spawn(x: f32, y: f32, brick_type: BrickType) -> BreakoutBrick {
+		let health = match brick_type {
+			BrickType.Standard => 1,
+			BrickType.Strong => 2,
+			BrickType.Reinforced => 3,
+			BrickType.Unbreakable => 999
+		};
+		
+		BreakoutBrick {
+			position: Vector2::new(x, y),
+			brick_type,
+			health,
+			max_health: health,
+			points: health * 10,
+			mode: RigidMotionMode.Static
+		}
+	}
+	
+	/// Take damage and return whether brick was destroyed
+	fn take_damage(self, damage: u32) -> bool {
+		if self.brick_type == BrickType.Unbreakable {
+			return false;
+		}
+		
+		self.health = self.health.saturating_sub(damage);
+		return self.health == 0;
+	}
+}
+
+impl BreakoutPowerUp {
+	/// Create a power-up at the specified position
+	fn spawn(x: f32, y: f32, power_type: PowerUpType) -> BreakoutPowerUp {
+		BreakoutPowerUp {
+			position: Vector2::new(x, y),
+			power_type,
+			mode: RigidMotionMode.Kinematic,
+			velocity: Vector2::new(0.0, 100.0)
+		}
+	}
 }

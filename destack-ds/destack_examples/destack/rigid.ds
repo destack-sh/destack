@@ -1,0 +1,21 @@
+
+enum RigidMotionMode {
+	Static,
+	Kinematic,
+	Dynamic,
+}
+
+struct KinematicComponent2D {
+	mode: RigidMotionMode = RigidMotionMode.STATIC,
+	velcity: Vector2,
+	angular_velocity: f32
+}
+
+entity RigidBody2D extends Body2D {
+	mode: RigidMotionMode,
+
+	...KinematicComponent2D,
+
+
+
+}

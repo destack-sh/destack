@@ -125,7 +125,7 @@ impl Service for ... {
 // Events
 //
 
-event MyEvent extends InputEvent {
+event MyEvent ... InputEvent {
 
 }
 
