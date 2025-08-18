@@ -26,3 +26,5 @@ let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * second_digit + first_digit;
 Ok(number);
 ```
+
+Prefer multiline strings for longer strings (raw strings in Rust, """\ in Python.)

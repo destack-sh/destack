@@ -30,16 +30,15 @@ pub enum TokenType {
     /// An identifier that is invalid because it contains emoji.
     InvalidIdentifier,
 
-    /// A raw identifier, e.g. "r#identifier".
+    /// Raw identifier, e.g. "r#identifier".
     RawIdentifier,
 
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
     /// Excludes literal prefixes that contain emoji, which are considered "invalid".
     UnknownPrefix,
 
-    /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`. Note that `_` is an invalid
-    /// suffix, but may be present here on string and float literals. Users of
-    /// this type will need to check for and reject that case.
+    /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`.
+    /// NOTE: `_` is an invalid suffix, but may be present here on string and float literals.
     Literal {
         kind: LiteralType,
         suffix_start: u32,

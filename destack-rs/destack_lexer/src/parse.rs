@@ -3,8 +3,7 @@
 use crate::DocPosition;
 use crate::token::{LiteralType, NumberBase, RawStringError, Token, TokenType};
 use crate::tokenizer::{EOF_CHAR, Tokenizer};
-use unicode_properties::UnicodeEmoji;
-pub use unicode_xid::UNICODE_VERSION as UNICODE_XID_VERSION;
+use destack_unicode::UnicodeEmoji;
 
 pub fn strip_shebang(input: &str) -> Option<usize> {
     // shebang must start with `#!` literally, without any preceding whitespace
@@ -53,11 +52,9 @@ pub fn is_whitespace(c: char) -> bool {
         | '\u{0020}' // space
         // NEXT LINE from latin1
         | '\u{0085}'
-
         // bidi markers
         | '\u{200E}' // LEFT-TO-RIGHT MARK
         | '\u{200F}' // RIGHT-TO-LEFT MARK
-
         // dedicated whitespace characters from Unicode
         | '\u{2028}' // LINE SEPARATOR
         | '\u{2029}' // PARAGRAPH SEPARATOR
