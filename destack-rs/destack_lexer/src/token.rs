@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub use destack_unicode::UNICODE_VERSION;
 
 /// A parsed Token.
@@ -7,6 +9,12 @@ pub use destack_unicode::UNICODE_VERSION;
 pub struct Token {
     pub r#type: TokenType,
     pub len: u32,
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<Token {:?}, {}>", self.r#type, self.len)
+    }
 }
 
 impl Token {

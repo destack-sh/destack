@@ -1,15 +1,17 @@
 [package]
 name = "destack_lexer_fuzz"
-publish = false
-edition = "2024"
-
-[workspace]
+description = "Destack Lexer Fuzz"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
 destack_lexer = { path = ".." }
+
 arbitrary = { workspace = true }
 libfuzzer-sys = { workspace = true }
 
@@ -21,5 +23,3 @@ doc = false
 
 [profile.release]
 panic = "abort"
-
-

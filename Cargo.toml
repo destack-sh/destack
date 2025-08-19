@@ -2,20 +2,23 @@
 resolver = "2"
 members = [
 	"destack-rs/destack",
-	"destack-rs/destack_order",
-	"destack-rs/destack_time",
-	"destack-rs/destack_json",
-	"destack-rs/destack_uuid",
-	"destack-rs/destack_test",
-	"destack-rs/destack_codegen",
 	"destack-rs/destack_cli",
 	"destack-rs/destack_cli_macros",
+	"destack-rs/destack_codegen",
+	"destack-rs/destack_json",
 	"destack-rs/destack_lexer",
+	"destack-rs/destack_lexer/fuzz",
+	"destack-rs/destack_order",
+	"destack-rs/destack_test",
+	"destack-rs/destack_time",
+	"destack-rs/destack_time/fuzz",
 	"destack-rs/destack_unicode",
+	"destack-rs/destack_uuid",
+	"destack-rs/destack_uuid/fuzz",
 ]
 
 [workspace.package]
-version = "2025.8.18-6"
+version = "2025.8.19-1"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -48,6 +51,7 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.1.0"
 static_assertions = "1.1.0"
 wasm-bindgen-test = "0.3.50"
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [workspace.lints.rust]
 missing_debug_implementations = "warn"

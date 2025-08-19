@@ -1,16 +1,17 @@
 [package]
-name = "destack_uuid-fuzz"
-version = "0.0.0"
-publish = false
-edition = "2024"
-
-[workspace]
+name = "destack_uuid_fuzz"
+description = "Destack UUID Fuzz"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
 destack_uuid = { path = ".." }
+
 arbitrary = { workspace = true }
 libfuzzer-sys = { workspace = true }
 
@@ -22,5 +23,3 @@ doc = false
 
 [profile.release]
 panic = "abort"
-
-

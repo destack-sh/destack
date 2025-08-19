@@ -1,21 +1,83 @@
+use destack::*;
 
+/// Motion mode for rigid bodies
 enum RigidMotionMode {
-	Static,
-	Kinematic,
-	Dynamic,
+	/// Does not move or interact with the physics simulation
+	Static = 1,
+	/// Interacts with the physics simulation but does not move by itself
+	Kinematic = 2,
+	/// Interacts with the physics simulation and moves by itself
+	Dynamic = 3,
 }
 
+/// Component for kinematic properties
 struct KinematicComponent2D {
-	mode: RigidMotionMode = RigidMotionMode.STATIC,
-	velcity: Vector2,
-	angular_velocity: f32
+	/// The motion mode
+	mode: RigidMotionMode = RigidMotionMode.Dynamic,
+	/// Linear velocity
+	velocity: Vector2,
+	/// Angular velocity
+	angular_velocity: f32 = 0.0,
 }
 
+/// Component for dynamic properties
+struct DynamicComponent2D {
+	/// Angular damping
+	angular_damping: f32 = 0.0,
+	/// Gravity scale
+	gravity_scale: f32 = 1.0,
+	/// Constant force applied to the Body
+	constant_force: Vector2,
+	/// Constant torque applied to the Body
+	constant_torque: f32 = 0.0,
+	/// Mass
+	mass: f32 = 1.0,
+	/// Center of mass
+	center_of_mass: Option<Vector2> = None,
+	/// Inertia
+	inertia: f32 = 0.0,
+	/// Linear damping
+	linear_damping: f32 = 0.0,
+}
+
+/// Component for kinematic properties in 3D
+struct KinematicComponent3D {
+	/// The motion mode
+	mode: RigidMotionMode = RigidMotionMode.Dynamic,
+	/// Linear velocity
+	velocity: Vector3,
+	/// Angular velocity
+	angular_velocity: Quaternion = 0.0,
+}
+
+/// Component for dynamic properties in 3D
+struct DynamicComponent3D {
+	/// Angular damping
+	angular_damping: f32 = 0.0,
+	/// Gravity scale
+	gravity_scale: f32 = 1.0,
+	/// Constant force applied to the Body
+	constant_force: Vector3,
+	/// Constant torque applied to the Body
+	constant_torque: Quaternion = 0.0,
+	/// Mass
+	mass: f32 = 1.0,
+	/// Center of mass
+	center_of_mass: Option<Vector3> = None,
+	/// Inertia
+	inertia: Quaternion = 0.0,
+	/// Linear damping
+	linear_damping: f32 = 0.0,
+}
+
+/// A solid simulated Body in 2D space
 entity RigidBody2D extends Body2D {
-	mode: RigidMotionMode,
-
 	...KinematicComponent2D,
+	...DynamicComponent2D,
+}
 
-
-
+/// A solid simulated Body in 3D space
+entity RigidBody3D extends Body3D {
+	...KinematicComponent3D,
+	...DynamicComponent3D,
 }
