@@ -1,3 +1,5 @@
+use destack::*;
+
 struct Vector<T: Type, L: u8> {
 	elems: T[L],
 }
@@ -5,10 +7,17 @@ struct Vector<T: Type, L: u8> {
 struct Vector2 = Vector<f32, 2>;
 struct Vector3 = Vector<f32, 3>;
 
+// prefix with # to mark a comptime-enforced function (maybe #(only) for comptime only?)
+// last argument is the wrapped thing
+fn #inline(when: InlinePreference, func: FunctionDefinition) -> FunctionDefinition {
+	func.is_inline = true
+	func
+}
 
+#inline(.always)
 fn sum<T: Type, L: u8>(vec: Vector<T, L>) ->  {
 	let sum: T = 0 as T;
-	@for i in 0..L {
+	#for i in 0..L {
 		sum += vec[i];
 	}
 	sum

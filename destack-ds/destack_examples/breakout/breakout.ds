@@ -104,7 +104,7 @@ entity BreakoutBrick extends RigidBody2D {
 	...DestructibleComponent,
 	
 	/// Type of brick
-	brick_type: BrickType = BrickType.Standard,
+	brick_type: BrickType = BrickType::Standard,
 	/// Width of the brick
 	width: f32 = 60.0,
 	/// Height of the brick
@@ -129,7 +129,7 @@ entity BreakoutGame {
 	...BreakoutComponent,
 	
 	/// Current game state
-	state: BreakoutGameState = BreakoutGameState.Ready,
+	state: BreakoutGameState = BreakoutGameState::Ready,
 	/// Player's current score
 	score: u32 = 0,
 	/// Player's remaining lives
@@ -152,14 +152,14 @@ impl BreakoutGame {
 		BreakoutGame {
 			game_width: width,
 			game_height: height,
-			state: BreakoutGameState.Ready,
+			state: BreakoutGameState::Ready,
 			active_powerups: Map::new()
 		}
 	}
 	
 	/// Start or restart the game
 	fn start_game(self) {
-		self.state = BreakoutGameState.Playing;
+		self.state = BreakoutGameState::Playing;
 		self.score = 0;
 		self.lives = 3;
 		self.level = 1;
@@ -172,9 +172,9 @@ impl BreakoutGame {
 		
 		// check win/lose conditions
 		if self.bricks_remaining == 0 {
-			self.state = BreakoutGameState.Victory;
+			self.state = BreakoutGameState::Victory;
 		} else if self.lives == 0 {
-			self.state = BreakoutGameState.GameOver;
+			self.state = BreakoutGameState::GameOver;
 		}
 	}
 	
@@ -194,7 +194,7 @@ impl BreakoutPaddle {
 	fn spawn(x: f32, y: f32) -> BreakoutPaddle {
 		BreakoutPaddle {
 			position: Vector2::new(x, y),
-			mode: RigidMotionMode.Kinematic
+			mode: RigidMotionMode::Kinematic
 		}
 	}
 	
@@ -223,7 +223,7 @@ impl BreakoutBall {
 	fn spawn(x: f32, y: f32) -> BreakoutBall {
 		BreakoutBall {
 			position: Vector2::new(x, y),
-			mode: RigidMotionMode.Dynamic,
+			mode: RigidMotionMode::Dynamic,
 			velocity: Vector2::new(0.0, -200.0)
 		}
 	}
@@ -245,10 +245,10 @@ impl BreakoutBrick {
 	/// Create a brick at the specified position
 	fn spawn(x: f32, y: f32, brick_type: BrickType) -> BreakoutBrick {
 		let health = match brick_type {
-			BrickType.Standard => 1,
-			BrickType.Strong => 2,
-			BrickType.Reinforced => 3,
-			BrickType.Unbreakable => 999
+			BrickType::Standard => 1,
+			BrickType::Strong => 2,
+			BrickType::Reinforced => 3,
+			BrickType::Unbreakable => 999
 		};
 		
 		BreakoutBrick {
@@ -257,13 +257,13 @@ impl BreakoutBrick {
 			health,
 			max_health: health,
 			points: health * 10,
-			mode: RigidMotionMode.Static
+			mode: RigidMotionMode::Static
 		}
 	}
 	
 	/// Take damage and return whether brick was destroyed
 	fn take_damage(self, damage: u32) -> bool {
-		if self.brick_type == BrickType.Unbreakable {
+		if self.brick_type == BrickType::Unbreakable {
 			return false;
 		}
 		
@@ -278,7 +278,7 @@ impl BreakoutPowerUp {
 		BreakoutPowerUp {
 			position: Vector2::new(x, y),
 			power_type,
-			mode: RigidMotionMode.Kinematic,
+			mode: RigidMotionMode::Kinematic,
 			velocity: Vector2::new(0.0, 100.0)
 		}
 	}

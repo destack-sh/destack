@@ -1,7 +1,8 @@
 use destack::*;
 
 /// Component for transform properties
-struct TransformComponent2D {
+#component
+struct Transform2D {
 	/// The origin of the Entity in 2D space
 	origin: Option<Vector2> = None,
 	/// The anchor of the Entity in 2D space
@@ -11,7 +12,8 @@ struct TransformComponent2D {
 }
 
 /// Component for sizing properties
-struct SizingComponent2D {
+#component
+struct Sizing2D {
 	/// The width of the View
 	width: Option<Length> = None,
 	/// The height of the View
@@ -27,7 +29,8 @@ struct SizingComponent2D {
 }
 
 /// Component for visibility properties
-struct VisibilityComponent2D {
+#component
+struct Visibility2D {
 	/// Whether the View is visible
 	is_visible: Option<bool> = None,
 	/// The opacity of the View
@@ -35,7 +38,8 @@ struct VisibilityComponent2D {
 }
 
 /// Component for style properties
-struct StyleComponent2D {
+#component
+struct Style2D {
 	/// The fill of the View
 	fill: Option<Fill> = None,
 	/// The shadow of the View
@@ -49,15 +53,19 @@ struct StyleComponent2D {
 /// A View2D is a 2D interface element
 /// Views add dynamic positioning, sizing and styling to RigidBody2D
 entity View2D extends RigidBody2D {
-	...TransformComponent2D,
-	...SizingComponent2D,
-	...VisibilityComponent2D,
-	...StyleComponent2D,
+	...Transform2D,
+	...Sizing2D,
+	...Visibility2D,
+	...Style2D,
 }
-
 
 entity MyCustomView extends View2D {
 	fn render(self) {
-		ButtonView::new({ text: f`{this.}`})
+		#tree
+		ButtonView { text: #format(`{this.name}`)} {
+			ListView { orientation: Orientation::VERTICAL } {
+				...
+			}
+		}
 	}
 }

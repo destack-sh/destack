@@ -37,7 +37,7 @@ struct WordleCell {
 	/// The letter in this cell
 	letter: Option<char> = None,
 	/// State of this letter
-	state: WordleLetterState = WordleLetterState.Empty,
+	state: WordleLetterState = WordleLetterState::Empty,
 	/// Whether this cell is currently being typed into
 	is_active: bool = false,
 }
@@ -57,7 +57,7 @@ struct WordleKeyState {
 	/// The letter this key represents
 	letter: char,
 	/// State of this letter based on guesses
-	state: WordleLetterState = WordleLetterState.Empty,
+	state: WordleLetterState = WordleLetterState::Empty,
 }
 
 /// The main wordle game board
@@ -91,7 +91,7 @@ entity WordleGame extends Entity {
 	...WordleComponent,
 	
 	/// Current game state
-	state: WordleGameState = WordleGameState.Ready,
+	state: WordleGameState = WordleGameState::Ready,
 	/// Number of guesses made
 	guesses_made: u32 = 0,
 	/// Maximum number of guesses allowed
@@ -113,11 +113,11 @@ entity WordleGame extends Entity {
 impl WordleBoard {
 	/// Create a new wordle board
 	fn spawn(target_word: String) -> WordleBoard {
-		let guesses = [];
+		let mut guesses: List<String> = List::with_capacity(10);
 		for i in 0..6 {
-			let cells = [];
+			let mut cells = [];
 			for j in 0..5 {
-				cells.push(WordleCell::new());
+				cells.append(WordleCell::new());
 			}
 			guesses.push(WordleGuess {
 				cells,
@@ -137,7 +137,7 @@ impl WordleBoard {
 			return false;
 		}
 		
-		let current_guess = &mut self.guesses[self.current_row as usize];
+		let mut current_guess = &mut self.guesses[self.current_row as usize];
 		current_guess.cells[self.current_col as usize].letter = Some(letter.to_uppercase());
 		current_guess.cells[self.current_col as usize].is_active = false;
 		
@@ -155,7 +155,7 @@ impl WordleBoard {
 			return false;
 		}
 		
-		let current_guess = &mut self.guesses[self.current_row as usize];
+		let mut current_guess = &mut self.guesses[self.current_row as usize];
 		if self.current_col < 5 {
 			current_guess.cells[self.current_col as usize].is_active = false;
 		}
@@ -173,8 +173,8 @@ impl WordleBoard {
 			return None;
 		}
 		
-		let current_guess = &mut self.guesses[self.current_row as usize];
-		let guess_word = self.get_current_word();
+		let mut current_guess = &mut self.guesses[self.current_row as usize];
+		let mut guess_word = self.get_current_word();
 		
 		// check each letter against target word
 		self.evaluate_guess(current_guess, &guess_word);
@@ -199,7 +199,7 @@ impl WordleBoard {
 	/// Get the current word being typed
 	fn get_current_word(self) -> String {
 		let current_guess = &self.guesses[self.current_row as usize];
-		let word = String::new();
+		let mut word = String::new();
 		
 		for cell in &current_guess.cells {
 			if let Some(letter) = cell.letter {
@@ -224,7 +224,7 @@ impl WordleBoard {
 impl WordleKeyboard {
 	/// Create a new wordle keyboard
 	fn spawn() -> WordleKeyboard {
-		let key_states = Map::new();
+		let mut key_states = Map::new();
 		
 		// initialize all letter keys
 		for letter in 'A'..='Z' {
@@ -241,10 +241,10 @@ impl WordleKeyboard {
 		if let Some(key_state) = self.key_states.get_mut(&letter) {
 			// only update if new state is more informative
 			match (key_state.state, state) {
-				(WordleLetterState.Empty, _) => key_state.state = state,
-				(WordleLetterState.Absent, WordleLetterState.Present) => key_state.state = state,
-				(WordleLetterState.Absent, WordleLetterState.Correct) => key_state.state = state,
-				(WordleLetterState.Present, WordleLetterState.Correct) => key_state.state = state,
+				(WordleLetterState::Empty, _) => key_state.state = state,
+				(WordleLetterState::Absent, WordleLetterState::Present) => key_state.state = state,
+				(WordleLetterState::Absent, WordleLetterState::Correct) => key_state.state = state,
+				(WordleLetterState::Present, WordleLetterState::Correct) => key_state.state = state,
 				_ => {} // don't downgrade state
 			}
 		}
@@ -253,7 +253,7 @@ impl WordleKeyboard {
 	/// Reset all key states
 	fn reset(self) {
 		for (_, key_state) in &mut self.key_states {
-			key_state.state = WordleLetterState.Empty;
+			key_state.state = WordleLetterState::Empty;
 		}
 	}
 }

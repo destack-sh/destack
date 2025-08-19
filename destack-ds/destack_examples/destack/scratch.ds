@@ -38,7 +38,7 @@ fn module_function_rect() -> Rectangle2D {
 // Entity
 //
 
-@flag
+#flag
 enum ProcessFlag {
 	Default = 0,
 	Deleted = 1,
@@ -52,14 +52,13 @@ entity Entity {
 	/// The universally unique identifier.
 	id: uuid, 
 
-	@(type=.Spatial)
-	space: Space,
+	/// The Space this Entity is in.
+	space: EntityReference<Space>,
 	
-	@(type=.Spatial)
 	branch: Branch,
 	
-	@(type=.Spatial)
-	snapshot: Snapshot,
+	#(reference=.Spatial)
+	snapshot: EntityReference<Snapshot>,
 	
 	materialization: Materialization,
 	definition: Option<Entity>,
@@ -72,7 +71,7 @@ entity Entity {
 	controller: Entity,
 	process_flags: ProcessFlag,
 
-	parent: Option<Entity>,
+	parent: Option<EntityReference<Entity>>,
 	name: string,
 	key: Option<string>,
 	order: Option<order>,
@@ -81,8 +80,10 @@ entity Entity {
 	// custom_values: List<NamedValue>?
 	// custom_values: Map<string, Value>?
 	script: Option<Script>,
+}
 
-	@intrinsic
+impl Entity {
+	#intrinsic
 	fn delete(self);
 }
 
