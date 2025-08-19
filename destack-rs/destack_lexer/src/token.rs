@@ -28,32 +28,25 @@ impl Token {
 pub enum TokenType {
     /// A line comment, e.g. `// comment`.
     LineComment { doc_style: Option<DocPosition> },
-
     /// Any whitespace character sequence.
     Whitespace,
-
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
-
     /// An identifier that is invalid because it contains emoji.
     InvalidIdentifier,
-
     /// Raw identifier, e.g. "r#identifier".
     RawIdentifier,
-
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
     /// Excludes literal prefixes that contain emoji, which are considered "invalid".
     UnknownPrefix,
-
     /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`.
     /// NOTE: `_` is an invalid suffix, but may be present here on string and float literals.
     Literal {
-        kind: LiteralTokenType,
+        r#type: LiteralTokenType,
         suffix_start: u32,
     },
-
     /// `;`
-    Semi,
+    Semicolon,
     /// `,`
     Comma,
     /// `.`
@@ -116,7 +109,7 @@ pub enum TokenType {
     Caret,
     /// `%`
     Percent,
-    /// Unknown token, not expected by the lexer, e.g. "№"
+    /// Unknown token, not expected by the lexer (e.g., "№")
     Unknown,
     /// End of input.
     Eof,
@@ -130,10 +123,8 @@ pub enum DocPosition {
 
 /// Literal Token
 ///
-/// NOTE: The suffix is *not* considered when deciding the `LiteralType` in
-/// this type. This means that float literals like `1f32` are classified by this
-/// type as `Int`. (Compare against `destackc_ast::token::LitKind` and
-/// `destackc_ast::ast::LitKind`).
+/// NOTE: The suffix is *not* considered when deciding the `LiteralType`.
+/// (e.g., float literals like `1f32` are classified by this type as `Int` since they have no `.`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LiteralTokenType {
     /// `12_u8`, `0o100`, `0b120i99`, `1f32`.

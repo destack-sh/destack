@@ -44,6 +44,3 @@ name = "destack_time_timestamp"
 path = "fuzz_targets/timestamp.rs"
 test = false
 doc = false
-
-[profile.release]
-panic = "abort"

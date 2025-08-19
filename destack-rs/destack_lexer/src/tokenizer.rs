@@ -53,13 +53,13 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Peeks the next symbol from the input stream without consuming it.
-    pub(crate) fn first(&self) -> char {
+    pub(crate) fn peek_next(&self) -> char {
         // NOTE: @Performance: `.next()` optimizes better than `.nth(0)`
         self.chars.clone().next().unwrap_or(EOF_CHAR)
     }
 
     /// Peeks the second symbol from the input stream without consuming it.
-    pub(crate) fn second(&self) -> char {
+    pub(crate) fn peek_next_next(&self) -> char {
         // NOTE: @Performance: `.next()` optimizes better than `.nth(1)`
         let mut iter = self.chars.clone();
         iter.next();
@@ -72,11 +72,13 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Gets the amount of already consumed symbols.
+    #[inline]
     pub(crate) fn pos_within_token(&self) -> u32 {
         (self.len_remaining - self.chars.as_str().len()) as u32
     }
 
     /// Resets the number of bytes consumed to 0.
+    #[inline]
     pub(crate) fn reset_pos_within_token(&mut self) {
         self.len_remaining = self.chars.as_str().len();
     }
@@ -95,7 +97,7 @@ impl<'a> Tokenizer<'a> {
     pub(crate) fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
         // NOTE: @Performance: rustc tried making optimized version of this for
         //  e.g., line comments, but apparently LLVM inlines all this to fast iteration over bytes.
-        while predicate(self.first()) && !self.is_eof() {
+        while predicate(self.peek_next()) && !self.is_eof() {
             self.bump();
         }
     }
