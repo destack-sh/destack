@@ -32,13 +32,13 @@ pub enum TokenType {
     Whitespace,
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
-    /// An identifier that is invalid because it contains emoji.
+    /// An identifier that is invalid for other reasons (e.g. because it contains emoji).
     InvalidIdentifier,
     /// Raw identifier, e.g. "r#identifier".
     RawIdentifier,
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
     /// Excludes literal prefixes that contain emoji, which are considered "invalid".
-    UnknownPrefix,
+    UnknownLiteralPrefix,
     /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`.
     /// NOTE: `_` is an invalid suffix, but may be present here on string and float literals.
     Literal {
@@ -109,9 +109,9 @@ pub enum TokenType {
     Caret,
     /// `%`
     Percent,
-    /// Unknown token, not expected by the lexer (e.g., "№")
+    /// Unknown/unexpected (e.g., "№")
     Unknown,
-    /// End of input.
+    /// End of input
     Eof,
 }
 
@@ -143,9 +143,9 @@ pub enum LiteralTokenType {
     /// `b"abc"`, `b"abc`
     ByteString { terminated: bool },
     /// `r"abc"`, `r#"abc"#`, `r####"ab"###"c"####`, `r#"a`.
-    RawString { n_hashes: Option<u8> },
+    RawString { hashes: Option<u8> },
     /// `br"abc"`, `br#"abc"#`, `br####"ab"###"c"####`, `br#"a`.
-    RawByteString { n_hashes: Option<u8> },
+    RawByteString { hashes: Option<u8> },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

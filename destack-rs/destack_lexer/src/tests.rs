@@ -373,7 +373,7 @@ fn test_raw_string() {
         "r###\"\"#a\\b\x00c\"\"###",
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::RawString { n_hashes: Some(3) },
+                r#type: LiteralTokenType::RawString { hashes: Some(3) },
                 suffix_start: 17
             },
             len: 17
@@ -532,7 +532,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::RawString { n_hashes: Some(3) },
+                r#type: LiteralTokenType::RawString { hashes: Some(3) },
                 suffix_start: 12
             },
             len: 18
@@ -543,7 +543,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::RawByteString { n_hashes: Some(3) },
+                r#type: LiteralTokenType::RawByteString { hashes: Some(3) },
                 suffix_start: 13
             },
             len: 19

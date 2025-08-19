@@ -82,9 +82,11 @@ impl Tokenizer<'_> {
             // whitespace sequence
             c if is_whitespace(c) => self.whitespace(),
 
-            // raw identifier, raw string literal or identifier
+            // raw identifier, raw string literal
             'r' => match (self.peek_next(), self.peek_next_next()) {
+                // raw identifier
                 ('#', c1) if is_id_start(c1) => self.raw_identifier(),
+                // raw string literal
                 ('#', _) | ('"', _) => {
                     let raw_dq_string = self.raw_double_quoted_string(1);
                     let suffix_start = self.pos_within_token();
@@ -92,68 +94,73 @@ impl Tokenizer<'_> {
                         self.eat_literal_suffix();
                     }
                     let kind = LiteralTokenType::RawString {
-                        n_hashes: raw_dq_string.ok(),
+                        hashes: raw_dq_string.ok(),
                     };
                     TokenType::Literal {
                         r#type: kind,
                         suffix_start,
                     }
                 }
-                _ => self.identifier_or_unknown_prefix_with_first('r'),
+                // identifier fallback
+                _ => self.identifier_or_unknown_prefix_with('r'),
             },
 
-            // byte literal, byte string literal, raw byte string literal or identifier
+            // byte literal, byte string literal, raw byte string literal
             'b' => {
                 let this = &mut *self;
-                let single_quoted = Some(|terminated| LiteralTokenType::Byte { terminated });
-                match (this.peek_next(), this.peek_next_next(), single_quoted) {
-                    ('\'', _, Some(single_quoted)) => {
+                match (this.peek_next(), this.peek_next_next()) {
+                    // single-quoted byte literal
+                    ('\'', _) => {
                         this.bump();
-                        let terminated = this.single_quoted_string();
+                        let is_terminated = this.single_quoted_string();
                         let suffix_start = this.pos_within_token();
-                        if terminated {
+                        if is_terminated {
                             this.eat_literal_suffix();
                         }
-                        let r#type = single_quoted(terminated);
                         TokenType::Literal {
-                            r#type,
+                            r#type: LiteralTokenType::Byte {
+                                terminated: is_terminated,
+                            },
                             suffix_start,
                         }
                     }
-                    ('"', _, _) => {
+                    // double-quoted byte string literal
+                    ('"', _) => {
                         this.bump();
-                        let terminated = this.double_quoted_string();
+                        let is_terminated = this.double_quoted_string();
                         let suffix_start = this.pos_within_token();
-                        if terminated {
+                        if is_terminated {
                             this.eat_literal_suffix();
                         }
-                        let r#type =
-                            (|terminated| LiteralTokenType::ByteString { terminated })(terminated);
                         TokenType::Literal {
-                            r#type,
+                            r#type: LiteralTokenType::ByteString {
+                                terminated: is_terminated,
+                            },
                             suffix_start,
                         }
                     }
-                    ('r', '"', _) | ('r', '#', _) => {
+                    // raw double-quoted byte string literal
+                    ('r', '"') | ('r', '#') => {
                         this.bump();
-                        let res = this.raw_double_quoted_string(2);
+                        let raw_dq_string = this.raw_double_quoted_string(2);
                         let suffix_start = this.pos_within_token();
-                        if res.is_ok() {
+                        if raw_dq_string.is_ok() {
                             this.eat_literal_suffix();
                         }
-                        let r#type =
-                            (|n_hashes| LiteralTokenType::RawByteString { n_hashes })(res.ok());
                         TokenType::Literal {
-                            r#type,
+                            r#type: LiteralTokenType::RawByteString {
+                                hashes: raw_dq_string.ok(),
+                            },
                             suffix_start,
                         }
                     }
-                    _ => this.identifier_or_unknown_prefix_with_first('b'),
+                    // identifier fallback
+                    _ => this.identifier_or_unknown_prefix_with('b'),
                 }
             }
 
             // identifier
-            c if is_id_start(c) => self.identifier_or_unknown_prefix_with_first(c),
+            c if is_id_start(c) => self.identifier_or_unknown_prefix_with(c),
 
             // numeric literal
             c @ '0'..='9' => {
@@ -266,6 +273,7 @@ impl Tokenizer<'_> {
     /// Parses a line comment.
     fn line_comment(&mut self) -> TokenType {
         debug_assert!(self.prev() == '/' && self.peek_next() == '/');
+
         self.bump();
 
         let doc_style = match self.peek_next() {
@@ -283,6 +291,7 @@ impl Tokenizer<'_> {
     /// Parses a whitespace sequence.
     fn whitespace(&mut self) -> TokenType {
         debug_assert!(is_whitespace(self.prev()));
+
         self.eat_while(is_whitespace);
         TokenType::Whitespace
     }
@@ -292,16 +301,16 @@ impl Tokenizer<'_> {
         debug_assert!(
             self.prev() == 'r' && self.peek_next() == '#' && is_id_start(self.peek_next_next())
         );
-        // eat "#" symbol
+
         self.bump();
-        // eat the identifier part of RawIdent
         self.eat_identifier();
         TokenType::RawIdentifier
     }
 
     /// Parses an identifier or an unknown prefix.
-    fn identifier_or_unknown_prefix_with_first(&mut self, first_char: char) -> TokenType {
+    fn identifier_or_unknown_prefix_with(&mut self, first_char: char) -> TokenType {
         debug_assert!(is_id_start(first_char));
+
         // build the identifier string while consuming continuation characters
         let mut ident = String::new();
         ident.push(first_char);
@@ -315,7 +324,7 @@ impl Tokenizer<'_> {
 
         // known prefixes must have been handled earlier
         match self.peek_next() {
-            '#' | '"' | '\'' => return TokenType::UnknownPrefix,
+            '#' | '"' | '\'' => return TokenType::UnknownLiteralPrefix,
             c if !c.is_ascii() && c.is_emoji_char() => return self.invalid_identifier(),
             _ => {}
         }

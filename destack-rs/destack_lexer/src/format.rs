@@ -13,7 +13,7 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
             | TokenType::Identifier
             | TokenType::InvalidIdentifier
             | TokenType::RawIdentifier
-            | TokenType::UnknownPrefix
+            | TokenType::UnknownLiteralPrefix
             | TokenType::Literal { .. } => {
                 // emit original slice for lexemes where we don't want to reformat
                 out.push_str(&source[offset..offset + len]);
