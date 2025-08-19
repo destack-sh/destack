@@ -1,4 +1,4 @@
-//! Low-level general purpose Descript lexer (adapted from rustc).
+//! Low-level general purpose DS lexer (adapted from rustc).
 
 use crate::DocPosition;
 use crate::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};

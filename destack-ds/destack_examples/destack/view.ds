@@ -27,6 +27,7 @@ struct Sizing2D {
 	/// The maximum height of the View
 	max_height: Option<Length> = None,
 }
+#assert size_of(Sizing2D) <= 64, "{Sizing2D} is too big"
 
 /// Component for visibility properties
 #component
@@ -60,10 +61,11 @@ entity View2D extends RigidBody2D {
 }
 
 entity MyCustomView extends View2D {
+	#effect(EffectScope.FRAME)
 	fn render(self) {
 		#tree
 		ButtonView { text: #format(`{this.name}`)} {
-			ListView { orientation: Orientation::VERTICAL } {
+			ListView::vertical() {
 				...
 			}
 		}
