@@ -14,7 +14,7 @@ fn #inline(when: InlinePreference, func: FunctionDefinition) -> FunctionDefiniti
 	func
 }
 
-#inline(.always)
+#inline(InlineHint::Always)
 fn sum<T: Type, L: u8>(vec: Vector<T, L>) ->  {
 	let sum: T = 0 as T;
 	#for i in 0..L {

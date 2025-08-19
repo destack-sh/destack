@@ -177,15 +177,26 @@ impl Vector2 {
 	}
 }
 
+impl Add<f32> for Vector2 {
+	fn test() {
+
+	}
+}
+
 trait Error {
-	id: uuid,
-	client: Client,
-	client_nonce: u8,
-	client_remote_epoch: u64,
-	client_local_epoch: u64
 }
 
 struct Position2(Vector2);
 // shorthand for => Position2 { ...Vector2 }
 
 struct CustomLength(f32); // newtype
+
+fn main {
+	defer #print("Done!);
+
+	loop {
+		...
+
+		break;
+	}
+}
