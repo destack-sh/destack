@@ -1,7 +1,7 @@
 //! LSP server implementation.
 
 use crate::doc_store::DocumentStore;
-use crate::semantic::get_semantic_tokens;
+use crate::semantic::{get_semantic_tokens, get_token_type_at_position};
 use tower_lsp_server::jsonrpc::Result as JsonRpcResult;
 use tower_lsp_server::lsp_types::MessageType;
 use tower_lsp_server::{Client, LanguageServer, lsp_types as lsp};
@@ -20,6 +20,7 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, "destack: initialize")
             .await;
 
+        // semantic tokens
         let semantic_tokens_legend = lsp::SemanticTokensLegend {
             token_types: vec![
                 lsp::SemanticTokenType::COMMENT,
@@ -34,10 +35,12 @@ impl LanguageServer for Backend {
             token_modifiers: vec![],
         };
 
+        // capabilities
         let capabilities = lsp::ServerCapabilities {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
                 lsp::TextDocumentSyncKind::FULL,
             )),
+            hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
             semantic_tokens_provider: Some(
                 lsp::SemanticTokensServerCapabilities::SemanticTokensOptions(
                     lsp::SemanticTokensOptions {
@@ -157,5 +160,30 @@ impl LanguageServer for Backend {
                 data: tokens,
             },
         )))
+    }
+
+    async fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!("destack: hover: {:?} @ {:?}", uri, position),
+            )
+            .await;
+        let Some(text) = self.docs.get(&uri) else {
+            return Ok(None);
+        };
+
+        if let Some(kind) = get_token_type_at_position(&text, &position) {
+            let markdown = lsp::MarkedString::String(format!("token: {:?}", kind));
+            let hover = lsp::Hover {
+                contents: lsp::HoverContents::Scalar(markdown),
+                range: None,
+            };
+            return Ok(Some(hover));
+        }
+
+        Ok(None)
     }
 }

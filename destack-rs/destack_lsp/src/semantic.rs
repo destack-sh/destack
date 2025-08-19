@@ -61,6 +61,63 @@ pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
     out
 }
 
+/// Get the underlying lexer token type at a given LSP position if one exists.
+pub fn get_token_type_at_position(
+    text: &str,
+    position: &lsp::Position,
+) -> Option<destack_lexer::token::TokenType> {
+    // compute line starts for mapping
+    let mut line_starts: Vec<usize> = vec![0];
+    for (i, ch) in text.char_indices() {
+        if ch == '\n' {
+            line_starts.push(i + 1);
+        }
+    }
+
+    // map LSP position (UTF-16 column) to byte offset in text
+    let line_index = position.line as usize;
+    if line_index >= line_starts.len() {
+        return None;
+    }
+    let line_start = line_starts[line_index];
+    let line_end = if line_index + 1 < line_starts.len() {
+        line_starts[line_index + 1] - 1 // exclude the newline
+    } else {
+        text.len()
+    };
+
+    let target_utf16_col = position.character as usize;
+    let mut byte_cursor = line_start;
+    let mut utf16_col_so_far: usize = 0;
+    for (idx, ch) in text[line_start..line_end].char_indices() {
+        if utf16_col_so_far >= target_utf16_col {
+            break;
+        }
+        utf16_col_so_far += ch.encode_utf16(&mut [0u16; 2]).len();
+        byte_cursor = line_start + idx + ch.len_utf8();
+    }
+    // if target col points exactly at start of line, keep line_start
+    let byte_offset = if target_utf16_col == 0 {
+        line_start
+    } else {
+        byte_cursor
+    };
+
+    // scan tokens until we cover the byte offset
+    let iter = destack_lexer::tokenize(text);
+    let mut running_offset: usize = 0;
+    for tok in iter {
+        let start = running_offset;
+        let end = start + (tok.len as usize);
+        if byte_offset >= start && byte_offset < end {
+            return Some(tok.r#type);
+        }
+        running_offset = end;
+    }
+
+    None
+}
+
 /// Find the line number and line start byte offset for a given byte index.
 fn byte_to_line_and_start(byte_index: usize, line_starts: &[usize]) -> (usize, usize) {
     // binary search for the last line start <= byte_index
@@ -82,6 +139,7 @@ fn byte_to_line_and_start(byte_index: usize, line_starts: &[usize]) -> (usize, u
 }
 
 /// Map a token to its semantic type index and character length.
+/// TODO: replace Semantic token keywords with proper AST parsing
 fn map_token(slice: &str, kind: destack_lexer::token::TokenType) -> Option<(u32, usize)> {
     use destack_lexer::token::TokenType as K;
 
@@ -89,27 +147,10 @@ fn map_token(slice: &str, kind: destack_lexer::token::TokenType) -> Option<(u32,
     let ty_index = match kind {
         K::LineComment { .. } => 0, // COMMENT
 
-        // keywords and identifiers
-        K::Identifier | K::RawIdentifier | K::InvalidIdentifier => {
-            const KEYWORDS: &[&str] = &[
-                "use", "struct", "enum", "entity", "impl", "fn", "let", "return", "extends",
-                "true", "false", "None", "Some",
-            ];
+        // identifiers
+        K::Identifier | K::RawIdentifier | K::InvalidIdentifier => 6,
 
-            if KEYWORDS.contains(&slice) {
-                1 // KEYWORD
-            } else {
-                // crude heuristic: UpperCamelCase => TYPE, otherwise VARIABLE
-                let is_type_like = slice
-                    .chars()
-                    .next()
-                    .map(|c| c.is_ascii_uppercase())
-                    .unwrap_or(false);
-                if is_type_like { 6 } else { 7 }
-            }
-        }
-
-        K::UnknownLiteralPrefix => 5, // map to FUNCTION color (distinct)
+        K::UnknownLiteralPrefix => 6,
 
         // literals
         K::Literal { r#type, .. } => match r#type {

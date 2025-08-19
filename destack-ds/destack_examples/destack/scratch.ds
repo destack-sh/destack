@@ -14,7 +14,7 @@ struct Transform2D {
 }
 
 struct Form2D {
-	...Transform2D,
+	..Transform2D,
 }
 
 impl Form2D {
@@ -24,7 +24,7 @@ impl Form2D {
 }
 
 struct Rectangle2D {
-	...Form2D,
+	..Form2D,
 	width: f32,
 	height: f32
 }
@@ -92,7 +92,7 @@ trait Reactable {
 } 
 
 entity Entity2D {
-	...Transform2D
+	..Transform2D
 
 }
 
@@ -115,10 +115,10 @@ entity CustomPhysicsSystem {
 }
 
 impl System for CustomPhysicsSystem {
-	...
+	..
 }
 
-impl Service for ... {
+impl Service for .. {
 	
 }
 
@@ -126,7 +126,7 @@ impl Service for ... {
 // Events
 //
 
-event MyEvent ... InputEvent {
+event MyEvent .. InputEvent {
 
 }
 
@@ -135,7 +135,7 @@ event MyEvent ... InputEvent {
 //
 
 struct MyError {
-	...Error,
+	..Error,
 }
 
 //
@@ -143,7 +143,7 @@ struct MyError {
 //
 
 struct MyMessage {
-	...Message,
+	..Message,
 }
 
 enum MyEnum {
@@ -187,7 +187,7 @@ trait Error {
 }
 
 struct Position2(Vector2);
-// shorthand for => Position2 { ...Vector2 }
+// shorthand for => Position2 { ..Vector2 }
 
 struct CustomLength(f32); // newtype
 
@@ -195,7 +195,7 @@ fn main {
 	defer #print("Done!);
 
 	loop {
-		...
+		..
 
 		break;
 	}
