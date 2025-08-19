@@ -24,30 +24,9 @@ fn to_semver(calver: &str) -> String {
     format!("{year}.{month}.{day}-{rev}")
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RootKind {
-    RepoRoot,
-    DestackDs,
-}
-
-/// Detect the project root and version file location.
-///
-/// Returns the root kind, root path prefix, and version file path.
-fn detect_root() -> (RootKind, PathBuf, PathBuf) {
-    let repo_version = PathBuf::from("destack-ds").join("version");
-    if repo_version.exists() {
-        return (RootKind::RepoRoot, PathBuf::from("."), repo_version);
-    }
-    let ds_version = PathBuf::from("version");
-    if ds_version.exists() {
-        return (RootKind::DestackDs, PathBuf::from(".."), ds_version);
-    }
-    (RootKind::RepoRoot, PathBuf::from("."), repo_version)
-}
-
 /// Read the current version from the version file.
-fn read_current_version(version_path: &PathBuf) -> Option<String> {
-    fs::read_to_string(version_path)
+fn read_current_version() -> Option<String> {
+    fs::read_to_string("version.txt")
         .ok()
         .map(|s| s.trim().to_string())
 }
@@ -61,8 +40,7 @@ fn today_calver() -> String {
     {
         return s.trim().to_string();
     }
-    // fallback if date command fails
-    "1970.01.01".to_string()
+    panic!("failed to get today's date");
 }
 
 /// Create the version command app.
@@ -78,16 +56,11 @@ pub fn app() -> App {
 ///
 /// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.
-/// Bump the version using CalVer format.
-///
-/// Increments the revision number if the date is the same, otherwise resets to 0.
-/// Updates all relevant files with the new version.
 pub fn bump(ctx: CommandArgs) -> i32 {
     let override_rev: Option<i32> = ctx.option("revision").and_then(|s| s.parse::<i32>().ok());
 
-    let (root_kind, root_prefix, version_path) = detect_root();
     let current_version =
-        read_current_version(&version_path).unwrap_or_else(|| "1970.01.01.0".to_string());
+        read_current_version().unwrap_or_else(|| panic!("version file not found"));
 
     // extract date and revision from current version
     let current_date = current_version
@@ -122,6 +95,7 @@ pub fn bump(ctx: CommandArgs) -> i32 {
 
     // files that need version updates
     let files_to_update = [
+        "version.txt",
         "pyproject.toml",
         "package.json",
         "Cargo.toml",
@@ -135,10 +109,7 @@ pub fn bump(ctx: CommandArgs) -> i32 {
     // read and validate all files before making changes
     let mut contents: Vec<(PathBuf, String)> = Vec::new();
     for rel in files_to_update.iter() {
-        let p = match root_kind {
-            RootKind::RepoRoot => PathBuf::from(rel),
-            RootKind::DestackDs => root_prefix.join(rel),
-        };
+        let p = PathBuf::from(rel);
         match fs::read_to_string(&p) {
             Ok(text) => {
                 if !text.contains(&current_version) && !text.contains(&current_semver) {
@@ -157,7 +128,7 @@ pub fn bump(ctx: CommandArgs) -> i32 {
     }
 
     // write new version to version file
-    if let Err(e) = fs::write(&version_path, &new_version) {
+    if let Err(e) = fs::write("version.txt", &new_version) {
         console::error(&format!("failed to write version: {e}"));
         return 1;
     }

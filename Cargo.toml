@@ -6,6 +6,7 @@ members = [
 	"destack-rs/destack_cli_macros",
 	"destack-rs/destack_codegen",
 	"destack-rs/destack_json",
+	"destack-rs/destack_json/fuzz",
 	"destack-rs/destack_lexer",
 	"destack-rs/destack_lexer/fuzz",
 	"destack-rs/destack_order",
@@ -18,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -26,16 +27,16 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 destack = { path = "destack-rs/destack" }
-destack_macros = { path = "destack-rs/destack_macros" }
-destack_order = { path = "destack-rs/destack_order" }
-destack_json = { path = "destack-rs/destack_json" }
-destack_time = { path = "destack-rs/destack_time" }
-destack_codegen = { path = "destack-rs/destack_codegen" }
 destack_cli = { path = "destack-rs/destack_cli" }
 destack_cli_macros = { path = "destack-rs/destack_cli_macros" }
+destack_codegen = { path = "destack-rs/destack_codegen" }
+destack_json = { path = "destack-rs/destack_json" }
 destack_lexer = { path = "destack-rs/destack_lexer" }
-destack_uuid = { path = "destack-rs/destack_uuid" }
+destack_macros = { path = "destack-rs/destack_macros" }
+destack_order = { path = "destack-rs/destack_order" }
+destack_time = { path = "destack-rs/destack_time" }
 destack_unicode = { path = "destack-rs/destack_unicode" }
+destack_uuid = { path = "destack-rs/destack_uuid" }
 
 # dependencies
 tokio = "1.47.1"
@@ -77,8 +78,8 @@ overflow-checks = true
 incremental = true
 
 [profile.bench]
-opt-level = 3
 lto = "fat"
+opt-level = 3
 codegen-units = 1
 debug-assertions = false
 overflow-checks = false
@@ -86,8 +87,8 @@ strip = "none"
 debug = false
 
 [profile.release]
-opt-level = 3
 lto = "fat"
+opt-level = 3
 codegen-units = 1
 debug-assertions = false
 overflow-checks = false

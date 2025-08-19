@@ -4,3 +4,12 @@ struct Vector<T: Type, L: u8> {
 
 struct Vector2 = Vector<f32, 2>;
 struct Vector3 = Vector<f32, 3>;
+
+
+fn sum<T: Type, L: u8>(vec: Vector<T, L>) ->  {
+	let sum: T = 0 as T;
+	@for i in 0..L {
+		sum += vec[i];
+	}
+	sum
+}

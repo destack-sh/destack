@@ -1,8 +1,7 @@
 use crate::token::{Token, TokenType};
 
 /// Renders a token stream back to a string.
-///
-/// This is a lossy renderer in places (e.g., whitespace is not normalized).
+/// The objective is perfect roundtripping.
 pub fn render_tokens(tokens: &[Token], source: &str) -> String {
     let mut out = String::new();
     let mut offset: usize = 0;
@@ -19,7 +18,7 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
                 // emit original slice for lexemes where we don't want to reformat
                 out.push_str(&source[offset..offset + len]);
             }
-            TokenType::Semi => out.push(';'),
+            TokenType::Semicolon => out.push(';'),
             TokenType::Comma => out.push(','),
             TokenType::Dot => out.push('.'),
             TokenType::DotDot => out.push_str(".."),
@@ -51,7 +50,11 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
             TokenType::Slash => out.push('/'),
             TokenType::Caret => out.push('^'),
             TokenType::Percent => out.push('%'),
-            TokenType::Unknown | TokenType::Eof => {}
+            TokenType::Unknown => {
+                // emit original slice for unknown tokens to preserve them
+                out.push_str(&source[offset..offset + len]);
+            }
+            TokenType::Eof => {}
         }
         offset += len;
     }

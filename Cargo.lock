@@ -235,7 +235,7 @@ dependencies = [
 
 [[package]]
 name = "destack"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "destack_json",
  "destack_macros",
@@ -251,7 +251,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "destack",
  "destack_cli_macros",
@@ -260,7 +260,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli_macros"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "destack",
  "destack_codegen",
@@ -268,7 +268,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -276,15 +276,24 @@ dependencies = [
 
 [[package]]
 name = "destack_json"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
 ]
 
 [[package]]
+name = "destack_json-fuzz"
+version = "0.0.0"
+dependencies = [
+ "arbitrary",
+ "destack_json",
+ "libfuzzer-sys",
+]
+
+[[package]]
 name = "destack_lexer"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "criterion",
  "destack_unicode",
@@ -301,7 +310,7 @@ dependencies = [
 
 [[package]]
 name = "destack_macros"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -309,11 +318,11 @@ dependencies = [
 
 [[package]]
 name = "destack_order"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 
 [[package]]
 name = "destack_test"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "destack",
  "pretty_assertions",
@@ -322,7 +331,7 @@ dependencies = [
 
 [[package]]
 name = "destack_time"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -339,11 +348,11 @@ dependencies = [
 
 [[package]]
 name = "destack_unicode"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 
 [[package]]
 name = "destack_uuid"
-version = "2025.8.19-1"
+version = "2025.8.19-3"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",

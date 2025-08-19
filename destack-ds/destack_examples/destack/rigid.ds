@@ -47,7 +47,7 @@ struct KinematicComponent3D {
 	/// Linear velocity
 	velocity: Vector3,
 	/// Angular velocity
-	angular_velocity: Quaternion = 0.0,
+	angular_velocity: Quaternion = Quaternion::ZERO,
 }
 
 /// Component for dynamic properties in 3D

@@ -1,6 +1,6 @@
 #![no_main]
 
-use destack_json::{FormatOptions, JsonValue, format_json, parse_json};
+use destack_json::{FormatOptions, format_json, parse_json};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

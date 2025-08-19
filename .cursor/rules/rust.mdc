@@ -24,3 +24,5 @@ Try to avoid panics, if unavoidable, make it explicit with:
 `unwrap_or_else(|_| panic!("..."))`
 
 Public and complex function documentation SHOULD list out individual arguments / return.
+
+Comments go above attributes.
