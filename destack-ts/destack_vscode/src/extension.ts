@@ -61,16 +61,16 @@ export async function activate(ctx: vscode.ExtensionContext) {
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ language: "destack-ds" }],
+    documentSelector: [{ language: "destack" }, { pattern: "**/*.ds" }],
     outputChannel: clientLog,
     traceOutputChannel: clientLog,
   };
 
-  client = new LanguageClient("destack", "Destack LSP", serverOptions, clientOptions);
+  client = new LanguageClient("destack", "Destack", serverOptions, clientOptions);
 
   // start the language client
   await client.start();
-  clientLog.info("Destack LSP client started.");
+  clientLog.info("Destack client started.");
 
   // forward server log messages to the server output channel
   client.onNotification(LogMessageNotification.type, (p) => {
@@ -101,6 +101,18 @@ export async function activate(ctx: vscode.ExtensionContext) {
         } catch {
           // ignore kill errors
         }
+      }
+    }),
+  );
+
+  // restart the language server
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("destack.restart", async () => {
+      try {
+        await client!.restart();
+        vscode.window.showInformationMessage(`Destack restarted`);
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Destack restart failed: ${e?.message || e}`);
       }
     }),
   );

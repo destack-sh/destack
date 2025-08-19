@@ -1,9 +1,10 @@
 //! LSP server implementation.
 
 use crate::doc_store::DocumentStore;
-use crate::semantic::compute_semantic_tokens;
-use tower_lsp::jsonrpc::Result as JsonRpcResult;
-use tower_lsp::{Client, LanguageServer, lsp_types as lsp};
+use crate::semantic::get_semantic_tokens;
+use tower_lsp_server::jsonrpc::Result as JsonRpcResult;
+use tower_lsp_server::lsp_types::MessageType;
+use tower_lsp_server::{Client, LanguageServer, lsp_types as lsp};
 
 #[derive(Debug, Clone)]
 pub struct Backend {
@@ -11,18 +12,22 @@ pub struct Backend {
     pub docs: DocumentStore,
 }
 
-#[tower_lsp::async_trait]
+impl Backend {}
+
 impl LanguageServer for Backend {
     async fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
+        self.client
+            .log_message(MessageType::INFO, "destack: initialize")
+            .await;
+
         let semantic_tokens_legend = lsp::SemanticTokensLegend {
             token_types: vec![
-                // map categories to VS Code semantic token types
                 lsp::SemanticTokenType::COMMENT,
                 lsp::SemanticTokenType::KEYWORD,
                 lsp::SemanticTokenType::STRING,
                 lsp::SemanticTokenType::NUMBER,
                 lsp::SemanticTokenType::OPERATOR,
-                lsp::SemanticTokenType::FUNCTION, // use function color for punctuation to differentiate
+                lsp::SemanticTokenType::FUNCTION,
                 lsp::SemanticTokenType::TYPE,
                 lsp::SemanticTokenType::VARIABLE,
             ],
@@ -49,15 +54,22 @@ impl LanguageServer for Backend {
         Ok(lsp::InitializeResult {
             capabilities,
             server_info: Some(lsp::ServerInfo {
-                name: "destack_lsp".to_string(),
+                name: "destack".to_string(),
                 version: None,
             }),
         })
     }
 
-    async fn initialized(&self, _: lsp::InitializedParams) {}
+    async fn initialized(&self, _: lsp::InitializedParams) {
+        self.client
+            .log_message(MessageType::INFO, "destack: initialized")
+            .await;
+    }
 
     async fn shutdown(&self) -> JsonRpcResult<()> {
+        self.client
+            .log_message(MessageType::INFO, "destack: shutdown")
+            .await;
         Ok(())
     }
 
@@ -65,6 +77,9 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         self.docs.set(&uri, text);
+        self.client
+            .log_message(MessageType::INFO, format!("destack: did_open: {:?}", uri))
+            .await;
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
@@ -73,6 +88,9 @@ impl LanguageServer for Backend {
         if let Some(change) = params.content_changes.into_iter().last() {
             self.docs.set(&uri, change.text);
         }
+        self.client
+            .log_message(MessageType::INFO, format!("destack: did_change: {:?}", uri))
+            .await;
     }
 
     async fn semantic_tokens_full(
@@ -80,10 +98,26 @@ impl LanguageServer for Backend {
         params: lsp::SemanticTokensParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensResult>> {
         let uri = params.text_document.uri;
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!("destack: semantic_tokens_full: {:?}", uri),
+            )
+            .await;
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
-        let tokens = compute_semantic_tokens(&text);
+        let tokens = get_semantic_tokens(&text);
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!(
+                    "destack: semantic_tokens_full: {:?} -> {:?}",
+                    uri,
+                    tokens.len()
+                ),
+            )
+            .await;
         Ok(Some(lsp::SemanticTokensResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -97,10 +131,26 @@ impl LanguageServer for Backend {
         params: lsp::SemanticTokensRangeParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensRangeResult>> {
         let uri = params.text_document.uri;
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!("destack: semantic_tokens_range: {:?}", uri),
+            )
+            .await;
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
-        let tokens = compute_semantic_tokens(&text);
+        let tokens = get_semantic_tokens(&text);
+        self.client
+            .log_message(
+                MessageType::INFO,
+                format!(
+                    "destack: semantic_tokens_range: {:?} -> {:?}",
+                    uri,
+                    tokens.len()
+                ),
+            )
+            .await;
         Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -109,5 +159,3 @@ impl LanguageServer for Backend {
         )))
     }
 }
-
-// re-export doc_store in lib.rs instead

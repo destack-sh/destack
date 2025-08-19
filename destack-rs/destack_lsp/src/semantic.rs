@@ -1,9 +1,9 @@
-//! Semantic token computation.
+//! SemanticTokens.
 
-use tower_lsp::lsp_types as lsp;
+use tower_lsp_server::lsp_types as lsp;
 
-/// Compute semantic tokens for the given text.
-pub fn compute_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
+/// Get semantic tokens for the given text.
+pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
     // precompute line start offsets for position calculations
     let mut line_starts: Vec<usize> = vec![0];
     for (i, ch) in text.char_indices() {

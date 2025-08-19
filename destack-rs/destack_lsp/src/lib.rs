@@ -9,13 +9,11 @@ pub mod server;
 
 pub use doc_store::DocumentStore;
 
-use tower_lsp::{LspService, Server};
+use tower_lsp_server::{LspService, Server};
 
 use crate::server::Backend;
 
 /// Run the language server over stdio.
-///
-/// This uses `tower-lsp` to serve the LSP using the current process stdin/stdout.
 pub async fn run_stdio_server() -> Result<(), Box<dyn std::error::Error>> {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();

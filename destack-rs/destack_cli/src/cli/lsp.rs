@@ -16,6 +16,8 @@ pub fn app() -> App {
 
 /// Run the LSP server over stdio.
 pub fn run(_ctx: CommandArgs) -> i32 {
+    // NOTE: don't print anything to stdout or stderr so we don't interfere with the LSP protocol
+
     // create tokio runtime for async operations
     let rt = tokio::runtime::Runtime::new();
     let Ok(runtime) = rt else {
@@ -24,7 +26,6 @@ pub fn run(_ctx: CommandArgs) -> i32 {
     };
 
     // run the lsp server and handle result
-    console::print("Running destack_lsp (stdio)...");
     let exit_result = runtime.block_on(destack_lsp::run_stdio_server());
     match exit_result {
         Ok(_) => 0,

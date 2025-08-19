@@ -2,8 +2,6 @@
 
 #![destack::partial(destack.simulation.geometry.vector, file)]
 
-use std::ops::Add;
-
 #[destack::generated(Vector2, -, block)]
 /// A 2D floating point Vector.
 pub struct Vector2 {
