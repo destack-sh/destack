@@ -178,7 +178,7 @@ class RustObjectSizer(ObjectSizer):
             elif type.primitive_type == PrimitiveType.UUID:
                 return ObjectSize(self.UUID_SIZE, self.UUID_SIZE)
             elif type.primitive_type == PrimitiveType.JSON:
-                # opaque / serde_json::Value varies; treat as unknown
+                # opaque / JsonValue varies; treat as unknown
                 return ObjectSize(8, 8)
             else:
                 assert_never(type.primitive_type)

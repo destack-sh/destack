@@ -19,6 +19,9 @@ path = "src/main.rs"
 destack = { workspace = true }
 destack_codegen = { workspace = true }
 destack_cli_macros = { workspace = true }
+destack_lsp = { workspace = true }
+
+tokio = { workspace = true }
 
 [dev-dependencies]
 

@@ -1,13 +1,18 @@
 {
   "name": "destack-monorepo",
-  "version": "2025.08.19.3",
+  "version": "2025.08.19.4",
   "private": true,
   "type": "module",
   "workspaces": {
     "packages": [
       "destack-ts/destack",
-      "destack-ts/destack_web"
+      "destack-ts/destack_web",
+      "destack-ts/destack_vscode"
     ]
+  },
+  "scripts": {
+    "vscode:compile": "cd destack-ts/destack_vscode && bun run compile",
+    "vscode:watch": "cd destack-ts/destack_vscode && bun run watch"
   },
   "catalog": {
     "temporal-polyfill": "^0.3.0"
