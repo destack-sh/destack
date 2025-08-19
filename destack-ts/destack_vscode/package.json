@@ -1,7 +1,7 @@
 {
   "name": "destack-vscode",
-  "displayName": "Destack Universe",
-  "description": "Destack Universe VSCode support for DScript (.ds)",
+  "displayName": "Destack",
+  "description": "Destack VSCode integration (with support for DScript .ds)",
   "version": "2025.8.19-4",
   "publisher": "symbol-industries",
   "engines": {
@@ -11,6 +11,10 @@
     "Programming Languages"
   ],
   "main": "./out/extension.js",
+  "repository": {
+    "type": "web",
+    "url": "https://destack.app"
+  },
   "files": [
     "out/extension.js",
     "language-configuration.json",
@@ -19,6 +23,27 @@
     "LICENSE.txt"
   ],
   "contributes": {
+    "configuration": {
+      "title": "Destack",
+      "properties": {
+        "destack.server.command": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to `destack_lsp`. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
+        },
+        "destack.server.args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional arguments to pass to the language server."
+        },
+        "destack.server.cwd": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
+        }
+      }
+    },
     "languages": [
       {
         "id": "destack-ds",
