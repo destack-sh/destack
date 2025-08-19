@@ -15,8 +15,8 @@ fn #inline(when: InlinePreference, func: FunctionDefinition) -> FunctionDefiniti
 }
 
 #inline(InlineHint::Always)
-fn sum<T: Type, L: u8>(vec: Vector<T, L>) ->  {
-	let sum: T = 0 as T;
+fn sum<T: Type, L: u8>(vec: Vector<T, L>) -> T {
+	let sum: T = 0;
 	#for i in 0..L {
 		sum += vec[i];
 	}

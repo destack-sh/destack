@@ -78,7 +78,7 @@ struct FallingPieceComponent {
 
 /// The main tetris game board
 entity TetrisBoard<W: u32, H: u32> {
-	..TetrisComponent,
+	...TetrisComponent,
 	
 	/// Grid of cells
 	cells: TetrisCell[W, H],
@@ -92,8 +92,8 @@ entity TetrisBoard<W: u32, H: u32> {
 
 /// A tetris piece (both falling and placed)
 entity TetrisPiece {
-	..TetrisComponent,
-	..FallingPieceComponent,
+	...TetrisComponent,
+	...FallingPieceComponent,
 	
 	/// Shape of this piece
 	shape: TetrisShape,
@@ -107,7 +107,7 @@ entity TetrisPiece {
 
 /// Main tetris game controller
 entity TetrisGame {
-	..TetrisComponent,
+	...TetrisComponent,
 	
 	/// Current game state
 	state: TetrisGameState = TetrisGameState::Ready,
