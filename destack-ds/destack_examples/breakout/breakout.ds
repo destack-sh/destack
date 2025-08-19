@@ -72,7 +72,7 @@ struct PowerUpComponent {
 
 /// The player's paddle
 entity BreakoutPaddle extends RigidBody2D {
-	...BreakoutComponent,
+	..BreakoutComponent,
 	
 	/// Current paddle width
 	width: f32 = 100.0,
@@ -86,7 +86,7 @@ entity BreakoutPaddle extends RigidBody2D {
 
 /// The ball that bounces around
 entity BreakoutBall extends RigidBody2D {
-	...BreakoutComponent,
+	..BreakoutComponent,
 	
 	/// Ball radius
 	radius: f32 = 8.0,
@@ -100,8 +100,8 @@ entity BreakoutBall extends RigidBody2D {
 
 /// Destructible bricks
 entity BreakoutBrick extends RigidBody2D {
-	...BreakoutComponent,
-	...DestructibleComponent,
+	..BreakoutComponent,
+	..DestructibleComponent,
 	
 	/// Type of brick
 	brick_type: BrickType = BrickType::Standard,
@@ -117,8 +117,8 @@ entity BreakoutBrick extends RigidBody2D {
 
 /// Power-up items that fall from destroyed bricks
 entity BreakoutPowerUp extends RigidBody2D {
-	...BreakoutComponent,
-	...PowerUpComponent,
+	..BreakoutComponent,
+	..PowerUpComponent,
 	
 	/// Size of the power-up
 	size: f32 = 16.0,
@@ -126,7 +126,7 @@ entity BreakoutPowerUp extends RigidBody2D {
 
 /// Main game controller
 entity BreakoutGame {
-	...BreakoutComponent,
+	..BreakoutComponent,
 	
 	/// Current game state
 	state: BreakoutGameState = BreakoutGameState::Ready,
