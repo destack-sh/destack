@@ -1,4 +1,4 @@
-//! Low-level Destack lexer adapted from rustc.
+//! Low-level general purpose Descript lexer (adapted from rustc).
 
 use crate::DocPosition;
 use crate::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
@@ -449,9 +449,7 @@ impl Tokenizer<'_> {
             self.bump();
             return true;
         }
-
         // literal has more than one symbol
-
         // parse until either quotes are terminated or error is detected
         loop {
             match self.first() {
@@ -523,7 +521,7 @@ impl Tokenizer<'_> {
     ) -> Result<u32, RawStringError> {
         debug_assert!(self.prev() == 'r');
         let start_pos = self.pos_within_token();
-        let mut possible_terminator_offset = None;
+        let mut possible_terminator_offset: Option<u32> = None;
         let mut max_hashes = 0;
 
         // count opening '#' symbols

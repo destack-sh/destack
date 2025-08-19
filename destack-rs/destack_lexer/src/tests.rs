@@ -566,8 +566,50 @@ br###"raw"###suffix
     );
 }
 
+/// Tokenize an input string in a roundtrip.
+macro_rules! assert_tokenize_roundtrip {
+    ($input:expr) => {
+        // tokenize & render back to input string
+        let tokens: Vec<_> = tokenize($input).collect();
+        let rendered_input = render_tokens(&tokens, $input);
+
+        // should match, do nice diff if not
+        if rendered_input != $input {
+            eprintln!("Roundtrip failed!");
+            eprintln!("Expected:\n{}", $input);
+            eprintln!("Got:\n{}", rendered_input);
+            eprintln!("Diff:");
+            for (i, (expected, actual)) in $input.chars().zip(rendered_input.chars()).enumerate() {
+                if expected != actual {
+                    eprintln!(
+                        "  Position {}: expected {:?}, got {:?}",
+                        i, expected, actual
+                    );
+                }
+            }
+            if $input.len() != rendered_input.len() {
+                eprintln!(
+                    "  Length mismatch: expected {}, got {}",
+                    $input.len(),
+                    rendered_input.len()
+                );
+            }
+        }
+        assert_eq!(rendered_input, $input);
+
+        // tokenize *again* on
+        let reparsed_tokens: Vec<_> = tokenize(&rendered_input).collect();
+        if reparsed_tokens != tokens {
+            eprintln!("Token roundtrip failed!");
+            eprintln!("Original tokens: {:#?}", tokens);
+            eprintln!("Reparsed tokens: {:#?}", reparsed_tokens);
+        }
+        assert_eq!(reparsed_tokens, tokens);
+    };
+}
+
 #[test]
-fn test_roundtrip() {
+fn test_roundtrip_tetris() {
     let input = r##"
 /// Base component for all tetris game objects
 struct TetrisComponent {
@@ -587,9 +629,23 @@ struct TetrisCell {
 	shape_type: Option<TetrisShape> = None,
 }"##;
 
+    assert_tokenize_roundtrip!(input);
+}
+
+#[test]
+fn test_roundtrip_view() {
+    let input = r##"
+entity MyCustomView extends View2D {
+	fn render(self) {
+        @if target == 'macos' {
+            ButtonView::new({ test: f"Hi {self.name}!" })
+        } @else {
+            None
+        }
+	}
+}"##;
     let tokens: Vec<_> = tokenize(input).collect();
-    let rendered_input = render_tokens(&tokens, input);
-    assert_eq!(rendered_input, input);
-    let reparsed_tokens: Vec<_> = tokenize(input).collect();
-    assert_eq!(reparsed_tokens, tokens)
+    println!("{tokens:?}");
+
+    assert_tokenize_roundtrip!(input);
 }
