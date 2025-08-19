@@ -104,6 +104,7 @@ pub fn bump(ctx: CommandArgs) -> i32 {
         "destack-py/pyproject.toml",
         "destack-ts/destack/package.json",
         "destack-ts/destack_web/package.json",
+        "destack-ts/destack_vscode/package.json",
     ];
 
     // read and validate all files before making changes

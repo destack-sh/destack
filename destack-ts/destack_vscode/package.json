@@ -1,0 +1,79 @@
+{
+  "name": "destack-vscode",
+  "displayName": "Destack Universe",
+  "description": "Destack Universe VSCode support for DScript (.ds)",
+  "version": "2025.8.19-4",
+  "publisher": "symbol-industries",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./out/extension.js",
+  "files": [
+    "out/extension.js",
+    "language-configuration.json",
+    "package.json",
+    "README.md",
+    "LICENSE.txt"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "destack-ds",
+        "aliases": [
+          "DScript",
+          "ds"
+        ],
+        "extensions": [
+          ".ds"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "destack-ds",
+        "scopes": {
+          "comment": [
+            "token.comment"
+          ],
+          "keyword": [
+            "keyword"
+          ],
+          "string": [
+            "string"
+          ],
+          "number": [
+            "number"
+          ],
+          "operator": [
+            "operator"
+          ],
+          "type": [
+            "entity.name.type"
+          ],
+          "variable": [
+            "variable"
+          ]
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "bun run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "bundle": "bun build src/extension.ts --outfile=out/extension.js --target=node --format=cjs --minify --sourcemap=inline --external:vscode --external:vscode-languageclient",
+    "package": "bunx --bun @vscode/vsce@latest package --no-dependencies"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^20.11.25",
+    "typescript": "~5.5.4",
+    "vsce": "^2.15.0",
+    "vscode-languageclient": "^9.0.1"
+  }
+}

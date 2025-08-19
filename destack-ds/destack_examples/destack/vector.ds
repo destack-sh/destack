@@ -22,3 +22,5 @@ fn sum<T: Type, L: u8>(vec: Vector<T, L>) ->  {
 	}
 	sum
 }
+
+const x = 5;

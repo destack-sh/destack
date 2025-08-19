@@ -4,7 +4,6 @@ Herein lies the source of truth definition for the Destack "language" -
  that is, all the builtin constructs like Enums, Structs, Nodes, Handles with all their Properties
  and Methods and Actions and Constants and whatnot are defined here.
 
-
 NOTE: None of this ships to users or the outside world directly. It is purely declaration.
 We code-gen using the generate script and then use the generated code.
 All the core runtime logic is in `destack-rs`. 

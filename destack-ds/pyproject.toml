@@ -1,6 +1,6 @@
 [project]
 name = "destack"
-version = "2025.08.19.3"
+version = "2025.08.19.4"
 description = "Destack Language Definition (Internal)"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 requires-python = ">=3.13"
