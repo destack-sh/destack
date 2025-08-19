@@ -17,4 +17,8 @@
       "extensions": [".ds"]
     }
   ],
+  "destack.server.command": "/Users/florian/symbol/destack/target/debug/destack_cli",
+  "destack.server.cwd": "/Users/florian/symbol/destack",
+  "destack.server.args": ["lsp", "run"],
+  "editor.semanticHighlighting.enabled": true
 }

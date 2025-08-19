@@ -42,7 +42,7 @@ destack_uuid = { path = "destack-rs/destack_uuid" }
 
 # dependencies
 tokio = "1.47.1"
-tower-lsp = "0.20.0"
+tower-lsp-server = "0.22.1"
 
 # build dependencies
 wasm-bindgen = "0.2.100"

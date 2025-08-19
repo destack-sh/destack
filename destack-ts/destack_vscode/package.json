@@ -3,7 +3,6 @@
   "displayName": "Destack",
   "description": "Destack VSCode integration (with support for DScript .ds)",
   "version": "2025.8.19-4",
-  "publisher": "symbol-industries",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -22,6 +21,10 @@
     "README.md",
     "LICENSE.txt"
   ],
+  "activationEvents": [
+    "onLanguage:destack",
+    "onCommand:destack.restart"
+  ],
   "contributes": {
     "configuration": {
       "title": "Destack",
@@ -33,7 +36,9 @@
         },
         "destack.server.args": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [],
           "description": "Additional arguments to pass to the language server."
         },
@@ -44,9 +49,15 @@
         }
       }
     },
+    "commands": [
+      {
+        "command": "destack.restart",
+        "title": "Destack: Restart Server"
+      }
+    ],
     "languages": [
       {
-        "id": "destack-ds",
+        "id": "destack",
         "aliases": [
           "DScript",
           "ds"
@@ -55,34 +66,6 @@
           ".ds"
         ],
         "configuration": "./language-configuration.json"
-      }
-    ],
-    "semanticTokenScopes": [
-      {
-        "language": "destack-ds",
-        "scopes": {
-          "comment": [
-            "token.comment"
-          ],
-          "keyword": [
-            "keyword"
-          ],
-          "string": [
-            "string"
-          ],
-          "number": [
-            "number"
-          ],
-          "operator": [
-            "operator"
-          ],
-          "type": [
-            "entity.name.type"
-          ],
-          "variable": [
-            "variable"
-          ]
-        }
       }
     ]
   },
