@@ -72,12 +72,12 @@ struct DynamicComponent3D {
 
 /// A solid simulated Body in 2D space
 entity RigidBody2D extends Body2D {
-	..KinematicComponent2D,
-	..DynamicComponent2D,
+	...KinematicComponent2D,
+	...DynamicComponent2D,
 }
 
 /// A solid simulated Body in 3D space
 entity RigidBody3D extends Body3D {
-	..KinematicComponent3D,
-	..DynamicComponent3D,
+	...KinematicComponent3D,
+	...DynamicComponent3D,
 }

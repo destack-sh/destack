@@ -24,7 +24,7 @@ struct Gradient {
 
 /// A gradient style.
 entity GradientStyle extends Style {
-	..Gradient
+	...Gradient
 }
 
 impl GradientStyle {

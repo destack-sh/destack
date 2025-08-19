@@ -54,14 +54,20 @@ struct Style2D {
 /// A View2D is a 2D interface element
 /// Views add dynamic positioning, sizing and styling to RigidBody2D
 entity View2D extends RigidBody2D {
-	..Transform2D,
-	..Sizing2D,
-	..Visibility2D,
-	..Style2D,
+	...Transform2D,
+	...Sizing2D,
+	...Visibility2D,
+	...Style2D,
 }
 
 entity MyCustomView extends View2D {
-	#effect(EffectScope.FRAME)
+	/// Whether the View is active.
+	is_active: bool = false,
+}
+
+impl Render for MyCustomView {
+	#effect
+	#action
 	fn render(self) {
 		#tree
 		ButtonView { text: #format(`{this.name}`)} {

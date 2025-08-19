@@ -62,7 +62,7 @@ struct WordleKeyState {
 
 /// The main wordle game board
 entity WordleBoard extends Entity {
-	..WordleComponent,
+	...WordleComponent,
 	
 	/// Grid of guesses (6 rows of 5 letters)
 	guesses: WordleGuess[6],
@@ -78,7 +78,7 @@ entity WordleBoard extends Entity {
 
 /// Virtual keyboard for letter input
 entity WordleKeyboard extends Entity {
-	..WordleComponent,
+	...WordleComponent,
 	
 	/// State of each letter key
 	key_states: Map<char, WordleKeyState>,
@@ -88,7 +88,7 @@ entity WordleKeyboard extends Entity {
 
 /// Main wordle game controller
 entity WordleGame extends Entity {
-	..WordleComponent,
+	...WordleComponent,
 	
 	/// Current game state
 	state: WordleGameState = WordleGameState::Ready,
