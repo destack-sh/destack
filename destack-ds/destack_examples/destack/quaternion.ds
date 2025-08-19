@@ -1,7 +1,7 @@
 use destack::*;
 
 /// A quaternion.
-@repr(C)
+#repr(.C)
 struct Quaternion {
     x: f32,
     y: f32,

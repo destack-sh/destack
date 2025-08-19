@@ -15,3 +15,7 @@ struct Segment3D {
 	start_offset: Vector3,
 	end_offset: Vector3
 }
+
+entity SegmentShape3D extends Shape3D {
+	...Segment3D
+}

@@ -13,7 +13,7 @@ enum RigidMotionMode {
 /// Component for kinematic properties
 struct KinematicComponent2D {
 	/// The motion mode
-	mode: RigidMotionMode = RigidMotionMode.Dynamic,
+	mode: RigidMotionMode = RigidMotionMode::Dynamic,
 	/// Linear velocity
 	velocity: Vector2,
 	/// Angular velocity
@@ -43,7 +43,7 @@ struct DynamicComponent2D {
 /// Component for kinematic properties in 3D
 struct KinematicComponent3D {
 	/// The motion mode
-	mode: RigidMotionMode = RigidMotionMode.Dynamic,
+	mode: RigidMotionMode = RigidMotionMode::Dynamic,
 	/// Linear velocity
 	velocity: Vector3,
 	/// Angular velocity

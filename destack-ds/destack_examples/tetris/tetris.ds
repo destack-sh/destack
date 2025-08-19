@@ -110,7 +110,7 @@ entity TetrisGame {
 	...TetrisComponent,
 	
 	/// Current game state
-	state: TetrisGameState = TetrisGameState.Ready,
+	state: TetrisGameState = TetrisGameState::Ready,
 	/// Player's current score
 	score: u32 = 0,
 	/// Current level
@@ -145,8 +145,8 @@ impl TetrisBoard {
 	}
 	
 	/// Check if a position is valid for a piece
-	fn is_valid_position(self, piece: &TetrisPiece, offset: Vector2i) -> bool {
-		for block in &piece.blocks {
+	fn is_valid_position(self, piece: *TetrisPiece, offset: Vector2i) -> bool {
+		for block in *piece.blocks {
 			let x = piece.position.x + block.x + offset.x;
 			let y = piece.position.y + block.y + offset.y;
 			
@@ -164,8 +164,8 @@ impl TetrisBoard {
 	}
 	
 	/// Place a piece on the board
-	fn place_piece(self, piece: &TetrisPiece) {
-		for block in &piece.blocks {
+	fn place_piece(self, piece: *TetrisPiece) {
+		for block in *piece.blocks {
 			let x = (piece.position.x + block.x) as usize;
 			let y = (piece.position.y + block.y) as usize;
 			
@@ -217,31 +217,31 @@ impl TetrisShape {
 	/// Get the block pattern for this shape at rotation 0
 	fn get_blocks(self) -> List<Vector2i> {
 		match self {
-			TetrisShape.I => [
+			TetrisShape::I => [
 				Vector2i::new(0, 1), Vector2i::new(1, 1),
 				Vector2i::new(2, 1), Vector2i::new(3, 1)
 			],
-			TetrisShape.J => [
+			TetrisShape::J => [
 				Vector2i::new(0, 0), Vector2i::new(0, 1),
 				Vector2i::new(1, 1), Vector2i::new(2, 1)
 			],
-			TetrisShape.L => [
+			TetrisShape::L => [
 				Vector2i::new(2, 0), Vector2i::new(0, 1),
 				Vector2i::new(1, 1), Vector2i::new(2, 1)
 			],
-			TetrisShape.O => [
+			TetrisShape::O => [
 				Vector2i::new(0, 0), Vector2i::new(1, 0),
 				Vector2i::new(0, 1), Vector2i::new(1, 1)
 			],
-			TetrisShape.S => [
+			TetrisShape::S => [
 				Vector2i::new(1, 0), Vector2i::new(2, 0),
 				Vector2i::new(0, 1), Vector2i::new(1, 1)
 			],
-			TetrisShape.T => [
+			TetrisShape::T => [
 				Vector2i::new(1, 0), Vector2i::new(0, 1),
 				Vector2i::new(1, 1), Vector2i::new(2, 1)
 			],
-			TetrisShape.Z => [
+			TetrisShape::Z => [
 				Vector2i::new(0, 0), Vector2i::new(1, 0),
 				Vector2i::new(1, 1), Vector2i::new(2, 1)
 			]
@@ -251,13 +251,13 @@ impl TetrisShape {
 	/// Get the color for this shape
 	fn get_color(self) -> Color {
 		match self {
-			TetrisShape.I => Color::cyan(),
-			TetrisShape.J => Color::blue(),
-			TetrisShape.L => Color::orange(),
-			TetrisShape.O => Color::yellow(),
-			TetrisShape.S => Color::green(),
-			TetrisShape.T => Color::purple(),
-			TetrisShape.Z => Color::red()
+			TetrisShape::I => Color::cyan(),
+			TetrisShape::J => Color::blue(),
+			TetrisShape::L => Color::orange(),
+			TetrisShape::O => Color::yellow(),
+			TetrisShape::S => Color::green(),
+			TetrisShape::T => Color::purple(),
+			TetrisShape::Z => Color::red()
 		}
 	}
 }
@@ -274,11 +274,11 @@ impl TetrisPiece {
 	}
 	
 	/// Move the piece in a direction
-	fn move_piece(self, direction: TetrisDirection, board: &TetrisBoard) -> bool {
+	fn move_piece(self, direction: TetrisDirection, board: *TetrisBoard) -> bool {
 		let offset = match direction {
-			TetrisDirection.Left => Vector2i::new(-1, 0),
-			TetrisDirection.Right => Vector2i::new(1, 0),
-			TetrisDirection.Down => Vector2i::new(0, 1)
+			TetrisDirection::Left => Vector2i::new(-1, 0),
+			TetrisDirection::Right => Vector2i::new(1, 0),
+			TetrisDirection::Down => Vector2i::new(0, 1)
 		};
 		
 		if board.is_valid_position(self, offset) {
@@ -289,10 +289,10 @@ impl TetrisPiece {
 	}
 	
 	/// Rotate the piece
-	fn rotate(self, rotation: TetrisRotation, board: &TetrisBoard) -> bool {
+	fn rotate(self, rotation: TetrisRotation, board: *TetrisBoard) -> bool {
 		let new_rotation = match rotation {
-			TetrisRotation.Clockwise => (self.rotation + 1) % 4,
-			TetrisRotation.CounterClockwise => (self.rotation + 3) % 4
+			TetrisRotation::Clockwise => (self.rotation + 1) % 4,
+			TetrisRotation::CounterClockwise => (self.rotation + 3) % 4
 		};
 		
 		let new_blocks = self.get_rotated_blocks(new_rotation);
@@ -334,7 +334,7 @@ impl TetrisPiece {
 	}
 	
 	/// Update falling piece
-	fn update(self, delta_time: f32, board: &TetrisBoard) -> bool {
+	fn update(self, delta_time: f32, board: *TetrisBoard) -> bool {
 		if !self.is_falling {
 			return false;
 		}
@@ -342,7 +342,7 @@ impl TetrisPiece {
 		self.drop_timer -= delta_time;
 		if self.drop_timer <= 0.0 {
 			self.drop_timer = self.drop_interval;
-			return self.move_piece(TetrisDirection.Down, board);
+			return self.move_piece(TetrisDirection::Down, board);
 		}
 		
 		true
@@ -354,13 +354,13 @@ impl TetrisGame {
 	fn spawn() -> TetrisGame {
 		TetrisGame {
 			board: TetrisBoard::spawn(10, 20),
-			state: TetrisGameState.Ready
+			state: TetrisGameState::Ready
 		}
 	}
 	
 	/// Start or restart the game
 	fn start_game(self) {
-		self.state = TetrisGameState.Playing;
+		self.state = TetrisGameState::Playing;
 		self.score = 0;
 		self.level = 1;
 		self.total_lines = 0;
@@ -369,13 +369,13 @@ impl TetrisGame {
 	
 	/// Update game state each frame
 	fn update(self, delta_time: f32) {
-		if self.state != TetrisGameState.Playing {
+		if self.state != TetrisGameState::Playing {
 			return;
 		}
 		
 		// update current piece
-		if let Some(piece) = &self.current_piece {
-			if !piece.update(delta_time, &self.board) {
+		if let Some(piece) = *self.current_piece {
+			if !piece.update(delta_time, *self.board) {
 				// piece can't move down anymore, place it
 				self.place_current_piece();
 			}
@@ -383,7 +383,7 @@ impl TetrisGame {
 		
 		// check for game over
 		if self.is_game_over() {
-			self.state = TetrisGameState.GameOver;
+			self.state = TetrisGameState::GameOver;
 		}
 	}
 	
@@ -396,7 +396,7 @@ impl TetrisGame {
 	
 	/// Place the current piece on the board
 	fn place_current_piece(self) {
-		if let Some(piece) = &self.current_piece {
+		if let Some(piece) = *self.current_piece {
 			self.board.place_piece(piece);
 			
 			// check for line clears

@@ -1,11 +1,11 @@
-///!
-///! The module for real gangsters
-///!
+//^
+//^ The module for real gangsters
+//^
 
-@!(name="zurichai")
-@!module(hey)
+#^(name="zurichai")
+#^module(hey)
 
-@(key=202)
+#(key=202)
 entity MeetupMembership extends Membership {
 
 }
@@ -14,31 +14,33 @@ entity MeetupSeries {
 
 }
 
-@(version=22)
 entity Meetup {
+	/// Max number of attendees.
 	capacity: u32,
-	series: MeetupSeries,
-	starts_at: datetime,
-	ends_at: datetime,
+	/// The series this is part of.
+	series: Option<EntityReference<MeetupSeries>>,
+	starts_at: Option<DateTime>,
+	ends_at: Option<DateTime>,
 }
+#assert #sizeof(Entity) < 64, #format("")
 
 impl Meetup {
 	fn do_something(self) {
 
 	}
 
-	@action
-	/// Cancel the event.
+	/// Cancel the Event.
+	#action
 	fn cancel(self) -> struct { succes: bool } {
 
 	}
 
-	@action
+	#action
 	fn start(self) {
 
 	}
 
-	@action
+	#action
 	fn end(self) {
 
 	}
