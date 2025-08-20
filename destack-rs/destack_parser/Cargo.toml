@@ -1,5 +1,5 @@
 [package]
-name = "destack_ast"
+name = "destack_parserr"
 description = "Destack AST"
 version.workspace = true
 edition.workspace = true

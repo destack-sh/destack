@@ -19,43 +19,6 @@ const FILES_TO_UPDATE: &[&str] = &[
     "destack-ts/destack_vscode/package.json",
 ];
 
-/// Convert CalVer format to SemVer format.
-///
-/// Transforms YYYY.MM.DD.R to Y.M.D-R by removing leading zeros.
-fn to_semver(calver: &str) -> String {
-    let parts: Vec<&str> = calver.split('.').collect();
-    if parts.len() != 4 {
-        return calver.to_string();
-    }
-    let year = parts[0].trim_start_matches('0');
-    let year = if year.is_empty() { "0" } else { year };
-    let month = parts[1].trim_start_matches('0');
-    let month = if month.is_empty() { "0" } else { month };
-    let day = parts[2].trim_start_matches('0');
-    let day = if day.is_empty() { "0" } else { day };
-    let rev = parts[3];
-    format!("{year}.{month}.{day}-{rev}")
-}
-
-/// Read the current version from the version file.
-fn read_current_version() -> Option<String> {
-    fs::read_to_string("version.txt")
-        .ok()
-        .map(|s| s.trim().to_string())
-}
-
-/// Get today's date in CalVer format (YYYY.MM.DD).
-fn today_calver() -> String {
-    let out = Command::new("date").arg("+%Y.%m.%d").output();
-    if let Ok(o) = out
-        && o.status.success()
-        && let Ok(s) = String::from_utf8(o.stdout)
-    {
-        return s.trim().to_string();
-    }
-    panic!("failed to get today's date");
-}
-
 /// Create the version command app.
 pub fn app() -> CommandApp {
     CommandApp::new("version")
@@ -71,7 +34,7 @@ pub fn app() -> CommandApp {
 ///
 /// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.
-pub fn bump(ctx: CommandArguments) -> i32 {
+fn bump(ctx: CommandArguments) -> i32 {
     let override_rev: Option<i32> = ctx.option("revision").and_then(|s| s.parse::<i32>().ok());
 
     let current_version =
@@ -147,4 +110,41 @@ pub fn bump(ctx: CommandArguments) -> i32 {
     }
 
     0
+}
+
+/// Convert CalVer format to SemVer format.
+///
+/// Transforms YYYY.MM.DD.R to Y.M.D-R by removing leading zeros.
+fn to_semver(calver: &str) -> String {
+    let parts: Vec<&str> = calver.split('.').collect();
+    if parts.len() != 4 {
+        return calver.to_string();
+    }
+    let year = parts[0].trim_start_matches('0');
+    let year = if year.is_empty() { "0" } else { year };
+    let month = parts[1].trim_start_matches('0');
+    let month = if month.is_empty() { "0" } else { month };
+    let day = parts[2].trim_start_matches('0');
+    let day = if day.is_empty() { "0" } else { day };
+    let rev = parts[3];
+    format!("{year}.{month}.{day}-{rev}")
+}
+
+/// Read the current version from the version file.
+fn read_current_version() -> Option<String> {
+    fs::read_to_string("version.txt")
+        .ok()
+        .map(|s| s.trim().to_string())
+}
+
+/// Get today's date in CalVer format (YYYY.MM.DD).
+fn today_calver() -> String {
+    let out = Command::new("date").arg("+%Y.%m.%d").output();
+    if let Ok(o) = out
+        && o.status.success()
+        && let Ok(s) = String::from_utf8(o.stdout)
+    {
+        return s.trim().to_string();
+    }
+    panic!("failed to get today's date");
 }

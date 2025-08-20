@@ -128,7 +128,7 @@ fn push_row(
             }
             let text = parts.get(line_idx).copied().unwrap_or("");
 
-            // apply alignment and padding
+            // apply alignment and padding (use visible length to ignore ANSI)
             if right_align.get(i).copied().unwrap_or(false) {
                 let pad = widths[i].saturating_sub(visible_len(text));
                 out.push_str(&" ".repeat(pad));

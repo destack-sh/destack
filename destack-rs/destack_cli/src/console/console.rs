@@ -1,6 +1,7 @@
 //! Colorized console helpers.
 
 use std::io::{self, Write};
+use std::process::{Command, Stdio};
 
 /// Apply ANSI color/style to a string.
 pub fn color(text: &str, code: &str) -> String {
@@ -58,8 +59,12 @@ pub fn frame(content: &str, title: Option<&str>, padding: u8) -> String {
         lines.pop();
     }
 
-    // count max width of content lines plus padding
-    let content_width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+    // count max visible width of content lines plus padding (ignore ANSI)
+    let content_width = lines
+        .iter()
+        .map(|l| get_ansi_visible_len(l))
+        .max()
+        .unwrap_or(0);
     let inner_width = content_width + (padding as usize * 2);
     let mut out = String::new();
 
@@ -80,7 +85,8 @@ pub fn frame(content: &str, title: Option<&str>, padding: u8) -> String {
     // content lines with padding
     let pad_str = " ".repeat(padding as usize);
     for l in lines {
-        let content_pad = inner_width.saturating_sub(l.chars().count() + (padding as usize * 2));
+        let line_visible = get_ansi_visible_len(l);
+        let content_pad = inner_width.saturating_sub(line_visible + (padding as usize * 2));
         out.push('│');
         out.push_str(&pad_str);
         out.push_str(l);
@@ -93,4 +99,49 @@ pub fn frame(content: &str, title: Option<&str>, padding: u8) -> String {
     // bottom border
     out.push_str(&format!("└{}┘", "─".repeat(inner_width)));
     out
+}
+
+// strip ANSI escape sequences and compute visible length
+fn get_ansi_visible_len(s: &str) -> usize {
+    let mut count = 0usize;
+    let mut it = s.chars().peekable();
+    while let Some(ch) = it.next() {
+        if ch == '\u{1b}' && it.peek() == Some(&'[') {
+            let _ = it.next(); // skip [
+            for c in it.by_ref() {
+                if c == 'm' {
+                    break;
+                }
+            }
+            continue;
+        }
+        count += 1;
+    }
+    count
+}
+
+/// Page content through `less -R -S -F -X` for colored output and better UX.
+pub fn page_with_less(content: &str) -> Result<(), String> {
+    let mut child = Command::new("less")
+        .arg("-R")
+        .arg("-S")
+        .arg("-F")
+        .arg("-X")
+        .stdin(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("failed to spawn less: {e}"))?;
+
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin
+            .write_all(content.as_bytes())
+            .map_err(|e| format!("failed to write to less stdin: {e}"))?;
+    }
+
+    let status = child
+        .wait()
+        .map_err(|e| format!("failed to wait for less: {e}"))?;
+    if !status.success() {
+        return Err(format!("less exited with status {status}"));
+    }
+    Ok(())
 }
