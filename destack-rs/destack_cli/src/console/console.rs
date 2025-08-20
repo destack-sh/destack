@@ -1,4 +1,4 @@
-//! Colorized console helpers (no external dependencies).
+//! Colorized console helpers.
 
 use std::io::{self, Write};
 
@@ -42,4 +42,55 @@ pub fn write(text: &str) {
 pub fn header(text: &str, underline: char) -> String {
     let line = underline.to_string().repeat(text.len());
     format!("{line}\n{text}\n{line}")
+}
+
+/// Render a simple ASCII/Unicode frame around content with optional title.
+pub fn frame(content: &str, title: Option<&str>, padding: u8) -> String {
+    // split content into lines
+    let mut lines: Vec<&str> = if content.is_empty() {
+        vec![""]
+    } else {
+        content.split('\n').collect()
+    };
+
+    // drop trailing empty line if content ended with a newline
+    if content.ends_with('\n') && lines.last().is_some_and(|l| l.is_empty()) {
+        lines.pop();
+    }
+
+    // count max width of content lines plus padding
+    let content_width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
+    let inner_width = content_width + (padding as usize * 2);
+    let mut out = String::new();
+
+    // top border sized to inner width
+    if let Some(t) = title.filter(|t| !t.is_empty()) {
+        let prefix = format!("─ {t} ");
+        let used = prefix.chars().count();
+        let fill = inner_width.saturating_sub(used);
+        out.push('┌');
+        out.push_str(&prefix);
+        out.push_str(&"─".repeat(fill));
+        out.push('┐');
+    } else {
+        out.push_str(&format!("┌{}┐", "─".repeat(inner_width)));
+    }
+    out.push('\n');
+
+    // content lines with padding
+    let pad_str = " ".repeat(padding as usize);
+    for l in lines {
+        let content_pad = inner_width.saturating_sub(l.chars().count() + (padding as usize * 2));
+        out.push('│');
+        out.push_str(&pad_str);
+        out.push_str(l);
+        out.push_str(&" ".repeat(content_pad));
+        out.push_str(&pad_str);
+        out.push('│');
+        out.push('\n');
+    }
+
+    // bottom border
+    out.push_str(&format!("└{}┘", "─".repeat(inner_width)));
+    out
 }

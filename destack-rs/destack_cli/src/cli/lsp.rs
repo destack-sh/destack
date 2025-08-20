@@ -1,11 +1,11 @@
 //! Language server subcommand.
 
 use crate::console::console;
-use crate::console::parser::{App, CommandArgs};
+use crate::console::parser::{CommandApp, CommandArguments};
 
 /// Create the lsp command app.
-pub fn app() -> App {
-    App::new("lsp")
+pub fn app() -> CommandApp {
+    CommandApp::new("lsp")
         .help("Run the Destack Language Server (stdio).")
         .command(
             "run",
@@ -15,7 +15,7 @@ pub fn app() -> App {
 }
 
 /// Run the LSP server over stdio.
-pub fn run(_ctx: CommandArgs) -> i32 {
+pub fn run(_ctx: CommandArguments) -> i32 {
     // NOTE: don't print anything to stdout or stderr so we don't interfere with the LSP protocol
 
     // create tokio runtime for async operations

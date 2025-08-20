@@ -5,14 +5,14 @@ use std::env;
 
 /// Parsed context for a command execution.
 #[derive(Debug, Clone)]
-pub struct CommandArgs {
+pub struct CommandArguments {
     /// Flag arguments with optional values (--key[=value] or -k [value])
     pub flags: HashMap<String, Option<String>>,
     /// Positional arguments
     pub positionals: Vec<String>,
 }
 
-impl CommandArgs {
+impl CommandArguments {
     /// Parse command arguments from an iterator of strings.
     ///
     /// Handles:
@@ -81,11 +81,11 @@ impl CommandArgs {
 }
 
 /// Command function signature; return exit code.
-pub type CommandFn = fn(CommandArgs) -> i32;
+pub type CommandFn = fn(CommandArguments) -> i32;
 
 /// A CLI application with sub-CLIs and commands.
 #[derive(Debug, Clone)]
-pub struct App {
+pub struct CommandApp {
     /// Application name
     pub name: String,
     /// Optional help text for the application
@@ -93,10 +93,10 @@ pub struct App {
     /// Registered commands with their functions and help text
     commands: HashMap<String, (CommandFn, Option<String>)>,
     /// Nested sub-applications
-    sub_apps: HashMap<String, App>,
+    sub_apps: HashMap<String, CommandApp>,
 }
 
-impl App {
+impl CommandApp {
     /// Create a new app with a name.
     pub fn new(name: impl Into<String>) -> Self {
         Self {
@@ -125,7 +125,7 @@ impl App {
     }
 
     /// Register a sub-app under a name.
-    pub fn sub_app(mut self, name: impl Into<String>, app: App) -> Self {
+    pub fn sub_app(mut self, name: impl Into<String>, app: CommandApp) -> Self {
         self.sub_apps.insert(name.into(), app);
         self
     }
@@ -141,7 +141,7 @@ impl App {
             return app.run_with_args(argv);
         }
         if let Some((func, _)) = self.commands.get(&first) {
-            let ctx = CommandArgs::parse(argv);
+            let ctx = CommandArguments::parse(argv);
             return (func)(ctx);
         }
         super::console::error(&format!("unknown command: `{first}`"));
@@ -159,7 +159,7 @@ impl App {
             return app.run_with_args(rest);
         }
         if let Some((func, _)) = self.commands.get(&first) {
-            let ctx = CommandArgs::parse(rest);
+            let ctx = CommandArguments::parse(rest);
             return (func)(ctx);
         }
         super::console::error(&format!("unknown command: `{first}`"));
