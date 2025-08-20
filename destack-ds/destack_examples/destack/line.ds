@@ -6,7 +6,7 @@ struct Segment2D {
 	end_offset: Vector2
 }
 
-entity SegmentShape2D extends Shape2D {
+#entity(Shape2D) struct SegmentShape2D {
 	...Segment2D
 }
 
@@ -16,6 +16,6 @@ struct Segment3D {
 	end_offset: Vector3
 }
 
-entity SegmentShape3D extends Shape3D {
+#entity(Shape3D) struct SegmentShape3D {
 	...Segment3D
 }

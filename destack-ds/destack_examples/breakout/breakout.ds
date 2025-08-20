@@ -71,7 +71,7 @@ struct PowerUpComponent {
 }
 
 /// The player's paddle
-entity BreakoutPaddle extends RigidBody2D {
+#entity(RigidBody2D) struct BreakoutPaddle {
 	...BreakoutComponent,
 	
 	/// Current paddle width
@@ -85,7 +85,7 @@ entity BreakoutPaddle extends RigidBody2D {
 }
 
 /// The ball that bounces around
-entity BreakoutBall extends RigidBody2D {
+#entity(RigidBody2D) struct BreakoutBall {
 	...BreakoutComponent,
 	
 	/// Ball radius
@@ -99,7 +99,7 @@ entity BreakoutBall extends RigidBody2D {
 }
 
 /// Destructible bricks
-entity BreakoutBrick extends RigidBody2D {
+#entity(RigidBody2D) struct BreakoutBrick {
 	...BreakoutComponent,
 	...DestructibleComponent,
 	
@@ -116,7 +116,7 @@ entity BreakoutBrick extends RigidBody2D {
 }
 
 /// Power-up items that fall from destroyed bricks
-entity BreakoutPowerUp extends RigidBody2D {
+#entity(RigidBody2D) struct BreakoutPowerUp {
 	...BreakoutComponent,
 	...PowerUpComponent,
 	
@@ -125,7 +125,7 @@ entity BreakoutPowerUp extends RigidBody2D {
 }
 
 /// Main game controller
-entity BreakoutGame {
+#entity(RigidBody2D) struct BreakoutGame {
 	...BreakoutComponent,
 	
 	/// Current game state
