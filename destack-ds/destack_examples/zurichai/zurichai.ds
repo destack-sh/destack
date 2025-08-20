@@ -19,7 +19,7 @@ entity Meetup {
 	starts_at: Option<DateTime>,
 	ends_at: Option<DateTime>,
 }
-#assert #size_of(Entity) < 64, #format("{Entity:?} is too big")
+#assert(#size_of(Entity) < 64, "{Entity:?} is too big")
 
 impl Meetup {
 	fn do_something(self) {
@@ -28,8 +28,8 @@ impl Meetup {
 
 	/// Cancel the Event.
 	#action 
-	fn cancel(self) -> struct { succes: bool } {
-		assert self.starts_at.is_some(), "Meetup must have started to cancel";
+	fn cancel(self) -> struct { success: bool } {
+		assert(self.starts_at.is_some(), "Meetup must have started to cancel");
 	}
 
 	#action

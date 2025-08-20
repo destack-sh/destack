@@ -1,10 +1,23 @@
 //! Version bump CLI ported from Python.
 
 use crate::console::console;
-use crate::console::parser::{App, CommandArgs};
+use crate::console::parser::{CommandApp, CommandArguments};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+
+const FILES_TO_UPDATE: &[&str] = &[
+    "version.txt",
+    "pyproject.toml",
+    "package.json",
+    "Cargo.toml",
+    "destack-ds/destack/core/builtin/_const.py",
+    "destack-ds/pyproject.toml",
+    "destack-py/pyproject.toml",
+    "destack-ts/destack/package.json",
+    "destack-ts/destack_web/package.json",
+    "destack-ts/destack_vscode/package.json",
+];
 
 /// Convert CalVer format to SemVer format.
 ///
@@ -44,19 +57,21 @@ fn today_calver() -> String {
 }
 
 /// Create the version command app.
-pub fn app() -> App {
-    App::new("version").help("Mark new versions.").command(
-        "bump",
-        bump,
-        Some("Bump CalVer (YYYY.MM.DD.R).".to_string()),
-    )
+pub fn app() -> CommandApp {
+    CommandApp::new("version")
+        .help("Mark new versions.")
+        .command(
+            "bump",
+            bump,
+            Some("Bump CalVer (YYYY.MM.DD.R).".to_string()),
+        )
 }
 
 /// Bump the version using CalVer format.
 ///
 /// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.
-pub fn bump(ctx: CommandArgs) -> i32 {
+pub fn bump(ctx: CommandArguments) -> i32 {
     let override_rev: Option<i32> = ctx.option("revision").and_then(|s| s.parse::<i32>().ok());
 
     let current_version =
@@ -93,23 +108,9 @@ pub fn bump(ctx: CommandArgs) -> i32 {
 
     console::print(&format!("Version: {current_version} -> {new_version}"));
 
-    // files that need version updates
-    let files_to_update = [
-        "version.txt",
-        "pyproject.toml",
-        "package.json",
-        "Cargo.toml",
-        "destack-ds/destack/core/builtin/_const.py",
-        "destack-ds/pyproject.toml",
-        "destack-py/pyproject.toml",
-        "destack-ts/destack/package.json",
-        "destack-ts/destack_web/package.json",
-        "destack-ts/destack_vscode/package.json",
-    ];
-
     // read and validate all files before making changes
     let mut contents: Vec<(PathBuf, String)> = Vec::new();
-    for rel in files_to_update.iter() {
+    for rel in FILES_TO_UPDATE {
         let p = PathBuf::from(rel);
         match fs::read_to_string(&p) {
             Ok(text) => {

@@ -20,6 +20,7 @@ destack = { workspace = true }
 destack_codegen = { workspace = true }
 destack_cli_macros = { workspace = true }
 destack_lsp = { workspace = true }
+destack_tokei = { workspace = true }
 
 tokio = { workspace = true }
 

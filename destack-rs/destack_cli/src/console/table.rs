@@ -119,7 +119,7 @@ fn push_row(
 
     let height = split.iter().map(|v| v.len()).max().unwrap_or(1);
 
-    // render each physical line
+    // render the physical line
     for line_idx in 0..height {
         out.push_str(&" ".repeat(padding));
         for (i, parts) in split.iter().enumerate() {

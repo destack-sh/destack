@@ -12,7 +12,7 @@
       "justMyCode": true,
       "env": {
         "ENVIRONMENT": "test"
-      },
+      }
     },
     {
       // run pytest collect to debug collection issues
@@ -26,7 +26,20 @@
       "justMyCode": true,
       "env": {
         "ENVIRONMENT": "test"
+      }
+    },
+    // rust configs
+    {
+      "name": "destack_cli",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["run", "--bin", "destack_cli"],
+        "filter": { "kind": "bin", "name": "destack_cli" }
       },
+      "args": ["tokei", "run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
     },
     // general configs
     {
@@ -39,8 +52,8 @@
       "justMyCode": true,
       "env": {
         "ENVIRONMENT": "development"
-      },
-    },  
+      }
+    },
     {
       "name": "destack.manual",
       "type": "debugpy",
@@ -51,7 +64,7 @@
       "justMyCode": true,
       "env": {
         "ENVIRONMENT": "development"
-      },
-    },
-  ],
+      }
+    }
+  ]
 }
