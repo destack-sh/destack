@@ -58,7 +58,7 @@ pub fn app() -> CommandApp {
 }
 
 /// Run the tokei command.
-pub fn run(ctx: CommandArguments) -> i32 {
+fn run(ctx: CommandArguments) -> i32 {
     // get options
     let root = ctx.option("root").unwrap_or(".");
     let ext_csv = ctx.option("ext").unwrap_or(DEFAULT_EXTENSIONS);

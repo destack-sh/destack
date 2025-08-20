@@ -33,7 +33,6 @@ fn sum<T: Type, L: u8>(vec: Vector<T, L>) -> T {
 
 const x = 5;
 
-#if(IS_TEST)
 #test_suite
 mod tests {
 	#test_case
