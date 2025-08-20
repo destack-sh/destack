@@ -1,0 +1,56 @@
+use destack::*;
+
+/// Transform properties for a 2D view.
+struct TransformComponent2D {
+	/// The origin of the Entity in 2D space.
+	origin: Option<Vector2>,
+	/// The anchor of the Entity in 2D space.
+	anchor: Option<Anchor>,
+	/// The offset of the Entity in 2D space.
+	offset: Option<Offset2>,
+}
+
+/// Sizing properties for a 2D view.
+struct SizingComponent2D {
+	/// The width of the View.
+	width: Option<Length>,
+	/// The height of the View.
+	height: Option<Length>,
+	/// The minimum width of the View.
+	min_width: Option<Length>,
+	/// The minimum height of the View.
+	min_height: Option<Length>,
+	/// The maximum width of the View.
+	max_width: Option<Length>,
+	/// The maximum height of the View.
+	max_height: Option<Length>,
+}
+
+/// Visibility properties for a 2D view.
+struct VisibilityComponent2D {
+	/// Whether the View is visible.
+	is_visible: Option<bool>,
+	/// The opacity of the View.
+	opacity: Option<f32>,
+}
+
+/// Style properties for a 2D view.
+struct StyleComponent2D {
+	/// The fill of the View.
+	fill: Option<Fill>,
+	/// The shadow of the View.
+	shadow: Option<Shadow>,
+	/// The border of the View.
+	border: Option<Border>,
+	/// The radius of the View.
+	radius: Option<Corner2>,
+}
+
+/// A View2D is a 2D interface element.
+#entity(RigidBody2D) struct View2D {
+	use TransformComponent2D::*;
+	use SizingComponent2D::*;
+	use VisibilityComponent2D::*;
+	use StyleComponent2D::*;
+}
+

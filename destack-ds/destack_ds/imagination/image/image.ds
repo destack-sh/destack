@@ -1,0 +1,9 @@
+use destack::*;
+
+/// An Image File
+#entity(File) struct Image {
+	width: u32,
+	height: u32,
+}
+
+

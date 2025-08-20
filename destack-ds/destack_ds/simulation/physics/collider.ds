@@ -1,0 +1,20 @@
+use destack::*;
+
+/// Base Collider event
+#event struct ColliderEvent {}
+
+/// Collision contact between two colliders
+#event(ColliderEvent) struct ColliderContactEvent {
+	/// First collider
+	collider_a: EntityReference<Collider2D>,
+	/// Second collider
+	collider_b: EntityReference<Collider2D>,
+}
+
+/// A Collider in 2D space
+#entity(Entity2D) struct Collider2D {}
+
+/// A Collider in 3D space
+#entity(Entity3D) struct Collider3D {}
+
+

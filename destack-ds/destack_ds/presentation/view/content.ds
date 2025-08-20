@@ -1,0 +1,13 @@
+use destack::*;
+
+/// A 2D content View
+#entity(View2D) struct ContentView2D {}
+
+/// A 2D Text View
+#entity(ContentView2D) struct TextView2D {
+	text: Option<Text>,
+	font: Option<Font>,
+	color: Option<Fill>,
+}
+
+

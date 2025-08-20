@@ -1,21 +1,21 @@
 use destack::*;
 
 struct Segment2D {
-	...Form2D,
+	use Form2D::*;
 	start_offset: Vector2,
 	end_offset: Vector2
 }
 
 #entity(Shape2D) struct SegmentShape2D {
-	...Segment2D
+	use Segment2D::*;
 }
 
 struct Segment3D {
-	...Form3D,
+	use Form3D::*;
 	start_offset: Vector3,
 	end_offset: Vector3
 }
 
 #entity(Shape3D) struct SegmentShape3D {
-	...Segment3D
+	use Segment3D::*;
 }

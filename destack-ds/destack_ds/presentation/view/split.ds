@@ -1,0 +1,6 @@
+use destack::*;
+
+/// A container that splits its children
+#entity(LayoutView2D) struct SplitView2D {}
+
+

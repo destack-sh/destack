@@ -1,0 +1,26 @@
+use destack::*;
+
+/// Base drag event
+#event(InputEvent) struct DragEvent {
+	position: Vector2,
+}
+
+/// Drag starts
+#event(DragEvent) struct DragStartEvent {}
+
+/// Drag ends
+#event(DragEvent) struct DragEndEvent {}
+
+/// Drag over an element
+#event(DragEvent) struct DragOverEvent {}
+
+/// Drag enters an element
+#event(DragEvent) struct DragEnterEvent {}
+
+/// Drag leaves an element
+#event(DragEvent) struct DragLeaveEvent {}
+
+/// Drag dropped on an element
+#event(DragEvent) struct DropEvent {}
+
+

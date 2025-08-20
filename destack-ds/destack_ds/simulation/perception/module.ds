@@ -1,0 +1,19 @@
+/// The Destack Simulation Perception Module.
+
+pub module input;
+pub module pointer;
+pub module mouse;
+pub module key;
+pub module focus;
+pub module drag;
+pub module clipboard;
+
+pub use input::*;
+pub use pointer::*;
+pub use mouse::*;
+pub use key::*;
+pub use focus::*;
+pub use drag::*;
+pub use clipboard::*;
+
+

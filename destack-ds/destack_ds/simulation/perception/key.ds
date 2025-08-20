@@ -1,0 +1,33 @@
+use destack::*;
+
+#flag enum KeyModifier {
+	Shift,
+	Alt,
+	Ctrl,
+	Meta,
+}
+
+/// Keyboard base event
+#event(InputEvent) struct KeyEvent {
+	/// The character pressed (e.g. 'a', 'B', '1', 'Enter')
+	key: String,
+	/// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
+	code: String,
+	/// Whether the key is being held down
+	is_repeat: bool,
+	/// Whether the key was masked (security/privacy)
+	is_redacted: bool,
+	/// Modifiers
+	modifiers: KeyModifier,
+}
+
+/// Key pressed down
+#event(KeyEvent) struct KeyDownEvent {}
+
+/// Key released
+#event(KeyEvent) struct KeyUpEvent {}
+
+/// Key pressed
+#event(KeyEvent) struct KeyPressEvent {}
+
+

@@ -1,0 +1,27 @@
+use destack::*;
+
+/// A Path is a polyline of multiple points.
+struct Path2D {
+	use Form2D::*;
+	points: Vector2[],
+	is_closed: bool,
+}
+
+/// A PathShape is a shape that represents a polyline of multiple points.
+#entity(Shape2D) struct PathShape2D {
+	use Path2D::*;
+}
+
+/// A Polyline3D is a polygonal chain in 3D space.
+struct Polyline3D {
+	use Form3D::*;
+	points: Vector3[],
+	is_closed: bool,
+}
+
+/// A PolylineShape3D represents a polygonal chain in 3D space.
+#entity(Shape3D) struct PolylineShape3D {
+	use Polyline3D::*;
+}
+
+

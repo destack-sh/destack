@@ -1,0 +1,67 @@
+use destack::*;
+
+/// The layout of elements
+enum Layout { Stack = 1, Grid = 2 }
+
+/// The overflow behavior of elements
+enum Overflow { Hidden = 2, Visible = 3, Scroll = 4 }
+
+/// The direction of elements
+enum Direction { Horizontal = 1, Vertical = 2 }
+
+/// The distribution of elements
+enum Distribute {
+	Start = 1,
+	Center = 2,
+	End = 3,
+	SpaceBetween = 4,
+	SpaceAround = 5,
+	SpaceEvenly = 6,
+}
+
+/// The alignment of elements
+enum Align { Start = 1, Center = 2, End = 3 }
+
+/// The position of elements
+enum Anchor { Relative = 1, Absolute = 2, Fixed = 3, Sticky = 4 }
+
+/// The unit of a length value
+enum LengthType { Pixel = 1, Percent = 2, Fit = 3, Fill = 4 }
+
+/// An absolute or relative length value
+struct Length { unit: LengthType, value: i16 }
+
+/// A 2-dimensional position value (relative or absolute)
+struct Offset2 {
+	type: Anchor,
+	top: Length,
+	left: Length,
+	width: Length,
+	height: Length,
+}
+
+/// A 2-dimensional insets value (base + side overrides)
+struct Inset2 { top: i16, left: i16, right: i16, bottom: i16 }
+
+/// A 2-dimensional corners value (base + corner overrides)
+struct Corner2 { top_left: i16, top_right: i16, bottom_left: i16, bottom_right: i16 }
+
+/// A 2-dimensional axis value (base + x/y overrides)
+struct Axis2 { x: i16, y: i16 }
+
+/// A 3-dimensional axis value (base + x/y/z overrides)
+struct Axis3 { x: i16, y: i16, z: i16 }
+
+/// A 2-dimensional grid configuration value
+struct Grid2 {
+	columns: i16,
+	rows: i16,
+	column_width: Option<Length>,
+	column_min_width: Option<Length>,
+	row_height: Option<Length>,
+}
+
+/// A 2-dimensional grid span value
+struct GridSpan2 { columns: i16, rows: i16 }
+
+

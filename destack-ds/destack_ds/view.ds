@@ -54,10 +54,10 @@ struct Style2D {
 /// A View2D is a 2D interface element
 /// Views add dynamic positioning, sizing and styling to RigidBody2D
 #entity(RigidBody2D) struct View2D {
-	...Transform2D,
-	...Sizing2D,
-	...Visibility2D,
-	...Style2D,
+	use Transform2D::*;
+	use Sizing2D::*;
+	use Visibility2D::*;
+	use Style2D::*;
 }
 
 #entity(View2D) struct MyCustomView {
