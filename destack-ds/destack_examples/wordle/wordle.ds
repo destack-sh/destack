@@ -61,7 +61,7 @@ struct WordleKeyState {
 }
 
 /// The main wordle game board
-entity WordleBoard extends Entity {
+#entity(Entity) struct WordleBoard {
 	...WordleComponent,
 	
 	/// Grid of guesses (6 rows of 5 letters)
@@ -77,7 +77,7 @@ entity WordleBoard extends Entity {
 }
 
 /// Virtual keyboard for letter input
-entity WordleKeyboard extends Entity {
+#entity(Entity) struct WordleKeyboard {
 	...WordleComponent,
 	
 	/// State of each letter key
@@ -87,7 +87,7 @@ entity WordleKeyboard extends Entity {
 }
 
 /// Main wordle game controller
-entity WordleGame extends Entity {
+#entity(Entity) struct WordleGame {
 	...WordleComponent,
 	
 	/// Current game state

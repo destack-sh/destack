@@ -143,9 +143,9 @@ fn run(ctx: CommandArguments) -> i32 {
             .unwrap_or_default();
         rows.push(vec![
             lang.clone(),
-            extensions,
-            files.to_string(),
-            lines.to_string(),
+            console::color(&extensions, "2"),         // dim
+            console::color(&files.to_string(), "36"), // cyan
+            console::color(&lines.to_string(), "32"), // green
         ]);
     }
     // sort by lines desc

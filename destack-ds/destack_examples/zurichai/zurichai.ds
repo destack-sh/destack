@@ -3,15 +3,15 @@
 ///
 
 
-entity MeetupMembership extends Membership {
+#entity(Membership) struct MeetupMembership {
 
 }
 
-entity MeetupSeries {
+#entity(Entity) struct MeetupSeries {
 
 }
 
-entity Meetup {
+#entity(Entity) struct Meetup {
 	/// Max number of attendees.
 	capacity: u32,
 	/// The series this is part of.
@@ -19,13 +19,9 @@ entity Meetup {
 	starts_at: Option<DateTime>,
 	ends_at: Option<DateTime>,
 }
-#assert(#size_of(Entity) < 64, "{Entity:?} is too big")
+#assert(#size_of(Meetup) < 64, "{Meetup:?} is too big")
 
 impl Meetup {
-	fn do_something(self) {
-
-	}
-
 	/// Cancel the Event.
 	#action 
 	fn cancel(self) -> struct { success: bool } {
@@ -39,6 +35,7 @@ impl Meetup {
 	} {
 
 	}
+	// referred to as Meetup::start::Success/Failure
 
 	#action
 	fn end(self) {
