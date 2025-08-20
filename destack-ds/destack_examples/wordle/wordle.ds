@@ -1,5 +1,5 @@
 /// Game state for the wordle game
-enum WordleGameState {
+enum(u8) WordleGameState {
 	/// Game is ready to start
 	Ready,
 	/// Game is actively being played
@@ -13,21 +13,33 @@ enum WordleGameState {
 }
 
 /// Letter state in a wordle guess
-enum WordleLetterState {
+enum(string) WordleLetterState {
 	/// Letter not yet guessed
-	Empty,
+	Empty = "Empty",
 	/// Letter is in the word and in correct position
-	Correct,
+	Correct = "Correct",
 	/// Letter is in the word but in wrong position
-	Present,
+	Present = "Present",
 	/// Letter is not in the word
-	Absent
+	Absent = "Absent"
+}
+
+/// Error 
+#error
+union WordleError {
+	OutOfLetters(u32),
+	InvalidGuess({
+		guess: String,
+		reason: WordleLetterState,
+		correct_word: String
+	}),
+	InvalidTargetWord(String),
+	InvalidGuessLength(u32),
+	InvalidGuessFormat(String),
 }
 
 /// Base component for all wordle game objects
 struct WordleComponent {
-	/// Game instance this object belongs to
-	game_id: u32,
 	/// Whether this object is active in the game
 	is_active: bool = true,
 }
