@@ -1,9 +1,7 @@
-//^
-//^ The module for real gangsters
-//^
+///
+/// The module for real gangsters
+///
 
-#^(name="zurichai")
-#^module(hey)
 
 entity MeetupMembership extends Membership {
 
@@ -21,7 +19,7 @@ entity Meetup {
 	starts_at: Option<DateTime>,
 	ends_at: Option<DateTime>,
 }
-#assert #sizeof(Entity) < 64, #format("")
+#assert #size_of(Entity) < 64, #format("{Entity:?} is too big")
 
 impl Meetup {
 	fn do_something(self) {
@@ -31,11 +29,14 @@ impl Meetup {
 	/// Cancel the Event.
 	#action 
 	fn cancel(self) -> struct { succes: bool } {
-
+		assert self.starts_at.is_some(), "Meetup must have started to cancel";
 	}
 
 	#action
-	fn start(self) {
+	fn start(self) -> union {
+		Success,
+		Failure,
+	} {
 
 	}
 
