@@ -35,30 +35,6 @@ class RunStatus(OptionEnum):
     FAILED = declare_option(53, "Failed", description="Failed due to an error")
     COMPLETED = declare_option(54, "Completed", description="Completed successfully")
 
-    @property
-    def is_pre(self) -> bool:
-        return self < 10
-
-    @property
-    def is_active(self) -> bool:
-        return self >= 10 and self < 20
-
-    @property
-    def is_interrupted(self) -> bool:
-        return self >= 20 and self < 30
-
-    @property
-    def is_inactive(self) -> bool:
-        return self >= 30 and self < 40
-
-    @property
-    def is_terminal(self) -> bool:
-        return self >= 50
-
-    @property
-    def is_bad(self) -> bool:
-        return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
-
 
 @declare_event(NodeType.RUN_EVENT, is_abstract=True)
 class RunEvent(Event):

@@ -1,0 +1,8 @@
+use destack::*;
+
+/// An Audio File
+#entity(File) struct Audio {
+	duration: Duration,
+}
+
+

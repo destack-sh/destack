@@ -1,0 +1,31 @@
+use destack::*;
+
+/// A Transform2D is a 2D geometric transform.
+#component struct Transform2D {
+	/// The position of the Entity in 2D space.
+	position: Vector2,
+	/// The scale of the Entity in 2D space.
+	scale: Vector2,
+	/// The rotation of the Entity in 2D space.
+	rotation: f32
+}
+
+/// A Transform3D is a 3D geometric transform.
+#component struct Transform3D {
+	/// The position of the Entity in 3D space.
+	position: Vector3,
+	/// The scale of the Entity in 3D space.
+	scale: Vector3,
+	/// The rotation of the Entity in 3D space.
+	rotation: Quaternion
+}
+
+/// An Entity2D is a 2D geometric Entity.
+#entity struct Entity2D {
+	use Transform2D::*;
+}
+
+/// An Entity3D is a 3D geometric Entity.
+#entity struct Entity3D {
+	use Transform3D::*;
+}

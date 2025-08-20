@@ -7,7 +7,8 @@ enum Materialization {
 	Root = 7
 }
 
-struct Transform2D {
+#component
+struct TransformComponent2D {
 	position: Vector2,
 	scale: Vector2,
 	rotation: f32
@@ -92,7 +93,7 @@ trait Reactable {
 } 
 
 #entity struct Entity2D {
-	...Transform2D
+	use Transform2D::*;
 
 }
 
@@ -115,7 +116,7 @@ impl Reactable for Entity2D {
 }
 
 impl System for CustomPhysicsSystem {
-	..
+	use Transform2D::*;
 }
 
 impl Service for .. {
@@ -201,7 +202,7 @@ fn main() {
 	}
 }
 
-#if(IS_TEST)
+#if IS_TEST
 module tests {
 
 }

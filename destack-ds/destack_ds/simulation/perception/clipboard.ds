@@ -1,0 +1,15 @@
+use destack::*;
+
+/// Clipboard base event
+#event(InputEvent) struct ClipboardEvent {}
+
+/// Copy event
+#event(ClipboardEvent) struct CopyEvent {}
+
+/// Cut event
+#event(ClipboardEvent) struct CutEvent {}
+
+/// Paste event
+#event(ClipboardEvent) struct PasteEvent {}
+
+

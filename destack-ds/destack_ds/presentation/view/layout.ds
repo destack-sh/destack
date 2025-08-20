@@ -1,0 +1,32 @@
+use destack::*;
+
+/// Layout properties for a 2D View.
+struct LayoutComponent2D {
+	/// How to layout the children of this View.
+	layout: Option<Layout>,
+	/// The direction in which the children of this View are laid out.
+	direction: Option<Direction>,
+	/// How to distribute the children of this View.
+	distribute: Option<Distribute>,
+	/// How to align the children of this View.
+	align: Option<Align>,
+	/// The gap between the children of this View.
+	gap: Option<Axis2>,
+	/// The padding around the children of this View.
+	padding: Option<Inset2>,
+	/// The grid in which the children of this View are laid out.
+	grid: Option<Grid2>,
+	/// The span of this View in the grid.
+	grid_span: Option<GridSpan2>,
+	/// The aspect ratio of this View.
+	aspect_ratio: Option<f32>,
+	/// Whether the children of this View are wrapped in the grid.
+	is_wrap: Option<bool>,
+}
+
+/// A 2D layout View defines how its children are laid out.
+#entity(View2D) struct LayoutView2D {
+	use LayoutComponent2D::*;
+}
+
+

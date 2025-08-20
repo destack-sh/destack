@@ -28,7 +28,7 @@ struct Gradient {
 
 /// A gradient style
 #entity(Entity) struct GradientStyle {
-	...Gradient,
+	use Gradient::*;
 }
 
 impl GradientStyle {

@@ -33,7 +33,7 @@ union WordleError {
 		reason: WordleLetterState,
 		correct_word: String
 	}),
-	InvalidTargetWord(String),
+	InvalidTargetWord(String, i32),
 	InvalidGuessLength(u32),
 	InvalidGuessFormat(String),
 }
@@ -74,7 +74,7 @@ struct WordleKeyState {
 
 /// The main wordle game board
 #entity(Entity) struct WordleBoard {
-	...WordleComponent,
+	use WordleComponent::*;
 	
 	/// Grid of guesses (6 rows of 5 letters)
 	guesses: WordleGuess[6],
@@ -90,7 +90,7 @@ struct WordleKeyState {
 
 /// Virtual keyboard for letter input
 #entity(Entity) struct WordleKeyboard {
-	...WordleComponent,
+	use WordleComponent::*;
 	
 	/// State of each letter key
 	key_states: Map<char, WordleKeyState>,
@@ -100,7 +100,7 @@ struct WordleKeyState {
 
 /// Main wordle game controller
 #entity(Entity) struct WordleGame {
-	...WordleComponent,
+	use WordleComponent::*;
 	
 	/// Current game state
 	state: WordleGameState = WordleGameState::Ready,

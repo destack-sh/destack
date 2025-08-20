@@ -44,3 +44,10 @@ pub struct ItemDefinition {
     pub name: String,
     pub items: Vec<ItemDefinition>,
 }
+
+#[derive(Debug, Clone)]
+pub struct Type {
+    pub id: u32,
+    pub span: Span,
+    pub name: String,
+}

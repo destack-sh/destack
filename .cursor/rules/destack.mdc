@@ -2,3 +2,113 @@
 globs: *.ds
 alwaysApply: false
 ---
+
+Destack is our custom high performance programming language.
+It's inspired by Rust, Zig, Jai, GDScript, TypeScript, Swift.
+
+We take from Rust a lot of the syntax, primitives and mechanisms.
+We have modules with items, everything as an expression, traits, impls, structs.
+Destack gets rid of all of Rust's borrow checking and macro system.
+We have explicit enums, unions and tuples.
+
+The macro system is lot closer to Zig comptime and Jai # but more refined. 
+We don't have attributes like Rust but proper static functions, 
+ which have the full power of regular functions.
+Generally, you don't need to *define* your own macros, but you can use
+ static features like #if, #for and such.
+
+Example program:
+```
+use destack::*;
+
+/// Game state for the wordle game
+enum WordleGameState {
+	/// Game is ready to start
+	Ready,
+	/// Game is actively being played
+	Playing,
+	/// Game is paused
+	Paused,
+	/// Game over - player lost
+	GameOver,
+	/// Game won - word guessed correctly
+	Victory
+}
+
+/// Letter state in a wordle guess
+enum(string) WordleLetterState {
+	/// Letter not yet guessed
+	Empty = "Empty",
+	/// Letter is in the word and in correct position
+	Correct = "Correct",
+	/// Letter is in the word but in wrong position
+	Present = "Present",
+	/// Letter is not in the word
+	Absent = "Absent"
+}
+
+/// Error 
+#error
+union WordleError {
+	OutOfLetters(u32),
+	InvalidGuess({
+		guess: String,
+		reason: WordleLetterState,
+		correct_word: String
+	}),
+	InvalidTargetWord(String, i32),
+	InvalidGuessLength(u32),
+	InvalidGuessFormat(String),
+}
+
+/// Base component for all wordle game objects
+struct WordleComponent {
+	is_active: bool = true,
+}
+
+/// A single letter cell in the wordle grid
+struct WordleCell {
+	/// The letter in this cell
+	letter: Option<char> = None,
+	state: WordleLetterState = WordleLetterState::Empty,
+	is_active: bool = false,
+}
+
+/// A single guess row
+struct WordleGuess {
+	/// The 5 letters in this guess
+	cells: WordleCell[5],
+	is_submitted: bool = false,
+	is_current: bool = false,
+}
+
+/// Keyboard key state tracking
+struct WordleKeyState {
+	/// The letter this key represents
+	letter: char,
+	/// State of this letter based on guesses
+	state: WordleLetterState = WordleLetterState::Empty,
+}
+
+/// The main wordle game board
+#entity(Entity) struct WordleBoard {
+	use WordleComponent::*;
+	
+	guesses: WordleGuess[6],
+	current_row: u32 = 0,
+	current_col: u32 = 0,
+	target_word: String,
+	is_accepting_input: bool = true,
+}
+
+impl WordleBoard {
+	fn something(self) {
+		// ...
+	}
+}
+
+fn something_else() {
+	// ...
+}
+
+```

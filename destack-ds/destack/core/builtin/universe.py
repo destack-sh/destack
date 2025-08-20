@@ -73,10 +73,6 @@ class UniverseCategory(OptionEnum):
     #
 
     BUILTIN = declare_option(1, "Core", description="Primitives and intrinsics")
-    # nocheckin :Architecture: would be nice to "merge" *Definitions (Structs) and *CustomDefinitions (Nodes)
-    #  Having Struct POD definitions statically known makes bootstrapping the runtime much easier (?);
-    #   Structs are trivial to load and iterate but Nodes need more machinery (identity, graphs, etc).
-    #   (so would require much deeper integration with a custom language and .. dunno, maybe)
     DEFINITION = declare_option(100_000, "Definition", description="Builtin definitions")
     COMMON = declare_option(200_000, "Common", description="Shared definitions")
     ENCODING = declare_option(1_000_000, "Encoding", description="Serialization and packing")

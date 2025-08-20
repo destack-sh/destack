@@ -1,0 +1,12 @@
+use destack::*;
+
+/// An Entity that represents a Metric.
+#entity struct Metric {}
+
+/// An Event that represents a Measurement.
+#event struct MeasurementEvent {
+	/// The metric definition this measurement is for.
+	definition: Metric,
+}
+
+

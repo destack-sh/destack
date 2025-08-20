@@ -1,0 +1,17 @@
+/// The Destack Computational Universe.
+
+enum UniverseDomain {
+	Core,
+	Simulation,
+	Imagination,
+	Presentation,
+	Production,
+	Distribution,
+}
+
+module core;
+module simulation;
+module imagination;
+module presentation;
+module production;
+module distribution;

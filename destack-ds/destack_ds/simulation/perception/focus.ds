@@ -1,0 +1,12 @@
+use destack::*;
+
+/// Base focus event
+#event(InputEvent) struct FocusEvent {}
+
+/// Focus gained
+#event(FocusEvent) struct FocusInEvent {}
+
+/// Focus lost
+#event(FocusEvent) struct FocusOutEvent {}
+
+
