@@ -46,12 +46,12 @@ impl Meetup {
 	}
 }
 
-event MeetupEvent {
+#event struct MeetupEvent {
 	meetup: Meetup,
 }
 
-event MeetupAlmostFull extends MeetupEvent {}
-event MeetupFull extends MeetupEvent {}
-event MeetupCancelled extends MeetupEvent {}
-event MeetupStarted extends MeetupEvent {}
-event MeetupEnded extends MeetupEvent {}
+#event(MeetupEvent) struct MeetupAlmostFull {}
+#event(MeetupEvent) struct MeetupFull {}
+#event(MeetupEvent) struct MeetupCancelled {}
+#event(MeetupEvent) struct MeetupStarted {}
+#event(MeetupEvent) struct MeetupEnded {}

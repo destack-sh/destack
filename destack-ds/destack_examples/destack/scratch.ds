@@ -48,7 +48,7 @@ enum ProcessFlag {
 	SleepingInput = 16
 }
 
-entity Entity {
+#entity struct Entity {
 	/// The universally unique identifier.
 	id: uuid, 
 
@@ -91,8 +91,8 @@ trait Reactable {
 
 } 
 
-entity Entity2D {
-	..Transform2D
+#entity struct Entity2D {
+	...Transform2D
 
 }
 
@@ -110,7 +110,7 @@ impl Reactable for Entity2D {
 // Systems
 //
 
-entity CustomPhysicsSystem {
+#entity struct CustomPhysicsSystem {
 
 }
 
@@ -126,7 +126,7 @@ impl Service for .. {
 // Events
 //
 
-event MyEvent .. InputEvent {
+#event(InputEvent) struct MyEvent {
 
 }
 
@@ -191,12 +191,17 @@ struct Position2(Vector2);
 
 struct CustomLength(f32); // newtype
 
-fn main {
-	defer #print("Done!);
+fn main() {
+	defer #print("Done!");
 
 	loop {
 		..
 
 		break;
 	}
+}
+
+#if(IS_TEST)
+module tests {
+
 }

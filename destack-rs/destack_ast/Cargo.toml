@@ -1,0 +1,26 @@
+[package]
+name = "destack_ast"
+description = "Destack AST"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+destack = { path = "../destack" }
+destack_lexer = { path = "../destack_lexer" }
+destack_unicode = { path = "../destack_unicode" }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+# [[bench]]
+# name = "parse"
+# harness = false
+
+[lints]
+workspace = true

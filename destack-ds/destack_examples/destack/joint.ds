@@ -93,7 +93,7 @@ struct JointFrame3D {
 //
 
 /// Base Joint in 2D space
-entity Joint2D extends Entity2D {
+#entity(Entity2D) struct Joint2D {
 	/// First body connected by the Joint
 	body_a: EntityReference<Body2D>,
 	/// Second body connected by the Joint
@@ -109,7 +109,7 @@ entity Joint2D extends Entity2D {
 }
 
 /// Revolute (hinge) joint in 2D
-entity RevoluteJoint2D extends Joint2D {
+#entity(Joint2D) struct RevoluteJoint2D {
 	/// Optional angular limit around the hinge axis (radians)
 	limit: Option<JointTwistLimit> = None,
 	/// Optional angular motor around the hinge axis (rad/s)
@@ -119,7 +119,7 @@ entity RevoluteJoint2D extends Joint2D {
 }
 
 /// Prismatic (slider) joint in 2D
-entity PrismaticJoint2D extends Joint2D {
+#entity(Joint2D) struct PrismaticJoint2D {
 	/// Slide axis expressed in Body A local space (unit vector)
 	axis_a: Vector2,
 	/// Optional linear limit along the slide axis (meters)
@@ -131,7 +131,7 @@ entity PrismaticJoint2D extends Joint2D {
 }
 
 /// Fixed joint in 2D
-entity FixedJoint2D extends Joint2D {
+#entity(Joint2D) struct FixedJoint2D {
 	/// Optional softening for locked translation (spring-damper)
 	linear_spring: Option<JointSpring> = None,
 	/// Optional softening for locked rotation (spring-damper)
@@ -139,7 +139,7 @@ entity FixedJoint2D extends Joint2D {
 }
 
 /// Rope/Distance joint in 2D
-entity RopeJoint2D extends Joint2D {
+#entity(Joint2D) struct RopeJoint2D {
 	/// Distance range between anchors (meters)
 	distance_limit: JointScalarLimit,
 	/// Optional spring to model a compliant rope/rod
@@ -147,7 +147,7 @@ entity RopeJoint2D extends Joint2D {
 }
 
 /// Wheel joint in 2D
-entity WheelJoint2D extends Joint2D {
+#entity(Joint2D) struct WheelJoint2D {
 	/// Suspension (slide) axis in Body A local space (unit vector)
 	suspension_axis_a: Vector2,
 	/// Suspension spring-damper along the suspension axis
@@ -163,7 +163,7 @@ entity WheelJoint2D extends Joint2D {
 //
 
 /// Base Joint in 3D space
-entity Joint3D extends Entity3D {
+#entity(Entity3D) struct Joint3D {
 	/// First body connected by the Joint
 	body_a: EntityReference<Body3D>,
 	/// Second body connected by the Joint
@@ -179,7 +179,7 @@ entity Joint3D extends Entity3D {
 }
 
 /// Spherical (ball-and-socket) joint in 3D
-entity SphericalJoint3D extends Joint3D {
+#entity(Joint3D) struct SphericalJoint3D {
 	/// Swing (cone) limit around local Y/Z axes (radians)
 	cone_limit: Option<JointConeLimit> = None,
 	/// Twist limit around the local X axis (radians)
@@ -189,7 +189,7 @@ entity SphericalJoint3D extends Joint3D {
 }
 
 /// Hinge joint in 3D
-entity HingeJoint3D extends Joint3D {
+#entity(Joint3D) struct HingeJoint3D {
 	/// Hinge axis expressed in Body A local space (unit vector)
 	axis_a: Vector3,
 	/// Optional angular limit around the hinge axis (radians)
@@ -201,7 +201,7 @@ entity HingeJoint3D extends Joint3D {
 }
 
 /// Prismatic (slider) joint in 3D
-entity PrismaticJoint3D extends Joint3D {
+#entity(Joint3D) struct PrismaticJoint3D {
 	/// Slide axis expressed in Body A local space (unit vector)
 	axis_a: Vector3,
 	/// Optional linear limit along the slide axis (meters)
@@ -213,7 +213,7 @@ entity PrismaticJoint3D extends Joint3D {
 }
 
 /// Fixed joint in 3D
-entity FixedJoint3D extends Joint3D {
+#entity(Joint3D) struct FixedJoint3D {
 	/// Optional softening for locked translation (spring-damper)
 	linear_spring: Option<JointSpring> = None,
 	/// Optional softening for locked rotation (spring-damper)
@@ -221,7 +221,7 @@ entity FixedJoint3D extends Joint3D {
 }
 
 /// Rope/Distance joint in 3D
-entity RopeJoint3D extends Joint3D {
+#entity(Joint3D) struct RopeJoint3D {
 	/// Distance range between anchors (meters)
 	distance_limit: JointScalarLimit,
 	/// Optional spring to model a compliant rope/rod
@@ -229,7 +229,7 @@ entity RopeJoint3D extends Joint3D {
 }
 
 /// Wheel (suspension) joint in 3D
-entity WheelJoint3D extends Joint3D {
+#entity(Joint3D) struct WheelJoint3D {
 	/// Suspension (slide) axis in Body A local space (unit vector)
 	suspension_axis_a: Vector3,
 	/// Suspension spring-damper along the suspension axis

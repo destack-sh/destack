@@ -276,6 +276,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_ast"
+version = "2025.8.20-1"
+dependencies = [
+ "criterion",
+ "destack",
+ "destack_lexer",
+ "destack_unicode",
+]
+
+[[package]]
 name = "destack_cli"
 version = "2025.8.20-1"
 dependencies = [

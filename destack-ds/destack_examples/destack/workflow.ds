@@ -1,0 +1,9 @@
+
+
+fn #workflow(decl: StructDeclaration) -> StructDeclaration {
+	decl
+}
+
+#entity struct Workflow {
+	scheduling_preference: Any,
+}

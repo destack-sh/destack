@@ -23,7 +23,7 @@ struct Gradient {
 }
 
 /// A gradient style.
-entity GradientStyle extends Style {
+#entity(Style) struct GradientStyle {
 	...Gradient
 }
 

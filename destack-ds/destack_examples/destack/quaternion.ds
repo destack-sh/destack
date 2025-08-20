@@ -1,8 +1,7 @@
 use destack::*;
 
 /// A quaternion.
-#repr(Layout::C)
-struct Quaternion {
+struct(Layout::C) Quaternion {
     x: f32,
     y: f32,
     z: f32,
