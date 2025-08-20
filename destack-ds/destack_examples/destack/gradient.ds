@@ -1,30 +1,34 @@
-
-
+/// Built-in gradient types
 enum GradientType {
-	/// Lienar gradient
-	Linear,
-	/// Radial gradient
-	Radial,
-	/// Conic gradient
-	Conic,
-	/// Diamond gradient
-	Diamond
+	/// A linear gradient
+	Linear = 10,
+	/// A radial gradient
+	Radial = 11,
+	/// A conic gradient
+	Conic = 12,
+	/// A diamond gradient
+	Diamond = 13
 }
 
+/// A gradient stop with color and position
 struct GradientStop {
 	color: Option<Color>,
 	position: f32
 }
 
+/// A gradient value
 struct Gradient {
-	type: GradientType,
-	angle: f32,
-	stops: List<GradientStop>
+	type: GradientType = GradientType::Linear,
+	template: Option<GradientStyle>,
+	angle: Option<f32>,
+	stops: List<GradientStop>,
+	center_anchor: Option<Axis2>,
 }
+#assert(#size_of(Gradient) < 64, #format("{Gradient:?} is too big"))
 
-/// A gradient style.
-#entity(Style) struct GradientStyle {
-	...Gradient
+/// A gradient style
+#entity(Entity) struct GradientStyle {
+	...Gradient,
 }
 
 impl GradientStyle {

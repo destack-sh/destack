@@ -53,14 +53,14 @@ fn lex(ctx: CommandArguments) -> i32 {
         "Lexeme".to_string(),
     ];
     let mut rows: Vec<Vec<String>> = Vec::new();
-    let mut offset_bytes: usize = 0;
+    let mut offset: usize = 0;
     let mut line: usize = 1;
     let mut col: usize = 1;
     for (idx, tok) in tokenize(&input).enumerate() {
         // take substring for this token by byte length
         let len = tok.len as usize;
-        let end = offset_bytes.saturating_add(len).min(input.len());
-        let slice = &input[offset_bytes..end];
+        let end = offset.saturating_add(len).min(input.len());
+        let slice = &input[offset..end];
 
         // advance line/col based on slice
         for ch in slice.chars() {
@@ -105,7 +105,7 @@ fn lex(ctx: CommandArguments) -> i32 {
             lexeme_preview,
         ]);
 
-        offset_bytes = end;
+        offset = end;
     }
 
     // prepare secondary headers

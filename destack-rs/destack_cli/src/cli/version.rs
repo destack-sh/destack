@@ -53,9 +53,8 @@ fn bump(ctx: CommandArguments) -> i32 {
         .unwrap_or(0);
     let current_semver = to_semver(&current_version);
 
+    // determine new version
     let today = today_calver();
-
-    // determine new revision number
     let new_rev = match override_rev {
         Some(r) => r,
         None => {
