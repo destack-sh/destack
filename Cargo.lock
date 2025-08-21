@@ -261,7 +261,7 @@ dependencies = [
 
 [[package]]
 name = "destack"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "destack_json",
  "destack_macros",
@@ -277,7 +277,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "destack",
  "destack_cli_macros",
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "destack_cli_macros"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "destack",
  "destack_codegen",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "destack_json"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "destack",
  "destack_parserr",
@@ -335,7 +335,7 @@ dependencies = [
 
 [[package]]
 name = "destack_macros"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -343,7 +343,7 @@ dependencies = [
 
 [[package]]
 name = "destack_order"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 
 [[package]]
 name = "destack_parser_fuzz"
@@ -356,7 +356,7 @@ dependencies = [
 
 [[package]]
 name = "destack_parserr"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "criterion",
  "destack",
@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "destack",
  "pretty_assertions",
@@ -374,7 +374,7 @@ dependencies = [
 
 [[package]]
 name = "destack_time"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -391,15 +391,15 @@ dependencies = [
 
 [[package]]
 name = "destack_tokei"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 
 [[package]]
 name = "destack_unicode"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 
 [[package]]
 name = "destack_uuid"
-version = "2025.8.20-1"
+version = "2025.8.21-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",

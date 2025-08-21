@@ -5,54 +5,70 @@ use crate::console::{console, table};
 use destack_tokei as tokei;
 
 struct LanguageDeclaration<'a> {
-    extension: &'a str,
+    extensions: &'a [&'a str],
     name: Option<&'a str>,
 }
 
 const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
     LanguageDeclaration {
-        extension: "rs",
+        extensions: &["rs"],
         name: Some("Rust"),
     },
     LanguageDeclaration {
-        extension: "ds",
+        extensions: &["ds"],
         name: Some("Destack"),
     },
     LanguageDeclaration {
-        extension: "py",
+        extensions: &["py"],
         name: Some("Python"),
     },
     LanguageDeclaration {
-        extension: "ts",
+        extensions: &["ts"],
         name: Some("TypeScript"),
     },
     LanguageDeclaration {
-        extension: "js",
+        extensions: &["js"],
         name: Some("JavaScript"),
     },
     LanguageDeclaration {
-        extension: "tsx",
+        extensions: &["tsx"],
         name: Some("TSX"),
     },
     LanguageDeclaration {
-        extension: "jsx",
+        extensions: &["jsx"],
         name: Some("JSX"),
     },
     LanguageDeclaration {
-        extension: "tf",
+        extensions: &["tf"],
         name: Some("Terraform"),
     },
     LanguageDeclaration {
-        extension: "toml",
+        extensions: &["sh"],
+        name: Some("Shell"),
+    },
+    LanguageDeclaration {
+        extensions: &["sql"],
+        name: Some("SQL"),
+    },
+    LanguageDeclaration {
+        extensions: &["toml"],
         name: Some("TOML"),
     },
     LanguageDeclaration {
-        extension: "json",
+        extensions: &["json"],
         name: Some("JSON"),
     },
     LanguageDeclaration {
-        extension: "md",
+        extensions: &["md"],
         name: Some("Markdown"),
+    },
+    LanguageDeclaration {
+        extensions: &["yaml", "yml"],
+        name: Some("YAML"),
+    },
+    LanguageDeclaration {
+        extensions: &["txt"],
+        name: Some("Text"),
     },
 ];
 
@@ -113,7 +129,7 @@ fn run(ctx: CommandArguments) -> i32 {
     let root = ctx.option("root").unwrap_or(".");
     let default_ext_csv = DEFAULT_EXTENSIONS
         .iter()
-        .map(|e| e.extension)
+        .flat_map(|e| e.extensions.iter().copied())
         .collect::<Vec<_>>()
         .join(",");
     let ext_csv = ctx.option("ext").unwrap_or(&default_ext_csv);
@@ -126,7 +142,11 @@ fn run(ctx: CommandArguments) -> i32 {
     // parse aliases: ext=AliasName
     let default_alias_csv = DEFAULT_EXTENSIONS
         .iter()
-        .map(|e| format!("{}={}", e.extension, e.name.unwrap_or(e.extension)))
+        .flat_map(|e| {
+            e.extensions
+                .iter()
+                .map(|ext| format!("{}={}", ext, e.name.unwrap_or(ext)))
+        })
         .collect::<Vec<_>>()
         .join(",");
     let alias_csv = ctx.option("alias").unwrap_or(&default_alias_csv);
