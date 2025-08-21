@@ -333,6 +333,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_lang_codegen_rust"
+version = "2025.8.21-6"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "destack_lang_dir"
 version = "2025.8.21-6"
 dependencies = [

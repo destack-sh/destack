@@ -54,9 +54,9 @@ pub enum TokenType {
     /// `.`
     Dot,
     /// `..`
-    DotDot,
+    DoubleDot,
     /// `...`
-    DotDotDot,
+    TripleDot,
     /// `(`
     OpenParenthesis,
     /// `)`
@@ -95,6 +95,10 @@ pub enum TokenType {
     GreaterThan,
     /// `-`
     Minus,
+    /// `--`
+    DoubleMinus,
+    /// '---',
+    TripleMinus,
     /// `->`
     ThinArrow,
     /// `&`
@@ -103,6 +107,10 @@ pub enum TokenType {
     Or,
     /// `+`
     Plus,
+    /// `++`
+    DoublePlus,
+    /// `+++`,
+    TriplePlus,
     /// `*`
     Star,
     /// `/`

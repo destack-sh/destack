@@ -32,7 +32,8 @@ macro_rules! assert_tokenize_roundtrip {
     };
 }
 
-fn check_raw_str(s: &str, expected: Result<u8, RawStringError>) {
+/// Check whether a raw string tokenizes as expected.
+fn assert_raw_str_eq(s: &str, expected: Result<u8, RawStringError>) {
     let s = &format!("r{s}");
     let mut cursor = Tokenizer::new(s);
     cursor.bump();
@@ -42,23 +43,23 @@ fn check_raw_str(s: &str, expected: Result<u8, RawStringError>) {
 
 #[test]
 fn test_naked_raw_str() {
-    check_raw_str(r#""abc""#, Ok(0));
+    assert_raw_str_eq(r#""abc""#, Ok(0));
 }
 
 #[test]
 fn test_raw_no_start() {
-    check_raw_str(r##""abc"#"##, Ok(0));
+    assert_raw_str_eq(r##""abc"#"##, Ok(0));
 }
 
 #[test]
 fn test_too_many_terminators() {
     // this error is handled in the parser later
-    check_raw_str(r###"#"abc"##"###, Ok(1));
+    assert_raw_str_eq(r###"#"abc"##"###, Ok(1));
 }
 
 #[test]
 fn test_unterminated() {
-    check_raw_str(
+    assert_raw_str_eq(
         r#"#"abc"#,
         Err(RawStringError::NoTerminator {
             expected: 1,
@@ -66,7 +67,7 @@ fn test_unterminated() {
             possible_terminator_offset: None,
         }),
     );
-    check_raw_str(
+    assert_raw_str_eq(
         r###"##"abc"#"###,
         Err(RawStringError::NoTerminator {
             expected: 2,
@@ -75,7 +76,7 @@ fn test_unterminated() {
         }),
     );
     // we're looking for "# not just any #
-    check_raw_str(
+    assert_raw_str_eq(
         r###"##"abc#"###,
         Err(RawStringError::NoTerminator {
             expected: 2,
@@ -102,7 +103,7 @@ fn test_valid_weird_unicode() {
 
 #[test]
 fn test_invalid_start() {
-    check_raw_str(
+    assert_raw_str_eq(
         r##"#~"abc"#"##,
         Err(RawStringError::InvalidStarter { bad_char: '~' }),
     );
@@ -117,7 +118,7 @@ fn test_spread_and_arrows() {
             len: 1
         },
         Token {
-            r#type: TokenType::DotDotDot,
+            r#type: TokenType::TripleDot,
             len: 3
         },
         Token {
@@ -170,7 +171,7 @@ fn test_spread_and_arrows() {
 #[test]
 fn test_unterminated_no_pound() {
     // https://github.com/rust-lang/rust/issues/70677
-    check_raw_str(
+    assert_raw_str_eq(
         r#"""#,
         Err(RawStringError::NoTerminator {
             expected: 0,
@@ -190,10 +191,10 @@ fn test_too_many_hashes() {
     let s2 = [&hashes2, middle, &hashes2].join("");
 
     // valid number of hashes (255 = 2^8 - 1 = u8::MAX)
-    check_raw_str(&s1, Ok(255));
+    assert_raw_str_eq(&s1, Ok(255));
 
     // one more hash sign (256 = 2^8) becomes too many
-    check_raw_str(
+    assert_raw_str_eq(
         &s2,
         Err(RawStringError::TooManyDelimiters {
             found: u32::from(max_count) + 1,
@@ -584,6 +585,7 @@ fn test_roundtrip_view() {
     let input = r##"
 entity MyCustomView extends View2D {
 	fn render(self) {
+        let value: i32 = ---;
         @if target == 'macos' {
             ButtonView::new({ test: f"Hi {self.name}!" })
         } @else {

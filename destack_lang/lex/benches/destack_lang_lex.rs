@@ -26,7 +26,9 @@ fn bench_tokenize(c: &mut Criterion) {
             "path does not end with .ds: {path:?}"
         );
         let content = fs::read_to_string(path).unwrap_or_default();
-        ds_str.push_str(&content);
+        if !content.is_empty() {
+            ds_str.push_str(&content);
+        }
     }
 
     // single benchmark over the whole workspace content
