@@ -20,7 +20,7 @@ criterion = { workspace = true }
 destack_std_fs = { workspace = true }
 
 [[bench]]
-name = "lex"
+name = "destack_lang_lex"
 harness = false
 
 [lints]
