@@ -26,7 +26,9 @@ const defaultConfig = defineConfig({
   resolve: {
     preserveSymlinks: true,
     alias: {
-      "@destack": fileURLToPath(new URL("../../destack_lib/destack_ts/src", import.meta.url)),
+      "@destack": fileURLToPath(
+        new URL("../../destack_lib/destack_ts/typescript", import.meta.url),
+      ),
       "@destack-web": fileURLToPath(new URL("./typescript", import.meta.url)),
     },
   },

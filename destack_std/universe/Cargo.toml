@@ -1,6 +1,6 @@
 [package]
-name = "destack_std_space"
-description = "Destack Standard Library Space"
+name = "destack_std_universe"
+description = "Destack Standard Library Universe"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
