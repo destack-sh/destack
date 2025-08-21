@@ -493,7 +493,7 @@ br###"raw"###suffix
             r#type: TokenType::Literal {
                 r#type: LiteralTokenType::Float {
                     base: NumberBase::Decimal,
-                    empty_exponent: false
+                    is_empty_exponent: false
                 },
                 suffix_start: 3
             },
@@ -507,7 +507,7 @@ br###"raw"###suffix
             r#type: TokenType::Literal {
                 r#type: LiteralTokenType::Float {
                     base: NumberBase::Decimal,
-                    empty_exponent: false
+                    is_empty_exponent: false
                 },
                 suffix_start: 6
             },
@@ -583,7 +583,7 @@ struct TetrisCell {
 #[test]
 fn test_roundtrip_view() {
     let input = r##"
-entity MyCustomView extends View2D {
+#entity(View2D) struct MyCustomView {
 	fn render(self) {
         let value: i32 = ---;
         @if target == 'macos' {

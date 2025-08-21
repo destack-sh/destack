@@ -19,7 +19,14 @@ fn bench_tokenize(c: &mut Criterion) {
     let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
 
     // concatenate all contents into a single big string
-    let mut ds_str: String = String::new();
+    // pre-compute capacity to reduce reallocations
+    let mut total_capacity: usize = 0;
+    for path in ds_files.iter() {
+        if let Ok(meta) = fs::metadata(path) {
+            total_capacity = total_capacity.saturating_add(meta.len() as usize);
+        }
+    }
+    let mut ds_str: String = String::with_capacity(total_capacity);
     for path in ds_files.iter() {
         assert!(
             path.extension().is_some() && path.extension().unwrap() == "ds",
@@ -28,6 +35,10 @@ fn bench_tokenize(c: &mut Criterion) {
         let content = fs::read_to_string(path).unwrap_or_default();
         if !content.is_empty() {
             ds_str.push_str(&content);
+            // add a newline separator to avoid accidental token merging across files
+            if !ds_str.ends_with('\n') {
+                ds_str.push('\n');
+            }
         }
     }
 

@@ -75,7 +75,6 @@ pub fn render_table(
     }
 
     // render separator line
-    out.push_str(&" ".repeat(padding));
     for (i, w) in col_widths.iter().enumerate() {
         if i > 0 {
             out.push_str(&" ".repeat(padding));
@@ -121,7 +120,6 @@ fn push_row(
 
     // render the physical line
     for line_idx in 0..height {
-        out.push_str(&" ".repeat(padding));
         for (i, parts) in split.iter().enumerate() {
             if i > 0 {
                 out.push_str(&" ".repeat(padding));

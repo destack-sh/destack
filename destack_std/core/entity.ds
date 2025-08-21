@@ -81,8 +81,7 @@ fn #entity(struct_decl: StructDefinition) -> StructDefinition {
 
 	/// The extension flags of this Entity.
 	extension_flags: ExtensionFlag,
-	/// The custom Values of this Entity, keyed by custom Property or Tag name.
-	custom_values: Option<NamedValue[]>,
+	// custom_values: Option<NamedValue[]>?
 
 	/// The Script of this Entity.
 	script: Option<EntityReference<Script>>,

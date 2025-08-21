@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_ast"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -326,7 +326,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_bytecode"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_codegen_rust"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -342,7 +342,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_dir"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -350,7 +350,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_lex"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "criterion",
  "destack_std_fs",
@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_mir"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_parse"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "criterion",
  "pprof",
@@ -378,7 +378,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lang_vm"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -386,7 +386,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_access"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -394,7 +394,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_animation"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_audio"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -410,7 +410,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_cli"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "destack_lang_lex",
  "destack_lang_parse",
@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_cloud"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -429,7 +429,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_core"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -437,11 +437,11 @@ dependencies = [
 
 [[package]]
 name = "destack_std_fs"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 
 [[package]]
 name = "destack_std_geometry"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_image"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -457,7 +457,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_json"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -465,7 +465,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_localization"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -473,7 +473,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_lsp"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "destack_lang_lex",
  "destack_lang_parse",
@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_observability"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -493,11 +493,11 @@ dependencies = [
 
 [[package]]
 name = "destack_std_order"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 
 [[package]]
 name = "destack_std_perception"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -505,7 +505,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_physics"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -513,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_scene"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -521,7 +521,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_script"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -529,7 +529,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_social"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -537,7 +537,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_style"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -545,7 +545,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_time"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -553,18 +553,18 @@ dependencies = [
 
 [[package]]
 name = "destack_std_tokei"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "destack_std_fs",
 ]
 
 [[package]]
 name = "destack_std_unicode"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 
 [[package]]
 name = "destack_std_universe"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -572,7 +572,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_uuid"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -580,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_video"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -588,7 +588,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_view"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -596,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "destack_std_web"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -604,7 +604,7 @@ dependencies = [
 
 [[package]]
 name = "destack_zed_extension"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 dependencies = [
  "zed_extension_api",
 ]

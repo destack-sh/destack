@@ -1,7 +1,7 @@
 [package]
 name = "destack_zed_extension"
 description = "Zed extension for Destack"
-version = "2025.8.21-6"
+version = "2025.8.21-7"
 edition = "2021"
 license = "proprietary"
 

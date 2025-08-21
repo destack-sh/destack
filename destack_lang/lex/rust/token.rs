@@ -28,21 +28,21 @@ impl Token {
 /// Enum representing common lexeme types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
-    /// A line comment, e.g. `// comment`.
+    /// A line comment, e.g. `// comment` or `/// comment` or `//////// comment`.
+    /// (Anything past the first `//` is considered a doc-style comment.)
     LineComment { doc_style: Option<DocPosition> },
     /// Any whitespace character sequence.
     Whitespace,
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
+    /// Raw identifier, e.g. "r#identifier".
+    /// NOTE: Not sure yet whether we'll inherit raw identifiers from Rust or not.
+    RawIdentifier,
     /// An identifier that is invalid for other reasons (e.g. because it contains emoji).
     InvalidIdentifier,
-    /// Raw identifier, e.g. "r#identifier".
-    RawIdentifier,
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
-    /// Excludes literal prefixes that contain emoji, which are considered "invalid".
     UnknownLiteralPrefix,
     /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`.
-    /// NOTE: `_` is an invalid suffix, but may be present here on string and float literals.
     Literal {
         r#type: LiteralTokenType,
         suffix_start: u32,
@@ -119,10 +119,10 @@ pub enum TokenType {
     Caret,
     /// `%`
     Percent,
-    /// Unknown/unexpected (e.g., "№")
+    /// Unknown/Unexpected (e.g., "№")
     Unknown,
-    /// End of input
-    Eof,
+    /// End of sequence (e.g., end of source file)
+    EndOfInput,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -142,7 +142,7 @@ pub enum LiteralTokenType {
     /// `12.34f32`, `1e3`, but not `1f32`.
     Float {
         base: NumberBase,
-        empty_exponent: bool,
+        is_empty_exponent: bool,
     },
     /// `'a'`, `'\\'`, `'''`, `';`
     Character { terminated: bool },

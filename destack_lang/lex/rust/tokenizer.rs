@@ -73,7 +73,7 @@ impl<'a> Tokenizer<'a> {
 
     /// Gets the amount of already consumed symbols.
     #[inline]
-    pub(crate) fn pos_within_token(&self) -> u32 {
+    pub(crate) fn get_pos_within_token(&self) -> u32 {
         (self.len_remaining - self.chars.as_str().len()) as u32
     }
 

@@ -66,10 +66,6 @@ const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
         extensions: &["yaml", "yml"],
         name: Some("YAML"),
     },
-    LanguageDeclaration {
-        extensions: &["txt"],
-        name: Some("Text"),
-    },
 ];
 
 const DEFAULT_IGNORE_PATHS: &[&str] = &[

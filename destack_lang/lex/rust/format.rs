@@ -58,7 +58,7 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
                 // emit original slice for unknown tokens to preserve them
                 out.push_str(&source[offset..offset + len]);
             }
-            TokenType::Eof => {}
+            TokenType::EndOfInput => {}
         }
         offset += len;
     }
