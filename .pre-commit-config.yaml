@@ -50,10 +50,7 @@ repos:
       - id: conventional-pre-commit
         stages: [ commit-msg ]
         args: 
-          - --force-scope
           - --verbose
-          - --scopes
-          - all,ds,ds-server,ds-system,ds-web,py,py-server,py-system,py-web,ts,ts-system,ts-web,rs,rs-test,rs-system,scripts
           - feat
           - fix
           - chore
