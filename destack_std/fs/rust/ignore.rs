@@ -1,20 +1,21 @@
-//! Minimal .gitignore-ish matcher:
-//! - Comments starting with '#'
-//! - Blank lines
-//! - Negation with '!'
-//! - Directory-only pattern (trailing '/')
+//! Minimal .gitignore-like matcher used by directory walking.
+//! Supports:
+//! - comments starting with '#'
+//! - blank lines
+//! - negation with '!'
+//! - directory-only pattern (trailing '/')
 //! - '*' and '?' wildcards
-//! - Patterns are matched against paths relative to the directory containing the ignore file
+//! - patterns matched against paths relative to the ignore file directory
 
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-use destack_std_fs::glob::matches;
+use crate::glob::matches;
 
 /// One parsed ignore pattern.
 #[derive(Debug, Clone)]
-pub(crate) struct IgnorePattern {
+pub struct IgnorePattern {
     pub pattern: String,
     pub is_negation: bool,
     pub directory_only: bool,
@@ -22,20 +23,20 @@ pub(crate) struct IgnorePattern {
 
 /// Ignore rules loaded from a directory's .gitignore.
 #[derive(Debug, Clone)]
-pub(crate) struct IgnoreFile {
+pub struct IgnoreFile {
     pub base: PathBuf,
     pub patterns: Vec<IgnorePattern>,
 }
 
 /// A set of loaded ignore files, indexed by base directory.
 #[derive(Debug, Default)]
-pub(crate) struct IgnoreSet {
+pub struct IgnoreSet {
     loaded: HashMap<PathBuf, IgnoreFile>,
 }
 
 impl IgnoreSet {
     /// Create a new, empty set.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             loaded: HashMap::new(),
         }
@@ -44,7 +45,7 @@ impl IgnoreSet {
     /// Load ignore file for a directory if not already loaded.
     ///
     /// No-op if already loaded or missing.
-    pub(crate) fn load_dir(&mut self, directory: &Path) {
+    pub fn load_dir(&mut self, directory: &Path) {
         let key = directory.to_path_buf();
         if self.loaded.contains_key(&key) {
             return;
@@ -72,8 +73,7 @@ impl IgnoreSet {
     }
 
     /// Check if a path is ignored, considering all ancestor .gitignore files.
-    pub(crate) fn is_ignored(&self, root: &Path, path: &Path, is_directory: bool) -> bool {
-        // iterate over ancestors from root to leaf's parent
+    pub fn is_ignored(&self, root: &Path, path: &Path, is_directory: bool) -> bool {
         let mut ignored = false;
         let ancestors = get_ancestors_between(root, path.parent().unwrap_or(root));
         for base in ancestors {
@@ -183,8 +183,6 @@ fn strip_prefix<'a>(path: &'a Path, base: &Path) -> Option<&'a Path> {
     path.strip_prefix(base).ok()
 }
 
-// removed local glob impl; reusing crate::util::glob_match
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,7 +190,6 @@ mod tests {
 
     #[test]
     fn test_parse_and_match_ignore() {
-        // parse and match ignore patterns with negation
         let temp_directory = tempdir();
         let subdirectory = temp_directory.join("project");
         let _ = fs::create_dir_all(&subdirectory);
@@ -217,7 +214,7 @@ mod tests {
     fn tempdir() -> PathBuf {
         let mut path = std::env::temp_dir();
         path.push(format!(
-            "destack_tokei_{}",
+            "destack_fs_ignore_{}",
             std::time::SystemTime::now().elapsed().unwrap().as_nanos()
         ));
         let _ = fs::create_dir_all(&path);

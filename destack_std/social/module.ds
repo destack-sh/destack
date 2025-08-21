@@ -1,9 +1,9 @@
 /// Basics Social Module.
 
-pub module follow;
-pub module notification;
-pub module reaction;
-pub module star;
+pub mod follow;
+pub mod notification;
+pub mod reaction;
+pub mod star;
 
 pub use follow::*;
 pub use notification::*;

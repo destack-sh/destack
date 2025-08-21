@@ -1,13 +1,13 @@
 /// Presentation View Module
 
-pub module view;
-pub module layout;
-pub module content;
-pub module input;
-pub module label;
-pub module frame;
-pub module split;
-pub module relative;
+pub mod view;
+pub mod layout;
+pub mod content;
+pub mod input;
+pub mod label;
+pub mod frame;
+pub mod split;
+pub mod relative;
 
 pub use view::*;
 pub use layout::*;

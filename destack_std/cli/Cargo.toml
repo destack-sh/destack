@@ -21,7 +21,7 @@ destack_std_tokei = { workspace = true }
 destack_lang_lex = { workspace = true }
 destack_lang_parse = { workspace = true }
 
-tokio = { workspace = true }
+tokio = { version = "1.47.1" }
 
 [dev-dependencies]
 

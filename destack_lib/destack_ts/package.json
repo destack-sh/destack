@@ -1,6 +1,7 @@
 {
   "name": "destack",
   "version": "2025.08.21.0",
+  "license": "proprietary",
   "private": true,
   "type": "module",
   "main": "./typescript/index.ts",

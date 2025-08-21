@@ -1,6 +1,6 @@
 /// Cloud Module
 
-pub module machine;
+pub mod machine;
 
 pub use machine::*;
 
