@@ -1,10 +1,10 @@
 /// Core Universe Module.
 
-pub module client;
-pub module organization;
-pub module team;
-pub module universe;
-pub module user;
+pub mod client;
+pub mod organization;
+pub mod team;
+pub mod universe;
+pub mod user;
 
 pub use client::*;
 pub use organization::*;

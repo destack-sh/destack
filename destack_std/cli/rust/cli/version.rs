@@ -11,7 +11,7 @@ const FILES_TO_UPDATE: &[&str] = &[
     "pyproject.toml",
     "package.json",
     "Cargo.toml",
-    "destack_lib/destack_py/pyproject.toml",
+    "destack_lib/destack_py/python/pyproject.toml",
     "destack_bridge/vscode/package.json",
 ];
 

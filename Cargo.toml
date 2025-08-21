@@ -16,6 +16,7 @@ members = [
 	"destack_std/cli",
 	"destack_std/cloud",
 	"destack_std/core",
+	"destack_std/fs",
 	"destack_std/geometry",
 	"destack_std/image",
 	"destack_std/json",
@@ -28,11 +29,11 @@ members = [
 	"destack_std/scene",
 	"destack_std/script",
 	"destack_std/social",
-	"destack_std/space",
 	"destack_std/style",
 	"destack_std/time",
 	"destack_std/tokei",
 	"destack_std/unicode",
+	"destack_std/universe",
 	"destack_std/uuid",
 	"destack_std/video",
 	"destack_std/view",
@@ -40,7 +41,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.8.21-2"
+version = "2025.8.21-4"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -62,6 +63,7 @@ destack_std_audio = { path = "destack_std/audio" }
 destack_std_cli = { path = "destack_std/cli" }
 destack_std_cloud = { path = "destack_std/cloud" }
 destack_std_core = { path = "destack_std/core" }
+destack_std_fs = { path = "destack_std/fs" }
 destack_std_geometry = { path = "destack_std/geometry" }
 destack_std_image = { path = "destack_std/image" }
 destack_std_json = { path = "destack_std/json" }
@@ -74,19 +76,15 @@ destack_std_physics = { path = "destack_std/physics" }
 destack_std_scene = { path = "destack_std/scene" }
 destack_std_script = { path = "destack_std/script" }
 destack_std_social = { path = "destack_std/social" }
-destack_std_space = { path = "destack_std/space" }
 destack_std_style = { path = "destack_std/style" }
 destack_std_time = { path = "destack_std/time" }
 destack_std_tokei = { path = "destack_std/tokei" }
 destack_std_unicode = { path = "destack_std/unicode" }
-destack_std_uuid = { path = "destack_std/uuid" }
+destack_std_universe = { path = "destack_std/universe" }
+destack_std_uuid = { path = "destack_std/uuid" }	
 destack_std_video = { path = "destack_std/video" }
 destack_std_view = { path = "destack_std/view" }
 destack_std_web = { path = "destack_std/web" }
-
-# internal dependencies
-tokio = "1.47.1"
-tower-lsp-server = "0.22.1"
 
 # build dependencies
 wasm-bindgen = "0.2.100"

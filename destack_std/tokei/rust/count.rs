@@ -3,8 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use crate::glob::matches_glob;
-use crate::ignore::IgnoreSet;
+use destack_std_fs::walk::{WalkOptions, walk_directory};
 
 const FILE_BUFFER_SIZE: usize = 512 * 1024; // 512KB
 
@@ -92,78 +91,31 @@ pub fn count(options: &Options) -> io::Result<Statistics> {
             ext_to_lang.push((e.clone(), lang.name.as_str()));
         }
     }
-
-    // bail if no languages, nothing to do
     if ext_to_lang.is_empty() {
         return Ok(statistics);
     }
 
-    // walk the directory tree non-recursively (using a manual stack)
-    let mut dir_stack: Vec<PathBuf> = vec![options.root.clone()];
-    let mut ignore_set = IgnoreSet::new();
-    while let Some(dir) = dir_stack.pop() {
-        ignore_set.load_dir(&dir);
-        let read_dir = match std::fs::read_dir(&dir) {
-            Ok(rd) => rd,
-            Err(_) => continue,
-        };
-        for entry in read_dir {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-            let path = entry.path();
-            let file_type = match entry.file_type() {
-                Ok(t) => t,
-                Err(_) => continue,
-            };
-            let is_dir = file_type.is_dir();
-            if ignore_set.is_ignored(&options.root, &path, is_dir) {
-                continue;
-            }
-
-            // skip configured directories
-            if is_dir {
-                if let Some(name) = path.file_name().and_then(|s| s.to_str())
-                    && options.ignore_paths.iter().any(|d| d == name)
-                {
-                    continue;
-                }
-                dir_stack.push(path);
-                continue;
-            }
-            if !file_type.is_file() {
-                continue;
-            }
-
-            // optional pre-filter by glob patterns
-            if !options.patterns.is_empty() {
-                let text = path.to_string_lossy();
-                if !options
-                    .patterns
-                    .iter()
-                    .any(|p| matches_glob(p.as_bytes(), 0, text.as_bytes(), 0))
-                {
-                    continue;
-                }
-            }
-
-            // count lines for matching language
-            if let Some((lang_name, _)) = match_language(&path, &ext_to_lang) {
-                let lines = count_file_lines(&path).unwrap_or_default();
-                statistics.total_files += 1;
-                statistics.total_lines += lines;
-                *statistics
-                    .lines_by_language
-                    .entry(lang_name.to_string())
-                    .or_insert(0) += lines;
-                *statistics
-                    .files_by_language
-                    .entry(lang_name.to_string())
-                    .or_insert(0) += 1;
-            }
+    // just walk the directory and count the lines
+    let walker_options = WalkOptions {
+        root: options.root.clone(),
+        ignore: Some(options.ignore_paths.clone()),
+        glob: Some(options.patterns.clone()),
+    };
+    walk_directory(&walker_options, |path| {
+        if let Some((lang_name, _)) = match_language(path, &ext_to_lang) {
+            let lines = count_file_lines(path).unwrap_or_default();
+            statistics.total_files += 1;
+            statistics.total_lines += lines;
+            *statistics
+                .lines_by_language
+                .entry(lang_name.to_string())
+                .or_insert(0) += lines;
+            *statistics
+                .files_by_language
+                .entry(lang_name.to_string())
+                .or_insert(0) += 1;
         }
-    }
+    });
 
     Ok(statistics)
 }

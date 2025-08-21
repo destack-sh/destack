@@ -17,6 +17,7 @@ destack_std_unicode = { workspace = true }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 criterion = { workspace = true }
+destack_std_fs = { workspace = true }
 
 [[bench]]
 name = "lex"

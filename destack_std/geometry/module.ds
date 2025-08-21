@@ -1,18 +1,18 @@
 /// The Destack Simulation Geometry Module.
 
-pub module shape;
-pub module point;
-pub module circle;
-pub module capsule;
-pub module rectangle;
-pub module segment;
-pub module path;
-pub module ellipse;
-pub module halfspace;
-pub module convex;
-pub module mesh;
-pub module cone;
-pub module cylinder;
+pub mod shape;
+pub mod point;
+pub mod circle;
+pub mod capsule;
+pub mod rectangle;
+pub mod segment;
+pub mod path;
+pub mod ellipse;
+pub mod halfspace;
+pub mod convex;
+pub mod mesh;
+pub mod cone;
+pub mod cylinder;
 
 pub use shape::*;
 pub use point::*;

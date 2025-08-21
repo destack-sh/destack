@@ -1,16 +1,16 @@
 /// Basics Script Module.
 
-pub module action;
-pub module environment;
-pub module function;
-pub module log;
-pub module method;
-pub module run;
-pub module schedule;
-pub module script;
-pub module span;
-pub module timer;
-pub module trigger;
+pub mod action;
+pub mod environment;
+pub mod function;
+pub mod log;
+pub mod method;
+pub mod run;
+pub mod schedule;
+pub mod script;
+pub mod span;
+pub mod timer;
+pub mod trigger;
 
 pub use action::*;
 pub use environment::*;

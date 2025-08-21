@@ -1,0 +1,12 @@
+
+
+
+impl + for Vector2 {
+	fn +(self, other) {
+
+	}
+}
+
+impl ~ for Vector2 {
+	
+}
