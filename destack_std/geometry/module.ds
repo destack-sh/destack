@@ -13,6 +13,8 @@ pub mod convex;
 pub mod mesh;
 pub mod cone;
 pub mod cylinder;
+pub mod quaternion;
+pub mod vector;
 
 pub use shape::*;
 pub use point::*;
@@ -27,3 +29,5 @@ pub use convex::*;
 pub use mesh::*;
 pub use cone::*;
 pub use cylinder::*;
+pub use quaternion::*;
+pub use vector::*;
