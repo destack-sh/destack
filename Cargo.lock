@@ -317,22 +317,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_lang_ast"
-version = "2025.8.21-7"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_lang_bytecode"
-version = "2025.8.21-7"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
 name = "destack_lang_codegen_rust"
 version = "2025.8.21-7"
 dependencies = [

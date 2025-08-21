@@ -2,8 +2,6 @@
 resolver = "2"
 members = [
 	# destack_lang
-	"destack_lang/ast",
-	"destack_lang/bytecode",
 	"destack_lang/codegen_rust",
 	"destack_lang/dir",
 	"destack_lang/lex",
@@ -52,8 +50,6 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # destack_lang
-destack_lang_ast = { path = "destack_lang/ast" }
-destack_lang_bytecode = { path = "destack_lang/bytecode" }
 destack_lang_dir = { path = "destack_lang/dir" }
 destack_lang_lex = { path = "destack_lang/lex" }
 destack_lang_mir = { path = "destack_lang/mir" }
@@ -134,7 +130,6 @@ debug-assertions = false
 overflow-checks = false
 strip = "none"
 debug = true
-panic = "abort"
 
 [profile.release]
 lto = "fat"
