@@ -11,12 +11,8 @@ const FILES_TO_UPDATE: &[&str] = &[
     "pyproject.toml",
     "package.json",
     "Cargo.toml",
-    "destack-ds/destack/core/builtin/_const.py",
-    "destack-ds/pyproject.toml",
-    "destack-py/pyproject.toml",
-    "destack-ts/destack/package.json",
-    "destack-ts/destack_web/package.json",
-    "destack-ts/destack_vscode/package.json",
+    "destack_lib/destack_py/pyproject.toml",
+    "destack_bridge/vscode/package.json",
 ];
 
 /// Create the version command app.
