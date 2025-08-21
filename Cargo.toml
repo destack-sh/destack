@@ -38,10 +38,12 @@ members = [
 	"destack_std/video",
 	"destack_std/view",
 	"destack_std/web",
+	# destack_bridge
+	"destack_bridge/zed",
 ]
 
 [workspace.package]
-version = "2025.8.21-4"
+version = "2025.8.21-6"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
