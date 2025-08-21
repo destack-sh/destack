@@ -1,7 +1,0 @@
-/// The Destack Distribution Module.
-
-pub module localization;
-
-pub use localization::*;
-
-

@@ -1,0 +1,150 @@
+use destack::*;
+
+/// The materialization level of an Entity.
+enum(u8) Materialization {
+	/// The Entity is virtual.
+	Virtual = 3,
+	/// The Entity is partial.
+	Partial = 4,
+	/// The Entity is full.
+	Full = 6,
+	/// The Entity is root.
+	Root = 7,
+}
+
+/// How an Entity should be treated for processing by the system.
+#flag enum(u8) ProcessFlag {
+	/// The default process flag (no special processing).
+	Default = 0,
+	/// The Entity is deleted.
+	Deleted = 1,
+	/// The Entity is inactive.
+	Inactive = 2,
+	/// The Entity is inactive and input is not processed.
+	InactiveInput = 4,
+	/// The Entity is sleeping and processed differently.
+	Sleeping = 8,
+}
+
+/// How an Entity should be treated for extension by the system.
+#flag enum(u8) ExtensionFlag {
+	/// The default extension flag (no special processing).
+	Default = 0,
+	/// The Entity is instantiable.
+	Instantiable = 1,
+	/// The Entity is extensible.
+	Extensible = 2,
+}
+
+/// Declare a struct as an Entity. Auto-includes Entity.
+fn #entity(struct_decl: StructDefinition) -> StructDefinition {
+	// struct_declr.uses.append(UseDeclaration { struct_declr: Entity, is_glob: true } )
+	struct_declr
+}
+
+/// A named, versioned, mutable object in the system.
+#entity struct Entity {
+	/// The universally unique identifier of this Entity.
+	id: UUID,
+	/// The Space this Entity is in.
+	space: EntityReference<Space>,
+	/// The Branch this Entity is part of (in its Space).
+	branch: EntityReference<Branch>,
+	/// The Snapshot this Entity is part of (in its Space and Branch).
+	snapshot: EntityReference<Snapshot>,
+	/// The materialization level of this Entity.
+	materialization: Materialization = Materialization::Root,
+	/// The definition this Entity is an instance of.
+	definition: Option<EntityReference<Entity>>,
+	/// The (root) Entity that is being instantiated.
+	instance: Option<EntityReference<Entity>>,
+
+	/// The logical time this Entity was created.
+	created_epoch: u64,
+	/// The logical time this Entity was last updated.
+	updated_epoch: u64,
+	/// The exclusive owner of this Entity (the root on access).
+	owner: EntityReference<Entity>,
+	/// The exclusive controller of this Entity (the authority on changes).
+	controller: EntityReference<Entity>,
+	/// The process flags of this Entity.
+	process_flags: ProcessFlag = ProcessFlag::Default,
+
+	/// The parent of this Entity. Most Entities can be attached to any other Entity.
+	parent: Option<EntityReference<Entity>>,
+	/// The name of this Entity.
+	name: String,
+	/// The key of this Entity (for reconciliation and querying).
+	key: Option<String>,
+	/// The relative order of this Entity (in its parent).
+	order: Option<Order>,
+
+	/// The extension flags of this Entity.
+	extension_flags: ExtensionFlag,
+	/// The custom Values of this Entity, keyed by custom Property or Tag name.
+	custom_values: Option<NamedValue[]>,
+
+	/// The Script of this Entity.
+	script: Option<EntityReference<Script>>,
+}
+
+impl Entity {
+	/// Get a reference to this Entity.
+	#intrinsic fn to_ref(self) -> NodeSpatialReference;
+
+	/// Delete this Entity.
+	#intrinsic fn delete(self);
+
+	/// Restore this deleted Entity from the trash.
+	#intrinsic fn restore(self);
+
+	/// Get the children of this Entity.
+	#intrinsic fn get_children(self, type_: Option<NodeType>, include_deleted: bool) -> Entity[];
+
+	/// Get a specific child of this Entity by name.
+	#intrinsic fn get_child(self, type_: NodeType, name: String, include_deleted: bool) -> Option<Entity>;
+
+	/// Get a specific child of this Entity by name, or raise if not found.
+	#intrinsic fn child(self, type_: NodeType, name: String, include_deleted: bool) -> Entity;
+
+	/// Get the ancestors of this Entity.
+	#intrinsic fn get_ancestors(self, type_: Option<NodeType>, include_deleted: bool) -> Entity[];
+
+	/// Get the descendants of this Entity.
+	#intrinsic fn get_descendants(self, type_: Option<NodeType>, include_deleted: bool) -> Entity[];
+
+	/// Detach this Entity from its parent.
+	#intrinsic fn detach(self);
+
+	/// Move this Entity to a new parent Entity.
+	#intrinsic fn move_to(self, parent: Option<EntityReference<Entity>>, after: Option<EntityReference<Entity>>, before: Option<EntityReference<Entity>>);
+
+	/// Add an Entity as a sibling of this Entity.
+	#intrinsic fn add_sibling(self, sibling: EntityReference<Entity>, after: Option<EntityReference<Entity>>, before: Option<EntityReference<Entity>>) -> Entity;
+
+	/// Add multiple Entities as siblings of this Entity.
+	#intrinsic fn add_siblings(self, siblings: EntityReference<Entity>[], after: Option<EntityReference<Entity>>, before: Option<EntityReference<Entity>>) -> Entity;
+
+	/// Append an Entity as a child of this Entity.
+	#intrinsic fn add_child(self, child: EntityReference<Entity>, after: Option<EntityReference<Entity>>, before: Option<EntityReference<Entity>>) -> Entity;
+
+	/// Append multiple Entities as children of this Entity.
+	#intrinsic fn add_children(self, children: EntityReference<Entity>[], after: Option<EntityReference<Entity>>, before: Option<EntityReference<Entity>>) -> Entity;
+
+	/// Remove a child Entity from this Entity without deleting it.
+	#intrinsic fn remove_child(self, child: EntityReference<Entity>) -> Entity;
+
+	/// Add or get a Tag's value on this Entity.
+	#intrinsic fn add_tag(self, tag: EntityReference<Tag>, value: Option<Value>) -> Value;
+
+	/// Remove a Tag from this Entity.
+	#intrinsic fn remove_tag(self, tag: EntityReference<Tag>) -> Option<Value>;
+
+	/// Turn this Entity into its corresponding Entity in the given Branch.
+	#intrinsic fn checkout(self, branch: EntityReference<Branch>) -> Entity;
+
+	/// Instantiate this Entity into a new Entity (partial or full).
+	#intrinsic fn instantiate(self, partial: bool, attach: bool) -> Entity;
+}
+
+
