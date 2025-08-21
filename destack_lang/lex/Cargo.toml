@@ -14,10 +14,12 @@ path = "rust/lib.rs"
 destack_std_unicode = { workspace = true }
 
 [dev-dependencies]
+destack_std_fs = { workspace = true }
+
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 criterion = { workspace = true }
-destack_std_fs = { workspace = true }
+pprof = { workspace = true }
 
 [[bench]]
 name = "destack_lang_lex"

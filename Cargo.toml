@@ -98,6 +98,7 @@ quickcheck_macros = "1.1.0"
 static_assertions = "1.1.0"
 wasm-bindgen-test = "0.3.50"
 criterion = { version = "0.5", features = ["html_reports"] }
+pprof = { version = "0.15", features = ["flamegraph", "criterion"] }
 
 [workspace.lints.rust]
 missing_debug_implementations = "warn"

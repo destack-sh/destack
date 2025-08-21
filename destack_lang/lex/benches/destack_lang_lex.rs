@@ -1,6 +1,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use destack_lang_lex::tokenize;
 use destack_std_fs::glob;
+use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
 
@@ -29,7 +30,7 @@ fn bench_tokenize(c: &mut Criterion) {
     }
 
     // single benchmark over the whole workspace content
-    let mut group = c.benchmark_group("lexer");
+    let mut group = c.benchmark_group("destack_lang_lex");
     let line_count = ds_str.lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("tokenize", "all"), &ds_str, |b, input| {
@@ -44,5 +45,14 @@ fn bench_tokenize(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_tokenize);
+// configure Criterion with pprof
+fn profiler() -> Criterion {
+    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+}
+
+criterion_group! {
+    name = benches;
+    config = profiler();
+    targets = bench_tokenize
+}
 criterion_main!(benches);
