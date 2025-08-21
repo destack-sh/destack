@@ -4,7 +4,7 @@
     "module": "ESNext",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "typescript",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,9 +12,9 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@destack/*": ["src/*"]
+      "@destack/*": ["typescript/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["typescript/**/*"],
   "exclude": ["node_modules", "dist"]
 }
