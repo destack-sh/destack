@@ -1,19 +1,344 @@
 use destack::*;
 
-/// A 2D vector with f32 components.
+// trait Vector2?
+
+/// A 2-dimensional vector with f32 components.
 struct Vector2 {
 	x: f32,
 	y: f32,
 }
+#assert(#size_of(Vector2) == 8)
 
-/// A 3D vector with f32 components.
+impl Vector2 {
+	/// The zero Vector2 (0, 0).
+	const ZERO: Vector2 = Vector2 { x: 0.0, y: 0.0 };
+	/// The one Vector2 (1, 1).
+	const ONE: Vector2 = Vector2 { x: 1.0, y: 1.0 };
+	/// The unit x Vector2 (1, 0).
+	const UNIT_X: Vector2 = Vector2 { x: 1.0, y: 0.0 };
+	/// The unit y Vector2 (0, 1).
+	const UNIT_Y: Vector2 = Vector2 { x: 0.0, y: 1.0 };
+	/// The negative unit x Vector2 (-1, 0).
+	const NEG_UNIT_X: Vector2 = Vector2 { x: -1.0, y: 0.0 };
+	/// The negative unit y Vector2 (0, -1).
+	const NEG_UNIT_Y: Vector2 = Vector2 { x: 0.0, y: -1.0 };
+
+	/// Construct a Vector2 from x and y components.
+	fn new(x: f32, y: f32) -> Vector2 {
+		Vector2 { x, y }
+	}
+
+	/// Construct a Vector2 with both components set to the same value.
+	fn splat(v: f32) -> Vector2 {
+		Vector2 { x: v, y: v }
+	}
+
+	/// Returns the length of the Vector.
+	fn length(self) -> f32 {
+		(self.x * self.x + self.y * self.y).sqrt()
+	}
+
+	/// Returns the squared length of the Vector.
+	fn length_squared(self) -> f32 {
+		self.x * self.x + self.y * self.y
+	}
+
+	/// Returns the dot product of the two Vectors.
+	fn dot(self, other: Vector2) -> f32 {
+		self.x * other.x + self.y * other.y
+	}
+
+	/// Returns the cross product of the two Vectors.
+	fn cross(self, other: Vector2) -> f32 {
+		self.x * other.y - self.y * other.x
+	}
+
+	/// Compute a normalized Vector with length 1.0. Returns self if length is 0.
+	fn normalized(self) -> Vector2 {
+		let len = self.length();
+		if len == 0.0 { self } else { self / len }
+	}
+
+	/// Compute Euclidean distance to another Vector2.
+	fn distance(self, other: Vector2) -> f32 {
+		(self - other).length()
+	}
+
+	/// Compute squared Euclidean distance to another Vector2.
+	fn distance_squared(self, other: Vector2) -> f32 {
+		(self - other).length_squared()
+	}
+
+	/// Linearly interpolate towards `other` by factor `t` in [0, 1].
+	fn lerp(self, other: Vector2, t: f32) -> Vector2 {
+		self + (other - self) * t
+	}
+
+	/// Component-wise absolute value.
+	fn abs(self) -> Vector2 {
+		Vector2 { x: self.x.abs(), y: self.y.abs() }
+	}
+
+	/// Component-wise minimum.
+	fn min(self, other: Vector2) -> Vector2 {
+		Vector2 {
+			x: if self.x < other.x { self.x } else { other.x },
+			y: if self.y < other.y { self.y } else { other.y },
+		}
+	}
+
+	/// Component-wise maximum.
+	fn max(self, other: Vector2) -> Vector2 {
+		Vector2 {
+			x: if self.x > other.x { self.x } else { other.x },
+			y: if self.y > other.y { self.y } else { other.y },
+		}
+	}
+
+	/// Clamp each component between corresponding min and max values.
+	fn clamp(self, min: Vector2, max: Vector2) -> Vector2 {
+		let clamp_scalar = fn (v: f32, lo: f32, hi: f32) -> f32 {
+			if v < lo { lo } else { if v > hi { hi } else { v } }
+		};
+		Vector2 {
+			x: clamp_scalar(self.x, min.x, max.x),
+			y: clamp_scalar(self.y, min.y, max.y),
+		}
+	}
+
+	/// Create a copy with a different x component.
+	fn with_x(self, x: f32) -> Vector2 {
+		Vector2 { x, y: self.y }
+	}
+
+	/// Create a copy with a different y component.
+	fn with_y(self, y: f32) -> Vector2 {
+		Vector2 { x: self.x, y }
+	}
+
+	/// Rotate 90 degrees counter-clockwise (perpendicular vector).
+	fn perp(self) -> Vector2 {
+		Vector2 { x: -self.y, y: self.x }
+	}
+}
+
+impl Add<f32> for Vector2 {
+	fn add(self, other: f32) -> Vector2 {
+		Vector2 { x: self.x + other, y: self.y + other }
+	}
+}
+
+impl Add<Vector2> for Vector2 {
+	fn add(self, other: Vector2) -> Vector2 {
+		Vector2 { x: self.x + other.x, y: self.y + other.y }
+	}
+}
+
+impl Sub<f32> for Vector2 {
+	fn sub(self, other: f32) -> Vector2 {
+		Vector2 { x: self.x - other, y: self.y - other }
+	}
+}
+
+impl Sub<Vector2> for Vector2 {
+	fn sub(self, other: Vector2) -> Vector2 {
+		Vector2 { x: self.x - other.x, y: self.y - other.y }
+	}
+}
+
+impl Mul<f32> for Vector2 {
+	fn mul(self, other: f32) -> Vector2 {
+		Vector2 { x: self.x * other, y: self.y * other }
+	}
+}
+
+impl Mul<Vector2> for Vector2 {
+	fn mul(self, other: Vector2) -> Vector2 {
+		Vector2 { x: self.x * other.x, y: self.y * other.y }
+	}
+}
+
+impl Div<f32> for Vector2 {
+	fn div(self, other: f32) -> Vector2 {
+		Vector2 { x: self.x / other, y: self.y / other }
+	}
+}
+
+
+/// A 3-dimensional vector with f32 components.
 struct Vector3 {
 	x: f32,
 	y: f32,
 	z: f32,
 }
 
-/// A 4D vector with f32 components.
+impl Vector3 {
+	/// The zero Vector3 (0, 0, 0).
+	const ZERO: Vector3 = Vector3 { x: 0.0, y: 0.0, z: 0.0 };
+	/// The one Vector3 (1, 1, 1).
+	const ONE: Vector3 = Vector3 { x: 1.0, y: 1.0, z: 1.0 };
+	/// The unit x Vector3 (1, 0, 0).
+	const UNIT_X: Vector3 = Vector3 { x: 1.0, y: 0.0, z: 0.0 };
+	/// The unit y Vector3 (0, 1, 0).
+	const UNIT_Y: Vector3 = Vector3 { x: 0.0, y: 1.0, z: 0.0 };
+	/// The unit z Vector3 (0, 0, 1).
+	const UNIT_Z: Vector3 = Vector3 { x: 0.0, y: 0.0, z: 1.0 };
+	/// The negative unit x Vector3 (-1, 0, 0).
+	const NEG_UNIT_X: Vector3 = Vector3 { x: -1.0, y: 0.0, z: 0.0 };
+	/// The negative unit y Vector3 (0, -1, 0).
+	const NEG_UNIT_Y: Vector3 = Vector3 { x: 0.0, y: -1.0, z: 0.0 };
+	/// The negative unit z Vector3 (0, 0, -1).
+	const NEG_UNIT_Z: Vector3 = Vector3 { x: 0.0, y: 0.0, z: -1.0 };
+
+	/// Construct a Vector3 from x, y and z components.
+	fn new(x: f32, y: f32, z: f32) -> Vector3 {
+		Vector3 { x, y, z }
+	}
+
+	/// Construct a Vector3 with all components set to the same value.
+	fn splat(v: f32) -> Vector3 {
+		Vector3 { x: v, y: v, z: v }
+	}
+
+	/// Returns the length of the Vector.
+	fn length(self) -> f32 {
+		(self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+	}
+
+	/// Returns the squared length of the Vector.
+	fn length_squared(self) -> f32 {
+		self.x * self.x + self.y * self.y + self.z * self.z
+	}
+
+	/// Returns the dot product of the two Vectors.
+	fn dot(self, other: Vector3) -> f32 {
+		self.x * other.x + self.y * other.y + self.z * other.z
+	}
+
+	/// Returns the cross product of the two Vectors.
+	fn cross(self, other: Vector3) -> Vector3 {
+		Vector3 {
+			x: self.y * other.z - self.z * other.y,
+			y: self.z * other.x - self.x * other.z,
+			z: self.x * other.y - self.y * other.x,
+		}
+	}
+
+	/// Compute a normalized Vector with length 1.0. Returns self if length is 0.
+	fn normalized(self) -> Vector3 {
+		let len = self.length();
+		if len == 0.0 { self } else { self / len }
+	}
+
+	/// Compute Euclidean distance to another Vector3.
+	fn distance(self, other: Vector3) -> f32 {
+		(self - other).length()
+	}
+
+	/// Compute squared Euclidean distance to another Vector3.
+	fn distance_squared(self, other: Vector3) -> f32 {
+		(self - other).length_squared()
+	}
+
+	/// Linearly interpolate towards `other` by factor `t` in [0, 1].
+	fn lerp(self, other: Vector3, t: f32) -> Vector3 {
+		self + (other - self) * t
+	}
+
+	/// Component-wise absolute value.
+	fn abs(self) -> Vector3 {
+		Vector3 { x: self.x.abs(), y: self.y.abs(), z: self.z.abs() }
+	}
+
+	/// Component-wise minimum.
+	fn min(self, other: Vector3) -> Vector3 {
+		Vector3 {
+			x: if self.x < other.x { self.x } else { other.x },
+			y: if self.y < other.y { self.y } else { other.y },
+			z: if self.z < other.z { self.z } else { other.z },
+		}
+	}
+
+	/// Component-wise maximum.
+	fn max(self, other: Vector3) -> Vector3 {
+		Vector3 {
+			x: if self.x > other.x { self.x } else { other.x },
+			y: if self.y > other.y { self.y } else { other.y },
+			z: if self.z > other.z { self.z } else { other.z },
+		}
+	}
+
+	/// Clamp each component between corresponding min and max values.
+	fn clamp(self, min: Vector3, max: Vector3) -> Vector3 {
+		let clamp_scalar = fn (v: f32, lo: f32, hi: f32) -> f32 {
+			if v < lo { lo } else { if v > hi { hi } else { v } }
+		};
+		Vector3 {
+			x: clamp_scalar(self.x, min.x, max.x),
+			y: clamp_scalar(self.y, min.y, max.y),
+			z: clamp_scalar(self.z, min.z, max.z),
+		}
+	}
+
+	/// Create a copy with a different x component.
+	fn with_x(self, x: f32) -> Vector3 {
+		Vector3 { x, y: self.y, z: self.z }
+	}
+
+	/// Create a copy with a different y component.
+	fn with_y(self, y: f32) -> Vector3 {
+		Vector3 { x: self.x, y, z: self.z }
+	}
+
+	/// Create a copy with a different z component.
+	fn with_z(self, z: f32) -> Vector3 {
+		Vector3 { x: self.x, y: self.y, z }
+	}
+}
+
+impl Add<f32> for Vector3 {
+	fn add(self, other: f32) -> Vector3 {
+		Vector3 { x: self.x + other, y: self.y + other, z: self.z + other }
+	}
+}
+
+impl Add<Vector3> for Vector3 {
+	fn add(self, other: Vector3) -> Vector3 {
+		Vector3 { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
+	}
+}
+
+impl Sub<f32> for Vector3 {
+	fn sub(self, other: f32) -> Vector3 {
+		Vector3 { x: self.x - other, y: self.y - other, z: self.z - other }
+	}
+}
+
+impl Sub<Vector3> for Vector3 {
+	fn sub(self, other: Vector3) -> Vector3 {
+		Vector3 { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
+	}
+}
+
+impl Mul<f32> for Vector3 {
+	fn mul(self, other: f32) -> Vector3 {
+		Vector3 { x: self.x * other, y: self.y * other, z: self.z * other }
+	}
+}
+
+impl Mul<Vector3> for Vector3 {
+	fn mul(self, other: Vector3) -> Vector3 {
+		Vector3 { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z }
+	}
+}
+
+impl Div<f32> for Vector3 {
+	fn div(self, other: f32) -> Vector3 {
+		Vector3 { x: self.x / other, y: self.y / other, z: self.z / other }
+	}
+}
+
+/// A 4-dimensional vector with f32 components.
 struct Vector4 {
 	x: f32,
 	y: f32,
@@ -21,23 +346,639 @@ struct Vector4 {
 	w: f32,
 }
 
-/// A 2D vector with i32 components.
+impl Vector4 {
+	/// The zero Vector4 (0, 0, 0, 0).
+	const ZERO: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 };
+	/// The one Vector4 (1, 1, 1, 1).
+	const ONE: Vector4 = Vector4 { x: 1.0, y: 1.0, z: 1.0, w: 1.0 };
+	/// The unit x Vector4 (1, 0, 0, 0).
+	const UNIT_X: Vector4 = Vector4 { x: 1.0, y: 0.0, z: 0.0, w: 0.0 };
+	/// The unit y Vector4 (0, 1, 0, 0).
+	const UNIT_Y: Vector4 = Vector4 { x: 0.0, y: 1.0, z: 0.0, w: 0.0 };
+	/// The unit z Vector4 (0, 0, 1, 0).
+	const UNIT_Z: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 1.0, w: 0.0 };
+	/// The unit w Vector4 (0, 0, 0, 1).
+	const UNIT_W: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: 1.0 };
+	/// The negative unit x Vector4 (-1, 0, 0, 0).
+	const NEG_UNIT_X: Vector4 = Vector4 { x: -1.0, y: 0.0, z: 0.0, w: 0.0 };
+	/// The negative unit y Vector4 (0, -1, 0, 0).
+	const NEG_UNIT_Y: Vector4 = Vector4 { x: 0.0, y: -1.0, z: 0.0, w: 0.0 };
+	/// The negative unit z Vector4 (0, 0, -1, 0).
+	const NEG_UNIT_Z: Vector4 = Vector4 { x: 0.0, y: 0.0, z: -1.0, w: 0.0 };
+	/// The negative unit w Vector4 (0, 0, 0, -1).
+	const NEG_UNIT_W: Vector4 = Vector4 { x: 0.0, y: 0.0, z: 0.0, w: -1.0 };
+
+	/// Construct a Vector4 from x, y, z and w components.
+	fn new(x: f32, y: f32, z: f32, w: f32) -> Vector4 {
+		Vector4 { x, y, z, w }
+	}
+
+	/// Construct a Vector4 with all components set to the same value.
+	fn splat(v: f32) -> Vector4 {
+		Vector4 { x: v, y: v, z: v, w: v }
+	}
+
+	/// Returns the length of the Vector.
+	fn length(self) -> f32 {
+		(self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w).sqrt()
+	}
+
+	/// Returns the squared length of the Vector.
+	fn length_squared(self) -> f32 {
+		self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w
+	}
+
+	/// Returns the dot product of the two Vectors.
+	fn dot(self, other: Vector4) -> f32 {
+		self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
+	}
+
+	/// Compute a normalized Vector with length 1.0. Returns self if length is 0.
+	fn normalized(self) -> Vector4 {
+		let len = self.length();
+		if len == 0.0 { self } else { self / len }
+	}
+
+	/// Compute Euclidean distance to another Vector4.
+	fn distance(self, other: Vector4) -> f32 {
+		(self - other).length()
+	}
+
+	/// Compute squared Euclidean distance to another Vector4.
+	fn distance_squared(self, other: Vector4) -> f32 {
+		(self - other).length_squared()
+	}
+
+	/// Linearly interpolate towards `other` by factor `t` in [0, 1].
+	fn lerp(self, other: Vector4, t: f32) -> Vector4 {
+		self + (other - self) * t
+	}
+
+	/// Component-wise absolute value.
+	fn abs(self) -> Vector4 {
+		Vector4 { x: self.x.abs(), y: self.y.abs(), z: self.z.abs(), w: self.w.abs() }
+	}
+
+	/// Component-wise minimum.
+	fn min(self, other: Vector4) -> Vector4 {
+		Vector4 {
+			x: if self.x < other.x { self.x } else { other.x },
+			y: if self.y < other.y { self.y } else { other.y },
+			z: if self.z < other.z { self.z } else { other.z },
+			w: if self.w < other.w { self.w } else { other.w },
+		}
+	}
+
+	/// Component-wise maximum.
+	fn max(self, other: Vector4) -> Vector4 {
+		Vector4 {
+			x: if self.x > other.x { self.x } else { other.x },
+			y: if self.y > other.y { self.y } else { other.y },
+			z: if self.z > other.z { self.z } else { other.z },
+			w: if self.w > other.w { self.w } else { other.w },
+		}
+	}
+
+	/// Clamp each component between corresponding min and max values.
+	fn clamp(self, min: Vector4, max: Vector4) -> Vector4 {
+		let clamp_scalar = fn (v: f32, lo: f32, hi: f32) -> f32 {
+			if v < lo { lo } else { if v > hi { hi } else { v } }
+		};
+		Vector4 {
+			x: clamp_scalar(self.x, min.x, max.x),
+			y: clamp_scalar(self.y, min.y, max.y),
+			z: clamp_scalar(self.z, min.z, max.z),
+			w: clamp_scalar(self.w, min.w, max.w),
+		}
+	}
+
+	/// Create a copy with a different x component.
+	fn with_x(self, x: f32) -> Vector4 {
+		Vector4 { x, y: self.y, z: self.z, w: self.w }
+	}
+
+	/// Create a copy with a different y component.
+	fn with_y(self, y: f32) -> Vector4 {
+		Vector4 { x: self.x, y, z: self.z, w: self.w }
+	}
+
+	/// Create a copy with a different z component.
+	fn with_z(self, z: f32) -> Vector4 {
+		Vector4 { x: self.x, y: self.y, z, w: self.w }
+	}
+
+	/// Create a copy with a different w component.
+	fn with_w(self, w: f32) -> Vector4 {
+		Vector4 { x: self.x, y: self.y, z: self.z, w }
+	}
+}
+
+impl Add<f32> for Vector4 {
+	fn add(self, other: f32) -> Vector4 {
+		Vector4 { x: self.x + other, y: self.y + other, z: self.z + other, w: self.w + other }
+	}
+}
+
+impl Add<Vector4> for Vector4 {
+	fn add(self, other: Vector4) -> Vector4 {
+		Vector4 { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z, w: self.w + other.w }
+	}
+}
+
+impl Sub<f32> for Vector4 {
+	fn sub(self, other: f32) -> Vector4 {
+		Vector4 { x: self.x - other, y: self.y - other, z: self.z - other, w: self.w - other }
+	}
+}
+
+impl Sub<Vector4> for Vector4 {
+	fn sub(self, other: Vector4) -> Vector4 {
+		Vector4 { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z, w: self.w - other.w }
+	}
+}
+
+impl Mul<f32> for Vector4 {
+	fn mul(self, other: f32) -> Vector4 {
+		Vector4 { x: self.x * other, y: self.y * other, z: self.z * other, w: self.w * other }
+	}
+}
+
+impl Mul<Vector4> for Vector4 {
+	fn mul(self, other: Vector4) -> Vector4 {
+		Vector4 { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z, w: self.w * other.w }
+	}
+}
+
+impl Div<f32> for Vector4 {
+	fn div(self, other: f32) -> Vector4 {
+		Vector4 { x: self.x / other, y: self.y / other, z: self.z / other, w: self.w / other }
+	}
+}
+
+/// A 2-dimensional vector with i32 components.
 struct Vector2i {
 	x: i32,
 	y: i32,
 }
 
-/// A 3D vector with i32 components.
+impl Vector2i {
+	/// The zero Vector2i (0, 0).
+	const ZERO: Vector2i = Vector2i { x: 0, y: 0 };
+	/// The one Vector2i (1, 1).
+	const ONE: Vector2i = Vector2i { x: 1, y: 1 };
+	/// The unit x Vector2i (1, 0).
+	const UNIT_X: Vector2i = Vector2i { x: 1, y: 0 };
+	/// The unit y Vector2i (0, 1).
+	const UNIT_Y: Vector2i = Vector2i { x: 0, y: 1 };
+	/// The negative unit x Vector2i (-1, 0).
+	const NEG_UNIT_X: Vector2i = Vector2i { x: -1, y: 0 };
+	/// The negative unit y Vector2i (0, -1).
+	const NEG_UNIT_Y: Vector2i = Vector2i { x: 0, y: -1 };
+
+	/// Construct a Vector2i from x and y components.
+	fn new(x: i32, y: i32) -> Vector2i {
+		Vector2i { x, y }
+	}
+
+	/// Construct a Vector2i with both components set to the same value.
+	fn splat(v: i32) -> Vector2i {
+		Vector2i { x: v, y: v }
+	}
+
+	/// Returns the length of the Vector as f32.
+	fn length(self) -> f32 {
+		let fx = self.x as f32;
+		let fy = self.y as f32;
+		(fx * fx + fy * fy).sqrt()
+	}
+
+	/// Returns the squared length of the Vector as i32.
+	fn length_squared(self) -> i32 {
+		self.x * self.x + self.y * self.y
+	}
+
+	/// Returns the dot product of the two Vectors.
+	fn dot(self, other: Vector2i) -> i32 {
+		self.x * other.x + self.y * other.y
+	}
+
+	/// Compute Euclidean distance to another Vector2i as f32.
+	fn distance(self, other: Vector2i) -> f32 {
+		(self - other).length()
+	}
+
+	/// Compute squared Euclidean distance to another Vector2i as i32.
+	fn distance_squared(self, other: Vector2i) -> i32 {
+		(self - other).length_squared()
+	}
+
+	/// Component-wise absolute value.
+	fn abs(self) -> Vector2i {
+		Vector2i { x: self.x.abs(), y: self.y.abs() }
+	}
+
+	/// Component-wise minimum.
+	fn min(self, other: Vector2i) -> Vector2i {
+		Vector2i {
+			x: if self.x < other.x { self.x } else { other.x },
+			y: if self.y < other.y { self.y } else { other.y },
+		}
+	}
+
+	/// Component-wise maximum.
+	fn max(self, other: Vector2i) -> Vector2i {
+		Vector2i {
+			x: if self.x > other.x { self.x } else { other.x },
+			y: if self.y > other.y { self.y } else { other.y },
+		}
+	}
+
+	/// Clamp each component between corresponding min and max values.
+	fn clamp(self, min: Vector2i, max: Vector2i) -> Vector2i {
+		let clamp_scalar = fn (v: i32, lo: i32, hi: i32) -> i32 {
+			if v < lo { lo } else { if v > hi { hi } else { v } }
+		};
+		Vector2i {
+			x: clamp_scalar(self.x, min.x, max.x),
+			y: clamp_scalar(self.y, min.y, max.y),
+		}
+	}
+
+	/// Create a copy with a different x component.
+	fn with_x(self, x: i32) -> Vector2i {
+		Vector2i { x, y: self.y }
+	}
+
+	/// Create a copy with a different y component.
+	fn with_y(self, y: i32) -> Vector2i {
+		Vector2i { x: self.x, y }
+	}
+}
+
+impl Add<i32> for Vector2i {
+	fn add(self, other: i32) -> Vector2i {
+		Vector2i { x: self.x + other, y: self.y + other }
+	}
+}
+
+impl Add<Vector2i> for Vector2i {
+	fn add(self, other: Vector2i) -> Vector2i {
+		Vector2i { x: self.x + other.x, y: self.y + other.y }
+	}
+}
+
+impl Sub<i32> for Vector2i {
+	fn sub(self, other: i32) -> Vector2i {
+		Vector2i { x: self.x - other, y: self.y - other }
+	}
+}
+
+impl Sub<Vector2i> for Vector2i {
+	fn sub(self, other: Vector2i) -> Vector2i {
+		Vector2i { x: self.x - other.x, y: self.y - other.y }
+	}
+}
+
+impl Mul<i32> for Vector2i {
+	fn mul(self, other: i32) -> Vector2i {
+		Vector2i { x: self.x * other, y: self.y * other }
+	}
+}
+
+impl Mul<Vector2i> for Vector2i {
+	fn mul(self, other: Vector2i) -> Vector2i {
+		Vector2i { x: self.x * other.x, y: self.y * other.y }
+	}
+}
+
+impl Div<i32> for Vector2i {
+	fn div(self, other: i32) -> Vector2i {
+		Vector2i { x: self.x / other, y: self.y / other }
+	}
+}
+
+/// A 3-dimensional vector with i32 components.
 struct Vector3i {
 	x: i32,
 	y: i32,
 	z: i32,
 }
 
-/// A 4D vector with i32 components.
+impl Vector3i {
+	/// The zero Vector3i (0, 0, 0).
+	const ZERO: Vector3i = Vector3i { x: 0, y: 0, z: 0 };
+	/// The one Vector3i (1, 1, 1).
+	const ONE: Vector3i = Vector3i { x: 1, y: 1, z: 1 };
+	/// The unit x Vector3i (1, 0, 0).
+	const UNIT_X: Vector3i = Vector3i { x: 1, y: 0, z: 0 };
+	/// The unit y Vector3i (0, 1, 0).
+	const UNIT_Y: Vector3i = Vector3i { x: 0, y: 1, z: 0 };
+	/// The unit z Vector3i (0, 0, 1).
+	const UNIT_Z: Vector3i = Vector3i { x: 0, y: 0, z: 1 };
+	/// The negative unit x Vector3i (-1, 0, 0).
+	const NEG_UNIT_X: Vector3i = Vector3i { x: -1, y: 0, z: 0 };
+	/// The negative unit y Vector3i (0, -1, 0).
+	const NEG_UNIT_Y: Vector3i = Vector3i { x: 0, y: -1, z: 0 };
+	/// The negative unit z Vector3i (0, 0, -1).
+	const NEG_UNIT_Z: Vector3i = Vector3i { x: 0, y: 0, z: -1 };
+
+	/// Construct a Vector3i from x, y and z components.
+	fn new(x: i32, y: i32, z: i32) -> Vector3i {
+		Vector3i { x, y, z }
+	}
+
+	/// Construct a Vector3i with all components set to the same value.
+	fn splat(v: i32) -> Vector3i {
+		Vector3i { x: v, y: v, z: v }
+	}
+
+	/// Returns the length of the Vector as f32.
+	fn length(self) -> f32 {
+		let fx = self.x as f32;
+		let fy = self.y as f32;
+		let fz = self.z as f32;
+		(fx * fx + fy * fy + fz * fz).sqrt()
+	}
+
+	/// Returns the squared length of the Vector as i32.
+	fn length_squared(self) -> i32 {
+		self.x * self.x + self.y * self.y + self.z * self.z
+	}
+
+	/// Returns the dot product of the two Vectors.
+	fn dot(self, other: Vector3i) -> i32 {
+		self.x * other.x + self.y * other.y + self.z * other.z
+	}
+
+	/// Compute Euclidean distance to another Vector3i as f32.
+	fn distance(self, other: Vector3i) -> f32 {
+		(self - other).length()
+	}
+
+	/// Compute squared Euclidean distance to another Vector3i as i32.
+	fn distance_squared(self, other: Vector3i) -> i32 {
+		(self - other).length_squared()
+	}
+
+	/// Component-wise absolute value.
+	fn abs(self) -> Vector3i {
+		Vector3i { x: self.x.abs(), y: self.y.abs(), z: self.z.abs() }
+	}
+
+	/// Component-wise minimum.
+	fn min(self, other: Vector3i) -> Vector3i {
+		Vector3i {
+			x: if self.x < other.x { self.x } else { other.x },
+			y: if self.y < other.y { self.y } else { other.y },
+			z: if self.z < other.z { self.z } else { other.z },
+		}
+	}
+
+	/// Component-wise maximum.
+	fn max(self, other: Vector3i) -> Vector3i {
+		Vector3i {
+			x: if self.x > other.x { self.x } else { other.x },
+			y: if self.y > other.y { self.y } else { other.y },
+			z: if self.z > other.z { self.z } else { other.z },
+		}
+	}
+
+	/// Clamp each component between corresponding min and max values.
+	fn clamp(self, min: Vector3i, max: Vector3i) -> Vector3i {
+		let clamp_scalar = fn (v: i32, lo: i32, hi: i32) -> i32 {
+			if v < lo { lo } else { if v > hi { hi } else { v } }
+		};
+		Vector3i {
+			x: clamp_scalar(self.x, min.x, max.x),
+			y: clamp_scalar(self.y, min.y, max.y),
+			z: clamp_scalar(self.z, min.z, max.z),
+		}
+	}
+
+	/// Create a copy with a different x component.
+	fn with_x(self, x: i32) -> Vector3i {
+		Vector3i { x, y: self.y, z: self.z }
+	}
+
+	/// Create a copy with a different y component.
+	fn with_y(self, y: i32) -> Vector3i {
+		Vector3i { x: self.x, y, z: self.z }
+	}
+
+	/// Create a copy with a different z component.
+	fn with_z(self, z: i32) -> Vector3i {
+		Vector3i { x: self.x, y: self.y, z }
+	}
+}
+
+impl Add<i32> for Vector3i {
+	fn add(self, other: i32) -> Vector3i {
+		Vector3i { x: self.x + other, y: self.y + other, z: self.z + other }
+	}
+}
+
+impl Add<Vector3i> for Vector3i {
+	fn add(self, other: Vector3i) -> Vector3i {
+		Vector3i { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
+	}
+}
+
+impl Sub<i32> for Vector3i {
+	fn sub(self, other: i32) -> Vector3i {
+		Vector3i { x: self.x - other, y: self.y - other, z: self.z - other }
+	}
+}
+
+impl Sub<Vector3i> for Vector3i {
+	fn sub(self, other: Vector3i) -> Vector3i {
+		Vector3i { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
+	}
+}
+
+impl Mul<i32> for Vector3i {
+	fn mul(self, other: i32) -> Vector3i {
+		Vector3i { x: self.x * other, y: self.y * other, z: self.z * other }
+	}
+}
+
+impl Mul<Vector3i> for Vector3i {
+	fn mul(self, other: Vector3i) -> Vector3i {
+		Vector3i { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z }
+	}
+}
+
+impl Div<i32> for Vector3i {
+	fn div(self, other: i32) -> Vector3i {
+		Vector3i { x: self.x / other, y: self.y / other, z: self.z / other }
+	}
+}
+
+/// A 4-dimensional vector with i32 components.
 struct Vector4i {
 	x: i32,
 	y: i32,
 	z: i32,
 	w: i32,
+}
+
+impl Vector4i {
+	/// The zero Vector4i (0, 0, 0, 0).
+	const ZERO: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 0 };
+	/// The one Vector4i (1, 1, 1, 1).
+	const ONE: Vector4i = Vector4i { x: 1, y: 1, z: 1, w: 1 };
+	/// The unit x Vector4i (1, 0, 0, 0).
+	const UNIT_X: Vector4i = Vector4i { x: 1, y: 0, z: 0, w: 0 };
+	/// The unit y Vector4i (0, 1, 0, 0).
+	const UNIT_Y: Vector4i = Vector4i { x: 0, y: 1, z: 0, w: 0 };
+	/// The unit z Vector4i (0, 0, 1, 0).
+	const UNIT_Z: Vector4i = Vector4i { x: 0, y: 0, z: 1, w: 0 };
+	/// The unit w Vector4i (0, 0, 0, 1).
+	const UNIT_W: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 1 };
+	/// The negative unit x Vector4i (-1, 0, 0, 0).
+	const NEG_UNIT_X: Vector4i = Vector4i { x: -1, y: 0, z: 0, w: 0 };
+	/// The negative unit y Vector4i (0, -1, 0, 0).
+	const NEG_UNIT_Y: Vector4i = Vector4i { x: 0, y: -1, z: 0, w: 0 };
+	/// The negative unit z Vector4i (0, 0, -1, 0).
+	const NEG_UNIT_Z: Vector4i = Vector4i { x: 0, y: 0, z: -1, w: 0 };
+	/// The negative unit w Vector4i (0, 0, 0, -1).
+	const NEG_UNIT_W: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: -1 };
+
+	/// Construct a Vector4i from x, y, z and w components.
+	fn new(x: i32, y: i32, z: i32, w: i32) -> Vector4i {
+		Vector4i { x, y, z, w }
+	}
+
+	/// Construct a Vector4i with all components set to the same value.
+	fn splat(v: i32) -> Vector4i {
+		Vector4i { x: v, y: v, z: v, w: v }
+	}
+
+	/// Returns the length of the Vector as f32.
+	fn length(self) -> f32 {
+		let fx = self.x as f32;
+		let fy = self.y as f32;
+		let fz = self.z as f32;
+		let fw = self.w as f32;
+		(fx * fx + fy * fy + fz * fz + fw * fw).sqrt()
+	}
+
+	/// Returns the squared length of the Vector as i32.
+	fn length_squared(self) -> i32 {
+		self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w
+	}
+
+	/// Returns the dot product of the two Vectors.
+	fn dot(self, other: Vector4i) -> i32 {
+		self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
+	}
+
+	/// Compute Euclidean distance to another Vector4i as f32.
+	fn distance(self, other: Vector4i) -> f32 {
+		(self - other).length()
+	}
+
+	/// Compute squared Euclidean distance to another Vector4i as i32.
+	fn distance_squared(self, other: Vector4i) -> i32 {
+		(self - other).length_squared()
+	}
+
+	/// Component-wise absolute value.
+	fn abs(self) -> Vector4i {
+		Vector4i { x: self.x.abs(), y: self.y.abs(), z: self.z.abs(), w: self.w.abs() }
+	}
+
+	/// Component-wise minimum.
+	fn min(self, other: Vector4i) -> Vector4i {
+		Vector4i {
+			x: if self.x < other.x { self.x } else { other.x },
+			y: if self.y < other.y { self.y } else { other.y },
+			z: if self.z < other.z { self.z } else { other.z },
+			w: if self.w < other.w { self.w } else { other.w },
+		}
+	}
+
+	/// Component-wise maximum.
+	fn max(self, other: Vector4i) -> Vector4i {
+		Vector4i {
+			x: if self.x > other.x { self.x } else { other.x },
+			y: if self.y > other.y { self.y } else { other.y },
+			z: if self.z > other.z { self.z } else { other.z },
+			w: if self.w > other.w { self.w } else { other.w },
+		}
+	}
+
+	/// Clamp each component between corresponding min and max values.
+	fn clamp(self, min: Vector4i, max: Vector4i) -> Vector4i {
+		let clamp_scalar = fn (v: i32, lo: i32, hi: i32) -> i32 {
+			if v < lo { lo } else { if v > hi { hi } else { v } }
+		};
+		Vector4i {
+			x: clamp_scalar(self.x, min.x, max.x),
+			y: clamp_scalar(self.y, min.y, max.y),
+			z: clamp_scalar(self.z, min.z, max.z),
+			w: clamp_scalar(self.w, min.w, max.w),
+		}
+	}
+
+	/// Create a copy with a different x component.
+	fn with_x(self, x: i32) -> Vector4i {
+		Vector4i { x, y: self.y, z: self.z, w: self.w }
+	}
+
+	/// Create a copy with a different y component.
+	fn with_y(self, y: i32) -> Vector4i {
+		Vector4i { x: self.x, y, z: self.z, w: self.w }
+	}
+
+	/// Create a copy with a different z component.
+	fn with_z(self, z: i32) -> Vector4i {
+		Vector4i { x: self.x, y: self.y, z, w: self.w }
+	}
+
+	/// Create a copy with a different w component.
+	fn with_w(self, w: i32) -> Vector4i {
+		Vector4i { x: self.x, y: self.y, z: self.z, w }
+	}
+}
+
+impl Add<i32> for Vector4i {
+	fn add(self, other: i32) -> Vector4i {
+		Vector4i { x: self.x + other, y: self.y + other, z: self.z + other, w: self.w + other }
+	}
+}
+
+impl Add<Vector4i> for Vector4i {
+	fn add(self, other: Vector4i) -> Vector4i {
+		Vector4i { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z, w: self.w + other.w }
+	}
+}
+
+impl Sub<i32> for Vector4i {
+	fn sub(self, other: i32) -> Vector4i {
+		Vector4i { x: self.x - other, y: self.y - other, z: self.z - other, w: self.w - other }
+	}
+}
+
+impl Sub<Vector4i> for Vector4i {
+	fn sub(self, other: Vector4i) -> Vector4i {
+		Vector4i { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z, w: self.w - other.w }
+	}
+}
+
+impl Mul<i32> for Vector4i {
+	fn mul(self, other: i32) -> Vector4i {
+		Vector4i { x: self.x * other, y: self.y * other, z: self.z * other, w: self.w * other }
+	}
+}
+
+impl Mul<Vector4i> for Vector4i {
+	fn mul(self, other: Vector4i) -> Vector4i {
+		Vector4i { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z, w: self.w * other.w }
+	}
+}
+
+impl Div<i32> for Vector4i {
+	fn div(self, other: i32) -> Vector4i {
+		Vector4i { x: self.x / other, y: self.y / other, z: self.z / other, w: self.w / other }
+	}
 }
