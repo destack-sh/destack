@@ -1,0 +1,21 @@
+use destack::*;
+
+/// Definition of a builtin Action.
+struct ActionDefinition {
+	/// The Action type.
+	type: ActionType,
+	/// The input Message type.
+	input_message_type: Option<StructType>,
+	/// The output Message type.
+	output_message_type: Option<StructType>,
+	/// The Event types this Action may emit.
+	emits_event_types: Option<NodeType[]>,
+}
+
+/// An implementation of a unit of work implemented for some runtimes.
+#entity(Function) struct Action {
+	/// The Action type.
+	type: ActionType,
+}
+
+

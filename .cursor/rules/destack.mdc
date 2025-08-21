@@ -17,6 +17,8 @@ We don't have attributes like Rust but proper static functions,
 Generally, you don't need to *define* your own macros, but you can use
  static features like #if, #for and such.
 
+References to Entities should usually happen through an EntityReference<...>.
+
 Example program:
 ```
 use destack::*;

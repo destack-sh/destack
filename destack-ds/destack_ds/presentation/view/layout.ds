@@ -1,6 +1,6 @@
 use destack::*;
 
-/// Layout properties for a 2D View.
+/// Layout properties for a 2D view.
 struct LayoutComponent2D {
 	/// How to layout the children of this View.
 	layout: Option<Layout>,
@@ -28,5 +28,3 @@ struct LayoutComponent2D {
 #entity(View2D) struct LayoutView2D {
 	use LayoutComponent2D::*;
 }
-
-

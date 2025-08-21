@@ -1,0 +1,18 @@
+use destack::*;
+
+/// A Follow is a relationship between an Actor and a followable Node.
+#entity struct Follow {}
+
+/// Base Follow event.
+#event struct FollowEvent {
+	/// The Follow this event pertains to.
+	follow: EntityReference<Follow>,
+}
+
+/// Follow added.
+#event(FollowEvent) struct FollowAddedEvent {}
+
+/// Follow removed.
+#event(FollowEvent) struct FollowRemovedEvent {}
+
+

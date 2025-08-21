@@ -1,0 +1,25 @@
+use destack::*;
+
+/// A Client to connect with the system.
+#entity struct Client {
+	/// The client type.
+	type: ClientType,
+	/// The access token, if any.
+	access_token: Option<String>,
+	/// When the client was last seen.
+	seen_at: Option<Timestamp>,
+	/// When the client last logged in.
+	logged_in_at: Option<Timestamp>,
+	/// The device type.
+	device_type: Option<String>,
+	/// The device name.
+	device_name: Option<String>,
+	/// The operating system name.
+	operating_system: Option<String>,
+	/// The browser name.
+	browser_name: Option<String>,
+	/// The browser version.
+	browser_version: Option<String>,
+}
+
+

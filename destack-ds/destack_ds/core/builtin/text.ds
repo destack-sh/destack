@@ -1,0 +1,31 @@
+use destack::*;
+
+/// Text span types.
+enum TextSpanType { Text = 1, HardBreak = 2, Node = 10, Link = 11, Equation = 20 }
+
+/// Flags that can be applied to a TextSpan.
+enum TextStyleFlag { Default = 0, Bold = 1, Italic = 2, Strikethrough = 4, Underline = 8, Code = 16 }
+
+/// Span of text with optional styling.
+struct TextSpan {
+	/// The span type.
+	type: TextSpanType = TextSpanType::Text,
+	/// Optional textual content.
+	content: Option<String>,
+	/// Optional reference to a Node.
+	node: Option<EntityReference<Entity>>,
+	/// Optional hyperlink URL.
+	url: Option<String>,
+	/// Styling flags for this span.
+	style_flags: TextStyleFlag = TextStyleFlag::Default,
+}
+
+/// A single paragraph composed of TextSpans with inline styling.
+struct Text {
+	/// The spans composing the paragraph.
+	spans: TextSpan[],
+	/// Styling flags for the whole paragraph.
+	style_flags: TextStyleFlag = TextStyleFlag::Default,
+}
+
+

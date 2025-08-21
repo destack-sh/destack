@@ -4,9 +4,58 @@ use crate::console::parser::{CommandApp, CommandArguments};
 use crate::console::{console, table};
 use destack_tokei as tokei;
 
-const DEFAULT_EXTENSIONS: &str = "rs,ds,py,ts,js,tsx,jsx,toml,json";
-const DEFAULT_ALIASES: &str =
-    "rs=Rust,ds=Destack,py=Python,ts=TypeScript,js=JavaScript,tsx=TSX,jsx=JSX,toml=TOML,json=JSON";
+struct LanguageDeclaration<'a> {
+    extension: &'a str,
+    name: Option<&'a str>,
+}
+
+const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
+    LanguageDeclaration {
+        extension: "rs",
+        name: Some("Rust"),
+    },
+    LanguageDeclaration {
+        extension: "ds",
+        name: Some("Destack"),
+    },
+    LanguageDeclaration {
+        extension: "py",
+        name: Some("Python"),
+    },
+    LanguageDeclaration {
+        extension: "ts",
+        name: Some("TypeScript"),
+    },
+    LanguageDeclaration {
+        extension: "js",
+        name: Some("JavaScript"),
+    },
+    LanguageDeclaration {
+        extension: "tsx",
+        name: Some("TSX"),
+    },
+    LanguageDeclaration {
+        extension: "jsx",
+        name: Some("JSX"),
+    },
+    LanguageDeclaration {
+        extension: "tf",
+        name: Some("Terraform"),
+    },
+    LanguageDeclaration {
+        extension: "toml",
+        name: Some("TOML"),
+    },
+    LanguageDeclaration {
+        extension: "json",
+        name: Some("JSON"),
+    },
+    LanguageDeclaration {
+        extension: "md",
+        name: Some("Markdown"),
+    },
+];
+
 const DEFAULT_IGNORE_PATHS: &[&str] = &[
     ".git",
     "target",
@@ -47,13 +96,14 @@ pub fn app() -> CommandApp {
         .command(
             "run",
             run,
-            Some(format!(
+            Some(
                 "Run counter.
 				 --root <dir>
-				 --ext \"{DEFAULT_EXTENSIONS}\"
-				 --alias \"{DEFAULT_ALIASES}\"
+				 --ext .py,.rs,.ds
+				 --alias \"rs=Rust,ds=Destack,py=Python\"
 				 --ignore \"<path1,path2,...>\""
-            )),
+                    .to_string(),
+            ),
         )
 }
 
@@ -61,7 +111,12 @@ pub fn app() -> CommandApp {
 fn run(ctx: CommandArguments) -> i32 {
     // get options
     let root = ctx.option("root").unwrap_or(".");
-    let ext_csv = ctx.option("ext").unwrap_or(DEFAULT_EXTENSIONS);
+    let default_ext_csv = DEFAULT_EXTENSIONS
+        .iter()
+        .map(|e| e.extension)
+        .collect::<Vec<_>>()
+        .join(",");
+    let ext_csv = ctx.option("ext").unwrap_or(&default_ext_csv);
     let exts: Vec<String> = ext_csv
         .split(',')
         .filter(|s| !s.trim().is_empty())
@@ -69,7 +124,12 @@ fn run(ctx: CommandArguments) -> i32 {
         .collect();
 
     // parse aliases: ext=AliasName
-    let alias_csv = ctx.option("alias").unwrap_or(DEFAULT_ALIASES);
+    let default_alias_csv = DEFAULT_EXTENSIONS
+        .iter()
+        .map(|e| format!("{}={}", e.extension, e.name.unwrap_or(e.extension)))
+        .collect::<Vec<_>>()
+        .join(",");
+    let alias_csv = ctx.option("alias").unwrap_or(&default_alias_csv);
     let mut alias_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     for part in alias_csv.split(',') {
         if let Some((k, v)) = part.split_once('=') {
@@ -125,6 +185,13 @@ fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
+    struct LanguageStatistic {
+        language: String,
+        extension: String,
+        files: u64,
+        lines: u64,
+    }
+
     // build table (Language, Extension, Files, Lines)
     let headers = vec![
         "Language".to_string(),
@@ -132,7 +199,7 @@ fn run(ctx: CommandArguments) -> i32 {
         "Files".to_string(),
         "Lines".to_string(),
     ];
-    let mut rows: Vec<Vec<String>> = Vec::new();
+    let mut rows: Vec<LanguageStatistic> = Vec::new();
     for (lang, lines) in statistics.lines_by_language.iter() {
         let files = statistics.files_by_language.get(lang).copied().unwrap_or(0);
         let extensions = options
@@ -141,22 +208,29 @@ fn run(ctx: CommandArguments) -> i32 {
             .find(|l| &l.name == lang)
             .map(|l| l.endings.join(","))
             .unwrap_or_default();
-        rows.push(vec![
-            lang.clone(),
-            console::color(&extensions, "2"),         // dim
-            console::color(&files.to_string(), "36"), // cyan
-            console::color(&lines.to_string(), "32"), // green
-        ]);
+        rows.push(LanguageStatistic {
+            language: lang.clone(),
+            extension: extensions,
+            files,
+            lines: *lines,
+        });
     }
     // sort by lines desc
-    rows.sort_by(|a, b| {
-        b[3].parse::<u64>()
-            .unwrap_or(0)
-            .cmp(&a[3].parse::<u64>().unwrap_or(0))
-    });
+    rows.sort_by(|a, b| b.lines.cmp(&a.lines));
 
     // render table (Language, Extension, Files, Lines)
-    let table_str = table::render_table(&headers, &rows, true, 2, None);
+    let rows_str: Vec<Vec<String>> = rows
+        .iter()
+        .map(|r| {
+            vec![
+                r.language.clone(),
+                r.extension.clone(),
+                console::color(&r.files.to_string(), "36"), // cyan
+                console::color(&r.lines.to_string(), "32"), // green
+            ]
+        })
+        .collect();
+    let table_str = table::render_table(&headers, &rows_str, false, 2, None);
     let table_framed_str = console::frame(&table_str, Some("Tokei"), 2);
     println!("{table_framed_str}");
 

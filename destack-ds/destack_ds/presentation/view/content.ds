@@ -5,8 +5,11 @@ use destack::*;
 
 /// A 2D Text View
 #entity(ContentView2D) struct TextView2D {
+	/// The text to display
 	text: Option<Text>,
+	/// The font to use for the text
 	font: Option<Font>,
+	/// The color of the text
 	color: Option<Fill>,
 }
 

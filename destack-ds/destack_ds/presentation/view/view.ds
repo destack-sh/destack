@@ -1,7 +1,7 @@
 use destack::*;
 
-/// Transform properties for a 2D view.
-struct TransformComponent2D {
+/// Position properties for a 2D view.
+struct PositionComponent2D {
 	/// The origin of the Entity in 2D space.
 	origin: Option<Vector2>,
 	/// The anchor of the Entity in 2D space.
@@ -48,7 +48,7 @@ struct StyleComponent2D {
 
 /// A View2D is a 2D interface element.
 #entity(RigidBody2D) struct View2D {
-	use TransformComponent2D::*;
+	use PositionComponent2D::*;
 	use SizingComponent2D::*;
 	use VisibilityComponent2D::*;
 	use StyleComponent2D::*;

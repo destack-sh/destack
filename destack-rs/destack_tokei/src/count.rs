@@ -16,7 +16,7 @@ pub struct LanguageConfiguration {
     /// File endings including dot (e.g., [".rs"]).
     pub endings: Vec<String>,
     /// Optional comment markers.
-    pub comment: Option<CommentStyle>,
+    pub comment: Option<CommentStyle> = None
 }
 
 /// Comment style markers.

@@ -1,0 +1,31 @@
+use destack::*;
+
+/// Timer types.
+enum TimerType { Once = 1, Recurring = 2 }
+
+/// Base Timer event.
+#event struct TimerEvent {
+	/// The Timer this event pertains to.
+	timer: Timer,
+}
+
+/// Timer started.
+#event(TimerEvent) struct TimerStartedEvent {}
+/// Timer paused.
+#event(TimerEvent) struct TimerPausedEvent {}
+/// Timer resumed.
+#event(TimerEvent) struct TimerResumedEvent {}
+/// Timer completed.
+#event(TimerEvent) struct TimerCompletedEvent {}
+/// Timer cancelled.
+#event(TimerEvent) struct TimerCancelledEvent {}
+
+/// A Timer.
+#entity struct Timer {
+	/// The Timer type.
+	type: TimerType,
+	/// The optional Schedule for the Timer.
+	schedule: Option<Schedule>,
+}
+
+

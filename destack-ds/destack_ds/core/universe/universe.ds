@@ -1,0 +1,65 @@
+use destack::*;
+
+/// Universe signup request.
+struct UniverseSignupRequest {
+	/// The desired user name.
+	name: String,
+	/// The email address.
+	email: String,
+	/// The password.
+	password: String,
+}
+
+/// Universe signup response.
+struct UniverseSignupResponse {
+	/// The created User.
+	user: User,
+}
+
+/// Universe spawn request.
+struct UniverseSpawnRequest {
+	/// The Space name.
+	name: String,
+	/// The desired hosting region.
+	region: Region,
+	/// The Space slug.
+	slug: String,
+}
+
+/// Universe spawn response.
+struct UniverseSpawnResponse {
+	/// The created Space.
+	space: Space,
+}
+
+/// The Destack computational universe.
+#entity struct Universe {
+	/// The current version of Destack.
+	VERSION: String,
+	/// The float epsilon used for floating point comparisons.
+	EPSILON: f64,
+	/// The exponent of the epsilon used for floating point comparisons.
+	EPISLON_EXPONENT: i32,
+	/// The beginning of time (1 AD, 00:00:00 UTC).
+	BEGINNING_OF_DATETIME: Datetime,
+	/// The system Universe ID.
+	UNIVERSE_ID: UUID,
+	/// The system Space ID.
+	SPACE_ID: UUID,
+	/// The system Space reference.
+	SPACE: NodeSpatialReference,
+	/// The 'meta' Snapshot id containing time-related Entities.
+	META_SNAPSHOT_ID: UUID,
+	/// The 'meta' Branch id containing time-related Entities.
+	META_BRANCH_ID: UUID,
+	/// The 'root' Branch id all other Branches originate from.
+	ROOT_BRANCH_ID: UUID,
+	/// The 'head' Snapshot id representing the current active Snapshot.
+	HEAD_SNAPSHOT_ID: UUID,
+	/// God Himself, the creator of the Universe.
+	GOD: NodeSpatialReference,
+	/// God's terminal, for when He needs to do something.
+	GOD_HANDSET: NodeSpatialReference,
+}
+
+

@@ -1,0 +1,39 @@
+use destack::*;
+
+/// Type of a builtin Migration.
+enum MigrationType { Create = 1 }
+
+/// Definition of a builtin Migration.
+struct MigrationDefinition {
+	/// The type of the Migration.
+	type: MigrationType,
+	/// The name of the Migration.
+	name: String,
+	/// The description of the Migration.
+	description: Option<String>,
+}
+
+/// Migration of an Entity.
+#entity struct Migration {
+	/// The type of the Migration.
+	type: MigrationType,
+	/// The description of the Migration.
+	description: Option<String>,
+}
+
+/// Definition of a builtin Migration Operation.
+struct MigrationOperationDefinition {
+	/// The operation id.
+	id: u32,
+	/// The name of the operation.
+	name: String,
+	/// The description of the operation.
+	description: Option<String>,
+	/// The type of the Migration.
+	type: MigrationType,
+}
+
+/// MigrationOperation of an Entity.
+#entity struct MigrationOperation {}
+
+

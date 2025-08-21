@@ -1,0 +1,73 @@
+use destack::*;
+
+/// The order of a Type (scalar, list, map, etc.).
+enum TypeCardinality {
+	/// Single value.
+	Scalar = 1,
+	/// Ordered collection of values.
+	List = 2,
+	/// Fixed-size ordered collection of values with potentially different types.
+	Tuple = 3,
+	/// Key-value mapping.
+	Map = 10,
+}
+
+/// The type of a scalar (single value like primitive, enum, struct, etc.).
+enum ScalarType {
+	/// Built-in primitive type (int, string, etc.).
+	Primitive = 1,
+	/// User-defined enumeration type.
+	Enum = 2,
+	/// Reference to a Node.
+	Node = 3,
+	/// Raw Node value.
+	NodeRaw = 4,
+	/// Node identity reference.
+	NodeIdentity = 5,
+	/// Node spatial reference.
+	NodeSpatial = 6,
+	/// Node temporal reference.
+	NodeTemporal = 7,
+	/// User-defined structure type.
+	Struct = 8,
+	/// Handle to external resource.
+	Handle = 9,
+	/// Union of multiple types.
+	Union = 10,
+}
+
+/// A Type in the type system.
+struct Type {
+	/// Cardinality of this Type.
+	cardinality: TypeCardinality,
+	/// Key type of this Type (if it's a map).
+	key_type: Option<Type>,
+	/// Value type of this Type (list, map).
+	value_type: Option<Type>,
+	/// Element types of this Type (tuple, union).
+	element_types: Option<Type[]>,
+	/// Length of this Type (string primitive, list, tuple).
+	length: Option<u32>,
+	/// Multiple dimensions of this Type (array).
+	dimensions: Option<u32[]>,
+	/// Whether values of this Type are required.
+	is_required: bool = true,
+	/// Scalar value type of this Type (primitive, enum, node, struct, etc.).
+	scalar_type: Option<ScalarType>,
+	/// Primitive type of this Type (if it's a primitive scalar).
+	primitive_type: Option<PrimitiveType>,
+	/// Enum type of this Type (if it's an enum scalar).
+	enum_type: Option<EnumType>,
+	/// Node types of this Type (if it's a node reference or node value scalar).
+	node_types: Option<NodeType[]>,
+	/// Struct type of this Type (if it's a struct scalar).
+	struct_type: Option<StructType>,
+	/// Handle type of this Type (if it's a handle scalar).
+	handle_type: Option<HandleType>,
+}
+
+impl Type {
+	/// Infer the Type of a value or class.
+	#intrinsic fn of(value_or_type: Any, reference_type: Option<ReferenceType>) -> Type;
+}
+

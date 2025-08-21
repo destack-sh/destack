@@ -1,0 +1,31 @@
+use destack::*;
+
+/// Definition of a builtin Function.
+struct FunctionDefinition {
+	/// The Function id.
+	id: u16,
+	/// Whether the Function is asynchronous.
+	is_async: bool,
+	/// Whether the Function is managed by the system.
+	is_managed: bool,
+	/// Platforms the Function is available on (all if empty).
+	platforms: Option<RuntimePlatform[]>,
+	/// Languages the Function is available in (all if empty).
+	languages: Option<RuntimeLanguage[]>,
+	/// Runtimes the Function is available in (all if empty).
+	runtimes: Option<RuntimeType[]>,
+}
+
+/// Base Function entity.
+#entity struct Function {
+	/// The Method type.
+	type: MethodType,
+	/// Optional textual body.
+	text: Option<Text>,
+	/// Platforms the Function is available on (all if empty).
+	platforms: Option<RuntimePlatform[]>,
+	/// Languages the Function is available in (all if empty).
+	languages: Option<RuntimeLanguage[]>,
+}
+
+
