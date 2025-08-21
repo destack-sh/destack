@@ -49,7 +49,7 @@ enum EventStatus {
 
 impl Event {
 	/// Get a reference to this Event.
-	#intrinsic fn to_ref(self) -> NodeSpatialReference;
+	#intrinsic fn to_ref(self) -> EntityReference;
 }
 
 
