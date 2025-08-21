@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::console::parser::{CommandApp, CommandArguments};
 use crate::console::{console, table};
-use destack_parser::lexer::{TokenType, tokenize};
+use destack_lang_lex::{LiteralTokenType, TokenType, tokenize};
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
@@ -179,26 +179,14 @@ fn concise_kind(kind: TokenType) -> String {
         TokenType::InvalidIdentifier => "InvalidIdentifier".to_string(),
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "Unknown".to_string(),
         TokenType::Literal { r#type, .. } => match r#type {
-            destack_parser::lexer::LiteralTokenType::Integer { .. } => {
-                "Literal<Integer>".to_string()
-            }
-            destack_parser::lexer::LiteralTokenType::Float { .. } => "Literal<Float>".to_string(),
-            destack_parser::lexer::LiteralTokenType::Character { .. } => {
-                "Literal<Character>".to_string()
-            }
-            destack_parser::lexer::LiteralTokenType::Byte { .. } => "Literal<Byte>".to_string(),
-            destack_parser::lexer::LiteralTokenType::String { .. } => {
-                "Literal<String>".to_string()
-            }
-            destack_parser::lexer::LiteralTokenType::ByteString { .. } => {
-                "Literal<ByteString>".to_string()
-            }
-            destack_parser::lexer::LiteralTokenType::RawString { .. } => {
-                "Literal<RawString>".to_string()
-            }
-            destack_parser::lexer::LiteralTokenType::RawByteString { .. } => {
-                "Literal<RawByteString>".to_string()
-            }
+            LiteralTokenType::Integer { .. } => "Literal<Integer>".to_string(),
+            LiteralTokenType::Float { .. } => "Literal<Float>".to_string(),
+            LiteralTokenType::Character { .. } => "Literal<Character>".to_string(),
+            LiteralTokenType::Byte { .. } => "Literal<Byte>".to_string(),
+            LiteralTokenType::String { .. } => "Literal<String>".to_string(),
+            LiteralTokenType::ByteString { .. } => "Literal<ByteString>".to_string(),
+            LiteralTokenType::RawString { .. } => "Literal<RawString>".to_string(),
+            LiteralTokenType::RawByteString { .. } => "Literal<RawByteString>".to_string(),
         },
         other => format!("{other:?}"),
     }
