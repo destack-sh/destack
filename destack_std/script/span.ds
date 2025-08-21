@@ -2,8 +2,6 @@ use destack::*;
 
 /// A Span traces a Run.
 #event struct SpanEvent {
-	/// Custom values, keyed by custom Property name.
-	custom_values: Option<Map<String, Value>>,
 	/// The span name.
 	name: String,
 	/// Start time of the span.

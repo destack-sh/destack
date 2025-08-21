@@ -2,7 +2,7 @@
   "name": "destack-vscode",
   "displayName": "Destack",
   "description": "Destack VSCode integration (with support for DScript .ds)",
-  "version": "2025.8.21-6",
+  "version": "2025.8.21-7",
   "license": "proprietary",
   "engines": {
     "vscode": "^1.90.0"

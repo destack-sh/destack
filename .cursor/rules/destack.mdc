@@ -19,6 +19,8 @@ Generally, you don't need to *define* your own macros, but you can use
 
 Type definition and inline function definitions should always be multiline. 
 
+Unions (tagged sum types with `union`) in Destack are distinct from tag-only `enum`s.
+
 References to Entities should usually happen through an EntityReference<...>.
 
 Example program:
