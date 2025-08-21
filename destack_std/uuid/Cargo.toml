@@ -1,6 +1,6 @@
 [package]
-name = "destack_uuid"
-description = "Destack UUID"
+name = "destack_std_uuid"
+description = "Destack Standard Library UUID"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

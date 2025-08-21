@@ -1,19 +1,22 @@
 [package]
-name = "destack_lsp"
-description = "Language Server for Destack (.ds)"
+name = "destack_std_lsp"
+description = "Destack Standard Library Language Server"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[lib]
+path = "rust/lib.rs"
+
 [[bin]]
-name = "destack_lsp"
+name = "destack_std_lsp"
 path = "rust/main.rs"
 
 [dependencies]
-destack = { workspace = true }
-destack_parser = { workspace = true }
+destack_lang_lex = { workspace = true }
+destack_lang_parse = { workspace = true }
 
 tokio = { workspace = true, features = [
 	"rt-multi-thread",

@@ -1,5 +1,5 @@
-use destack_cli::cli::{compile, lsp, tokei, version};
-use destack_cli::console::CommandApp;
+use destack_std_cli::cli::{compile, lsp, tokei, version};
+use destack_std_cli::console::CommandApp;
 
 fn main() {
     // build cli

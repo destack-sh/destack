@@ -26,7 +26,7 @@ fn run(_ctx: CommandArguments) -> i32 {
     };
 
     // run the lsp server and handle result
-    let exit_result = runtime.block_on(destack_lsp::run_stdio_server());
+    let exit_result = runtime.block_on(destack_std_lsp::run_stdio_server());
     match exit_result {
         Ok(_) => 0,
         Err(e) => {

@@ -1,22 +1,42 @@
 [workspace]
 resolver = "2"
 members = [
-	"destack-rs/destack",
-	"destack-rs/destack_parser",
-	"destack-rs/destack_parser/fuzz",
-	"destack-rs/destack_cli",
-	"destack-rs/destack_cli_macros",
-	"destack-rs/destack_codegen",
-	"destack-rs/destack_tokei",
-	"destack-rs/destack_json",
-	"destack-rs/destack_json/fuzz",
-	"destack-rs/destack_order",
-	"destack-rs/destack_lsp",
-	"destack-rs/destack_time",
-	"destack-rs/destack_time/fuzz",
-	"destack-rs/destack_unicode",
-	"destack-rs/destack_uuid",
-	"destack-rs/destack_uuid/fuzz",
+	# destack_lang
+	"destack_lang/ast",
+	"destack_lang/bytecode",
+	"destack_lang/dir",
+	"destack_lang/lex",
+	"destack_lang/mir",
+	"destack_lang/parse",
+	"destack_lang/vm",
+	# destack_std
+	"destack_std/access",
+	"destack_std/animation",
+	"destack_std/audio",
+	"destack_std/cli",
+	"destack_std/cloud",
+	"destack_std/core",
+	"destack_std/geometry",
+	"destack_std/image",
+	"destack_std/json",
+	"destack_std/localization",
+	"destack_std/lsp",
+	"destack_std/observability",
+	"destack_std/order",
+	"destack_std/perception",
+	"destack_std/physics",
+	"destack_std/scene",
+	"destack_std/script",
+	"destack_std/social",
+	"destack_std/space",
+	"destack_std/style",
+	"destack_std/time",
+	"destack_std/tokei",
+	"destack_std/unicode",
+	"destack_std/uuid",
+	"destack_std/video",
+	"destack_std/view",
+	"destack_std/web",
 ]
 
 [workspace.package]
@@ -27,19 +47,42 @@ license = "proprietary"
 rust-version = "1.88.0"
 
 [workspace.dependencies]
-destack = { path = "destack-rs/destack" }
-destack_parser = { path = "destack-rs/destack_parser" }
-destack_cli = { path = "destack-rs/destack_cli" }
-destack_cli_macros = { path = "destack-rs/destack_cli_macros" }
-destack_codegen = { path = "destack-rs/destack_codegen" }
-destack_tokei = { path = "destack-rs/destack_tokei" }
-destack_json = { path = "destack-rs/destack_json" }
-destack_lsp = { path = "destack-rs/destack_lsp" }
-destack_macros = { path = "destack-rs/destack_macros" }
-destack_order = { path = "destack-rs/destack_order" }
-destack_time = { path = "destack-rs/destack_time" }
-destack_unicode = { path = "destack-rs/destack_unicode" }
-destack_uuid = { path = "destack-rs/destack_uuid" }
+# destack_lang
+destack_lang_ast = { path = "destack_lang/ast" }
+destack_lang_bytecode = { path = "destack_lang/bytecode" }
+destack_lang_dir = { path = "destack_lang/dir" }
+destack_lang_lex = { path = "destack_lang/lex" }
+destack_lang_mir = { path = "destack_lang/mir" }
+destack_lang_parse = { path = "destack_lang/parse" }
+destack_lang_vm = { path = "destack_lang/vm" }
+# destack_std
+destack_std_access = { path = "destack_std/access" }
+destack_std_animation = { path = "destack_std/animation" }
+destack_std_audio = { path = "destack_std/audio" }
+destack_std_cli = { path = "destack_std/cli" }
+destack_std_cloud = { path = "destack_std/cloud" }
+destack_std_core = { path = "destack_std/core" }
+destack_std_geometry = { path = "destack_std/geometry" }
+destack_std_image = { path = "destack_std/image" }
+destack_std_json = { path = "destack_std/json" }
+destack_std_localization = { path = "destack_std/localization" }
+destack_std_lsp = { path = "destack_std/lsp" }
+destack_std_observability = { path = "destack_std/observability" }
+destack_std_order = { path = "destack_std/order" }
+destack_std_perception = { path = "destack_std/perception" }
+destack_std_physics = { path = "destack_std/physics" }
+destack_std_scene = { path = "destack_std/scene" }
+destack_std_script = { path = "destack_std/script" }
+destack_std_social = { path = "destack_std/social" }
+destack_std_space = { path = "destack_std/space" }
+destack_std_style = { path = "destack_std/style" }
+destack_std_time = { path = "destack_std/time" }
+destack_std_tokei = { path = "destack_std/tokei" }
+destack_std_unicode = { path = "destack_std/unicode" }
+destack_std_uuid = { path = "destack_std/uuid" }
+destack_std_video = { path = "destack_std/video" }
+destack_std_view = { path = "destack_std/view" }
+destack_std_web = { path = "destack_std/web" }
 
 # internal dependencies
 tokio = "1.47.1"

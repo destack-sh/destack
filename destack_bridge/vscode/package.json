@@ -32,7 +32,7 @@
         "destack.server.command": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Absolute path to `destack_lsp`. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
+          "markdownDescription": "Absolute path to `destack_std_lsp`. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
         },
         "destack.server.args": {
           "type": "array",

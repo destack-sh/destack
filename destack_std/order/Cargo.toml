@@ -1,6 +1,6 @@
 [package]
-name = "destack_order"
-description = "Destack Fractional Integers"
+name = "destack_std_order"
+description = "Destack Standard Library Order"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
