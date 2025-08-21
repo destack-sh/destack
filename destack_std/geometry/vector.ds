@@ -1,12 +1,43 @@
+use destack::*;
 
-
-
-impl + for Vector2 {
-	fn +(self, other) {
-
-	}
+/// A 2D vector with f32 components.
+struct Vector2 {
+	x: f32,
+	y: f32,
 }
 
-impl ~ for Vector2 {
-	
+/// A 3D vector with f32 components.
+struct Vector3 {
+	x: f32,
+	y: f32,
+	z: f32,
+}
+
+/// A 4D vector with f32 components.
+struct Vector4 {
+	x: f32,
+	y: f32,
+	z: f32,
+	w: f32,
+}
+
+/// A 2D vector with i32 components.
+struct Vector2i {
+	x: i32,
+	y: i32,
+}
+
+/// A 3D vector with i32 components.
+struct Vector3i {
+	x: i32,
+	y: i32,
+	z: i32,
+}
+
+/// A 4D vector with i32 components.
+struct Vector4i {
+	x: i32,
+	y: i32,
+	z: i32,
+	w: i32,
 }
