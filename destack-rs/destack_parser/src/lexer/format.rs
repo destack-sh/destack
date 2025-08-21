@@ -1,4 +1,4 @@
-use crate::token::{Token, TokenType};
+use super::token::{Token, TokenType};
 
 /// Renders a token stream back to a string.
 /// The objective is perfect roundtripping.

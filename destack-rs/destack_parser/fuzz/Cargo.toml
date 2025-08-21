@@ -1,6 +1,6 @@
 [package]
-name = "destack_lexer_fuzz"
-description = "Destack Lexer Fuzz"
+name = "destack_parser_fuzz"
+description = "Destack Parser Fuzz (lexer)"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -10,13 +10,13 @@ rust-version.workspace = true
 cargo-fuzz = true
 
 [dependencies]
-destack_lexer = { path = ".." }
+destack_parserr = { path = ".." }
 
 arbitrary = { workspace = true }
 libfuzzer-sys = { workspace = true }
 
 [[bin]]
-name = "destack_lexer_parse"
+name = "destack_parser_lexer_parse"
 path = "fuzz_targets/parse.rs"
 test = false
 doc = false

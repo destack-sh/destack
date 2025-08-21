@@ -5,17 +5,17 @@ use std::path::Path;
 
 use crate::console::parser::{CommandApp, CommandArguments};
 use crate::console::{console, table};
-use destack_lexer::{TokenType, tokenize};
+use destack_parserr::lexer::{TokenType, tokenize};
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
 /// Create the compile CLI app.
 pub fn app() -> CommandApp {
-    CommandApp::new("compile").help("Compile tools").command(
+    CommandApp::new("compile").help("Compiler tools").command(
         "lex",
         lex,
         Some(format!(
-            "Lex source and show tokens.
+            "Compile source.
 			--file <path>    Read input from file
 			--text <string>  Read input from provided string
 			--no-color       Disable ANSI colors
@@ -173,15 +173,30 @@ fn format_token(kind: TokenType, color: bool) -> String {
 /// Format a token kind for display in a concise manner.
 fn concise_kind(kind: TokenType) -> String {
     match kind {
+        TokenType::LineComment { .. } => "LineComment".to_string(),
+        TokenType::Whitespace => "Whitespace".to_string(),
+        TokenType::Identifier | TokenType::RawIdentifier => "Identifier".to_string(),
+        TokenType::InvalidIdentifier => "InvalidIdentifier".to_string(),
+        TokenType::Unknown | TokenType::UnknownLiteralPrefix => "Unknown".to_string(),
         TokenType::Literal { r#type, .. } => match r#type {
-            destack_lexer::LiteralTokenType::Integer { .. } => "Literal<Integer>".to_string(),
-            destack_lexer::LiteralTokenType::Float { .. } => "Literal<Float>".to_string(),
-            destack_lexer::LiteralTokenType::Character { .. } => "Literal<Character>".to_string(),
-            destack_lexer::LiteralTokenType::Byte { .. } => "Literal<Byte>".to_string(),
-            destack_lexer::LiteralTokenType::String { .. } => "Literal<String>".to_string(),
-            destack_lexer::LiteralTokenType::ByteString { .. } => "Literal<ByteString>".to_string(),
-            destack_lexer::LiteralTokenType::RawString { .. } => "Literal<RawString>".to_string(),
-            destack_lexer::LiteralTokenType::RawByteString { .. } => {
+            destack_parserr::lexer::LiteralTokenType::Integer { .. } => {
+                "Literal<Integer>".to_string()
+            }
+            destack_parserr::lexer::LiteralTokenType::Float { .. } => "Literal<Float>".to_string(),
+            destack_parserr::lexer::LiteralTokenType::Character { .. } => {
+                "Literal<Character>".to_string()
+            }
+            destack_parserr::lexer::LiteralTokenType::Byte { .. } => "Literal<Byte>".to_string(),
+            destack_parserr::lexer::LiteralTokenType::String { .. } => {
+                "Literal<String>".to_string()
+            }
+            destack_parserr::lexer::LiteralTokenType::ByteString { .. } => {
+                "Literal<ByteString>".to_string()
+            }
+            destack_parserr::lexer::LiteralTokenType::RawString { .. } => {
+                "Literal<RawString>".to_string()
+            }
+            destack_parserr::lexer::LiteralTokenType::RawByteString { .. } => {
                 "Literal<RawByteString>".to_string()
             }
         },

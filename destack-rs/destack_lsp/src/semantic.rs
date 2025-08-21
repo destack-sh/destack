@@ -12,7 +12,7 @@ pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
         }
     }
 
-    let iter = destack_lexer::tokenize(text).peekable();
+    let iter = destack_parserr::lexer::tokenize(text).peekable();
     let mut out: Vec<lsp::SemanticToken> = Vec::new();
     let mut byte_offset: usize = 0;
     let mut prev_line: u32 = 0;
@@ -65,7 +65,7 @@ pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
 pub fn get_token_type_at_position(
     text: &str,
     position: &lsp::Position,
-) -> Option<destack_lexer::token::TokenType> {
+) -> Option<destack_parserr::lexer::token::TokenType> {
     // compute line starts for mapping
     let mut line_starts: Vec<usize> = vec![0];
     for (i, ch) in text.char_indices() {
@@ -104,7 +104,7 @@ pub fn get_token_type_at_position(
     };
 
     // scan tokens until we cover the byte offset
-    let iter = destack_lexer::tokenize(text);
+    let iter = destack_parserr::lexer::tokenize(text);
     let mut running_offset: usize = 0;
     for tok in iter {
         let start = running_offset;
@@ -140,8 +140,8 @@ fn byte_to_line_and_start(byte_index: usize, line_starts: &[usize]) -> (usize, u
 
 /// Map a token to its semantic type index and character length.
 /// TODO: replace Semantic token keywords with proper AST parsing
-fn map_token(slice: &str, kind: destack_lexer::token::TokenType) -> Option<(u32, usize)> {
-    use destack_lexer::token::TokenType as K;
+fn map_token(slice: &str, kind: destack_parserr::lexer::token::TokenType) -> Option<(u32, usize)> {
+    use destack_parserr::lexer::token::TokenType as K;
 
     // legend indices must match `initialize` legend order
     let ty_index = match kind {
@@ -154,15 +154,15 @@ fn map_token(slice: &str, kind: destack_lexer::token::TokenType) -> Option<(u32,
 
         // literals
         K::Literal { r#type, .. } => match r#type {
-            destack_lexer::token::LiteralTokenType::Integer { .. }
-            | destack_lexer::token::LiteralTokenType::Float { .. } => 3, // NUMBER
+            destack_parserr::lexer::token::LiteralTokenType::Integer { .. }
+            | destack_parserr::lexer::token::LiteralTokenType::Float { .. } => 3, // NUMBER
 
-            destack_lexer::token::LiteralTokenType::Character { .. }
-            | destack_lexer::token::LiteralTokenType::Byte { .. }
-            | destack_lexer::token::LiteralTokenType::String { .. }
-            | destack_lexer::token::LiteralTokenType::ByteString { .. }
-            | destack_lexer::token::LiteralTokenType::RawString { .. }
-            | destack_lexer::token::LiteralTokenType::RawByteString { .. } => 2, // STRING
+            destack_parserr::lexer::token::LiteralTokenType::Character { .. }
+            | destack_parserr::lexer::token::LiteralTokenType::Byte { .. }
+            | destack_parserr::lexer::token::LiteralTokenType::String { .. }
+            | destack_parserr::lexer::token::LiteralTokenType::ByteString { .. }
+            | destack_parserr::lexer::token::LiteralTokenType::RawString { .. }
+            | destack_parserr::lexer::token::LiteralTokenType::RawByteString { .. } => 2, // STRING
         },
 
         // punctuation - use FUNCTION color to differentiate from operators

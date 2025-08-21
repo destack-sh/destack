@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::str::Chars;
 
-use crate::memchr::find_byte;
+use super::memchr::find_byte;
 
 /// Peekable iterator over a char sequence.
 pub struct Tokenizer<'a> {

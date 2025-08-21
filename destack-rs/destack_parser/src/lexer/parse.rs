@@ -1,8 +1,7 @@
 //! Low-level general purpose DS lexer (adapted from rustc).
 
-use crate::DocPosition;
-use crate::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
-use crate::tokenizer::{EOF_CHAR, Tokenizer};
+use super::token::{DocPosition, LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
+use super::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_unicode::UnicodeEmoji;
 use destack_unicode::xid::UnicodeXID;
 

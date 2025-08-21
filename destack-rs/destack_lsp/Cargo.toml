@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 destack = { workspace = true }
-destack_lexer = { workspace = true }
+destack_parserr = { workspace = true }
 
 tokio = { workspace = true, features = [
 	"rt-multi-thread",
