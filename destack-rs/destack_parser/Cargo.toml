@@ -12,15 +12,14 @@ path = "src/lib.rs"
 
 [dependencies]
 destack = { path = "../destack" }
-destack_lexer = { path = "../destack_lexer" }
 destack_unicode = { path = "../destack_unicode" }
 
 [dev-dependencies]
 criterion = { workspace = true }
 
-# [[bench]]
-# name = "parse"
-# harness = false
+[[bench]]
+name = "lexer"
+harness = false
 
 [lints]
 workspace = true

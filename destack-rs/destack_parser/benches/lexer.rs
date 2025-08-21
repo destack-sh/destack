@@ -1,19 +1,11 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use destack_parserr::lexer;
 
-const BENCHMARK_CASES: &[(&str, &str)] = &[
-    (
-        "rigid",
-        include_str!("../../../destack-ds/destack_examples/destack/rigid.ds"),
-    ),
-    (
-        "view",
-        include_str!("../../../destack-ds/destack_examples/destack/view.ds"),
-    ),
-    (
-        "tetris",
-        include_str!("../../../destack-ds/destack_examples/tetris/tetris.ds"),
-    ),
-];
+// nocheckin: load these dynamically from globbing the repo?
+const BENCHMARK_CASES: &[(&str, &str)] = &[(
+    "rigid",
+    include_str!("../../../destack-ds/destack_ds/simulation/physics/rigid.ds"),
+)];
 
 fn bench_tokenize(c: &mut Criterion) {
     let mut group = c.benchmark_group("lexer");
@@ -24,7 +16,7 @@ fn bench_tokenize(c: &mut Criterion) {
                 // iterate tokens without allocating
                 // NOTE: count to avoid being optimized away
                 let mut n = 0u32;
-                for _tok in destack_lexer::tokenize(src) {
+                for _tok in lexer::tokenize(src) {
                     n += 1;
                 }
                 black_box(n);

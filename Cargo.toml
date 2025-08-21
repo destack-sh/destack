@@ -3,14 +3,13 @@ resolver = "2"
 members = [
 	"destack-rs/destack",
 	"destack-rs/destack_parser",
+	"destack-rs/destack_parser/fuzz",
 	"destack-rs/destack_cli",
 	"destack-rs/destack_cli_macros",
 	"destack-rs/destack_codegen",
 	"destack-rs/destack_tokei",
 	"destack-rs/destack_json",
 	"destack-rs/destack_json/fuzz",
-	"destack-rs/destack_lexer",
-	"destack-rs/destack_lexer/fuzz",
 	"destack-rs/destack_order",
 	"destack-rs/destack_lsp",
 	"destack-rs/destack_test",
@@ -36,7 +35,6 @@ destack_cli_macros = { path = "destack-rs/destack_cli_macros" }
 destack_codegen = { path = "destack-rs/destack_codegen" }
 destack_tokei = { path = "destack-rs/destack_tokei" }
 destack_json = { path = "destack-rs/destack_json" }
-destack_lexer = { path = "destack-rs/destack_lexer" }
 destack_lsp = { path = "destack-rs/destack_lsp" }
 destack_macros = { path = "destack-rs/destack_macros" }
 destack_order = { path = "destack-rs/destack_order" }

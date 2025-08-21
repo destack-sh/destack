@@ -282,8 +282,8 @@ dependencies = [
  "destack",
  "destack_cli_macros",
  "destack_codegen",
- "destack_lexer",
  "destack_lsp",
+ "destack_parserr",
  "destack_tokei",
  "tokio",
 ]
@@ -322,28 +322,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_lexer"
-version = "2025.8.20-1"
-dependencies = [
- "criterion",
- "destack_unicode",
-]
-
-[[package]]
-name = "destack_lexer_fuzz"
-version = "0.0.0"
-dependencies = [
- "arbitrary",
- "destack_lexer",
- "libfuzzer-sys",
-]
-
-[[package]]
 name = "destack_lsp"
 version = "2025.8.20-1"
 dependencies = [
  "destack",
- "destack_lexer",
+ "destack_parserr",
  "serde",
  "serde_json",
  "tokio",
@@ -363,12 +346,20 @@ name = "destack_order"
 version = "2025.8.20-1"
 
 [[package]]
+name = "destack_parser_fuzz"
+version = "0.0.0"
+dependencies = [
+ "arbitrary",
+ "destack_parserr",
+ "libfuzzer-sys",
+]
+
+[[package]]
 name = "destack_parserr"
 version = "2025.8.20-1"
 dependencies = [
  "criterion",
  "destack",
- "destack_lexer",
  "destack_unicode",
 ]
 
