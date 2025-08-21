@@ -1,0 +1,6 @@
+use destack::*;
+
+/// An Environment is a usage scenario.
+#entity struct Environment {}
+
+

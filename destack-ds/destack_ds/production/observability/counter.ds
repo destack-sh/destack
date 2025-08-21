@@ -6,7 +6,7 @@ use destack::*;
 /// A Counter Measurement.
 #event(MeasurementEvent) struct CounterMeasurementEvent {
 	/// The Counter metric definition.
-	definition: CounterMetric,
+	definition: EntityReference<CounterMetric>,
 }
 
 

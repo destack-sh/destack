@@ -1,67 +1,163 @@
 use destack::*;
 
 /// The layout of elements
-enum Layout { Stack = 1, Grid = 2 }
+enum Layout {
+	/// Stack elements in a single direction
+	Stack = 1,
+	/// Arrange elements in a grid pattern
+	Grid = 2,
+}
 
 /// The overflow behavior of elements
-enum Overflow { Hidden = 2, Visible = 3, Scroll = 4 }
+enum Overflow {
+	/// Hide content that exceeds container bounds
+	Hidden = 2,
+	/// Show content that exceeds container bounds
+	Visible = 3,
+	/// Allow scrolling for content that exceeds container bounds
+	Scroll = 4,
+}
 
 /// The direction of elements
-enum Direction { Horizontal = 1, Vertical = 2 }
+enum Direction {
+	/// Arrange elements horizontally
+	Horizontal = 1,
+	/// Arrange elements vertically
+	Vertical = 2,
+}
 
 /// The distribution of elements
 enum Distribute {
+	/// Align elements to the start
 	Start = 1,
+	/// Center elements
 	Center = 2,
+	/// Align elements to the end
 	End = 3,
+	/// Distribute elements with space between them
 	SpaceBetween = 4,
+	/// Distribute elements with space around them
 	SpaceAround = 5,
+	/// Distribute elements with equal space between them
 	SpaceEvenly = 6,
 }
 
 /// The alignment of elements
-enum Align { Start = 1, Center = 2, End = 3 }
+enum Align {
+	/// Align to the start
+	Start = 1,
+	/// Align to the center
+	Center = 2,
+	/// Align to the end
+	End = 3,
+}
 
 /// The position of elements
-enum Anchor { Relative = 1, Absolute = 2, Fixed = 3, Sticky = 4 }
+enum Anchor {
+	/// Position relative to normal document flow
+	Relative = 1,
+	/// Position absolutely within containing block
+	Absolute = 2,
+	/// Position fixed relative to viewport
+	Fixed = 3,
+	/// Position sticky based on scroll position
+	Sticky = 4,
+}
 
 /// The unit of a length value
-enum LengthType { Pixel = 1, Percent = 2, Fit = 3, Fill = 4 }
+enum LengthType {
+	/// Fixed pixel value
+	Pixel = 1,
+	/// Percentage of container
+	Percent = 2,
+	/// Fit content size
+	Fit = 3,
+	/// Fill available space
+	Fill = 4,
+}
 
 /// An absolute or relative length value
-struct Length { unit: LengthType, value: i16 }
+struct Length { 
+	/// The unit type for this length
+	unit: LengthType, 
+	/// The numeric value in the specified unit
+	value: i16 
+}
 
 /// A 2-dimensional position value (relative or absolute)
 struct Offset2 {
+	/// The positioning type (relative, absolute, etc.)
 	type: Anchor,
+	/// Distance from top edge
 	top: Length,
+	/// Distance from left edge
 	left: Length,
+	/// Width dimension
 	width: Length,
+	/// Height dimension
 	height: Length,
 }
 
 /// A 2-dimensional insets value (base + side overrides)
-struct Inset2 { top: i16, left: i16, right: i16, bottom: i16 }
+struct Inset2 { 
+	/// Top inset value
+	top: i16, 
+	/// Left inset value
+	left: i16, 
+	/// Right inset value
+	right: i16, 
+	/// Bottom inset value
+	bottom: i16 
+}
 
 /// A 2-dimensional corners value (base + corner overrides)
-struct Corner2 { top_left: i16, top_right: i16, bottom_left: i16, bottom_right: i16 }
+struct Corner2 { 
+	/// Top-left corner radius
+	top_left: i16, 
+	/// Top-right corner radius
+	top_right: i16, 
+	/// Bottom-left corner radius
+	bottom_left: i16, 
+	/// Bottom-right corner radius
+	bottom_right: i16 
+}
 
 /// A 2-dimensional axis value (base + x/y overrides)
-struct Axis2 { x: i16, y: i16 }
+struct Axis2 { 
+	/// X-axis value
+	x: i16, 
+	/// Y-axis value
+	y: i16 
+}
 
 /// A 3-dimensional axis value (base + x/y/z overrides)
-struct Axis3 { x: i16, y: i16, z: i16 }
+struct Axis3 { 
+	/// X-axis value
+	x: i16, 
+	/// Y-axis value
+	y: i16, 
+	/// Z-axis value
+	z: i16 
+}
 
 /// A 2-dimensional grid configuration value
 struct Grid2 {
+	/// Number of columns in the grid
 	columns: i16,
+	/// Number of rows in the grid
 	rows: i16,
+	/// Fixed width for columns
 	column_width: Option<Length>,
+	/// Minimum width for columns
 	column_min_width: Option<Length>,
+	/// Fixed height for rows
 	row_height: Option<Length>,
 }
 
 /// A 2-dimensional grid span value
-struct GridSpan2 { columns: i16, rows: i16 }
-
-
+struct GridSpan2 { 
+	/// Number of columns to span
+	columns: i16, 
+	/// Number of rows to span
+	rows: i16 
+}

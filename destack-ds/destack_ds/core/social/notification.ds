@@ -1,0 +1,33 @@
+use destack::*;
+
+/// Notification status.
+enum NotificationStatus { Unread = 1, Read = 2, Dismissed = 3, Expired = 4, Rescinded = 5 }
+
+/// Base Notification event.
+#event struct NotificationEvent {
+	/// The Notification this event pertains to.
+	notification: EntityReference<Notification>,
+}
+
+/// Notification sent.
+#event(NotificationEvent) struct NotificationSentEvent {}
+/// Notification rescinded.
+#event(NotificationEvent) struct NotificationRescindedEvent {}
+/// Notification read.
+#event(NotificationEvent) struct NotificationReadEvent {}
+/// Notification dismissed.
+#event(NotificationEvent) struct NotificationDismissedEvent {}
+/// Notification expired.
+#event(NotificationEvent) struct NotificationExpiredEvent {}
+
+/// A Notification is a message about something.
+#entity struct Notification {
+	/// The title of the Notification.
+	title: String,
+	/// The status of the Notification.
+	status: NotificationStatus,
+	/// Optional text content.
+	text: Option<Text>,
+}
+
+

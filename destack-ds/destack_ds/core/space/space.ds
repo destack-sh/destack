@@ -1,0 +1,25 @@
+use destack::*;
+
+/// The result of creating a new Space.
+struct CreateSpaceResult {
+	/// The created Space.
+	space: Space,
+	/// The meta Branch.
+	meta_branch: Branch,
+	/// The meta Snapshot.
+	meta_snapshot: Snapshot,
+	/// The root Branch.
+	root_branch: Branch,
+	/// The head Snapshot.
+	head_snapshot: Snapshot,
+}
+
+/// A Space is the root of an isolated workspace in the Destack computational universe.
+#entity struct Space {
+	/// The URL-friendly slug of the Space.
+	slug: String,
+	/// The hosting region for the Space.
+	region: Region,
+}
+
+

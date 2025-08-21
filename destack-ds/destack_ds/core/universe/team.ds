@@ -1,0 +1,9 @@
+use destack::*;
+
+/// A Team with Users and Teams.
+#entity struct Team {
+	/// The URL-friendly slug of the Team.
+	slug: String,
+}
+
+

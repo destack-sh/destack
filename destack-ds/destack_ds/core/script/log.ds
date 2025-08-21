@@ -1,0 +1,16 @@
+use destack::*;
+
+/// Log levels.
+enum LogLevel { Trace = 1, Debug = 2, Info = 3, Warning = 4, Error = 5, Panic = 6 }
+
+/// A log message.
+#event struct LogEvent {
+	/// Custom values, keyed by custom Property name.
+	custom_values: Option<Map<String, Value>>,
+	/// The log name.
+	name: String,
+	/// The log level.
+	level: LogLevel,
+}
+
+

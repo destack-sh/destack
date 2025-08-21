@@ -1,0 +1,9 @@
+use destack::*;
+
+/// A Script.
+#entity struct Script {
+	/// The script code.
+	code: String,
+}
+
+

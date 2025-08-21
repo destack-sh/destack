@@ -6,7 +6,7 @@ use destack::*;
 /// A Histogram Measurement.
 #event(MeasurementEvent) struct HistogramMeasurementEvent {
 	/// The Histogram metric definition.
-	definition: HistogramMetric,
+	definition: EntityReference<HistogramMetric>,
 }
 
 

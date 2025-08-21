@@ -1,0 +1,23 @@
+use destack::*;
+
+/// A Reaction is a relationship between an Actor and a reactable Node.
+#entity struct Reaction {
+	/// The reaction content, e.g. an emoji.
+	content: String,
+}
+
+/// Base Reaction event.
+#event struct ReactionEvent {
+	/// The Reaction this event pertains to.
+	reaction: EntityReference<Reaction>,
+	/// The reaction content.
+	content: String,
+}
+
+/// Reaction added.
+#event(ReactionEvent) struct ReactionAddedEvent {}
+
+/// Reaction removed.
+#event(ReactionEvent) struct ReactionRemovedEvent {}
+
+

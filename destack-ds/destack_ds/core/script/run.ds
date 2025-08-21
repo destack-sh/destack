@@ -1,0 +1,51 @@
+use destack::*;
+
+/// Run status values.
+enum RunStatus { Scheduled = 2, Running = 10, Paused = 21, Yielded = 23, Cancelled = 51, Aborted = 52, Failed = 53, Completed = 54 }
+
+/// Base event regarding a Run.
+#event struct RunEvent {
+	/// The Run this event pertains to.
+	run: Run,
+	/// The target Entity of the Run, if any.
+	target: Option<Entity>,
+}
+
+/// A Run was started.
+#event(RunEvent) struct RunStartedEvent {}
+/// A Run pause was requested.
+#event(RunEvent) struct RunPauseRequestedEvent {}
+/// A Run was paused.
+#event(RunEvent) struct RunPausedEvent {}
+/// A Run resume was requested.
+#event(RunEvent) struct RunResumeRequestedEvent {}
+/// A Run was resumed.
+#event(RunEvent) struct RunResumedEvent {}
+/// A Run stop was requested.
+#event(RunEvent) struct RunStopRequestedEvent {}
+/// A Run failed.
+#event(RunEvent) struct RunFailedEvent {}
+/// A Run completed.
+#event(RunEvent) struct RunCompletedEvent {}
+
+/// Run of an Action.
+#entity struct Run {
+	/// The Action being run.
+	action: Action,
+	/// The current Run status.
+	status: RunStatus,
+	/// Duration from first attempt start to last attempt termination.
+	duration: Option<Duration>,
+	/// When the Run is scheduled to start.
+	scheduled_at: Option<Timestamp>,
+	/// When the Run first started.
+	started_at: Option<Timestamp>,
+	/// When the Run was last active.
+	seen_at: Option<Timestamp>,
+	/// When the Run was interrupted.
+	interrupted_at: Option<Timestamp>,
+	/// When the Run was last terminated.
+	terminated_at: Option<Timestamp>,
+}
+
+

@@ -1,5 +1,6 @@
 //! Destack CLI public API – console utilities and CLI registration.
 
-pub mod console;
+#![feature(default_field_values)]
 
 pub mod cli;
+pub mod console;
