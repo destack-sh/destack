@@ -20,14 +20,14 @@ const defaultConfig = defineConfig({
       },
     }),
     tsconfigPaths({
-      projects: ["./tsconfig.json", "../destack/tsconfig.json"],
+      projects: ["./tsconfig.json", "../../destack_lib/destack_ts/tsconfig.json"],
     }),
   ],
   resolve: {
     preserveSymlinks: true,
     alias: {
-      "@destack": fileURLToPath(new URL("../destack/src", import.meta.url)),
-      "@destack-web": fileURLToPath(new URL("./src", import.meta.url)),
+      "@destack": fileURLToPath(new URL("../../destack_lib/destack_ts/src", import.meta.url)),
+      "@destack-web": fileURLToPath(new URL("./typescript", import.meta.url)),
     },
   },
   build: {

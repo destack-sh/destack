@@ -3,21 +3,21 @@
   "version": "2025.08.21.0",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./typescript/index.ts",
+  "types": "./typescript/index.ts",
   "files": [
-    "src"
+    "typescript"
   ],
   "bun": {
     "alias": {
-      "@destack/*": "src/*"
+      "@destack/*": "typescript/*"
     }
   },
   "scripts": {
     "build": "tsc",
     "test": "bun --env-file ../.env.test --env-file ../.env.test.local test",
-    "check": "tsc --noEmit && biome check --write --unsafe src/",
-    "fmt": "biome check --write --unsafe src/"
+    "check": "tsc --noEmit && biome check --write --unsafe typescript/",
+    "fmt": "biome check --write --unsafe typescript/"
   },
   "engines": {
     "node": ">=18.0.0"
