@@ -1,0 +1,28 @@
+[package]
+name = "destack_lsp"
+description = "Language Server for Destack (.ds)"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "destack_lsp"
+path = "rust/main.rs"
+
+[dependencies]
+destack = { workspace = true }
+destack_parser = { workspace = true }
+
+tokio = { workspace = true, features = [
+	"rt-multi-thread",
+	"macros",
+	"io-util",
+	"sync",
+	"io-std",
+] }
+# TODO: vendor tower-lsp
+tower-lsp-server = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

@@ -12,7 +12,6 @@ members = [
 	"destack-rs/destack_json/fuzz",
 	"destack-rs/destack_order",
 	"destack-rs/destack_lsp",
-	"destack-rs/destack_test",
 	"destack-rs/destack_time",
 	"destack-rs/destack_time/fuzz",
 	"destack-rs/destack_unicode",
@@ -29,7 +28,7 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 destack = { path = "destack-rs/destack" }
-destack_parserr = { path = "destack-rs/destack_parser" }
+destack_parser = { path = "destack-rs/destack_parser" }
 destack_cli = { path = "destack-rs/destack_cli" }
 destack_cli_macros = { path = "destack-rs/destack_cli_macros" }
 destack_codegen = { path = "destack-rs/destack_codegen" }
@@ -42,7 +41,7 @@ destack_time = { path = "destack-rs/destack_time" }
 destack_unicode = { path = "destack-rs/destack_unicode" }
 destack_uuid = { path = "destack-rs/destack_uuid" }
 
-# dependencies
+# internal dependencies
 tokio = "1.47.1"
 tower-lsp-server = "0.22.1"
 

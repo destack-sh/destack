@@ -1,9 +1,0 @@
-/// Core Module.
-
-pub module universe;
-pub module space;
-
-pub use universe::*;
-pub use space::*;
-
-

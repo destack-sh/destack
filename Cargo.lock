@@ -364,15 +364,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_test"
-version = "2025.8.21-0"
-dependencies = [
- "destack",
- "pretty_assertions",
- "static_assertions",
-]
-
-[[package]]
 name = "destack_time"
 version = "2025.8.21-0"
 dependencies = [

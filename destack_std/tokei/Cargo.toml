@@ -1,0 +1,17 @@
+[package]
+name = "destack_tokei"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+
+[dependencies]
+
+[lints]
+workspace = true
+
+

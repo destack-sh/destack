@@ -1,0 +1,53 @@
+use destack::*;
+
+/// The consensus status of an Event.
+enum EventStatus {
+	/// Event is pending consensus.
+	Pending = 1,
+	/// Event is staged for consensus.
+	Staged = 2,
+	/// Event has been approved by consensus.
+	Approved = 10,
+	/// Event was skipped during consensus.
+	Skipped = 11,
+	/// Event failed during consensus.
+	Failed = 12,
+	/// Event was rejected by consensus.
+	Rejected = 13,
+}
+
+/// An immutable datum of something happening to an Entity.
+#event struct Event {
+	/// The universally unique identifier of this Node.
+	id: UUID,
+	/// The Space this Node is in.
+	space: EntityReference<Space>,
+	/// The Branch this Node is part of (in its Space).
+	branch: EntityReference<Branch>,
+	/// The Snapshot this Node is part of (in its Space and Branch).
+	snapshot: EntityReference<Snapshot>,
+
+	/// The logical time this Event was created (system).
+	created_epoch: u64,
+	/// The exclusive owner of this Entity (the root on access).
+	owner: EntityReference<Entity>,
+	/// The Client that created this Event (client, but verified).
+	client: EntityReference<Client>,
+	/// The nonce of the Client that created this Event (client).
+	client_nonce: u8,
+	/// The logical time last seen from the system in the Client for this space (client).
+	client_remote_epoch: u64,
+	/// The logical time in the Client when it created this Event (client).
+	client_local_epoch: u64,
+	/// The status of the Event (system).
+	status: EventStatus = EventStatus::Pending,
+	/// The Event that caused this Event (if any).
+	caused_by: Option<EntityReference<Event>>,
+}
+
+impl Event {
+	/// Get a reference to this Event.
+	#intrinsic fn to_ref(self) -> EntityReference;
+}
+
+

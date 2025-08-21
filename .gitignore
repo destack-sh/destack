@@ -37,7 +37,7 @@ dmypy.json
 .pytype/
 
 # Rust
-/target
+**/target/
 Cargo.lock
 
 # JavaScript/TypeScript/Node
