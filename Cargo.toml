@@ -4,6 +4,7 @@ members = [
 	# destack_lang
 	"destack_lang/ast",
 	"destack_lang/bytecode",
+	"destack_lang/codegen_rust",
 	"destack_lang/dir",
 	"destack_lang/lex",
 	"destack_lang/mir",

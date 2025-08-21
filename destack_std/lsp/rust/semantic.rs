@@ -166,8 +166,8 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::Semicolon
         | K::Comma
         | K::Dot
-        | K::DotDot
-        | K::DotDotDot
+        | K::DoubleDot
+        | K::TripleDot
         | K::OpenParenthesis
         | K::CloseParenthesis
         | K::OpenBrace
@@ -189,10 +189,14 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::LessThan
         | K::GreaterThan
         | K::Minus
+        | K::DoubleMinus
+        | K::TripleMinus
         | K::ThinArrow
         | K::And
         | K::Or
         | K::Plus
+        | K::DoublePlus
+        | K::TriplePlus
         | K::Star
         | K::Slash
         | K::Caret

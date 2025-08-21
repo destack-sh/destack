@@ -187,10 +187,10 @@ impl Tokenizer<'_> {
                 if self.peek_next() == '.' && self.peek_next_next() == '.' {
                     self.bump();
                     self.bump();
-                    TokenType::DotDotDot
+                    TokenType::TripleDot
                 } else if self.peek_next() == '.' {
                     self.bump();
-                    TokenType::DotDot
+                    TokenType::DoubleDot
                 } else {
                     TokenType::Dot
                 }
@@ -221,13 +221,31 @@ impl Tokenizer<'_> {
                 if self.peek_next() == '>' {
                     self.bump();
                     TokenType::ThinArrow
+                } else if self.peek_next() == '-' && self.peek_next_next() == '-' {
+                    self.bump();
+                    self.bump();
+                    TokenType::TripleMinus
+                } else if self.peek_next() == '-' {
+                    self.bump();
+                    TokenType::DoubleMinus
                 } else {
                     TokenType::Minus
                 }
             }
             '&' => TokenType::And,
             '|' => TokenType::Or,
-            '+' => TokenType::Plus,
+            '+' => {
+                if self.peek_next() == '+' && self.peek_next_next() == '+' {
+                    self.bump();
+                    self.bump();
+                    TokenType::TriplePlus
+                } else if self.peek_next() == '+' {
+                    self.bump();
+                    TokenType::DoublePlus
+                } else {
+                    TokenType::Plus
+                }
+            }
             '*' => TokenType::Star,
             '^' => TokenType::Caret,
             '%' => TokenType::Percent,
