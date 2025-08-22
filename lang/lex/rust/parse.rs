@@ -1,6 +1,6 @@
 //! Low-level general purpose DS lexer (adapted from rustc).
 
-use super::token::{DocPosition, LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
+use super::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
 use super::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_std_unicode::UnicodeEmoji;
 use destack_std_unicode::xid::UnicodeXID;
@@ -72,14 +72,42 @@ impl Tokenizer<'_> {
 
         // parse token
         let token_kind = match first_char {
-            // slash, comment
+            // whitespace
+            c if is_whitespace(c) => self.whitespace(),
+
+            // slash, comment (incl. doc comment)
             '/' => match self.peek_next() {
-                '/' => self.line_comment(),
+                // two slashes
+                '/' => {
+                    self.bump();
+                    match self.peek_next() {
+                        // three slashes
+                        '/' => {
+                            self.bump();
+                            match self.peek_next() {
+                                // three slashes
+                                ' ' => {
+                                    self.bump();
+                                    self.eat_until(b'\n');
+                                    TokenType::LineDocComment
+                                }
+                                // four or more slashes
+                                _ => {
+                                    self.eat_until(b'\n');
+                                    TokenType::LineComment
+                                }
+                            }
+                        }
+                        // two slashes
+                        _ => {
+                            self.eat_until(b'\n');
+                            TokenType::LineComment
+                        }
+                    }
+                }
+                // one slash
                 _ => TokenType::Slash,
             },
-
-            // whitespace sequence
-            c if is_whitespace(c) => self.whitespace(),
 
             // raw identifier, raw string literal
             'r' => match (self.peek_next(), self.peek_next_next()) {
@@ -287,24 +315,8 @@ impl Tokenizer<'_> {
         res
     }
 
-    /// Parses a line comment.
-    fn line_comment(&mut self) -> TokenType {
-        debug_assert!(self.prev() == '/' && self.peek_next() == '/');
-        self.bump();
-
-        let doc_style = match self.peek_next() {
-            // `//!` is an inner line doc comment
-            '!' => Some(DocPosition::Inner),
-            // `////` (more than 3 slashes) is not considered a doc comment
-            '/' if self.peek_next_next() != '/' => Some(DocPosition::Outer),
-            _ => None,
-        };
-
-        self.eat_until(b'\n');
-        TokenType::LineComment { doc_style }
-    }
-
     /// Parses a whitespace sequence.
+    #[inline]
     fn whitespace(&mut self) -> TokenType {
         debug_assert!(is_whitespace(self.prev()));
 
@@ -313,6 +325,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw identifier.
+    #[inline]
     fn raw_identifier(&mut self) -> TokenType {
         debug_assert!(
             self.prev() == 'r' && self.peek_next() == '#' && is_id_start(self.peek_next_next())
@@ -323,6 +336,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses an identifier or an unknown prefix.
+    #[inline]
     fn identifier_or_unknown_prefix(&mut self) -> TokenType {
         debug_assert!(is_id_start(self.prev()));
         // consume continuation characters until an unknown character is met
@@ -337,6 +351,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses an invalid identifier.
+    #[inline]
     fn invalid_identifier(&mut self) -> TokenType {
         // start is already eaten, eat the rest of identifier
         self.eat_while(|c| {
@@ -347,6 +362,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a number literal.
+    #[inline]
     fn number_literal(&mut self, first_digit: char) -> LiteralTokenType {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
         let mut base = NumberBase::Decimal;
@@ -443,6 +459,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a single-quoted string.
+    #[inline]
     fn single_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '\'');
         // check if it's a one-symbol literal
@@ -483,6 +500,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a double-quoted string.
+    #[inline]
     fn double_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '"');
         while let Some(c) = self.bump() {
@@ -502,6 +520,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw double-quoted string.
+    #[inline]
     pub(crate) fn raw_double_quoted_string(
         &mut self,
         prefix_len: u32,
@@ -517,6 +536,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw string.
+    #[inline]
     pub(crate) fn raw_string_unvalidated(
         &mut self,
         prefix_len: u32,
@@ -583,6 +603,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses decimal digits.
+    #[inline]
     pub(crate) fn eat_decimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -601,6 +622,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses hexadecimal digits.
+    #[inline]
     pub(crate) fn eat_hexadecimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -619,6 +641,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses the float exponent.
+    #[inline]
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
         debug_assert!(self.prev() == 'e' || self.prev() == 'E');
         if self.peek_next() == '-' || self.peek_next() == '+' {
@@ -628,11 +651,13 @@ impl Tokenizer<'_> {
     }
 
     /// Parses the suffix of the literal, e.g. "u8".
+    #[inline]
     pub(crate) fn eat_literal_suffix(&mut self) {
         self.eat_identifier();
     }
 
     /// Parses an identifier.
+    #[inline]
     pub(crate) fn eat_identifier(&mut self) {
         if !is_id_start(self.peek_next()) {
             return;

@@ -1,4 +1,4 @@
-use super::token::{DocPosition, LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
+use super::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
 use super::tokenizer::Tokenizer;
 use super::*;
 
@@ -281,49 +281,36 @@ fn test_smoke() {
 }
 
 #[test]
-fn test_comment_flavors() {
+fn test_comments() {
     assert_tokenize_eq_roundtrip!(
         r"
-// line
-//// line as well
-/// outer doc line
-//! inner doc line
+// comment
+//// comment as well
+/// doc comment
 ",
         Token {
             r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            r#type: TokenType::LineComment { doc_style: None },
-            len: 7
+            r#type: TokenType::LineComment,
+            len: 10
         },
         Token {
             r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            r#type: TokenType::LineComment { doc_style: None },
-            len: 17
+            r#type: TokenType::LineComment,
+            len: 20
         },
         Token {
             r#type: TokenType::Whitespace,
             len: 1
         },
         Token {
-            r#type: TokenType::LineComment {
-                doc_style: Some(DocPosition::Outer)
-            },
-            len: 18
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::LineComment {
-                doc_style: Some(DocPosition::Inner)
-            },
-            len: 18
+            r#type: TokenType::LineDocComment,
+            len: 15
         },
         Token {
             r#type: TokenType::Whitespace,
