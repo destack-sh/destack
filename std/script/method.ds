@@ -2,17 +2,18 @@ use destack::*;
 
 /// Definition of a builtin Method.
 struct MethodDefinition {
-	/// The Method type.
-	type: MethodType,
-	/// Optional id of the aliased Method.
-	alias_of: Option<u16>,
-	/// Method input Properties.
-	input_properties: PropertyDefinition[],
-	/// Optional output Property.
-	output_property: Option<PropertyDefinition>,
+    /// The Method type.
+    type: MethodType,
+    /// Optional id of the aliased Method.
+    aliasOf: Optional<u16>,
+    /// Method input Properties.
+    inputProperties: PropertyDefinition[],
+    /// Optional output Property.
+    outputProperty: Optional<PropertyDefinition>,
 }
 
 /// A Method is a small runtime-specific piece of logic.
-#entity(Function) struct Method {}
+@entity(Function)
+struct Method {}
 
 

@@ -2,27 +2,31 @@ use destack::*;
 
 /// A Rectangle is a rectangle.
 struct Rectangle2D {
-	use Form2D::*;
-	width: f32,
-	height: f32,
+    use Form2D::*;
+
+    width: float32,
+    height: float32,
 }
 
 /// A RectangleShape is a shape that represents a rectangle.
-#entity(Shape2D) struct RectangleShape2D {
-	use Rectangle2D::*;
+@entity(Shape2D)
+struct RectangleShape2D {
+    use Rectangle2D::*;
 }
 
 /// A Box is an axis-aligned box defined by width, height and depth.
 struct Box3D {
-	use Form3D::*;
-	width: f32,
-	height: f32,
-	depth: f32,
+    use Form3D::*;
+    
+    width: float32,
+    height: float32,
+    depth: float32,
 }
 
 /// A BoxShape3D is a shape that represents an axis-aligned box.
-#entity(Shape3D) struct BoxShape3D {
-	use Box3D::*;
+@entity(Shape3D)
+struct BoxShape3D {
+    use Box3D::*;
 }
 
 

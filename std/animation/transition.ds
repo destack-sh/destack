@@ -2,41 +2,42 @@ use destack::*;
 
 /// Built-in transition types
 enum TransitionType {
-	Tween = 10,
-	Spring = 11,
+    Tween = 10,
+    Spring = 11,
 }
 
 /// Built-in spring types
 enum SpringType {
-	Time = 1,
-	Physical = 2,
+    Time = 1,
+    Physical = 2,
 }
 
 /// A transition value
 struct Transition {
-	type: TransitionType = TransitionType::Tween,
-	template: Option<TransitionTemplate>,
-	delay: Option<f32>,
-	duration: Option<f32>,
-	ease: f32[],
-	stiffness: Option<f32>,
-	damping: Option<f32>,
-	mass: Option<f32>,
-	bounce: Option<f32>,
-	spring_type: Option<SpringType>,
+    type: TransitionType = TransitionType::Tween,
+    template: Optional<TransitionTemplate>,
+    delay: Optional<float32>,
+    duration: Optional<float32>,
+    ease: float32[],
+    stiffness: Optional<float32>,
+    damping: Optional<float32>,
+    mass: Optional<float32>,
+    bounce: Optional<float32>,
+    springType: Optional<SpringType>,
 }
 
 /// A transition template
-#entity struct TransitionTemplate {
-	type: TransitionType = TransitionType::Tween,
-	delay: Option<f32>,
-	duration: Option<f32>,
-	ease: f32[],
-	stiffness: Option<f32>,
-	damping: Option<f32>,
-	mass: Option<f32>,
-	bounce: Option<f32>,
-	spring_type: Option<SpringType>,
+@entity
+struct TransitionTemplate {
+    type: TransitionType = TransitionType::Tween,
+    delay: Optional<float32>,
+    duration: Optional<float32>,
+    ease: float32[],
+    stiffness: Optional<float32>,
+    damping: Optional<float32>,
+    mass: Optional<float32>,
+    bounce: Optional<float32>,
+    springType: Optional<SpringType>,
 }
 
 

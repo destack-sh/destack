@@ -2,14 +2,16 @@ use destack::*;
 
 /// A Cylinder is aligned with the local z axis with a radius and height.
 struct Cylinder3D {
-	use Form3D::*;
-	radius: f32,
-	height: f32,
+    use Form3D::*;
+    
+    radius: float32,
+    height: float32,
 }
 
 /// A CylinderShape3D is a shape that represents a cylinder.
-#entity(Shape3D) struct CylinderShape3D {
-	use Cylinder3D::*;
+@entity(Shape3D)
+struct CylinderShape3D {
+    use Cylinder3D::*;
 }
 
 

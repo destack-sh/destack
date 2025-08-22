@@ -1,5 +1,5 @@
 /// Cloud Module
 
-pub mod machine;
+public module machine;
 
-pub use machine::*;
+public use machine::*;

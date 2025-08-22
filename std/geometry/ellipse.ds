@@ -2,28 +2,30 @@ use destack::*;
 
 /// An Ellipse is centered at a point with radii along x and y and a rotation.
 struct Ellipse2D {
-	use Form2D::*;
-	radius_x: f32,
-	radius_y: f32,
-	rotation: f32 = 0.0,
+    use Form2D::*;
+    radiusX: float32,
+    radiusY: float32,
+    rotation: float32 = 0.0,
 }
 
 /// A EllipseShape is a shape that represents a ellipse.
-#entity(Shape2D) struct EllipseShape2D {
-	use Ellipse2D::*;
+@entity(Shape2D)
+struct EllipseShape2D {
+    use Ellipse2D::*;
 }
 
 /// An Ellipsoid is centered at a point with radii along x, y and z axes.
 struct Ellipsoid3D {
-	use Form3D::*;
-	radius_x: f32,
-	radius_y: f32,
-	radius_z: f32
+    use Form3D::*;
+    radiusX: float32,
+    radiusY: float32,
+    radiusZ: float32
 }
 
 /// An EllipsoidShape3D is a shape that represents an ellipsoid in 3D.
-#entity(Shape3D) struct EllipsoidShape3D {
-	use Ellipsoid3D::*;
+@entity(Shape3D)
+struct EllipsoidShape3D {
+    use Ellipsoid3D::*;
 }
 
 

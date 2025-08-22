@@ -1,21 +1,21 @@
 /// Presentation View Module
 
-pub mod view;
-pub mod layout;
-pub mod content;
-pub mod input;
-pub mod label;
-pub mod frame;
-pub mod split;
-pub mod relative;
+public module view;
+public module layout;
+public module content;
+public module input;
+public module label;
+public module frame;
+public module split;
+public module relative;
 
-pub use view::*;
-pub use layout::*;
-pub use content::*;
-pub use input::*;
-pub use label::*;
-pub use frame::*;
-pub use split::*;
-pub use relative::*;
+public use view::*;
+public use layout::*;
+public use content::*;
+public use input::*;
+public use label::*;
+public use frame::*;
+public use split::*;
+public use relative::*;
 
 

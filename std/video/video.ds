@@ -1,10 +1,11 @@
 use destack::*;
 
 /// A Video File
-#entity(File) struct Video {
-	width: u32,
-	height: u32,
-	duration: Duration,
+@entity(File)
+struct Video {
+    width: u32,
+    height: u32,
+    duration: Duration,
 }
 
 

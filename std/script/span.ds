@@ -1,19 +1,20 @@
 use destack::*;
 
 /// A Span traces a Run.
-#event struct SpanEvent {
-	/// The span name.
-	name: String,
-	/// Start time of the span.
-	start_time: Timestamp,
-	/// End time of the span.
-	end_time: Timestamp,
-	/// Duration of the span.
-	duration: Duration,
-	/// Optional parent Span.
-	parent_span: Option<SpanEvent>,
-	/// Optional Action associated with the Span.
-	action: Option<Action>,
+@event
+struct SpanEvent {
+    /// The span name.
+    name: String,
+    /// Start time of the span.
+    startTime: Timestamp,
+    /// End time of the span.
+    endTime: Timestamp,
+    /// Duration of the span.
+    duration: Duration,
+    /// Optional parent Span.
+    parentSpan: Optional<SpanEvent>,
+    /// Optional Action associated with the Span.
+    action: Optional<Action>,
 }
 
 

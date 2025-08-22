@@ -1,13 +1,14 @@
 use destack::*;
 
 /// A User is a human using Destack.
-#entity struct User {
-	/// The URL-friendly slug of the User.
-	slug: String,
-	/// When the User last logged in.
-	last_logged_in_at: Option<Timestamp>,
-	/// The email address of the User.
-	email: Option<String>,
+@entity
+struct User {
+    /// The URL-friendly slug of the User.
+    slug: String,
+    /// When the User last logged in.
+    lastLoggedInAt: Optional<Timestamp>,
+    /// The email address of the User.
+    email: Optional<String>,
 }
 
 

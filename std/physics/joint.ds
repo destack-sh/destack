@@ -2,236 +2,249 @@ use destack::*;
 
 /// Flags that modify Joint behavior
 enum JointFlag {
-	/// Default behavior
-	Default = 0,
-	/// Allow connected bodies to collide with each other
-	CollideConnected = 1,
+    /// Default behavior
+    Default = 0,
+    /// Allow connected bodies to collide with each other
+    CollideConnected = 1,
 }
 
 /// Spring parameters for soft constraints
 struct JointSpring {
-	/// Hooke stiffness of the spring (N/m or N·m/rad)
-	stiffness: f32,
-	/// Damping coefficient of the spring (N·s/m or N·m·s/rad)
-	damping: f32,
+    /// Hooke stiffness of the spring (N/m or N·m/rad)
+    stiffness: float32,
+    /// Damping coefficient of the spring (N·s/m or N·m·s/rad)
+    damping: float32,
 }
 
 /// Motor/servo constraint for a Joint DoF
 struct JointMotor {
-	/// Target velocity along the motorized DoF (m/s or rad/s)
-	target_velocity: f32,
-	/// Maximum impulse the motor may apply in a single step (N·s or N·m·s)
-	max_impulse: f32,
-	/// Optional target coordinate for servo mode (meters or radians)
-	target_position: Option<f32> = None,
-	/// Optional servo stiffness for position tracking
-	stiffness: Option<f32> = None,
-	/// Optional servo damping for position tracking
-	damping: Option<f32> = None,
+    /// Target velocity along the motorized DoF (m/s or rad/s)
+    targetVelocity: float32,
+    /// Maximum impulse the motor may apply in a single step (N·s or N·m·s)
+    maxImpulse: float32,
+    /// Optional target coordinate for servo mode (meters or radians)
+    targetPosition: Optional<float32> = None,
+    /// Optional servo stiffness for position tracking
+    stiffness: Optional<float32> = None,
+    /// Optional servo damping for position tracking
+    damping: Optional<float32> = None,
 }
 
 /// Scalar (1D) limit for linear or angular coordinates
 struct JointScalarLimit {
-	/// Lower bound of the coordinate (meters or radians)
-	min_value: f32,
-	/// Upper bound of the coordinate (meters or radians)
-	max_value: f32,
-	/// Bounciness applied when the limit is hit (0..1)
-	restitution: f32,
-	/// Early activation margin before the limit (meters or radians)
-	contact_distance: f32,
+    /// Lower bound of the coordinate (meters or radians)
+    minValue: float32,
+    /// Upper bound of the coordinate (meters or radians)
+    maxValue: float32,
+    /// Bounciness applied when the limit is hit (0..1)
+    restitution: float32,
+    /// Early activation margin before the limit (meters or radians)
+    contactDistance: float32,
 }
 
 /// Angular 1D twist limit around a defined axis
 struct JointTwistLimit {
-	/// Lower angular bound around the twist axis (radians)
-	min_angle: f32,
-	/// Upper angular bound around the twist axis (radians)
-	max_angle: f32,
-	/// Bounciness applied when the twist limit is hit (0..1)
-	restitution: f32,
-	/// Early activation margin before the twist limit (radians)
-	contact_distance: f32,
+    /// Lower angular bound around the twist axis (radians)
+    minAngle: float32,
+    /// Upper angular bound around the twist axis (radians)
+    maxAngle: float32,
+    /// Bounciness applied when the twist limit is hit (0..1)
+    restitution: float32,
+    /// Early activation margin before the twist limit (radians)
+    contactDistance: float32,
 }
 
 /// Elliptical swing (cone) limit for a ball-and-socket style joint
 struct JointConeLimit {
-	/// Maximum swing angle about the local Y axis (radians)
-	swing_y: f32,
-	/// Maximum swing angle about the local Z axis (radians)
-	swing_z: f32,
-	/// Bounciness applied when the cone boundary is reached (0..1)
-	restitution: f32,
-	/// Early activation margin before the cone boundary (radians)
-	contact_distance: f32,
+    /// Maximum swing angle about the local Y axis (radians)
+    swingY: float32,
+    /// Maximum swing angle about the local Z axis (radians)
+    swingZ: float32,
+    /// Bounciness applied when the cone boundary is reached (0..1)
+    restitution: float32,
+    /// Early activation margin before the cone boundary (radians)
+    contactDistance: float32,
 }
 
 /// Break thresholds for a Joint
 struct JointBreakLimit {
-	/// Maximum linear force the Joint can sustain before breaking (N)
-	force: f32,
-	/// Maximum angular torque the Joint can sustain before breaking (N·m)
-	torque: f32,
+    /// Maximum linear force the Joint can sustain before breaking (N)
+    force: float32,
+    /// Maximum angular torque the Joint can sustain before breaking (N·m)
+    torque: float32,
 }
 
 /// Base Joint in 2D space
-#entity(Entity2D) struct Joint2D {
-	/// First body connected by the Joint
-	body_a: EntityReference<Body2D>,
-	/// Second body connected by the Joint
-	body_b: EntityReference<Body2D>,
-	/// Joint frame on Body A (local anchor position and orientation)
-	frame_a: JointFrame2D,
-	/// Joint frame on Body B (local anchor position and orientation)
-	frame_b: JointFrame2D,
-	/// Optional break thresholds for the Joint
-	break_limit: Option<JointBreakLimit> = None,
-	/// Joint behavior flags
-	flags: JointFlag = JointFlag::Default,
+@entity(Entity2D)
+struct Joint2D {
+    /// First body connected by the Joint
+    bodyA: EntityReference<Body2D>,
+    /// Second body connected by the Joint
+    bodyB: EntityReference<Body2D>,
+    /// Joint frame on Body A (local anchor position and orientation)
+    frameA: JointFrame2D,
+    /// Joint frame on Body B (local anchor position and orientation)
+    frameB: JointFrame2D,
+    /// Optional break thresholds for the Joint
+    breakLimit: Optional<JointBreakLimit> = None,
+    /// Joint behavior flags
+    flags: JointFlag = JointFlag::Default,
 }
 
 /// Frame for a Joint in 2D space (relative to a Body)
 struct JointFrame2D {
-	/// Local anchor position in Body space (meters)
-	position: Vector2,
-	/// Local orientation in Body space (radians)
-	rotation: f32,
+    /// Local anchor position in Body space (meters)
+    position: Vector2,
+    /// Local orientation in Body space (radians)
+    rotation: float32,
 }
 
 /// Revolute (hinge) joint in 2D
-#entity(Joint2D) struct HingeJoint2D {
-	/// Optional angular limit around the hinge axis (radians)
-	limit: Option<JointScalarLimit> = None,
-	/// Optional angular motor around the hinge axis (rad/s)
-	motor: Option<JointMotor> = None,
-	/// Optional soft constraint on hinge angle (spring-damper)
-	angular_spring: Option<JointSpring> = None,
+@entity(Joint2D)
+struct HingeJoint2D {
+    /// Optional angular limit around the hinge axis (radians)
+    limit: Optional<JointScalarLimit> = None,
+    /// Optional angular motor around the hinge axis (rad/s)
+    motor: Optional<JointMotor> = None,
+    /// Optional soft constraint on hinge angle (spring-damper)
+    angularSpring: Optional<JointSpring> = None,
 }
 
 /// Prismatic (slider) joint in 2D
-#entity(Joint2D) struct PrismaticJoint2D {
-	/// Slide axis expressed in Body A local space (unit vector)
-	axis_a: Vector2,
-	/// Optional linear limit along the slide axis (meters)
-	limit: Option<JointScalarLimit> = None,
-	/// Optional linear motor along the slide axis (m/s)
-	motor: Option<JointMotor> = None,
-	/// Optional linear spring along the slide axis (suspension)
-	spring: Option<JointSpring> = None,
+@entity(Joint2D)
+struct PrismaticJoint2D {
+    /// Slide axis expressed in Body A local space (unit vector)
+    axisA: Vector2,
+    /// Optional linear limit along the slide axis (meters)
+    limit: Optional<JointScalarLimit> = None,
+    /// Optional linear motor along the slide axis (m/s)
+    motor: Optional<JointMotor> = None,
+    /// Optional linear spring along the slide axis (suspension)
+    spring: Optional<JointSpring> = None,
 }
 
 /// Fixed joint in 2D
-#entity(Joint2D) struct FixedJoint2D {
-	/// Optional softening for locked translation (spring-damper)
-	linear_spring: Option<JointSpring> = None,
-	/// Optional softening for locked rotation (spring-damper)
-	angular_spring: Option<JointSpring> = None,
+@entity(Joint2D)
+struct FixedJoint2D {
+    /// Optional softening for locked translation (spring-damper)
+    linearSpring: Optional<JointSpring> = None,
+    /// Optional softening for locked rotation (spring-damper)
+    angularSpring: Optional<JointSpring> = None,
 }
 
 /// Rope/Distance joint in 2D
-#entity(Joint2D) struct RopeJoint2D {
-	/// Distance range between anchors (meters)
-	distance_limit: JointScalarLimit,
-	/// Optional spring to model a compliant rope/rod
-	spring: Option<JointSpring> = None,
+@entity(Joint2D)
+struct RopeJoint2D {
+    /// Distance range between anchors (meters)
+    distanceLimit: JointScalarLimit,
+    /// Optional spring to model a compliant rope/rod
+    spring: Optional<JointSpring> = None,
 }
 
 /// Wheel joint in 2D
-#entity(Joint2D) struct WheelJoint2D {
-	/// Suspension (slide) axis in Body A local space (unit vector)
-	suspension_axis_a: Vector2,
-	/// Suspension spring-damper along the suspension axis
-	suspension: JointSpring,
-	/// Optional travel limit along the suspension axis (meters)
-	linear_limit: Option<JointScalarLimit> = None,
-	/// Optional angular motor for wheel spin about Z (rad/s)
-	wheel_motor: Option<JointMotor> = None,
+@entity(Joint2D)
+struct WheelJoint2D {
+    /// Suspension (slide) axis in Body A local space (unit vector)
+    suspensionAxisA: Vector2,
+    /// Suspension spring-damper along the suspension axis
+    suspension: JointSpring,
+    /// Optional travel limit along the suspension axis (meters)
+    linearLimit: Optional<JointScalarLimit> = None,
+    /// Optional angular motor for wheel spin about Z (rad/s)
+    wheelMotor: Optional<JointMotor> = None,
 }
 
 /// Base Joint in 3D space
-#entity(Entity3D) struct Joint3D {
-	/// First body connected by the Joint
-	body_a: EntityReference<Body3D>,
-	/// Second body connected by the Joint
-	body_b: EntityReference<Body3D>,
-	/// Joint frame on Body A (local anchor position and orientation)
-	frame_a: JointFrame3D,
-	/// Joint frame on Body B (local anchor position and orientation)
-	frame_b: JointFrame3D,
-	/// Optional break thresholds for the Joint
-	break_limit: Option<JointBreakLimit> = None,
-	/// Joint behavior flags
-	flags: JointFlag = JointFlag::Default,
+@entity(Entity3D)
+struct Joint3D {
+    /// First body connected by the Joint
+    bodyA: EntityReference<Body3D>,
+    /// Second body connected by the Joint
+    bodyB: EntityReference<Body3D>,
+    /// Joint frame on Body A (local anchor position and orientation)
+    frameA: JointFrame3D,
+    /// Joint frame on Body B (local anchor position and orientation)
+    frameB: JointFrame3D,
+    /// Optional break thresholds for the Joint
+    breakLimit: Optional<JointBreakLimit> = None,
+    /// Joint behavior flags
+    flags: JointFlag = JointFlag::Default,
 }
 
 /// Frame for a Joint in 3D space (relative to a Body)
 struct JointFrame3D {
-	/// Local anchor position in Body space (meters)
-	position: Vector3,
-	/// Local orientation in Body space (unit quaternion)
-	rotation: Quaternion,
+    /// Local anchor position in Body space (meters)
+    position: Vector3,
+    /// Local orientation in Body space (unit quaternion)
+    rotation: Quaternion,
 }
 
 /// Spherical (ball-and-socket) joint in 3D
-#entity(Joint3D) struct SphericalJoint3D {
-	/// Swing (cone) limit around local Y/Z axes (radians)
-	cone_limit: Option<JointConeLimit> = None,
-	/// Twist limit around the local X axis (radians)
-	twist_limit: Option<JointTwistLimit> = None,
-	/// Soft constraint on relative orientation (spring-damper)
-	angular_spring: Option<JointSpring> = None,
+@entity(Joint3D)
+struct SphericalJoint3D {
+    /// Swing (cone) limit around local Y/Z axes (radians)
+    coneLimit: Optional<JointConeLimit> = None,
+    /// Twist limit around the local X axis (radians)
+    twistLimit: Optional<JointTwistLimit> = None,
+    /// Soft constraint on relative orientation (spring-damper)
+    angularSpring: Optional<JointSpring> = None,
 }
 
 /// Hinge joint in 3D
-#entity(Joint3D) struct HingeJoint3D {
-	/// Hinge axis expressed in Body A local space (unit vector)
-	axis_a: Vector3,
-	/// Optional angular limit around the hinge axis (radians)
-	limit: Option<JointTwistLimit> = None,
-	/// Optional angular motor around the hinge axis (rad/s)
-	motor: Option<JointMotor> = None,
-	/// Optional soft constraint on hinge angle (spring-damper)
-	angular_spring: Option<JointSpring> = None,
+@entity(Joint3D)
+struct HingeJoint3D {
+    /// Hinge axis expressed in Body A local space (unit vector)
+    axisA: Vector3,
+    /// Optional angular limit around the hinge axis (radians)
+    limit: Optional<JointTwistLimit> = None,
+    /// Optional angular motor around the hinge axis (rad/s)
+    motor: Optional<JointMotor> = None,
+    /// Optional soft constraint on hinge angle (spring-damper)
+    angularSpring: Optional<JointSpring> = None,
 }
 
 /// Prismatic (slider) joint in 3D
-#entity(Joint3D) struct PrismaticJoint3D {
-	/// Slide axis expressed in Body A local space (unit vector)
-	axis_a: Vector3,
-	/// Optional linear limit along the slide axis (meters)
-	limit: Option<JointScalarLimit> = None,
-	/// Optional linear motor along the slide axis (m/s)
-	motor: Option<JointMotor> = None,
-	/// Optional linear spring along the slide axis (suspension)
-	spring: Option<JointSpring> = None,
+@entity(Joint3D)
+struct PrismaticJoint3D {
+    /// Slide axis expressed in Body A local space (unit vector)
+    axisA: Vector3,
+    /// Optional linear limit along the slide axis (meters)
+    limit: Optional<JointScalarLimit> = None,
+    /// Optional linear motor along the slide axis (m/s)
+    motor: Optional<JointMotor> = None,
+    /// Optional linear spring along the slide axis (suspension)
+    spring: Optional<JointSpring> = None,
 }
 
 /// Fixed joint in 3D
-#entity(Joint3D) struct FixedJoint3D {
-	/// Optional softening for locked translation (spring-damper)
-	linear_spring: Option<JointSpring> = None,
-	/// Optional softening for locked rotation (spring-damper)
-	angular_spring: Option<JointSpring> = None,
+@entity(Joint3D)
+struct FixedJoint3D {
+    /// Optional softening for locked translation (spring-damper)
+    linearSpring: Optional<JointSpring> = None,
+    /// Optional softening for locked rotation (spring-damper)
+    angularSpring: Optional<JointSpring> = None,
 }
 
 /// Rope/Distance joint in 3D
-#entity(Joint3D) struct RopeJoint3D {
-	/// Distance range between anchors (meters)
-	distance_limit: JointScalarLimit,
-	/// Optional spring to model a compliant rope/rod
-	spring: Option<JointSpring> = None,
+@entity(Joint3D)
+struct RopeJoint3D {
+    /// Distance range between anchors (meters)
+    distanceLimit: JointScalarLimit,
+    /// Optional spring to model a compliant rope/rod
+    spring: Optional<JointSpring> = None,
 }
 
 /// Wheel (suspension) joint in 3D
-#entity(Joint3D) struct WheelJoint3D {
-	/// Suspension (slide) axis in Body A local space (unit vector)
-	suspension_axis_a: Vector3,
-	/// Suspension spring-damper along the suspension axis
-	suspension: JointSpring,
-	/// Optional travel limit along the suspension axis (meters)
-	linear_limit: Option<JointScalarLimit> = None,
-	/// Optional angular motor for wheel spin about the hinge axis (rad/s)
-	wheel_motor: Option<JointMotor> = None,
+@entity(Joint3D)
+struct WheelJoint3D {
+    /// Suspension (slide) axis in Body A local space (unit vector)
+    suspensionAxisA: Vector3,
+    /// Suspension spring-damper along the suspension axis
+    suspension: JointSpring,
+    /// Optional travel limit along the suspension axis (meters)
+    linearLimit: Optional<JointScalarLimit> = None,
+    /// Optional angular motor for wheel spin about the hinge axis (rad/s)
+    wheelMotor: Optional<JointMotor> = None,
 }
 
 

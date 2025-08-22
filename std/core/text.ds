@@ -8,24 +8,24 @@ enum TextStyleFlag { Default = 0, Bold = 1, Italic = 2, Strikethrough = 4, Under
 
 /// Span of text with optional styling.
 struct TextSpan {
-	/// The span type.
-	type: TextSpanType = TextSpanType::Text,
-	/// Optional textual content.
-	content: Option<String>,
-	/// Optional reference to a Node.
-	node: Option<EntityReference<Entity>>,
-	/// Optional hyperlink URL.
-	url: Option<String>,
-	/// Styling flags for this span.
-	style_flags: TextStyleFlag = TextStyleFlag::Default,
+    /// The span type.
+    type: TextSpanType = TextSpanType::Text,
+    /// Optional textual content.
+    content: Optional<String>,
+    /// Optional reference to a Node.
+    node: Optional<EntityReference<Entity>>,
+    /// Optional hyperlink URL.
+    url: Optional<String>,
+    /// Styling flags for this span.
+    styleFlags: TextStyleFlag = TextStyleFlag::Default,
 }
 
 /// A single paragraph composed of TextSpans with inline styling.
 struct Text {
-	/// The spans composing the paragraph.
-	spans: TextSpan[],
-	/// Styling flags for the whole paragraph.
-	style_flags: TextStyleFlag = TextStyleFlag::Default,
+    /// The spans composing the paragraph.
+    spans: TextSpan[],
+    /// Styling flags for the whole paragraph.
+    styleFlags: TextStyleFlag = TextStyleFlag::Default,
 }
 
 

@@ -1,13 +1,13 @@
 /// Observability Module
 
-pub mod metric;
-pub mod counter;
-pub mod gauge;
-pub mod histogram;
+public module metric;
+public module counter;
+public module gauge;
+public module histogram;
 
-pub use metric::*;
-pub use counter::*;
-pub use gauge::*;
-pub use histogram::*;
+public use metric::*;
+public use counter::*;
+public use gauge::*;
+public use histogram::*;
 
 

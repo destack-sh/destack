@@ -15,31 +15,31 @@ pub type Identifier = String;
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntType {
     /// The size of the pointer type.
-    Isize,
-    I8,
-    I16,
-    I32,
-    I64,
-    I128,
+    IntSize,
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Int128,
 }
 
 /// A UintType is an unsigned integer type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UintType {
     /// The size of the pointer type.
-    Usize,
-    U8,
-    U16,
-    U32,
-    U64,
-    U128,
+    UintSize,
+    Uint8,
+    Uint16,
+    Uint32,
+    Uint64,
+    Uint128,
 }
 
 /// A FloatType is a floating-point type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FloatType {
-    F32,
-    F64,
+    Float32,
+    Float64,
 }
 
 /// A Path is a static path to a named definition in a namespace.
@@ -70,8 +70,8 @@ pub struct PathSegment {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Visibility {
-    Pub,
-    PubModule,
+    Public,
+    PublicModule,
 }
 
 /// A Module is a module declaration or definition.
@@ -215,21 +215,21 @@ pub struct Tuple {
 ///
 /// Example:
 /// ```
-/// impl Foo {
+/// implement Foo {
 ///     ...
 /// }
-/// impl Foo<i32> {
+/// implement Foo<i32> {
 ///     ...
 /// }
-/// impl Bar<i32> for Baz {
+/// implement Bar<i32> for Baz {
 ///     ...
 /// }
-/// impl<T> Bar<T> for Baz {
+/// implement<T> Bar<T> for Baz {
 ///     ...
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Impl {
+pub struct Implement {
     pub trait_type: Box<Type>,
     pub for_type: Box<Type>,
     pub static_arguments: Option<Vec<Type>>,
@@ -428,7 +428,7 @@ pub enum Expression {
     /// Function definition
     Function(Box<Function>),
     /// Impl definition
-    Impl(Box<Impl>),
+    Impl(Box<Implement>),
 }
 
 /// A ScalarLiteral is a literal scalar value.

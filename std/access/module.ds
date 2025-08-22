@@ -1,17 +1,17 @@
 /// Basics Access Module.
 
-pub mod entitlement;
-pub mod invite;
-pub mod membership;
-pub mod permission;
-pub mod role;
-pub mod sanction;
+public module entitlement;
+public module invite;
+public module membership;
+public module permission;
+public module role;
+public module sanction;
 
-pub use entitlement::*;
-pub use invite::*;
-pub use membership::*;
-pub use permission::*;
-pub use role::*;
-pub use sanction::*;
+public use entitlement::*;
+public use invite::*;
+public use membership::*;
+public use permission::*;
+public use role::*;
+public use sanction::*;
 
 

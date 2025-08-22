@@ -2,14 +2,15 @@ use destack::*;
 
 /// A Cone is aligned with the local z axis with a base radius and height.
 struct Cone3D {
-	radius: f32,
-	height: f32,
+    radius: float32,
+    height: float32,
 }
 
 /// A ConeShape3D is a 3D shape that represents a cone.
-#entity(Shape3D) struct ConeShape3D {
-	radius: f32,
-	height: f32,
+@entity(Shape3D)
+struct ConeShape3D {
+    radius: float32,
+    height: float32,
 }
 
 

@@ -1,15 +1,15 @@
 /// Core Universe Module.
 
-pub mod client;
-pub mod organization;
-pub mod team;
-pub mod universe;
-pub mod user;
+public module client;
+public module organization;
+public module team;
+public module universe;
+public module user;
 
-pub use client::*;
-pub use organization::*;
-pub use team::*;
-pub use universe::*;
-pub use user::*;
+public use client::*;
+public use organization::*;
+public use team::*;
+public use universe::*;
+public use user::*;
 
 

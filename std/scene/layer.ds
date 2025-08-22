@@ -1,11 +1,12 @@
 use destack::*;
 
 /// A Layer is a container for Views
-#entity struct Layer {
-	/// Whether the layer is visible
-	is_visible: Option<bool>,
-	/// Layer opacity
-	opacity: Option<f32>,
+@entity
+struct Layer {
+    /// Whether the layer is visible
+    isVisible: Optional<bool>,
+    /// Layer opacity
+    opacity: Optional<float32>,
 }
 
 

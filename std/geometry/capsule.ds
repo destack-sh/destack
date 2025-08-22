@@ -2,28 +2,30 @@ use destack::*;
 
 /// A Capsule2D is a segment with rounded ends with a common radius.
 struct Capsule2D {
-	use Form2D::*;
-	center_a_offset: Vector2,
-	center_b_offset: Vector2,
-	radius: f32,
+    use Form2D::*;
+    centerA_offset: Vector2,
+    centerB_offset: Vector2,
+    radius: float32,
 }
 
 /// A CapsuleShape is a shape that represents a capsule.
-#entity(Shape2D) struct CapsuleShape2D {
-	use Capsule2D::*;
+@entity(Shape2D)
+struct CapsuleShape2D {
+    use Capsule2D::*;
 }
 
 /// A Capsule3D is a segment with rounded ends in 3D with a common radius.
 struct Capsule3D {
-	use Form3D::*;
-	center_a_offset: Vector3,
-	center_b_offset: Vector3,
-	radius: f32
+    use Form3D::*;
+    centerA_offset: Vector3,
+    centerB_offset: Vector3,
+    radius: float32
 }
 
 /// A CapsuleShape3D is a shape that represents a capsule in 3D.
-#entity(Shape3D) struct CapsuleShape3D {
-	use Capsule3D::*;
+@entity(Shape3D)
+struct CapsuleShape3D {
+    use Capsule3D::*;
 }
 
 
