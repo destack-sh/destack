@@ -4,6 +4,7 @@ alwaysApply: false
 ---
 
 Destack is our custom high performance programming language.
+It combines the performance of Rust with the ergonomics of Typescript.
 It's inspired by Rust, Zig, Jai, GDScript, TypeScript, Swift.
 
 We take from Rust a lot of the syntax, primitives and mechanisms.
@@ -77,15 +78,15 @@ struct WordleCell {
 	/// The letter in this cell
 	letter: Option<char> = None,
 	state: WordleLetterState = WordleLetterState::Empty,
-	is_active: bool = false,
+	isActive: bool = false,
 }
 
 /// A single guess row
-struct WordleGuess {
+struct WordleGuess<T: int> {
 	/// The 5 letters in this guess
-	cells: WordleCell[5],
-	is_submitted: bool = false,
-	is_current: bool = false,
+	cells: WordleCell[T],
+	isSubmitted: bool = false,
+	isCurrent: bool = false,
 }
 
 /// Keyboard key state tracking
@@ -97,23 +98,24 @@ struct WordleKeyState {
 }
 
 /// The main wordle game board
-#entity(Entity) struct WordleBoard {
+@entity(Entity) 
+struct WordleBoard {
 	use WordleComponent::*;
 	
 	guesses: WordleGuess[6],
-	current_row: u32 = 0,
-	current_col: u32 = 0,
-	target_word: String,
-	is_accepting_input: bool = true,
+	currentRow: u32 = 0,
+	currentCol: u32 = 0,
+	targetWord: String,
+	isAcceptingInput: bool = true,
 }
 
-impl WordleBoard {
-	fn something(self) {
+implement WordleBoard {
+	function something(self) {
 		// ...
 	}
 }
 
-fn something_else() {
+function somethingElse() {
 	// ...
 }
 

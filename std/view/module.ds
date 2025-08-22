@@ -1,13 +1,5 @@
 /// Presentation View Module
 
-public module view;
-public module layout;
-public module content;
-public module input;
-public module label;
-public module frame;
-public module split;
-public module relative;
 
 public use view::*;
 public use layout::*;

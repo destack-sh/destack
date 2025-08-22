@@ -1,11 +1,5 @@
 /// Basics Access Module.
 
-public module entitlement;
-public module invite;
-public module membership;
-public module permission;
-public module role;
-public module sanction;
 
 public use entitlement::*;
 public use invite::*;

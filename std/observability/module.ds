@@ -1,9 +1,5 @@
 /// Observability Module
 
-public module metric;
-public module counter;
-public module gauge;
-public module histogram;
 
 public use metric::*;
 public use counter::*;
