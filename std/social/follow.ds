@@ -14,5 +14,3 @@ use destack::*;
 
 /// Follow removed.
 #event(FollowEvent) struct FollowRemovedEvent {}
-
-

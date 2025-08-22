@@ -1,7 +1,7 @@
 //! Language server subcommand.
 
 use crate::console::console;
-use crate::console::parser::{CommandApp, CommandArguments};
+use crate::console::parse::{CommandApp, CommandArguments};
 
 /// Create the lsp command app.
 pub fn app() -> CommandApp {

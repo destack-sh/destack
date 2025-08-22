@@ -13,9 +13,7 @@ pub struct CommandArguments {
 }
 
 impl CommandArguments {
-    /// Parse command arguments from an iterator of strings.
-    ///
-    /// Handles:
+    /// Parse command arguments from an iterator of strings with:
     /// - Long flags (`--flag`)
     /// - Short flags (`-f`)
     /// - Flag values (`--key=value` or `--key value`)

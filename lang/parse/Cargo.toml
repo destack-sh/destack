@@ -12,6 +12,7 @@ path = "rust/lib.rs"
 doctest = false
 
 [dependencies]
+destack_lang_lex = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

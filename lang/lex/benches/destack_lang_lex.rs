@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use destack_lang_lex::tokenize;
+use destack_lang_lex::tokenize_semantic;
 use destack_std_fs::glob;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
@@ -48,11 +48,8 @@ fn bench_tokenize(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("tokenize", "all"), &ds_str, |b, input| {
         b.iter(|| {
-            let mut num_tokens = 0u32;
-            for _tok in tokenize(input) {
-                num_tokens += 1;
-            }
-            black_box(num_tokens);
+            let tokens = tokenize_semantic(input);
+            black_box(tokens);
         });
     });
     group.finish();

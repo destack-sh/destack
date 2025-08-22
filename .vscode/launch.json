@@ -1,70 +1,17 @@
 {
   "version": "0.2.0",
   "configurations": [
-    // test configs
     {
-      "name": "python.debug.tests",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${file}",
-      "purpose": ["debug-test"],
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "env": {
-        "ENVIRONMENT": "test"
-      }
-    },
-    {
-      // run pytest collect to debug collection issues
-      "name": "test.collect",
-      "type": "debugpy",
-      "request": "launch",
-      "module": "pytest",
-      "args": ["--collect-only", "destack-ds/destack"],
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": true,
-      "env": {
-        "ENVIRONMENT": "test"
-      }
-    },
-    // rust configs
-    {
-      "name": "destack_cli",
+      "name": "destack_lang_lex",
       "type": "lldb",
       "request": "launch",
       "cargo": {
-        "args": ["run", "--bin", "destack_cli"],
-        "filter": { "kind": "bin", "name": "destack_cli" }
+        "args": ["run", "--bin", "destack_std_cli"],
+        "filter": { "kind": "bin", "name": "destack_std_cli" }
       },
-      "args": ["tokei", "run"],
+      "args": ["parse", "lex", "--file", "std/geometry/module.ds"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
-    },
-    // general configs
-    {
-      "name": "destack.generate",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}/destack-ds",
-      "module": "destack",
-      "args": ["generate"],
-      "justMyCode": true,
-      "env": {
-        "ENVIRONMENT": "development"
-      }
-    },
-    {
-      "name": "destack.manual",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}/destack-ds",
-      "module": "destack",
-      "args": ["manual"],
-      "justMyCode": true,
-      "env": {
-        "ENVIRONMENT": "development"
-      }
     }
   ]
 }
