@@ -8,7 +8,12 @@
 //! Unlike Rust, Destack has only Statements and Expressions (no separate Items).
 //! Unlike Zig, Destack does distinguish Statements and Expressions.
 
-/// A Path is a path to a type.
+use crate::{FloatType, IntType};
+
+type Identifier = String;
+type NodeId = u32;
+
+/// A Path is a static path to a named definition in a namespace.
 ///
 /// Example:
 /// ```
@@ -18,53 +23,20 @@
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
-    pub segments: Vec<String>,
+    pub segments: Vec<PathSegment>,
 }
 
-/// A Type is a type definition.
+/// A PathSegment is a segment of a path.
 ///
 /// Example:
 /// ```
-/// tuple InternalId (i8)
-/// tuple Foo (i32, i32)
-/// struct Foo {
-///     ...
-/// }
-/// enum Foo {
-///     A,
-///     B,
-///     C,
-/// }
+/// foo
+/// bar
+/// BazQux
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-    Tuple(Tuple),
-    Struct(Struct),
-    Union(Union),
-}
-
-/// An (unresolved) Type reference or inline anonymous Type definition.
-/// Type references don't support static evaluation directly for simplicity and readability,
-///  but they can refer to Paths that are themselves any static Expressions
-///  (which enables the same feature set in a more structured way).
-///
-/// Example:
-/// ```
-/// i32
-/// bool
-/// [f64; 3]
-/// (i32, i32)
-/// struct { x: i32, y: i32 }
-/// tuple(i32, i32)
-/// T
-/// MyEnum
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum TypeReference {
-    /// A named reference to a type.
-    Path(Path),
-    /// An inline anonymous definition of a type.
-    Type(Type),
+pub struct PathSegment {
+    pub name: Identifier,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -85,62 +57,8 @@ pub enum Visibility {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
-    pub name: String,
+    pub name: Identifier,
     pub visibility: Visibility,
-    pub body: Option<Block>,
-}
-
-/// A StructDefinition is a named or anonymous struct definition.
-/// Anonymous Structs may only appear in certain contexts.
-///
-/// Example:
-/// ```
-/// struct Foo {
-///     ...
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Struct {
-    pub name: Option<String>,
-    pub visibility: Visibility,
-    pub fields: Vec<Field>,
-}
-
-/// An ImplDefinition is an impl definition.
-///
-/// Example:
-/// ```
-/// impl Foo for Bar {
-///     ...
-/// }
-/// impl Bar<i32> for Baz {
-///     ...
-/// }
-/// impl<T> Bar<T> for Baz {
-///     ...
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Impl {
-    pub for_type: Path,
-    pub body: Option<Block>,
-}
-
-/// A Function is a function declaration or definition.
-/// If no body is provided, it is a declaration for a function defined in another file/folder.
-///
-/// Example:
-/// ```
-/// fn foo() {
-///     println!("Hello, world!");
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Function {
-    pub name: String,
-    pub static_arguments: Vec<Parameter>,
-    pub dynamic_arguments: Vec<Parameter>,
-    pub return_type: Option<TypeReference>,
     pub body: Option<Block>,
 }
 
@@ -159,11 +77,26 @@ pub struct Use {
     /// The path to the module to use (like `foo::bar` or `foo::bar::baz::qux`)
     pub path: Path,
     /// The alias to use for the module.
-    pub alias: Option<String>,
-    /// The members to use from the module (if not `is_glob`).
-    pub members: Option<Vec<String>>,
+    pub alias: Option<Identifier>,
+    /// The items to use from the module (if not `is_glob`).
+    pub items: Option<Vec<Identifier>>,
     /// Whether to use all members from the module.
     pub is_glob: bool,
+}
+
+/// A StructDefinition is a named struct definition.
+///
+/// Example:
+/// ```
+/// struct Foo {
+///     ...
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Struct {
+    pub name: Identifier,
+    pub visibility: Visibility,
+    pub fields: Vec<Field>,
 }
 
 /// A Field is a (struct) field declaration.
@@ -176,8 +109,8 @@ pub struct Use {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
-    pub name: String,
-    pub r#type: TypeReference,
+    pub name: Identifier,
+    pub r#type: Type,
     pub default: Option<Expression>,
 }
 
@@ -207,8 +140,8 @@ pub struct Field {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union {
-    pub name: String,
-    pub r#type: Option<Box<TypeReference>>,
+    pub name: Identifier,
+    pub r#type: Option<Box<Type>>,
     pub style: UnionStyle,
     pub fields: Vec<UnionField>,
 }
@@ -231,22 +164,61 @@ pub enum UnionStyle {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionField {
-    pub name: String,
-    pub r#type: Option<TypeReference>,
+    pub name: Identifier,
+    pub r#type: Option<Type>,
     pub value: Option<Expression>,
 }
 
-/// A Tuple is a tuple declaration or definition.
+/// A Tuple is a named tuple definition.
 ///
 /// Example:
 /// ```
-/// (i32, i32[])
-/// (u8, (i32, bool, Vector2))
+/// tuple MyTuple(i32, i32[])
+/// tuple MyOtherTuple(u8, (i32, bool, Vector2))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
-    pub name: Option<String>,
-    pub elements: Vec<TypeReference>,
+    pub name: Identifier,
+    pub elements: Vec<Type>,
+}
+/// An ImplDefinition is an impl definition.
+///
+/// Example:
+/// ```
+/// impl Foo for Bar {
+///     ...
+/// }
+/// impl Bar<i32> for Baz {
+///     ...
+/// }
+/// impl<T> Bar<T> for Baz {
+///     ...
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Impl {
+    pub trait_type: Box<Type>,
+    pub for_type: Box<Type>,
+    pub static_arguments: Option<Vec<Type>>,
+    pub body: Option<Block>,
+}
+
+/// A Function is an associated or module function declaration or definition.
+/// If no body is provided, it is a declaration for a function defined elsewhere.
+///
+/// Example:
+/// ```
+/// fn foo() {
+///     println!("Hello, world!");
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    pub name: Identifier,
+    pub static_arguments: Vec<Parameter>,
+    pub dynamic_arguments: Vec<Parameter>,
+    pub return_type: Option<Type>,
+    pub body: Option<Block>,
 }
 
 /// A Parameter is a parameter to some expression.
@@ -259,38 +231,73 @@ pub struct Tuple {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
-    pub name: String,
-    pub r#type: TypeReference,
+    pub name: Identifier,
+    pub r#type: Type,
+    pub default: Option<Expression>,
 }
 
 /// A StaticCall is a call to a function at compile time.
 /// The function may or may not be declared as comptime (with a `# prefix),
 ///  but the call must be prefixed with a `#` to qualify as a static call.
 ///
+/// Static functions may take the following expression as an argument:
+///  - `#entity struct MyEntity { ... }`
+///  - `#flag enum MyFlag { ... }`
+///
+/// These cases are represented as two separate AST nodes (one static call, one definition)
+///   and are then reconciled later during static analysis and compilation.
+///   (We don't know yet whether `#entity` is supposed to consume the next expression or not.)
+/// This also makes error reporting easier.
+///
+/// NOTE: There are no static method calls because static calls are statically resolved.
+///       However, there are static calls namespaced to types like any other namespace.
+///
 /// Example:
 /// ```
 /// #foo()
 /// #foo(1, 2, 3)
+/// #foo<true>(1, 2, 3)
 /// #foo(.{x: 1, y: 2}, (true, 3))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StaticCall {
-    pub name: String,
-    pub arguments: Vec<Expression>,
+    pub path: Path,
+    pub dynamic_arguments: Option<Vec<Expression>>,
+    pub static_arguments: Option<Vec<Expression>>,
 }
 
 /// A DynamicCall is a call to a function at runtime.
+/// See DynamicMethodCall for calls on receivers.
 ///
 /// Example:
 /// ```
 /// foo()
 /// foo(1, 2, 3)
 /// foo(foo::a {x: 1, y: 2}, (true, 3))
+/// foo<true>(1, 2, 3)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicCall {
-    pub name: String,
-    pub arguments: Vec<Expression>,
+    pub path: Path,
+    pub dynamic_arguments: Option<Vec<Expression>>,
+    pub static_arguments: Option<Vec<Expression>>,
+}
+
+/// A DynamicMethodCall is a call to an associated method at runtime.
+/// See DynamicCall for calls on functions.
+///
+/// Example:
+/// ```
+/// foo.bar()
+/// foo.bar(1, 2, 3)
+/// foo.bar<true>(1, 2, 3)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct DynamicMethodCall {
+    pub receiver: Box<Expression>,
+    pub name: Identifier,
+    pub dynamic_arguments: Vec<Expression>,
+    pub static_arguments: Vec<Expression>,
 }
 
 /// An Statement is a top-level Statement that can appear in a module, type definition or function.
@@ -298,10 +305,15 @@ pub struct DynamicCall {
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+    // Expression
     Expression(Expression),
+    // Let binding
     Let(Let),
+    // Const binding
     Const(Const),
+    // Assignment
     Assign(Assign),
+    // Use declaration
     Use(Use),
 }
 
@@ -312,20 +324,33 @@ pub enum Statement {
 ///  that is, they have a place in memory we can point to.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    // Literal value
-    Literal(Literal),
-    /// Reference to a value
-    Path(Path),
-    // Dynamic call
-    DynamicCall(Box<DynamicCall>),
-    // Static call
+    // Literal scalar value
+    ScalarLiteral(ScalarLiteral),
+    // Array literal
+    ArrayLiteral(ArrayLiteral),
+    // Tuple literal
+    TupleLiteral(TupleLiteral),
+    // Struct literal
+    StructLiteral(StructLiteral),
+
+    /// Path reference
+    Reference(Path),
+    /// Member reference
+    Member(Member),
+    /// Index reference
+    Index(Index),
+    /// Slice
+    Slice(Slice),
+    /// Unary operation.
+    UnaryOperation(UnaryOperation),
+    /// Binary operation.
+    BinaryOperation(BinaryOperation),
+    /// Static call
     StaticCall(Box<StaticCall>),
-    // Type definition
-    TypeDefinition(Box<Type>),
-    // Function definition
-    FunctionDefinition(Box<Function>),
-    // Impl definition
-    ImplDefinition(Box<Impl>),
+    /// Dynamic call
+    DynamicCall(Box<DynamicCall>),
+    /// Dynamic associated method call
+    DynamicMethodCall(Box<DynamicMethodCall>),
 
     /// Expression form of Let for condition / guard positions.
     Let(Let),
@@ -347,6 +372,250 @@ pub enum Expression {
     Match(Match),
     /// Block statement.
     Block(Block),
+
+    /// Tuple definition
+    Tuple(Tuple),
+    /// Struct definition
+    Struct(Struct),
+    /// Union definition
+    Union(Union),
+    /// Function definition
+    Function(Box<Function>),
+    /// Impl definition
+    Impl(Box<Impl>),
+}
+
+/// A ScalarLiteral is a literal scalar value.
+///
+/// Example:
+/// ```
+/// 1
+/// 0x21
+/// 1.0f64
+/// "Hello, world!"
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScalarLiteral {
+    Boolean(bool),
+    Byte(u8),
+    Integer(i64, IntType),
+    Float(f64, FloatType),
+    String(String),
+    ByteString(Vec<u8>),
+}
+
+/// An ArrayLiteral is a literal array of homogeneous elements.
+///
+/// Example:
+/// ```
+/// [1, 2, 3]
+/// [1.0f64, 2.0f64, 3.0f64]
+/// [0; 10]
+/// [false; 40]
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrayLiteral {
+    /// A fixed-size array.
+    Fixed { elements: Vec<Expression> },
+    /// A repeated array.
+    Repeated {
+        element: Box<Expression>,
+        count: usize,
+    },
+}
+
+/// A TupleLiteral is a literal tuple of heterogeneous elements.
+///
+/// Example:
+/// ```
+/// (1, 2, 3)
+/// (1.0f64, 2.0f64, 3.0f64)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleLiteral {
+    pub elements: Vec<Expression>,
+}
+
+/// A StructLiteral is a literal struct of heterogeneous fields.
+///
+/// Example:
+/// ```
+/// Vector2 { x: 1, y: 2 }
+/// some_module::MyUnion::OptionB { a: true }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructLiteral {
+    /// The type of the struct.
+    pub r#type: Path, // can only refer to a simple type
+    /// The fields of the struct.
+    pub fields: Vec<FieldLiteral>,
+}
+
+/// A FieldLiteral is a literal field value.
+///
+/// Example:
+/// ```
+/// x: 1,
+/// y: 2,
+/// z
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct FieldLiteral {
+    /// The name of the field to bind.
+    pub name: Identifier,
+    /// The value of the field. If unset, we take the field from context.
+    pub value: Option<Expression>,
+}
+
+/// An unresolved Type declaration.
+///
+/// Type references don't support static evaluation directly for simplicity.
+/// They can refer to Paths that are themselves any static Expressions
+///  (which enables the same feature set in a more structured way).
+///
+/// Example:
+/// ```
+/// i32
+/// bool
+/// [f64; 3]
+/// (i32, i32)
+/// fn(i32) -> i32
+/// T<i32>
+/// MyEnum
+/// simulation::geometry::Vector2
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    /// Infer placeholder `_`
+    Infer,
+    /// Never `!`.
+    Never,
+    /// Reference to a type.
+    Reference {
+        path: Path,
+        static_arguments: Vec<Type>,
+    },
+    /// Pointer of some type.
+    Pointer { r#type: Box<Type> },
+    /// Inline Tuple type.
+    Tuple { elements: Vec<Type> },
+    /// Inline Array type.
+    Array { element: Box<Type>, count: usize },
+    /// Inline Slice type.
+    Slice { element: Box<Type> },
+    /// Inline Function type.
+    Function {
+        static_arguments: Vec<Parameter>,
+        dynamic_arguments: Vec<Parameter>,
+        return_type: Option<Box<Type>>,
+    },
+}
+
+/// A Member is a member reference.
+///
+/// Example:
+/// ```
+/// foo.bar
+/// foo.baz
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Member {
+    pub base: Box<Expression>,
+    pub name: Identifier,
+}
+
+/// An Index is an index into an array or tuple.
+///
+/// Example:
+/// ```
+/// foo[1]
+/// foo[1..3]
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Index {
+    pub base: Box<Expression>,
+    pub index: Box<Expression>,
+}
+
+/// A Slice is a slice of an array or tuple.
+///
+/// Example:
+/// ```
+/// 1..3
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Slice {
+    pub start: Option<Box<Expression>>,
+    pub end: Option<Box<Expression>>,
+}
+
+/// A UnaryOperation is a unary operation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnaryOperation {
+    pub operator: UnaryOperator,
+    pub operand: Box<Expression>,
+}
+
+/// A UnaryOperator is a unary operator.
+#[derive(Debug, Clone, PartialEq)]
+pub enum UnaryOperator {
+    /// `!`
+    Not,
+    /// `-`
+    Negate,
+    /// `&`
+    Reference,
+    /// `*`
+    Dereference,
+}
+
+/// A BinaryOperation is a binary operation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BinaryOperation {
+    pub operator: BinaryOperator,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+/// A BinaryOperator is a binary operator.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BinaryOperator {
+    /// `+`
+    Add,
+    /// `-`
+    Subtract,
+    /// `*`
+    Multiply,
+    /// `/`
+    Divide,
+    /// `%`
+    Modulo,
+    /// `==`
+    Equal,
+    /// `!=`
+    NotEqual,
+    /// `<`
+    LessThan,
+    /// `>`
+    GreaterThan,
+    /// `<=`
+    LessThanOrEqual,
+    /// `>=`
+    GreaterThanOrEqual,
+    /// `&&`
+    And,
+    /// `||`
+    Or,
+    /// `^`
+    BitXor,
+    /// `&`
+    BitAnd,
+    /// `|`
+    BitOr,
+    /// `<<`
+    BitLeftShift,
+    /// `>>`
+    BitRightShift,
 }
 
 /// A Block is a block of statements.
@@ -373,8 +642,8 @@ pub struct Block {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
-    pub name: String,
-    pub r#type: TypeReference,
+    pub name: Identifier,
+    pub r#type: Type,
     pub value: Option<Box<Expression>>,
     pub is_uninitialized: bool,
 }
@@ -389,8 +658,8 @@ pub struct Let {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Const {
-    pub name: String,
-    pub r#type: TypeReference,
+    pub name: Identifier,
+    pub r#type: Type,
     pub value: Expression,
 }
 
@@ -543,13 +812,13 @@ pub enum AssignType {
     /// `+=`
     AddAssign,
     /// `-=`
-    SubAssign,
+    SubtractAssign,
     /// `*=`
-    MulAssign,
+    MultiplyAssign,
     /// `/=`
-    DivAssign,
+    DivideAssign,
     /// `%=`
-    ModAssign,
+    ModuloAssign,
     /// `&=`
     AndAssign,
     /// `|=`
@@ -565,15 +834,3 @@ pub enum AssignType {
     /// `>>=`
     BitRightShiftAssign,
 }
-
-/// A Literal is a literal value.
-///
-/// Example:
-/// ```
-/// 1
-/// 0x21
-/// 1.0f64
-/// "Hello, world!"
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum Literal {}
