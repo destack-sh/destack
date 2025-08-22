@@ -2,14 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "destack_lang_lex",
+      "name": "destack_language_lexer",
       "type": "lldb",
       "request": "launch",
       "cargo": {
-        "args": ["run", "--bin", "destack_std_cli"],
-        "filter": { "kind": "bin", "name": "destack_std_cli" }
+        "args": ["run", "--bin", "destack_library_cli"],
+        "filter": { "kind": "bin", "name": "destack_library_cli" }
       },
-      "args": ["parse", "lex", "--file", "std/geometry/module.ds"],
+      "args": ["parse", "lex", "--file", "library/geometry/module.ds"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     }

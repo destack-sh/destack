@@ -1,0 +1,150 @@
+use destack;
+
+/// The materialization level of an Entity.
+enum(uint8) Materialization {
+    /// The Entity is virtual.
+    Virtual = 3,
+    /// The Entity is partial.
+    Partial = 4,
+    /// The Entity is full.
+    Full = 6,
+    /// The Entity is root.
+    Root = 7,
+}
+
+/// How an Entity should be treated for processing by the system.
+@flag enum(uint8) ProcessFlag {
+    /// The default process flag (no special processing).
+    Default = 0,
+    /// The Entity is deleted.
+    Deleted = 1,
+    /// The Entity is inactive.
+    Inactive = 2,
+    /// The Entity is inactive and input is not processed.
+    InactiveInput = 4,
+    /// The Entity is sleeping and processed differently.
+    Sleeping = 8,
+}
+
+/// How an Entity should be treated for extension by the system.
+@flag enum(uint8) ExtensionFlag {
+    /// The default extension flag (no special processing).
+    Default = 0,
+    /// The Entity is instantiable.
+    Instantiable = 1,
+    /// The Entity is extensible.
+    Extensible = 2,
+}
+
+/// Declare a struct as an Entity. Auto-includes Entity.
+function @entity(structDecl: StructDefinition) -> StructDefinition {
+    // structDeclr.uses.append(UseDeclaration { structDeclr: Entity, isGlob: true } )
+    structDeclr
+}
+
+/// A named, versioned, mutable object in the system.
+@entity
+struct Entity {
+    /// The universally unique identifier of this Entity.
+    id: UUID,
+    /// The Space this Entity is in.
+    space: EntityReference<Space>,
+    /// The Branch this Entity is part of (in its Space).
+    branch: EntityReference<Branch>,
+    /// The Snapshot this Entity is part of (in its Space and Branch).
+    snapshot: EntityReference<Snapshot>,
+    /// The materialization level of this Entity.
+    materialization: Materialization = Materialization.Root,
+    /// The definition this Entity is an instance of.
+    definition: Optional<EntityReference<Entity>>,
+    /// The (root) Entity that is being instantiated.
+    instance: Optional<EntityReference<Entity>>,
+
+    /// The logical time this Entity was created.
+    createdEpoch: u64,
+    /// The logical time this Entity was last updated.
+    updatedEpoch: u64,
+    /// The exclusive owner of this Entity (the root on access).
+    owner: EntityReference<Entity>,
+    /// The exclusive controller of this Entity (the authority on changes).
+    controller: EntityReference<Entity>,
+    /// The process flags of this Entity.
+    processFlags: ProcessFlag = ProcessFlag.Default,
+
+    /// The parent of this Entity. Most Entities can be attached to any other Entity.
+    parent: Optional<EntityReference<Entity>>,
+    /// The name of this Entity.
+    name: String,
+    /// The key of this Entity (for reconciliation and querying).
+    key: Optional<String>,
+    /// The relative order of this Entity (in its parent).
+    order: Optional<Order>,
+
+    /// The extension flags of this Entity.
+    extensionFlags: ExtensionFlag,
+    // customValues: Optional<NamedValue[]>?
+
+    /// The Script of this Entity.
+    script: Optional<EntityReference<Script>>,
+}
+
+implement Entity {
+    /// Get a reference to this Entity.
+    @intrinsic function toRef(self) -> NodeSpatialReference;
+
+    /// Delete this Entity.
+    @intrinsic function delete(self);
+
+    /// Restore this deleted Entity from the trash.
+    @intrinsic function restore(self);
+
+    /// Get the children of this Entity.
+    @intrinsic function getChildren(self, type_: Optional<NodeType>, includeDeleted: boolean) -> Entity[];
+
+    /// Get a specific child of this Entity by name.
+    @intrinsic function getChild(self, type_: NodeType, name: String, includeDeleted: boolean) -> Optional<Entity>;
+
+    /// Get a specific child of this Entity by name, or raise if not found.
+    @intrinsic function child(self, type_: NodeType, name: String, includeDeleted: boolean) -> Entity;
+
+    /// Get the ancestors of this Entity.
+    @intrinsic function getAncestors(self, type_: Optional<NodeType>, includeDeleted: boolean) -> Entity[];
+
+    /// Get the descendants of this Entity.
+    @intrinsic function getDescendants(self, type_: Optional<NodeType>, includeDeleted: boolean) -> Entity[];
+
+    /// Detach this Entity from its parent.
+    @intrinsic function detach(self);
+
+    /// Move this Entity to a new parent Entity.
+    @intrinsic function moveTo(self, parent: Optional<EntityReference<Entity>>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>);
+
+    /// Add an Entity as a sibling of this Entity.
+    @intrinsic function addSibling(self, sibling: EntityReference<Entity>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+
+    /// Add multiple Entities as siblings of this Entity.
+    @intrinsic function addSiblings(self, siblings: EntityReference<Entity>[], after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+
+    /// Append an Entity as a child of this Entity.
+    @intrinsic function addChild(self, child: EntityReference<Entity>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+
+    /// Append multiple Entities as children of this Entity.
+    @intrinsic function addChildren(self, children: EntityReference<Entity>[], after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+
+    /// Remove a child Entity from this Entity without deleting it.
+    @intrinsic function removeChild(self, child: EntityReference<Entity>) -> Entity;
+
+    /// Add or get a Tag's value on this Entity.
+    @intrinsic function addTag(self, tag: EntityReference<Tag>, value: Optional<Value>) -> Value;
+
+    /// Remove a Tag from this Entity.
+    @intrinsic function removeTag(self, tag: EntityReference<Tag>) -> Optional<Value>;
+
+    /// Turn this Entity into its corresponding Entity in the given Branch.
+    @intrinsic function checkout(self, branch: EntityReference<Branch>) -> Entity;
+
+    /// Instantiate this Entity into a new Entity (partial or full).
+    @intrinsic function instantiate(self, partial: boolean, attach: boolean) -> Entity;
+}
+
+

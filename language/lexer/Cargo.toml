@@ -1,0 +1,29 @@
+[package]
+name = "destack_language_lexer"
+description = "Destack Language Lexer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+
+[dependencies]
+destack_library_unicode = { workspace = true }
+
+[dev-dependencies]
+destack_library_filesystem = { workspace = true }
+
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+criterion = { workspace = true }
+pprof = { workspace = true }
+
+[[bench]]
+name = "destack_language_lexer"
+harness = false
+
+[lints]
+workspace = true
