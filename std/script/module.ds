@@ -1,16 +1,5 @@
 /// Basics Script Module.
 
-public module action;
-public module environment;
-public module function;
-public module log;
-public module method;
-public module run;
-public module schedule;
-public module script;
-public module span;
-public module timer;
-public module trigger;
 
 public use action::*;
 public use environment::*;

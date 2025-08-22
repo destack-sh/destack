@@ -1,10 +1,5 @@
 /// Core Universe Module.
 
-public module client;
-public module organization;
-public module team;
-public module universe;
-public module user;
 
 public use client::*;
 public use organization::*;

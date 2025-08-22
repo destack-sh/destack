@@ -1,10 +1,5 @@
 /// The Destack Simulation Physics Module.
 
-public module body;
-public module collider;
-public module joint;
-public module soft;
-public module rigid;
 
 public use body::*;
 public use collider::*;

@@ -1,21 +1,5 @@
 /// The Destack Simulation Geometry Module.
 
-public module shape;
-public module point;
-public module circle;
-public module capsule;
-public module rectangle;
-public module segment;
-public module path;
-public module ellipse;
-public module halfspace;
-public module convex;
-public module mesh;
-public module cone;
-public module cylinder;
-public module quaternion;
-public module vector;
-
 public use shape::*;
 public use point::*;
 public use circle::*;
