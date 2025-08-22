@@ -1,6 +1,6 @@
 [package]
-name = "destack_lang_codegen_rust"
-description = "Destack Language Rust Code Generator"
+name = "destack_lang_prelude"
+description = "Destack Language Preload"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

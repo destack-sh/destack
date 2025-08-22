@@ -2,12 +2,14 @@
 resolver = "2"
 members = [
 	# lang
-	"lang/codegen_rust",
+	"lang/codegen_cranelift",
+	"lang/codegen_llvm",
 	"lang/dir",
 	"lang/lex",
+	"lang/libgen_rust",
 	"lang/mir",
 	"lang/parse",
-	"lang/preload",
+	"lang/prelude",
 	"lang/vm",
 	# std
 	"std/access",
@@ -57,11 +59,14 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # lang
+destack_lang_codegen_cranelift = { path = "lang/codegen_cranelift" }
+destack_lang_codegen_llvm = { path = "lang/codegen_llvm" }
 destack_lang_dir = { path = "lang/dir" }
 destack_lang_lex = { path = "lang/lex" }
+destack_lang_libgen_rust = { path = "lang/libgen_rust" }
 destack_lang_mir = { path = "lang/mir" }
 destack_lang_parse = { path = "lang/parse" }
-destack_lang_preload = { path = "lang/preload" }
+destack_lang_prelude = { path = "lang/prelude" }
 destack_lang_vm = { path = "lang/vm" }
 # std
 destack_std_access = { path = "std/access" }

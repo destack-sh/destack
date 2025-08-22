@@ -8,10 +8,39 @@
 //! Unlike Rust, Destack has only Statements and Expressions (no separate Items).
 //! Unlike Zig, Destack does distinguish Statements and Expressions.
 
-use crate::{FloatType, IntType};
-
 type Identifier = String;
 type NodeId = u32;
+
+/// An IntType is a signed integer type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IntType {
+    /// The size of the pointer type.
+    Isize,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+}
+
+/// A UintType is an unsigned integer type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum UintType {
+    /// The size of the pointer type.
+    Usize,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+}
+
+/// A FloatType is a floating-point type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FloatType {
+    F32,
+    F64,
+}
 
 /// A Path is a static path to a named definition in a namespace.
 ///
@@ -130,22 +159,24 @@ pub struct Field {
 /// }
 /// union Foo {
 ///     A(i32),
-///     B(struct {
-///         x: i32,
-///         y: i32,
-///     }) = 4,
-///     C(tuple(bool, i32)),
+///     B { x: i32, y: i32 } = 4,
+///     C(bool, i32),
 ///     D(bool, i32) = 6,
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union {
+    /// The name of the union.
     pub name: Identifier,
+    /// The type of the union (if explicitly specified).
     pub r#type: Option<Box<Type>>,
+    /// The declared style of the union (enum or union).
     pub style: UnionStyle,
+    /// The fields of the union.
     pub fields: Vec<UnionField>,
 }
 
+/// A UnionStyle is the style of a union.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnionStyle {
     Enum,
@@ -157,10 +188,7 @@ pub enum UnionStyle {
 /// Example:
 /// ```
 /// A(i32),
-/// B(struct {
-///     x: i32,
-///     y: i32,
-/// }) = 4,
+/// B { x: i32, y: i32 } = 4,
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionField {
@@ -181,11 +209,16 @@ pub struct Tuple {
     pub name: Identifier,
     pub elements: Vec<Type>,
 }
-/// An ImplDefinition is an impl definition.
+/// An Impl defines the implementation of a concrete type.
+/// There may be multiple Impls for the same type, and even impls for different modules.
+/// (To add a module's implementation to your own just use the corresponding module.)
 ///
 /// Example:
 /// ```
-/// impl Foo for Bar {
+/// impl Foo {
+///     ...
+/// }
+/// impl Foo<i32> {
 ///     ...
 /// }
 /// impl Bar<i32> for Baz {
@@ -203,6 +236,21 @@ pub struct Impl {
     pub body: Option<Block>,
 }
 
+/// A FunctionSignature is the type of a function definition or closure.
+///
+/// Example:
+/// ```
+/// ()
+/// (x: i32)
+/// (x: i32) -> (i32, bool)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionSignature {
+    pub static_arguments: Vec<Parameter>,
+    pub dynamic_arguments: Vec<Parameter>,
+    pub return_type: Option<Box<Type>>,
+}
+
 /// A Function is an associated or module function declaration or definition.
 /// If no body is provided, it is a declaration for a function defined elsewhere.
 ///
@@ -215,9 +263,7 @@ pub struct Impl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub name: Identifier,
-    pub static_arguments: Vec<Parameter>,
-    pub dynamic_arguments: Vec<Parameter>,
-    pub return_type: Option<Type>,
+    pub signature: FunctionSignature,
     pub body: Option<Block>,
 }
 
@@ -334,7 +380,7 @@ pub enum Expression {
     StructLiteral(StructLiteral),
 
     /// Path reference
-    Reference(Path),
+    Path(Path),
     /// Member reference
     Member(Member),
     /// Index reference
@@ -490,8 +536,8 @@ pub enum Type {
     Infer,
     /// Never `!`.
     Never,
-    /// Reference to a type.
-    Reference {
+    /// Path to a type.
+    Path {
         path: Path,
         static_arguments: Vec<Type>,
     },
@@ -504,11 +550,7 @@ pub enum Type {
     /// Inline Slice type.
     Slice { element: Box<Type> },
     /// Inline Function type.
-    Function {
-        static_arguments: Vec<Parameter>,
-        dynamic_arguments: Vec<Parameter>,
-        return_type: Option<Box<Type>>,
-    },
+    Function { signature: FunctionSignature },
 }
 
 /// A Member is a member reference.

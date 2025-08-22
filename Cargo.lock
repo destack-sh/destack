@@ -333,7 +333,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_lang_codegen_rust"
+name = "destack_lang_codegen_cranelift"
+version = "2025.8.22-1"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "destack_lang_codegen_llvm"
 version = "2025.8.22-1"
 dependencies = [
  "quickcheck",
@@ -361,6 +369,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_lang_libgen_rust"
+version = "2025.8.22-1"
+dependencies = [
+ "destack_lang_lex",
+ "destack_lang_parse",
+ "destack_lang_prelude",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "destack_lang_mir"
 version = "2025.8.22-1"
 dependencies = [
@@ -377,7 +396,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_lang_preload"
+name = "destack_lang_prelude"
 version = "2025.8.22-1"
 dependencies = [
  "quickcheck",
