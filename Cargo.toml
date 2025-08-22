@@ -40,10 +40,16 @@ members = [
 	"std/web",
 	# ext
 	"ext/zed",
+	# demo
+	"demo/breakout",
+	"demo/tetris",
+	# test
+	"test/demo",
+	"test/simulation",
 ]
 
 [workspace.package]
-version = "2025.8.21-7"
+version = "2025.8.22-1"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -82,10 +88,16 @@ destack_std_time = { path = "std/time" }
 destack_std_tokei = { path = "std/tokei" }
 destack_std_unicode = { path = "std/unicode" }
 destack_std_universe = { path = "std/universe" }
-destack_std_uuid = { path = "std/uuid" }	
+destack_std_uuid = { path = "std/uuid" }
 destack_std_video = { path = "std/video" }
 destack_std_view = { path = "std/view" }
 destack_std_web = { path = "std/web" }
+# demo
+destack_demo_breakout = { path = "demo/breakout" }
+destack_demo_tetris = { path = "demo/tetris" }
+# test
+destack_test_demo = { path = "test/demo" }
+destack_test_simulation = { path = "test/simulation" }
 
 # build dependencies
 wasm-bindgen = "0.2.100"

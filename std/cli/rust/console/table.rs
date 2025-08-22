@@ -10,7 +10,6 @@ pub enum Align {
 }
 
 /// Render a table with headers, optional secondary headers, and data rows.
-///
 /// - `headers`: column names
 /// - `rows`: matrix of cell strings (not necessarily rectangular; missing cells are empty)
 /// - `right_align_numeric`: detect numeric-like columns and right-align them

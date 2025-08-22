@@ -1,6 +1,6 @@
 [package]
-name = "destack_lang_parse"
-description = "Destack Language Parser"
+name = "destack_test_simulation"
+description = "Destack Test Simulation"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,13 +9,12 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
-doctest = false
 
 [dependencies]
 
 [dev-dependencies]
-criterion = { workspace = true }
-pprof = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
 
 [lints]
 workspace = true
