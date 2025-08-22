@@ -1,5 +1,5 @@
 /// A ModuleDefinition is a module definition (either nested or as a whole file).
-/// 
+///
 /// Example:
 /// ```
 /// mod foo {
@@ -12,7 +12,7 @@ pub struct ModuleDefinition {
 }
 
 /// A ModuleDeclaration is a module declaration.
-/// 
+///
 /// Example:
 /// ```
 /// mod foo;
@@ -23,7 +23,7 @@ pub struct ModuleDeclaration {
 }
 
 /// A StructDeclaration is an anonymous struct definition.
-/// 
+///
 /// Example:
 /// ```
 /// struct {
@@ -34,7 +34,7 @@ pub struct ModuleDeclaration {
 pub struct StructDeclaration {}
 
 /// A StructDefinition is a named struct definition.
-/// 
+///
 /// Example:
 /// ```
 /// struct Foo {
@@ -47,7 +47,7 @@ pub struct StructDefinition {
 }
 
 /// An ImplDefinition is an impl definition.
-/// 
+///
 /// Example:
 /// ```
 /// impl Foo for Bar {
@@ -61,22 +61,21 @@ pub struct StructDefinition {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct ImplDefinition {
-}
+pub struct ImplDefinition {}
 
 /// A FunctionDeclaration is a function definition without a body.
-/// 
-/// Example: 
+///
+/// Example:
 /// ```
 /// fn foo();
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDeclaration {
-	pub name: String,
+    pub name: String,
 }
 
 /// A FunctionDefinition is a function definition with a body.
-/// 
+///
 /// Example:
 /// ```
 /// fn foo() {
@@ -85,11 +84,11 @@ pub struct FunctionDeclaration {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDefinition {
-	pub name: String,
+    pub name: String,
 }
 
 /// A UseDeclaration is a use declaration.
-/// 
+///
 /// Example:
 /// ```
 /// use foo::*;
@@ -100,12 +99,12 @@ pub struct FunctionDefinition {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct UseDeclaration {
-	pub name: String,
-	pub is_glob: bool,
+    pub name: String,
+    pub is_glob: bool,
 }
 
-/// A FieldDeclaration is a struct field declaration.
-/// 
+/// A FieldDeclaration is a (struct) field declaration.
+///
 /// Example:
 /// ```
 /// bar: i32;
@@ -114,5 +113,24 @@ pub struct UseDeclaration {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldDeclaration {
-	pub name: String,
+    pub name: String,
+}
+
+/// An EnumDefinition is an enum definition.
+///
+/// Example:
+/// ```
+/// enum Foo {
+///     A,
+///     B,
+///     C,
+/// }
+/// enum(u8) Foo {
+///     Baz = 1,
+///     Qux = 2,
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumDefinition {
+    pub name: String,
 }

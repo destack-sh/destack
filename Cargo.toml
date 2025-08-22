@@ -1,44 +1,44 @@
 [workspace]
 resolver = "2"
 members = [
-	# destack_lang
-	"destack_lang/codegen_rust",
-	"destack_lang/dir",
-	"destack_lang/lex",
-	"destack_lang/mir",
-	"destack_lang/parse",
-	"destack_lang/vm",
-	# destack_std
-	"destack_std/access",
-	"destack_std/animation",
-	"destack_std/audio",
-	"destack_std/cli",
-	"destack_std/cloud",
-	"destack_std/core",
-	"destack_std/fs",
-	"destack_std/geometry",
-	"destack_std/image",
-	"destack_std/json",
-	"destack_std/localization",
-	"destack_std/lsp",
-	"destack_std/observability",
-	"destack_std/order",
-	"destack_std/perception",
-	"destack_std/physics",
-	"destack_std/scene",
-	"destack_std/script",
-	"destack_std/social",
-	"destack_std/style",
-	"destack_std/time",
-	"destack_std/tokei",
-	"destack_std/unicode",
-	"destack_std/universe",
-	"destack_std/uuid",
-	"destack_std/video",
-	"destack_std/view",
-	"destack_std/web",
-	# destack_bridge
-	"destack_bridge/zed",
+	# lang
+	"lang/codegen_rust",
+	"lang/dir",
+	"lang/lex",
+	"lang/mir",
+	"lang/parse",
+	"lang/vm",
+	# std
+	"std/access",
+	"std/animation",
+	"std/audio",
+	"std/cli",
+	"std/cloud",
+	"std/core",
+	"std/fs",
+	"std/geometry",
+	"std/image",
+	"std/json",
+	"std/localization",
+	"std/lsp",
+	"std/observability",
+	"std/order",
+	"std/perception",
+	"std/physics",
+	"std/scene",
+	"std/script",
+	"std/social",
+	"std/style",
+	"std/time",
+	"std/tokei",
+	"std/unicode",
+	"std/universe",
+	"std/uuid",
+	"std/video",
+	"std/view",
+	"std/web",
+	# bridge
+	"ext/zed",
 ]
 
 [workspace.package]
@@ -49,41 +49,41 @@ license = "proprietary"
 rust-version = "1.88.0"
 
 [workspace.dependencies]
-# destack_lang
-destack_lang_dir = { path = "destack_lang/dir" }
-destack_lang_lex = { path = "destack_lang/lex" }
-destack_lang_mir = { path = "destack_lang/mir" }
-destack_lang_parse = { path = "destack_lang/parse" }
-destack_lang_vm = { path = "destack_lang/vm" }
-# destack_std
-destack_std_access = { path = "destack_std/access" }
-destack_std_animation = { path = "destack_std/animation" }
-destack_std_audio = { path = "destack_std/audio" }
-destack_std_cli = { path = "destack_std/cli" }
-destack_std_cloud = { path = "destack_std/cloud" }
-destack_std_core = { path = "destack_std/core" }
-destack_std_fs = { path = "destack_std/fs" }
-destack_std_geometry = { path = "destack_std/geometry" }
-destack_std_image = { path = "destack_std/image" }
-destack_std_json = { path = "destack_std/json" }
-destack_std_localization = { path = "destack_std/localization" }
-destack_std_lsp = { path = "destack_std/lsp" }
-destack_std_observability = { path = "destack_std/observability" }
-destack_std_order = { path = "destack_std/order" }
-destack_std_perception = { path = "destack_std/perception" }
-destack_std_physics = { path = "destack_std/physics" }
-destack_std_scene = { path = "destack_std/scene" }
-destack_std_script = { path = "destack_std/script" }
-destack_std_social = { path = "destack_std/social" }
-destack_std_style = { path = "destack_std/style" }
-destack_std_time = { path = "destack_std/time" }
-destack_std_tokei = { path = "destack_std/tokei" }
-destack_std_unicode = { path = "destack_std/unicode" }
-destack_std_universe = { path = "destack_std/universe" }
-destack_std_uuid = { path = "destack_std/uuid" }	
-destack_std_video = { path = "destack_std/video" }
-destack_std_view = { path = "destack_std/view" }
-destack_std_web = { path = "destack_std/web" }
+# lang
+destack_lang_dir = { path = "lang/dir" }
+destack_lang_lex = { path = "lang/lex" }
+destack_lang_mir = { path = "lang/mir" }
+destack_lang_parse = { path = "lang/parse" }
+destack_lang_vm = { path = "lang/vm" }
+# std
+destack_std_access = { path = "std/access" }
+destack_std_animation = { path = "std/animation" }
+destack_std_audio = { path = "std/audio" }
+destack_std_cli = { path = "std/cli" }
+destack_std_cloud = { path = "std/cloud" }
+destack_std_core = { path = "std/core" }
+destack_std_fs = { path = "std/fs" }
+destack_std_geometry = { path = "std/geometry" }
+destack_std_image = { path = "std/image" }
+destack_std_json = { path = "std/json" }
+destack_std_localization = { path = "std/localization" }
+destack_std_lsp = { path = "std/lsp" }
+destack_std_observability = { path = "std/observability" }
+destack_std_order = { path = "std/order" }
+destack_std_perception = { path = "std/perception" }
+destack_std_physics = { path = "std/physics" }
+destack_std_scene = { path = "std/scene" }
+destack_std_script = { path = "std/script" }
+destack_std_social = { path = "std/social" }
+destack_std_style = { path = "std/style" }
+destack_std_time = { path = "std/time" }
+destack_std_tokei = { path = "std/tokei" }
+destack_std_unicode = { path = "std/unicode" }
+destack_std_universe = { path = "std/universe" }
+destack_std_uuid = { path = "std/uuid" }	
+destack_std_video = { path = "std/video" }
+destack_std_view = { path = "std/view" }
+destack_std_web = { path = "std/web" }
 
 # build dependencies
 wasm-bindgen = "0.2.100"
@@ -123,7 +123,7 @@ overflow-checks = true
 incremental = true
 
 [profile.bench]
-lto = "fat"
+lto = "thin"
 opt-level = 3
 codegen-units = 1
 debug-assertions = false
@@ -132,7 +132,7 @@ strip = "none"
 debug = true
 
 [profile.release]
-lto = "fat"
+lto = "thin"
 opt-level = 3
 codegen-units = 1
 debug-assertions = false
