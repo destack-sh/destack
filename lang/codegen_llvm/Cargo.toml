@@ -1,6 +1,6 @@
 [package]
-name = "destack_lang_preload"
-description = "Destack Language Preload"
+name = "destack_lang_codegen_llvm"
+description = "Destack LLVM Code Generator"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
