@@ -28,11 +28,12 @@ impl Token {
 /// Enum representing common lexeme types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
-    /// A line comment, e.g. `// comment` or `/// comment` or `//////// comment`.
-    /// (Anything past the first `//` is considered a doc-style comment.)
-    LineComment { doc_style: Option<DocPosition> },
     /// Any whitespace character sequence.
     Whitespace,
+    /// A doc line comment with exactly three slashes, e.g. `/// doc comment`. or `///`
+    LineDocComment,
+    /// A line comment, e.g. `// comment` `//// comment` `//////// comment`.
+    LineComment,
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
     /// Raw identifier, e.g. "r#identifier".
@@ -123,12 +124,6 @@ pub enum TokenType {
     Unknown,
     /// End of sequence (e.g., end of source file)
     EndOfInput,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DocPosition {
-    Outer,
-    Inner,
 }
 
 /// Literal Token

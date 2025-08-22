@@ -8,8 +8,9 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
     for tok in tokens {
         let len = tok.len as usize;
         match tok.r#type {
-            TokenType::LineComment { .. }
-            | TokenType::Whitespace
+            TokenType::Whitespace
+            | TokenType::LineDocComment
+            | TokenType::LineComment
             | TokenType::Identifier
             | TokenType::InvalidIdentifier
             | TokenType::RawIdentifier
