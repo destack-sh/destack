@@ -1,3 +1,5 @@
+use crate::tokenize;
+
 use super::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
 use super::tokenizer::Tokenizer;
 use super::*;
@@ -309,7 +311,7 @@ fn test_comments() {
             len: 1
         },
         Token {
-            r#type: TokenType::LineDocComment,
+            r#type: TokenType::DocComment,
             len: 15
         },
         Token {

@@ -9,7 +9,7 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
         let len = tok.len as usize;
         match tok.r#type {
             TokenType::Whitespace
-            | TokenType::LineDocComment
+            | TokenType::DocComment
             | TokenType::LineComment
             | TokenType::Identifier
             | TokenType::InvalidIdentifier

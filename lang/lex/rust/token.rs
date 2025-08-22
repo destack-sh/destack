@@ -7,9 +7,11 @@ pub use destack_std_unicode::UNICODE_VERSION;
 /// A parsed Token.
 /// It doesn't contain information about data that has been parsed,
 /// only the type of the token and its size.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Token {
+    /// The Token tag.
     pub r#type: TokenType,
+    /// The length of the token in bytes.
     pub len: u32,
 }
 
@@ -31,7 +33,7 @@ pub enum TokenType {
     /// Any whitespace character sequence.
     Whitespace,
     /// A doc line comment with exactly three slashes, e.g. `/// doc comment`. or `///`
-    LineDocComment,
+    DocComment,
     /// A line comment, e.g. `// comment` `//// comment` `//////// comment`.
     LineComment,
     /// An identifier or keyword, e.g. `identifier` or `continue`.

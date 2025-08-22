@@ -1,11 +1,12 @@
 //! Low-level general purpose DS lexer (adapted from rustc).
 
+use crate::{SemanticToken, Span, is_id_continue, is_id_start, is_whitespace};
+
 use super::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
 use super::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_std_unicode::UnicodeEmoji;
-use destack_std_unicode::xid::UnicodeXID;
 
-/// Creates an iterator that produces tokens from the input string.
+/// Tokenize the input string into an Iterator of semantic and non-semantic Tokens (no Spans).
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     let mut cursor = Tokenizer::new(input);
     std::iter::from_fn(move || {
@@ -18,47 +19,29 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     })
 }
 
-/// Checks if `c` is considered a whitespace according to Unicode `Pattern_White_Space``.
-pub fn is_whitespace(c: char) -> bool {
-    matches!(
-        c,
-        // usual ASCII suspects
-        '\u{0009}'   // \t
-        | '\u{000A}' // \n
-        | '\u{000B}' // vertical tab
-        | '\u{000C}' // form feed
-        | '\u{000D}' // \r
-        | '\u{0020}' // space
-        // NEXT LINE from latin1
-        | '\u{0085}'
-        // bidi markers
-        | '\u{200E}' // LEFT-TO-RIGHT MARK
-        | '\u{200F}' // RIGHT-TO-LEFT MARK
-        // dedicated whitespace characters from Unicode
-        | '\u{2028}' // LINE SEPARATOR
-        | '\u{2029}' // PARAGRAPH SEPARATOR
-    )
-}
-
-/// Checks if `c` is valid as a first character of an identifier.
-pub fn is_id_start(c: char) -> bool {
-    // this is XID_Start OR '_' (which formally is not a XID_Start)
-    c == '_' || UnicodeXID::is_xid_start(c)
-}
-
-/// Checks if `c` is valid as a non-first character of an identifier.
-pub fn is_id_continue(c: char) -> bool {
-    UnicodeXID::is_xid_continue(c)
-}
-
-/// Checks if the passed string is lexically an identifier.
-pub fn is_ident(string: &str) -> bool {
-    let mut chars = string.chars();
-    if let Some(start) = chars.next() {
-        is_id_start(start) && chars.all(is_id_continue)
-    } else {
-        false
+/// Tokenize the input string into an Iterator of semantic Tokens and Spans.
+/// Ignore non-semantic Tokens (Whitespace, LineComments).
+/// NOTE: DocComments: are considered semantic.
+pub fn tokenize_semantic(input: &str) -> Vec<SemanticToken> {
+    let mut cursor = Tokenizer::new(input);
+    let mut tokens: Vec<SemanticToken> = Vec::new();
+    let mut pos = 0;
+    while !cursor.is_eof() {
+        let token = cursor.advance_token();
+        if token.r#type != TokenType::EndOfInput
+            && token.r#type != TokenType::Whitespace
+            && token.r#type != TokenType::LineComment
+        {
+            let end = pos + token.len;
+            tokens.push(SemanticToken {
+                token,
+                span: Span { start: pos, end },
+            });
+        }
+        pos = pos.saturating_add(token.len);
     }
+    assert_eq!(pos, input.len() as u32);
+    tokens
 }
 
 impl Tokenizer<'_> {
@@ -76,38 +59,28 @@ impl Tokenizer<'_> {
             c if is_whitespace(c) => self.whitespace(),
 
             // slash, comment (incl. doc comment)
-            '/' => match self.peek_next() {
-                // two slashes
-                '/' => {
-                    self.bump();
-                    match self.peek_next() {
-                        // three slashes
-                        '/' => {
-                            self.bump();
-                            match self.peek_next() {
-                                // three slashes
-                                ' ' => {
-                                    self.bump();
-                                    self.eat_until(b'\n');
-                                    TokenType::LineDocComment
-                                }
-                                // four or more slashes
-                                _ => {
-                                    self.eat_until(b'\n');
-                                    TokenType::LineComment
-                                }
-                            }
-                        }
-                        // two slashes
-                        _ => {
-                            self.eat_until(b'\n');
-                            TokenType::LineComment
-                        }
+            '/' => {
+                // fast-path using bytes to avoid iterator cloning and extra UTF-8 decoding
+                let (has_second_slash, is_doc_comment);
+                {
+                    let bytes = self.as_str().as_bytes();
+                    has_second_slash = bytes.first().copied() == Some(b'/');
+                    // doc comment if exactly "/// " (three slashes followed by a space)
+                    is_doc_comment = has_second_slash
+                        && bytes.get(1) == Some(&b'/')
+                        && bytes.get(2) == Some(&b' ');
+                }
+                if !has_second_slash {
+                    TokenType::Slash
+                } else {
+                    self.eat_until(b'\n');
+                    if is_doc_comment {
+                        TokenType::DocComment
+                    } else {
+                        TokenType::LineComment
                     }
                 }
-                // one slash
-                _ => TokenType::Slash,
-            },
+            }
 
             // raw identifier, raw string literal
             'r' => match (self.peek_next(), self.peek_next_next()) {
@@ -316,7 +289,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a whitespace sequence.
-    #[inline]
     fn whitespace(&mut self) -> TokenType {
         debug_assert!(is_whitespace(self.prev()));
 
@@ -325,7 +297,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw identifier.
-    #[inline]
     fn raw_identifier(&mut self) -> TokenType {
         debug_assert!(
             self.prev() == 'r' && self.peek_next() == '#' && is_id_start(self.peek_next_next())
@@ -336,7 +307,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses an identifier or an unknown prefix.
-    #[inline]
     fn identifier_or_unknown_prefix(&mut self) -> TokenType {
         debug_assert!(is_id_start(self.prev()));
         // consume continuation characters until an unknown character is met
@@ -351,7 +321,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses an invalid identifier.
-    #[inline]
     fn invalid_identifier(&mut self) -> TokenType {
         // start is already eaten, eat the rest of identifier
         self.eat_while(|c| {
@@ -362,7 +331,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a number literal.
-    #[inline]
     fn number_literal(&mut self, first_digit: char) -> LiteralTokenType {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
         let mut base = NumberBase::Decimal;
@@ -459,7 +427,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a single-quoted string.
-    #[inline]
     fn single_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '\'');
         // check if it's a one-symbol literal
@@ -500,7 +467,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a double-quoted string.
-    #[inline]
     fn double_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '"');
         while let Some(c) = self.bump() {
@@ -520,7 +486,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw double-quoted string.
-    #[inline]
     pub(crate) fn raw_double_quoted_string(
         &mut self,
         prefix_len: u32,
@@ -536,7 +501,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw string.
-    #[inline]
     pub(crate) fn raw_string_unvalidated(
         &mut self,
         prefix_len: u32,
@@ -603,7 +567,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses decimal digits.
-    #[inline]
     pub(crate) fn eat_decimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -622,7 +585,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses hexadecimal digits.
-    #[inline]
     pub(crate) fn eat_hexadecimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -641,7 +603,6 @@ impl Tokenizer<'_> {
     }
 
     /// Parses the float exponent.
-    #[inline]
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
         debug_assert!(self.prev() == 'e' || self.prev() == 'E');
         if self.peek_next() == '-' || self.peek_next() == '+' {
@@ -651,13 +612,11 @@ impl Tokenizer<'_> {
     }
 
     /// Parses the suffix of the literal, e.g. "u8".
-    #[inline]
     pub(crate) fn eat_literal_suffix(&mut self) {
         self.eat_identifier();
     }
 
     /// Parses an identifier.
-    #[inline]
     pub(crate) fn eat_identifier(&mut self) {
         if !is_id_start(self.peek_next()) {
             return;

@@ -1,6 +1,6 @@
 //! Tokei-like line counter command.
 
-use crate::console::parser::{CommandApp, CommandArguments};
+use crate::console::parse::{CommandApp, CommandArguments};
 use crate::console::{console, table};
 use destack_std_tokei as tokei;
 

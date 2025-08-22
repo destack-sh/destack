@@ -8,8 +8,8 @@
 //! Unlike Rust, Destack has only Statements and Expressions (no separate Items).
 //! Unlike Zig, Destack does distinguish Statements and Expressions.
 
-type Identifier = String;
-type NodeId = u32;
+pub type NodeId = u32;
+pub type Identifier = String;
 
 /// An IntType is a signed integer type.
 #[derive(Debug, Clone, PartialEq)]

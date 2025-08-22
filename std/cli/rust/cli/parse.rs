@@ -1,21 +1,21 @@
-//! Compile-like command that currently lexes input and prints tokens.
+//! Lexes and parse Destack source code.
 
 use std::fs;
 use std::path::Path;
 
-use crate::console::parser::{CommandApp, CommandArguments};
+use crate::console::parse::{CommandApp, CommandArguments};
 use crate::console::{console, table};
-use destack_lang_lex::{LiteralTokenType, TokenType, tokenize};
+use destack_lang_lex::{TokenType, tokenize_semantic};
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
-/// Create the compile CLI app.
+/// Create the parse CLI app.
 pub fn app() -> CommandApp {
-    CommandApp::new("compile").help("Compiler tools").command(
+    CommandApp::new("parse").help("parser tools").command(
         "lex",
         lex,
         Some(format!(
-            "Compile source.
+            "parse source.
 			--file <path>    Read input from file
 			--text <string>  Read input from provided string
 			--no-color       Disable ANSI colors
@@ -24,7 +24,6 @@ pub fn app() -> CommandApp {
         )),
     )
 }
-
 /// Run the lexer subcommand: tokenize input and show a colored table with locations.
 fn lex(ctx: CommandArguments) -> i32 {
     // resolve input
@@ -45,25 +44,24 @@ fn lex(ctx: CommandArguments) -> i32 {
 
     // build table
     let headers = vec![
-        "#".to_string(),
         "Line".to_string(),
         "Col".to_string(),
-        "Bytes".to_string(),
         "Kind".to_string(),
         "Lexeme".to_string(),
+        "Length".to_string(),
     ];
     let mut rows: Vec<Vec<String>> = Vec::new();
-    let mut offset: usize = 0;
-    let mut line: usize = 1;
-    let mut col: usize = 1;
-    for (idx, tok) in tokenize(&input).enumerate() {
-        // take substring for this token by byte length
-        let len = tok.len as usize;
-        let end = offset.saturating_add(len).min(input.len());
-        let slice = &input[offset..end];
+    let tokens = tokenize_semantic(&input);
 
-        // advance line/col based on slice
-        for ch in slice.chars() {
+    for (idx, tok) in tokens.iter().enumerate() {
+        let start_offset = tok.span.start as usize;
+        let end_offset = tok.span.end as usize;
+        let len = end_offset - start_offset;
+
+        // compute line and column by scanning from start of input to token start
+        let mut line = 1;
+        let mut col = 1;
+        for ch in input[..start_offset].chars() {
             if ch == '\n' {
                 line += 1;
                 col = 1;
@@ -72,14 +70,12 @@ fn lex(ctx: CommandArguments) -> i32 {
             }
         }
 
+        // extract token slice
+        let slice = &input[start_offset..end_offset.min(input.len())];
+
         // prepare pretty fields
-        let kind_str = format_token(tok.r#type, use_color);
-        let lexeme_preview = truncate_lexeme(slice, max_lexeme_len, use_color);
-        let idx_str = if use_color {
-            console::color(&(idx + 1).to_string(), "2") // dim
-        } else {
-            (idx + 1).to_string()
-        };
+        let kind_str = format_token(tok.token.r#type, use_color);
+        let lexeme_preview = truncate_lexeme(slice, max_lexeme_len, tok.token.r#type, use_color);
         let line_str = if use_color {
             console::color(&line.to_string(), "36") // cyan
         } else {
@@ -96,26 +92,16 @@ fn lex(ctx: CommandArguments) -> i32 {
             len.to_string()
         };
 
-        rows.push(vec![
-            idx_str,
-            line_str,
-            col_str,
-            len_str,
-            kind_str,
-            lexeme_preview,
-        ]);
-
-        offset = end;
+        rows.push(vec![line_str, col_str, kind_str, lexeme_preview, len_str]);
     }
 
     // prepare secondary headers
     let secondary_headers = vec![
-        "i".to_string(),
         "[1".to_string(),
         "[1".to_string(),
-        "byte".to_string(),
-        "type".to_string(),
+        "".to_string(),
         "preview".to_string(),
+        "bytes".to_string(),
     ];
     let secondary: Option<&[String]> = Some(&secondary_headers);
 
@@ -154,46 +140,45 @@ fn read_file_to_string(path: &str) -> Result<String, std::io::Error> {
 }
 
 /// Format a Token for display.
-fn format_token(kind: TokenType, color: bool) -> String {
-    let base = concise_kind(kind);
-    if !color {
+fn format_token(kind: TokenType, use_color: bool) -> String {
+    let base = format_token_kind(kind);
+    if !use_color {
         return base;
     }
-    match kind {
-        TokenType::LineComment { .. } => console::color(&base, "32"), // green
-        TokenType::Whitespace => console::color(&base, "2"),          // dim
-        TokenType::Identifier | TokenType::RawIdentifier => console::color(&base, "36"), // cyan
-        TokenType::InvalidIdentifier => console::color(&base, "31"),  // red
-        TokenType::Literal { .. } => console::color(&base, "35"),     // magenta
-        TokenType::Unknown | TokenType::UnknownLiteralPrefix => console::color(&base, "33"), // yellow
-        _ => console::color(&base, "34"), // blue for punctuators
-    }
+    let color = get_token_color(kind);
+    console::color(&base, color)
 }
 
 /// Format a token kind for display in a concise manner.
-fn concise_kind(kind: TokenType) -> String {
+fn format_token_kind(kind: TokenType) -> String {
     match kind {
-        TokenType::LineComment { .. } => "LineComment".to_string(),
+        TokenType::LineComment => "LineComment".to_string(),
+        TokenType::DocComment => "DocComment".to_string(),
         TokenType::Whitespace => "Whitespace".to_string(),
         TokenType::Identifier | TokenType::RawIdentifier => "Identifier".to_string(),
         TokenType::InvalidIdentifier => "InvalidIdentifier".to_string(),
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "Unknown".to_string(),
-        TokenType::Literal { r#type, .. } => match r#type {
-            LiteralTokenType::Integer { .. } => "Literal<Integer>".to_string(),
-            LiteralTokenType::Float { .. } => "Literal<Float>".to_string(),
-            LiteralTokenType::Character { .. } => "Literal<Character>".to_string(),
-            LiteralTokenType::Byte { .. } => "Literal<Byte>".to_string(),
-            LiteralTokenType::String { .. } => "Literal<String>".to_string(),
-            LiteralTokenType::ByteString { .. } => "Literal<ByteString>".to_string(),
-            LiteralTokenType::RawString { .. } => "Literal<RawString>".to_string(),
-            LiteralTokenType::RawByteString { .. } => "Literal<RawByteString>".to_string(),
-        },
+        TokenType::Literal { .. } => "Literal".to_string(),
         other => format!("{other:?}"),
     }
 }
 
+/// Get the color code for a token type.
+fn get_token_color(kind: TokenType) -> &'static str {
+    match kind {
+        TokenType::LineComment => "2",                                // dim
+        TokenType::DocComment => "2",                                 // dim
+        TokenType::Whitespace => "2",                                 // dim
+        TokenType::Identifier | TokenType::RawIdentifier => "36",     // cyan
+        TokenType::InvalidIdentifier => "31",                         // red
+        TokenType::Literal { .. } => "35",                            // magenta
+        TokenType::Unknown | TokenType::UnknownLiteralPrefix => "33", // yellow
+        _ => "34",                                                    // blue for punctuators
+    }
+}
+
 /// Truncate a lexeme to a maximum length and escape newlines and tabs.
-fn truncate_lexeme(s: &str, max_len: usize, color: bool) -> String {
+fn truncate_lexeme(s: &str, max_len: usize, token_type: TokenType, color: bool) -> String {
     // escape newlines and tabs for readability
     let mut out = String::new();
     for ch in s.chars() {
@@ -217,10 +202,20 @@ fn truncate_lexeme(s: &str, max_len: usize, color: bool) -> String {
     } else {
         out
     };
-    // dim whitespace-only previews
-    if color && !s.chars().all(|c| c.is_whitespace()) {
-        console::color(&visible, "2") // dim
-    } else {
-        visible
+
+    if !color {
+        return visible;
+    }
+
+    // apply color based on token type
+    match token_type {
+        TokenType::Whitespace => {
+            // dim whitespace-only previews
+            console::color(&visible, "2")
+        }
+        _ => {
+            // use the same color as the token type
+            console::color(&visible, get_token_color(token_type))
+        }
     }
 }

@@ -143,7 +143,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
     // legend indices must match `initialize` legend order
     let ty_index = match kind {
-        K::LineComment { .. } => 0, // COMMENT
+        K::LineComment | K::DocComment => 0, // COMMENT
 
         // identifiers
         K::Identifier | K::RawIdentifier | K::InvalidIdentifier => 6,

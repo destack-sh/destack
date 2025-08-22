@@ -392,6 +392,7 @@ name = "destack_lang_parse"
 version = "2025.8.22-1"
 dependencies = [
  "criterion",
+ "destack_lang_lex",
  "pprof",
 ]
 
