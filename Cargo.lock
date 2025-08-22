@@ -361,6 +361,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_lang_preload"
+version = "2025.8.21-7"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "destack_lang_vm"
 version = "2025.8.21-7"
 dependencies = [

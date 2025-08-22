@@ -7,6 +7,7 @@ members = [
 	"lang/lex",
 	"lang/mir",
 	"lang/parse",
+	"lang/preload",
 	"lang/vm",
 	# std
 	"std/access",
@@ -37,7 +38,7 @@ members = [
 	"std/video",
 	"std/view",
 	"std/web",
-	# bridge
+	# ext
 	"ext/zed",
 ]
 
@@ -54,6 +55,7 @@ destack_lang_dir = { path = "lang/dir" }
 destack_lang_lex = { path = "lang/lex" }
 destack_lang_mir = { path = "lang/mir" }
 destack_lang_parse = { path = "lang/parse" }
+destack_lang_preload = { path = "lang/preload" }
 destack_lang_vm = { path = "lang/vm" }
 # std
 destack_std_access = { path = "std/access" }
