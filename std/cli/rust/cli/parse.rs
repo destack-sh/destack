@@ -155,7 +155,7 @@ fn format_token_kind(kind: TokenType) -> String {
         TokenType::LineComment => "LineComment".to_string(),
         TokenType::DocComment => "DocComment".to_string(),
         TokenType::Whitespace => "Whitespace".to_string(),
-        TokenType::Identifier | TokenType::RawIdentifier => "Identifier".to_string(),
+        TokenType::Identifier => "Identifier".to_string(),
         TokenType::InvalidIdentifier => "InvalidIdentifier".to_string(),
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "Unknown".to_string(),
         TokenType::Literal { .. } => "Literal".to_string(),
@@ -169,7 +169,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::LineComment => "2",                                // dim
         TokenType::DocComment => "2",                                 // dim
         TokenType::Whitespace => "2",                                 // dim
-        TokenType::Identifier | TokenType::RawIdentifier => "36",     // cyan
+        TokenType::Identifier => "36",                                // cyan
         TokenType::InvalidIdentifier => "31",                         // red
         TokenType::Literal { .. } => "35",                            // magenta
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "33", // yellow

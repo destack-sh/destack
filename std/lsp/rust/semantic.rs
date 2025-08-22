@@ -146,7 +146,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::LineComment | K::DocComment => 0, // COMMENT
 
         // identifiers
-        K::Identifier | K::RawIdentifier | K::InvalidIdentifier => 6,
+        K::Identifier | K::InvalidIdentifier => 6,
 
         K::UnknownLiteralPrefix => 6,
 
