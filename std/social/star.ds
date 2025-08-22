@@ -1,18 +1,22 @@
 use destack::*;
 
 /// A Star is a relationship between an Actor and a starred Node.
-#entity struct Star {}
+@entity
+struct Star {}
 
 /// Base Star event.
-#event struct StarEvent {
-	/// The Star this event pertains to.
-	star: EntityReference<Star>,
+@event
+struct StarEvent {
+    /// The Star this event pertains to.
+    star: EntityReference<Star>,
 }
 
 /// Star added.
-#event(StarEvent) struct StarAddedEvent {}
+@event(StarEvent)
+struct StarAddedEvent {}
 
 /// Star removed.
-#event(StarEvent) struct StarRemovedEvent {}
+@event(StarEvent)
+struct StarRemovedEvent {}
 
 

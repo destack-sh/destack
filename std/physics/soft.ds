@@ -1,9 +1,11 @@
 use destack::*;
 
 /// A deformable body in 2D
-#entity(Body2D) struct SoftBody2D {}
+@entity(Body2D)
+struct SoftBody2D {}
 
 /// A deformable body in 3D
-#entity(Body3D) struct SoftBody3D {}
+@entity(Body3D)
+struct SoftBody3D {}
 
 

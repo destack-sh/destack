@@ -1,23 +1,27 @@
 use destack::*;
 
 /// Base event regarding a Role.
-#event struct RoleEvent {
-	/// The Role this event pertains to.
-	role: EntityReference<Role>,
-	/// The actor Entity affected by the Role.
-	actor: EntityReference<Actor>,
+@event
+struct RoleEvent {
+    /// The Role this event pertains to.
+    role: EntityReference<Role>,
+    /// The actor Entity affected by the Role.
+    actor: EntityReference<Actor>,
 }
 
 /// A Role was assigned.
-#event(RoleEvent) struct RoleAssignedEvent {}
+@event(RoleEvent)
+struct RoleAssignedEvent {}
 
 /// A Role was unassigned.
-#event(RoleEvent) struct RoleUnassignedEvent {}
+@event(RoleEvent)
+struct RoleUnassignedEvent {}
 
 /// A Role for Actors to take.
-#entity struct Role {
-	/// The Role type.
-	type: RoleType,
+@entity
+struct Role {
+    /// The Role type.
+    type: RoleType,
 }
 
 

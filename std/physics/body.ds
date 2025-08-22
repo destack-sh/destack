@@ -1,9 +1,11 @@
 use destack::*;
 
 /// A Body in 2D space
-#entity(Entity2D) struct Body2D {}
+@entity(Entity2D)
+struct Body2D {}
 
 /// A Body in 3D space
-#entity(Entity3D) struct Body3D {}
+@entity(Entity3D)
+struct Body3D {}
 
 

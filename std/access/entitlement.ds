@@ -1,36 +1,45 @@
 use destack::*;
 
 /// A type of Entitlement.
-enum EntitlementType { Permission = 1, Role = 2 }
+enum EntitlementType {
+    Permission = 1,
+    Role = 2,
+}
 
 /// Base event regarding an Entitlement.
-#event struct EntitlementEvent {
-	/// The Entitlement this event pertains to.
-	entitlement: Entitlement,
-	/// The Entitled target Entity.
-	target: Entity,
+@event
+struct EntitlementEvent {
+    /// The Entitlement this event pertains to.
+    entitlement: Entitlement,
+    /// The Entitled target Entity.
+    target: Entity,
 }
 
 /// Entitlement was requested.
-#event(EntitlementEvent) struct EntitlementRequestedEvent {}
+@event(EntitlementEvent)
+struct EntitlementRequestedEvent {}
 
 /// Entitlement was granted.
-#event(EntitlementEvent) struct EntitlementGrantedEvent {}
+@event(EntitlementEvent)
+struct EntitlementGrantedEvent {}
 
 /// Entitlement was revoked.
-#event(EntitlementEvent) struct EntitlementRevokedEvent {}
+@event(EntitlementEvent)
+struct EntitlementRevokedEvent {}
 
 /// Entitlement has expired.
-#event(EntitlementEvent) struct EntitlementExpiredEvent {}
+@event(EntitlementEvent)
+struct EntitlementExpiredEvent {}
 
 /// An Entitlement to some Entity.
-#entity struct Entitlement {
-	/// The Entitlement type.
-	type: EntitlementType,
-	/// When the Entitlement expires.
-	expires_at: Option<Timestamp>,
-	/// The target Entity of the Entitlement.
-	target: Entity,
+@entity
+struct Entitlement {
+    /// The Entitlement type.
+  type: EntitlementType,
+    /// When the Entitlement expires.
+    expiresAt: Optional<Timestamp>,
+    /// The target Entity of the Entitlement.
+    target: Entity,
 }
 
 

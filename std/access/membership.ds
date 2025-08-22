@@ -1,34 +1,38 @@
 use destack::*;
 
 /// Base event regarding a Membership.
-#event struct MembershipEvent {
-	/// The Membership this event pertains to.
-	membership: EntityReference<Membership>,
-	/// The Joinable Entity of the Membership.
-	joinable: EntityReference<Joinable>,
-	/// The member Entity.
-	member: EntityReference<Actor>,
+@event
+struct MembershipEvent {
+    /// The Membership this event pertains to.
+    membership: EntityReference<Membership>,
+    /// The Joinable Entity of the Membership.
+    joinable: EntityReference<Joinable>,
+    /// The member Entity.
+    member: EntityReference<Actor>,
 }
 
 /// Membership was joined.
-#event(MembershipEvent) struct MembershipJoinedEvent {
-	/// The Role assigned by the Membership.
-	role: EntityReference<Role>,
-	/// The type of the Role.
-	role_type: RoleType,
+@event(MembershipEvent)
+struct MembershipJoinedEvent {
+    /// The Role assigned by the Membership.
+    role: EntityReference<Role>,
+    /// The type of the Role.
+    roleType: RoleType,
 }
 
 /// Membership was left.
-#event(MembershipEvent) struct MembershipLeftEvent {}
+@event(MembershipEvent)
+struct MembershipLeftEvent {}
 
 /// A Membership of an Actor in a Joinable.
-#entity struct Membership {
-	/// The member Entity.
-	member: EntityReference<Actor>,
-	/// The Role assigned to the member.
-	role: Option<Role>,
-	/// The type of the Role assigned to the member.
-	role_type: Option<RoleType>,
+@entity
+struct Membership {
+    /// The member Entity.
+    member: EntityReference<Actor>,
+    /// The Role assigned to the member.
+    role: Optional<Role>,
+    /// The type of the Role assigned to the member.
+    roleType: Optional<RoleType>,
 }
 
 

@@ -1,45 +1,51 @@
 use destack::*;
 
 /// Base event regarding an Invite.
-#event struct InviteEvent {
-	/// The Invite this event pertains to.
-	invite: EntityReference<Invite>,
-	/// The Joinable Entity the Invite is for.
-	joinable: EntityReference<Joinable>,
-	/// The invited member Entity.
-	member: EntityReference<Actor>,
+@event
+struct InviteEvent {
+    /// The Invite this event pertains to.
+    invite: EntityReference<Invite>,
+    /// The Joinable Entity the Invite is for.
+    joinable: EntityReference<Joinable>,
+    /// The invited member Entity.
+    member: EntityReference<Actor>,
 }
 
 /// Invite was sent.
-#event(InviteEvent) struct InviteSentEvent {
-	/// The Role assigned by the Invite.
-	role: EntityReference<Role>,
-	/// The type of the Role.
-	role_type: RoleType,
+@event(InviteEvent)
+struct InviteSentEvent {
+    /// The Role assigned by the Invite.
+    role: EntityReference<Role>,
+    /// The type of the Role.
+    roleType: RoleType,
 }
 
 /// Invite was rescinded.
-#event(InviteEvent) struct InviteRescindedEvent {}
+@event(InviteEvent)
+struct InviteRescindedEvent {}
 
 /// Invite was accepted.
-#event(InviteEvent) struct InviteAcceptedEvent {
-	/// The Role accepted by the member.
-	role: EntityReference<Role>,
-	/// The type of the Role.
-	role_type: RoleType,
+@event(InviteEvent)
+struct InviteAcceptedEvent {
+    /// The Role accepted by the member.
+    role: EntityReference<Role>,
+    /// The type of the Role.
+    roleType: RoleType,
 }
 
 /// Invite was rejected.
-#event(InviteEvent) struct InviteRejectedEvent {}
+@event(InviteEvent)
+struct InviteRejectedEvent {}
 
 /// An Invite to a Joinable.
-#entity struct Invite {
-	/// The invited member.
-	member: EntityReference<Actor>,
-	/// The Role offered by the Invite.
-	role: Option<EntityReference<Role>>,
-	/// The type of the Role offered by the Invite.
-	role_type: Option<RoleType>,
+@entity
+struct Invite {
+    /// The invited member.
+    member: EntityReference<Actor>,
+    /// The Role offered by the Invite.
+    role: Optional<EntityReference<Role>>,
+    /// The type of the Role offered by the Invite.
+    roleType: Optional<RoleType>,
 }
 
 

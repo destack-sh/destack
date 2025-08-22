@@ -2,16 +2,18 @@ use destack::*;
 
 /// A Form2D is a 2D geometric form.
 struct Form2D {
-	position: Vector2,
+    position: Vector2,
 }
 
 /// A Form3D is a 3D geometric form.
 struct Form3D {
-	position: Vector3,
+    position: Vector3,
 }
 
 /// A Shape2D is a 2D geometric shape.
-#entity(Entity2D) struct Shape2D {}
+@entity(Entity2D)
+struct Shape2D {}
 
 /// A Shape3D is a 3D geometric shape.
-#entity(Entity3D) struct Shape3D {}
+@entity(Entity3D)
+struct Shape3D {}

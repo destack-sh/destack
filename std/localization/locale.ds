@@ -1,6 +1,7 @@
 use destack::*;
 
 /// A Locale is a language and a region
-#entity struct Locale {}
+@entity
+struct Locale {}
 
 

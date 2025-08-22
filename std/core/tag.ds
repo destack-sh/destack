@@ -2,20 +2,21 @@ use destack::*;
 
 /// Definition of a builtin Tag to associate builtin definitions to.
 struct TagDefinition {
-	/// The Tag id.
-	id: u8,
-	/// The Tag name.
-	name: String,
-	/// The Tag description.
-	description: Option<String>,
-	/// Whether this Tag is internal.
-	is_internal: bool,
+    /// The Tag id.
+    id: uint8,
+    /// The Tag name.
+    name: String,
+    /// The Tag description.
+    description: Optional<String>,
+    /// Whether this Tag is internal.
+    isInternal: bool,
 }
 
 /// A Tag to tag an Entity with.
-#entity struct Tag {
-	/// The designated Type for Values associated with this Tag. Any if unset.
-	type: Option<Type>,
+@entity
+struct Tag {
+    /// The designated Type for Values associated with this Tag. Any if unset.
+    type: Optional<Type>,
 }
 
 

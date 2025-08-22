@@ -1,2 +1,2 @@
 
-pub module token;
+public module token;

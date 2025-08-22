@@ -1,13 +1,14 @@
 use destack::*;
 
 /// A generic File is a remote asset stored somewhere.
-#entity struct File {
-	/// The mime type of the File.
-	mime_type: Option<String>,
-	/// The size of the File in bytes.
-	size: Option<u64>,
-	/// The SHA-256 hash of the File content as hex.
-	sha256: Option<String>,
+@entity
+struct File {
+    /// The mime type of the File.
+    mimeType: Optional<String>,
+    /// The size of the File in bytes.
+    size: Optional<u64>,
+    /// The SHA-256 hash of the File content as hex.
+    sha256: Optional<String>,
 }
 
 

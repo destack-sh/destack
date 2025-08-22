@@ -4,21 +4,23 @@ use destack::*;
 enum TriggerType { Event = 1 }
 
 /// Base Trigger event.
-#event struct TriggerEvent {
-	/// The Trigger this event pertains to.
-	trigger: Trigger,
+@event
+struct TriggerEvent {
+    /// The Trigger this event pertains to.
+    trigger: Trigger,
 }
 
 /// A Trigger is a dynamic event to run something.
-#entity struct Trigger {
-	/// The Event type to react to.
-	event: Option<NodeType>,
-	/// The optional filter Condition for the Event payload.
-	where: Option<Condition>,
-	/// The target Entity to invoke.
-	target: Option<Entity>,
-	/// Arguments to pass to the target.
-	arguments: Map<UUID, Value>,
+@entity
+struct Trigger {
+    /// The Event type to react to.
+    event: Optional<NodeType>,
+    /// The optional filter Condition for the Event payload.
+    where: Optional<Condition>,
+    /// The target Entity to invoke.
+    target: Optional<Entity>,
+    /// Arguments to pass to the target.
+    arguments: Map<UUID, Value>,
 }
 
 

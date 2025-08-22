@@ -1,6 +1,7 @@
 use destack::*;
 
 /// Base type for direct user input events
-#event struct InputEvent {}
+@event
+struct InputEvent {}
 
 

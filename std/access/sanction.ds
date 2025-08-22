@@ -1,36 +1,45 @@
 use destack::*;
 
 /// A type of Sanction.
-enum SanctionType { Ban = 1, Mute = 2 }
+enum SanctionType {
+    Ban = 1,
+    Mute = 2,
+}
 
 /// Base event regarding a Sanction.
-#event struct SanctionEvent {
-	/// The Sanction this event pertains to.
-	sanction: Sanction,
-	/// The sanctioned target Entity.
-	target: Entity,
+@event
+struct SanctionEvent {
+    /// The Sanction this event pertains to.
+    sanction: Sanction,
+    /// The sanctioned target Entity.
+    target: Entity,
 }
 
 /// Sanction was requested.
-#event(SanctionEvent) struct SanctionRequestedEvent {}
+@event(SanctionEvent)
+struct SanctionRequestedEvent {}
 
 /// Sanction was granted.
-#event(SanctionEvent) struct SanctionGrantedEvent {}
+@event(SanctionEvent)
+struct SanctionGrantedEvent {}
 
 /// Sanction was revoked.
-#event(SanctionEvent) struct SanctionRevokedEvent {}
+@event(SanctionEvent)
+struct SanctionRevokedEvent {}
 
 /// Sanction has expired.
-#event(SanctionEvent) struct SanctionExpiredEvent {}
+@event(SanctionEvent)
+struct SanctionExpiredEvent {}
 
 /// A Sanction on some Actor.
-#entity struct Sanction {
-	/// The Sanction type.
-	type: SanctionType,
-	/// When the Sanction expires.
-	expires_at: Option<Timestamp>,
-	/// The target Entity of the Sanction.
-	target: Entity,
+@entity
+struct Sanction {
+    /// The Sanction type.
+    type: SanctionType,
+    /// When the Sanction expires.
+    expiresAt: Optional<Timestamp>,
+    /// The target Entity of the Sanction.
+    target: Entity,
 }
 
 

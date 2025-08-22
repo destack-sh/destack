@@ -1,12 +1,14 @@
 use destack::*;
 
 /// A Gauge Metric.
-#entity(Metric) struct GaugeMetric {}
+@entity(Metric)
+struct GaugeMetric {}
 
 /// A Gauge Measurement.
-#event(MeasurementEvent) struct GaugeMeasurementEvent {
-	/// The Gauge metric definition.
-	definition: EntityReference<GaugeMetric>,
+@event(MeasurementEvent)
+struct GaugeMeasurementEvent {
+    /// The Gauge metric definition.
+    definition: EntityReference<GaugeMetric>,
 }
 
 

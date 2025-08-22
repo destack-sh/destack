@@ -1,15 +1,17 @@
 use destack::*;
 
 /// Base type for scene events.
-#event struct SceneEvent {
-	/// The Scene the event pertains to.
-	scene: EntityReference<Scene>,
+@event
+struct SceneEvent {
+    /// The Scene the event pertains to.
+    scene: EntityReference<Scene>,
 }
 
 /// A Scene contains some interactive part of a Stage.
-#entity struct Scene {
-	/// The root View of the Scene.
-	root_view: Option<EntityReference<LayoutView2D>>,
+@entity
+struct Scene {
+    /// The root View of the Scene.
+    rootView: Optional<EntityReference<LayoutView2D>>,
 }
 
 
