@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// The consensus status of an Event.
 enum EventStatus {
@@ -41,7 +41,7 @@ struct Event {
     /// The logical time in the Client when it created this Event (client).
     clientLocalEpoch: u64,
     /// The status of the Event (system).
-    status: EventStatus = EventStatus::Pending,
+    status: EventStatus = EventStatus.Pending,
     /// The Event that caused this Event (if any).
     causedBy: Optional<EntityReference<Event>>,
 }

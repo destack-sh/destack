@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Types of machines that provide compute.
 enum MachineType {
@@ -13,7 +13,7 @@ enum MachineType {
 @entity
 struct Machine {
     /// Machine type.
-    type: MachineType = MachineType::Runtime,
+    type: MachineType = MachineType.Runtime,
     /// Runtime version string.
     version: String,
     /// External provider name.

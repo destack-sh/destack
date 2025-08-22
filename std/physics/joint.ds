@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Flags that modify Joint behavior
 enum JointFlag {
@@ -88,7 +88,7 @@ struct Joint2D {
     /// Optional break thresholds for the Joint
     breakLimit: Optional<JointBreakLimit> = None,
     /// Joint behavior flags
-    flags: JointFlag = JointFlag::Default,
+    flags: JointFlag = JointFlag.Default,
 }
 
 /// Frame for a Joint in 2D space (relative to a Body)
@@ -168,7 +168,7 @@ struct Joint3D {
     /// Optional break thresholds for the Joint
     breakLimit: Optional<JointBreakLimit> = None,
     /// Joint behavior flags
-    flags: JointFlag = JointFlag::Default,
+    flags: JointFlag = JointFlag.Default,
 }
 
 /// Frame for a Joint in 3D space (relative to a Body)

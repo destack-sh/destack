@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Position properties for a 2D view.
 struct PositionComponent2D {
@@ -49,9 +49,9 @@ struct StyleComponent2D {
 /// A View2D is a 2D interface element.
 @entity(RigidBody2D)
 struct View2D {
-    use PositionComponent2D::*;
-    use SizingComponent2D::*;
-    use VisibilityComponent2D::*;
-    use StyleComponent2D::*;
+    ...PositionComponent2D
+    ...SizingComponent2D
+    ...VisibilityComponent2D
+    ...StyleComponent2D
 }
 

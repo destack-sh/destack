@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// The type of a Branch.
 enum BranchType {

@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A container that splits its children
 @entity(LayoutView2D)

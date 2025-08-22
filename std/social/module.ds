@@ -1,9 +1,9 @@
 /// Basics Social Module.
 
 
-public use follow::*;
-public use notification::*;
-public use reaction::*;
-public use star::*;
+use follow;
+use notification;
+use reaction;
+use star;
 
 

@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Definition of a builtin Permission for a builtin Node.
 struct PermissionDefinition {

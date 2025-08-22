@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A Histogram Metric.
 @entity(Metric)

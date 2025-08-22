@@ -1,8 +1,8 @@
 /// The Destack Simulation Physics Module.
 
 
-public use body::*;
-public use collider::*;
-public use joint::*;
-public use soft::*;
-public use rigid::*;
+use body;
+use collider;
+use joint;
+use soft;
+use rigid;

@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Run status values.
 enum RunStatus { Scheduled = 2, Running = 10, Paused = 21, Yielded = 23, Cancelled = 51, Aborted = 52, Failed = 53, Completed = 54 }

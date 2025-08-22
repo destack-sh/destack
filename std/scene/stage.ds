@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A Stage for someone to interact with a Space
 @entity

@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A Body in 2D space
 @entity(Entity2D)
