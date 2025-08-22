@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A type of Entitlement.
 enum EntitlementType {
@@ -35,7 +35,7 @@ struct EntitlementExpiredEvent {}
 @entity
 struct Entitlement {
     /// The Entitlement type.
-  type: EntitlementType,
+    type: EntitlementType,
     /// When the Entitlement expires.
     expiresAt: Optional<Timestamp>,
     /// The target Entity of the Entitlement.

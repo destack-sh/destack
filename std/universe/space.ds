@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// The result of creating a new Space.
 struct CreateSpaceResult {

@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Timer types.
 enum TimerType { Once = 1, Recurring = 2 }

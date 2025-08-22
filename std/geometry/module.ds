@@ -1,17 +1,17 @@
 /// The Destack Simulation Geometry Module.
 
-public use shape::*;
-public use point::*;
-public use circle::*;
-public use capsule::*;
-public use rectangle::*;
-public use segment::*;
-public use path::*;
-public use ellipse::*;
-public use halfspace::*;
-public use convex::*;
-public use mesh::*;
-public use cone::*;
-public use cylinder::*;
-public use quaternion::*;
-public use vector::*;
+use shape;
+use point;
+use circle;
+use capsule;
+use rectangle;
+use segment;
+use path;
+use ellipse;
+use halfspace;
+use convex;
+use mesh;
+use cone;
+use cylinder;
+use quaternion;
+use vector;

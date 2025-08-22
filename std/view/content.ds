@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A 2D content View
 @entity(View2D)

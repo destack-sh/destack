@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Base drag event
 @event(InputEvent)

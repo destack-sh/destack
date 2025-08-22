@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Built-in transition types
 enum TransitionType {
@@ -14,7 +14,7 @@ enum SpringType {
 
 /// A transition value
 struct Transition {
-    type: TransitionType = TransitionType::Tween,
+    type: TransitionType = TransitionType.Tween,
     template: Optional<TransitionTemplate>,
     delay: Optional<float32>,
     duration: Optional<float32>,
@@ -29,7 +29,7 @@ struct Transition {
 /// A transition template
 @entity
 struct TransitionTemplate {
-    type: TransitionType = TransitionType::Tween,
+    type: TransitionType = TransitionType.Tween,
     delay: Optional<float32>,
     duration: Optional<float32>,
     ease: float32[],

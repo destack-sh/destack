@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A Client to connect with the system.
 @entity

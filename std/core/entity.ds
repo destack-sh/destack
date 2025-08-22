@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// The materialization level of an Entity.
 enum(uint8) Materialization {
@@ -54,7 +54,7 @@ struct Entity {
     /// The Snapshot this Entity is part of (in its Space and Branch).
     snapshot: EntityReference<Snapshot>,
     /// The materialization level of this Entity.
-    materialization: Materialization = Materialization::Root,
+    materialization: Materialization = Materialization.Root,
     /// The definition this Entity is an instance of.
     definition: Optional<EntityReference<Entity>>,
     /// The (root) Entity that is being instantiated.
@@ -69,7 +69,7 @@ struct Entity {
     /// The exclusive controller of this Entity (the authority on changes).
     controller: EntityReference<Entity>,
     /// The process flags of this Entity.
-    processFlags: ProcessFlag = ProcessFlag::Default,
+    processFlags: ProcessFlag = ProcessFlag.Default,
 
     /// The parent of this Entity. Most Entities can be attached to any other Entity.
     parent: Optional<EntityReference<Entity>>,

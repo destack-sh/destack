@@ -1,25 +1,25 @@
-use destack::*;
+use destack;
 
 /// A Point is a zero-area shape with an optional local offset.
 struct Point2D {
-    use Form2D::*;
+    ...Form2D
     position: Vector2,
 }
 
 /// A PointShape represents a zero-area shape with an optional local offset.
 @entity(Shape2D)
 struct PointShape2D {
-    use Point2D::*;
+    ...Point2D
 }
 
 /// A Point3D is a zero-volume shape with an optional local offset.
 struct Point3D {
-    use Form3D::*;
+    ...Form3D
     position: Vector3,
 }
 
 /// A PointShape3D represents a zero-volume shape with an optional local offset.
 @entity(Shape3D)
 struct PointShape3D {
-    use Point3D::*;
+    ...Point3D
 }

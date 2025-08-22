@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Motion mode of a rigid body
 enum RigidMotionMode {
@@ -11,7 +11,7 @@ enum RigidMotionMode {
 @entity(Body2D)
 struct RigidBody2D {
     /// The motion mode of the Body
-    mode: RigidMotionMode = RigidMotionMode::Dynamic,
+    mode: RigidMotionMode = RigidMotionMode.Dynamic,
     /// Linear velocity of the Body
     velocity: Vector2,
     /// Angular velocity of the Body
@@ -38,7 +38,7 @@ struct RigidBody2D {
 @entity(Body3D)
 struct RigidBody3D {
     /// The motion mode of the Body
-    mode: RigidMotionMode = RigidMotionMode::Dynamic,
+    mode: RigidMotionMode = RigidMotionMode.Dynamic,
     /// Linear velocity of the Body
     velocity: Vector3,
     /// Angular velocity of the Body

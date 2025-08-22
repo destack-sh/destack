@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// The type of a Snapshot.
 enum SnapshotType { 
@@ -19,6 +19,6 @@ struct Snapshot {
     /// The Snapshot type.
     type: SnapshotType,
     /// The Snapshot status.
-    status: SnapshotStatus = SnapshotStatus::Active,
+    status: SnapshotStatus = SnapshotStatus.Active,
 }
 

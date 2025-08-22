@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A Star is a relationship between an Actor and a starred Node.
 @entity

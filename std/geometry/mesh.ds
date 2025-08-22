@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A Mesh2D is defined by vertices and triangle indices.
 struct Mesh2 {
@@ -15,13 +15,13 @@ struct Mesh3 {
 /// A MeshShape2D represents a triangle mesh.
 @entity(Shape2D)
 struct MeshShape2D {
-    use Mesh2D::*;
+    ...Mesh2D
 }
 
 /// A MeshShape3D represents a triangle mesh.
 @entity(Shape3D)
 struct MeshShape3D {
-    use Mesh3D::*;
+    ...Mesh3D
 }
 
 

@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// A Reaction is a relationship between an Actor and a reactable Node.
 @entity

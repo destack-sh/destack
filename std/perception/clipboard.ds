@@ -1,4 +1,4 @@
-use destack::*;
+use destack;
 
 /// Clipboard base event
 @event(InputEvent)

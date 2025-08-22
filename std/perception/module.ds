@@ -1,12 +1,12 @@
 /// The Destack Simulation Perception Module.
 
 
-public use input::*;
-public use pointer::*;
-public use mouse::*;
-public use key::*;
-public use focus::*;
-public use drag::*;
-public use clipboard::*;
+use input;
+use pointer;
+use mouse;
+use key;
+use focus;
+use drag;
+use clipboard;
 
 

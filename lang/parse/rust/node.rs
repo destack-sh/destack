@@ -14,8 +14,6 @@ pub type Identifier = String;
 /// An IntType is a signed integer type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntType {
-    /// The size of the pointer type.
-    IntSize,
     Int8,
     Int16,
     Int32,
@@ -26,8 +24,6 @@ pub enum IntType {
 /// A UintType is an unsigned integer type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UintType {
-    /// The size of the pointer type.
-    UintSize,
     Uint8,
     Uint16,
     Uint32,
@@ -47,8 +43,8 @@ pub enum FloatType {
 /// Example:
 /// ```
 /// foo
-/// foo::bar
-/// foo::bar::baz::qux
+/// foobar
+/// foo.bar.baz.qux
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
@@ -79,8 +75,8 @@ pub enum Visibility {
 ///
 /// Example:
 /// ```
-/// mod foo;
-/// mod foo {
+/// module foo;
+/// module foo {
 ///     ...
 /// }
 /// ```
@@ -95,15 +91,15 @@ pub struct Module {
 ///
 /// Example:
 /// ```
-/// use foo::*;
-/// use foo::bar;
-/// use foo::bar::*;
-/// use foo::{bar, baz};
+/// use foo.*;
+/// use foo.bar;
+/// use foo.bar.*;
+/// use foo.{bar, baz};
 /// use foo as baz;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Use {
-    /// The path to the module to use (like `foo::bar` or `foo::bar::baz::qux`)
+    /// The path to the module to use (like `foo.bar` or `foo.bar.baz.qux`)
     pub path: Path,
     /// The alias to use for the module.
     pub alias: Option<Identifier>,
@@ -132,9 +128,9 @@ pub struct Struct {
 ///
 /// Example:
 /// ```
-/// bar: i32;
+/// bar: int32;
 /// baz: T;
-/// baz: #some_macro(T);
+/// baz: @someMacro(T);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
@@ -158,10 +154,10 @@ pub struct Field {
 ///     Qux = 2,
 /// }
 /// union Foo {
-///     A(i32),
-///     B { x: i32, y: i32 } = 4,
-///     C(bool, i32),
-///     D(bool, i32) = 6,
+///     A(int32),
+///     B { x: int32, y: int32 } = 4,
+///     C(bool, int32),
+///     D(bool, int32) = 6,
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -187,8 +183,8 @@ pub enum UnionStyle {
 ///
 /// Example:
 /// ```
-/// A(i32),
-/// B { x: i32, y: i32 } = 4,
+/// A(int32),
+/// B { x: int32, y: int32 } = 4,
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionField {
@@ -201,8 +197,8 @@ pub struct UnionField {
 ///
 /// Example:
 /// ```
-/// tuple MyTuple(i32, i32[])
-/// tuple MyOtherTuple(u8, (i32, bool, Vector2))
+/// tuple MyTuple(int32, int32[])
+/// tuple MyOtherTuple(uint8, (int32, bool, Vector2))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
@@ -218,10 +214,10 @@ pub struct Tuple {
 /// implement Foo {
 ///     ...
 /// }
-/// implement Foo<i32> {
+/// implement Foo<int32> {
 ///     ...
 /// }
-/// implement Bar<i32> for Baz {
+/// implement Bar<int32> for Baz {
 ///     ...
 /// }
 /// implement<T> Bar<T> for Baz {
@@ -241,8 +237,8 @@ pub struct Implement {
 /// Example:
 /// ```
 /// ()
-/// (x: i32)
-/// (x: i32) -> (i32, bool)
+/// (x: int32)
+/// (x: int32) -> (int32, bool)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
@@ -272,8 +268,8 @@ pub struct Function {
 ///
 /// Example:
 /// ```
-/// x: i32,
-/// y: (i32, bool, Vector2)
+/// x: int32,
+/// y: (int32, bool, Vector2)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
@@ -287,8 +283,8 @@ pub struct Parameter {
 ///  but the call must be prefixed with a `#` to qualify as a static call.
 ///
 /// Static functions may take the following expression as an argument:
-///  - `#entity struct MyEntity { ... }`
-///  - `#flag enum MyFlag { ... }`
+///  - `@entity struct MyEntity { ... }`
+///  - `@flag enum MyFlag { ... }`
 ///
 /// These cases are represented as two separate AST nodes (one static call, one definition)
 ///   and are then reconciled later during static analysis and compilation.
@@ -300,10 +296,10 @@ pub struct Parameter {
 ///
 /// Example:
 /// ```
-/// #foo()
-/// #foo(1, 2, 3)
-/// #foo<true>(1, 2, 3)
-/// #foo(.{x: 1, y: 2}, (true, 3))
+/// @foo()
+/// @foo(1, 2, 3)
+/// @foo<true>(1, 2, 3)
+/// @foo(.{x: 1, y: 2}, (true, 3))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StaticCall {
@@ -319,7 +315,7 @@ pub struct StaticCall {
 /// ```
 /// foo()
 /// foo(1, 2, 3)
-/// foo(foo::a {x: 1, y: 2}, (true, 3))
+/// foo(foo.a {x: 1, y: 2}, (true, 3))
 /// foo<true>(1, 2, 3)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -487,7 +483,7 @@ pub struct TupleLiteral {
 /// Example:
 /// ```
 /// Vector2 { x: 1, y: 2 }
-/// some_module::MyUnion::OptionB { a: true }
+/// some_module.MyUnion.OptionB { a: true }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructLiteral {
@@ -528,7 +524,7 @@ pub struct FieldLiteral {
 /// fn(i32) -> i32
 /// T<i32>
 /// MyEnum
-/// simulation::geometry::Vector2
+/// simulation.geometry.Vector2
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -680,7 +676,7 @@ pub struct Block {
 /// ```
 /// let x = 1;
 /// let x: i32 = 1;
-/// let y: [f64, 3] = ---;
+/// let y: f64[3] = ---;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
@@ -696,7 +692,7 @@ pub struct Let {
 /// ```
 /// const x = 1;
 /// const x: i32 = 1;
-/// const weight = #compute_weight(x);
+/// const weight = @computeWeight(x);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Const {
