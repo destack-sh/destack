@@ -6,14 +6,14 @@
   "type": "module",
   "workspaces": {
     "packages": [
-      "destack_lib/destack_ts",
-      "destack_bridge/vscode",
-      "destack_std/web"
+      "client/destack_ts",
+      "ext/vscode",
+      "std/web"
     ]
   },
   "scripts": {
-    "vscode:compile": "cd destack_bridge/vscode && bun run compile",
-    "vscode:watch": "cd destack_bridge/vscode && bun run watch"
+    "vscode:compile": "cd ext/vscode && bun run compile",
+    "vscode:watch": "cd ext/vscode && bun run watch"
   },
   "catalog": {
     "temporal-polyfill": "^0.3.0"
