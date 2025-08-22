@@ -82,10 +82,8 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // raw identifier, raw string literal
+            // raw string literal, or identifier starting with 'r'
             'r' => match (self.peek_next(), self.peek_next_next()) {
-                // raw identifier
-                ('#', c1) if is_id_start(c1) => self.raw_identifier(),
                 // raw string literal
                 ('#', _) | ('"', _) => {
                     let raw_dq_string = self.raw_double_quoted_string(1);
@@ -294,16 +292,6 @@ impl Tokenizer<'_> {
 
         self.eat_while(is_whitespace);
         TokenType::Whitespace
-    }
-
-    /// Parses a raw identifier.
-    fn raw_identifier(&mut self) -> TokenType {
-        debug_assert!(
-            self.prev() == 'r' && self.peek_next() == '#' && is_id_start(self.peek_next_next())
-        );
-        self.bump();
-        self.eat_identifier();
-        TokenType::RawIdentifier
     }
 
     /// Parses an identifier or an unknown prefix.

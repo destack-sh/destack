@@ -13,7 +13,6 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
             | TokenType::LineComment
             | TokenType::Identifier
             | TokenType::InvalidIdentifier
-            | TokenType::RawIdentifier
             | TokenType::UnknownLiteralPrefix
             | TokenType::Literal { .. } => {
                 // emit original slice for lexemes where we don't want to reformat

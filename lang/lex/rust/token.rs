@@ -38,9 +38,6 @@ pub enum TokenType {
     LineComment,
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
-    /// Raw identifier, e.g. "r#identifier".
-    /// NOTE: Not sure yet whether we'll inherit raw identifiers from Rust or not.
-    RawIdentifier,
     /// An identifier that is invalid for other reasons (e.g. because it contains emoji).
     InvalidIdentifier,
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
