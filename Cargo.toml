@@ -1,47 +1,47 @@
 [workspace]
 resolver = "2"
 members = [
-	# lang
-	"lang/codegen_cranelift",
-	"lang/codegen_llvm",
-	"lang/dir",
-	"lang/lex",
-	"lang/libgen_rust",
-	"lang/mir",
-	"lang/parse",
-	"lang/prelude",
-	"lang/vm",
-	# std
-	"std/access",
-	"std/animation",
-	"std/audio",
-	"std/cli",
-	"std/cloud",
-	"std/core",
-	"std/fs",
-	"std/geometry",
-	"std/image",
-	"std/json",
-	"std/localization",
-	"std/lsp",
-	"std/observability",
-	"std/order",
-	"std/perception",
-	"std/physics",
-	"std/scene",
-	"std/script",
-	"std/social",
-	"std/style",
-	"std/time",
-	"std/tokei",
-	"std/unicode",
-	"std/universe",
-	"std/uuid",
-	"std/video",
-	"std/view",
-	"std/web",
-	# ext
-	"ext/zed",
+	# language
+	"language/codegen_cranelift",
+	"language/codegen_llvm",
+	"language/dir",
+	"language/lexer",
+	"language/libgen_rust",
+	"language/mir",
+	"language/parser",
+	"language/prelude",
+	"language/interpreter",
+	# library
+	"library/access",
+	"library/animation",
+	"library/audio",
+	"library/cli",
+	"library/cloud",
+	"library/core",
+	"library/filesystem",
+	"library/geometry",
+	"library/image",
+	"library/json",
+	"library/localization",
+	"library/lsp",
+	"library/observability",
+	"library/order",
+	"library/perception",
+	"library/physics",
+	"library/scene",
+	"library/script",
+	"library/social",
+	"library/style",
+	"library/time",
+	"library/tokei",
+	"library/unicode",
+	"library/universe",
+	"library/uuid",
+	"library/video",
+	"library/view",
+	"library/web",
+	# extensions
+	"extensions/zed",
 	# demo
 	"demo/breakout",
 	"demo/tetris",
@@ -51,52 +51,52 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.8.22-1"
+version = "2025.8.22-5"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
 rust-version = "1.88.0"
 
 [workspace.dependencies]
-# lang
-destack_lang_codegen_cranelift = { path = "lang/codegen_cranelift" }
-destack_lang_codegen_llvm = { path = "lang/codegen_llvm" }
-destack_lang_dir = { path = "lang/dir" }
-destack_lang_lex = { path = "lang/lex" }
-destack_lang_libgen_rust = { path = "lang/libgen_rust" }
-destack_lang_mir = { path = "lang/mir" }
-destack_lang_parse = { path = "lang/parse" }
-destack_lang_prelude = { path = "lang/prelude" }
-destack_lang_vm = { path = "lang/vm" }
-# std
-destack_std_access = { path = "std/access" }
-destack_std_animation = { path = "std/animation" }
-destack_std_audio = { path = "std/audio" }
-destack_std_cli = { path = "std/cli" }
-destack_std_cloud = { path = "std/cloud" }
-destack_std_core = { path = "std/core" }
-destack_std_fs = { path = "std/fs" }
-destack_std_geometry = { path = "std/geometry" }
-destack_std_image = { path = "std/image" }
-destack_std_json = { path = "std/json" }
-destack_std_localization = { path = "std/localization" }
-destack_std_lsp = { path = "std/lsp" }
-destack_std_observability = { path = "std/observability" }
-destack_std_order = { path = "std/order" }
-destack_std_perception = { path = "std/perception" }
-destack_std_physics = { path = "std/physics" }
-destack_std_scene = { path = "std/scene" }
-destack_std_script = { path = "std/script" }
-destack_std_social = { path = "std/social" }
-destack_std_style = { path = "std/style" }
-destack_std_time = { path = "std/time" }
-destack_std_tokei = { path = "std/tokei" }
-destack_std_unicode = { path = "std/unicode" }
-destack_std_universe = { path = "std/universe" }
-destack_std_uuid = { path = "std/uuid" }
-destack_std_video = { path = "std/video" }
-destack_std_view = { path = "std/view" }
-destack_std_web = { path = "std/web" }
+# language
+destack_language_codegen_cranelift = { path = "language/codegen_cranelift" }
+destack_language_codegen_llvm = { path = "language/codegen_llvm" }
+destack_language_dir = { path = "language/dir" }
+destack_language_lexer = { path = "language/lexer" }
+destack_language_libgen_rust = { path = "language/libgen_rust" }
+destack_language_mir = { path = "language/mir" }
+destack_language_parser = { path = "language/parser" }
+destack_language_prelude = { path = "language/prelude" }
+destack_language_interpreter = { path = "language/interpreter" }
+# library
+destack_library_access = { path = "library/access" }
+destack_library_animation = { path = "library/animation" }
+destack_library_audio = { path = "library/audio" }
+destack_library_cli = { path = "library/cli" }
+destack_library_cloud = { path = "library/cloud" }
+destack_library_core = { path = "library/core" }
+destack_library_filesystem = { path = "library/filesystem" }
+destack_library_geometry = { path = "library/geometry" }
+destack_library_image = { path = "library/image" }
+destack_library_json = { path = "library/json" }
+destack_library_localization = { path = "library/localization" }
+destack_library_lsp = { path = "library/lsp" }
+destack_library_observability = { path = "library/observability" }
+destack_library_order = { path = "library/order" }
+destack_library_perception = { path = "library/perception" }
+destack_library_physics = { path = "library/physics" }
+destack_library_scene = { path = "library/scene" }
+destack_library_script = { path = "library/script" }
+destack_library_social = { path = "library/social" }
+destack_library_style = { path = "library/style" }
+destack_library_time = { path = "library/time" }
+destack_library_tokei = { path = "library/tokei" }
+destack_library_unicode = { path = "library/unicode" }
+destack_library_universe = { path = "library/universe" }
+destack_library_uuid = { path = "library/uuid" }
+destack_library_video = { path = "library/video" }
+destack_library_view = { path = "library/view" }
+destack_library_web = { path = "library/web" }
 # demo
 destack_demo_breakout = { path = "demo/breakout" }
 destack_demo_tetris = { path = "demo/tetris" }

@@ -1,0 +1,18 @@
+[package]
+name = "destack_library_filesystem"
+description = "Destack Standard Library Filesystem"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+
+[dependencies]
+
+[lints]
+workspace = true
+
+

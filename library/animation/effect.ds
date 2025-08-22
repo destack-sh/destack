@@ -1,0 +1,106 @@
+use destack;
+
+/// When the effect fires.
+enum EffectType {
+    Appear = 10,
+    Enter = 11,
+    Exit = 12,
+    Hover = 20,
+    Press = 21,
+    Drag = 22,
+    Focus = 23,
+    Loop = 30,
+}
+
+/// How a repeating animation behaves.
+enum RepeatType {
+    Loop = 1,
+    Reverse = 2,
+    Mirror = 3,
+}
+
+/// How to split text for per-part effects.
+enum TextSplitType {
+    Char = 1,
+    Word = 2,
+    Line = 3,
+}
+
+/// What happens when the element is offscreen.
+enum OffscreenBehavior {
+    Play = 1,
+    Pause = 2,
+}
+
+/// An effect value.
+struct Effect {
+    /// When the effect is applied.
+    type: EffectType,
+    /// Optional template reference to inherit values from.
+    template: Optional<EffectTemplate>,
+    /// Optional opacity multiplier.
+    opacity: Optional<float32>,
+    /// Optional positional offset in 2D.
+    offset: Optional<Vector2>,
+    /// Optional uniform scale factor.
+    scale: Optional<float32>,
+    /// Optional 3D axis rotation.
+    rotate: Optional<Axis3>,
+    /// Optional 2D skew.
+    skew: Optional<Vector2>,
+    /// Optional perspective amount.
+    perspective: Optional<float32>,
+    /// Optional start delay.
+    delay: Optional<Duration>,
+    /// Optional playback duration.
+    duration: Optional<float32>,
+    /// Optional intersection threshold for visibility-driven effects.
+    threshold: Optional<float32>,
+    /// Whether to apply only once.
+    once: Optional<boolean>,
+    /// Optional repeat behavior.
+    repeat: Optional<RepeatType>,
+    /// Optional text split behavior.
+    split: Optional<TextSplitType>,
+    /// Offscreen behavior.
+    offscreen: Optional<OffscreenBehavior>,
+    /// Optional transition configuration.
+    transition: Optional<Transition>,
+}
+
+/// An effect template.
+@entity
+struct EffectTemplate {
+    /// When the effect is applied.
+    type: EffectType,
+    /// Optional opacity multiplier.
+    opacity: Optional<float32>,
+    /// Optional positional offset in 2D.
+    offset: Optional<Vector2>,
+    /// Optional uniform scale factor.
+    scale: Optional<float32>,
+    /// Optional 3D axis rotation.
+    rotate: Optional<Axis3>,
+    /// Optional 2D skew.
+    skew: Optional<Vector2>,
+    /// Optional perspective amount.
+    perspective: Optional<float32>,
+    /// Optional start delay.
+    delay: Optional<Duration>,
+    /// Optional playback duration.
+    duration: Optional<float32>,
+    /// Optional intersection threshold for visibility-driven effects.
+    threshold: Optional<float32>,
+    /// Whether to apply only once.
+    once: Optional<boolean>,
+    /// Optional repeat behavior.
+    repeat: Optional<RepeatType>,
+    /// Optional text split behavior.
+    split: Optional<TextSplitType>,
+    /// Offscreen behavior.
+    offscreen: Optional<OffscreenBehavior>,
+    /// Optional transition configuration.
+    transition: Optional<Transition>,
+}
+
+

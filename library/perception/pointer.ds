@@ -1,0 +1,46 @@
+use destack;
+
+/// A Pointer is a user input device that can be used to interact with the UI
+@entity(Body2D)
+struct Pointer2D {}
+
+/// Base pointer event with position, pressure and modifiers
+@event(InputEvent)
+struct PointerEvent {
+    position: Vector2,
+    pressure: Optional<float32>,
+    shiftKey: boolean,
+    altKey: boolean,
+    ctrlKey: boolean,
+    metaKey: boolean,
+}
+
+/// A PointerEvent when a pointer is pressed down
+@event(PointerEvent)
+struct PointerDownEvent {}
+
+/// A PointerEvent when a pointer is released
+@event(PointerEvent)
+struct PointerUpEvent {}
+
+/// A PointerEvent when a pointer is moved
+@event(PointerEvent)
+struct PointerMoveEvent {}
+
+/// A PointerEvent when a pointer enters an element
+@event(PointerEvent)
+struct PointerEnterEvent {}
+
+/// A PointerEvent when a pointer is over an element
+@event(PointerEvent)
+struct PointerOverEvent {}
+
+/// A PointerEvent when a pointer leaves an element
+@event(PointerEvent)
+struct PointerLeaveEvent {}
+
+/// A PointerEvent when a pointer is pressed and held
+@event(PointerEvent)
+struct PointerLongPressEvent {}
+
+
