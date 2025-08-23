@@ -554,6 +554,7 @@ pub struct FieldLiteral {
 /// ```
 /// i32
 /// bool
+/// [f32]
 /// [f64; 3]
 /// (i32, i32)
 /// (i32) => i32
@@ -566,26 +567,26 @@ pub struct FieldLiteral {
 pub enum Type {
     /// Infer placeholder `_`
     Infer,
-    /// Never `!`.
+    /// Never `!`
     Never,
-    /// Path to a type.
+    /// Path to a type `MyModule.MyType`
     Path {
         path: Path,
         static_arguments: Vec<Type>,
     },
-    /// Pointer of some type.
+    /// Pointer of some type `*T`
     Pointer { r#type: Box<Type> },
-    /// Inline Tuple type.
+    /// Inline Tuple type `(T1, T2, ...)`
     Tuple { elements: Vec<Type> },
-    /// Inline Array type.
+    /// Inline Array type `[T; N]`
     Array { element: Box<Type>, count: usize },
-    /// Inline Slice type.
+    /// Inline Slice type `[T]`
     Slice { element: Box<Type> },
-    /// Inline Function type.
+    /// Inline Function type `(T1, T2, ...) => T`
     Function { signature: FunctionSignature },
-    /// Inline nominal Struct type.
+    /// Inline nominal Struct type `struct MyStruct { ... }`
     Struct(Struct),
-    /// Inline nominal Union type.
+    /// Inline nominal Union type `union MyUnion { ... }`
     Union(Union),
 }
 
@@ -884,13 +885,19 @@ pub enum PatternStructField {
 ///
 /// Example:
 /// ```
-/// match x {
+/// match <expr> {
 ///     (x, y) => {
 ///         ...
 ///     }
 ///     (x, y, z) => {
 ///         ...
 ///     }
+/// }
+/// 
+/// catch {
+///     NetworkError => false
+///     FormatError => false
+///     _ => true
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -914,16 +921,16 @@ pub struct MatchCase {
 ///
 /// Example:
 /// ```
-/// try fileOperation();
+/// try fileOperation(); // implicitly unwraps the Result
 ///
-/// try {
-///     let a = riskyOperationA(); // a is the success value from riskyOperationA's Result
+/// try { // implicitly unwraps all Results inside
+///     let a = riskyOperationA(); // a is Result.Ok(_) from riskyOperationA
 ///     riskyOperationB(a);
-/// }
+/// } // no catch needed if containing function has compatible Result type (Into suffices)
 ///
-/// try {
+/// try { // explicitly unwraps all Results inside
 ///     ...
-/// } catch {
+/// } catch { // match all errors
 ///     NumericError(x) => Error(@format("bad number: {x}"))
 ///     FormatError => Error(@format("bad format"))
 ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)

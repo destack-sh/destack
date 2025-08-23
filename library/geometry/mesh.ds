@@ -2,14 +2,14 @@ use destack;
 
 /// A Mesh2D is defined by vertices and triangle indices.
 struct Mesh2 {
-    vertices: Vector2[],
-    triangles: u32[],
+    vertices: [Vector2],
+    triangles: [u32],
 }
 
 /// A Mesh3D is defined by vertices and triangle indices.
 struct Mesh3 {
-    vertices: Vector3[],
-    triangles: u32[],
+    vertices: [Vector3],
+    triangles: [u32],
 }
 
 /// A MeshShape2D represents a triangle mesh.

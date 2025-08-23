@@ -4,7 +4,7 @@ use destack;
 struct Path2D {
     ...Form2D
     
-    points: Vector2[],
+    points: List<Vector2>,
     isClosed: boolean,
 }
 
@@ -18,7 +18,7 @@ struct PathShape2D {
 struct Polyline3D {
     ...Form3D
 
-    points: Vector3[],
+    points: List<Vector3>,
     isClosed: boolean,
 }
 

@@ -3,13 +3,13 @@ use destack;
 /// A ConvexShape2D represents a convex polygon.
 @entity(Shape2D)
 struct ConvexShape2D {
-    vertices: Vector2[],
+    vertices: List<Vector2>,
 }
 
 /// A ConvexShape3D represents a convex hull.
 @entity(Shape3D)
 struct ConvexShape3D {
-    vertices: Vector3[],
+    vertices: List<Vector3>,
 }
 
 

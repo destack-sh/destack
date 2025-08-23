@@ -8,12 +8,6 @@ struct FunctionDefinition {
     isAsync: boolean,
     /// Whether the Function is managed by the system.
     isManaged: boolean,
-    /// Platforms the Function is available on (all if empty).
-    platforms: Optional<RuntimePlatform[]>,
-    /// Languages the Function is available in (all if empty).
-    languages: Optional<RuntimeLanguage[]>,
-    /// Runtimes the Function is available in (all if empty).
-    runtimes: Optional<RuntimeType[]>,
 }
 
 /// Base Function entity.
@@ -23,10 +17,6 @@ struct Function {
     type: MethodType,
     /// Optional textual body.
     text: Optional<Text>,
-    /// Platforms the Function is available on (all if empty).
-    platforms: Optional<RuntimePlatform[]>,
-    /// Languages the Function is available in (all if empty).
-    languages: Optional<RuntimeLanguage[]>,
 }
 
 

@@ -11,12 +11,16 @@ enum Color {
 }
 
 @entity
-struct TetrisGame {
+struct TetrisComponent {}
 
+@entity
+struct TetrisGame {
+    ...TetrisComponent,
 }
 
 @entity 
 struct TetrisBoard<Width: int32, Height: int32> {
+    ...TetrisComponent,
     /// The grid of the board.
     grid: TetrisPiece[Width, Height],
 }
@@ -32,7 +36,9 @@ enum TetrisPieceShape {
 }
 
 @entity(RigidBody2D)
-union(TetrisPieceShape) TetrisPiece;
+union(TetrisPieceShape) TetrisPiece {
+    ...TetrisComponent,
+}
 
 implement TetrisPiece {
     function new(shape: TetrisPieceShape) => TetrisPiece {

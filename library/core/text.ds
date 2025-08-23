@@ -23,7 +23,7 @@ struct TextSpan {
 /// A single paragraph composed of TextSpans with inline styling.
 struct Text {
     /// The spans composing the paragraph.
-    spans: TextSpan[],
+    spans: List<TextSpan>,
     /// Styling flags for the whole paragraph.
     styleFlags: TextStyleFlag = TextStyleFlag.Default,
 }

@@ -6,8 +6,8 @@ struct MethodDefinition {
     type: MethodType,
     /// Optional id of the aliased Method.
     aliasOf: Optional<u16>,
-    /// Method input Properties.
-    inputProperties: PropertyDefinition[],
+    /// Method input Properties.w
+    inputProperties: List<PropertyDefinition>,
     /// Optional output Property.
     outputProperty: Optional<PropertyDefinition>,
 }
