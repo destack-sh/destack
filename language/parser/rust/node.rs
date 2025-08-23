@@ -153,8 +153,8 @@ pub struct Field {
 /// union Foo {
 ///     A(int32),
 ///     B { x: int32, y: int32 } = 4,
-///     C(bool, int32),
-///     D(bool, int32) = 6,
+///     C(boolean, int32),
+///     D(boolean, int32) = 6,
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -487,7 +487,8 @@ pub enum ScalarLiteral {
 /// ```
 /// [1, 2, 3]
 /// [1.0f64, 2.0f64, 3.0f64]
-/// [0; 1g0]
+/// [10, false, "Hi"] // okay in AST, but errors in type-checker
+/// [0; 10]
 /// [false; 40]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -552,16 +553,16 @@ pub struct FieldLiteral {
 ///
 /// Example:
 /// ```
-/// i32
+/// int32
 /// bool
-/// [f32]
-/// [f64; 3]
-/// (i32, i32)
-/// (i32) => i32
-/// T<i32>
+/// [float32]
+/// [float64; 3]
+/// (int32, int32)
+/// (int32) => int32
+/// T<int32>
 /// MyEnum
 /// simulation.geometry.Vector2
-/// struct MyResponse { x: i32, y: i32 }
+/// struct MyResponse { x: int32, y: int32 }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
