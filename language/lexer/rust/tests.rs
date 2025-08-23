@@ -120,7 +120,7 @@ fn test_spread_and_arrows() {
             len: 1
         },
         Token {
-            r#type: TokenType::TripleDot,
+            r#type: TokenType::Ellipsis,
             len: 3
         },
         Token {
@@ -132,7 +132,7 @@ fn test_spread_and_arrows() {
             len: 1
         },
         Token {
-            r#type: TokenType::FatArrow,
+            r#type: TokenType::Arrow,
             len: 2
         },
         Token {
@@ -144,7 +144,7 @@ fn test_spread_and_arrows() {
             len: 1
         },
         Token {
-            r#type: TokenType::ThinArrow,
+            r#type: TokenType::BadArrow,
             len: 2
         },
         Token {
@@ -156,8 +156,12 @@ fn test_spread_and_arrows() {
             len: 1
         },
         Token {
-            r#type: TokenType::DoubleColon,
-            len: 2
+            r#type: TokenType::Colon,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Colon,
+            len: 1
         },
         Token {
             r#type: TokenType::Whitespace,

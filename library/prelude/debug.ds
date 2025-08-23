@@ -1,0 +1,5 @@
+
+
+trait Debug {
+    fn debug(self) -> String;
+}

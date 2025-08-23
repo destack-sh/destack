@@ -166,8 +166,8 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::Semicolon
         | K::Comma
         | K::Dot
-        | K::DoubleDot
-        | K::TripleDot
+        | K::Range
+        | K::Ellipsis
         | K::OpenParenthesis
         | K::CloseParenthesis
         | K::OpenBrace
@@ -178,29 +178,39 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Pound
         | K::Tilde
         | K::Question
-        | K::Colon
-        | K::DoubleColon
         | K::Dollar => 5, // FUNCTION color to differentiate
 
         // operators
-        K::Equals
-        | K::FatArrow
+        K::Colon
+        | K::Assign
+        | K::Arrow
+        | K::BadArrow
+        | K::Add
+        | K::AddAssign
+        | K::Subtract
+        | K::SubtractAssign
+        | K::Multiply
+        | K::MultiplyAssign
+        | K::Divide
+        | K::DivideAssign
+        | K::Percent
+        | K::RemainderAssign
+        | K::Caret
+        | K::ExponentAssign
+        | K::BitwiseAnd
+        | K::LogicalAnd
+        | K::BitwiseAndAssign
+        | K::BitwiseOr
+        | K::LogicalOr
+        | K::BitwiseOrAssign
         | K::Bang
         | K::LessThan
+        | K::ShiftLeft
+        | K::ShiftLeftAssign
         | K::GreaterThan
-        | K::Minus
-        | K::DoubleMinus
-        | K::TripleMinus
-        | K::ThinArrow
-        | K::And
-        | K::Or
-        | K::Plus
-        | K::DoublePlus
-        | K::TriplePlus
-        | K::Star
-        | K::Slash
-        | K::Caret
-        | K::Percent => 4, // OPERATOR
+        | K::ShiftRight
+        | K::ShiftRightAssign
+        | K::Empty => 4, // OPERATOR
 
         // skip these token types
         K::Whitespace | K::Unknown | K::EndOfInput => return None,
