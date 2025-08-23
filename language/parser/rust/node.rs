@@ -5,9 +5,6 @@
 //! We later typecheck, validate and prune the AST to only include valid programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
 //!  and in many cases we can even suggest automatic fixes (like `->` -> `=>`).
-//!
-//! Unlike Rust, Destack has only Statements and Expressions (no separate Items).
-//! Unlike Zig, Destack does distinguish Statements and Expressions.
 
 use crate::{FloatType, Identifier, IntType};
 
@@ -483,6 +480,9 @@ pub enum Expression {
     Function(Box<Function>),
     /// Implement definition
     Implement(Box<Implement>),
+
+    /// Error placeholder.
+    Error,
 }
 
 /// A ScalarLiteral is a literal scalar value.

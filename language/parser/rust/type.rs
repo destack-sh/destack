@@ -27,4 +27,4 @@ pub enum FloatType {
     Float64,
 }
 
-impl Parser {}
+impl<'a> Parser<'a> {}

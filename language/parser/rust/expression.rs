@@ -1,3 +1,3 @@
 use crate::Parser;
 
-impl Parser {}
+impl<'a> Parser<'a> {}
