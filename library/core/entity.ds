@@ -37,7 +37,7 @@ enum(uint8) Materialization {
 }
 
 /// Declare a struct as an Entity. Auto-includes Entity.
-function @entity(structDecl: StructDefinition) -> StructDefinition {
+function @entity(structDecl: StructDefinition) => StructDefinition {
     // structDeclr.uses.append(UseDeclaration { structDeclr: Entity, isGlob: true } )
     structDeclr
 }
@@ -90,7 +90,7 @@ struct Entity {
 
 implement Entity {
     /// Get a reference to this Entity.
-    @intrinsic function toRef(self) -> NodeSpatialReference;
+    @intrinsic function toRef(self) => NodeSpatialReference;
 
     /// Delete this Entity.
     @intrinsic function delete(self);
@@ -99,19 +99,19 @@ implement Entity {
     @intrinsic function restore(self);
 
     /// Get the children of this Entity.
-    @intrinsic function getChildren(self, type_: Optional<NodeType>, includeDeleted: boolean) -> Entity[];
+    @intrinsic function getChildren(self, type_: Optional<NodeType>, includeDeleted: boolean) => Entity[];
 
     /// Get a specific child of this Entity by name.
-    @intrinsic function getChild(self, type_: NodeType, name: String, includeDeleted: boolean) -> Optional<Entity>;
+    @intrinsic function getChild(self, type_: NodeType, name: String, includeDeleted: boolean) => Optional<Entity>;
 
     /// Get a specific child of this Entity by name, or raise if not found.
-    @intrinsic function child(self, type_: NodeType, name: String, includeDeleted: boolean) -> Entity;
+    @intrinsic function child(self, type_: NodeType, name: String, includeDeleted: boolean) => Entity;
 
     /// Get the ancestors of this Entity.
-    @intrinsic function getAncestors(self, type_: Optional<NodeType>, includeDeleted: boolean) -> Entity[];
+    @intrinsic function getAncestors(self, type_: Optional<NodeType>, includeDeleted: boolean) => Entity[];
 
     /// Get the descendants of this Entity.
-    @intrinsic function getDescendants(self, type_: Optional<NodeType>, includeDeleted: boolean) -> Entity[];
+    @intrinsic function getDescendants(self, type_: Optional<NodeType>, includeDeleted: boolean) => Entity[];
 
     /// Detach this Entity from its parent.
     @intrinsic function detach(self);
@@ -120,31 +120,31 @@ implement Entity {
     @intrinsic function moveTo(self, parent: Optional<EntityReference<Entity>>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>);
 
     /// Add an Entity as a sibling of this Entity.
-    @intrinsic function addSibling(self, sibling: EntityReference<Entity>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+    @intrinsic function addSibling(self, sibling: EntityReference<Entity>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) => Entity;
 
     /// Add multiple Entities as siblings of this Entity.
-    @intrinsic function addSiblings(self, siblings: EntityReference<Entity>[], after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+    @intrinsic function addSiblings(self, siblings: EntityReference<Entity>[], after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) => Entity;
 
     /// Append an Entity as a child of this Entity.
-    @intrinsic function addChild(self, child: EntityReference<Entity>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+    @intrinsic function addChild(self, child: EntityReference<Entity>, after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) => Entity;
 
     /// Append multiple Entities as children of this Entity.
-    @intrinsic function addChildren(self, children: EntityReference<Entity>[], after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) -> Entity;
+    @intrinsic function addChildren(self, children: EntityReference<Entity>[], after: Optional<EntityReference<Entity>>, before: Optional<EntityReference<Entity>>) => Entity;
 
     /// Remove a child Entity from this Entity without deleting it.
-    @intrinsic function removeChild(self, child: EntityReference<Entity>) -> Entity;
+    @intrinsic function removeChild(self, child: EntityReference<Entity>) => Entity;
 
     /// Add or get a Tag's value on this Entity.
-    @intrinsic function addTag(self, tag: EntityReference<Tag>, value: Optional<Value>) -> Value;
+    @intrinsic function addTag(self, tag: EntityReference<Tag>, value: Optional<Value>) => Value;
 
     /// Remove a Tag from this Entity.
-    @intrinsic function removeTag(self, tag: EntityReference<Tag>) -> Optional<Value>;
+    @intrinsic function removeTag(self, tag: EntityReference<Tag>) => Optional<Value>;
 
     /// Turn this Entity into its corresponding Entity in the given Branch.
-    @intrinsic function checkout(self, branch: EntityReference<Branch>) -> Entity;
+    @intrinsic function checkout(self, branch: EntityReference<Branch>) => Entity;
 
     /// Instantiate this Entity into a new Entity (partial or full).
-    @intrinsic function instantiate(self, partial: boolean, attach: boolean) -> Entity;
+    @intrinsic function instantiate(self, partial: boolean, attach: boolean) => Entity;
 }
 
 

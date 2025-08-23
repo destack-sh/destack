@@ -48,7 +48,7 @@ struct Event {
 
 implement Event {
     /// Get a reference to this Event.
-    @intrinsic function toRef(self) -> EntityReference;
+    @intrinsic function toRef(self) => EntityReference;
 }
 
 

@@ -70,12 +70,10 @@ pub enum Visibility {
     PublicModule,
 }
 
-/// A Module is a module declaration or definition.
-/// If no body is provided, it is a declaration for a module defined in another file/folder.
+/// A Module is a module declaration.
 ///
 /// Example:
 /// ```
-/// module foo;
 /// module foo {
 ///     ...
 /// }
@@ -84,16 +82,15 @@ pub enum Visibility {
 pub struct Module {
     pub name: Identifier,
     pub visibility: Visibility,
-    pub body: Option<Block>,
+    pub body: Block,
 }
 
 /// A UseDeclaration is a use declaration.
 ///
 /// Example:
 /// ```
-/// use foo.*;
+/// use foo;
 /// use foo.bar;
-/// use foo.bar.*;
 /// use foo.{bar, baz};
 /// use foo as baz;
 /// ```
@@ -198,7 +195,7 @@ pub struct UnionField {
 /// Example:
 /// ```
 /// tuple MyTuple(int32, int32[])
-/// tuple MyOtherTuple(uint8, (int32, bool, Vector2))
+/// tuple MyOtherTuple(uint8, (int32, boolean, Vector2))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
@@ -238,7 +235,7 @@ pub struct Implement {
 /// ```
 /// ()
 /// (x: int32)
-/// (x: int32) -> (int32, bool)
+/// (x: int32) => (int32, boolean)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
@@ -254,6 +251,10 @@ pub struct FunctionSignature {
 /// ```
 /// functionn foo() {
 ///    @print("Hello, world!");
+/// }
+///
+/// function baz() => (int32, boolean) {
+///    ...
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -286,7 +287,7 @@ pub struct Closure {
 /// Example:
 /// ```
 /// x: int32,
-/// y: (int32, bool, Vector2)
+/// y: (int32, boolean, Vector2)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
@@ -555,7 +556,7 @@ pub struct FieldLiteral {
 /// bool
 /// [f64; 3]
 /// (i32, i32)
-/// (i32) -> i32
+/// (i32) => i32
 /// T<i32>
 /// MyEnum
 /// simulation.geometry.Vector2
