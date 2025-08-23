@@ -40,5 +40,3 @@ struct TransitionTemplate {
     bounce: Optional<float32>,
     springType: Optional<SpringType>,
 }
-
-

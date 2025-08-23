@@ -54,7 +54,7 @@ fn lex(ctx: CommandArguments) -> i32 {
     let mut rows: Vec<Vec<String>> = Vec::new();
     let tokens = tokenize_semantic(&input);
 
-    for (idx, tok) in tokens.iter().enumerate() {
+    for tok in tokens.iter() {
         let start_offset = tok.span.start as usize;
         let end_offset = tok.span.end as usize;
         let len = end_offset - start_offset;
