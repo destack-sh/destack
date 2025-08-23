@@ -9,35 +9,9 @@
 //! Unlike Rust, Destack has only Statements and Expressions (no separate Items).
 //! Unlike Zig, Destack does distinguish Statements and Expressions.
 
+use crate::{FloatType, Identifier, IntType};
+
 pub type NodeId = u32;
-pub type Identifier = String;
-
-/// An IntType is a signed integer type.
-#[derive(Debug, Clone, PartialEq)]
-pub enum IntType {
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    Int128,
-}
-
-/// A UintType is an unsigned integer type.
-#[derive(Debug, Clone, PartialEq)]
-pub enum UintType {
-    Uint8,
-    Uint16,
-    Uint32,
-    Uint64,
-    Uint128,
-}
-
-/// A FloatType is a floating-point type.
-#[derive(Debug, Clone, PartialEq)]
-pub enum FloatType {
-    Float32,
-    Float64,
-}
 
 /// A Path is a static path to a named definition in a namespace.
 ///

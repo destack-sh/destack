@@ -1,4 +1,6 @@
 mod expression;
+mod identifier;
+mod keyword;
 mod literal;
 mod pattern;
 mod statement;
@@ -9,8 +11,11 @@ pub mod node;
 pub mod parse;
 
 pub use format::*;
+pub use identifier::*;
+pub use keyword::*;
 pub use node::*;
 pub use parse::*;
+pub use r#type::*;
 
 #[cfg(test)]
 mod tests;

@@ -71,7 +71,12 @@ impl Tokenizer<'_> {
                         && bytes.get(2) == Some(&b' ');
                 }
                 if !has_second_slash {
-                    TokenType::Slash
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::DivideAssign
+                    } else {
+                        TokenType::Divide
+                    }
                 } else {
                     self.eat_until(b'\n');
                     if is_doc_comment {
@@ -174,22 +179,15 @@ impl Tokenizer<'_> {
             // one or multi-symbol tokens
             ';' => TokenType::Semicolon,
             ',' => TokenType::Comma,
-            ':' => {
-                if self.peek_next() == ':' {
-                    self.bump();
-                    TokenType::DoubleColon
-                } else {
-                    TokenType::Colon
-                }
-            }
+            ':' => TokenType::Colon,
             '.' => {
                 if self.peek_next() == '.' && self.peek_next_next() == '.' {
                     self.bump();
                     self.bump();
-                    TokenType::TripleDot
+                    TokenType::Ellipsis
                 } else if self.peek_next() == '.' {
                     self.bump();
-                    TokenType::DoubleDot
+                    TokenType::Range
                 } else {
                     TokenType::Dot
                 }
@@ -208,46 +206,107 @@ impl Tokenizer<'_> {
             '=' => {
                 if self.peek_next() == '>' {
                     self.bump();
-                    TokenType::FatArrow
+                    TokenType::Arrow
                 } else {
-                    TokenType::Equals
+                    TokenType::Assign
                 }
             }
             '!' => TokenType::Bang,
-            '<' => TokenType::LessThan,
-            '>' => TokenType::GreaterThan,
+            '<' => {
+                if self.peek_next() == '<' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::ShiftLeftAssign
+                    } else {
+                        TokenType::ShiftLeft
+                    }
+                } else {
+                    TokenType::LessThan
+                }
+            }
+            '>' => {
+                if self.peek_next() == '>' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::ShiftRightAssign
+                    } else {
+                        TokenType::ShiftRight
+                    }
+                } else {
+                    TokenType::GreaterThan
+                }
+            }
             '-' => {
                 if self.peek_next() == '>' {
                     self.bump();
-                    TokenType::ThinArrow
+                    TokenType::BadArrow
                 } else if self.peek_next() == '-' && self.peek_next_next() == '-' {
                     self.bump();
                     self.bump();
-                    TokenType::TripleMinus
-                } else if self.peek_next() == '-' {
+                    TokenType::Empty
+                } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::DoubleMinus
+                    TokenType::SubtractAssign
                 } else {
-                    TokenType::Minus
+                    TokenType::Subtract
                 }
             }
-            '&' => TokenType::And,
-            '|' => TokenType::Or,
+            '&' => {
+                if self.peek_next() == '&' {
+                    self.bump();
+                    TokenType::LogicalAnd
+                } else if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::BitwiseAndAssign
+                } else {
+                    TokenType::BitwiseAnd
+                }
+            }
+            '|' => {
+                if self.peek_next() == '|' {
+                    self.bump();
+                    TokenType::LogicalOr
+                } else if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::BitwiseOrAssign
+                } else {
+                    TokenType::BitwiseOr
+                }
+            }
             '+' => {
-                if self.peek_next() == '+' && self.peek_next_next() == '+' {
+                if self.peek_next() == '=' {
                     self.bump();
-                    self.bump();
-                    TokenType::TriplePlus
-                } else if self.peek_next() == '+' {
-                    self.bump();
-                    TokenType::DoublePlus
+                    TokenType::AddAssign
                 } else {
-                    TokenType::Plus
+                    TokenType::Add
                 }
             }
-            '*' => TokenType::Star,
-            '^' => TokenType::Caret,
-            '%' => TokenType::Percent,
+            '*' => {
+                if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::MultiplyAssign
+                } else {
+                    TokenType::Multiply
+                }
+            }
+            '^' => {
+                if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::ExponentAssign
+                } else {
+                    TokenType::Caret
+                }
+            }
+            '%' => {
+                if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::RemainderAssign
+                } else {
+                    TokenType::Percent
+                }
+            }
 
             // character literal
             '\'' => {
