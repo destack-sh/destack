@@ -1,7 +1,7 @@
 use destack;
 
 /// Position properties for a 2D view.
-struct PositionComponent2D {
+struct Position2D {
     /// The origin of the Entity in 2D space.
     origin: Optional<Vector2>,
     /// The anchor of the Entity in 2D space.
@@ -11,7 +11,7 @@ struct PositionComponent2D {
 }
 
 /// Sizing properties for a 2D view.
-struct SizingComponent2D {
+struct Sizing2D {
     /// The width of the View.
     width: Optional<Length>,
     /// The height of the View.
@@ -26,16 +26,12 @@ struct SizingComponent2D {
     maxHeight: Optional<Length>,
 }
 
-/// Visibility properties for a 2D view.
-struct VisibilityComponent2D {
+/// Style properties for a 2D view.
+struct Style2D {
     /// Whether the View is visible.
     isVisible: Optional<boolean>,
     /// The opacity of the View.
     opacity: Optional<float32>,
-}
-
-/// Style properties for a 2D view.
-struct StyleComponent2D {
     /// The fill of the View.
     fill: Optional<Fill>,
     /// The shadow of the View.
@@ -49,9 +45,8 @@ struct StyleComponent2D {
 /// A View2D is a 2D interface element.
 @entity(RigidBody2D)
 struct View2D {
-    ...PositionComponent2D
-    ...SizingComponent2D
-    ...VisibilityComponent2D
-    ...StyleComponent2D
+    ...Position2D
+    ...Sizing2D
+    ...Style2D
 }
 

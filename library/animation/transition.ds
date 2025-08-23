@@ -18,7 +18,6 @@ struct Transition {
     template: Optional<TransitionTemplate>,
     delay: Optional<float32>,
     duration: Optional<float32>,
-    // nocheckin: arrrgh array literals and types and initialization?
     ease: float32[],
     stiffness: Optional<float32>,
     damping: Optional<float32>,

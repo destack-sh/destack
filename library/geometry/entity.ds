@@ -1,7 +1,6 @@
 use destack;
 
 /// A Transform2D is a 2D geometric transform.
-@component
 struct Transform2D {
     /// The position of the Entity in 2D space.
     position: Vector2,
@@ -12,7 +11,6 @@ struct Transform2D {
 }
 
 /// A Transform3D is a 3D geometric transform.
-@component
 struct Transform3D {
     /// The position of the Entity in 3D space.
     position: Vector3,
