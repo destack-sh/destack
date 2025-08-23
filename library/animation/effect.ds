@@ -1,4 +1,4 @@
-use destack;
+using destack;
 
 /// When the effect fires.
 enum EffectType {
@@ -29,7 +29,7 @@ enum TextSplitType {
 /// What happens when the element is offscreen.
 enum OffscreenBehavior {
     Play = 1,
-    Pause = 2,
+    Pausing = 2,
 }
 
 /// An effect value.

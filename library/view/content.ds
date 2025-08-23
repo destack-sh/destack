@@ -1,4 +1,4 @@
-use destack;
+using destack;
 
 /// A 2D content View
 @entity(View2D)
@@ -9,7 +9,7 @@ struct ContentView2D {}
 struct TextView2D {
     /// The text to display
     text: Optional<Text>,
-    /// The font to use for the text
+    /// The font to using for the text
     font: Optional<Font>,
     /// The color of the text
     color: Optional<Fill>,

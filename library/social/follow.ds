@@ -1,4 +1,4 @@
-use destack;
+using destack;
 
 /// A Follow is a relationship between an Actor and a followable Node.
 @entity

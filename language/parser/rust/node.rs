@@ -1,9 +1,10 @@
 //! The AST Nodes in Destack.
 //!
 //! The AST is a syntax tree of nodes.
-//! The set of allowable ASTs is much larger than the set of valid Destack programs,
-//!  we later typecheck, validate and prune the AST to only include valid programs.
-//! Allowing many invalid but syntactically correct ASTs is great for linting and error messages.
+//! The set of allowable ASTs is larger than the set of valid Destack programs.
+//! We later typecheck, validate and prune the AST to only include valid programs.
+//! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
+//!  and in many cases we can even suggest automatic fixes (like `->` -> `=>`).
 //!
 //! Unlike Rust, Destack has only Statements and Expressions (no separate Items).
 //! Unlike Zig, Destack does distinguish Statements and Expressions.
@@ -894,7 +895,7 @@ pub enum PatternStructField {
 ///         ...
 ///     }
 /// }
-/// 
+///
 /// catch {
 ///     NetworkError => false
 ///     FormatError => false
