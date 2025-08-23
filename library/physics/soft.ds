@@ -1,4 +1,4 @@
-use destack;
+using destack;
 
 /// A deformable body in 2D
 @entity(Body2D)
