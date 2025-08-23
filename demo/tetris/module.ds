@@ -14,13 +14,16 @@ enum Color {
 struct TetrisComponent {}
 
 @entity
-struct TetrisGame {
-    ...TetrisComponent,
+struct TetrisGame using TetrisComponent {}
+
+implement Context for TetrisGame {
+
 }
 
 @entity 
-struct TetrisBoard<Width: int32, Height: int32> {
-    ...TetrisComponent,
+struct TetrisBoard<Width: int32, Height: int32> 
+ using TetrisComponent
+ {
     /// The grid of the board.
     grid: TetrisPiece[Width, Height],
 }
@@ -36,9 +39,7 @@ enum TetrisPieceShape {
 }
 
 @entity(RigidBody2D)
-union(TetrisPieceShape) TetrisPiece {
-    ...TetrisComponent,
-}
+union(TetrisPieceShape) TetrisPiece using TetrisComponent {}
 
 implement TetrisPiece {
     function new(shape: TetrisPieceShape) => TetrisPiece {
@@ -59,13 +60,18 @@ implement TetrisPiece {
 }
 
 implement Tick for TetrisGame {
-    function tick(self) {
+    function tick(self) using Time, Random => Result<TetrisPiece, GameError> {
         // TODO: Implement tick
     }
 }
 
-implement view.Render for TetrisGame {
-    function render(self) {
-        // TODO: Implement render
+implement Draw for TetrisGame {
+    function draw(self) {
+        // TODO: Implement draw
+        @tree
+        TetrisBoard { grid: [TetrisPiece { shape: TetrisPieceShape.I } for _ in 0..10] } {
+            Button { },
+            HStack { }
+        } 
     }
 }

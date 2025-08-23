@@ -1,27 +1,21 @@
 using destack;
 
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.
-struct Halfspace2D {
-    ...Form2D
+struct Halfspace2D using Form2D {
     normal: Vector2,
     distance: float32,
 }
 
 /// A HalfspaceShape2D represents a half-space in 2D defined by a line.
 @entity(Shape2D)
-struct HalfspaceShape2D {
-    ...Halfspace2D
-}
+struct HalfspaceShape2D using Halfspace2D {}
 
 /// A Plane3D splits 3D space by a plane with normal and distance from origin.
-struct Plane3D {
-    ...Form3D
+struct Plane3D using Form3D {
     normal: Vector3,
     distance: float32,
 }
 
 /// A PlaneShape3D represents a half-space in 3D defined by a plane.
 @entity(Shape3D)
-struct PlaneShape3D {
-    ...Plane3D
-}
+struct PlaneShape3D using Plane3D {}
