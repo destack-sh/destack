@@ -1,0 +1,65 @@
+use destack;
+
+enum Color {
+    Red,
+    Orange,
+    Yellow,
+    Green,
+    Blue,
+    Purple,
+    Brown,
+}
+
+@entity
+struct TetrisGame {
+
+}
+
+@entity 
+struct TetrisBoard<Width: int32, Height: int32> {
+    /// The grid of the board.
+    grid: TetrisPiece[Width, Height],
+}
+
+enum TetrisPieceShape {
+    I,
+    J,
+    L,
+    O,
+    S,
+    T,
+    Z,
+}
+
+@entity(RigidBody2D)
+union(TetrisPieceShape) TetrisPiece;
+
+implement TetrisPiece {
+    function new(shape: TetrisPieceShape) => TetrisPiece {
+        TetrisPiece { shape }
+    }
+
+    function getColor(self) => Color {
+        match self {
+            TetrisPieceShape.I => Color.Blue,
+            TetrisPieceShape.J => Color.Red,
+            TetrisPieceShape.L => Color.Orange,
+            TetrisPieceShape.O => Color.Yellow,
+            TetrisPieceShape.S => Color.Green,
+            TetrisPieceShape.T => Color.Purple,
+            TetrisPieceShape.Z => Color.Brown,
+        }
+    }
+}
+
+implement Tick for TetrisGame {
+    function tick(self) {
+        // TODO: Implement tick
+    }
+}
+
+implement view.Render for TetrisGame {
+    function render(self) {
+        // TODO: Implement render
+    }
+}
