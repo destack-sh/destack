@@ -9,7 +9,6 @@ members = [
 	"language/libgen_rust",
 	"language/mir",
 	"language/parser",
-	"language/prelude",
 	"language/interpreter",
 	# library
 	"library/access",
@@ -28,6 +27,7 @@ members = [
 	"library/order",
 	"library/perception",
 	"library/physics",
+	"library/prelude",
 	"library/scene",
 	"library/script",
 	"library/social",
@@ -66,7 +66,6 @@ destack_language_lexer = { path = "language/lexer" }
 destack_language_libgen_rust = { path = "language/libgen_rust" }
 destack_language_mir = { path = "language/mir" }
 destack_language_parser = { path = "language/parser" }
-destack_language_prelude = { path = "language/prelude" }
 destack_language_interpreter = { path = "language/interpreter" }
 # library
 destack_library_access = { path = "library/access" }
@@ -85,6 +84,7 @@ destack_library_observability = { path = "library/observability" }
 destack_library_order = { path = "library/order" }
 destack_library_perception = { path = "library/perception" }
 destack_library_physics = { path = "library/physics" }
+destack_library_prelude = { path = "library/prelude" }
 destack_library_scene = { path = "library/scene" }
 destack_library_script = { path = "library/script" }
 destack_library_social = { path = "library/social" }

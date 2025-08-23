@@ -382,7 +382,7 @@ version = "2025.8.22-5"
 dependencies = [
  "destack_language_lexer",
  "destack_language_parser",
- "destack_language_prelude",
+ "destack_library_prelude",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -402,14 +402,6 @@ dependencies = [
  "criterion",
  "destack_language_lexer",
  "pprof",
-]
-
-[[package]]
-name = "destack_language_prelude"
-version = "2025.8.22-5"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
 ]
 
 [[package]]
@@ -533,6 +525,14 @@ dependencies = [
 
 [[package]]
 name = "destack_library_physics"
+version = "2025.8.22-5"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "destack_library_prelude"
 version = "2025.8.22-5"
 dependencies = [
  "quickcheck",

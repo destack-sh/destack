@@ -22,10 +22,6 @@
     "README.md",
     "LICENSE.txt"
   ],
-  "activationEvents": [
-    "onLanguage:destack",
-    "onCommand:destack.restart"
-  ],
   "contributes": {
     "configuration": {
       "title": "Destack",

@@ -1,0 +1,5 @@
+/// A Result value which may hold Ok(T) or Error(E).
+public union Result<T, E> {
+    Ok(T),
+    Error(E),
+}

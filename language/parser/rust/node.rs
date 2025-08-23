@@ -252,8 +252,8 @@ pub struct FunctionSignature {
 ///
 /// Example:
 /// ```
-/// fn foo() {
-///     println!("Hello, world!");
+/// functionn foo() {
+///    @print("Hello, world!");
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -261,6 +261,23 @@ pub struct Function {
     pub name: Identifier,
     pub signature: FunctionSignature,
     pub body: Option<Block>,
+}
+
+/// A Closure is an anonymous inline function definition.
+/// It captures ("closes over") variables it uses in its body from its scope.
+///
+/// Example:
+/// ```
+/// () => None
+/// (x: int32) => x + 1
+/// (a: int32, b: int32) => {
+///     a + b
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Closure {
+    pub signature: FunctionSignature,
+    pub body: Block,
 }
 
 /// A Parameter is a parameter to some expression.
@@ -276,6 +293,21 @@ pub struct Parameter {
     pub name: Identifier,
     pub r#type: Type,
     pub default: Option<Expression>,
+}
+
+/// An Argument is an argument to a function call.
+/// It may be named or positional.
+/// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
+///
+/// Example:
+/// ```
+/// foo(x: 1, y: 2)
+/// foo(1, 2)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Argument {
+    pub name: Option<Identifier>,
+    pub value: Expression,
 }
 
 /// A StaticCall is a call to a function at compile time.
@@ -304,8 +336,8 @@ pub struct Parameter {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StaticCall {
     pub path: Path,
-    pub dynamic_arguments: Option<Vec<Expression>>,
-    pub static_arguments: Option<Vec<Expression>>,
+    pub dynamic_arguments: Option<Vec<Argument>>,
+    pub static_arguments: Option<Vec<Argument>>,
 }
 
 /// A DynamicCall is a call to a function at runtime.
@@ -321,8 +353,8 @@ pub struct StaticCall {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicCall {
     pub path: Path,
-    pub dynamic_arguments: Option<Vec<Expression>>,
-    pub static_arguments: Option<Vec<Expression>>,
+    pub dynamic_arguments: Option<Vec<Argument>>,
+    pub static_arguments: Option<Vec<Argument>>,
 }
 
 /// A DynamicMethodCall is a call to an associated method at runtime.
@@ -338,8 +370,8 @@ pub struct DynamicCall {
 pub struct DynamicMethodCall {
     pub receiver: Box<Expression>,
     pub name: Identifier,
-    pub dynamic_arguments: Vec<Expression>,
-    pub static_arguments: Vec<Expression>,
+    pub dynamic_arguments: Vec<Argument>,
+    pub static_arguments: Vec<Argument>,
 }
 
 /// An Statement is a top-level Statement that can appear in a module, type definition or function.
@@ -412,6 +444,8 @@ pub enum Expression {
     Return(Return),
     /// Match statement.
     Match(Match),
+    /// Try/catch statement.
+    Try(Try),
     /// Block statement.
     Block(Block),
 
@@ -423,8 +457,8 @@ pub enum Expression {
     Union(Union),
     /// Function definition
     Function(Box<Function>),
-    /// Impl definition
-    Impl(Box<Implement>),
+    /// Implement definition
+    Implement(Box<Implement>),
 }
 
 /// A ScalarLiteral is a literal scalar value.
@@ -521,7 +555,7 @@ pub struct FieldLiteral {
 /// bool
 /// [f64; 3]
 /// (i32, i32)
-/// fn(i32) -> i32
+/// (i32) -> i32
 /// T<i32>
 /// MyEnum
 /// simulation.geometry.Vector2
@@ -754,7 +788,10 @@ pub struct For {
 /// Example:
 /// ```
 /// loop {
-///     y = 2;
+///     y = getNext();
+///     if y < 0 {
+///         break;
+///     }
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -791,7 +828,52 @@ pub struct Return {
     pub value: Option<Box<Expression>>,
 }
 
+/// A Pattern is a pattern to match something and unwrap it.
+///
+/// Example:
+/// ```
+/// 1
+/// 2 | 3
+/// 4..6
+/// (x, 0)
+/// Vector2 { x: 0, y }
+/// _
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pattern {
+    /// A literal value.
+    Literal(ScalarLiteral),
+    /// Or pattern `1 | 2`.
+    Or(Vec<Pattern>),
+    /// Slice pattern `1..3`.
+    Slice(Slice),
+    /// Tuple pattern `(x, 0)`.
+    Tuple(Vec<PatternTupleField>),
+    /// Struct pattern `Vector2 { x: 0, y }`.
+    Struct(Vec<PatternStructField>),
+    /// Wildcard pattern `_`.
+    Wildcard,
+}
+
+/// A PatternTupleField is a field of a tuple pattern.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PatternTupleField {
+    /// A named field.
+    Literal(ScalarLiteral),
+    /// A wildcard field.
+    Wildcard,
+}
+
+/// A PatternStructField is a field of a struct pattern.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PatternStructField {
+    /// A literal field.
+    Literal { name: Identifier, value: Pattern },
+}
+
 /// A Match is a match statement.
+/// The clauses must be exhaustive and return the same type.
+/// Match statements are Expressions and also used in catch patterns.
 ///
 /// Example:
 /// ```
@@ -813,7 +895,37 @@ pub struct Match {
 /// A MatchCase is a match case.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchCase {
+    pub pattern: Pattern,
     pub body: Block,
+}
+
+/// A Try is a try/catch statement.
+/// The try expression may be a single statement or a block of statements.
+/// Any error Result within the try expression aborts the try expression and:
+///  1. If there is a catch, jumps to the catch pattern matching for handling.
+///  2. If there is no catch, the error is propagated to the caller explicitly.
+///
+/// Example:
+/// ```
+/// try fileOperation();
+///
+/// try {
+///     let a = riskyOperationA(); // a is the success value from riskyOperationA's Result
+///     riskyOperationB(a);
+/// }
+///
+/// try {
+///     ...
+/// } catch {
+///     NumericError(x) => Error(@format("bad number: {x}"))
+///     FormatError => Error(@format("bad format"))
+///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Try {
+    pub try_block: Box<Expression>,
+    pub catch_block: Option<Match>,
 }
 
 /// An Assignment is an assignment of an Expression to a place.

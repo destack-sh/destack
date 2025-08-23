@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_prelude"
-description = "Destack Language Preload"
+name = "destack_library_prelude"
+description = "Destack Library Preload"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

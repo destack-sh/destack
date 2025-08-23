@@ -13,7 +13,8 @@ path = "rust/lib.rs"
 [dependencies]
 destack_language_lexer = { workspace = true }
 destack_language_parser = { workspace = true }
-destack_language_prelude = { workspace = true }
+
+destack_library_prelude = { workspace = true }
 
 [dev-dependencies]
 quickcheck = { workspace = true }
