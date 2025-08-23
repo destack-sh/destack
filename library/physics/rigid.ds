@@ -33,12 +33,9 @@ struct Mass2D {
 
 /// A solid simulated Body in 2D space
 @entity(Body2D)
-struct RigidBody2D {
+struct RigidBody2D using Kinematic2D, Mass2D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic,
-    
-    ...Kinematic2D,
-    ...Mass2D,
 }
 
 /// Kinematic properties for a 3D rigid body
@@ -67,12 +64,9 @@ struct Mass3D {
 
 /// A solid simulated Body in 3D space
 @entity(Body3D)
-struct RigidBody3D {
+struct RigidBody3D using Kinematic3D, Mass3D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic,
-    
-    ...Kinematic3D,
-    ...Mass3D,
 }
 
 

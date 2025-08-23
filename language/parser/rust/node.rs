@@ -72,6 +72,7 @@ pub enum Visibility {
 }
 
 /// A Module is a module declaration.
+/// Modules may be whole directories, single files, or nested within a file.
 ///
 /// Example:
 /// ```
@@ -81,45 +82,54 @@ pub enum Visibility {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
+    /// The name of the module.
     pub name: Identifier,
+    /// The visibility of the module.
     pub visibility: Visibility,
+    /// The body of the module.
     pub body: Block,
 }
 
-/// A UseDeclaration is a use declaration.
+/// A Using is a use declaration.
+/// `using` includes all or some items from a definition in the relevant scope.
+/// At the module level
 ///
 /// Example:
 /// ```
-/// use foo;
-/// use foo.bar;
-/// use foo.{bar, baz};
-/// use foo as baz;
+/// using foo;
+/// using foo.bar;
+/// using foo.{bar, baz};
+/// using foo as baz;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Use {
-    /// The path to the module to use (like `foo.bar` or `foo.bar.baz.qux`)
+pub struct Using {
+    /// The path to the definition to use (like `foo.bar` or `foo.bar.baz.qux`)
     pub path: Path,
-    /// The alias to use for the module.
+    /// The alias to use.
     pub alias: Option<Identifier>,
-    /// The items to use from the module (if not `is_glob`).
+    /// The items to use from the definition. If not specified, all items are used.
     pub items: Option<Vec<Identifier>>,
-    /// Whether to use all members from the module.
-    pub is_glob: bool,
 }
 
 /// A StructDefinition is a named struct definition.
 ///
 /// Example:
 /// ```
-/// struct Foo {
-///     ...
+/// struct Foo using Bar, Baz {
+///     myField: int32,
+///     myOtherField: boolean,
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Struct {
+    /// The name of the struct.
     pub name: Identifier,
+    /// The visibility of the struct.
     pub visibility: Visibility,
+    /// The fields of the struct.
     pub fields: Vec<Field>,
+    /// The using declarations for the struct.
+    pub usings: Option<Vec<Using>>,
 }
 
 /// A Field is a (struct) field declaration.
@@ -132,13 +142,17 @@ pub struct Struct {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Field {
+    /// The name of the field.
     pub name: Identifier,
+    /// The type of the field.
     pub r#type: Type,
+    /// The default value of the field.
     pub default: Option<Expression>,
 }
 
 /// A Union is a sum type definition.
 /// Enums are just sugar for unions with only a tag (and no values).
+/// Unions (if all options are structs) may include structs with using declarations.
 ///
 /// Example:
 /// ```
@@ -168,6 +182,8 @@ pub struct Union {
     pub style: UnionStyle,
     /// The fields of the union.
     pub fields: Vec<UnionField>,
+    /// The using declarations for the union.
+    pub usings: Option<Vec<Using>>,
 }
 
 /// A UnionStyle is the style of a union.
@@ -186,8 +202,11 @@ pub enum UnionStyle {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionField {
+    /// The name of the union field.
     pub name: Identifier,
+    /// The type of the union field.
     pub r#type: Option<Type>,
+    /// The default value of the union field.
     pub value: Option<Expression>,
 }
 
@@ -200,7 +219,9 @@ pub struct UnionField {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
+    /// The name of the tuple.
     pub name: Identifier,
+    /// The elements of the tuple.
     pub elements: Vec<Type>,
 }
 /// An Impl defines the implementation of a concrete type.
@@ -224,9 +245,13 @@ pub struct Tuple {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Implement {
+    /// The trait type to implement.
     pub trait_type: Box<Type>,
+    /// The type to implement the trait for.
     pub for_type: Box<Type>,
+    /// The static arguments to the trait.
     pub static_arguments: Option<Vec<Type>>,
+    /// The body of the implement.
     pub body: Option<Block>,
 }
 
@@ -240,8 +265,11 @@ pub struct Implement {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
+    /// The static arguments to the function.
     pub static_arguments: Vec<Parameter>,
+    /// The dynamic arguments to the function.
     pub dynamic_arguments: Vec<Parameter>,
+    /// The return type of the function.
     pub return_type: Option<Box<Type>>,
 }
 
@@ -260,8 +288,11 @@ pub struct FunctionSignature {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
+    /// The name of the function.
     pub name: Identifier,
+    /// The signature of the function.
     pub signature: FunctionSignature,
+    /// The body of the function.
     pub body: Option<Block>,
 }
 
@@ -278,7 +309,9 @@ pub struct Function {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Closure {
+    /// The signature of the closure.
     pub signature: FunctionSignature,
+    /// The body of the closure.
     pub body: Block,
 }
 
@@ -292,8 +325,11 @@ pub struct Closure {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
+    /// The name of the parameter.
     pub name: Identifier,
+    /// The type of the parameter.
     pub r#type: Type,
+    /// The default value of the parameter.
     pub default: Option<Expression>,
 }
 
@@ -308,7 +344,9 @@ pub struct Parameter {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Argument {
+    /// The name of the argument.
     pub name: Option<Identifier>,
+    /// The value of the argument.
     pub value: Expression,
 }
 
@@ -337,9 +375,12 @@ pub struct Argument {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StaticCall {
+    /// The path to the function to call.
     pub path: Path,
-    pub dynamic_arguments: Option<Vec<Argument>>,
+    /// The static arguments to the function `<Arg1, Arg2, ...>`.
     pub static_arguments: Option<Vec<Argument>>,
+    /// The dynamic arguments to the function `(arg1, arg2, ...)`.
+    pub dynamic_arguments: Option<Vec<Argument>>,
 }
 
 /// A DynamicCall is a call to a function at runtime.
@@ -354,9 +395,12 @@ pub struct StaticCall {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicCall {
+    /// The path to the function to call.
     pub path: Path,
-    pub dynamic_arguments: Option<Vec<Argument>>,
+    /// The static arguments to the function `<Arg1, Arg2, ...>`.
     pub static_arguments: Option<Vec<Argument>>,
+    /// The dynamic arguments to the function `(arg1, arg2, ...)`.
+    pub dynamic_arguments: Option<Vec<Argument>>,
 }
 
 /// A DynamicMethodCall is a call to an associated method at runtime.
@@ -370,10 +414,14 @@ pub struct DynamicCall {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicMethodCall {
+    /// The receiver of the method call.
     pub receiver: Box<Expression>,
+    /// The name of the method.
     pub name: Identifier,
-    pub dynamic_arguments: Vec<Argument>,
+    /// The static arguments to the method `<Arg1, Arg2, ...>`.
     pub static_arguments: Vec<Argument>,
+    /// The dynamic arguments to the method `(arg1, arg2, ...)`.
+    pub dynamic_arguments: Vec<Argument>,
 }
 
 /// An Statement is a top-level Statement that can appear in a module, type definition or function.
@@ -389,8 +437,8 @@ pub enum Statement {
     Const(Const),
     // Assignment
     Assign(Assign),
-    // Use declaration
-    Use(Use),
+    // Using declaration
+    Using(Using),
 }
 
 /// An Expression is a generic container for all possible expressions.
@@ -570,7 +618,7 @@ pub enum Type {
     /// Infer placeholder `_`
     Infer,
     /// Never `!`
-    Never,
+    Never(Option<Box<Type>>),
     /// Path to a type `MyModule.MyType`
     Path {
         path: Path,
