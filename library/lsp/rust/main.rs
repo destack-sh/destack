@@ -1,7 +1,7 @@
 use destack_library_lsp::doc::DocumentStore;
 use destack_library_lsp::server::Backend;
 
-use tower_lsp_server::{LspService, Server};
+use destack_library_lsp::vendor::{LspService, Server};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

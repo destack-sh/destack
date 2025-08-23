@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use tower_lsp_server::lsp_types::Uri;
+use crate::vendor::lsp_types::Uri;
 
 /// Thread-safe in-memory document store.
 #[derive(Debug, Default, Clone)]
