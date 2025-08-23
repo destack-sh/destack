@@ -7,31 +7,62 @@ enum RigidMotionMode {
     Dynamic = 3,
 }
 
-/// A solid simulated Body in 2D space
-@entity(Body2D)
-struct RigidBody2D {
-    /// The motion mode of the Body
-    mode: RigidMotionMode = RigidMotionMode.Dynamic,
+/// Kinematic properties for a 2D rigid body
+struct Kinematic2D {
     /// Linear velocity of the Body
     velocity: Vector2,
     /// Angular velocity of the Body
     angularVelocity: float32 = 0.0,
+    /// Linear damping of the Body
+    linearDamping: float32 = 0.0,
     /// Angular damping of the Body
     angularDamping: float32 = 0.0,
     /// Gravity scale of the Body
     gravityScale: float32 = 1.0,
-    /// Constant force applied to the Body
-    constantForce: Vector2,
-    /// Constant torque applied to the Body
-    constantTorque: float32 = 0.0,
+}
+
+/// Mass properties for a 2D rigid body
+struct Mass2D {
     /// Mass of the Body
     mass: float32 = 1.0,
     /// Center of mass of the Body
     centerOfMass: Optional<Vector2> = None,
     /// Inertia of the Body
     inertia: float32 = 0.0,
+}
+
+/// A solid simulated Body in 2D space
+@entity(Body2D)
+struct RigidBody2D {
+    /// The motion mode of the Body
+    mode: RigidMotionMode = RigidMotionMode.Dynamic,
+    
+    ...Kinematic2D,
+    ...Mass2D,
+}
+
+/// Kinematic properties for a 3D rigid body
+struct Kinematic3D {
+    /// Linear velocity of the Body
+    velocity: Vector3,
+    /// Angular velocity of the Body
+    angularVelocity: Vector3,
     /// Linear damping of the Body
     linearDamping: float32 = 0.0,
+    /// Angular damping of the Body
+    angularDamping: float32 = 0.0,
+    /// Gravity scale of the Body
+    gravityScale: float32 = 1.0,
+}
+
+/// Mass properties for a 3D rigid body
+struct Mass3D {
+    /// Mass of the Body
+    mass: float32 = 1.0,
+    /// Center of mass of the Body
+    centerOfMass: Optional<Vector3> = None,
+    /// Inertia of the Body
+    inertia: Vector3,
 }
 
 /// A solid simulated Body in 3D space
@@ -39,26 +70,9 @@ struct RigidBody2D {
 struct RigidBody3D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic,
-    /// Linear velocity of the Body
-    velocity: Vector3,
-    /// Angular velocity of the Body
-    angularVelocity: Vector3,
-    /// Angular damping of the Body
-    angularDamping: float32 = 0.0,
-    /// Gravity scale of the Body
-    gravityScale: float32 = 1.0,
-    /// Constant force applied to the Body
-    constantForce: Vector3,
-    /// Constant torque applied to the Body
-    constantTorque: Vector3,
-    /// Mass of the Body
-    mass: float32 = 1.0,
-    /// Center of mass of the Body
-    centerOfMass: Optional<Vector3> = None,
-    /// Inertia of the Body
-    inertia: Vector3,
-    /// Linear damping of the Body
-    linearDamping: float32 = 0.0,
+    
+    ...Kinematic3D,
+    ...Mass3D,
 }
 
 

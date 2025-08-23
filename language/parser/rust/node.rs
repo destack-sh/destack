@@ -486,7 +486,7 @@ pub enum ScalarLiteral {
 /// ```
 /// [1, 2, 3]
 /// [1.0f64, 2.0f64, 3.0f64]
-/// [0; 10]
+/// [0; 1g0]
 /// [false; 40]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -543,7 +543,7 @@ pub struct FieldLiteral {
     pub value: Option<Expression>,
 }
 
-/// An unresolved Type declaration.
+/// An (unresolved) Type declaration.
 ///
 /// Type references don't support static evaluation directly for simplicity.
 /// They can refer to Paths that are themselves any static Expressions
@@ -559,6 +559,7 @@ pub struct FieldLiteral {
 /// T<i32>
 /// MyEnum
 /// simulation.geometry.Vector2
+/// struct MyResponse { x: i32, y: i32 }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -581,6 +582,10 @@ pub enum Type {
     Slice { element: Box<Type> },
     /// Inline Function type.
     Function { signature: FunctionSignature },
+    /// Inline nominal Struct type.
+    Struct(Struct),
+    /// Inline nominal Union type.
+    Union(Union),
 }
 
 /// A Member is a member reference.
@@ -717,6 +722,7 @@ pub struct Let {
     pub name: Identifier,
     pub r#type: Type,
     pub value: Option<Box<Expression>>,
+    /// Whether the let is uninitialized with `---`.
     pub is_uninitialized: bool,
 }
 
@@ -737,8 +743,8 @@ pub struct Const {
 
 /// An If is an if/then/else statement.
 ///
-/// NOTE: `if (...) else if (...)` is just sugar
-///  (for `if (...) { ... } else { if (...) { ... } }`)
+/// NOTE: `if (...) else if (...)` is just sugar (like in every language)
+///  (it's really just `if (...) { ... } else { if (...) { ... } }`)
 ///
 /// Example:
 /// ```

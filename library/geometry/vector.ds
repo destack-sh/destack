@@ -1,7 +1,5 @@
 use destack.simulation;
 
-// trait Vector2?
-
 /// A 2-dimensional vector with float32 components.
 struct Vector2 {
     x: float32,
