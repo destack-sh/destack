@@ -1,5 +1,18 @@
-use crate::{Parser, Statement};
+use crate::{Block, ParseResult, Parser, Statement};
 
-impl Parser {
-    pub fn parse_statement(&mut self) {}
+impl<'a> Parser<'a> {
+    /// Parse a block of statements (without the `{` and `}`)
+    pub fn eat_block_content(&mut self) -> ParseResult<'a, Block> {
+        todo!()
+    }
+
+    /// Parse a statement (without the `;`).
+    pub fn eat_statement_content(&mut self) -> ParseResult<'a, Statement> {
+        todo!()
+    }
+
+    /// Parse a statement (with the `;`).
+    pub fn eat_statement(&mut self) -> ParseResult<'a, Statement> {
+        todo!()
+    }
 }

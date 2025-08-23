@@ -1,33 +1,24 @@
 use destack_language_lexer::SemanticToken;
 
+use crate::ParseError;
+
 /// A parser for the Destack Language.
 ///
 /// The Parser works on semantic undifferentiated Tokens (keywords are contextual).
 /// Whitespace and regular line comments are ignored.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Parser {
+pub struct Parser<'a> {
     /// The tokens to parse.
-    tokens: Vec<SemanticToken>,
+    pub(crate) tokens: &'a [SemanticToken],
     /// The current position in the tokens.
-    pos: u32,
-    /// Previous position to restore to for speculative parsing.
-    last_good_pos: u32,
+    pub(crate) pos: usize,
 }
 
-impl Parser {
-    pub fn new(tokens: impl IntoIterator<Item = SemanticToken>) -> Self {
-        Self {
-            tokens: tokens.into_iter().collect(),
-            pos: 0,
-            last_good_pos: 0,
-        }
-    }
+/// A result of a parse operation.
+pub type ParseResult<'a, T> = Result<T, ParseError>;
 
-    pub fn from_vec(tokens: Vec<SemanticToken>) -> Self {
-        Self {
-            tokens,
-            pos: 0,
-            last_good_pos: 0,
-        }
+impl<'a> Parser<'a> {
+    pub fn new(tokens: &'a [SemanticToken]) -> Self {
+        Self { tokens, pos: 0 }
     }
 }

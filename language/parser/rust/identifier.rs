@@ -2,4 +2,4 @@ use crate::Parser;
 
 pub type Identifier = String;
 
-impl Parser {}
+impl<'a> Parser<'a> {}
