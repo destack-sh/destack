@@ -7,13 +7,13 @@
   "workspaces": {
     "packages": [
       "client/destack_ts",
-      "ext/vscode",
+      "extensions/vscode",
       "library/web"
     ]
   },
   "scripts": {
-    "vscode:compile": "cd ext/vscode && bun run compile",
-    "vscode:watch": "cd ext/vscode && bun run watch"
+    "vscode:compile": "cd extensions/vscode && bun run compile",
+    "vscode:watch": "cd extensions/vscode && bun run watch"
   },
   "catalog": {
     "temporal-polyfill": "^0.3.0"

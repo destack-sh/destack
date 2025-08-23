@@ -1,0 +1,6 @@
+
+
+/// Panics with a message.
+/// It is used to panic the program.
+@intrinsic
+public @panic(message: string);

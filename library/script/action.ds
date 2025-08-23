@@ -9,7 +9,7 @@ struct ActionDefinition {
     /// The output Message type.
     outputMessageType: Optional<StructType>,
     /// The Event types this Action may emit.
-    emitsEventTypes: Optional<NodeType[]>,
+    emitsEventTypes: Optional<List<NodeType>>,
 }
 
 /// An implementation of a unit of work implemented for some runtimes.
