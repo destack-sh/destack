@@ -3,6 +3,7 @@ public trait Context;
 
 /// Default context.
 public struct DefaultContext {
+    public defaultAllocator: Allocator,
     public allocator: Allocator,
     // logger, tracer, stack trace, ...
     // time, location, ... (maybe put that into library)

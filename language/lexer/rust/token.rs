@@ -91,14 +91,6 @@ pub enum TokenType {
     Dollar,
     /// `!`
     Bang,
-    /// `<`
-    LessThan,
-    /// `<<`
-    ShiftLeft,
-    /// `>`
-    GreaterThan,
-    /// `>>`
-    ShiftRight,
     /// `-`
     Subtract,
     /// '---',
@@ -121,6 +113,23 @@ pub enum TokenType {
     Caret,
     /// `%`
     Percent,
+
+    /// `==`
+    Equal,
+    /// `!=`
+    NotEqual,
+    /// `<`
+    LessThan,
+    /// `<<`
+    ShiftLeft,
+    /// `>`
+    GreaterThan,
+    /// `>>`
+    ShiftRight,
+    /// `>=`
+    GreaterThanEqual,
+    /// `<=`
+    LessThanEqual,
 
     /// `=`
     Assign,

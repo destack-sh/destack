@@ -21,9 +21,7 @@ implement Context for TetrisGame {
 }
 
 @entity 
-struct TetrisBoard<Width: int32, Height: int32> 
- using TetrisComponent
- {
+struct TetrisBoard<Width: int32, Height: int32> using TetrisComponent {
     /// The grid of the board.
     grid: TetrisPiece[Width, Height],
 }

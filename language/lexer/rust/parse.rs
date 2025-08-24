@@ -176,10 +176,10 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // one or multi-symbol tokens
+            // one or multi-symbol tokens (ordered to mirror TokenType groups)
+            ':' => TokenType::Colon,
             ';' => TokenType::Semicolon,
             ',' => TokenType::Comma,
-            ':' => TokenType::Colon,
             '.' => {
                 if self.peek_next() == '.' && self.peek_next_next() == '.' {
                     self.bump();
@@ -203,39 +203,14 @@ impl Tokenizer<'_> {
             '~' => TokenType::Tilde,
             '?' => TokenType::Question,
             '$' => TokenType::Dollar,
-            '=' => {
-                if self.peek_next() == '>' {
+
+            // operators & punctuation cluster (non-comparison), mirroring TokenType grouping
+            '!' => {
+                if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::Arrow
+                    TokenType::NotEqual
                 } else {
-                    TokenType::Assign
-                }
-            }
-            '!' => TokenType::Bang,
-            '<' => {
-                if self.peek_next() == '<' {
-                    self.bump();
-                    if self.peek_next() == '=' {
-                        self.bump();
-                        TokenType::ShiftLeftAssign
-                    } else {
-                        TokenType::ShiftLeft
-                    }
-                } else {
-                    TokenType::LessThan
-                }
-            }
-            '>' => {
-                if self.peek_next() == '>' {
-                    self.bump();
-                    if self.peek_next() == '=' {
-                        self.bump();
-                        TokenType::ShiftRightAssign
-                    } else {
-                        TokenType::ShiftRight
-                    }
-                } else {
-                    TokenType::GreaterThan
+                    TokenType::Bang
                 }
             }
             '-' => {
@@ -305,6 +280,51 @@ impl Tokenizer<'_> {
                     TokenType::RemainderAssign
                 } else {
                     TokenType::Percent
+                }
+            }
+
+            // comparisons & shifts cluster, mirroring TokenType order
+            '=' => {
+                if self.peek_next() == '>' {
+                    self.bump();
+                    TokenType::Arrow
+                } else if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::Equal
+                } else {
+                    TokenType::Assign
+                }
+            }
+            '<' => {
+                if self.peek_next() == '<' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::ShiftLeftAssign
+                    } else {
+                        TokenType::ShiftLeft
+                    }
+                } else if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::LessThanEqual
+                } else {
+                    TokenType::LessThan
+                }
+            }
+            '>' => {
+                if self.peek_next() == '>' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::ShiftRightAssign
+                    } else {
+                        TokenType::ShiftRight
+                    }
+                } else if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::GreaterThanEqual
+                } else {
+                    TokenType::GreaterThan
                 }
             }
 

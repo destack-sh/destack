@@ -80,7 +80,7 @@ pub struct Using {
     /// The alias to use for the entire item (like `baz` in `using foo as baz;`)
     pub alias: Option<Identifier>,
     /// The sub-items to use from the item (like `{baz, qux}` in `using foo.bar.{baz, qux};`)
-    pub items: Option<Vec<UsingItem>>,
+    pub items: Option<Vec<UsingItem>> = None,
 }
 
 /// A UsingItem is an item to use from a definition.
@@ -282,12 +282,14 @@ pub struct Implement {
 }
 
 /// A FunctionSignature is the type of a function definition or closure.
+/// Function signatures may omit the tuple parentheses `()`  in return type.
 ///
 /// Example:
 /// ```
 /// ()
 /// (x: int32)
-/// (x: int32) => (int32, boolean)
+/// (x: int32) => bool
+/// (x: int32) => int32, boolean
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
@@ -307,8 +309,12 @@ pub struct FunctionSignature {
 /// functionn foo() {
 ///    @print("Hello, world!");
 /// }
+/// 
+/// function baz() => MyStruct {
+///    ...
+/// }
 ///
-/// function baz() => (int32, boolean) {
+/// function baz() => int32, boolean {
 ///    ...
 /// }
 /// ```
@@ -505,6 +511,8 @@ pub enum Expression {
 
     /// Expression form of Let for condition / guard positions.
     Let(Let),
+    /// Casting.
+    Cast(Cast),
     /// If/then/else expression.
     If(If),
     /// While loop.
@@ -804,12 +812,13 @@ pub struct Block {
 /// ```
 /// let x = 1;
 /// let x: i32 = 1;
-/// let y: f64[3] = ---;
+/// let x: int32; // implicitly uninitialized, must be set before use
+/// let y: f64[3] = ---; // explicitly uninitialized, can do whatever
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
     pub name: Identifier,
-    pub r#type: Type,
+    pub r#type: Option<Box<Type>>,
     pub value: Option<Box<Expression>>,
     /// Whether the let is uninitialized with `---`.
     pub is_uninitialized: bool,
@@ -828,6 +837,19 @@ pub struct Const {
     pub name: Identifier,
     pub r#type: Type,
     pub value: Expression,
+}
+
+/// A Cast is a cast expression.
+///
+/// Example:
+/// ```
+/// cast(int32) 1
+/// cast(f64) 1.0
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Cast {
+    pub r#type: Type,
+    pub value: Box<Expression>,
 }
 
 /// An If is an if/then/else statement.
@@ -1028,7 +1050,7 @@ pub struct MatchCase {
 ///
 /// Example:
 /// ```
-/// try fileOperation(); // implicitly unwraps the Result
+/// try fileOperation(); // implicitly unwraps the Result, returns Error case
 ///
 /// try { // implicitly unwraps all Results inside
 ///     let a = riskyOperationA(); // a is Result.Ok(_) from riskyOperationA
@@ -1037,7 +1059,7 @@ pub struct MatchCase {
 ///
 /// try { // explicitly unwraps all Results inside
 ///     ...
-/// } catch { // match all errors
+/// } catch e { // match all errors
 ///     NumericError(x) => Error(@format("bad number: {x}"))
 ///     FormatError => Error(@format("bad format"))
 ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)

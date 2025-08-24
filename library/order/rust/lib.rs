@@ -4,7 +4,8 @@
 //! as a virtual padding symbol during midpoint computation. Lexicographic byte
 //! order (`Ord` for `[u8]`) is the secondary order after the head.
 
-use std::fmt;
+use std::error::Error;
+use std::fmt::{self, Debug, Display};
 use std::hash::{Hash, Hasher};
 
 pub const ORDER_HEAD_INLINE_LENGTH: usize = 4;
@@ -27,7 +28,7 @@ pub enum OrderError {
     InvalidComparison { a: String, b: String },
 }
 
-impl fmt::Display for OrderError {
+impl Display for OrderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             OrderError::InvalidByteZero => write!(f, "order tail contains disallowed 0x00 byte"),
@@ -36,9 +37,9 @@ impl fmt::Display for OrderError {
     }
 }
 
-impl std::error::Error for OrderError {}
+impl Error for OrderError {}
 
-impl fmt::Debug for Order {
+impl Debug for Order {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Order")
             .field("head", &self.head())
