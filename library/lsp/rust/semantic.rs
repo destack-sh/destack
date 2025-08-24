@@ -143,17 +143,15 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
     // legend indices must match `initialize` legend order
     let ty_index = match kind {
+        // comments
         K::LineComment | K::DocComment => 0, // COMMENT
 
         // identifiers
-        K::Identifier | K::InvalidIdentifier => 6,
-
-        K::UnknownLiteralPrefix => 6,
+        K::Identifier | K::InvalidIdentifier | K::UnknownLiteralPrefix => 6,
 
         // literals
         K::Literal { r#type, .. } => match r#type {
             LiteralTokenType::Integer { .. } | LiteralTokenType::Float { .. } => 3, // NUMBER
-
             LiteralTokenType::Character { .. }
             | LiteralTokenType::Byte { .. }
             | LiteralTokenType::String { .. }
@@ -162,8 +160,9 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
             | LiteralTokenType::RawByteString { .. } => 2, // STRING
         },
 
-        // punctuation - use FUNCTION color to differentiate from operators
-        K::Semicolon
+        // punctuation (use FUNCTION color)
+        K::Colon
+        | K::Semicolon
         | K::Comma
         | K::Dot
         | K::Range
@@ -178,39 +177,42 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Pound
         | K::Tilde
         | K::Question
-        | K::Dollar => 5, // FUNCTION color to differentiate
+        | K::Dollar => 5,
 
         // operators
-        K::Colon
+        K::Bang
+        | K::Subtract
+        | K::Empty
+        | K::BitwiseAnd
+        | K::LogicalAnd
+        | K::BitwiseOr
+        | K::LogicalOr
+        | K::Add
+        | K::Multiply
+        | K::Divide
+        | K::Caret
+        | K::Percent
+        | K::Equal
+        | K::NotEqual
+        | K::LessThan
+        | K::ShiftLeft
+        | K::GreaterThan
+        | K::ShiftRight
+        | K::GreaterThanEqual
+        | K::LessThanEqual
         | K::Assign
         | K::Arrow
         | K::BadArrow
-        | K::Add
         | K::AddAssign
-        | K::Subtract
         | K::SubtractAssign
-        | K::Multiply
         | K::MultiplyAssign
-        | K::Divide
         | K::DivideAssign
-        | K::Percent
         | K::RemainderAssign
-        | K::Caret
         | K::ExponentAssign
-        | K::BitwiseAnd
-        | K::LogicalAnd
         | K::BitwiseAndAssign
-        | K::BitwiseOr
-        | K::LogicalOr
         | K::BitwiseOrAssign
-        | K::Bang
-        | K::LessThan
-        | K::ShiftLeft
         | K::ShiftLeftAssign
-        | K::GreaterThan
-        | K::ShiftRight
-        | K::ShiftRightAssign
-        | K::Empty => 4, // OPERATOR
+        | K::ShiftRightAssign => 4, // OPERATOR
 
         // skip these token types
         K::Whitespace | K::Unknown | K::EndOfInput => return None,

@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
     /// Eat a keyword.
     pub fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<'a, ()> {
         let Some(current) = self.tokens.get(self.pos) else {
-            return Err(ParseError::UnexpectedToken(SemanticToken {
+            return Err(ParseError::SyntaxError(SemanticToken {
                 token: Token {
                     r#type: TokenType::EndOfInput,
                     len: 0,
@@ -74,8 +74,13 @@ impl<'a> Parser<'a> {
             self.pos = self.pos.saturating_add(1);
             Ok(())
         } else {
-            Err(ParseError::UnexpectedToken(*current))
+            Err(ParseError::SyntaxError(*current))
         }
+    }
+
+    /// Peek a keyword.
+    pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<'a, ()> {
+        todo!()
     }
 }
 

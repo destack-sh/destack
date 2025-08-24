@@ -1,5 +1,104 @@
 use super::token::{Token, TokenType};
 
+impl Token {
+    /// Renders this token back to its string representation.
+    #[inline]
+    pub fn render(&self, source: &str, offset: usize) -> String {
+        let len = self.len as usize;
+        match self.r#type {
+            TokenType::Whitespace => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+            TokenType::LineComment => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+            TokenType::Unknown => {
+                // emit original slice for unknown tokens to preserve them
+                source[offset..offset + len].to_string()
+            }
+            TokenType::EndOfInput => String::new(),
+
+            TokenType::DocComment => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+            TokenType::Identifier => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+            TokenType::InvalidIdentifier => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+            TokenType::UnknownLiteralPrefix => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+            TokenType::Literal { .. } => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+
+            TokenType::Colon => ":".to_string(),
+            TokenType::Semicolon => ";".to_string(),
+            TokenType::Comma => ",".to_string(),
+            TokenType::Dot => ".".to_string(),
+            TokenType::Range => "..".to_string(),
+            TokenType::Ellipsis => "...".to_string(),
+
+            TokenType::OpenParenthesis => "(".to_string(),
+            TokenType::CloseParenthesis => ")".to_string(),
+            TokenType::OpenBrace => "{".to_string(),
+            TokenType::CloseBrace => "}".to_string(),
+            TokenType::OpenBracket => "[".to_string(),
+            TokenType::CloseBracket => "]".to_string(),
+
+            TokenType::At => "@".to_string(),
+            TokenType::Pound => "#".to_string(),
+            TokenType::Tilde => "~".to_string(),
+            TokenType::Question => "?".to_string(),
+            TokenType::Dollar => "$".to_string(),
+            TokenType::Bang => "!".to_string(),
+            TokenType::Subtract => "-".to_string(),
+            TokenType::Empty => "---".to_string(),
+            TokenType::BitwiseAnd => "&".to_string(),
+            TokenType::LogicalAnd => "&&".to_string(),
+            TokenType::BitwiseOr => "|".to_string(),
+            TokenType::LogicalOr => "||".to_string(),
+            TokenType::Add => "+".to_string(),
+            TokenType::Multiply => "*".to_string(),
+            TokenType::Divide => "/".to_string(),
+            TokenType::Caret => "^".to_string(),
+            TokenType::Percent => "%".to_string(),
+
+            TokenType::Equal => "==".to_string(),
+            TokenType::NotEqual => "!=".to_string(),
+            TokenType::LessThan => "<".to_string(),
+            TokenType::ShiftLeft => "<<".to_string(),
+            TokenType::GreaterThan => ">".to_string(),
+            TokenType::ShiftRight => ">>".to_string(),
+            TokenType::GreaterThanEqual => ">=".to_string(),
+            TokenType::LessThanEqual => "<=".to_string(),
+
+            TokenType::Assign => "=".to_string(),
+            TokenType::Arrow => "=>".to_string(),
+            TokenType::BadArrow => "->".to_string(),
+            TokenType::AddAssign => "+=".to_string(),
+            TokenType::SubtractAssign => "-=".to_string(),
+            TokenType::MultiplyAssign => "*=".to_string(),
+            TokenType::DivideAssign => "/=".to_string(),
+            TokenType::RemainderAssign => "%=".to_string(),
+            TokenType::ExponentAssign => "^=".to_string(),
+            TokenType::BitwiseAndAssign => "&=".to_string(),
+            TokenType::BitwiseOrAssign => "|=".to_string(),
+            TokenType::ShiftLeftAssign => "<<=".to_string(),
+            TokenType::ShiftRightAssign => ">>=".to_string(),
+        }
+    }
+}
+
 /// Renders a token stream back to a string.
 /// The objective is perfect roundtripping.
 pub fn render_tokens(tokens: &[Token], source: &str) -> String {
@@ -7,91 +106,7 @@ pub fn render_tokens(tokens: &[Token], source: &str) -> String {
     let mut offset: usize = 0;
     for tok in tokens {
         let len = tok.len as usize;
-        match tok.r#type {
-            TokenType::Whitespace => {
-                // emit original slice for lexemes where we don't want to reformat
-                out.push_str(&source[offset..offset + len]);
-            }
-            TokenType::LineComment => {
-                // emit original slice for lexemes where we don't want to reformat
-                out.push_str(&source[offset..offset + len]);
-            }
-            TokenType::Unknown => {
-                // emit original slice for unknown tokens to preserve them
-                out.push_str(&source[offset..offset + len]);
-            }
-            TokenType::EndOfInput => {}
-
-            TokenType::DocComment => {
-                // emit original slice for lexemes where we don't want to reformat
-                out.push_str(&source[offset..offset + len]);
-            }
-            TokenType::Identifier => {
-                // emit original slice for lexemes where we don't want to reformat
-                out.push_str(&source[offset..offset + len]);
-            }
-            TokenType::InvalidIdentifier => {
-                // emit original slice for lexemes where we don't want to reformat
-                out.push_str(&source[offset..offset + len]);
-            }
-            TokenType::UnknownLiteralPrefix => {
-                // emit original slice for lexemes where we don't want to reformat
-                out.push_str(&source[offset..offset + len]);
-            }
-            TokenType::Literal { .. } => {
-                // emit original slice for lexemes where we don't want to reformat
-                out.push_str(&source[offset..offset + len]);
-            }
-
-            TokenType::Colon => out.push(':'),
-            TokenType::Semicolon => out.push(';'),
-            TokenType::Comma => out.push(','),
-            TokenType::Dot => out.push('.'),
-            TokenType::Range => out.push_str(".."),
-            TokenType::Ellipsis => out.push_str("..."),
-
-            TokenType::OpenParenthesis => out.push('('),
-            TokenType::CloseParenthesis => out.push(')'),
-            TokenType::OpenBrace => out.push('{'),
-            TokenType::CloseBrace => out.push('}'),
-            TokenType::OpenBracket => out.push('['),
-            TokenType::CloseBracket => out.push(']'),
-
-            TokenType::At => out.push('@'),
-            TokenType::Pound => out.push('#'),
-            TokenType::Tilde => out.push('~'),
-            TokenType::Question => out.push('?'),
-            TokenType::Dollar => out.push('$'),
-            TokenType::Bang => out.push('!'),
-            TokenType::LessThan => out.push('<'),
-            TokenType::ShiftLeft => out.push_str("<<"),
-            TokenType::ShiftLeftAssign => out.push_str("<<="),
-            TokenType::GreaterThan => out.push('>'),
-            TokenType::ShiftRight => out.push_str(">>"),
-            TokenType::ShiftRightAssign => out.push_str(">>="),
-            TokenType::Assign => out.push('='),
-            TokenType::Arrow => out.push_str("=>"),
-            TokenType::BadArrow => out.push_str("->"),
-            TokenType::Add => out.push('+'),
-            TokenType::AddAssign => out.push_str("+="),
-            TokenType::Subtract => out.push('-'),
-            TokenType::SubtractAssign => out.push_str("-="),
-            TokenType::Multiply => out.push('*'),
-            TokenType::MultiplyAssign => out.push_str("*="),
-            TokenType::Divide => out.push('/'),
-            TokenType::DivideAssign => out.push_str("/="),
-            TokenType::Percent => out.push('%'),
-            TokenType::RemainderAssign => out.push_str("%="),
-            TokenType::Caret => out.push('^'),
-            TokenType::ExponentAssign => out.push_str("^="),
-            TokenType::BitwiseAnd => out.push('&'),
-            TokenType::LogicalAnd => out.push_str("&&"),
-            TokenType::BitwiseAndAssign => out.push_str("&="),
-            TokenType::BitwiseOr => out.push('|'),
-            TokenType::LogicalOr => out.push_str("||"),
-            TokenType::BitwiseOrAssign => out.push_str("|="),
-            TokenType::Empty => out.push_str("---"),
-        }
+        out.push_str(&tok.render(source, offset));
         offset += len;
     }
     out
