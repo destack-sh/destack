@@ -71,6 +71,7 @@ pub struct Module {
 /// using foo;
 /// using foo.bar;
 /// using foo.{bar, baz};
+/// using.foo.{}; // valid but linted
 /// using foo as baz;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -170,12 +171,12 @@ pub struct StructField {
 ///     B,
 ///     C,
 /// }
-/// 
+///
 /// enum(u8) Foo {
 ///     Baz = 1,
 ///     Qux = 2,
 /// }
-/// 
+///
 /// union Foo {
 ///     A,
 ///     B { x: int32, y: int32 } = 4,
@@ -309,7 +310,7 @@ pub struct FunctionSignature {
 /// functionn foo() {
 ///    @print("Hello, world!");
 /// }
-/// 
+///
 /// function baz() => MyStruct {
 ///    ...
 /// }

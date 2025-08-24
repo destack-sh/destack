@@ -1,4 +1,4 @@
-use destack_language_lexer::{SemanticToken, Span, Token, TokenType};
+use destack_language_lexer::{TokenSpan, TokenType};
 
 use crate::{ParseError, ParseResult, Parser};
 
@@ -25,6 +25,8 @@ pub enum Keyword {
     Using,
     /// Alias or cast an item in this context.
     As,
+    /// Where clause.
+    Where,
     /// Define a constant.
     Const,
     /// Define a variable.
@@ -57,36 +59,61 @@ pub enum Keyword {
     Catch,
 }
 
+impl Keyword {
+    #[inline]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Keyword::Public => "public",
+            Keyword::Module => "module",
+            Keyword::Struct => "struct",
+            Keyword::Enum => "enum",
+            Keyword::Union => "union",
+            Keyword::Trait => "trait",
+            Keyword::Function => "function",
+            Keyword::Implement => "implement",
+            Keyword::Using => "using",
+            Keyword::As => "as",
+            Keyword::Where => "where",
+            Keyword::Const => "const",
+            Keyword::Let => "let",
+            Keyword::If => "if",
+            Keyword::Else => "else",
+            Keyword::While => "while",
+            Keyword::For => "for",
+            Keyword::In => "in",
+            Keyword::Loop => "loop",
+            Keyword::Break => "break",
+            Keyword::Continue => "continue",
+            Keyword::Defer => "defer",
+            Keyword::Return => "return",
+            Keyword::Match => "match",
+            Keyword::Try => "try",
+            Keyword::Catch => "catch",
+        }
+    }
+}
+
 impl<'a> Parser<'a> {
     /// Eat a keyword.
-    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<'a, ()> {
-        let Some(current) = self.tokens.get(self.pos) else {
-            return Err(ParseError::SyntaxError(SemanticToken {
-                token: Token {
-                    r#type: TokenType::EndOfInput,
-                    len: 0,
-                },
-                span: Span::default(),
-            }));
-        };
-
-        if current.token.r#type == TokenType::Identifier {
-            self.pos = self.pos.saturating_add(1);
-            Ok(())
-        } else {
-            Err(ParseError::SyntaxError(*current))
-        }
+    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+        self.peek_keyword(keyword)?;
+        self.eat_token_type(TokenType::Identifier)
     }
 
     /// Peek a keyword.
-    pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<'a, ()> {
-        todo!()
+    pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+        let current = self.peek_token_type(TokenType::Identifier)?;
+        if self.get_span_str(current.span) != keyword.as_str() {
+            Err(ParseError::UnexpectedToken(current.span))
+        } else {
+            Ok(current)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use destack_language_lexer::tokenize_semantic;
+    use destack_language_lexer::{SourceFile, tokenize_semantic};
 
     use crate::{Keyword, Parser};
 
@@ -94,7 +121,10 @@ mod tests {
     fn test_keyword() {
         let input = "public";
         let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(&tokens);
-        parser.eat_keyword(Keyword::Public).unwrap();
+        let parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let result = parser.peek_keyword(Keyword::Public);
+        assert!(result.is_ok());
+        let result = parser.peek_keyword(Keyword::Module);
+        assert!(result.is_err());
     }
 }

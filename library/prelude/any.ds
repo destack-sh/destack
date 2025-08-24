@@ -1,0 +1,5 @@
+/// A type-erased value.
+public struct Any<T = Box> {
+    public type: Type,
+    public value: T,
+}

@@ -1,6 +1,6 @@
 //! Low-level general purpose DS lexer (adapted from rustc).
 
-use crate::{SemanticToken, Span, is_id_continue, is_id_start, is_whitespace};
+use crate::{Span, TokenSpan, is_id_continue, is_id_start, is_whitespace};
 
 use super::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
 use super::tokenizer::{EOF_CHAR, Tokenizer};
@@ -11,7 +11,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     let mut cursor = Tokenizer::new(input);
     std::iter::from_fn(move || {
         let token = cursor.advance_token();
-        if token.r#type != TokenType::EndOfInput {
+        if token.r#type != TokenType::End {
             Some(token)
         } else {
             None
@@ -22,18 +22,18 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
 /// Tokenize the input string into an Iterator of semantic Tokens and Spans.
 /// Ignore non-semantic Tokens (Whitespace, LineComments).
 /// NOTE: DocComments: are considered semantic.
-pub fn tokenize_semantic(input: &str) -> Vec<SemanticToken> {
+pub fn tokenize_semantic(input: &str) -> Vec<TokenSpan> {
     let mut cursor = Tokenizer::new(input);
-    let mut tokens: Vec<SemanticToken> = Vec::new();
+    let mut tokens: Vec<TokenSpan> = Vec::new();
     let mut pos = 0;
     while !cursor.is_eof() {
         let token = cursor.advance_token();
-        if token.r#type != TokenType::EndOfInput
+        if token.r#type != TokenType::End
             && token.r#type != TokenType::Whitespace
             && token.r#type != TokenType::LineComment
         {
             let end = pos + token.len;
-            tokens.push(SemanticToken {
+            tokens.push(TokenSpan {
                 token,
                 span: Span { start: pos, end },
             });
@@ -50,7 +50,7 @@ impl Tokenizer<'_> {
         // eat first character until nothing is left (=EOF)
         let Some(first_char) = self.bump() else {
             // EOF is also a Token
-            return Token::new(TokenType::EndOfInput, 0);
+            return Token::new(TokenType::End, 0);
         };
 
         // parse token

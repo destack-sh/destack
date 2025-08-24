@@ -2,8 +2,6 @@ use std::fmt::Display;
 
 pub use destack_library_unicode::UNICODE_VERSION;
 
-// TODO: define Token/TokenType/... in Destack
-
 /// A parsed Token.
 /// It doesn't contain information about data that has been parsed,
 /// only the type of the token and its size.
@@ -22,8 +20,15 @@ impl Display for Token {
 }
 
 impl Token {
-    pub(crate) fn new(r#type: TokenType, len: u32) -> Token {
+    pub const fn new(r#type: TokenType, len: u32) -> Token {
         Token { r#type, len }
+    }
+
+    pub const fn eof() -> Token {
+        Token {
+            r#type: TokenType::End,
+            len: 0,
+        }
     }
 }
 
@@ -37,7 +42,7 @@ pub enum TokenType {
     /// Unknown/Unexpected (e.g., '№')
     Unknown,
     /// End of sequence (e.g., end of source file)
-    EndOfInput,
+    End,
 
     /// A doc line comment with exactly three slashes, e.g. `/// doc comment`. or `///`
     DocComment,
