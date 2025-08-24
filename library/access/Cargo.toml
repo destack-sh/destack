@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_access"
-description = "Destack Standard Library Access"
+description = "Destack Library Access"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

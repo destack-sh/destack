@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_unicode"
-description = "Destack Standard Library Unicode"
+description = "Destack Library Unicode"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

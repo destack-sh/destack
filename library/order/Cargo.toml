@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_order"
-description = "Destack Standard Library Order"
+description = "Destack Library Order"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

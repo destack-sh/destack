@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_time"
-description = "Destack Standard Library Time"
+description = "Destack Library Time"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

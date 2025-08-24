@@ -23,6 +23,7 @@ members = [
 	"library/json",
 	"library/localization",
 	"library/lsp",
+	"library/network",
 	"library/observability",
 	"library/order",
 	"library/perception",
@@ -80,6 +81,7 @@ destack_library_image = { path = "library/image" }
 destack_library_json = { path = "library/json" }
 destack_library_localization = { path = "library/localization" }
 destack_library_lsp = { path = "library/lsp" }
+destack_library_network = { path = "library/network" }
 destack_library_observability = { path = "library/observability" }
 destack_library_order = { path = "library/order" }
 destack_library_perception = { path = "library/perception" }

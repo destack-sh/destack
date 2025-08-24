@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_filesystem"
-description = "Destack Standard Library Filesystem"
+description = "Destack Library Filesystem"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

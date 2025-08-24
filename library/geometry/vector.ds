@@ -120,48 +120,41 @@ implement Vector2 {
     }
 }
 
-implement Add<float32> for Vector2 {
+implement Numeric<float32> for Vector2 {
     function add(self, other: float32) => Vector2 {
         Vector2 { x: self.x + other, y: self.y + other }
     }
-}
 
-implement Add<Vector2> for Vector2 {
-    function add(self, other: Vector2) => Vector2 {
-        Vector2 { x: self.x + other.x, y: self.y + other.y }
-    }
-}
-
-implement Subtract<float32> for Vector2 {
     function subtract(self, other: float32) => Vector2 {
         Vector2 { x: self.x - other, y: self.y - other }
     }
-}
 
-implement Subtract<Vector2> for Vector2 {
-    function subtract(self, other: Vector2) => Vector2 {
-        Vector2 { x: self.x - other.x, y: self.y - other.y }
-    }
-}
-
-implement Multiply<float32> for Vector2 {
     function multiply(self, other: float32) => Vector2 {
         Vector2 { x: self.x * other, y: self.y * other }
     }
-}
 
-implement Multiply<Vector2> for Vector2 {
-    function multiply(self, other: Vector2) => Vector2 {
-        Vector2 { x: self.x * other.x, y: self.y * other.y }
-    }
-}
-
-implement Divide<float32> for Vector2 {
     function divide(self, other: float32) => Vector2 {
         Vector2 { x: self.x / other, y: self.y / other }
     }
 }
 
+implement Numeric<Vector2> for Vector2 {
+    function add(self, other: Vector2) => Vector2 {
+        Vector2 { x: self.x + other.x, y: self.y + other.y }
+    }
+
+    function subtract(self, other: Vector2) => Vector2 {
+        Vector2 { x: self.x - other.x, y: self.y - other.y }
+    }
+
+    function multiply(self, other: Vector2) => Vector2 {
+        Vector2 { x: self.x * other.x, y: self.y * other.y }
+    }
+
+    function divide(self, other: Vector2) => Vector2 {
+        Vector2 { x: self.x / other.x, y: self.y / other.y }
+    }
+}
 
 /// A 3-dimensional vector with float32 components.
 struct Vector3 {

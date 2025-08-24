@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_script"
-description = "Destack Standard Library Script"
+description = "Destack Library Script"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

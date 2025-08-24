@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_image"
-description = "Destack Standard Library Image"
+description = "Destack Library Image"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

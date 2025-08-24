@@ -5,27 +5,55 @@ use crate::{ParseError, ParseResult, Parser};
 /// A contextual keyword.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
+    /// Mark the following item as public (with optional qualifier)
     Public,
+    /// Define a Module.
     Module,
+    /// Define a Struct.
     Struct,
+    /// Define an Enum.
     Enum,
+    /// Define a Union.
     Union,
+    /// Define a Trait.
     Trait,
+    /// Define a Function.
     Function,
+    /// Implement a Trait.
     Implement,
+    /// Use an item in this context (like importing items from a module).
     Using,
+    /// Alias or cast an item in this context.
+    As,
+    /// Define a constant.
     Const,
+    /// Define a variable.
     Let,
+    /// Conditional expression.
     If,
+    /// Conditional expression.
     Else,
+    /// Loop expression.
     While,
+    /// Loop expression.
     For,
+    /// Loop expression.
+    In,
+    /// Loop expression.
     Loop,
+    /// Break expression.
     Break,
+    /// Continue expression.
     Continue,
+    /// Defer expression.
+    Defer,
+    /// Return expression.
     Return,
+    /// Match expression.
     Match,
+    /// Try expression.
     Try,
+    /// Catch expression.
     Catch,
 }
 

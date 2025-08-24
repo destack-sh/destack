@@ -449,25 +449,27 @@ pub enum Expression {
 
     /// Expression form of Let for condition / guard positions.
     Let(Let),
-    /// If/then/else statement.
+    /// If/then/else expression.
     If(If),
     /// While loop.
     While(While),
     /// For loop.
     For(For),
-    /// Loop statement.
+    /// Loop expression.
     Loop(Loop),
-    /// Break statement.
+    /// Break expression.
     Break(Break),
-    /// Continue statement.
+    /// Continue expression.
     Continue(Continue),
-    /// Return statement.
+    /// Defer expression.
+    Defer(Defer),
+    /// Return expression.
     Return(Return),
-    /// Match statement.
+    /// Match expression.
     Match(Match),
-    /// Try/catch statement.
+    /// Try/catch expression.
     Try(Try),
-    /// Block statement.
+    /// Block expression.
     Block(Block),
 
     /// Tuple definition
@@ -811,7 +813,11 @@ pub struct While {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct For {
+    /// The pattern to match the iterator against.
+    pub pattern: Pattern,
+    /// The iterator to iterate over.
     pub iterator: Box<Expression>,
+    /// The body of the for loop.
     pub body: Block,
 }
 
@@ -848,6 +854,22 @@ pub struct Break {}
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Continue {}
+
+/// A Defer is a defer statement.
+///
+/// Example:
+/// ```
+/// defer someFunction();
+///
+/// defer {
+///     someFunction();
+///     someOtherFunction();
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Defer {
+    pub body: Box<Expression>,
+}
 
 /// A Return is a return statement.
 ///
