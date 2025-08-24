@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_tokei"
-description = "Destack Standard Library Tokei"
+description = "Destack Library Tokei"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

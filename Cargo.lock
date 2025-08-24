@@ -504,6 +504,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_library_network"
+version = "2025.8.22-5"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "destack_library_observability"
 version = "2025.8.22-5"
 dependencies = [

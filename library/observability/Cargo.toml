@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_observability"
-description = "Destack Standard Library Observability"
+description = "Destack Library Observability"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

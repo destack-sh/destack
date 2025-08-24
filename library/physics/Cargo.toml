@@ -1,6 +1,6 @@
 [package]
 name = "destack_library_physics"
-description = "Destack Standard Library Physics"
+description = "Destack Library Physics"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
