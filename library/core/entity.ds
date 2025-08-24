@@ -3,37 +3,39 @@ using destack;
 /// The materialization level of an Entity.
 enum(uint8) Materialization {
     /// The Entity is virtual.
-    Virtual = 3,
+    Virtual,
     /// The Entity is partial.
-    Partial = 4,
+    Partial,
     /// The Entity is full.
-    Full = 6,
+    Full,
     /// The Entity is root.
-    Root = 7,
+    Root,
 }
 
 /// How an Entity should be treated for processing by the system.
-@flag enum(uint8) ProcessFlag {
+@flag 
+enum(uint8) ProcessFlag {
     /// The default process flag (no special processing).
-    Default = 0,
+    Default,
     /// The Entity is deleted.
-    Deleted = 1,
+    Deleted,
     /// The Entity is inactive.
-    Inactive = 2,
+    Inactive,
     /// The Entity is inactive and input is not processed.
-    InactiveInput = 4,
+    InactiveInput,
     /// The Entity is sleeping and processed differently.
-    Sleeping = 8,
+    Sleeping,
 }
 
 /// How an Entity should be treated for extension by the system.
-@flag enum(uint8) ExtensionFlag {
+@flag 
+enum(uint8) ExtensionFlag {
     /// The default extension flag (no special processing).
-    Default = 0,
+    Default,
     /// The Entity is instantiable.
-    Instantiable = 1,
+    Instantiable,
     /// The Entity is extensible.
-    Extensible = 2,
+    Extensible,
 }
 
 /// Declare a struct as an Entity. Auto-includes Entity.
@@ -86,9 +88,3 @@ struct Entity {
     /// The Script of this Entity.
     script: Optional<EntityReference<Script>>,
 }
-
-implement Entity {
-    
-}
-
-

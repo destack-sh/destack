@@ -8,8 +8,8 @@ using destack;
 }
 
 /// Keyboard base event
-@event(InputEvent)
-struct KeyEvent {
+@event
+struct KeyEvent using InputEvent {
     /// The character pressed (e.g. 'a', 'B', '1', 'Enter')
     key: String,
     /// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
@@ -23,15 +23,15 @@ struct KeyEvent {
 }
 
 /// Key pressed down
-@event(KeyEvent)
-struct KeyDownEvent {}
+@event
+struct KeyDownEvent using KeyEvent {}
 
 /// Key released
-@event(KeyEvent)
-struct KeyUpEvent {}
+@event
+struct KeyUpEvent using KeyEvent {}
 
 /// Key pressed
-@event(KeyEvent)
-struct KeyPressEvent {}
+@event
+struct KeyPressEvent using KeyEvent {}
 
 

@@ -1,8 +1,8 @@
 using destack;
 
 /// A Mousing is a user input device that can be used to interact with the UI
-@entity(Pointer2D)
-struct Mouse2D {}
+@entity
+struct Mouse2D using Pointer2D {}
 
 /// Mousing buttons
 enum MouseButton {
@@ -12,30 +12,30 @@ enum MouseButton {
 }
 
 /// Mouse-derived event with a button
-@event(PointerEvent)
-struct MouseEvent {
+@event
+struct MouseEvent using PointerEvent {
     button: MouseButton,
 }
 
 /// Click event base
-@event(MouseEvent)
-struct ClickEvent {}
+@event
+struct ClickEvent using MouseEvent {}
 
 /// Single click
-@event(ClickEvent)
-struct SingleClickEvent {}
+@event
+struct SingleClickEvent using ClickEvent {}
 
 /// Double click
-@event(ClickEvent)
-struct DoubleClickEvent {}
+@event
+struct DoubleClickEvent using ClickEvent {}
 
 /// Triple click
-@event(ClickEvent)
-struct TripleClickEvent {}
+@event
+struct TripleClickEvent using ClickEvent {}
 
 /// Wheel scroll
-@event(MouseEvent)
-struct WheelEvent {
+@event
+struct WheelEvent using MouseEvent {
     delta: Vector2,
 }
 

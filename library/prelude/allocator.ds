@@ -1,0 +1,4 @@
+
+public trait Allocator {
+    public allocate(size: usize);
+}

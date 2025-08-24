@@ -1,10 +1,34 @@
 using destack;
 
 /// Text span types.
-enum TextSpanType { Text = 1, HardBreak = 2, Node = 10, Link = 11, Equation = 20 }
+enum TextSpanType {
+    /// Text span.
+    Text,
+    /// Hard break span.
+    HardBreak,
+    /// Node span.
+    Node,
+    /// Link span.
+    Link,
+    /// Equation span.
+    Equation,
+}
 
 /// Flags that can be applied to a TextSpan.
-enum TextStyleFlag { Default = 0, Bold = 1, Italic = 2, Strikethrough = 4, Underline = 8, Code = 16 }
+enum TextStyleFlag {
+    /// Default style flag.
+    Default,
+    /// Bold style flag.
+    Bold,
+    /// Italic style flag.
+    Italic,
+    /// Strikethrough style flag.
+    Strikethrough,
+    /// Underline style flag.
+    Underline,
+    /// Code style flag.
+    Code,
+}
 
 /// Span of text with optional styling.
 struct TextSpan {
@@ -23,9 +47,9 @@ struct TextSpan {
 /// A single paragraph composed of TextSpans with inline styling.
 struct Text {
     /// The spans composing the paragraph.
-    spans: List<TextSpan>,
+    spans: List<TextSpan>;
     /// Styling flags for the whole paragraph.
-    styleFlags: TextStyleFlag = TextStyleFlag.Default,
+    styleFlags: TextStyleFlag = TextStyleFlag.Default;
 }
 
 

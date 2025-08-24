@@ -1,7 +1,7 @@
 using destack;
 
 /// A container that splits its children
-@entity(LayoutView2D)
-struct SplitView2D {}
+@entity
+struct SplitView2D using LayoutView2D {}
 
 

@@ -1,12 +1,12 @@
 using destack;
 
 /// A 2D content View
-@entity(View2D)
-struct ContentView2D {}
+@entity
+struct ContentView2D using View2D {}
 
 /// A 2D Text View
-@entity(ContentView2D)
-struct TextView2D {
+@entity
+struct TextView2D using ContentView2D {
     /// The text to display
     text: Optional<Text>,
     /// The font to using for the text

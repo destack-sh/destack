@@ -11,20 +11,20 @@ struct TimerEvent {
 }
 
 /// Timer started.
-@event(TimerEvent)
-struct TimerStartedEvent {}
+@event
+struct TimerStartedEvent using TimerEvent {}
 /// Timer paused.
-@event(TimerEvent)
-struct TimerPausedEvent {}
+@event
+struct TimerPausedEvent using TimerEvent {}
 /// Timer resumed.
-@event(TimerEvent)
-struct TimerResumedEvent {}
+@event
+struct TimerResumedEvent using TimerEvent {}
 /// Timer completed.
-@event(TimerEvent)
-struct TimerCompletedEvent {}
+@event
+struct TimerCompletedEvent using TimerEvent {}
 /// Timer cancelled.
-@event(TimerEvent)
-struct TimerCancelledEvent {}
+@event
+struct TimerCancelledEvent using TimerEvent {}
 
 /// A Timer.
 @entity

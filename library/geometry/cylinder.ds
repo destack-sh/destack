@@ -7,7 +7,5 @@ struct Cylinder3D using Form3D {
 }
 
 /// A CylinderShape3D is a shape that represents a cylinder.
-@entity(Shape3D)
-struct CylinderShape3D using Cylinder3D {}
-
-
+@entity
+struct CylinderShape3D using Shape3D, Cylinder3D {}

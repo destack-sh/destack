@@ -1,19 +1,19 @@
 using destack;
 
 /// Clipboard base event
-@event(InputEvent)
-struct ClipboardEvent {}
+@event
+struct ClipboardEvent using InputEvent {}
 
 /// Copy event
-@event(ClipboardEvent)
-struct CopyEvent {}
+@event
+struct CopyEvent using ClipboardEvent {}
 
 /// Cut event
-@event(ClipboardEvent)
-struct CutEvent {}
+@event
+struct CutEvent using ClipboardEvent {}
 
 /// Paste event
-@event(ClipboardEvent)
-struct PasteEvent {}
+@event
+struct PasteEvent using ClipboardEvent {}
 
 

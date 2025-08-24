@@ -1,15 +1,15 @@
 using destack;
 
 /// Base focus event
-@event(InputEvent)
-struct FocusEvent {}
+@event
+struct FocusEvent using InputEvent {}
 
 /// Focus gained
-@event(FocusEvent)
-struct FocusInEvent {}
+@event
+struct FocusInEvent using FocusEvent {}
 
 /// Focus lost
-@event(FocusEvent)
-struct FocusOutEvent {}
+@event
+struct FocusOutEvent using FocusEvent {}
 
 

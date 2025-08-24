@@ -1,12 +1,12 @@
 using destack;
 
 /// A Counter Metric.
-@entity(Metric)
-struct CounterMetric {}
+@entity
+struct  CounterMetric using Metric {}
 
 /// A Counter Measurement.
-@event(MeasurementEvent)
-struct CounterMeasurementEvent {
+@event
+struct CounterMeasurementEvent using MeasurementEvent {
     /// The Counter metric definition.
     definition: EntityReference<CounterMetric>,
 }

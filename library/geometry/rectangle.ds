@@ -7,8 +7,8 @@ struct Rectangle2D using Form2D {
 }
 
 /// A RectangleShape is a shape that represents a rectangle.
-@entity(Shape2D)
-struct RectangleShape2D using Rectangle2D {}
+@entity
+struct RectangleShape2D using Shape2D, Rectangle2D {}
 
 /// A Box is an axis-aligned box defined by width, height and depth.
 struct Box3D using Form3D {
@@ -18,7 +18,5 @@ struct Box3D using Form3D {
 }
 
 /// A BoxShape3D is a shape that represents an axis-aligned box.
-@entity(Shape3D)
-struct BoxShape3D using Box3D {}
-
-
+@entity
+struct BoxShape3D using Shape3D, Box3D {}

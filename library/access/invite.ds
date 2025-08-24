@@ -12,8 +12,8 @@ struct InviteEvent {
 }
 
 /// Invite was sent.
-@event(InviteEvent)
-struct InviteSentEvent {
+@event
+struct InviteSentEvent using InviteEvent {
     /// The Role assigned by the Invite.
     role: EntityReference<Role>,
     /// The type of the Role.
@@ -21,12 +21,12 @@ struct InviteSentEvent {
 }
 
 /// Invite was rescinded.
-@event(InviteEvent)
-struct InviteRescindedEvent {}
+@event
+struct InviteRescindedEvent using InviteEvent {}
 
 /// Invite was accepted.
-@event(InviteEvent)
-struct InviteAcceptedEvent {
+@event
+struct InviteAcceptedEvent using InviteEvent {
     /// The Role accepted by the member.
     role: EntityReference<Role>,
     /// The type of the Role.
@@ -34,8 +34,8 @@ struct InviteAcceptedEvent {
 }
 
 /// Invite was rejected.
-@event(InviteEvent)
-struct InviteRejectedEvent {}
+@event
+struct InviteRejectedEvent using InviteEvent {}
 
 /// An Invite to a Joinable.
 @entity

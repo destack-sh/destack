@@ -47,6 +47,8 @@ pub enum Visibility {
 ///
 /// Example:
 /// ```
+/// module foo; // empty module
+///
 /// module foo {
 ///     ...
 /// }
@@ -63,7 +65,6 @@ pub struct Module {
 
 /// A Using is a use declaration.
 /// `using` includes all or some items from a definition in the relevant scope.
-/// At the module level
 ///
 /// Example:
 /// ```
@@ -74,18 +75,55 @@ pub struct Module {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Using {
-    /// The path to the definition to use (like `foo.bar` or `foo.bar.baz.qux`)
+    /// The path to the definition to use (like `foo.bar` in `using foo.bar.{baz, qux};`)
     pub path: Path,
-    /// The alias to use.
+    /// The alias to use for the entire item (like `baz` in `using foo as baz;`)
     pub alias: Option<Identifier>,
-    /// The items to use from the definition. If not specified, all items are used.
-    pub items: Option<Vec<Identifier>>,
+    /// The sub-items to use from the item (like `{baz, qux}` in `using foo.bar.{baz, qux};`)
+    pub items: Option<Vec<UsingItem>>,
+}
+
+/// A UsingItem is an item to use from a definition.
+///
+/// Example:
+/// ```
+/// baz
+/// qux as quux
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct UsingItem {
+    /// The source name of the item (like `foo` in `foo as bar;`)
+    pub name: Identifier,
+    /// The alias to use for the item (like `bar` in `foo as bar;`)
+    pub alias: Option<Identifier>,
+}
+
+/// A Tuple is a named tuple definition.
+///
+/// Example:
+/// ```
+/// tuple MyTuple(int32, int32[])
+/// tuple MyOtherTuple(uint8, (int32, boolean, Vector2))
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tuple {
+    /// The name of the tuple.
+    pub name: Identifier,
+    /// The elements of the tuple.
+    pub elements: Vec<Type>,
 }
 
 /// A StructDefinition is a named struct definition.
 ///
 /// Example:
 /// ```
+/// struct Foo; // zero-sized struct
+///
+/// struct Bar {
+///     myField: int32,
+///     myOtherField: boolean,
+/// }
+///
 /// struct Foo using Bar, Baz {
 ///     myField: int32,
 ///     myOtherField: boolean,
@@ -98,12 +136,12 @@ pub struct Struct {
     /// The visibility of the struct.
     pub visibility: Visibility,
     /// The fields of the struct.
-    pub fields: Vec<Field>,
+    pub fields: Vec<StructField>,
     /// The using declarations for the struct.
     pub usings: Option<Vec<Using>>,
 }
 
-/// A Field is a (struct) field declaration.
+/// A StructField is a (struct) field declaration.
 ///
 /// Example:
 /// ```
@@ -112,7 +150,7 @@ pub struct Struct {
 /// baz: @someMacro(T);
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Field {
+pub struct StructField {
     /// The name of the field.
     pub name: Identifier,
     /// The type of the field.
@@ -132,14 +170,16 @@ pub struct Field {
 ///     B,
 ///     C,
 /// }
+/// 
 /// enum(u8) Foo {
 ///     Baz = 1,
 ///     Qux = 2,
 /// }
+/// 
 /// union Foo {
-///     A(int32),
+///     A,
 ///     B { x: int32, y: int32 } = 4,
-///     C(boolean, int32),
+///     C(boolean),
 ///     D(boolean, int32) = 6,
 /// }
 /// ```
@@ -181,20 +221,30 @@ pub struct UnionField {
     pub value: Option<Expression>,
 }
 
-/// A Tuple is a named tuple definition.
+/// A Trait is a trait definition.
 ///
 /// Example:
 /// ```
-/// tuple MyTuple(int32, int32[])
-/// tuple MyOtherTuple(uint8, (int32, boolean, Vector2))
+/// trait Foo; // marker trait
+///
+/// trait Bar {
+///     ...
+/// }
+///
+/// trait Baz<T> {
+///     ...
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Tuple {
-    /// The name of the tuple.
+pub struct Trait {
+    /// The name of the trait.
     pub name: Identifier,
-    /// The elements of the tuple.
-    pub elements: Vec<Type>,
+    /// The static parameters to the trait.
+    pub static_parameters: Option<Vec<Parameter>>,
+    /// The body of the trait.
+    pub body: Option<Block>,
 }
+
 /// An Impl defines the implementation of a concrete type.
 /// There may be multiple Impls for the same type, and even impls for different modules.
 /// (To add a module's implementation to your own just use the corresponding module.)
@@ -204,12 +254,17 @@ pub struct Tuple {
 /// implement Foo {
 ///     ...
 /// }
+///
 /// implement Foo<int32> {
 ///     ...
 /// }
+///
+/// implement Marker for Bar;
+///
 /// implement Bar<int32> for Baz {
 ///     ...
 /// }
+///
 /// implement<T> Bar<T> for Baz {
 ///     ...
 /// }
@@ -341,7 +396,8 @@ pub struct Argument {
 /// ```
 /// @foo()
 /// @foo(1, 2, 3)
-/// @foo<true>(1, 2, 3)
+/// @foo<int32>(1, 2, 3)
+/// @foo<Validate: false>(1, 2, 3)
 /// @foo(.{x: 1, y: 2}, (true, 3))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -478,6 +534,8 @@ pub enum Expression {
     Struct(Struct),
     /// Union definition
     Union(Union),
+    /// Trait definition
+    Trait(Trait),
     /// Function definition
     Function(Box<Function>),
     /// Implement definition
@@ -585,6 +643,7 @@ pub struct FieldLiteral {
 /// (int32, int32)
 /// (int32) => int32
 /// T<int32>
+/// T<Validate: false>
 /// MyEnum
 /// simulation.geometry.Vector2
 /// struct MyResponse { x: int32, y: int32 }
@@ -598,7 +657,7 @@ pub enum Type {
     /// Path to a type `MyModule.MyType`
     Path {
         path: Path,
-        static_arguments: Vec<Type>,
+        static_arguments: Option<Vec<Argument>>,
     },
     /// Pointer of some type `*T`
     Pointer { r#type: Box<Type> },
@@ -668,6 +727,8 @@ pub enum UnaryOperator {
     Not,
     /// `-`
     Negate,
+    /// `~`
+    BitwiseNot,
     /// `&`
     Reference,
     /// `*`

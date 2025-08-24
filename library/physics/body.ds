@@ -1,11 +1,11 @@
 using destack;
 
 /// A Body in 2D space
-@entity(Entity2D)
-struct Body2D {}
+@entity
+struct Body2D using Entity2D {}
 
 /// A Body in 3D space
-@entity(Entity3D)
-struct Body3D {}
+@entity
+struct Body3D using Entity3D {}
 
 

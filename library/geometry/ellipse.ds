@@ -8,18 +8,16 @@ struct Ellipse2D using Form2D {
 }
 
 /// A EllipseShape is a shape that represents a ellipse.
-@entity(Shape2D)
-struct EllipseShape2D using Ellipse2D {}
+@entity
+struct EllipseShape2D using Shape2D, Ellipse2D {}
 
 /// An Ellipsoid is centered at a point with radii along x, y and z axes.
 struct Ellipsoid3D using Form3D {
     radiusX: float32,
     radiusY: float32,
-    radiusZ: float32
+    radiusZ: float32,
 }
 
 /// An EllipsoidShape3D is a shape that represents an ellipsoid in 3D.
-@entity(Shape3D)
-struct EllipsoidShape3D using Ellipsoid3D {}
-
-
+@entity
+struct EllipsoidShape3D using Shape3D, Ellipsoid3D {}

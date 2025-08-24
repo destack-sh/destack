@@ -1,8 +1,8 @@
 using destack;
 
 /// An Image File
-@entity(File)
-struct Image {
+@entity
+struct Image using File {
     width: u32,
     height: u32,
 }

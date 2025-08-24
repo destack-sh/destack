@@ -1,8 +1,8 @@
 using destack;
 
 /// A Video File
-@entity(File)
-struct Video {
+@entity
+struct Video using File {
     width: u32,
     height: u32,
     duration: Duration,

@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_dir"
-description = "Destack Language DIR"
+name = "destack_language_hir"
+description = "Destack Language HIR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

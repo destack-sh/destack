@@ -11,20 +11,20 @@ struct NotificationEvent {
 }
 
 /// Notification sent.
-@event(NotificationEvent)
-struct NotificationSentEvent {}
+@event
+struct NotificationSentEvent using NotificationEvent {}
 /// Notification rescinded.
-@event(NotificationEvent)
-struct NotificationRescindedEvent {}
+@event
+struct NotificationRescindedEvent using NotificationEvent {}
 /// Notification read.
-@event(NotificationEvent)
-struct NotificationReadEvent {}
+@event
+struct NotificationReadEvent using NotificationEvent {}
 /// Notification dismissed.
-@event(NotificationEvent)
-struct NotificationDismissedEvent {}
+@event
+struct NotificationDismissedEvent using NotificationEvent {}
 /// Notification expired.
-@event(NotificationEvent)
-struct NotificationExpiredEvent {}
+@event
+struct NotificationExpiredEvent using NotificationEvent {}
 
 /// A Notification is a message about something.
 @entity

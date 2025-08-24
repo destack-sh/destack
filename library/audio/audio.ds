@@ -1,8 +1,8 @@
 using destack;
 
 /// An Audio File
-@entity(File)
-struct Audio {
+@entity
+struct Audio using File {
     duration: Duration,
 }
 

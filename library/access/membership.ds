@@ -12,8 +12,8 @@ struct MembershipEvent {
 }
 
 /// Membership was joined.
-@event(MembershipEvent)
-struct MembershipJoinedEvent {
+@event
+struct MembershipJoinedEvent using MembershipEvent {
     /// The Role assigned by the Membership.
     role: EntityReference<Role>,
     /// The type of the Role.
@@ -21,8 +21,8 @@ struct MembershipJoinedEvent {
 }
 
 /// Membership was left.
-@event(MembershipEvent)
-struct MembershipLeftEvent {}
+@event
+struct MembershipLeftEvent using MembershipEvent {}
 
 /// A Membership of an Actor in a Joinable.
 @entity
