@@ -1,8 +1,8 @@
 using destack;
 
 /// A Pointer is a user input device that can be used to interact with the UI
-@entity(Body2D)
-struct Pointer2D {}
+@entity
+struct Pointer2D using Body2D {}
 
 /// Base pointer event with position, pressure and modifiers
 @event(InputEvent)

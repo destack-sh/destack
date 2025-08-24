@@ -13,8 +13,8 @@ struct ActionDefinition {
 }
 
 /// An implementation of a unit of work implemented for some runtimes.
-@entity(Function)
-struct Action {
+@entity
+struct Action using Function {
     /// The Action type.
     type: ActionType,
 }

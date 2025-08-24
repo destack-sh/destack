@@ -10,12 +10,12 @@ struct RoleEvent {
 }
 
 /// A Role was assigned.
-@event(RoleEvent)
-struct RoleAssignedEvent {}
+@event
+struct RoleAssignedEvent using RoleEvent {}
 
 /// A Role was unassigned.
-@event(RoleEvent)
-struct RoleUnassignedEvent {}
+@event
+struct RoleUnassignedEvent using RoleEvent {}
 
 /// A Role for Actors to take.
 @entity

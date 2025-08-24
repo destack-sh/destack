@@ -12,9 +12,9 @@ struct FollowEvent {
 }
 
 /// Follow added.
-@event(FollowEvent)
-struct FollowAddedEvent {}
+@event
+struct FollowAddedEvent using FollowEvent {}
 
 /// Follow removed.
-@event(FollowEvent)
-struct FollowRemovedEvent {}
+@event
+struct FollowRemovedEvent using FollowEvent {}

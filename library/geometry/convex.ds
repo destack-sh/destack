@@ -1,15 +1,13 @@
 using destack;
 
 /// A ConvexShape2D represents a convex polygon.
-@entity(Shape2D)
-struct ConvexShape2D {
+@entity
+struct ConvexShape2D using Shape2D {
     vertices: List<Vector2>,
 }
 
 /// A ConvexShape3D represents a convex hull.
-@entity(Shape3D)
-struct ConvexShape3D {
+@entity
+struct ConvexShape3D using Shape3D, ConvexShape2D {
     vertices: List<Vector3>,
 }
-
-

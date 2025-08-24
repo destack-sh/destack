@@ -1,7 +1,7 @@
 using destack;
 
 /// A frame View is a bare ContainerView
-@entity(LayoutView2D)
-struct FrameView2D {}
+@entity
+struct FrameView2D using LayoutView2D {}
 
 

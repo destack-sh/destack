@@ -5,7 +5,7 @@ struct Vector2 {
     x: float32,
     y: float32,
 }
-@assert(@sizeOf(Vector2) == 8)
+@assert(@sizeOf(Vector2) == 8);
 
 implement Vector2 {
     /// The zero Vector2 (0, 0).
@@ -158,7 +158,7 @@ implement Numeric<Vector2> for Vector2 {
 
 /// A 3-dimensional vector with float32 components.
 struct Vector3 {
-    x: float32,
+    x: float32;
     y: float32,
     z: float32,
 }

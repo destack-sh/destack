@@ -8,18 +8,16 @@ struct Capsule2D using Form2D {
 }
 
 /// A CapsuleShape is a shape that represents a capsule.
-@entity(Shape2D)
-struct CapsuleShape2D using Capsule2D {}
+@entity
+struct CapsuleShape2D using Shape2D, Capsule2D {}
 
 /// A Capsule3D is a segment with rounded ends in 3D with a common radius.
 struct Capsule3D using Form3D {
     centerA_offset: Vector3,
     centerB_offset: Vector3,
-    radius: float32
+    radius: float32,
 }
 
 /// A CapsuleShape3D is a shape that represents a capsule in 3D.
-@entity(Shape3D)
-struct CapsuleShape3D using Capsule3D {}
-
-
+@entity
+struct CapsuleShape3D using Shape3D, Capsule3D {}

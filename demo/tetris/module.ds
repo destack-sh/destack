@@ -38,8 +38,8 @@ enum TetrisPieceShape {
     Z,
 }
 
-@entity(RigidBody2D)
-union(TetrisPieceShape) TetrisPiece using TetrisComponent {}
+@entity
+union(TetrisPieceShape) TetrisPiece using RigidBody2D, TetrisComponent {}
 
 implement TetrisPiece {
     function new(shape: TetrisPieceShape) => TetrisPiece {

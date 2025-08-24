@@ -1,12 +1,12 @@
 using destack;
 
 /// Base input View
-@entity(View2D)
-struct InputView2D {}
+@entity
+struct InputView2D using View2D {}
 
 /// A 2D number input View
-@entity(InputView2D)
-struct NumberInputView2D {
+@entity
+struct NumberInputView2D using InputView2D {
     /// The numeric value
     value: Optional<float64>,
     /// Placeholder text shown when empty
@@ -14,8 +14,8 @@ struct NumberInputView2D {
 }
 
 /// A 2D slider input View
-@entity(InputView2D)
-struct SliderInputView2D {
+@entity
+struct SliderInputView2D using InputView2D {
     /// The current slider value
     value: Optional<float64>,
 }

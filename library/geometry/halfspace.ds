@@ -7,8 +7,9 @@ struct Halfspace2D using Form2D {
 }
 
 /// A HalfspaceShape2D represents a half-space in 2D defined by a line.
-@entity(Shape2D)
-struct HalfspaceShape2D using Halfspace2D {}
+@entity
+struct HalfspaceShape2D using Shape2D, Halfspace2D {
+}
 
 /// A Plane3D splits 3D space by a plane with normal and distance from origin.
 struct Plane3D using Form3D {
@@ -17,5 +18,5 @@ struct Plane3D using Form3D {
 }
 
 /// A PlaneShape3D represents a half-space in 3D defined by a plane.
-@entity(Shape3D)
-struct PlaneShape3D using Plane3D {}
+@entity
+struct PlaneShape3D using Shape3D, Plane3D {}

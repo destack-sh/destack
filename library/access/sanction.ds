@@ -16,20 +16,20 @@ struct SanctionEvent {
 }
 
 /// Sanction was requested.
-@event(SanctionEvent)
-struct SanctionRequestedEvent {}
+@event
+struct SanctionRequestedEvent using SanctionEvent {}
 
 /// Sanction was granted.
-@event(SanctionEvent)
-struct SanctionGrantedEvent {}
+@event
+struct SanctionGrantedEvent using SanctionEvent {}
 
 /// Sanction was revoked.
-@event(SanctionEvent)
-struct SanctionRevokedEvent {}
+@event
+struct SanctionRevokedEvent using SanctionEvent {}
 
 /// Sanction has expired.
-@event(SanctionEvent)
-struct SanctionExpiredEvent {}
+@event
+struct SanctionExpiredEvent using SanctionEvent {}
 
 /// A Sanction on some Actor.
 @entity

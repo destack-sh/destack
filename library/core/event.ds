@@ -3,17 +3,17 @@ using destack;
 /// The consensus status of an Event.
 enum EventStatus {
     /// Event is pending consensus.
-    Pending = 1,
+    Pending,
     /// Event is staged for consensus.
-    Staged = 2,
+    Staged,
     /// Event has been approved by consensus.
-    Approved = 10,
+    Approved,
     /// Event was skipped during consensus.
-    Skipped = 11,
+    Skipped,
     /// Event failed during consensus.
-    Failed = 12,
+    Failed,
     /// Event was rejected by consensus.
-    Rejected = 13,
+    Rejected,
 }
 
 /// An immutable datum of something happening to an Entity.
@@ -45,10 +45,3 @@ struct Event {
     /// The Event that caused this Event (if any).
     causedBy: Optional<EntityReference<Event>>,
 }
-
-implement Event {
-    /// Get a reference to this Event.
-    @intrinsic function toRef(self) => EntityReference;
-}
-
-

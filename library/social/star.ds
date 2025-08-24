@@ -12,11 +12,11 @@ struct StarEvent {
 }
 
 /// Star added.
-@event(StarEvent)
-struct StarAddedEvent {}
+@event
+struct StarAddedEvent using StarEvent {}
 
 /// Star removed.
-@event(StarEvent)
-struct StarRemovedEvent {}
+@event
+struct StarRemovedEvent using StarEvent {}
 
 

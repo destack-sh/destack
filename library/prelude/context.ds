@@ -1,9 +1,11 @@
 /// Marker trait for contexts.
-public trait Context {}
+public trait Context;
 
 /// Default context.
 public struct DefaultContext {
-
+    public allocator: Allocator,
+    // logger, tracer, stack trace, ...
+    // time, location, ... (maybe put that into library)
 }
 
-implement Context for DefaultContext {}
+implement Context for DefaultContext;

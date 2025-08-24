@@ -13,7 +13,7 @@ struct MethodDefinition {
 }
 
 /// A Method is a small runtime-specific piece of logic.
-@entity(Function)
-struct Method {}
+@entity
+struct Method using Function {}
 
 

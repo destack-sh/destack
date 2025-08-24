@@ -59,7 +59,7 @@ pub enum Keyword {
 
 impl<'a> Parser<'a> {
     /// Eat a keyword.
-    pub fn eat_keyword(&mut self, _keyword: Keyword) -> ParseResult<'a, ()> {
+    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<'a, ()> {
         let Some(current) = self.tokens.get(self.pos) else {
             return Err(ParseError::UnexpectedToken(SemanticToken {
                 token: Token {

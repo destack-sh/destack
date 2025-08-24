@@ -5,8 +5,8 @@ using destack;
 struct ColliderEvent {}
 
 /// Collision contact between two colliders
-@event(ColliderEvent)
-struct ColliderContactEvent {
+@event
+struct ColliderContactEvent using ColliderEvent {
     /// First collider
     colliderA: EntityReference<Collider2D>,
     /// Second collider
@@ -14,11 +14,11 @@ struct ColliderContactEvent {
 }
 
 /// A Collider in 2D space
-@entity(Entity2D)
-struct Collider2D {}
+@entity
+struct Collider2D using Entity2D {}
 
 /// A Collider in 3D space
-@entity(Entity3D)
-struct Collider3D {}
+@entity
+struct Collider3D using Entity3D {}
 
 

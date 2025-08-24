@@ -1,23 +1,21 @@
 using destack;
 
 /// A Mesh2D is defined by vertices and triangle indices.
-struct Mesh2 {
+struct Mesh2D {
     vertices: [Vector2],
     triangles: [u32],
 }
 
 /// A Mesh3D is defined by vertices and triangle indices.
-struct Mesh3 {
+struct Mesh3D {
     vertices: [Vector3],
     triangles: [u32],
 }
 
 /// A MeshShape2D represents a triangle mesh.
-@entity(Shape2D)
-struct MeshShape2D using Mesh2D {}
+@entity
+struct MeshShape2D using Shape2D, Mesh2D {}
 
 /// A MeshShape3D represents a triangle mesh.
-@entity(Shape3D)
-struct MeshShape3D using Mesh3D {}
-
-
+@entity
+struct MeshShape3D using Shape3D, Mesh3D {}

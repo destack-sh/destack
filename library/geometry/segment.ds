@@ -7,8 +7,8 @@ struct Segment2D using Form2D {
 }
 
 /// A SegmentShape is a shape that represents a line between two points.
-@entity(Shape2D)
-struct SegmentShape2D using Segment2D {}
+@entity
+struct SegmentShape2D using Shape2D, Segment2D {}
 
 /// A Segment3D is a line between two points in 3D space.
 struct Segment3D using Form3D {
@@ -17,5 +17,5 @@ struct Segment3D using Form3D {
 }
 
 /// A SegmentShape3D is a shape that represents a line between two points in 3D.
-@entity(Shape3D)
-struct SegmentShape3D using Segment3D {}
+@entity
+struct SegmentShape3D using Shape3D, Segment3D {}

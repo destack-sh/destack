@@ -1,12 +1,12 @@
 using destack;
 
 /// A Histogram Metric.
-@entity(Metric)
-struct HistogramMetric {}
+@entity
+struct HistogramMetric using Metric {}
 
 /// A Histogram Measurement.
-@event(MeasurementEvent)
-struct HistogramMeasurementEvent {
+@event
+struct HistogramMeasurementEvent using MeasurementEvent {
     /// The Histogram metric definition.
     definition: EntityReference<HistogramMetric>,
 }
