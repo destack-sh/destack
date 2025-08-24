@@ -18,7 +18,7 @@ impl Token {
                 // emit original slice for unknown tokens to preserve them
                 source[offset..offset + len].to_string()
             }
-            TokenType::EndOfInput => String::new(),
+            TokenType::End => String::new(),
 
             TokenType::DocComment => {
                 // emit original slice for lexemes where we don't want to reformat

@@ -178,29 +178,98 @@ fn test_spread_and_arrows() {
 fn test_comparisons_and_equals() {
     assert_tokenize_eq_roundtrip!(
         "a==b != c <= d >= e < f > g",
-        Token { r#type: TokenType::Identifier, len: 1 },
-        Token { r#type: TokenType::Equal, len: 2 },
-        Token { r#type: TokenType::Identifier, len: 1 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::NotEqual, len: 2 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::Identifier, len: 1 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::LessThanEqual, len: 2 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::Identifier, len: 1 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::GreaterThanEqual, len: 2 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::Identifier, len: 1 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::LessThan, len: 1 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::Identifier, len: 1 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::GreaterThan, len: 1 },
-        Token { r#type: TokenType::Whitespace, len: 1 },
-        Token { r#type: TokenType::Identifier, len: 1 },
+        Token {
+            r#type: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Equal,
+            len: 2
+        },
+        Token {
+            r#type: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::NotEqual,
+            len: 2
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::LessThanEqual,
+            len: 2
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::GreaterThanEqual,
+            len: 2
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::LessThan,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Identifier,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::GreaterThan,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Whitespace,
+            len: 1
+        },
+        Token {
+            r#type: TokenType::Identifier,
+            len: 1
+        },
     );
 }
 

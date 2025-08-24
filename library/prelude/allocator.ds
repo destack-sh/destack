@@ -1,4 +1,8 @@
 
+public trait Allocation<AllocatorType: Allocator> is Context {
+    allocator() => Any<AllocatorType>;
+}
+
 public trait Allocator {
     public allocate(size: usize);
 }

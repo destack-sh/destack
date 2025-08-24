@@ -1,8 +1,124 @@
-use crate::{ParseResult, Parser, Path};
+use crate::{ParseResult, Parser, Path, PathSegment};
+use destack_language_lexer::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat a Path.
-    pub fn eat_path(&mut self) -> ParseResult<'a, Path> {
-        todo!()
+    pub fn eat_path(&mut self) -> ParseResult<Path> {
+        let mut segments = Vec::new();
+
+        // first identifier
+        let first = self.eat_identifier()?;
+        segments.push(PathSegment { name: first });
+
+        // zero or more `.identifier` (but stop before `.{` used by grouped using)
+        loop {
+            if self.peek_token_type(TokenType::Dot).is_ok() {
+                // ensure the token after the dot is an Identifier; otherwise, stop (e.g., `.{`)
+                if let Ok(after_dot) = self.peek_ahead(1)
+                    && after_dot.token.r#type == TokenType::Identifier
+                {
+                    self.eat_token_type(TokenType::Dot)?;
+                    let seg = self.eat_identifier()?;
+                    segments.push(PathSegment { name: seg });
+                    continue;
+                }
+            }
+            break;
+        }
+
+        Ok(Path { segments })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_language_lexer::{SourceFile, TokenType, tokenize_semantic};
+
+    use crate::{Parser, Path, PathSegment};
+
+    #[test]
+    fn parse_simple_path_single_segment() {
+        let input = "destack";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let path = parser.eat_path().unwrap();
+        assert_eq!(
+            path,
+            Path {
+                segments: vec![PathSegment {
+                    name: "destack".to_string()
+                }]
+            }
+        );
+    }
+
+    #[test]
+    fn parse_simple_path_multiple_segments() {
+        let input = "destack.geometry.math";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let path = parser.eat_path().unwrap();
+        assert_eq!(
+            path,
+            Path {
+                segments: vec![
+                    PathSegment {
+                        name: "destack".to_string()
+                    },
+                    PathSegment {
+                        name: "geometry".to_string()
+                    },
+                    PathSegment {
+                        name: "math".to_string()
+                    },
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn parse_path_stops_before_group_brace() {
+        let input = "ds.geometry.{Vector2}";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let path = parser.eat_path().unwrap();
+        assert_eq!(
+            path,
+            Path {
+                segments: vec![
+                    PathSegment {
+                        name: "ds".to_string()
+                    },
+                    PathSegment {
+                        name: "geometry".to_string()
+                    },
+                ],
+            }
+        );
+        // ensure next token is the `.` for the group
+        let next = parser.peek_next().unwrap();
+        assert_eq!(next.token.r#type, TokenType::Dot);
+    }
+
+    #[test]
+    fn parse_path_stops_before_group_brace_with_alias() {
+        // nocheckin: wait what? paths should have aliases right?
+        let input = "ds.geometry.{Vector2 as V2}";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let path = parser.eat_path().unwrap();
+        assert_eq!(
+            path,
+            Path {
+                segments: vec![
+                    PathSegment {
+                        name: "ds".to_string()
+                    },
+                    PathSegment {
+                        name: "geometry".to_string()
+                    },
+                ],
+            }
+        );
     }
 }

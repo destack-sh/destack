@@ -1,4 +1,4 @@
-//! SemanticTokens.
+//! TokenSpans.
 
 use destack_language_lexer::{LiteralTokenType, TokenType, tokenize};
 use tower_lsp_server::lsp_types as lsp;
@@ -215,7 +215,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::ShiftRightAssign => 4, // OPERATOR
 
         // skip these token types
-        K::Whitespace | K::Unknown | K::EndOfInput => return None,
+        K::Whitespace | K::Unknown | K::End => return None,
     };
 
     // length in UTF-16 code units

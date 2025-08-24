@@ -2,20 +2,20 @@ use crate::{Expression, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Eat a literal.
-    pub fn eat_literal(&mut self) -> ParseResult<'a, Expression> {
+    pub fn eat_literal(&mut self) -> ParseResult<Expression> {
         todo!()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use destack_language_lexer::tokenize_semantic;
+    use destack_language_lexer::{SourceFile, tokenize_semantic};
 
     use crate::{Expression, FloatType, IntType, ParseResult, Parser, ScalarLiteral};
 
-    fn parse_literal<'a>(input: &str) -> ParseResult<'a, Expression> {
+    fn parse_literal(input: &str) -> ParseResult<Expression> {
         let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(&tokens);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
         parser.eat_literal()
     }
 
