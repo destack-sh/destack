@@ -1,3 +1,10 @@
-use crate::Parser;
+//! Parse try and catch statements.
 
-impl<'a> Parser<'a> {}
+use crate::{ParseResult, Parser, Try};
+
+impl<'a> Parser<'a> {
+    /// Eat a try statement.
+    pub fn eat_try_catch(&mut self) -> ParseResult<Try> {
+        todo!()
+    }
+}

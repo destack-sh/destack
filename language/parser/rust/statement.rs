@@ -1,3 +1,6 @@
+//! Parse statements (and blocks).
+//! Like with expressions, this mostly defers to other parsers.
+
 use destack_language_lexer::TokenType;
 
 use crate::{Block, ParseResult, Parser, Statement};

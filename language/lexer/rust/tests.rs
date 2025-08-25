@@ -541,7 +541,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralToken::Integer {
+                r#type: LiteralToken::Int {
                     base: NumberBase::Decimal,
                     empty_int: false
                 },
@@ -555,7 +555,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralToken::Integer {
+                r#type: LiteralToken::Int {
                     base: NumberBase::Binary,
                     empty_int: false
                 },
@@ -569,7 +569,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralToken::Integer {
+                r#type: LiteralToken::Int {
                     base: NumberBase::Hexadecimal,
                     empty_int: false
                 },
@@ -611,7 +611,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralToken::Integer {
+                r#type: LiteralToken::Int {
                     base: NumberBase::Decimal,
                     empty_int: false
                 },

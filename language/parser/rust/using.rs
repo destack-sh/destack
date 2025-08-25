@@ -1,3 +1,5 @@
+//! Parse using declarations.
+
 use destack_language_lexer::TokenType;
 
 use crate::{Keyword, ParseResult, Parser, Using, UsingItem};

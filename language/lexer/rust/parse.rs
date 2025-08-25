@@ -414,7 +414,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Binary;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralToken::Integer {
+                        return LiteralToken::Int {
                             base,
                             empty_int: true,
                         };
@@ -424,7 +424,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Octal;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralToken::Integer {
+                        return LiteralToken::Int {
                             base,
                             empty_int: true,
                         };
@@ -434,7 +434,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Hexadecimal;
                     self.bump();
                     if !self.eat_hexadecimal_digits() {
-                        return LiteralToken::Integer {
+                        return LiteralToken::Int {
                             base,
                             empty_int: true,
                         };
@@ -450,7 +450,7 @@ impl Tokenizer<'_> {
 
                 // just a 0
                 _ => {
-                    return LiteralToken::Integer {
+                    return LiteralToken::Int {
                         base,
                         empty_int: false,
                     };
@@ -492,7 +492,7 @@ impl Tokenizer<'_> {
                     is_empty_exponent,
                 }
             }
-            _ => LiteralToken::Integer {
+            _ => LiteralToken::Int {
                 base,
                 empty_int: false,
             },

@@ -8,12 +8,16 @@ mod function;
 mod identifier;
 mod keyword;
 mod literal;
+mod r#loop;
 mod parameter;
 mod path;
 mod pattern;
 mod statement;
+mod r#struct;
+mod r#trait;
 mod r#try;
 mod r#type;
+mod union;
 mod using;
 
 pub mod error;
@@ -27,7 +31,6 @@ pub use identifier::*;
 pub use keyword::*;
 pub use node::*;
 pub use parse::*;
-pub use r#type::*;
 
 #[cfg(test)]
 mod tests;

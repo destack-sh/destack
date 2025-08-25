@@ -6,14 +6,79 @@
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
 //!  and in many cases we can even suggest automatic fixes (like `->` -> `=>`).
 
-use crate::{FloatType, Identifier, IntType};
+use std::str::FromStr;
+
+use crate::Identifier;
 
 pub type NodeId = u32;
+
+/// An IntType is a signed integer type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IntType {
+    Int8,
+    Int16,
+    Int32,
+    Int64,
+    Int128,
+}
+
+impl IntType {
+    #[inline]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            IntType::Int8 => "int8",
+            IntType::Int16 => "int16",
+            IntType::Int32 => "int32",
+            IntType::Int64 => "int64",
+            IntType::Int128 => "int128",
+        }
+    }
+}
+
+/// A UintType is an unsigned integer type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum UintType {
+    Uint8,
+    Uint16,
+    Uint32,
+    Uint64,
+    Uint128,
+}
+
+impl UintType {
+    #[inline]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            UintType::Uint8 => "uint8",
+            UintType::Uint16 => "uint16",
+            UintType::Uint32 => "uint32",
+            UintType::Uint64 => "uint64",
+            UintType::Uint128 => "uint128",
+        }
+    }
+}
+
+/// A FloatType is a floating-point type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FloatType {
+    Float32,
+    Float64,
+}
+
+impl FloatType {
+    #[inline]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            FloatType::Float32 => "float32",
+            FloatType::Float64 => "float64",
+        }
+    }
+}
 
 /// A Path is a static path to a named definition in a namespace.
 /// In the case of a Using declaration, the Path excludes the items.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// foo
 /// foobar
@@ -24,9 +89,29 @@ pub struct Path {
     pub segments: Vec<PathSegment>,
 }
 
+impl Path {
+    pub fn new(segments: Vec<PathSegment>) -> Self {
+        Self { segments }
+    }
+}
+
+impl FromStr for Path {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::new(
+            s.split('.')
+                .map(|s| PathSegment {
+                    name: s.to_string(),
+                })
+                .collect(),
+        ))
+    }
+}
+
 /// A PathSegment is a segment of a path.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// foo
 /// bar
@@ -46,7 +131,7 @@ pub enum Visibility {
 /// A Module is a module declaration.
 /// Modules may be whole directories, single files, or nested within a file.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// module foo {
 ///     ...
@@ -65,7 +150,7 @@ pub struct Module {
 /// A Using is a use declaration for dependency or context management.
 /// `using` includes all or some items from a definition in the relevant scope.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// using foo
 /// using foo.bar
@@ -85,7 +170,7 @@ pub struct Using {
 
 /// A UsingItem is an item to use from a definition.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// baz
 /// qux as quux
@@ -100,7 +185,7 @@ pub struct UsingItem {
 
 /// A StructDefinition is a named struct definition.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// struct Bar {
 ///     myField: int32,
@@ -126,7 +211,7 @@ pub struct Struct {
 
 /// A StructField is a (struct) field declaration.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// bar: int32
 /// baz: T
@@ -146,7 +231,7 @@ pub struct StructField {
 /// Enums are just sugar for unions with only a tag (and no values).
 /// Unions (if all options are structs) may include structs with using declarations.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// enum Foo {
 ///     A,
@@ -189,7 +274,7 @@ pub enum UnionStyle {
 
 /// A UnionField is a union field declaration.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// A(int32),
 /// B { x: int32, y: int32 } = 4,
@@ -206,7 +291,7 @@ pub struct UnionField {
 
 /// A Trait is a trait definition.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// trait Bar {
 ///     ...
@@ -230,7 +315,7 @@ pub struct Trait {
 /// There may be multiple Impls for the same type, and even impls for different modules.
 /// (To add a module's implementation to your own just use the corresponding module.)
 ///
-/// Example:
+/// Examples:
 /// ```
 /// implement Foo {
 ///     ...
@@ -265,7 +350,7 @@ pub struct Implement {
 /// A FunctionSignature is the type of a function definition or closure.
 /// Function signatures may omit the tuple parentheses `()`  in return type.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// ()
 /// (x: int32)
@@ -294,7 +379,7 @@ pub enum FunctionStyle {
 /// A Function is an associated or module function declaration or definition.
 /// If no body is provided, it is a declaration for a function defined elsewhere.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// function foo() {
 ///    @print("Hello, world!")
@@ -327,7 +412,7 @@ pub struct Function {
 /// A Closure is an anonymous inline function definition.
 /// It captures ("closes over") variables it uses in its body from its scope.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// () => None
 /// (x: int32) => x + 1
@@ -347,7 +432,7 @@ pub struct Closure {
 /// A Parameter is a parameter to some expression.
 /// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
 ///
-/// Example:
+/// Examples:
 /// ```
 /// x: int32
 /// y: (int32, boolean, Vector2)
@@ -368,7 +453,7 @@ pub struct Parameter {
 /// It may be named or positional.
 /// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
 ///
-/// Example:
+/// Examples:
 /// ```
 /// foo(x: 1, y: 2)
 /// foo(1, 2)
@@ -397,7 +482,7 @@ pub struct Argument {
 /// NOTE: There are no static method calls because static calls are statically resolved.
 ///       However, there are static calls namespaced to types like any other namespace.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// @foo()
 /// @foo(1, 2, 3)
@@ -418,7 +503,7 @@ pub struct StaticCall {
 /// A DynamicCall is a call to a function at runtime.
 /// See DynamicMethodCall for calls on receivers.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// foo()
 /// foo(1, 2, 3)
@@ -438,7 +523,7 @@ pub struct DynamicCall {
 /// A DynamicMethodCall is a call to an associated method at runtime.
 /// See DynamicCall for calls on functions.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// foo.bar()
 /// foo.bar(1, 2, 3)
@@ -552,12 +637,18 @@ pub enum Expression {
 
 /// A ScalarLiteral is a literal scalar value.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// 1
 /// 0x21
 /// 1.0f64
 /// "Hello, world!"
+/// 'a'
+/// b'a'
+/// b"abc"
+/// 0x1234
+/// true
+/// false
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
@@ -571,7 +662,7 @@ pub enum ScalarLiteral {
 
 /// An ArrayLiteral is a literal array of homogeneous elements.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// [1, 2, 3]
 /// [1.0f64, 2.0f64, 3.0f64]
@@ -586,13 +677,13 @@ pub enum ArrayLiteral {
     /// A repeated array.
     Repeated {
         element: Box<Expression>,
-        count: usize,
+        count: Box<Expression>,
     },
 }
 
 /// A TupleLiteral is a literal tuple of heterogeneous elements.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// (1, 2, 3)
 /// (1.0f64, 2.0f64, 3.0f64)
@@ -604,7 +695,7 @@ pub struct TupleLiteral {
 
 /// A StructLiteral is a literal struct of heterogeneous fields.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// Vector2 { x: 1, y: 2 }
 /// some_module.MyUnion.OptionB { a: true }
@@ -619,7 +710,7 @@ pub struct StructLiteral {
 
 /// A FieldLiteral is a literal field value.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// x: 1,
 /// y: 2,
@@ -639,19 +730,23 @@ pub struct FieldLiteral {
 /// They can refer to Paths that are themselves any static Expressions
 ///  (which enables the same feature set in a more structured way).
 ///
-/// Example:
+/// Examples:
 /// ```
 /// int32
 /// boolean
 /// [float32]
 /// [float64; 3]
 /// (int32, int32)
-/// (int32) => int32
 /// T<int32>
 /// T<Validate: false>
 /// MyEnum
 /// simulation.geometry.Vector2
 /// struct MyResponse { x: int32, y: int32 }
+/// union Result { Good, Bad }
+/// (int32) => int32
+/// function () => () // function keyword can be omitted
+/// () => int32, Vector2
+/// () => Result<int32, struct Error { message: string }>
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -659,30 +754,31 @@ pub enum Type {
     Infer,
     /// Never `!`
     Never(Option<Box<Type>>),
-    /// Path to a type `MyModule.MyType`
+    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`
     Path {
         path: Path,
         static_arguments: Option<Vec<Argument>>,
     },
-    /// Pointer of some type `*T`
-    Pointer { r#type: Box<Type> },
-    /// Inline Tuple type `(T1, T2, ...)`
+    /// Inline Tuple type `(T1, T2, ...)` (no tuple keyword)
     Tuple { elements: Vec<Type> },
     /// Inline Array type `[T; N]`
-    Array { element: Box<Type>, count: usize },
+    Array {
+        element: Box<Type>,
+        count: Box<Expression>,
+    },
     /// Inline Slice type `[T]`
     Slice { element: Box<Type> },
-    /// Inline Function type `(T1, T2, ...) => T`
-    Function { signature: FunctionSignature },
     /// Inline nominal Struct type `struct MyStruct { ... }`
     Struct(Struct),
     /// Inline nominal Union type `union MyUnion { ... }`
     Union(Union),
+    /// Inline anonymous Function type `(T1, T2, ...) => T`
+    Function { signature: FunctionSignature },
 }
 
 /// A Member is a member reference.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// foo.bar
 /// foo.baz
@@ -695,7 +791,7 @@ pub struct Member {
 
 /// An Index is an index into an array or tuple.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// foo[1]
 /// foo[1..3]
@@ -708,7 +804,7 @@ pub struct Index {
 
 /// A Slice is a slice of an array or tuple.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// 1..3
 /// ```
@@ -791,7 +887,7 @@ pub enum BinaryOperator {
 
 /// A Block is a block of statements.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// {
 ///     x = 1
@@ -806,7 +902,7 @@ pub struct Block {
 /// A Let is a let binding to introduce a new constant into a scope.
 /// A constant must always be initialized to a value and it cannot be changed.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// let Constant = 1
 /// let Constant: i32 = 1
@@ -821,7 +917,7 @@ pub struct Let {
 /// A Var is a var binding to introduce a new variable into a scope.
 /// A variable may be explicitly uninintialized with `---`.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// var x = 1
 /// var x: i32 = 1
@@ -839,7 +935,7 @@ pub struct Var {
 
 /// As is a cast expression.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// as int32
 /// as f64
@@ -855,7 +951,7 @@ pub struct As {
 /// NOTE: `if (...) else if (...)` is just sugar (like in every language)
 ///  (it's really just `if (...) { ... } else { if (...) { ... } }`)
 ///
-/// Example:
+/// Examples:
 /// ```
 /// if x > 1 {
 ///     y = 2
@@ -872,7 +968,7 @@ pub struct If {
 
 /// A While is a while loop.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// while x > 1 {
 ///     y = 2
@@ -886,7 +982,7 @@ pub struct While {
 
 /// A For is a for loop over an iterator with a pattern.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// for x in 1..10 {
 ///     y = 2
@@ -904,7 +1000,7 @@ pub struct For {
 
 /// A Loop is an unconditional loop.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// loop {
 ///     y = getNext()
@@ -920,7 +1016,7 @@ pub struct Loop {
 
 /// A Break is a break statement.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// break;
 /// ```
@@ -929,7 +1025,7 @@ pub struct Break {}
 
 /// A Continue is a continue statement.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// continue;
 /// ```
@@ -938,7 +1034,7 @@ pub struct Continue {}
 
 /// A Defer is a defer statement.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// defer someFunction()
 ///
@@ -954,7 +1050,7 @@ pub struct Defer {
 
 /// A Return is a return statement.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// return 1
 /// ```
@@ -965,7 +1061,7 @@ pub struct Return {
 
 /// A Pattern is a pattern to match something and unwrap it.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// 1
 /// 2 | 3
@@ -1010,7 +1106,7 @@ pub enum PatternStructField {
 /// The clauses must be exhaustive and return the same type.
 /// Match statements are Expressions and also used in catch patterns.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// match <expr> {
 ///     (x, y) => {
@@ -1046,7 +1142,7 @@ pub struct MatchCase {
 ///  1. If there is a catch, jumps to the catch pattern matching for handling.
 ///  2. If there is no catch, the error is propagated to the caller explicitly.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// try fileOperation(); // implicitly unwraps the Result, returns Error case
 ///
@@ -1072,7 +1168,7 @@ pub struct Try {
 /// An Assignment is an assignment of an Expression to a place.
 /// Assignments are not Expressions per se, they do not have a value.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// x = 1
 /// f[1] = 2
@@ -1090,7 +1186,7 @@ pub struct Assign {
 
 /// An AssignType is an assignment type.
 ///
-/// Example:
+/// Examples:
 /// ```
 /// =
 /// +=
