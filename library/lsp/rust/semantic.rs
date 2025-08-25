@@ -150,7 +150,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::Identifier | K::InvalidIdentifier | K::UnknownLiteralPrefix => 6,
 
         // literals
-        K::Literal { r#type, .. } => match r#type {
+        K::Literal(r#type) => match r#type {
             LiteralToken::Int { .. } | LiteralToken::Float { .. } => 3, // NUMBER
             LiteralToken::Character { .. }
             | LiteralToken::Byte { .. }

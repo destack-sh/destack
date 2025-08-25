@@ -39,7 +39,7 @@ fn assert_raw_str_eq(s: &str, expected: Result<u8, RawStringError>) {
     let s = &format!("r{s}");
     let mut cursor = Tokenizer::new(s);
     cursor.bump();
-    let res = cursor.raw_double_quoted_string(0);
+    let res = cursor.eat_raw_double_quoted_string(0);
     assert_eq!(res, expected);
 }
 
@@ -356,10 +356,9 @@ fn test_smoke() {
             len: 1
         },
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::String { terminated: true },
-                suffix_start: 7
-            },
+            r#type: TokenType::Literal(LiteralToken::String {
+                is_terminated: true
+            }),
             len: 7
         },
         Token {
@@ -429,10 +428,9 @@ fn test_characters() {
     assert_tokenize_eq_roundtrip!(
         "'a' ' ' '\\n'",
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Character { terminated: true },
-                suffix_start: 3
-            },
+            r#type: TokenType::Literal(LiteralToken::Character {
+                is_terminated: true
+            }),
             len: 3
         },
         Token {
@@ -440,10 +438,9 @@ fn test_characters() {
             len: 1
         },
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Character { terminated: true },
-                suffix_start: 3
-            },
+            r#type: TokenType::Literal(LiteralToken::Character {
+                is_terminated: true
+            }),
             len: 3
         },
         Token {
@@ -451,10 +448,9 @@ fn test_characters() {
             len: 1
         },
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Character { terminated: true },
-                suffix_start: 4
-            },
+            r#type: TokenType::Literal(LiteralToken::Character {
+                is_terminated: true
+            }),
             len: 4
         },
     );
@@ -465,10 +461,7 @@ fn test_raw_string() {
     assert_tokenize_eq_roundtrip!(
         "r###\"\"#a\\b\x00c\"\"###",
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::RawString { hashes: Some(3) },
-                suffix_start: 17
-            },
+            r#type: TokenType::Literal(LiteralToken::RawString { hashes: Some(3) }),
             len: 17
         },
     );
@@ -487,159 +480,143 @@ b"a"
 0xABC
 1.0
 1.0e10
-2us
-r###"raw"###suffix
-br###"raw"###suffix
+2
+r###"raw"###
+br###"raw"###
 "####,
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // 'a'
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Character { terminated: true },
-                suffix_start: 3
-            },
+            r#type: TokenType::Literal(LiteralToken::Character {
+                is_terminated: true
+            }),
             len: 3
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // b'a'
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Byte { terminated: true },
-                suffix_start: 4
-            },
+            r#type: TokenType::Literal(LiteralToken::Byte {
+                is_terminated: true
+            }),
             len: 4
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // "a"
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::String { terminated: true },
-                suffix_start: 3
-            },
+            r#type: TokenType::Literal(LiteralToken::String {
+                is_terminated: true
+            }),
             len: 3
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // b"a"
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::ByteString { terminated: true },
-                suffix_start: 4
-            },
+            r#type: TokenType::Literal(LiteralToken::ByteString {
+                is_terminated: true
+            }),
             len: 4
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // 1234
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Int {
-                    base: NumberBase::Decimal,
-                    empty_int: false
-                },
-                suffix_start: 4
-            },
+            r#type: TokenType::Literal(LiteralToken::Int {
+                base: NumberBase::Decimal,
+                is_empty: false
+            }),
             len: 4
         },
+        // 0b101
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Int {
-                    base: NumberBase::Binary,
-                    empty_int: false
-                },
-                suffix_start: 5
-            },
+            r#type: TokenType::Literal(LiteralToken::Int {
+                base: NumberBase::Binary,
+                is_empty: false
+            }),
             len: 5
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // 0xABC
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Int {
-                    base: NumberBase::Hexadecimal,
-                    empty_int: false
-                },
-                suffix_start: 5
-            },
+            r#type: TokenType::Literal(LiteralToken::Int {
+                base: NumberBase::Hexadecimal,
+                is_empty: false
+            }),
             len: 5
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // 1.0
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Float {
-                    base: NumberBase::Decimal,
-                    is_empty_exponent: false
-                },
-                suffix_start: 3
-            },
+            r#type: TokenType::Literal(LiteralToken::Float {
+                base: NumberBase::Decimal,
+                is_empty_exponent: false
+            }),
             len: 3
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // 1.0e10
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Float {
-                    base: NumberBase::Decimal,
-                    is_empty_exponent: false
-                },
-                suffix_start: 6
-            },
+            r#type: TokenType::Literal(LiteralToken::Float {
+                base: NumberBase::Decimal,
+                is_empty_exponent: false
+            }),
             len: 6
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // 2
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::Int {
-                    base: NumberBase::Decimal,
-                    empty_int: false
-                },
-                suffix_start: 1
-            },
-            len: 3
+            r#type: TokenType::Literal(LiteralToken::Int {
+                base: NumberBase::Decimal,
+                is_empty: false
+            }),
+            len: 1
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // r###"raw"###
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::RawString { hashes: Some(3) },
-                suffix_start: 12
-            },
-            len: 18
+            r#type: TokenType::Literal(LiteralToken::RawString { hashes: Some(3) }),
+            len: 12
         },
         Token {
             r#type: TokenType::Newline,
             len: 1
         },
+        // br###"raw"###
         Token {
-            r#type: TokenType::Literal {
-                r#type: LiteralToken::RawByteString { hashes: Some(3) },
-                suffix_start: 13
-            },
-            len: 19
+            r#type: TokenType::Literal(LiteralToken::RawByteString { hashes: Some(3) }),
+            len: 13
         },
         Token {
             r#type: TokenType::Newline,

@@ -17,7 +17,7 @@ pub fn app() -> CommandApp {
         Some(format!(
             "parse source.
 			--file <path>    Read input from file
-			--text <string>  Read input from provided string
+			--string <string>  Read input from provided string
 			--no-color       Disable ANSI colors
 			--no-pager       Print directly instead of using less -R
 			--max-lexeme <n> Truncate lexeme preview to n chars (default {DEFAULT_MAX_LEXEME_LEN})"
@@ -47,7 +47,7 @@ fn lex(ctx: CommandArguments) -> i32 {
     let headers = vec![
         "Line".to_string(),
         "Col".to_string(),
-        "Kind".to_string(),
+        "Type".to_string(),
         "Lexeme".to_string(),
         "Length".to_string(),
     ];
@@ -128,10 +128,10 @@ fn resolve_input(ctx: &CommandArguments) -> Result<String, String> {
     if let Some(path) = ctx.option("file") {
         return read_file_to_string(path).map_err(|e| format!("failed to read {path}: {e}"));
     }
-    if let Some(text) = ctx.option("text") {
-        return Ok(text.to_string());
+    if let Some(string) = ctx.option("string") {
+        return Ok(string.to_string());
     }
-    Err("provide --file <path> or --text <string>".to_string())
+    Err("provide --file <path> or --string <string>".to_string())
 }
 
 /// Read a file to a string.
@@ -160,7 +160,7 @@ fn format_token_kind(kind: TokenType) -> String {
         TokenType::Identifier => "Identifier".to_string(),
         TokenType::InvalidIdentifier => "InvalidIdentifier".to_string(),
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "Unknown".to_string(),
-        TokenType::Literal { .. } => "Literal".to_string(),
+        TokenType::Literal(_) => "Literal".to_string(),
         other => format!("{other:?}"),
     }
 }
@@ -173,7 +173,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Whitespace => "2",                                 // dim
         TokenType::Identifier => "36",                                // cyan
         TokenType::InvalidIdentifier => "31",                         // red
-        TokenType::Literal { .. } => "35",                            // magenta
+        TokenType::Literal(_) => "35",                                // magenta
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "33", // yellow
         _ => "34",                                                    // blue for punctuators
     }

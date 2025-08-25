@@ -37,7 +37,7 @@ impl Token {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
-            TokenType::Literal { .. } => {
+            TokenType::Literal(_) => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
