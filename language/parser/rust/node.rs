@@ -98,21 +98,6 @@ pub struct UsingItem {
     pub alias: Option<Identifier>,
 }
 
-/// A Tuple is a named tuple definition.
-///
-/// Example:
-/// ```
-/// tuple MyTuple(int32, int32[])
-/// tuple MyOtherTuple(uint8, (int32, boolean, Vector2))
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Tuple {
-    /// The name of the tuple.
-    pub name: Identifier,
-    /// The elements of the tuple.
-    pub elements: Vec<Type>,
-}
-
 /// A StructDefinition is a named struct definition.
 ///
 /// Example:
@@ -480,8 +465,8 @@ pub enum Statement {
     Expression(Expression),
     // Let binding
     Let(Let),
-    // Const binding
-    Const(Const),
+    // Var binding
+    Var(Var),
     // Assignment
     Assign(Assign),
     // Using declaration
@@ -550,8 +535,6 @@ pub enum Expression {
     /// Block expression.
     Block(Block),
 
-    /// Tuple definition
-    Tuple(Tuple),
     /// Struct definition
     Struct(Struct),
     /// Union definition
@@ -659,7 +642,7 @@ pub struct FieldLiteral {
 /// Example:
 /// ```
 /// int32
-/// bool
+/// boolean
 /// [float32]
 /// [float64; 3]
 /// (int32, int32)
@@ -820,37 +803,38 @@ pub struct Block {
     pub statements: Vec<Statement>,
 }
 
-/// A Let is a let binding to introduce a new variable into a scope.
+/// A Let is a let binding to introduce a new constant into a scope.
+/// A constant must always be initialized to a value and it cannot be changed.
 ///
 /// Example:
 /// ```
-/// let x = 1
-/// let x: i32 = 1
-/// let x: int32 // implicitly uninitialized, must be set before use
-/// let y: f64[3] = --- // explicitly uninitialized, can do whatever
+/// let Constant = 1
+/// let Constant: i32 = 1
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
     pub name: Identifier,
     pub r#type: Option<Box<Type>>,
-    pub value: Option<Box<Expression>>,
-    /// Whether the let is uninitialized with `---`.
-    pub is_uninitialized: bool,
+    pub value: Box<Expression>,
 }
 
-/// A Const is a const binding to introduce a new constant into a scope.
+/// A Var is a var binding to introduce a new variable into a scope.
+/// A variable may be explicitly uninintialized with `---`.
 ///
 /// Example:
 /// ```
-/// const x = 1
-/// const x: i32 = 1
-/// const weight = @computeWeight(x)
+/// var x = 1
+/// var x: i32 = 1
+/// var x: int32 // implicitly uninitialized, must be set before use
+/// var x: f64[3] = --- // explicitly uninitialized, can do whatever
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Const {
+pub struct Var {
     pub name: Identifier,
-    pub r#type: Type,
-    pub value: Expression,
+    pub r#type: Option<Box<Type>>,
+    pub value: Option<Box<Expression>>,
+    /// Whether the var is uninitialized with `---`.
+    pub is_uninitialized: bool,
 }
 
 /// As is a cast expression.

@@ -56,7 +56,13 @@ impl Tokenizer<'_> {
         // parse token
         let token_kind = match first_char {
             // whitespace
-            c if is_whitespace(c) => self.whitespace(),
+            c if is_whitespace(c) => {
+                if c == '\n' {
+                    TokenType::Newline
+                } else {
+                    self.whitespace()
+                }
+            }
 
             // slash, comment (incl. doc comment)
             '/' => {

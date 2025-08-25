@@ -6,6 +6,7 @@ impl Token {
     pub fn render(&self, source: &str, offset: usize) -> String {
         let len = self.len as usize;
         match self.r#type {
+            TokenType::Newline => "\n".to_string(),
             TokenType::Whitespace => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
