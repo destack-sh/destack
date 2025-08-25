@@ -97,9 +97,9 @@ fn test_valid_weird_unicode() {
             len: 1
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
-        }
+        },
     );
 }
 
@@ -379,7 +379,7 @@ fn test_smoke() {
             len: 1
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
     );
@@ -394,7 +394,7 @@ fn test_comments() {
 /// doc comment
 ",
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -402,7 +402,7 @@ fn test_comments() {
             len: 10
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -410,7 +410,7 @@ fn test_comments() {
             len: 20
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -418,7 +418,7 @@ fn test_comments() {
             len: 15
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
     );
@@ -492,7 +492,7 @@ r###"raw"###suffix
 br###"raw"###suffix
 "####,
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -503,7 +503,7 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -514,7 +514,7 @@ br###"raw"###suffix
             len: 4
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -525,7 +525,7 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -536,7 +536,7 @@ br###"raw"###suffix
             len: 4
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -550,7 +550,7 @@ br###"raw"###suffix
             len: 4
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -564,7 +564,7 @@ br###"raw"###suffix
             len: 5
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -578,7 +578,7 @@ br###"raw"###suffix
             len: 5
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -592,7 +592,7 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -606,7 +606,7 @@ br###"raw"###suffix
             len: 6
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -620,7 +620,7 @@ br###"raw"###suffix
             len: 3
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -631,7 +631,7 @@ br###"raw"###suffix
             len: 18
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
         Token {
@@ -642,7 +642,7 @@ br###"raw"###suffix
             len: 19
         },
         Token {
-            r#type: TokenType::Whitespace,
+            r#type: TokenType::Newline,
             len: 1
         },
     );

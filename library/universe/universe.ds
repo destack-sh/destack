@@ -44,19 +44,19 @@ struct Universe {
     /// The beginning of time (1 AD, 00:00:00 UTC).
     BEGINNING_OF_DATETIME: Datetime,
     /// The system Universe ID.
-    UNIVERSE_ID: UUID,
+    UNIVERSE_ID: Uuid,
     /// The system Space ID.
-    SPACE_ID: UUID,
+    SPACE_ID: Uuid,
     /// The system Space reference.
     SPACE: NodeSpatialReference,
     /// The 'meta' Snapshot id containing time-related Entities.
-    META_SNAPSHOT_ID: UUID,
+    META_SNAPSHOT_ID: Uuid,
     /// The 'meta' Branch id containing time-related Entities.
-    META_BRANCH_ID: UUID,
+    META_BRANCH_ID: Uuid,
     /// The 'root' Branch id all other Branches originate from.
-    ROOT_BRANCH_ID: UUID,
+    ROOT_BRANCH_ID: Uuid,
     /// The 'head' Snapshot id representing the current active Snapshot.
-    HEAD_SNAPSHOT_ID: UUID,
+    HEAD_SNAPSHOT_ID: Uuid,
     /// God Himself, the creator of the Universe.
     GOD: NodeSpatialReference,
     /// God's terminal, for when He needs to do something.

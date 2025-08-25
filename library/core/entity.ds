@@ -48,7 +48,7 @@ function @entity(structDecl: StructDefinition) => StructDefinition {
 @entity
 struct Entity {
     /// The universally unique identifier of this Entity.
-    id: UUID,
+    id: Uuid,
     /// The Space this Entity is in.
     space: EntityReference<Space>,
     /// The Branch this Entity is part of (in its Space).
@@ -63,9 +63,9 @@ struct Entity {
     instance: Optional<EntityReference<Entity>>,
 
     /// The logical time this Entity was created.
-    createdEpoch: u64,
+    createdEpoch: uint64,
     /// The logical time this Entity was last updated.
-    updatedEpoch: u64,
+    updatedEpoch: uint64,
     /// The exclusive owner of this Entity (the root on access).
     owner: EntityReference<Entity>,
     /// The exclusive controller of this Entity (the authority on changes).

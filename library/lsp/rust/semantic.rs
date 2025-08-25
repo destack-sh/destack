@@ -215,7 +215,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::ShiftRightAssign => 4, // OPERATOR
 
         // skip these token types
-        K::Whitespace | K::Unknown | K::End => return None,
+        K::Newline | K::Whitespace | K::Unknown | K::End => return None,
     };
 
     // length in UTF-16 code units

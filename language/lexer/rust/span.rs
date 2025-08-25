@@ -9,7 +9,7 @@ pub struct Span {
     pub end: u32,
 }
 
-/// A semantic Token with a Span.
+/// A "semantic" Token with a Span.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct TokenSpan {
     /// The Token.

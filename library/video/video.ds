@@ -3,8 +3,8 @@ using destack
 /// A Video File
 @entity
 struct Video using File {
-    width: u32,
-    height: u32,
+    width: uint32,
+    height: uint32,
     duration: Duration,
 }
 

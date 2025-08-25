@@ -27,9 +27,9 @@ struct Machine {
     /// RAM in GB.
     ram: float32 = 1.0,
     /// Virtual display width.
-    width: u32 = 1280,
+    width: uint32 = 1280,
     /// Virtual display height.
-    height: u32 = 960,
+    height: uint32 = 960,
     /// Whether to run headless.
     isHeadless: boolean = false,
 }

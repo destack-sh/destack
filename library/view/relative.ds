@@ -81,7 +81,7 @@ struct Length {
     /// The unit type for this length
     unit: LengthType, 
     /// The numeric value in the specified unit
-    value: i16 
+    value: int16 
 }
 
 /// A 2-dimensional position value (relative or absolute)
@@ -101,51 +101,51 @@ struct Offset2 {
 /// A 2-dimensional insets value (base + side overrides)
 struct Inset2 { 
     /// Top inset value
-    top: i16, 
+    top: int16, 
     /// Left inset value
-    left: i16, 
+    left: int16, 
     /// Right inset value
-    right: i16, 
+    right: int16, 
     /// Bottom inset value
-    bottom: i16 
+    bottom: int16 
 }
 
 /// A 2-dimensional corners value (base + corner overrides)
 struct Corner2 { 
     /// Top-left corner radius
-    topLeft: i16, 
+    topLeft: int16, 
     /// Top-right corner radius
-    topRight: i16, 
+    topRight: int16, 
     /// Bottom-left corner radius
-    bottomLeft: i16, 
+    bottomLeft: int16, 
     /// Bottom-right corner radius
-    bottomRight: i16 
+    bottomRight: int16 
 }
 
 /// A 2-dimensional axis value (base + x/y overrides)
 struct Axis2 { 
     /// X-axis value
-    x: i16, 
+    x: int16, 
     /// Y-axis value
-    y: i16 
+    y: int16 
 }
 
 /// A 3-dimensional axis value (base + x/y/z overrides)
 struct Axis3 { 
     /// X-axis value
-    x: i16, 
+    x: int16, 
     /// Y-axis value
-    y: i16, 
+    y: int16, 
     /// Z-axis value
-    z: i16 
+    z: int16 
 }
 
 /// A 2-dimensional grid configuration value
 struct Grid2 {
     /// Number of columns in the grid
-    columns: i16,
+    columns: int16,
     /// Number of rows in the grid
-    rows: i16,
+    rows: int16,
     /// Fixed width for columns
     columnWidth: Optional<Length>,
     /// Minimum width for columns
@@ -157,7 +157,7 @@ struct Grid2 {
 /// A 2-dimensional grid span value
 struct GridSpan2 { 
     /// Number of columns to span
-    columns: i16, 
+    columns: int16, 
     /// Number of rows to span
-    rows: i16 
+    rows: int16 
 }

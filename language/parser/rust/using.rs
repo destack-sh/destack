@@ -91,16 +91,17 @@ mod tests {
     #[test]
     fn test_parse_using_declaration() {
         let input = r##"
-using destack;
-using destack.geometry;
-using destack as ds;
-using ds.geometry as geom;
-using ds.geometry.{Vector2, Vector3 as V3};
+using destack
+using destack.geometry
+using destack as ds
+using ds.geometry as geom
+using ds.geometry.{Vector2, Vector3 as V3}
 "##;
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
 
-        // using destack;
+        // using destack
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
@@ -115,7 +116,7 @@ using ds.geometry.{Vector2, Vector3 as V3};
             }
         );
 
-        // using destack.geometry;
+        // using destack.geometry
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
@@ -135,7 +136,7 @@ using ds.geometry.{Vector2, Vector3 as V3};
             }
         );
 
-        // using destack as ds;
+        // using destack as ds
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
@@ -150,7 +151,7 @@ using ds.geometry.{Vector2, Vector3 as V3};
             }
         );
 
-        // using ds.geometry as geom;
+        // using ds.geometry as geom
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
@@ -170,7 +171,7 @@ using ds.geometry.{Vector2, Vector3 as V3};
             }
         );
 
-        // using ds.geometry.{Vector2, Vector3 as V3};
+        // using ds.geometry.{Vector2, Vector3 as V3}
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,

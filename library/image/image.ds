@@ -3,8 +3,8 @@ using destack
 /// An Image File
 @entity
 struct Image using File {
-    width: u32,
-    height: u32,
+    width: uint32,
+    height: uint32,
 }
 
 

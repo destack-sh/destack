@@ -1,4 +1,3 @@
 use crate::Parser;
 
-impl<'a> Parser<'a> {
-}
+impl<'a> Parser<'a> {}

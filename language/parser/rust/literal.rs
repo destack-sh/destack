@@ -76,8 +76,9 @@ mod tests {
         parser.eat_literal()
     }
 
+    /// Parse scalar literals.
     #[test]
-    fn test_literals() {
+    fn test_scalar_literals() {
         // 1
         assert_eq!(
             parse_literal("1"),

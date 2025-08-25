@@ -20,7 +20,7 @@ struct Trigger {
     /// The target Entity to invoke.
     target: Optional<Entity>,
     /// Arguments to pass to the target.
-    arguments: Map<UUID, Value>,
+    arguments: Map<Uuid, Value>,
 }
 
 

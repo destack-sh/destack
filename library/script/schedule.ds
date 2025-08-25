@@ -42,17 +42,17 @@ struct Schedule {
     /// The recurrence frequency.
     frequency: ScheduleFrequency,
     /// The recurrence interval (>= 1).
-    interval: u32 = 1,
+    interval: uint32 = 1,
     /// The optional start timestamp.
     start: Optional<Timestamp>,
     /// The optional end timestamp.
     end: Optional<Timestamp>,
     /// The optional total occurrence count.
-    count: Optional<u32>,
+    count: Optional<uint32>,
     /// The optional week start day.
     weekStart: Optional<DayOfWeek>,
     /// Positions to include in the set.
-    bySetPos: Optional<List<u32>>,
+    bySetPos: Optional<List<uint32>>,
     /// Months to include.
     byMonth: Optional<List<Month>>,
     /// Month days to include.

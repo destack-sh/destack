@@ -35,7 +35,9 @@ impl Token {
 /// Enum representing common lexeme types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
-    /// Any whitespace character sequence.
+    /// A newline character.
+    Newline,
+    /// Any non-newline whitespace character sequence.
     Whitespace,
     /// A line comment, e.g. `// comment` `//// comment` `//////// comment`.
     LineComment,

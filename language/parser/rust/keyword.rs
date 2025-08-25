@@ -27,10 +27,10 @@ pub enum Keyword {
     As,
     /// Where clause.
     Where,
-    /// Define a constant.
-    Const,
-    /// Define a variable.
+    /// Let expression.
     Let,
+    /// Var expression.
+    Var,
     /// Conditional expression.
     If,
     /// Conditional expression.
@@ -74,8 +74,8 @@ impl Keyword {
             Keyword::Using => "using",
             Keyword::As => "as",
             Keyword::Where => "where",
-            Keyword::Const => "const",
             Keyword::Let => "let",
+            Keyword::Var => "var",
             Keyword::If => "if",
             Keyword::Else => "else",
             Keyword::While => "while",
