@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// A Capsule2D is a segment with rounded ends with a common radius.
 struct Capsule2D using Form2D {

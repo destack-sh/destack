@@ -10,20 +10,20 @@ impl<'a> Parser<'a> {
         let first = self.eat_identifier()?;
         segments.push(PathSegment { name: first });
 
-        // zero or more `.identifier` (but stop before `.{` used by grouped using)
+        // zero or more `.identifier`
+        // (but stop before `.{` used by grouped using)
         loop {
-            if self.peek_token_type(TokenType::Dot).is_ok() {
-                // ensure the token after the dot is an Identifier; otherwise, stop (e.g., `.{`)
-                if let Ok(after_dot) = self.peek_ahead(1)
-                    && after_dot.token.r#type == TokenType::Identifier
-                {
-                    self.eat_token_type(TokenType::Dot)?;
-                    let seg = self.eat_identifier()?;
-                    segments.push(PathSegment { name: seg });
-                    continue;
-                }
+            if self.peek_next_token(TokenType::Dot).is_ok()
+                && let Ok(after_dot) = self.peek_next_next()
+                && after_dot.token.r#type == TokenType::Identifier
+            {
+                self.eat_token(TokenType::Dot)?;
+                let seg = self.eat_identifier()?;
+                segments.push(PathSegment { name: seg });
+                continue;
+            } else {
+                break;
             }
-            break;
         }
 
         Ok(Path { segments })
@@ -36,8 +36,9 @@ mod tests {
 
     use crate::{Parser, Path, PathSegment};
 
+    /// Test that the parser can parse a path with a single segment.
     #[test]
-    fn parse_simple_path_single_segment() {
+    fn test_parse_simple_path_single_segment() {
         let input = "destack";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
@@ -52,8 +53,9 @@ mod tests {
         );
     }
 
+    /// Test that the parser can parse a path with multiple segments.
     #[test]
-    fn parse_simple_path_multiple_segments() {
+    fn test_parse_simple_path_multiple_segments() {
         let input = "destack.geometry.math";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
@@ -76,8 +78,9 @@ mod tests {
         );
     }
 
+    /// Test that the parser stops before non-path items (like for Using items).
     #[test]
-    fn parse_path_stops_before_group_brace() {
+    fn test_parse_path_stops_before_group_brace() {
         let input = "ds.geometry.{Vector2}";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
@@ -98,27 +101,5 @@ mod tests {
         // ensure next token is the `.` for the group
         let next = parser.peek_next().unwrap();
         assert_eq!(next.token.r#type, TokenType::Dot);
-    }
-
-    #[test]
-    fn parse_path_stops_before_group_brace_with_alias() {
-        // nocheckin: wait what? paths should have aliases right?
-        let input = "ds.geometry.{Vector2 as V2}";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let path = parser.eat_path().unwrap();
-        assert_eq!(
-            path,
-            Path {
-                segments: vec![
-                    PathSegment {
-                        name: "ds".to_string()
-                    },
-                    PathSegment {
-                        name: "geometry".to_string()
-                    },
-                ],
-            }
-        );
     }
 }

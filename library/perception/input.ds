@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// Base type for direct user input events
 @event

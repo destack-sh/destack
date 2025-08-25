@@ -1,9 +1,9 @@
 /// Basics Social Module.
 
 
-using follow;
-using notification;
-using reaction;
-using star;
+using follow
+using notification
+using reaction
+using star
 
 

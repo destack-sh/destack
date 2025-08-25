@@ -1,12 +1,12 @@
 /// The Destack Simulation Perception Module.
 
 
-using input;
-using pointer;
-using mouse;
-using key;
-using focus;
-using drag;
-using clipboard;
+using input
+using pointer
+using mouse
+using key
+using focus
+using drag
+using clipboard
 
 

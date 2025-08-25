@@ -3,34 +3,34 @@ use destack_language_lexer::TokenType;
 use crate::{Keyword, ParseResult, Parser, Using, UsingItem};
 
 impl<'a> Parser<'a> {
-    /// Eat a using declaration (including keyword and semicolon).
+    /// Eat a using declaration (including keyword and semicolon or block).
     pub fn eat_using(&mut self) -> ParseResult<Using> {
         self.eat_keyword(Keyword::Using)?;
-        let using = self.eat_using_content()?;
-        self.eat_semicolon()?;
+        let using = self.eat_using_header()?;
+        self.eat_stop()?;
         Ok(using)
     }
 
     /// Eat the content of a using declaration (without the `using` keyword).
-    pub fn eat_using_content(&mut self) -> ParseResult<Using> {
+    pub fn eat_using_header(&mut self) -> ParseResult<Using> {
         let path = self.eat_path()?;
 
         // try grouped items first: `. { ... }`
-        let items = if self.peek_token_type(TokenType::Dot).is_ok() {
-            self.eat_token_type(TokenType::Dot)?;
-            self.eat_token_type(TokenType::OpenBrace)?;
+        let items = if self.peek_next_token(TokenType::Dot).is_ok() {
+            self.eat_token(TokenType::Dot)?;
+            self.eat_token(TokenType::OpenBrace)?;
 
             // parse zero or more items
+            // (empty group `.{}` is valid)
             let mut items: Vec<UsingItem> = Vec::new();
-            // empty group `.{}` is valid
-            if self.peek_token_type(TokenType::CloseBrace).is_err() {
+            if self.peek_next_token(TokenType::CloseBrace).is_err() {
                 loop {
                     let item = self.eat_using_item()?;
                     items.push(item);
-                    if self.peek_token_type(TokenType::Comma).is_ok() {
-                        self.eat_token_type(TokenType::Comma)?;
+                    if self.peek_next_token(TokenType::Comma).is_ok() {
+                        self.eat_token(TokenType::Comma)?;
                         // allow trailing comma
-                        if self.peek_token_type(TokenType::CloseBrace).is_ok() {
+                        if self.peek_next_token(TokenType::CloseBrace).is_ok() {
                             break;
                         }
                         continue;
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            self.eat_token_type(TokenType::CloseBrace)?;
+            self.eat_token(TokenType::CloseBrace)?;
             Some(items)
         } else {
             None
@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
 
         // optional alias `as Ident` (only when no grouped items were present)
         let alias = if items.is_none() {
-            if let Ok(next) = self.peek_token_type(TokenType::Identifier) {
+            if let Ok(next) = self.peek_next_token(TokenType::Identifier) {
                 if self.get_token_str(*next) == Keyword::As.as_str() {
                     self.eat_keyword(Keyword::As)?;
                     Some(self.eat_identifier()?)
@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
     /// Eat a using item (like `geometry` or `geometry as geom`).
     pub fn eat_using_item(&mut self) -> ParseResult<UsingItem> {
         let name = self.eat_identifier()?;
-        let alias = if let Ok(next) = self.peek_token_type(TokenType::Identifier) {
+        let alias = if let Ok(next) = self.peek_next_token(TokenType::Identifier) {
             if self.get_token_str(*next) == Keyword::As.as_str() {
                 self.eat_keyword(Keyword::As)?;
                 Some(self.eat_identifier()?)
@@ -89,7 +89,7 @@ mod tests {
     use crate::{Parser, Path, PathSegment, Using, UsingItem};
 
     #[test]
-    fn test_using() {
+    fn test_parse_using_declaration() {
         let input = r##"
 using destack;
 using destack.geometry;
@@ -98,12 +98,12 @@ using ds.geometry as geom;
 using ds.geometry.{Vector2, Vector3 as V3};
 "##;
         let tokens = tokenize_semantic(input);
-        println!("{tokens:?}");
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+
         // using destack;
-        let u1 = parser.eat_using().unwrap();
+        let using = parser.eat_using().unwrap();
         assert_eq!(
-            u1,
+            using,
             Using {
                 path: Path {
                     segments: vec![PathSegment {
@@ -116,9 +116,9 @@ using ds.geometry.{Vector2, Vector3 as V3};
         );
 
         // using destack.geometry;
-        let u2 = parser.eat_using().unwrap();
+        let using = parser.eat_using().unwrap();
         assert_eq!(
-            u2,
+            using,
             Using {
                 path: Path {
                     segments: vec![
@@ -127,7 +127,7 @@ using ds.geometry.{Vector2, Vector3 as V3};
                         },
                         PathSegment {
                             name: "geometry".to_string()
-                        },
+                        }
                     ],
                 },
                 alias: None,
@@ -136,9 +136,9 @@ using ds.geometry.{Vector2, Vector3 as V3};
         );
 
         // using destack as ds;
-        let u3 = parser.eat_using().unwrap();
+        let using = parser.eat_using().unwrap();
         assert_eq!(
-            u3,
+            using,
             Using {
                 path: Path {
                     segments: vec![PathSegment {
@@ -151,9 +151,9 @@ using ds.geometry.{Vector2, Vector3 as V3};
         );
 
         // using ds.geometry as geom;
-        let u4 = parser.eat_using().unwrap();
+        let using = parser.eat_using().unwrap();
         assert_eq!(
-            u4,
+            using,
             Using {
                 path: Path {
                     segments: vec![
@@ -162,7 +162,7 @@ using ds.geometry.{Vector2, Vector3 as V3};
                         },
                         PathSegment {
                             name: "geometry".to_string()
-                        },
+                        }
                     ],
                 },
                 alias: Some("geom".to_string()),
@@ -171,9 +171,9 @@ using ds.geometry.{Vector2, Vector3 as V3};
         );
 
         // using ds.geometry.{Vector2, Vector3 as V3};
-        let u5 = parser.eat_using().unwrap();
+        let using = parser.eat_using().unwrap();
         assert_eq!(
-            u5,
+            using,
             Using {
                 path: Path {
                     segments: vec![
@@ -182,19 +182,19 @@ using ds.geometry.{Vector2, Vector3 as V3};
                         },
                         PathSegment {
                             name: "geometry".to_string()
-                        },
+                        }
                     ],
                 },
                 alias: None,
                 items: Some(vec![
                     UsingItem {
                         name: "Vector2".to_string(),
-                        alias: None
+                        alias: None,
                     },
                     UsingItem {
                         name: "Vector3".to_string(),
-                        alias: Some("V3".to_string())
-                    },
+                        alias: Some("V3".to_string()),
+                    }
                 ]),
             }
         );

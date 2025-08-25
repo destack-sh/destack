@@ -1,6 +1,6 @@
 //! TokenSpans.
 
-use destack_language_lexer::{LiteralTokenType, TokenType, tokenize};
+use destack_language_lexer::{LiteralToken, TokenType, tokenize};
 use tower_lsp_server::lsp_types as lsp;
 
 /// Get semantic tokens for the given text.
@@ -151,13 +151,13 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
         // literals
         K::Literal { r#type, .. } => match r#type {
-            LiteralTokenType::Integer { .. } | LiteralTokenType::Float { .. } => 3, // NUMBER
-            LiteralTokenType::Character { .. }
-            | LiteralTokenType::Byte { .. }
-            | LiteralTokenType::String { .. }
-            | LiteralTokenType::ByteString { .. }
-            | LiteralTokenType::RawString { .. }
-            | LiteralTokenType::RawByteString { .. } => 2, // STRING
+            LiteralToken::Integer { .. } | LiteralToken::Float { .. } => 3, // NUMBER
+            LiteralToken::Character { .. }
+            | LiteralToken::Byte { .. }
+            | LiteralToken::String { .. }
+            | LiteralToken::ByteString { .. }
+            | LiteralToken::RawString { .. }
+            | LiteralToken::RawByteString { .. } => 2, // STRING
         },
 
         // punctuation (use FUNCTION color)

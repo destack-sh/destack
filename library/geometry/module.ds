@@ -1,17 +1,17 @@
 /// The Destack Simulation Geometry Module.
 
-using shape;
-using point;
-using circle;
-using capsule;
-using rectangle;
-using segment;
-using path;
-using ellipse;
-using halfspace;
-using convex;
-using mesh;
-using cone;
-using cylinder;
-using quaternion;
-using vector;
+using shape
+using point
+using circle
+using capsule
+using rectangle
+using segment
+using path
+using ellipse
+using halfspace
+using convex
+using mesh
+using cone
+using cylinder
+using quaternion
+using vector

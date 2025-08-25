@@ -19,7 +19,7 @@ pub struct Parser<'a> {
     pub(crate) tokens: &'a [TokenSpan],
     /// The current position in the tokens.
     pos: usize,
-    /// The EOF token.
+    /// The EOF token (the actual last token or a fake placeholder one if empty).
     eof_token: TokenSpan,
 }
 
@@ -82,24 +82,14 @@ impl<'a> Parser<'a> {
     /// Peek the next next Token or error.
     #[inline]
     pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
-        self.tokens.get(self.pos + 2).ok_or(ParseError::SyntaxError(
+        self.tokens.get(self.pos + 1).ok_or(ParseError::SyntaxError(
             self.tokens.last().map(|s| s.span).unwrap(),
         ))
     }
 
-    /// Peek a token at an offset from the current position.
-    #[inline]
-    pub fn peek_ahead(&self, offset: usize) -> ParseResult<&TokenSpan> {
-        self.tokens
-            .get(self.pos + offset)
-            .ok_or(ParseError::SyntaxError(
-                self.tokens.last().map(|s| s.span).unwrap(),
-            ))
-    }
-
     /// Eat a token.
     #[inline]
-    pub fn eat_token_type(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         let current = self.eat_next()?;
         if current.token.r#type == token_type {
             Ok(current)
@@ -108,9 +98,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Peek a token.
+    /// Peek the next token.
     #[inline]
-    pub fn peek_token_type(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+    pub fn peek_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         let next = self.peek_next()?;
         if next.token.r#type == token_type {
             Ok(next)
@@ -119,27 +109,38 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a semicolon.
+    /// Peek the next next token.
     #[inline]
-    pub fn eat_semicolon(&mut self) -> ParseResult<&TokenSpan> {
-        self.eat_token_type(TokenType::Semicolon)
+    pub fn peek_next_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+        let next = self.peek_next_next()?;
+        if next.token.r#type == token_type {
+            Ok(next)
+        } else {
+            Err(ParseError::SyntaxError(next.span))
+        }
+    }
+
+    /// Eat a "stop" (semicolon or newline).
+    #[inline]
+    pub fn eat_stop(&mut self) -> ParseResult<&TokenSpan> {
+        self.eat_token(TokenType::Semicolon)
     }
 
     /// Peek a semicolon.
     #[inline]
     pub fn peek_semicolon(&self) -> ParseResult<&TokenSpan> {
-        self.peek_token_type(TokenType::Semicolon)
+        self.peek_next_token(TokenType::Semicolon)
     }
 
     /// Eat a colon.
     #[inline]
     pub fn eat_colon(&mut self) -> ParseResult<&TokenSpan> {
-        self.eat_token_type(TokenType::Colon)
+        self.eat_token(TokenType::Colon)
     }
 
     /// Peek a colon.
     #[inline]
     pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {
-        self.peek_token_type(TokenType::Colon)
+        self.peek_next_token(TokenType::Colon)
     }
 }

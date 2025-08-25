@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// A 2D content View
 @entity

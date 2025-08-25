@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// A generic File is a remote asset stored somewhere.
 @entity

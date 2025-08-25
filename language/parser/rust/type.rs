@@ -1,4 +1,4 @@
-use crate::Parser;
+use crate::{ParseResult, Parser, Type};
 
 /// An IntType is a signed integer type.
 #[derive(Debug, Clone, PartialEq)]
@@ -63,4 +63,9 @@ impl FloatType {
     }
 }
 
-impl<'a> Parser<'a> {}
+impl<'a> Parser<'a> {
+    /// Eat a Type.
+    pub fn eat_type(&mut self) -> ParseResult<Type> {
+        todo!()
+    }
+}

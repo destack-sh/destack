@@ -1,6 +1,6 @@
 use crate::tokenize;
 
-use super::token::{LiteralTokenType, NumberBase, RawStringError, Token, TokenType};
+use super::token::{LiteralToken, NumberBase, RawStringError, Token, TokenType};
 use super::tokenizer::Tokenizer;
 use super::*;
 
@@ -357,7 +357,7 @@ fn test_smoke() {
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::String { terminated: true },
+                r#type: LiteralToken::String { terminated: true },
                 suffix_start: 7
             },
             len: 7
@@ -430,7 +430,7 @@ fn test_characters() {
         "'a' ' ' '\\n'",
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Character { terminated: true },
+                r#type: LiteralToken::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
@@ -441,7 +441,7 @@ fn test_characters() {
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Character { terminated: true },
+                r#type: LiteralToken::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
@@ -452,7 +452,7 @@ fn test_characters() {
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Character { terminated: true },
+                r#type: LiteralToken::Character { terminated: true },
                 suffix_start: 4
             },
             len: 4
@@ -466,7 +466,7 @@ fn test_raw_string() {
         "r###\"\"#a\\b\x00c\"\"###",
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::RawString { hashes: Some(3) },
+                r#type: LiteralToken::RawString { hashes: Some(3) },
                 suffix_start: 17
             },
             len: 17
@@ -497,7 +497,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Character { terminated: true },
+                r#type: LiteralToken::Character { terminated: true },
                 suffix_start: 3
             },
             len: 3
@@ -508,7 +508,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Byte { terminated: true },
+                r#type: LiteralToken::Byte { terminated: true },
                 suffix_start: 4
             },
             len: 4
@@ -519,7 +519,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::String { terminated: true },
+                r#type: LiteralToken::String { terminated: true },
                 suffix_start: 3
             },
             len: 3
@@ -530,7 +530,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::ByteString { terminated: true },
+                r#type: LiteralToken::ByteString { terminated: true },
                 suffix_start: 4
             },
             len: 4
@@ -541,7 +541,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Integer {
+                r#type: LiteralToken::Integer {
                     base: NumberBase::Decimal,
                     empty_int: false
                 },
@@ -555,7 +555,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Integer {
+                r#type: LiteralToken::Integer {
                     base: NumberBase::Binary,
                     empty_int: false
                 },
@@ -569,7 +569,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Integer {
+                r#type: LiteralToken::Integer {
                     base: NumberBase::Hexadecimal,
                     empty_int: false
                 },
@@ -583,7 +583,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Float {
+                r#type: LiteralToken::Float {
                     base: NumberBase::Decimal,
                     is_empty_exponent: false
                 },
@@ -597,7 +597,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Float {
+                r#type: LiteralToken::Float {
                     base: NumberBase::Decimal,
                     is_empty_exponent: false
                 },
@@ -611,7 +611,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::Integer {
+                r#type: LiteralToken::Integer {
                     base: NumberBase::Decimal,
                     empty_int: false
                 },
@@ -625,7 +625,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::RawString { hashes: Some(3) },
+                r#type: LiteralToken::RawString { hashes: Some(3) },
                 suffix_start: 12
             },
             len: 18
@@ -636,7 +636,7 @@ br###"raw"###suffix
         },
         Token {
             r#type: TokenType::Literal {
-                r#type: LiteralTokenType::RawByteString { hashes: Some(3) },
+                r#type: LiteralToken::RawByteString { hashes: Some(3) },
                 suffix_start: 13
             },
             len: 19

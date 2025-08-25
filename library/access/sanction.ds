@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// A type of Sanction.
 enum SanctionType {

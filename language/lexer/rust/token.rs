@@ -54,7 +54,7 @@ pub enum TokenType {
     UnknownLiteralPrefix,
     /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`.
     Literal {
-        r#type: LiteralTokenType,
+        r#type: LiteralToken,
         suffix_start: u32,
     },
 
@@ -166,10 +166,10 @@ pub enum TokenType {
 
 /// Literal Token
 ///
-/// NOTE: The suffix is *not* considered when deciding the `LiteralType`.
+/// NOTE: The suffix is *not* considered when deciding the `LiteralToken`.
 /// (e.g., float literals like `1f32` are classified by this type as `Int` since they have no `.`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LiteralTokenType {
+pub enum LiteralToken {
     /// `12_u8`, `0o100`, `0b120i99`, `1f32`.
     Integer { base: NumberBase, empty_int: bool },
     /// `12.34f32`, `1e3`, but not `1f32`.
@@ -191,6 +191,7 @@ pub enum LiteralTokenType {
     RawByteString { hashes: Option<u8> },
 }
 
+/// An error from parsing a raw string.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RawStringError {
     /// Non `#` characters exist between `r` and `"`, e.g. `r##~"abcde"##`
