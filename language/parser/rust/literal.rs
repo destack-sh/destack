@@ -205,13 +205,26 @@ impl<'a> Parser<'a> {
     pub fn eat_array_literal(&mut self) -> ParseResult<ArrayLiteral> {
         self.eat_token(TokenType::OpenBracket)?;
         let mut elements: Vec<Expression> = vec![];
-        while self.peek_next_token(TokenType::Comma).is_ok() {
-            self.eat_token(TokenType::Comma)?;
-            let element = self.eat_expression()?;
-            elements.push(element);
+        let first_element = self.eat_expression()?;
+        elements.push(first_element);
+
+        if self.peek_next_token(TokenType::Semicolon).is_ok() {
+            // repeated array
+            self.eat_token(TokenType::Semicolon)?;
+            let count = self.eat_expression()?;
+            elements.push(count);
+            self.eat_token(TokenType::CloseBracket)?;
+            todo!("repeated array")
+        } else {
+            // fixed array
+            while self.peek_next_token(TokenType::Comma).is_ok() {
+                self.eat_token(TokenType::Comma)?;
+                let element = self.eat_expression()?;
+                elements.push(element);
+            }
+            self.eat_token(TokenType::CloseBracket)?;
+            Ok(ArrayLiteral::Fixed { elements })
         }
-        self.eat_token(TokenType::CloseBracket)?;
-        Ok(ArrayLiteral::Fixed { elements })
     }
 
     /// Eat a tuple literal.
@@ -409,6 +422,34 @@ br##"a#b#c"##
                     Expression::ScalarLiteral(ScalarLiteral::Integer(1, IntType::Int32)),
                     Expression::ScalarLiteral(ScalarLiteral::Integer(2, IntType::Int32)),
                     Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::Int32))
+                ]
+            }
+        );
+        parser.eat_newline().unwrap();
+
+        // [1.0, 2.0, 3.0]
+        let literal = parser.eat_array_literal().unwrap();
+        assert_eq!(
+            literal,
+            ArrayLiteral::Fixed {
+                elements: vec![
+                    Expression::ScalarLiteral(ScalarLiteral::Float(1.0, FloatType::Float32)),
+                    Expression::ScalarLiteral(ScalarLiteral::Float(2.0, FloatType::Float32)),
+                    Expression::ScalarLiteral(ScalarLiteral::Float(3.0, FloatType::Float32))
+                ]
+            }
+        );
+        parser.eat_newline().unwrap();
+
+        // [10, false, "Hi"]
+        let literal = parser.eat_array_literal().unwrap();
+        assert_eq!(
+            literal,
+            ArrayLiteral::Fixed {
+                elements: vec![
+                    Expression::ScalarLiteral(ScalarLiteral::Integer(10, IntType::Int32)),
+                    Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
+                    Expression::ScalarLiteral(ScalarLiteral::String("Hi".to_string()))
                 ]
             }
         );
