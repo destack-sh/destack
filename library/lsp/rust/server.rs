@@ -14,12 +14,10 @@ pub struct Backend {
 
 impl Backend {}
 
-#[async_trait::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
+    fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
         self.client
-            .log_message(MessageType::Info, "destack: initialize")
-            .await;
+            .log_message(MessageType::Info, "destack: initialize");
 
         // semantic tokens
         let semantic_tokens_legend = lsp::SemanticTokensLegend {
@@ -64,40 +62,36 @@ impl LanguageServer for Backend {
         })
     }
 
-    async fn initialized(&self, _: lsp::InitializedParams) {
+    fn initialized(&self, _: lsp::InitializedParams) {
         self.client
-            .log_message(MessageType::Info, "destack: initialized")
-            .await;
+            .log_message(MessageType::Info, "destack: initialized");
     }
 
-    async fn shutdown(&self) -> JsonRpcResult<()> {
+    fn shutdown(&self) -> JsonRpcResult<()> {
         self.client
-            .log_message(MessageType::Info, "destack: shutdown")
-            .await;
+            .log_message(MessageType::Info, "destack: shutdown");
         Ok(())
     }
 
-    async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
+    fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         self.docs.set(&uri, text);
         self.client
-            .log_message(MessageType::Info, format!("destack: did_open: {:?}", uri))
-            .await;
+            .log_message(MessageType::Info, format!("destack: did_open: {:?}", uri));
     }
 
-    async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
+    fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         // SyncKind::FULL, take the full content from the single change
         if let Some(change) = params.content_changes.into_iter().last() {
             self.docs.set(&uri, change.text);
         }
         self.client
-            .log_message(MessageType::Info, format!("destack: did_change: {:?}", uri))
-            .await;
+            .log_message(MessageType::Info, format!("destack: did_change: {:?}", uri));
     }
 
-    async fn semantic_tokens_full(
+    fn semantic_tokens_full(
         &self,
         params: lsp::SemanticTokensParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensResult>> {
@@ -106,8 +100,7 @@ impl LanguageServer for Backend {
             .log_message(
                 MessageType::Info,
                 format!("destack: semantic_tokens_full: {:?}", uri),
-            )
-            .await;
+            );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
@@ -120,8 +113,7 @@ impl LanguageServer for Backend {
                     uri,
                     tokens.len()
                 ),
-            )
-            .await;
+            );
         Ok(Some(lsp::SemanticTokensResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -130,7 +122,7 @@ impl LanguageServer for Backend {
         )))
     }
 
-    async fn semantic_tokens_range(
+    fn semantic_tokens_range(
         &self,
         params: lsp::SemanticTokensRangeParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensRangeResult>> {
@@ -139,8 +131,7 @@ impl LanguageServer for Backend {
             .log_message(
                 MessageType::Info,
                 format!("destack: semantic_tokens_range: {:?}", uri),
-            )
-            .await;
+            );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
@@ -153,8 +144,7 @@ impl LanguageServer for Backend {
                     uri,
                     tokens.len()
                 ),
-            )
-            .await;
+            );
         Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -163,15 +153,14 @@ impl LanguageServer for Backend {
         )))
     }
 
-    async fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
+    fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
         self.client
             .log_message(
                 MessageType::Info,
                 format!("destack: hover: {:?} @ {:?}", uri, position),
-            )
-            .await;
+            );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };

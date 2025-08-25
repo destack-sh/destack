@@ -1,10 +1,8 @@
-use std::sync::Arc;
+use std::io::{Read, Write};
+use std::sync::{Arc, mpsc};
 
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::sync::mpsc;
 
 pub mod jsonrpc {
 	use super::*;
@@ -123,7 +121,6 @@ pub mod lsp_types {
 	#[serde(untagged)]
 	pub enum SemanticTokensFullOptions {
 		Bool(bool),
-		// extend here for delta
 	}
 
 	#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -194,7 +191,6 @@ pub mod lsp_types {
 	#[serde(untagged)]
 	pub enum HoverContents {
 		Scalar(MarkedString),
-		// others omitted for now
 	}
 
 	#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -290,26 +286,25 @@ pub struct Client {
 }
 
 impl Client {
-	pub async fn log_message(&self, ty: lsp_types::MessageType, message: impl Into<String>) {
+	pub fn log_message(&self, ty: lsp_types::MessageType, message: impl Into<String>) {
 		let params = lsp_types::LogMessageParams { r#type: ty, message: message.into() };
 		let notification = OutgoingMessage::Notification {
 			method: "window/logMessage".to_string(),
 			params: serde_json::to_value(params).unwrap_or(JsonValue::Null),
 		};
-		let _ = self.tx.send(notification).await;
+		let _ = self.tx.send(notification);
 	}
 }
 
-#[async_trait]
 pub trait LanguageServer: Send + Sync + 'static {
-	async fn initialize(&self, _params: lsp_types::InitializeParams) -> jsonrpc::Result<lsp_types::InitializeResult> { Ok(lsp_types::InitializeResult { capabilities: lsp_types::ServerCapabilities::default(), server_info: None }) }
-	async fn initialized(&self, _params: lsp_types::InitializedParams) { }
-	async fn shutdown(&self) -> jsonrpc::Result<()> { Ok(()) }
-	async fn did_open(&self, _params: lsp_types::DidOpenTextDocumentParams) { }
-	async fn did_change(&self, _params: lsp_types::DidChangeTextDocumentParams) { }
-	async fn semantic_tokens_full(&self, _params: lsp_types::SemanticTokensParams) -> jsonrpc::Result<Option<lsp_types::SemanticTokensResult>> { Ok(None) }
-	async fn semantic_tokens_range(&self, _params: lsp_types::SemanticTokensRangeParams) -> jsonrpc::Result<Option<lsp_types::SemanticTokensRangeResult>> { Ok(None) }
-	async fn hover(&self, _params: lsp_types::HoverParams) -> jsonrpc::Result<Option<lsp_types::Hover>> { Ok(None) }
+	fn initialize(&self, _params: lsp_types::InitializeParams) -> jsonrpc::Result<lsp_types::InitializeResult> { Ok(lsp_types::InitializeResult { capabilities: lsp_types::ServerCapabilities::default(), server_info: None }) }
+	fn initialized(&self, _params: lsp_types::InitializedParams) {}
+	fn shutdown(&self) -> jsonrpc::Result<()> { Ok(()) }
+	fn did_open(&self, _params: lsp_types::DidOpenTextDocumentParams) {}
+	fn did_change(&self, _params: lsp_types::DidChangeTextDocumentParams) {}
+	fn semantic_tokens_full(&self, _params: lsp_types::SemanticTokensParams) -> jsonrpc::Result<Option<lsp_types::SemanticTokensResult>> { Ok(None) }
+	fn semantic_tokens_range(&self, _params: lsp_types::SemanticTokensRangeParams) -> jsonrpc::Result<Option<lsp_types::SemanticTokensRangeResult>> { Ok(None) }
+	fn hover(&self, _params: lsp_types::HoverParams) -> jsonrpc::Result<Option<lsp_types::Hover>> { Ok(None) }
 }
 
 pub use crate::vendor::lsp_types as lsp;
@@ -325,7 +320,7 @@ impl<S: LanguageServer> LspService<S> {
 	where
 		F: FnOnce(Client) -> S,
 	{
-		let (tx, rx) = mpsc::channel(1024);
+		let (tx, rx) = mpsc::channel();
 		let client = Client { tx: tx.clone() };
 		let server = Arc::new(factory(client));
 		(
@@ -374,32 +369,34 @@ struct JsonRpcRequest {
 	#[serde(default)] params: Option<JsonValue>,
 }
 
-pub struct Server<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
+pub struct Server<R: Read, W: Write> {
 	reader: R,
 	writer: W,
 	socket: Socket,
 }
 
-impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Server<R, W> {
+impl<R: Read, W: Write> Server<R, W> {
 	pub fn new(reader: R, writer: W, socket: Socket) -> Self { Self { reader, writer, socket } }
 
-	pub async fn serve<S: LanguageServer>(mut self, service: LspService<S>) {
+	/// Serve the JSON-RPC 2.0 LSP protocol over stdio synchronously.
+	pub fn serve<S: LanguageServer>(mut self, service: LspService<S>) -> std::io::Result<()> {
+		// writer thread handles outgoing messages
 		let mut writer = self.writer;
-		let mut rx = self.socket.rx;
-		let writer_task = tokio::spawn(async move {
-			while let Some(msg) = rx.recv().await {
+		let rx = self.socket.rx;
+		let writer_handle = std::thread::spawn(move || {
+			while let Ok(msg) = rx.recv() {
 				match msg {
 					OutgoingMessage::Response { id, result } => {
 						let resp = JsonRpcResponse { jsonrpc: "2.0", id: Some(&id), result: Some(&result), error: None };
-						write_message(&mut writer, &resp).await.ok();
+						let _ = write_message(&mut writer, &resp);
 					}
 					OutgoingMessage::Error { id, error } => {
 						let resp = JsonRpcResponse { jsonrpc: "2.0", id: Some(&id), result: None, error: Some(&error) };
-						write_message(&mut writer, &resp).await.ok();
+						let _ = write_message(&mut writer, &resp);
 					}
 					OutgoingMessage::Notification { method, params } => {
 						let notif = JsonRpcNotification { jsonrpc: "2.0", method: &method, params: Some(&params) };
-						write_message(&mut writer, &notif).await.ok();
+						let _ = write_message(&mut writer, &notif);
 					}
 				}
 			}
@@ -409,60 +406,59 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Server<R, W> {
 		let tx = service.sender();
 		let mut reader = self.reader;
 		loop {
-			match read_message(&mut reader).await {
+			match read_message(&mut reader) {
 				Ok(req) => {
 					let id = req.id.clone();
-					let method = req.method.as_str().to_string();
+					let method = req.method;
 					let params = req.params.unwrap_or(JsonValue::Null);
 					let tx_clone = tx.clone();
 					let server_clone = server.clone();
-					tokio::spawn(async move {
-						let send_response = |res: std::result::Result<JsonValue, jsonrpc::ResponseError>| async {
-							match id {
-								Some(idv) => match res {
-									Ok(v) => { let _ = tx_clone.send(OutgoingMessage::Response { id: idv, result: v }).await; }
-									Err(e) => { let _ = tx_clone.send(OutgoingMessage::Error { id: idv, error: e }).await; }
+					std::thread::spawn(move || {
+						let send_response = |res: std::result::Result<JsonValue, jsonrpc::ResponseError>| {
+							if let Some(idv) = id.clone() {
+								match res {
+									Ok(v) => { let _ = tx_clone.send(OutgoingMessage::Response { id: idv, result: v }); }
+									Err(e) => { let _ = tx_clone.send(OutgoingMessage::Error { id: idv, error: e }); }
 								}
-								None => {}
 							}
 						};
 
 						match method.as_str() {
 							"initialize" => {
 								let p: lsp_types::InitializeParams = serde_json::from_value(params).unwrap_or_default();
-								let r = server_clone.initialize(p).await.map(|v| serde_json::to_value(v).unwrap());
-								send_response(r).await;
+								let r = server_clone.initialize(p).map(|v| serde_json::to_value(v).unwrap());
+								send_response(r);
 							}
 							"initialized" => {
 								let p: lsp_types::InitializedParams = serde_json::from_value(JsonValue::Null).unwrap_or_default();
-								server_clone.initialized(p).await;
+								server_clone.initialized(p);
 							}
 							"shutdown" => {
-								let r = server_clone.shutdown().await.map(|_| JsonValue::Null);
-								send_response(r).await;
+								let r = server_clone.shutdown().map(|_| JsonValue::Null);
+								send_response(r);
 							}
 							"textDocument/didOpen" => {
 								let p: lsp_types::DidOpenTextDocumentParams = serde_json::from_value(params).unwrap();
-								server_clone.did_open(p).await;
+								server_clone.did_open(p);
 							}
 							"textDocument/didChange" => {
 								let p: lsp_types::DidChangeTextDocumentParams = serde_json::from_value(params).unwrap();
-								server_clone.did_change(p).await;
+								server_clone.did_change(p);
 							}
 							"textDocument/semanticTokens/full" => {
 								let p: lsp_types::SemanticTokensParams = serde_json::from_value(params).unwrap();
-								let r = server_clone.semantic_tokens_full(p).await.map(|opt| serde_json::to_value(opt).unwrap());
-								send_response(r).await;
+								let r = server_clone.semantic_tokens_full(p).map(|opt| serde_json::to_value(opt).unwrap());
+								send_response(r);
 							}
 							"textDocument/semanticTokens/range" => {
 								let p: lsp_types::SemanticTokensRangeParams = serde_json::from_value(params).unwrap();
-								let r = server_clone.semantic_tokens_range(p).await.map(|opt| serde_json::to_value(opt).unwrap());
-								send_response(r).await;
+								let r = server_clone.semantic_tokens_range(p).map(|opt| serde_json::to_value(opt).unwrap());
+								send_response(r);
 							}
 							"textDocument/hover" => {
 								let p: lsp_types::HoverParams = serde_json::from_value(params).unwrap();
-								let r = server_clone.hover(p).await.map(|opt| serde_json::to_value(opt).unwrap());
-								send_response(r).await;
+								let r = server_clone.hover(p).map(|opt| serde_json::to_value(opt).unwrap());
+								send_response(r);
 							}
 							_ => {
 								// ignore unknown methods for now
@@ -474,32 +470,32 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Server<R, W> {
 			}
 		}
 
-		let _ = writer_task.await;
+		let _ = writer_handle.join();
+		Ok(())
 	}
 }
 
-async fn write_message<W: AsyncWrite + Unpin, T: Serialize>(writer: &mut W, value: &T) -> std::io::Result<()> {
+fn write_message<W: Write, T: Serialize>(writer: &mut W, value: &T) -> std::io::Result<()> {
 	let body = serde_json::to_vec(value).unwrap();
-	// write header with correct length
-	let mut header_bytes = format!("Content-Length: {}\r\n\r\n", body.len()).into_bytes();
-	writer.write_all(&header_bytes).await?;
-	writer.write_all(&body).await?;
-	writer.flush().await
+	let header = format!("Content-Length: {}\r\n\r\n", body.len());
+	writer.write_all(header.as_bytes())?;
+	writer.write_all(&body)?;
+	writer.flush()
 }
 
-async fn read_message<R: AsyncRead + Unpin>(reader: &mut R) -> std::io::Result<JsonRpcRequest> {
+fn read_message<R: Read>(reader: &mut R) -> std::io::Result<JsonRpcRequest> {
 	let mut header_buf = Vec::new();
-	let mut last_two = [0u8; 4];
+	let mut last_four: [u8; 4] = [0; 4];
 	loop {
 		let mut byte = [0u8; 1];
-		if reader.read_exact(&mut byte).await.is_err() {
+		if reader.read_exact(&mut byte).is_err() {
 			return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "eof"));
 		}
 		header_buf.push(byte[0]);
 		let len = header_buf.len();
 		if len >= 4 {
-			last_two.copy_from_slice(&header_buf[len - 4..len]);
-			if last_two == *b"\r\n\r\n" {
+			last_four.copy_from_slice(&header_buf[len - 4..len]);
+			if last_four == *b"\r\n\r\n" {
 				break;
 			}
 		}
@@ -515,7 +511,7 @@ async fn read_message<R: AsyncRead + Unpin>(reader: &mut R) -> std::io::Result<J
 		}
 	}
 	let mut body = vec![0u8; content_length];
-	reader.read_exact(&mut body).await?;
+	reader.read_exact(&mut body)?;
 	let req: JsonRpcRequest = serde_json::from_slice(&body).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 	Ok(req)
 }
@@ -523,10 +519,10 @@ async fn read_message<R: AsyncRead + Unpin>(reader: &mut R) -> std::io::Result<J
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use tokio::io::duplex;
+	use std::io::duplex;
 
-	#[tokio::test]
-	async fn test_jsonrpc_roundtrip() {
+	#[test]
+	fn test_jsonrpc_roundtrip() {
 		let (mut a, mut b) = duplex(1024);
 		let req = serde_json::json!({
 			"jsonrpc": "2.0",
@@ -536,12 +532,12 @@ mod tests {
 		});
 		let body = serde_json::to_vec(&req).unwrap();
 		let header = format!("Content-Length: {}\r\n\r\n", body.len());
-		tokio::spawn(async move {
-			a.write_all(header.as_bytes()).await.unwrap();
-			a.write_all(&body).await.unwrap();
+		std::thread::spawn(move || {
+			a.write_all(header.as_bytes()).unwrap();
+			a.write_all(&body).unwrap();
 		});
 
-		let parsed = read_message(&mut b).await.unwrap();
+		let parsed = read_message(&mut b).unwrap();
 		assert_eq!(parsed.method, "initialize");
 	}
 }
