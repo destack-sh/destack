@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.
 struct Halfspace2D using Form2D {

@@ -1,5 +1,5 @@
 
 
 trait Debug {
-    fn debug(self) -> String;
+    fn debug(self) -> String
 }

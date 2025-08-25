@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// The materialization level of an Entity.
 enum(uint8) Materialization {

@@ -11,6 +11,7 @@ use crate::{FloatType, Identifier, IntType};
 pub type NodeId = u32;
 
 /// A Path is a static path to a named definition in a namespace.
+/// In the case of a Using declaration, the Path excludes the items.
 ///
 /// Example:
 /// ```
@@ -47,8 +48,6 @@ pub enum Visibility {
 ///
 /// Example:
 /// ```
-/// module foo; // empty module
-///
 /// module foo {
 ///     ...
 /// }
@@ -63,23 +62,23 @@ pub struct Module {
     pub body: Block,
 }
 
-/// A Using is a use declaration.
+/// A Using is a use declaration for dependency or context management.
 /// `using` includes all or some items from a definition in the relevant scope.
 ///
 /// Example:
 /// ```
-/// using foo;
-/// using foo.bar;
-/// using foo.{bar, baz};
-/// using.foo.{}; // valid but linted
-/// using foo as baz;
+/// using foo
+/// using foo.bar
+/// using foo.{bar, baz}
+/// using foo.{} // valid but linted
+/// using foo as baz
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Using {
     /// The path to the definition to use (like `foo.bar` in `using foo.bar.{baz, qux};`)
     pub path: Path,
     /// The alias to use for the entire item (like `baz` in `using foo as baz;`)
-    pub alias: Option<Identifier>,
+    pub alias: Option<Identifier> = None,
     /// The sub-items to use from the item (like `{baz, qux}` in `using foo.bar.{baz, qux};`)
     pub items: Option<Vec<UsingItem>> = None,
 }
@@ -118,8 +117,6 @@ pub struct Tuple {
 ///
 /// Example:
 /// ```
-/// struct Foo; // zero-sized struct
-///
 /// struct Bar {
 ///     myField: int32,
 ///     myOtherField: boolean,
@@ -146,9 +143,9 @@ pub struct Struct {
 ///
 /// Example:
 /// ```
-/// bar: int32;
-/// baz: T;
-/// baz: @someMacro(T);
+/// bar: int32
+/// baz: T
+/// baz: @someMacro(T)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
@@ -226,8 +223,6 @@ pub struct UnionField {
 ///
 /// Example:
 /// ```
-/// trait Foo; // marker trait
-///
 /// trait Bar {
 ///     ...
 /// }
@@ -289,7 +284,7 @@ pub struct Implement {
 /// ```
 /// ()
 /// (x: int32)
-/// (x: int32) => bool
+/// <Validate: boolean>(x: int32) => bool
 /// (x: int32) => int32, boolean
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -302,13 +297,22 @@ pub struct FunctionSignature {
     pub return_type: Option<Box<Type>>,
 }
 
+/// A FunctionStyle is the style of a function.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionStyle {
+    /// A normal function.
+    Dynamic,
+    /// A static function.
+    Static,
+}
+
 /// A Function is an associated or module function declaration or definition.
 /// If no body is provided, it is a declaration for a function defined elsewhere.
 ///
 /// Example:
 /// ```
-/// functionn foo() {
-///    @print("Hello, world!");
+/// function foo() {
+///    @print("Hello, world!")
 /// }
 ///
 /// function baz() => MyStruct {
@@ -318,11 +322,17 @@ pub struct FunctionSignature {
 /// function baz() => int32, boolean {
 ///    ...
 /// }
+///
+/// function @comptime() {
+///    ...
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
-    /// The name of the function.
+    /// The name of the function (excluding the `@` prefix if static).
     pub name: Identifier,
+    /// The style of the function.
+    pub style: FunctionStyle,
     /// The signature of the function.
     pub signature: FunctionSignature,
     /// The body of the function.
@@ -337,7 +347,8 @@ pub struct Function {
 /// () => None
 /// (x: int32) => x + 1
 /// (a: int32, b: int32) => {
-///     a + b
+///      let y = magicFunction(a, b);
+///      y + 4
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -353,8 +364,10 @@ pub struct Closure {
 ///
 /// Example:
 /// ```
-/// x: int32,
+/// x: int32
 /// y: (int32, boolean, Vector2)
+/// Validate: boolean = true
+/// z: int32 = 4
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
@@ -387,7 +400,7 @@ pub struct Argument {
 /// The function may or may not be declared as comptime (with a `# prefix),
 ///  but the call must be prefixed with a `#` to qualify as a static call.
 ///
-/// Static functions may take the following expression as an argument:
+/// Static functions may take the next sibling expression as an argument:
 ///  - `@entity struct MyEntity { ... }`
 ///  - `@flag enum MyFlag { ... }`
 ///
@@ -405,11 +418,11 @@ pub struct Argument {
 /// @foo(1, 2, 3)
 /// @foo<int32>(1, 2, 3)
 /// @foo<Validate: false>(1, 2, 3)
-/// @foo(.{x: 1, y: 2}, (true, 3))
+/// @foo(Vector2 {x: 1, y: 2}, (true, 3))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct StaticCall {
-    /// The path to the function to call.
+    /// The path to the function to call (excluding the `@` prefix).
     pub path: Path,
     /// The static arguments to the function `<Arg1, Arg2, ...>`.
     pub static_arguments: Option<Vec<Argument>>,
@@ -513,7 +526,7 @@ pub enum Expression {
     /// Expression form of Let for condition / guard positions.
     Let(Let),
     /// Casting.
-    Cast(Cast),
+    Cast(As),
     /// If/then/else expression.
     If(If),
     /// While loop.
@@ -798,8 +811,8 @@ pub enum BinaryOperator {
 /// Example:
 /// ```
 /// {
-///     x = 1;
-///     y = 2;
+///     x = 1
+///     y = 2
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -811,10 +824,10 @@ pub struct Block {
 ///
 /// Example:
 /// ```
-/// let x = 1;
-/// let x: i32 = 1;
-/// let x: int32; // implicitly uninitialized, must be set before use
-/// let y: f64[3] = ---; // explicitly uninitialized, can do whatever
+/// let x = 1
+/// let x: i32 = 1
+/// let x: int32 // implicitly uninitialized, must be set before use
+/// let y: f64[3] = --- // explicitly uninitialized, can do whatever
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
@@ -829,9 +842,9 @@ pub struct Let {
 ///
 /// Example:
 /// ```
-/// const x = 1;
-/// const x: i32 = 1;
-/// const weight = @computeWeight(x);
+/// const x = 1
+/// const x: i32 = 1
+/// const weight = @computeWeight(x)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Const {
@@ -840,15 +853,15 @@ pub struct Const {
     pub value: Expression,
 }
 
-/// A Cast is a cast expression.
+/// As is a cast expression.
 ///
 /// Example:
 /// ```
-/// cast(int32) 1
-/// cast(f64) 1.0
+/// as int32
+/// as f64
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Cast {
+pub struct As {
     pub r#type: Type,
     pub value: Box<Expression>,
 }
@@ -861,9 +874,9 @@ pub struct Cast {
 /// Example:
 /// ```
 /// if x > 1 {
-///     y = 2;
+///     y = 2
 /// } else {
-///     y = 3;
+///     y = 3
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -878,7 +891,7 @@ pub struct If {
 /// Example:
 /// ```
 /// while x > 1 {
-///     y = 2;
+///     y = 2
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -892,7 +905,7 @@ pub struct While {
 /// Example:
 /// ```
 /// for x in 1..10 {
-///     y = 2;
+///     y = 2
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -910,9 +923,9 @@ pub struct For {
 /// Example:
 /// ```
 /// loop {
-///     y = getNext();
+///     y = getNext()
 ///     if y < 0 {
-///         break;
+///         break
 ///     }
 /// }
 /// ```
@@ -943,11 +956,11 @@ pub struct Continue {}
 ///
 /// Example:
 /// ```
-/// defer someFunction();
+/// defer someFunction()
 ///
 /// defer {
-///     someFunction();
-///     someOtherFunction();
+///     someFunction()
+///     someOtherFunction()
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -959,7 +972,7 @@ pub struct Defer {
 ///
 /// Example:
 /// ```
-/// return 1;
+/// return 1
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return {
@@ -1077,10 +1090,10 @@ pub struct Try {
 ///
 /// Example:
 /// ```
-/// x = 1;
-/// f[1] = 2;
-/// foo.bar = 2;
-/// foo.bar.baz = 3;
+/// x = 1
+/// f[1] = 2
+/// foo.bar = 2
+/// foo.bar.baz = 3
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assign {

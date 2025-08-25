@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 /// The consensus status of an Event.
 enum EventStatus {

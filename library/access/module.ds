@@ -1,10 +1,10 @@
 /// Basics Access Module.
 
-using entitlement;
-using invite;
-using membership;
-using permission;
-using role;
-using sanction;
+using entitlement
+using invite
+using membership
+using permission
+using role
+using sanction
 
 

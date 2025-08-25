@@ -1,4 +1,4 @@
-using destack;
+using destack
 
 enum Color {
     Red,
@@ -59,13 +59,12 @@ implement TetrisPiece {
 
 implement Tick for TetrisGame {
     function tick(self) using Time, Random => Result<TetrisPiece, GameError> {
-        // TODO: Implement tick
+    
     }
 }
 
 implement Draw for TetrisGame {
     function draw(self) {
-        // TODO: Implement draw
         @tree
         TetrisBoard { grid: [TetrisPiece { shape: TetrisPieceShape.I } for _ in 0..10] } {
             Button { },

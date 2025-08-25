@@ -1,12 +1,18 @@
 #![feature(default_field_values)]
 
+mod argument;
+mod call;
+mod cast;
 mod expression;
+mod function;
 mod identifier;
 mod keyword;
 mod literal;
+mod parameter;
 mod path;
 mod pattern;
 mod statement;
+mod r#try;
 mod r#type;
 mod using;
 
