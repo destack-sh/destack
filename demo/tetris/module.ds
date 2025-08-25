@@ -23,7 +23,7 @@ implement Context for TetrisGame {
 @entity 
 struct TetrisBoard<Width: int32, Height: int32> using TetrisComponent {
     /// The grid of the board.
-    grid: TetrisPiece[Width, Height],
+    grid: TetrisPiece[Width][Height],
 }
 
 enum TetrisPieceShape {

@@ -1,3 +1,5 @@
+//! Parse calls, static calls, dynamic calls, etc.
+
 use crate::{DynamicCall, ParseResult, Parser, StaticCall};
 
 impl<'a> Parser<'a> {

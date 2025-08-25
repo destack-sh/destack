@@ -11,7 +11,7 @@ const fn to_hex_char(n: u8) -> u8 {
 
 /// Format a `[u8; 16]` UUID into the hyphenated canonical form.
 ///
-/// Example: 00112233-4455-6677-8899-aabbccddeeff
+/// Examples: 00112233-4455-6677-8899-aabbccddeeff
 #[inline]
 pub(crate) fn format_uuid(bytes: [u8; 16]) -> [u8; 36] {
     let mut out = [0u8; 36];

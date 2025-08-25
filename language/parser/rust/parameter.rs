@@ -2,7 +2,13 @@ use crate::{Parameter, ParseResult, Parser};
 use destack_language_lexer::TokenType;
 
 impl<'a> Parser<'a> {
-    /// Eat a parameter (e.g., `x: int32` or `Validate: bool = false`).
+    /// Eat a parameter
+    ///
+    /// Examples:
+    /// ```
+    /// x: int32
+    /// Validate: bool = false
+    /// ```
     pub fn eat_parameter(&mut self) -> ParseResult<Parameter> {
         // name: type
         let name = self.eat_identifier()?;
@@ -28,4 +34,28 @@ impl<'a> Parser<'a> {
             })
         }
     }
+
+    /// Eat a parameter list.
+    ///
+    /// Examples:
+    /// ```
+    /// x: int32
+    /// x: int32, y: int32
+    /// ```
+    pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<Parameter>> {
+        let mut parameters: Vec<Parameter> = Vec::new();
+        loop {
+            let parameter = self.eat_parameter()?;
+            parameters.push(parameter);
+            if self.peek_next_token(TokenType::Comma).is_ok() {
+                self.eat_token(TokenType::Comma)?;
+            } else {
+                break;
+            }
+        }
+        Ok(parameters)
+    }
 }
+
+#[cfg(test)]
+mod tests {}

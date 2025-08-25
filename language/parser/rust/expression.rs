@@ -1,3 +1,5 @@
+//! Parse expressions. Mostly defers to other parsers.
+
 use crate::{Expression, ParseResult, Parser};
 
 impl<'a> Parser<'a> {

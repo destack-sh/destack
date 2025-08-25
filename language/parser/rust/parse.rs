@@ -74,17 +74,17 @@ impl<'a> Parser<'a> {
     /// Peek the next Token or error.
     #[inline]
     pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
-        self.tokens.get(self.pos).ok_or(ParseError::SyntaxError(
-            self.tokens.last().map(|s| s.span).unwrap(),
-        ))
+        self.tokens
+            .get(self.pos)
+            .ok_or(ParseError::SyntaxError(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
     #[inline]
     pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
-        self.tokens.get(self.pos + 1).ok_or(ParseError::SyntaxError(
-            self.tokens.last().map(|s| s.span).unwrap(),
-        ))
+        self.tokens
+            .get(self.pos + 1)
+            .ok_or(ParseError::SyntaxError(self.eof_token.span))
     }
 
     /// Eat a token.

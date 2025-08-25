@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
         segments.push(PathSegment { name: first });
 
         // zero or more `.identifier`
-        // (but stop before `.{` used by grouped using)
+        // (but stop any non-[identifier/dot] token)
         loop {
             if self.peek_next_token(TokenType::Dot).is_ok()
                 && let Ok(after_dot) = self.peek_next_next()
@@ -77,7 +77,6 @@ mod tests {
             }
         );
     }
-
     /// Test that the parser stops before non-path items (like for Using items).
     #[test]
     fn test_parse_path_stops_before_group_brace() {
@@ -101,5 +100,30 @@ mod tests {
         // ensure next token is the `.` for the group
         let next = parser.peek_next().unwrap();
         assert_eq!(next.token.r#type, TokenType::Dot);
+    }
+
+    /// Test that the parser stops before non-path items (like for generic arguments).
+    #[test]
+    fn test_parse_path_stops_before_angle_bracket() {
+        let input = "geom.Vector<Dims: 2, float32>";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let path = parser.eat_path().unwrap();
+        assert_eq!(
+            path,
+            Path {
+                segments: vec![
+                    PathSegment {
+                        name: "geom".to_string()
+                    },
+                    PathSegment {
+                        name: "Vector".to_string()
+                    },
+                ],
+            }
+        );
+        // ensure next token is the `<` for the generic arguments
+        let next = parser.peek_next().unwrap();
+        assert_eq!(next.token.r#type, TokenType::LessThan);
     }
 }

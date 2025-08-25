@@ -1,5 +1,23 @@
-/// A Result value which may hold Ok(T) or Error(E).
+/// A Result value which may hold Success(T) or Error(E).
 public union Result<T, E> {
-    Ok(T),
+    Success(T),
     Error(E),
+}
+
+implement Result {
+    /// Check if the Result is a Success.
+    function isSuccess(self) => bool {
+        match self {
+            Success(_) => true,
+            Error(_) => false,
+        }
+    }
+
+    /// Check if the Result is an Error.
+    function isError(self) => bool {
+        match self {
+            Success(_) => false,
+            Error(_) => true,
+        }
+    }
 }

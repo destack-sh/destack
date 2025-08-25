@@ -151,7 +151,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
         // literals
         K::Literal { r#type, .. } => match r#type {
-            LiteralToken::Integer { .. } | LiteralToken::Float { .. } => 3, // NUMBER
+            LiteralToken::Int { .. } | LiteralToken::Float { .. } => 3, // NUMBER
             LiteralToken::Character { .. }
             | LiteralToken::Byte { .. }
             | LiteralToken::String { .. }

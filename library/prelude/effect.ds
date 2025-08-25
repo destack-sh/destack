@@ -1,0 +1,3 @@
+
+/// Marker trait for external side Effects.
+public trait Effect {}

@@ -21,4 +21,22 @@ impl<'a> Parser<'a> {
             Ok(Argument { name: None, value })
         }
     }
+
+    /// Eat an argument list (e.g., `x: 1, y: 2`).
+    pub fn eat_arguments_body(&mut self) -> ParseResult<Vec<Argument>> {
+        let mut arguments: Vec<Argument> = Vec::new();
+        loop {
+            let argument = self.eat_argument()?;
+            arguments.push(argument);
+            if self.peek_next_token(TokenType::Comma).is_ok() {
+                self.eat_token(TokenType::Comma)?;
+            } else {
+                break;
+            }
+        }
+        Ok(arguments)
+    }
 }
+
+#[cfg(test)]
+mod tests {}
