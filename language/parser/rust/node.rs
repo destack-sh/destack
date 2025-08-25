@@ -35,6 +35,21 @@ impl IntType {
     }
 }
 
+impl FromStr for IntType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "int8" => Ok(IntType::Int8),
+            "int16" => Ok(IntType::Int16),
+            "int32" => Ok(IntType::Int32),
+            "int64" => Ok(IntType::Int64),
+            "int128" => Ok(IntType::Int128),
+            _ => Err(()),
+        }
+    }
+}
+
 /// A UintType is an unsigned integer type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UintType {
@@ -58,6 +73,21 @@ impl UintType {
     }
 }
 
+impl FromStr for UintType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "uint8" => Ok(UintType::Uint8),
+            "uint16" => Ok(UintType::Uint16),
+            "uint32" => Ok(UintType::Uint32),
+            "uint64" => Ok(UintType::Uint64),
+            "uint128" => Ok(UintType::Uint128),
+            _ => Err(()),
+        }
+    }
+}
+
 /// A FloatType is a floating-point type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FloatType {
@@ -71,6 +101,18 @@ impl FloatType {
         match self {
             FloatType::Float32 => "float32",
             FloatType::Float64 => "float64",
+        }
+    }
+}
+
+impl FromStr for FloatType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "float32" => Ok(FloatType::Float32),
+            "float64" => Ok(FloatType::Float64),
+            _ => Err(()),
         }
     }
 }
@@ -187,6 +229,11 @@ pub struct UsingItem {
 ///
 /// Examples:
 /// ```
+/// struct { // anonymous struct (for use as a value)
+///     myField: int32,
+///     myOtherField: boolean,
+/// }
+///
 /// struct Bar {
 ///     myField: int32,
 ///     myOtherField: boolean,
@@ -200,7 +247,7 @@ pub struct UsingItem {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Struct {
     /// The name of the struct.
-    pub name: Identifier,
+    pub name: Option<Identifier>,
     /// The visibility of the struct.
     pub visibility: Visibility,
     /// The fields of the struct.
@@ -233,6 +280,16 @@ pub struct StructField {
 ///
 /// Examples:
 /// ```
+/// enum { // anonymous enum (for use as a value)
+///     Success,
+///     Failure,
+/// }
+///
+/// union { // anonymous union (for use as a value)
+///     myField: int32,
+///     myOtherField: boolean,
+/// }
+///
 /// enum Foo {
 ///     A,
 ///     B,
@@ -254,7 +311,7 @@ pub struct StructField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union {
     /// The name of the union.
-    pub name: Identifier,
+    pub name: Option<Identifier>,
     /// The type of the union (if explicitly specified).
     pub r#type: Option<Box<Type>>,
     /// The declared style of the union (enum or union).
@@ -641,7 +698,7 @@ pub enum Expression {
 /// ```
 /// 1
 /// 0x21
-/// 1.0f64
+/// 1.0
 /// "Hello, world!"
 /// 'a'
 /// b'a'
@@ -656,6 +713,7 @@ pub enum ScalarLiteral {
     Byte(u8),
     Integer(i64, IntType),
     Float(f64, FloatType),
+    Character(char),
     String(String),
     ByteString(Vec<u8>),
 }
@@ -665,7 +723,7 @@ pub enum ScalarLiteral {
 /// Examples:
 /// ```
 /// [1, 2, 3]
-/// [1.0f64, 2.0f64, 3.0f64]
+/// [1.0, 2.0, 3.0]
 /// [10, false, "Hi"] // okay in AST, but errors in type-checker
 /// [0; 10]
 /// [false; 40]
@@ -686,7 +744,7 @@ pub enum ArrayLiteral {
 /// Examples:
 /// ```
 /// (1, 2, 3)
-/// (1.0f64, 2.0f64, 3.0f64)
+/// (1.0, 2.0, 3.0)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct TupleLiteral {
@@ -703,7 +761,7 @@ pub struct TupleLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructLiteral {
     /// The type of the struct.
-    pub r#type: Path, // can only refer to a simple type
+    pub r#type: Type,
     /// The fields of the struct.
     pub fields: Vec<FieldLiteral>,
 }
@@ -922,7 +980,7 @@ pub struct Let {
 /// var x = 1
 /// var x: i32 = 1
 /// var x: int32 // implicitly uninitialized, must be set before use
-/// var x: f64[3] = --- // explicitly uninitialized, can do whatever
+/// var x: float64[3] = --- // explicitly uninitialized, can do whatever
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Var {
@@ -938,7 +996,7 @@ pub struct Var {
 /// Examples:
 /// ```
 /// as int32
-/// as f64
+/// as float64
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct As {

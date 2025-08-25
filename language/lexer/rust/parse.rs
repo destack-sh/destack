@@ -10,7 +10,7 @@ use destack_library_unicode::UnicodeEmoji;
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     let mut cursor = Tokenizer::new(input);
     std::iter::from_fn(move || {
-        let token = cursor.advance_token();
+        let token = cursor.advance();
         if token.r#type != TokenType::End {
             Some(token)
         } else {
@@ -27,7 +27,7 @@ pub fn tokenize_semantic(input: &str) -> Vec<TokenSpan> {
     let mut tokens: Vec<TokenSpan> = Vec::new();
     let mut pos = 0;
     while !cursor.is_eof() {
-        let token = cursor.advance_token();
+        let token = cursor.advance();
         if token.r#type != TokenType::End
             && token.r#type != TokenType::Whitespace
             && token.r#type != TokenType::LineComment
@@ -46,7 +46,7 @@ pub fn tokenize_semantic(input: &str) -> Vec<TokenSpan> {
 
 impl Tokenizer<'_> {
     /// Parses a token from the input string.
-    pub(crate) fn advance_token(&mut self) -> Token {
+    pub(crate) fn advance(&mut self) -> Token {
         // eat first character until nothing is left (=EOF)
         let Some(first_char) = self.bump() else {
             // EOF is also a Token
@@ -60,7 +60,7 @@ impl Tokenizer<'_> {
                 if c == '\n' {
                     TokenType::Newline
                 } else {
-                    self.whitespace()
+                    self.eat_whitespace()
                 }
             }
 
@@ -97,21 +97,14 @@ impl Tokenizer<'_> {
             'r' => match (self.peek_next(), self.peek_next_next()) {
                 // raw string literal
                 ('#', _) | ('"', _) => {
-                    let raw_dq_string = self.raw_double_quoted_string(1);
-                    let suffix_start = self.get_pos_within_token();
-                    if raw_dq_string.is_ok() {
-                        self.eat_literal_suffix();
-                    }
+                    let raw_dq_string = self.eat_raw_double_quoted_string(1);
                     let kind = LiteralToken::RawString {
                         hashes: raw_dq_string.ok(),
                     };
-                    TokenType::Literal {
-                        r#type: kind,
-                        suffix_start,
-                    }
+                    TokenType::Literal(kind)
                 }
                 // identifier fallback
-                _ => self.identifier_or_unknown_prefix(),
+                _ => self.eat_identifier_or_unknown_prefix(),
             },
 
             // byte literal, byte string literal, raw byte string literal
@@ -121,65 +114,35 @@ impl Tokenizer<'_> {
                     // single-quoted byte literal
                     ('\'', _) => {
                         this.bump();
-                        let is_terminated = this.single_quoted_string();
-                        let suffix_start = this.get_pos_within_token();
-                        if is_terminated {
-                            this.eat_literal_suffix();
-                        }
-                        TokenType::Literal {
-                            r#type: LiteralToken::Byte {
-                                terminated: is_terminated,
-                            },
-                            suffix_start,
-                        }
+                        let is_terminated = this.eat_single_quoted_string();
+                        TokenType::Literal(LiteralToken::Byte { is_terminated })
                     }
                     // double-quoted byte string literal
                     ('"', _) => {
                         this.bump();
-                        let is_terminated = this.double_quoted_string();
-                        let suffix_start = this.get_pos_within_token();
-                        if is_terminated {
-                            this.eat_literal_suffix();
-                        }
-                        TokenType::Literal {
-                            r#type: LiteralToken::ByteString {
-                                terminated: is_terminated,
-                            },
-                            suffix_start,
-                        }
+                        let is_terminated = this.eat_double_quoted_string();
+                        TokenType::Literal(LiteralToken::ByteString { is_terminated })
                     }
                     // raw double-quoted byte string literal
                     ('r', '"') | ('r', '#') => {
                         this.bump();
-                        let raw_dq_string = this.raw_double_quoted_string(2);
-                        let suffix_start = this.get_pos_within_token();
-                        if raw_dq_string.is_ok() {
-                            this.eat_literal_suffix();
-                        }
-                        TokenType::Literal {
-                            r#type: LiteralToken::RawByteString {
-                                hashes: raw_dq_string.ok(),
-                            },
-                            suffix_start,
-                        }
+                        let raw_dq_string = this.eat_raw_double_quoted_string(2);
+                        TokenType::Literal(LiteralToken::RawByteString {
+                            hashes: raw_dq_string.ok(),
+                        })
                     }
                     // identifier fallback
-                    _ => this.identifier_or_unknown_prefix(),
+                    _ => this.eat_identifier_or_unknown_prefix(),
                 }
             }
 
             // identifier
-            c if is_id_start(c) => self.identifier_or_unknown_prefix(),
+            c if is_id_start(c) => self.eat_identifier_or_unknown_prefix(),
 
             // numeric literal
             c @ '0'..='9' => {
-                let literal_kind = self.number_literal(c);
-                let suffix_start = self.get_pos_within_token();
-                self.eat_literal_suffix();
-                TokenType::Literal {
-                    r#type: literal_kind,
-                    suffix_start,
-                }
+                let literal_kind = self.eat_number_literal(c);
+                TokenType::Literal(literal_kind)
             }
 
             // one or multi-symbol tokens (ordered to mirror TokenType groups)
@@ -210,7 +173,7 @@ impl Tokenizer<'_> {
             '?' => TokenType::Question,
             '$' => TokenType::Dollar,
 
-            // operators & punctuation cluster (non-comparison), mirroring TokenType grouping
+            // operators & punctuation cluster (non-comparison)
             '!' => {
                 if self.peek_next() == '=' {
                     self.bump();
@@ -336,33 +299,23 @@ impl Tokenizer<'_> {
 
             // character literal
             '\'' => {
-                let terminated = self.single_quoted_string();
-                let suffix_start = self.get_pos_within_token();
-                if terminated {
-                    self.eat_literal_suffix();
-                }
-                let kind = LiteralToken::Character { terminated };
-                TokenType::Literal {
-                    r#type: kind,
-                    suffix_start,
-                }
+                let terminated = self.eat_single_quoted_string();
+                let kind = LiteralToken::Character {
+                    is_terminated: terminated,
+                };
+                TokenType::Literal(kind)
             }
             // string literal
             '"' => {
-                let terminated = self.double_quoted_string();
-                let suffix_start = self.get_pos_within_token();
-                if terminated {
-                    self.eat_literal_suffix();
-                }
-                let kind = LiteralToken::String { terminated };
-                TokenType::Literal {
-                    r#type: kind,
-                    suffix_start,
-                }
+                let terminated = self.eat_double_quoted_string();
+                let kind = LiteralToken::String {
+                    is_terminated: terminated,
+                };
+                TokenType::Literal(kind)
             }
 
             // identifier starting with an emoji (for graceful error recovery)
-            c if !c.is_ascii() && c.is_emoji_char() => self.invalid_identifier(),
+            c if !c.is_ascii() && c.is_emoji_char() => self.eat_invalid_identifier(),
             _ => TokenType::Unknown,
         };
 
@@ -372,7 +325,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a whitespace sequence.
-    fn whitespace(&mut self) -> TokenType {
+    fn eat_whitespace(&mut self) -> TokenType {
         debug_assert!(is_whitespace(self.prev()));
 
         self.eat_while(is_whitespace);
@@ -380,21 +333,21 @@ impl Tokenizer<'_> {
     }
 
     /// Parses an identifier or an unknown prefix.
-    fn identifier_or_unknown_prefix(&mut self) -> TokenType {
+    fn eat_identifier_or_unknown_prefix(&mut self) -> TokenType {
         debug_assert!(is_id_start(self.prev()));
         // consume continuation characters until an unknown character is met
         self.eat_while(is_id_continue);
         // known prefixes must have been handled earlier
         match self.peek_next() {
             '#' | '"' | '\'' => return TokenType::UnknownLiteralPrefix,
-            c if !c.is_ascii() && c.is_emoji_char() => return self.invalid_identifier(),
+            c if !c.is_ascii() && c.is_emoji_char() => return self.eat_invalid_identifier(),
             _ => {}
         }
         TokenType::Identifier
     }
 
     /// Parses an invalid identifier.
-    fn invalid_identifier(&mut self) -> TokenType {
+    fn eat_invalid_identifier(&mut self) -> TokenType {
         // start is already eaten, eat the rest of identifier
         self.eat_while(|c| {
             const ZERO_WIDTH_JOINER: char = '\u{200d}';
@@ -404,11 +357,11 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a number literal.
-    fn number_literal(&mut self, first_digit: char) -> LiteralToken {
+    fn eat_number_literal(&mut self, first_digit: char) -> LiteralToken {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
-            // attempt to parse encoding base
+            // parse encoding base
             match self.peek_next() {
                 'b' => {
                     base = NumberBase::Binary;
@@ -416,7 +369,7 @@ impl Tokenizer<'_> {
                     if !self.eat_decimal_digits() {
                         return LiteralToken::Int {
                             base,
-                            empty_int: true,
+                            is_empty: true,
                         };
                     }
                 }
@@ -426,7 +379,7 @@ impl Tokenizer<'_> {
                     if !self.eat_decimal_digits() {
                         return LiteralToken::Int {
                             base,
-                            empty_int: true,
+                            is_empty: true,
                         };
                     }
                 }
@@ -436,7 +389,7 @@ impl Tokenizer<'_> {
                     if !self.eat_hexadecimal_digits() {
                         return LiteralToken::Int {
                             base,
-                            empty_int: true,
+                            is_empty: true,
                         };
                     }
                 }
@@ -452,7 +405,7 @@ impl Tokenizer<'_> {
                 _ => {
                     return LiteralToken::Int {
                         base,
-                        empty_int: false,
+                        is_empty: false,
                     };
                 }
             }
@@ -494,13 +447,13 @@ impl Tokenizer<'_> {
             }
             _ => LiteralToken::Int {
                 base,
-                empty_int: false,
+                is_empty: false,
             },
         }
     }
 
     /// Parses a single-quoted string.
-    fn single_quoted_string(&mut self) -> bool {
+    fn eat_single_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '\'');
         // check if it's a one-symbol literal
         if self.peek_next_next() == '\'' && self.peek_next() != '\\' {
@@ -540,7 +493,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a double-quoted string.
-    fn double_quoted_string(&mut self) -> bool {
+    fn eat_double_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '"');
         while let Some(c) = self.bump() {
             match c {
@@ -559,14 +512,14 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw double-quoted string.
-    pub(crate) fn raw_double_quoted_string(
+    pub(crate) fn eat_raw_double_quoted_string(
         &mut self,
         prefix_len: u32,
     ) -> Result<u8, RawStringError> {
         // wrap the actual function to handle the error with too many hashes
         // this way, it eats the whole raw string
         // (only up to 255 `#`s are allowed in raw strings)
-        let n_hashes = self.raw_string_unvalidated(prefix_len)?;
+        let n_hashes = self.eat_raw_string_unvalidated(prefix_len)?;
         match u8::try_from(n_hashes) {
             Ok(num) => Ok(num),
             Err(_) => Err(RawStringError::TooManyDelimiters { found: n_hashes }),
@@ -574,7 +527,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a raw string.
-    pub(crate) fn raw_string_unvalidated(
+    pub(crate) fn eat_raw_string_unvalidated(
         &mut self,
         prefix_len: u32,
     ) -> Result<u32, RawStringError> {
@@ -600,8 +553,8 @@ impl Tokenizer<'_> {
             }
         }
 
-        // skip the string contents and on each '#' character met, check if this is
-        // a raw string termination
+        // skip the string contents and on each '#' character met
+        // check if this is a raw string termination
         loop {
             self.eat_until(b'"');
 
@@ -639,7 +592,7 @@ impl Tokenizer<'_> {
         }
     }
 
-    /// Parses decimal digits.
+    /// Parses decimal digits. Returns whether any digits were parsed.
     pub(crate) fn eat_decimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -657,7 +610,7 @@ impl Tokenizer<'_> {
         has_digits
     }
 
-    /// Parses hexadecimal digits.
+    /// Parses hexadecimal digits. Returns whether any digits were parsed.
     pub(crate) fn eat_hexadecimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
@@ -675,26 +628,12 @@ impl Tokenizer<'_> {
         has_digits
     }
 
-    /// Parses the float exponent.
+    /// Parses the float exponent. Returns whether the exponent is non-empty.
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
         debug_assert!(self.prev() == 'e' || self.prev() == 'E');
         if self.peek_next() == '-' || self.peek_next() == '+' {
             self.bump();
         }
         self.eat_decimal_digits()
-    }
-
-    /// Parses the suffix of the literal, e.g. "u8".
-    pub(crate) fn eat_literal_suffix(&mut self) {
-        self.eat_identifier();
-    }
-
-    /// Parses an identifier.
-    pub(crate) fn eat_identifier(&mut self) {
-        if !is_id_start(self.peek_next()) {
-            return;
-        }
-        self.bump();
-        self.eat_while(is_id_continue);
     }
 }

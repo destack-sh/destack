@@ -24,11 +24,8 @@ pub enum TokenType {
     InvalidIdentifier,
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
     UnknownLiteralPrefix,
-    /// Literals, e.g. `12u8`, `1.0e-40`, `b"123"`.
-    Literal {
-        r#type: LiteralToken,
-        suffix_start: u32,
-    },
+    /// Literals, e.g. `12`, `1.0e-40`, `b"123"`.
+    Literal(LiteralToken),
 
     /// `:`
     Colon,
@@ -167,29 +164,26 @@ impl Token {
 }
 
 /// Literal Token
-///
-/// NOTE: The suffix is *not* considered when deciding the `LiteralToken` type.
-/// (e.g., float literals like `1f32` are classified by this type as `Int` since they have no `.`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LiteralToken {
-    /// `12_u8`, `0o100`, `0b120i99`, `1f32`.
-    Int { base: NumberBase, empty_int: bool },
-    /// `12.34f32`, `1e3`, but not `1f32`.
+    /// 12, 0o100, 0x (is_empty), 0b120, 1.0
+    Int { base: NumberBase, is_empty: bool },
+    /// 1.0, 1e3
     Float {
         base: NumberBase,
         is_empty_exponent: bool,
     },
-    /// `'a'`, `'\\'`, `'''`, `';`
-    Character { terminated: bool },
-    /// `b'a'`, `b'\\'`, `b'''`, `b';`
-    Byte { terminated: bool },
-    /// `"abc"`, `"abc`
-    String { terminated: bool },
-    /// `b"abc"`, `b"abc`
-    ByteString { terminated: bool },
-    /// `r"abc"`, `r#"abc"#`, `r####"ab"###"c"####`, `r#"a`.
+    /// 'a', '\\', ''', ';
+    Character { is_terminated: bool },
+    /// b'a', b'\\', b''', b';
+    Byte { is_terminated: bool },
+    /// "abc", "abc
+    String { is_terminated: bool },
+    /// b"abc", b"abc
+    ByteString { is_terminated: bool },
+    /// r"abc", r#"abc"#, r####"ab"###"c"####, r#"a
     RawString { hashes: Option<u8> },
-    /// `br"abc"`, `br#"abc"#`, `br####"ab"###"c"####`, `br#"a`.
+    /// br"abc", br#"abc"#, br####"ab"###"c"####, br#"a
     RawByteString { hashes: Option<u8> },
 }
 
