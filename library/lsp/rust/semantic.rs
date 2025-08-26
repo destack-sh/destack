@@ -1,7 +1,7 @@
-//! TokenSpans.
+//! SemanticTokens.
 
-use destack_language_lexer::{LiteralToken, TokenType, tokenize};
-use tower_lsp_server::lsp_types as lsp;
+use destack_language_lexer::{LiteralTokenType, TokenType, tokenize};
+use crate::vendor::lsp_types as lsp;
 
 /// Get semantic tokens for the given text.
 pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
@@ -143,30 +143,31 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
     // legend indices must match `initialize` legend order
     let ty_index = match kind {
-        // comments
         K::LineComment | K::DocComment => 0, // COMMENT
 
         // identifiers
-        K::Identifier | K::InvalidIdentifier | K::UnknownLiteralPrefix => 6,
+        K::Identifier | K::InvalidIdentifier => 6,
+
+        K::UnknownLiteralPrefix => 6,
 
         // literals
-        K::Literal(r#type) => match r#type {
-            LiteralToken::Int { .. } | LiteralToken::Float { .. } => 3, // NUMBER
-            LiteralToken::Character { .. }
-            | LiteralToken::Byte { .. }
-            | LiteralToken::String { .. }
-            | LiteralToken::ByteString { .. }
-            | LiteralToken::RawString { .. }
-            | LiteralToken::RawByteString { .. } => 2, // STRING
+        K::Literal { r#type, .. } => match r#type {
+            LiteralTokenType::Integer { .. } | LiteralTokenType::Float { .. } => 3, // NUMBER
+
+            LiteralTokenType::Character { .. }
+            | LiteralTokenType::Byte { .. }
+            | LiteralTokenType::String { .. }
+            | LiteralTokenType::ByteString { .. }
+            | LiteralTokenType::RawString { .. }
+            | LiteralTokenType::RawByteString { .. } => 2, // STRING
         },
 
-        // punctuation (use FUNCTION color)
-        K::Colon
-        | K::Semicolon
+        // punctuation - use FUNCTION color to differentiate from operators
+        K::Semicolon
         | K::Comma
         | K::Dot
-        | K::Range
-        | K::Ellipsis
+        | K::DoubleDot
+        | K::TripleDot
         | K::OpenParenthesis
         | K::CloseParenthesis
         | K::OpenBrace
@@ -177,47 +178,49 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Pound
         | K::Tilde
         | K::Question
-        | K::Dollar => 5,
+        | K::Colon
+        | K::DoubleColon
+        | K::Dollar => 5, // FUNCTION color to differentiate
 
         // operators
-        K::Bang
-        | K::Subtract
-        | K::Empty
-        | K::BitwiseAnd
-        | K::LogicalAnd
-        | K::BitwiseOr
-        | K::LogicalOr
-        | K::Add
-        | K::Multiply
-        | K::Divide
-        | K::Caret
-        | K::Percent
-        | K::Equal
-        | K::NotEqual
+        K::Equals
+        | K::FatArrow
+        | K::Bang
         | K::LessThan
-        | K::ShiftLeft
         | K::GreaterThan
-        | K::ShiftRight
-        | K::GreaterThanEqual
-        | K::LessThanEqual
-        | K::Assign
-        | K::Arrow
-        | K::BadArrow
-        | K::AddAssign
-        | K::SubtractAssign
-        | K::MultiplyAssign
-        | K::DivideAssign
-        | K::RemainderAssign
-        | K::ExponentAssign
-        | K::BitwiseAndAssign
-        | K::BitwiseOrAssign
-        | K::ShiftLeftAssign
-        | K::ShiftRightAssign => 4, // OPERATOR
+        | K::Minus
+        | K::DoubleMinus
+        | K::TripleMinus
+        | K::ThinArrow
+        | K::And
+        | K::Or
+        | K::Plus
+        | K::DoublePlus
+        | K::TriplePlus
+        | K::Star
+        | K::Slash
+        | K::Caret
+        | K::Percent => 4, // OPERATOR
 
         // skip these token types
-        K::Newline | K::Whitespace | K::Unknown | K::End => return None,
+        K::Whitespace | K::Unknown | K::EndOfInput => return None,
     };
 
     // length in UTF-16 code units
     Some((ty_index as u32, slice.encode_utf16().count()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_semantic_tokens_basic_sequence() {
+        let tokens = get_semantic_tokens("x = 1\n");
+        // expect identifiers(Type=6), operator(Operator=4), number(Number=3)
+        let kinds: Vec<u32> = tokens.into_iter().map(|t| t.token_type).collect();
+        assert!(kinds.contains(&6));
+        assert!(kinds.contains(&4));
+        assert!(kinds.contains(&3));
+    }
 }

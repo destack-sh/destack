@@ -2,9 +2,9 @@
 
 use crate::doc::DocumentStore;
 use crate::semantic::{get_semantic_tokens, get_token_type_at_position};
-use tower_lsp_server::jsonrpc::Result as JsonRpcResult;
-use tower_lsp_server::lsp_types::MessageType;
-use tower_lsp_server::{Client, LanguageServer, lsp_types as lsp};
+use crate::vendor::jsonrpc::Result as JsonRpcResult;
+use crate::vendor::lsp_types::MessageType;
+use crate::vendor::{Client, LanguageServer, lsp as lsp};
 
 #[derive(Debug, Clone)]
 pub struct Backend {
@@ -15,22 +15,21 @@ pub struct Backend {
 impl Backend {}
 
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
+    fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
         self.client
-            .log_message(MessageType::INFO, "destack: initialize")
-            .await;
+            .log_message(MessageType::Info, "destack: initialize");
 
         // semantic tokens
         let semantic_tokens_legend = lsp::SemanticTokensLegend {
             token_types: vec![
-                lsp::SemanticTokenType::COMMENT,
-                lsp::SemanticTokenType::KEYWORD,
-                lsp::SemanticTokenType::STRING,
-                lsp::SemanticTokenType::NUMBER,
-                lsp::SemanticTokenType::OPERATOR,
-                lsp::SemanticTokenType::FUNCTION,
-                lsp::SemanticTokenType::TYPE,
-                lsp::SemanticTokenType::VARIABLE,
+                lsp::SemanticTokenType::Comment,
+                lsp::SemanticTokenType::Keyword,
+                lsp::SemanticTokenType::String,
+                lsp::SemanticTokenType::Number,
+                lsp::SemanticTokenType::Operator,
+                lsp::SemanticTokenType::Function,
+                lsp::SemanticTokenType::Type,
+                lsp::SemanticTokenType::Variable,
             ],
             token_modifiers: vec![],
         };
@@ -38,7 +37,7 @@ impl LanguageServer for Backend {
         // capabilities
         let capabilities = lsp::ServerCapabilities {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
-                lsp::TextDocumentSyncKind::FULL,
+                lsp::TextDocumentSyncKind::Full,
             )),
             hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
             semantic_tokens_provider: Some(
@@ -63,64 +62,58 @@ impl LanguageServer for Backend {
         })
     }
 
-    async fn initialized(&self, _: lsp::InitializedParams) {
+    fn initialized(&self, _: lsp::InitializedParams) {
         self.client
-            .log_message(MessageType::INFO, "destack: initialized")
-            .await;
+            .log_message(MessageType::Info, "destack: initialized");
     }
 
-    async fn shutdown(&self) -> JsonRpcResult<()> {
+    fn shutdown(&self) -> JsonRpcResult<()> {
         self.client
-            .log_message(MessageType::INFO, "destack: shutdown")
-            .await;
+            .log_message(MessageType::Info, "destack: shutdown");
         Ok(())
     }
 
-    async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
+    fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         self.docs.set(&uri, text);
         self.client
-            .log_message(MessageType::INFO, format!("destack: did_open: {:?}", uri))
-            .await;
+            .log_message(MessageType::Info, format!("destack: did_open: {:?}", uri));
     }
 
-    async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
+    fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         // SyncKind::FULL, take the full content from the single change
         if let Some(change) = params.content_changes.into_iter().last() {
             self.docs.set(&uri, change.text);
         }
         self.client
-            .log_message(MessageType::INFO, format!("destack: did_change: {:?}", uri))
-            .await;
+            .log_message(MessageType::Info, format!("destack: did_change: {:?}", uri));
     }
 
-    async fn semantic_tokens_full(
+    fn semantic_tokens_full(
         &self,
         params: lsp::SemanticTokensParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensResult>> {
         let uri = params.text_document.uri;
         self.client
             .log_message(
-                MessageType::INFO,
+                MessageType::Info,
                 format!("destack: semantic_tokens_full: {:?}", uri),
-            )
-            .await;
+            );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
         let tokens = get_semantic_tokens(&text);
         self.client
             .log_message(
-                MessageType::INFO,
+                MessageType::Info,
                 format!(
                     "destack: semantic_tokens_full: {:?} -> {:?}",
                     uri,
                     tokens.len()
                 ),
-            )
-            .await;
+            );
         Ok(Some(lsp::SemanticTokensResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -129,31 +122,29 @@ impl LanguageServer for Backend {
         )))
     }
 
-    async fn semantic_tokens_range(
+    fn semantic_tokens_range(
         &self,
         params: lsp::SemanticTokensRangeParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensRangeResult>> {
         let uri = params.text_document.uri;
         self.client
             .log_message(
-                MessageType::INFO,
+                MessageType::Info,
                 format!("destack: semantic_tokens_range: {:?}", uri),
-            )
-            .await;
+            );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
         let tokens = get_semantic_tokens(&text);
         self.client
             .log_message(
-                MessageType::INFO,
+                MessageType::Info,
                 format!(
                     "destack: semantic_tokens_range: {:?} -> {:?}",
                     uri,
                     tokens.len()
                 ),
-            )
-            .await;
+            );
         Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -162,15 +153,14 @@ impl LanguageServer for Backend {
         )))
     }
 
-    async fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
+    fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
         self.client
             .log_message(
-                MessageType::INFO,
+                MessageType::Info,
                 format!("destack: hover: {:?} @ {:?}", uri, position),
-            )
-            .await;
+            );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
