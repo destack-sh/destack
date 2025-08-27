@@ -17,19 +17,19 @@ impl Backend {}
 impl LanguageServer for Backend {
     fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
         self.client
-            .log_message(MessageType::Info, "destack: initialize");
+            .log_message(MessageType::INFO, "destack: initialize");
 
         // semantic tokens
         let semantic_tokens_legend = lsp::SemanticTokensLegend {
             token_types: vec![
-                lsp::SemanticTokenType::Comment,
-                lsp::SemanticTokenType::Keyword,
-                lsp::SemanticTokenType::String,
-                lsp::SemanticTokenType::Number,
-                lsp::SemanticTokenType::Operator,
-                lsp::SemanticTokenType::Function,
-                lsp::SemanticTokenType::Type,
-                lsp::SemanticTokenType::Variable,
+                lsp::SemanticTokenType::COMMENT,
+                lsp::SemanticTokenType::KEYWORD,
+                lsp::SemanticTokenType::STRING,
+                lsp::SemanticTokenType::NUMBER,
+                lsp::SemanticTokenType::OPERATOR,
+                lsp::SemanticTokenType::FUNCTION,
+                lsp::SemanticTokenType::TYPE,
+                lsp::SemanticTokenType::VARIABLE,
             ],
             token_modifiers: vec![],
         };
@@ -37,7 +37,7 @@ impl LanguageServer for Backend {
         // capabilities
         let capabilities = lsp::ServerCapabilities {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
-                lsp::TextDocumentSyncKind::Full,
+                lsp::TextDocumentSyncKind::FULL,
             )),
             hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
             semantic_tokens_provider: Some(
@@ -64,12 +64,12 @@ impl LanguageServer for Backend {
 
     fn initialized(&self, _: lsp::InitializedParams) {
         self.client
-            .log_message(MessageType::Info, "destack: initialized");
+            .log_message(MessageType::INFO, "destack: initialized");
     }
 
     fn shutdown(&self) -> JsonRpcResult<()> {
         self.client
-            .log_message(MessageType::Info, "destack: shutdown");
+            .log_message(MessageType::INFO, "destack: shutdown");
         Ok(())
     }
 
@@ -78,7 +78,7 @@ impl LanguageServer for Backend {
         let text = params.text_document.text;
         self.docs.set(&uri, text);
         self.client
-            .log_message(MessageType::Info, format!("destack: did_open: {:?}", uri));
+            .log_message(MessageType::INFO, format!("destack: did_open: {:?}", uri));
     }
 
     fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
@@ -88,7 +88,7 @@ impl LanguageServer for Backend {
             self.docs.set(&uri, change.text);
         }
         self.client
-            .log_message(MessageType::Info, format!("destack: did_change: {:?}", uri));
+            .log_message(MessageType::INFO, format!("destack: did_change: {:?}", uri));
     }
 
     fn semantic_tokens_full(
@@ -98,7 +98,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         self.client
             .log_message(
-                MessageType::Info,
+                MessageType::INFO,
                 format!("destack: semantic_tokens_full: {:?}", uri),
             );
         let Some(text) = self.docs.get(&uri) else {
@@ -107,7 +107,7 @@ impl LanguageServer for Backend {
         let tokens = get_semantic_tokens(&text);
         self.client
             .log_message(
-                MessageType::Info,
+                MessageType::INFO,
                 format!(
                     "destack: semantic_tokens_full: {:?} -> {:?}",
                     uri,
@@ -129,7 +129,7 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         self.client
             .log_message(
-                MessageType::Info,
+                MessageType::INFO,
                 format!("destack: semantic_tokens_range: {:?}", uri),
             );
         let Some(text) = self.docs.get(&uri) else {
@@ -138,7 +138,7 @@ impl LanguageServer for Backend {
         let tokens = get_semantic_tokens(&text);
         self.client
             .log_message(
-                MessageType::Info,
+                MessageType::INFO,
                 format!(
                     "destack: semantic_tokens_range: {:?} -> {:?}",
                     uri,
@@ -158,7 +158,7 @@ impl LanguageServer for Backend {
         let position = params.text_document_position_params.position;
         self.client
             .log_message(
-                MessageType::Info,
+                MessageType::INFO,
                 format!("destack: hover: {:?} @ {:?}", uri, position),
             );
         let Some(text) = self.docs.get(&uri) else {
