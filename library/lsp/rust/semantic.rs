@@ -1,6 +1,6 @@
 //! SemanticTokens.
 
-use destack_language_lexer::{LiteralTokenType, TokenType, tokenize};
+use destack_language_lexer::{LiteralToken, TokenType, tokenize};
 use crate::vendor::lsp_types as lsp;
 
 /// Get semantic tokens for the given text.
@@ -151,23 +151,22 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::UnknownLiteralPrefix => 6,
 
         // literals
-        K::Literal { r#type, .. } => match r#type {
-            LiteralTokenType::Integer { .. } | LiteralTokenType::Float { .. } => 3, // NUMBER
-
-            LiteralTokenType::Character { .. }
-            | LiteralTokenType::Byte { .. }
-            | LiteralTokenType::String { .. }
-            | LiteralTokenType::ByteString { .. }
-            | LiteralTokenType::RawString { .. }
-            | LiteralTokenType::RawByteString { .. } => 2, // STRING
+        K::Literal(kind) => match kind {
+            LiteralToken::Int { .. } | LiteralToken::Float { .. } => 3, // NUMBER
+            LiteralToken::Character { .. }
+            | LiteralToken::Byte { .. }
+            | LiteralToken::String { .. }
+            | LiteralToken::ByteString { .. }
+            | LiteralToken::RawString { .. }
+            | LiteralToken::RawByteString { .. } => 2, // STRING
         },
 
         // punctuation - use FUNCTION color to differentiate from operators
         K::Semicolon
         | K::Comma
         | K::Dot
-        | K::DoubleDot
-        | K::TripleDot
+        | K::Range
+        | K::Ellipsis
         | K::OpenParenthesis
         | K::CloseParenthesis
         | K::OpenBrace
@@ -179,31 +178,33 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Tilde
         | K::Question
         | K::Colon
-        | K::DoubleColon
+        
         | K::Dollar => 5, // FUNCTION color to differentiate
 
         // operators
-        K::Equals
-        | K::FatArrow
+        K::Equal
+        | K::BadArrow
         | K::Bang
         | K::LessThan
         | K::GreaterThan
-        | K::Minus
-        | K::DoubleMinus
-        | K::TripleMinus
-        | K::ThinArrow
-        | K::And
-        | K::Or
-        | K::Plus
-        | K::DoublePlus
-        | K::TriplePlus
-        | K::Star
-        | K::Slash
+        | K::Subtract
+        | K::Empty
+        | K::Arrow
+        | K::BitwiseAnd
+        | K::LogicalAnd
+        | K::BitwiseOr
+        | K::LogicalOr
+        | K::Add
+        | K::Multiply
+        | K::Divide
         | K::Caret
-        | K::Percent => 4, // OPERATOR
+        | K::Percent
+        | K::Assign => 4, // OPERATOR
 
         // skip these token types
-        K::Whitespace | K::Unknown | K::EndOfInput => return None,
+        K::Whitespace | K::Unknown | K::End => return None,
+        // handle remaining tokens we don't classify yet
+        _ => return None,
     };
 
     // length in UTF-16 code units
