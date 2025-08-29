@@ -1,5 +1,5 @@
 /// A type-erased value.
-public struct Any<T = Box> {
-    public type: Type,
-    public value: T,
+struct Any<T = Box> {
+    type: Type,
+    value: T,
 }

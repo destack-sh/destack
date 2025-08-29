@@ -1,5 +1,5 @@
 /// A Result value which may hold Success(T) or Error(E).
-public union Result<T, E> {
+union Result<T, E> {
     Success(T),
     Error(E),
 }

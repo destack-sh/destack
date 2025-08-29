@@ -1,4 +1,4 @@
 /// Box is a simple wrapper around a value.
-public struct Box<T> {
-    public value: T,
+struct Box<T> {
+    value: T,
 }
