@@ -12,9 +12,9 @@ struct SpanEvent {
     /// Duration of the span.
     duration: Duration,
     /// Optional parent Span.
-    parentSpan: Optional<SpanEvent>,
+    parentSpan: ?SpanEvent,
     /// Optional Action associated with the Span.
-    action: Optional<Action>,
+    action: ?Action,
 }
 
 

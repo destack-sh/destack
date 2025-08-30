@@ -35,11 +35,11 @@ struct TextSpan {
     /// The span type.
     type: TextSpanType = TextSpanType.Text,
     /// Optional textual content.
-    content: Optional<String>,
+    content: ?String,
     /// Optional reference to a Node.
     node: Optional<EntityReference<Entity>>,
     /// Optional hyperlink URL.
-    url: Optional<String>,
+    url: ?String,
     /// Styling flags for this span.
     styleFlags: TextStyleFlag = TextStyleFlag.Default,
 }

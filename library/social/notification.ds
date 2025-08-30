@@ -34,7 +34,7 @@ struct Notification {
     /// The status of the Notification.
     status: NotificationStatus,
     /// Optional text content.
-    text: Optional<Text>,
+    text: ?Text,
 }
 
 

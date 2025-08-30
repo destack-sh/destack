@@ -4,9 +4,9 @@ using destack
 @entity
 struct Layer {
     /// Whether the layer is visible
-    isVisible: Optional<boolean>,
+    isVisible: ?boolean,
     /// Layer opacity
-    opacity: Optional<float32>,
+    opacity: ?float32,
 }
 
 

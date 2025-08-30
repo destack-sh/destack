@@ -37,35 +37,35 @@ struct Effect {
     /// When the effect is applied.
     type: EffectType,
     /// Optional template reference to inherit values from.
-    template: Optional<EffectTemplate>,
+    template: ?EffectTemplate,
     /// Optional opacity multiplier.
-    opacity: Optional<float32>,
+    opacity: ?float32,
     /// Optional positional offset in 2D.
-    offset: Optional<Vector2>,
+    offset: ?Vector2,
     /// Optional uniform scale factor.
-    scale: Optional<float32>,
+    scale: ?float32,
     /// Optional 3D axis rotation.
-    rotate: Optional<Axis3>,
+    rotate: ?Axis3,
     /// Optional 2D skew.
-    skew: Optional<Vector2>,
+    skew: ?Vector2,
     /// Optional perspective amount.
-    perspective: Optional<float32>,
+    perspective: ?float32,
     /// Optional start delay.
-    delay: Optional<Duration>,
+    delay: ?Duration,
     /// Optional playback duration.
-    duration: Optional<float32>,
+    duration: ?float32,
     /// Optional intersection threshold for visibility-driven effects.
-    threshold: Optional<float32>,
+    threshold: ?float32,
     /// Whether to apply only once.
-    once: Optional<boolean>,
+    once: ?boolean,
     /// Optional repeat behavior.
-    repeat: Optional<RepeatType>,
+    repeat: ?RepeatType,
     /// Optional text split behavior.
-    split: Optional<TextSplitType>,
+    split: ?TextSplitType,
     /// Offscreen behavior.
-    offscreen: Optional<OffscreenBehavior>,
+    offscreen: ?OffscreenBehavior,
     /// Optional transition configuration.
-    transition: Optional<Transition>,
+    transition: ?Transition,
 }
 
 /// An effect template.
@@ -74,33 +74,33 @@ struct EffectTemplate {
     /// When the effect is applied.
     type: EffectType,
     /// Optional opacity multiplier.
-    opacity: Optional<float32>,
+    opacity: ?float32,
     /// Optional positional offset in 2D.
-    offset: Optional<Vector2>,
+    offset: ?Vector2,
     /// Optional uniform scale factor.
-    scale: Optional<float32>,
+    scale: ?float32,
     /// Optional 3D axis rotation.
-    rotate: Optional<Axis3>,
+    rotate: ?Axis3,
     /// Optional 2D skew.
-    skew: Optional<Vector2>,
+    skew: ?Vector2,
     /// Optional perspective amount.
-    perspective: Optional<float32>,
+    perspective: ?float32,
     /// Optional start delay.
-    delay: Optional<Duration>,
+    delay: ?Duration,
     /// Optional playback duration.
-    duration: Optional<float32>,
+    duration: ?float32,
     /// Optional intersection threshold for visibility-driven effects.
-    threshold: Optional<float32>,
+    threshold: ?float32,
     /// Whether to apply only once.
-    once: Optional<boolean>,
+    once: ?boolean,
     /// Optional repeat behavior.
-    repeat: Optional<RepeatType>,
+    repeat: ?RepeatType,
     /// Optional text split behavior.
-    split: Optional<TextSplitType>,
+    split: ?TextSplitType,
     /// Offscreen behavior.
-    offscreen: Optional<OffscreenBehavior>,
+    offscreen: ?OffscreenBehavior,
     /// Optional transition configuration.
-    transition: Optional<Transition>,
+    transition: ?Transition,
 }
 
 

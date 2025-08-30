@@ -9,7 +9,7 @@ struct RunEvent {
     /// The Run this event pertains to.
     run: Run,
     /// The target Entity of the Run, if any.
-    target: Optional<Entity>,
+    target: ?Entity,
 }
 
 /// A Run was started.
@@ -45,17 +45,17 @@ struct Run {
     /// The current Run status.
     status: RunStatus,
     /// Duration from first attempt start to last attempt termination.
-    duration: Optional<Duration>,
+    duration: ?Duration,
     /// When the Run is scheduled to start.
-    scheduledAt: Optional<Timestamp>,
+    scheduledAt: ?Timestamp,
     /// When the Run first started.
-    startedAt: Optional<Timestamp>,
+    startedAt: ?Timestamp,
     /// When the Run was last active.
-    seenAt: Optional<Timestamp>,
+    seenAt: ?Timestamp,
     /// When the Run was interrupted.
-    interruptedAt: Optional<Timestamp>,
+    interruptedAt: ?Timestamp,
     /// When the Run was last terminated.
-    terminatedAt: Optional<Timestamp>,
+    terminatedAt: ?Timestamp,
 }
 
 

@@ -7,7 +7,7 @@ struct TagDefinition {
     /// The Tag name.
     name: String,
     /// The Tag description.
-    description: Optional<String>,
+    description: ?String,
     /// Whether this Tag is internal.
     isInternal: boolean,
 }
@@ -16,7 +16,7 @@ struct TagDefinition {
 @entity
 struct Tag {
     /// The designated Type for Values associated with this Tag. Any if unset.
-    type: Optional<Type>,
+    type: ?Type,
 }
 
 

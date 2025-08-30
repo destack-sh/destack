@@ -8,7 +8,7 @@ struct Pointer2D using Body2D {}
 @event(InputEvent)
 struct PointerEvent {
     position: Vector2,
-    pressure: Optional<float32>,
+    pressure: ?float32,
     shiftKey: boolean,
     altKey: boolean,
     ctrlKey: boolean,

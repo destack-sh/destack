@@ -6,9 +6,9 @@ struct User {
     /// The URL-friendly slug of the User.
     slug: String,
     /// When the User last logged in.
-    lastLoggedInAt: Optional<Timestamp>,
+    lastLoggedInAt: ?Timestamp,
     /// The email address of the User.
-    email: Optional<String>,
+    email: ?String,
 }
 
 

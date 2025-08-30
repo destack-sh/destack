@@ -16,7 +16,7 @@ struct Function {
     /// The Method type.
     type: MethodType,
     /// Optional textual body.
-    text: Optional<Text>,
+    text: ?Text,
 }
 
 

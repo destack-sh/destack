@@ -45,7 +45,7 @@ struct Invite {
     /// The Role offered by the Invite.
     role: Optional<EntityReference<Role>>,
     /// The type of the Role offered by the Invite.
-    roleType: Optional<RoleType>,
+    roleType: ?RoleType,
 }
 
 

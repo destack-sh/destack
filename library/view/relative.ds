@@ -147,11 +147,11 @@ struct Grid2 {
     /// Number of rows in the grid
     rows: int16,
     /// Fixed width for columns
-    columnWidth: Optional<Length>,
+    columnWidth: ?Length,
     /// Minimum width for columns
-    columnMinWidth: Optional<Length>,
+    columnMinWidth: ?Length,
     /// Fixed height for rows
-    rowHeight: Optional<Length>,
+    rowHeight: ?Length,
 }
 
 /// A 2-dimensional grid span value

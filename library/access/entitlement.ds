@@ -37,7 +37,7 @@ struct Entitlement {
     /// The Entitlement type.
     type: EntitlementType,
     /// When the Entitlement expires.
-    expiresAt: Optional<Timestamp>,
+    expiresAt: ?Timestamp,
     /// The target Entity of the Entitlement.
     target: Entity,
 }

@@ -78,9 +78,9 @@ struct Entity {
     /// The name of this Entity.
     name: String,
     /// The key of this Entity (for reconciliation and querying).
-    key: Optional<String>,
+    key: ?String,
     /// The relative order of this Entity (in its parent).
-    order: Optional<Order>,
+    order: ?Order,
 
     /// The extension flags of this Entity.
     extensionFlags: ExtensionFlag,
