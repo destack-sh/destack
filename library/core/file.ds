@@ -4,11 +4,11 @@ using destack
 @entity
 struct File {
     /// The mime type of the File.
-    mimeType: Optional<String>,
+    mimeType: ?String,
     /// The size of the File in bytes.
-    size: Optional<uint64>,
+    size: ?uint64,
     /// The SHA-256 hash of the File content as hex.
-    sha256: Optional<String>,
+    sha256: ?String,
 }
 
 

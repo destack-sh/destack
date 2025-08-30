@@ -3,25 +3,25 @@ using destack
 /// Layout properties for a 2D view.
 struct LayoutComponent2D {
     /// How to layout the children of this View.
-    layout: Optional<Layout>,
+    layout: ?Layout,
     /// The direction in which the children of this View are laid out.
-    direction: Optional<Direction>,
+    direction: ?Direction,
     /// How to distribute the children of this View.
-    distribute: Optional<Distribute>,
+    distribute: ?Distribute,
     /// How to align the children of this View.
-    align: Optional<Align>,
+    align: ?Align,
     /// The gap between the children of this View.
-    gap: Optional<Axis2>,
+    gap: ?Axis2,
     /// The padding around the children of this View.
-    padding: Optional<Inset2>,
+    padding: ?Inset2,
     /// The grid in which the children of this View are laid out.
-    grid: Optional<Grid2>,
+    grid: ?Grid2,
     /// The span of this View in the grid.
-    gridSpan: Optional<GridSpan2>,
+    gridSpan: ?GridSpan2,
     /// The aspect ratio of this View.
-    aspectRatio: Optional<float32>,
+    aspectRatio: ?float32,
     /// Whether the children of this View are wrapped in the grid.
-    isWrap: Optional<boolean>,
+    isWrap: ?boolean,
 }
 
 /// A 2D layout View defines how its children are laid out.

@@ -5,11 +5,11 @@ struct MethodDefinition {
     /// The Method type.
     type: MethodType,
     /// Optional id of the aliased Method.
-    aliasOf: Optional<u16>,
+    aliasOf: ?u16,
     /// Method input Properties.w
     inputProperties: List<PropertyDefinition>,
     /// Optional output Property.
-    outputProperty: Optional<PropertyDefinition>,
+    outputProperty: ?PropertyDefinition,
 }
 
 /// A Method is a small runtime-specific piece of logic.

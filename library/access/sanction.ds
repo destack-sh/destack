@@ -37,7 +37,7 @@ struct Sanction {
     /// The Sanction type.
     type: SanctionType,
     /// When the Sanction expires.
-    expiresAt: Optional<Timestamp>,
+    expiresAt: ?Timestamp,
     /// The target Entity of the Sanction.
     target: Entity,
 }

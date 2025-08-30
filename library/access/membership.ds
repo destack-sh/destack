@@ -30,9 +30,9 @@ struct Membership {
     /// The member Entity.
     member: EntityReference<Actor>,
     /// The Role assigned to the member.
-    role: Optional<Role>,
+    role: ?Role,
     /// The type of the Role assigned to the member.
-    roleType: Optional<RoleType>,
+    roleType: ?RoleType,
 }
 
 

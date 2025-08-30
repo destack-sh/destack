@@ -5,9 +5,9 @@ struct ActionDefinition {
     /// The Action type.
     type: ActionType,
     /// The input Message type.
-    inputMessageType: Optional<StructType>,
+    inputMessageType: ?StructType,
     /// The output Message type.
-    outputMessageType: Optional<StructType>,
+    outputMessageType: ?StructType,
     /// The Event types this Action may emit.
     emitsEventTypes: Optional<List<NodeType>>,
 }

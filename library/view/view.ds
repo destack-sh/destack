@@ -3,43 +3,43 @@ using destack
 /// Position properties for a 2D view.
 struct Position2D {
     /// The origin of the Entity in 2D space.
-    origin: Optional<Vector2>,
+    origin: ?Vector2,
     /// The anchor of the Entity in 2D space.
-    anchor: Optional<Anchor>,
+    anchor: ?Anchor,
     /// The offset of the Entity in 2D space.
-    offset: Optional<Offset2>,
+    offset: ?Offset2,
 }
 
 /// Sizing properties for a 2D view.
 struct Sizing2D {
     /// The width of the View.
-    width: Optional<Length>,
+    width: ?Length,
     /// The height of the View.
-    height: Optional<Length>,
+    height: ?Length,
     /// The minimum width of the View.
-    minWidth: Optional<Length>,
+    minWidth: ?Length,
     /// The minimum height of the View.
-    minHeight: Optional<Length>,
+    minHeight: ?Length,
     /// The maximum width of the View.
-    maxWidth: Optional<Length>,
+    maxWidth: ?Length,
     /// The maximum height of the View.
-    maxHeight: Optional<Length>,
+    maxHeight: ?Length,
 }
 
 /// Style properties for a 2D view.
 struct Style2D {
     /// Whether the View is visible.
-    isVisible: Optional<boolean>,
+    isVisible: ?boolean,
     /// The opacity of the View.
-    opacity: Optional<float32>,
+    opacity: ?float32,
     /// The fill of the View.
-    fill: Optional<Fill>,
+    fill: ?Fill,
     /// The shadow of the View.
-    shadow: Optional<Shadow>,
+    shadow: ?Shadow,
     /// The border of the View.
-    border: Optional<Border>,
+    border: ?Border,
     /// The radius of the View.
-    radius: Optional<Corner2>,
+    radius: ?Corner2,
 }
 
 /// A View2D is a 2D interface element.

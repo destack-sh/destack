@@ -1,6 +1,6 @@
 
 /// An Optional value which may hold Some(T) or None.
-union Optional<T> {
+union ?T {
     Some(T),
     None,
 }
