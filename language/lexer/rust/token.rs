@@ -2,6 +2,36 @@ use std::fmt::Display;
 
 pub use destack_library_unicode::UNICODE_VERSION;
 
+/// A parsed Token.
+/// It doesn't contain information about data that has been parsed,
+/// only the type of the token and its size.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Token {
+    /// The Token tag.
+    pub r#type: TokenType,
+    /// The length of the token in bytes.
+    pub len: u32,
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<Token {:?}, {}>", self.r#type, self.len)
+    }
+}
+
+impl Token {
+    pub const fn new(r#type: TokenType, len: u32) -> Token {
+        Token { r#type, len }
+    }
+
+    pub const fn eof() -> Token {
+        Token {
+            r#type: TokenType::End,
+            len: 0,
+        }
+    }
+}
+
 /// Enum representing common lexeme types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
@@ -131,36 +161,6 @@ pub enum TokenType {
     ShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
-}
-
-/// A parsed Token.
-/// It doesn't contain information about data that has been parsed,
-/// only the type of the token and its size.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Token {
-    /// The Token tag.
-    pub r#type: TokenType,
-    /// The length of the token in bytes.
-    pub len: u32,
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<Token {:?}, {}>", self.r#type, self.len)
-    }
-}
-
-impl Token {
-    pub const fn new(r#type: TokenType, len: u32) -> Token {
-        Token { r#type, len }
-    }
-
-    pub const fn eof() -> Token {
-        Token {
-            r#type: TokenType::End,
-            len: 0,
-        }
-    }
 }
 
 /// Literal Token

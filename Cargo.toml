@@ -81,7 +81,6 @@ destack_library_geometry = { path = "library/geometry" }
 destack_library_image = { path = "library/image" }
 destack_library_json = { path = "library/json" }
 destack_library_locale = { path = "library/locale" }
-destack_extension_lsp = { path = "extension/lsp" }
 destack_library_network = { path = "library/network" }
 destack_library_telemetry = { path = "library/telemetry" }
 destack_library_order = { path = "library/order" }
@@ -100,6 +99,10 @@ destack_library_uuid = { path = "library/uuid" }
 destack_library_video = { path = "library/video" }
 destack_library_view = { path = "library/view" }
 destack_library_web = { path = "platform/web" }
+# extension
+destack_extension_lsp = { path = "extension/lsp" }
+# platform
+# ...
 # demo
 destack_demo_breakout = { path = "demo/breakout" }
 destack_demo_tetris = { path = "demo/tetris" }
