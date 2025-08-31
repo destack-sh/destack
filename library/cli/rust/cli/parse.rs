@@ -11,18 +11,21 @@ const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
 /// Create the parse CLI app.
 pub fn app() -> CommandApp {
-    CommandApp::new("parse").help("parser tools").command(
-        "lex",
-        lex,
-        Some(format!(
-            "parse source.
+    CommandApp::new("parse")
+        .help("parser tools")
+        .default_command("lex")
+        .command(
+            "lex",
+            lex,
+            Some(format!(
+                "Parse source.
 			--file <path>    Read input from file
 			--string <string>  Read input from provided string
 			--no-color       Disable ANSI colors
 			--no-pager       Print directly instead of using less -R
 			--max-lexeme <n> Truncate lexeme preview to n chars (default {DEFAULT_MAX_LEXEME_LEN})"
-        )),
-    )
+            )),
+        )
 }
 
 /// Run the lexer subcommand: tokenize input and show a colored table with locations.
