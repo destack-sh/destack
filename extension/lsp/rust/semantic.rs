@@ -143,6 +143,9 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
     // legend indices must match `initialize` legend order
     let ty_index = match kind {
+        // skip these token types first
+        K::Newline | K::Whitespace | K::Unknown | K::End => return None,
+
         K::LineComment | K::DocComment => 0, // COMMENT
 
         // identifiers
@@ -162,7 +165,8 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         },
 
         // punctuation - use FUNCTION color to differentiate from operators
-        K::Semicolon
+        K::Colon
+        | K::Semicolon
         | K::Comma
         | K::Dot
         | K::Range
@@ -177,31 +181,52 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Pound
         | K::Tilde
         | K::Question
-        | K::Colon
         | K::Dollar => 5, // FUNCTION color to differentiate
 
         // operators
-        K::Equal
-        | K::BadArrow
-        | K::Bang
-        | K::LessThan
-        | K::GreaterThan
-        | K::Subtract
+        K::Bang
         | K::Empty
-        | K::Arrow
-        | K::BitwiseAnd
-        | K::LogicalAnd
+        | K::LessThan
+        | K::LessThanEqual
+        | K::GreaterThan
+        | K::GreaterThanEqual
+        | K::Equal
+        | K::NotEqual
         | K::BitwiseOr
-        | K::LogicalOr
+        | K::BitwiseOrAssign
+        | K::BitwiseAnd
+        | K::BitwiseAndAssign
+        | K::BitwiseXor
+        | K::BitwiseXorAssign
+        | K::ShiftLeft
+        | K::SaturatingShiftLeft
+        | K::ShiftLeftAssign
+        | K::SaturatingShiftLeftAssign
+        | K::ShiftRight
+        | K::ShiftRightAssign
         | K::Add
+        | K::WrappingAdd
+        | K::SaturatingAdd
+        | K::AddAssign
+        | K::WrappingAddAssign
+        | K::SaturatingAddAssign
+        | K::Subtract
+        | K::WrappingSubtract
+        | K::SaturatingSubtract
+        | K::SubtractAssign
+        | K::WrappingSubtractAssign
+        | K::SaturatingSubtractAssign
         | K::Multiply
+        | K::WrappingMultiply
+        | K::SaturatingMultiply
+        | K::MultiplyAssign
+        | K::WrappingMultiplyAssign
+        | K::SaturatingMultiplyAssign
         | K::Divide
-        | K::Caret
-        | K::Percent
-        | K::Assign => 4, // OPERATOR
+        | K::DivideAssign
+        | K::Remainder
+        | K::RemainderAssign => 4, // OPERATOR
 
-        // skip these token types
-        K::Whitespace | K::Unknown | K::End => return None,
         // handle remaining tokens we don't classify yet
         _ => return None,
     };
