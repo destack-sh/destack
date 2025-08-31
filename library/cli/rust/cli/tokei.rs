@@ -11,12 +11,12 @@ struct LanguageDeclaration<'a> {
 
 const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
     LanguageDeclaration {
-        extension: &["rs"],
-        name: Some("Rust"),
+        extension: &["ds"],
+        name: Some("Dyst"),
     },
     LanguageDeclaration {
-        extension: &["ds"],
-        name: Some("Destack"),
+        extension: &["rs"],
+        name: Some("Rust"),
     },
     LanguageDeclaration {
         extension: &["py"],
@@ -105,14 +105,15 @@ const DEFAULT_IGNORE_PATHS: &[&str] = &[
 pub fn app() -> CommandApp {
     CommandApp::new("tokei")
         .help("Count source lines fast.")
+        .default_command("run")
         .command(
             "run",
             run,
             Some(
                 "Run counter.
 				 --root <dir>
-				 --ext .py,.rs,.ds
-				 --alias \"rs=Rust,ds=Destack,py=Python\"
+				 --ext .ds,.rs,.py
+				 --alias \"ds=Dyst,rs=Rust,py=Python\"
 				 --ignore \"<path1,path2,...>\""
                     .to_string(),
             ),

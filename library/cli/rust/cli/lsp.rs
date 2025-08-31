@@ -7,6 +7,7 @@ use crate::console::parse::{CommandApp, CommandArguments};
 pub fn app() -> CommandApp {
     CommandApp::new("lsp")
         .help("Run the Destack Language Server (stdio).")
+        .default_command("run")
         .command(
             "run",
             run,

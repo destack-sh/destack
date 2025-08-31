@@ -88,6 +88,8 @@ pub struct CommandApp {
     pub name: String,
     /// Optional help text for the application
     pub help: Option<String>,
+    /// Default command to run if no command is provided
+    pub default_command: Option<String>,
     /// Registered commands with their functions and help text
     commands: HashMap<String, (CommandFn, Option<String>)>,
     /// Nested sub-applications
@@ -100,6 +102,7 @@ impl CommandApp {
         Self {
             name: name.into(),
             help: None,
+            default_command: None,
             commands: HashMap::new(),
             sub_apps: HashMap::new(),
         }
@@ -108,6 +111,12 @@ impl CommandApp {
     /// Set help text for the app.
     pub fn help(mut self, help: impl Into<String>) -> Self {
         self.help = Some(help.into());
+        self
+    }
+
+    /// Set default command to run if no command is provided
+    pub fn default_command(mut self, command: impl Into<String>) -> Self {
+        self.default_command = Some(command.into());
         self
     }
 
@@ -130,45 +139,63 @@ impl CommandApp {
 
     /// Run from process arguments.
     pub fn run(&self) -> i32 {
-        let mut argv: Vec<String> = env::args().skip(1).collect();
-        if argv.is_empty() || argv[0] == "-h" || argv[0] == "--help" {
-            return self._show_help();
-        }
-        let first = argv.remove(0);
-        if let Some(app) = self.sub_apps.get(&first) {
-            return app.run_with_args(argv);
-        }
-        if let Some((func, _)) = self.commands.get(&first) {
-            let ctx = CommandArguments::parse(argv);
-            return (func)(ctx);
-        }
-        super::console::error(&format!("unknown command: `{first}`"));
-        self._show_help()
+        // collect command line arguments, skipping program name, and delegate
+        let argv: Vec<String> = env::args().skip(1).collect();
+        self.run_with_args(argv)
     }
 
     /// Run with supplied arguments (first token already consumed as sub-app name).
     pub fn run_with_args(&self, args: Vec<String>) -> i32 {
-        if args.is_empty() || args[0] == "-h" || args[0] == "--help" {
+        // help flag
+        if (!args.is_empty()) && (args[0] == "-h" || args[0] == "--help") {
             return self._show_help();
         }
+
+        // if no args or first arg looks like a flag, try default command
+        if args.is_empty() || args[0].starts_with('-') {
+            if let Some(default) = &self.default_command {
+                // if default refers to a sub-app, delegate with current args
+                if let Some(app) = self.sub_apps.get(default) {
+                    return app.run_with_args(args);
+                }
+                // if default refers to a command, execute it with parsed args
+                if let Some((func, _)) = self.commands.get(default) {
+                    let ctx = CommandArguments::parse(args);
+                    return (func)(ctx);
+                }
+                // NOTE @Robustness: unknown default configured, fall through to help
+            }
+            return self._show_help();
+        }
+
+        // extract first argument as command/sub-app name
         let mut rest = args.clone();
         let first = rest.remove(0);
+
+        // try to run as sub-app first
         if let Some(app) = self.sub_apps.get(&first) {
             return app.run_with_args(rest);
         }
+
+        // try to run as command
         if let Some((func, _)) = self.commands.get(&first) {
             let ctx = CommandArguments::parse(rest);
             return (func)(ctx);
         }
+
+        // command not found, show error and help
         super::console::error(&format!("unknown command: `{first}`"));
         self._show_help()
     }
 
     /// Display help information for this app.
     fn _show_help(&self) -> i32 {
+        // show main help text if available
         if let Some(help) = &self.help {
             super::console::print(help);
         }
+
+        // list available sub-apps
         if !self.sub_apps.is_empty() {
             super::console::info("CLIs:");
             let mut names: Vec<_> = self.sub_apps.keys().cloned().collect();
@@ -177,6 +204,8 @@ impl CommandApp {
                 println!("  {n}");
             }
         }
+
+        // list available commands with help text
         if !self.commands.is_empty() {
             super::console::info("Commands:");
             let mut names: Vec<_> = self.commands.keys().cloned().collect();

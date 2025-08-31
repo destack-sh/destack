@@ -21,6 +21,7 @@ const FILES_TO_UPDATE: &[&str] = &[
 pub fn app() -> CommandApp {
     CommandApp::new("version")
         .help("Mark new versions.")
+        .default_command("bump")
         .command(
             "bump",
             bump,

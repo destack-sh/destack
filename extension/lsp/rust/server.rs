@@ -15,6 +15,7 @@ pub struct Backend {
 impl Backend {}
 
 impl LanguageServer for Backend {
+    /// Initialize the language server with client capabilities and return server capabilities.
     fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
         self.client
             .log_message(MessageType::INFO, "destack: initialize");
@@ -62,17 +63,20 @@ impl LanguageServer for Backend {
         })
     }
 
+    /// Handle the initialized notification from the client.
     fn initialized(&self, _: lsp::InitializedParams) {
         self.client
             .log_message(MessageType::INFO, "destack: initialized");
     }
 
+    /// Gracefully shut down the server.
     fn shutdown(&self) -> JsonRpcResult<()> {
         self.client
             .log_message(MessageType::INFO, "destack: shutdown");
         Ok(())
     }
 
+    /// Handle document open notification and store the document content.
     fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
@@ -81,6 +85,7 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, format!("destack: did_open: {:?}", uri));
     }
 
+    /// Handle document change notification and update the stored document content.
     fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         // SyncKind::FULL, take the full content from the single change
@@ -91,6 +96,7 @@ impl LanguageServer for Backend {
             .log_message(MessageType::INFO, format!("destack: did_change: {:?}", uri));
     }
 
+    /// Compute semantic tokens for the entire document.
     fn semantic_tokens_full(
         &self,
         params: lsp::SemanticTokensParams,
@@ -120,6 +126,7 @@ impl LanguageServer for Backend {
         )))
     }
 
+    /// Compute semantic tokens for a specific range in the document.
     fn semantic_tokens_range(
         &self,
         params: lsp::SemanticTokensRangeParams,
@@ -149,6 +156,7 @@ impl LanguageServer for Backend {
         )))
     }
 
+    /// Provide hover information for a symbol at a given position.
     fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
