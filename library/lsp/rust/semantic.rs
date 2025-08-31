@@ -1,7 +1,7 @@
 //! SemanticTokens.
 
-use destack_language_lexer::{LiteralToken, TokenType, tokenize};
 use crate::vendor::lsp_types as lsp;
+use destack_language_lexer::{LiteralToken, TokenType, tokenize};
 
 /// Get semantic tokens for the given text.
 pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
@@ -178,7 +178,6 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Tilde
         | K::Question
         | K::Colon
-        
         | K::Dollar => 5, // FUNCTION color to differentiate
 
         // operators

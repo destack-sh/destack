@@ -12,6 +12,8 @@ use crate::Identifier;
 
 pub type NodeId = u32;
 
+// nocheckin: variable width int / uint
+
 /// An IntType is a signed integer type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IntType {
@@ -603,15 +605,15 @@ pub struct DynamicMethodCall {
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    // Expression
+    /// Expression
     Expression(Expression),
-    // Let binding
+    /// Let binding
     Let(Let),
-    // Var binding
+    /// Var binding
     Var(Var),
-    // Assignment
+    /// Assignment
     Assign(Assign),
-    // Using declaration
+    /// Using declaration
     Using(Using),
 }
 
@@ -622,22 +624,22 @@ pub enum Statement {
 ///  that is, they have a place in memory we can point to.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    // Literal scalar value
+    /// Literal scalar value
     ScalarLiteral(ScalarLiteral),
-    // Array literal
+    /// Array literal
     ArrayLiteral(ArrayLiteral),
-    // Tuple literal
+    /// Tuple literal
     TupleLiteral(TupleLiteral),
-    // Struct literal
+    /// Struct literal
     StructLiteral(StructLiteral),
 
-    /// Path reference
+    /// Path reference.
     Path(Path),
-    /// Member reference
+    /// Member reference.
     Member(Member),
-    /// Index reference
+    /// Index reference.
     Index(Index),
-    /// Slice
+    /// Slice.
     Slice(Slice),
     /// Unary operation.
     UnaryOperation(UnaryOperation),
@@ -882,6 +884,8 @@ pub struct UnaryOperation {
 /// A UnaryOperator is a unary operator.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOperator {
+    /// '?'
+    Maybe,
     /// `!`
     Not,
     /// `-`
