@@ -31,6 +31,7 @@ pub use identifier::*;
 pub use keyword::*;
 pub use node::*;
 pub use parse::*;
+pub use r#type::*;
 
 #[cfg(test)]
 mod tests;

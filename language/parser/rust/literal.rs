@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
                         }
                     };
                     match parsed_int {
-                        Ok(value) => Ok(ScalarLiteral::Integer(value, IntType::Int32)),
+                        Ok(value) => Ok(ScalarLiteral::Integer(value, IntType::INT32)),
                         Err(_) => Err(ParseError::UnexpectedToken(literal.span)),
                     }
                 }
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
                     };
                     let parsed_float = cleaned_str.parse::<f64>();
                     match parsed_float {
-                        Ok(value) => Ok(ScalarLiteral::Float(value, FloatType::Float32)),
+                        Ok(value) => Ok(ScalarLiteral::Float(value, FloatType::Float64)),
                         Err(_) => Err(ParseError::UnexpectedToken(literal.span)),
                     }
                 }
@@ -326,27 +326,27 @@ br##"a#b#c"##
 
         // 1
         let literal = parser.eat_scalar_literal().unwrap();
-        assert_eq!(literal, ScalarLiteral::Integer(1, IntType::Int32));
+        assert_eq!(literal, ScalarLiteral::Integer(1, IntType::INT32));
         parser.eat_newline().unwrap();
 
         // 731
         let literal = parser.eat_scalar_literal().unwrap();
-        assert_eq!(literal, ScalarLiteral::Integer(731, IntType::Int32));
+        assert_eq!(literal, ScalarLiteral::Integer(731, IntType::INT32));
         parser.eat_newline().unwrap();
 
         // 0x1234
         let literal = parser.eat_scalar_literal().unwrap();
-        assert_eq!(literal, ScalarLiteral::Integer(0x1234, IntType::Int32));
+        assert_eq!(literal, ScalarLiteral::Integer(0x1234, IntType::INT32));
         parser.eat_newline().unwrap();
 
         // 10e37
         let literal = parser.eat_scalar_literal().unwrap();
-        assert_eq!(literal, ScalarLiteral::Float(1.0e38, FloatType::Float32));
+        assert_eq!(literal, ScalarLiteral::Float(1.0e38, FloatType::Float64));
         parser.eat_newline().unwrap();
 
         // 1.0
         let literal = parser.eat_scalar_literal().unwrap();
-        assert_eq!(literal, ScalarLiteral::Float(1.0, FloatType::Float32));
+        assert_eq!(literal, ScalarLiteral::Float(1.0, FloatType::Float64));
         parser.eat_newline().unwrap();
 
         // true
@@ -419,9 +419,9 @@ br##"a#b#c"##
             literal,
             ArrayLiteral::Fixed {
                 elements: vec![
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(1, IntType::Int32)),
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(2, IntType::Int32)),
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::Int32))
+                    Expression::ScalarLiteral(ScalarLiteral::Integer(1, IntType::INT32)),
+                    Expression::ScalarLiteral(ScalarLiteral::Integer(2, IntType::INT32)),
+                    Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::INT32))
                 ]
             }
         );
@@ -433,9 +433,9 @@ br##"a#b#c"##
             literal,
             ArrayLiteral::Fixed {
                 elements: vec![
-                    Expression::ScalarLiteral(ScalarLiteral::Float(1.0, FloatType::Float32)),
-                    Expression::ScalarLiteral(ScalarLiteral::Float(2.0, FloatType::Float32)),
-                    Expression::ScalarLiteral(ScalarLiteral::Float(3.0, FloatType::Float32))
+                    Expression::ScalarLiteral(ScalarLiteral::Float(1.0, FloatType::Float64)),
+                    Expression::ScalarLiteral(ScalarLiteral::Float(2.0, FloatType::Float64)),
+                    Expression::ScalarLiteral(ScalarLiteral::Float(3.0, FloatType::Float64))
                 ]
             }
         );
@@ -447,7 +447,7 @@ br##"a#b#c"##
             literal,
             ArrayLiteral::Fixed {
                 elements: vec![
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(10, IntType::Int32)),
+                    Expression::ScalarLiteral(ScalarLiteral::Integer(10, IntType::INT32)),
                     Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
                     Expression::ScalarLiteral(ScalarLiteral::String("Hi".to_string()))
                 ]
