@@ -1,0 +1,24 @@
+[package]
+name = "destack_extension_lsp"
+description = "Destack Extension Language Server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+
+[[bin]]
+name = "destack_extension_lsp"
+path = "rust/main.rs"
+
+[dependencies]
+destack_language_lexer = { workspace = true }
+destack_language_parser = { workspace = true }
+
+# TODO: vendor LSP types & serde (once Dyst is more mature)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+ls-types = { git = "https://github.com/tower-lsp-community/ls-types", branch = "main" }

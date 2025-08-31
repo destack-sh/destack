@@ -304,7 +304,7 @@ geom.Vector2 // path
 MyMesh<false, Dims: 3> // path with static arguments
 ?float32 // maybe type
 ! // never type
-!Time // never type with inner
+!Time // never type
 "##;
         let tokens = tokenize_semantic(source);
         let mut parser = Parser::new(SourceFile::new(0, source, source.len() as u32), &tokens);

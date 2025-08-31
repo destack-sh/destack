@@ -5,65 +5,65 @@ use crate::console::{console, table};
 use destack_library_tokei as tokei;
 
 struct LanguageDeclaration<'a> {
-    extensions: &'a [&'a str],
+    extension: &'a [&'a str],
     name: Option<&'a str>,
 }
 
 const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
     LanguageDeclaration {
-        extensions: &["rs"],
+        extension: &["rs"],
         name: Some("Rust"),
     },
     LanguageDeclaration {
-        extensions: &["ds"],
+        extension: &["ds"],
         name: Some("Destack"),
     },
     LanguageDeclaration {
-        extensions: &["py"],
+        extension: &["py"],
         name: Some("Python"),
     },
     LanguageDeclaration {
-        extensions: &["ts"],
+        extension: &["ts"],
         name: Some("TypeScript"),
     },
     LanguageDeclaration {
-        extensions: &["js"],
+        extension: &["js"],
         name: Some("JavaScript"),
     },
     LanguageDeclaration {
-        extensions: &["tsx"],
+        extension: &["tsx"],
         name: Some("TSX"),
     },
     LanguageDeclaration {
-        extensions: &["jsx"],
+        extension: &["jsx"],
         name: Some("JSX"),
     },
     LanguageDeclaration {
-        extensions: &["tf"],
+        extension: &["tf"],
         name: Some("Terraform"),
     },
     LanguageDeclaration {
-        extensions: &["sh"],
+        extension: &["sh"],
         name: Some("Shell"),
     },
     LanguageDeclaration {
-        extensions: &["sql"],
+        extension: &["sql"],
         name: Some("SQL"),
     },
     LanguageDeclaration {
-        extensions: &["toml"],
+        extension: &["toml"],
         name: Some("TOML"),
     },
     LanguageDeclaration {
-        extensions: &["json"],
+        extension: &["json"],
         name: Some("JSON"),
     },
     LanguageDeclaration {
-        extensions: &["md"],
+        extension: &["md"],
         name: Some("Markdown"),
     },
     LanguageDeclaration {
-        extensions: &["yaml", "yml"],
+        extension: &["yaml", "yml"],
         name: Some("YAML"),
     },
 ];
@@ -125,7 +125,7 @@ fn run(ctx: CommandArguments) -> i32 {
     let root = ctx.option("root").unwrap_or(".");
     let default_ext_csv = DEFAULT_EXTENSIONS
         .iter()
-        .flat_map(|e| e.extensions.iter().copied())
+        .flat_map(|e| e.extension.iter().copied())
         .collect::<Vec<_>>()
         .join(",");
     let ext_csv = ctx.option("ext").unwrap_or(&default_ext_csv);
@@ -139,7 +139,7 @@ fn run(ctx: CommandArguments) -> i32 {
     let default_alias_csv = DEFAULT_EXTENSIONS
         .iter()
         .flat_map(|e| {
-            e.extensions
+            e.extension
                 .iter()
                 .map(|ext| format!("{}={}", ext, e.name.unwrap_or(ext)))
         })
@@ -157,7 +157,7 @@ fn run(ctx: CommandArguments) -> i32 {
         }
     }
 
-    // assemble language config by (name, extensions)
+    // assemble language config by (name, extension)
     let languages: Vec<tokei::LanguageConfiguration> = exts
         .iter()
         .map(|e| {
@@ -222,7 +222,7 @@ fn run(ctx: CommandArguments) -> i32 {
             .get(lang)
             .copied()
             .unwrap_or(0);
-        let extensions = options
+        let extension = options
             .languages
             .iter()
             .find(|l| &l.name == lang)
@@ -230,7 +230,7 @@ fn run(ctx: CommandArguments) -> i32 {
             .unwrap_or_default();
         rows.push(LanguageStatistic {
             language: lang.clone(),
-            extension: extensions,
+            extension,
             files,
             lines: *lines,
         });

@@ -18,7 +18,7 @@ pub fn app() -> CommandApp {
 fn run(_ctx: CommandArguments) -> i32 {
     // NOTE: don't print anything to stdout or stderr so we don't interfere with the LSP protocol
 
-    match destack_library_lsp::run_libraryio_server_stdio() {
+    match destack_extension_lsp::run_libraryio_server_stdio() {
         Ok(_) => 0,
         Err(e) => {
             console::error(&format!("LSP exited with error: {e}"));

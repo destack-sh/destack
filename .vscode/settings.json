@@ -14,7 +14,7 @@
   "vsicons.associations.files": [
     {
       "icon": "spacengine",
-      "extensions": [".ds"]
+      "extension": [".ds"]
     }
   ],
   "destack.server.command": "/Users/florian/symbol/destack/target/debug/destack_library_cli",

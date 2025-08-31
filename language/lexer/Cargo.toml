@@ -14,7 +14,7 @@ path = "rust/lib.rs"
 destack_library_unicode = { workspace = true }
 
 [dev-dependencies]
-destack_library_filesystem = { workspace = true }
+destack_library_file = { workspace = true }
 
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }

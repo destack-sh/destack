@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use destack_library_filesystem::walk::{WalkOptions, walk_directory};
+use destack_library_file::walk::{WalkOptions, walk_directory};
 
 const FILE_BUFFER_SIZE: usize = 512 * 1024; // 512KB
 

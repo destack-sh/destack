@@ -1,0 +1,84 @@
+{
+  "name": "destack-vscode",
+  "displayName": "Destack",
+  "description": "Destack VSCode integration (with support for Dyst .ds)",
+  "version": "2025.8.31-0",
+  "license": "proprietary",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./out/extension.js",
+  "repository": {
+    "type": "web",
+    "url": "https://destack.app"
+  },
+  "files": [
+    "out/extension.js",
+    "language-configuration.json",
+    "package.json",
+    "README.md",
+    "LICENSE.txt"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Destack",
+      "properties": {
+        "destack.server.command": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to `destack_extension_lsp`. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
+        },
+        "destack.server.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional arguments to pass to the language server."
+        },
+        "destack.server.cwd": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "destack.restart",
+        "title": "Destack: Restart Server"
+      }
+    ],
+    "languages": [
+      {
+        "id": "destack",
+        "aliases": [
+          "Dyst",
+          "ds"
+        ],
+        "extension": [
+          ".ds"
+        ],
+        "configuration": "./languageuage-configuration.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "bun run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "bundle": "bun build src/extension.ts --outfile=out/extension.js --target=node --format=cjs --minify --sourcemap=inline --external:vscode --external:vscode-languageclient",
+    "package": "bunx --bun @vscode/vsce@latest package --no-dependencies"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^20.11.25",
+    "typescript": "~5.5.4",
+    "vsce": "^2.15.0",
+    "vscode-languageclient": "^9.0.1"
+  }
+}
