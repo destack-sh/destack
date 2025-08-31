@@ -782,7 +782,7 @@ pub enum UnaryOperator {
     /// '?'
     Maybe,
     /// `!`
-    Not,
+    Not, // or Never
     /// `-`
     Negate,
     /// `~`

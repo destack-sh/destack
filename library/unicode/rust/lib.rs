@@ -88,7 +88,7 @@ pub mod emoji {
 
     /// Checks whether this character is one of the Tag Characters.
     ///
-    /// These can be used in indicating variants or extensions of emoji characters.
+    /// These can be used in indicating variants or extension of emoji characters.
     #[inline]
     pub fn is_tag_character(c: char) -> bool {
         matches!(c, '\u{E0020}'..='\u{E007F}')

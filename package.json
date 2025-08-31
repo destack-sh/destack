@@ -1,19 +1,19 @@
 {
   "name": "destack_monorepo",
-  "version": "2025.08.25.0",
+  "version": "2025.08.31.0",
   "license": "proprietary",
   "private": true,
   "type": "module",
   "workspaces": {
     "packages": [
       "client/destack_ts",
-      "extensions/vscode",
-      "library/web"
+      "extension/vscode",
+      "platform/web"
     ]
   },
   "scripts": {
-    "vscode:compile": "cd extensions/vscode && bun run compile",
-    "vscode:watch": "cd extensions/vscode && bun run watch"
+    "vscode:compile": "cd extension/vscode && bun run compile",
+    "vscode:watch": "cd extension/vscode && bun run watch"
   },
   "catalog": {
     "temporal-polyfill": "^0.3.0"

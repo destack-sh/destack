@@ -1,6 +1,6 @@
 [package]
-name = "destack_library_tokei"
-description = "Destack Library Tokei"
+name = "destack_library_file"
+description = "Destack Library Filesystem"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,7 +11,6 @@ rust-version.workspace = true
 path = "rust/lib.rs"
 
 [dependencies]
-destack_library_file = { workspace = true }
 
 [lints]
 workspace = true

@@ -12,9 +12,9 @@ const FILES_TO_UPDATE: &[&str] = &[
     "package.json",
     "Cargo.toml",
     "client/destack_py/python/pyproject.toml",
-    "extensions/vscode/package.json",
-    "extensions/zed/Cargo.toml",
-    "extensions/zed/extension.toml",
+    "extension/vscode/package.json",
+    "extension/zed/Cargo.toml",
+    "extension/zed/extension.toml",
 ];
 
 /// Create the version command app.

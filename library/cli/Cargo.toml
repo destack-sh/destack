@@ -16,7 +16,7 @@ name = "destack_library_cli"
 path = "rust/main.rs"
 
 [dependencies]
-destack_library_lsp = { workspace = true }
+destack_extension_lsp = { workspace = true }
 destack_library_tokei = { workspace = true }
 destack_language_lexer = { workspace = true }
 destack_language_parser = { workspace = true }

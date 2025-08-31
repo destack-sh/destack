@@ -1,6 +1,6 @@
 [package]
-name = "destack_library_tokei"
-description = "Destack Library Tokei"
+name = "destack_library_locale"
+description = "Destack Library Localization"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,9 +11,10 @@ rust-version.workspace = true
 path = "rust/lib.rs"
 
 [dependencies]
-destack_library_file = { workspace = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
 
 [lints]
 workspace = true
-
-

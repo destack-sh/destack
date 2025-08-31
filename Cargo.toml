@@ -17,14 +17,13 @@ members = [
 	"library/cli",
 	"library/cloud",
 	"library/core",
-	"library/filesystem",
+	"library/file",
 	"library/geometry",
 	"library/image",
 	"library/json",
-	"library/localization",
-	"library/lsp",
+	"library/locale",
 	"library/network",
-	"library/observability",
+	"library/telemetry",
 	"library/order",
 	"library/perception",
 	"library/physics",
@@ -40,11 +39,11 @@ members = [
 	"library/uuid",
 	"library/video",
 	"library/view",
-	"library/web",
-	# extensions
-	"extensions/zed",
+	# extension
+	"extension/lsp",
+	"extension/zed",
 	# platform
-	# ...
+	"platform/web",
 	# demo
 	"demo/breakout",
 	"demo/tetris",
@@ -54,7 +53,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.8.25-0"
+version = "2025.8.31-0"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -77,14 +76,14 @@ destack_library_audio = { path = "library/audio" }
 destack_library_cli = { path = "library/cli" }
 destack_library_cloud = { path = "library/cloud" }
 destack_library_core = { path = "library/core" }
-destack_library_filesystem = { path = "library/filesystem" }
+destack_library_file = { path = "library/file" }
 destack_library_geometry = { path = "library/geometry" }
 destack_library_image = { path = "library/image" }
 destack_library_json = { path = "library/json" }
-destack_library_localization = { path = "library/localization" }
-destack_library_lsp = { path = "library/lsp" }
+destack_library_locale = { path = "library/locale" }
+destack_extension_lsp = { path = "extension/lsp" }
 destack_library_network = { path = "library/network" }
-destack_library_observability = { path = "library/observability" }
+destack_library_telemetry = { path = "library/telemetry" }
 destack_library_order = { path = "library/order" }
 destack_library_perception = { path = "library/perception" }
 destack_library_physics = { path = "library/physics" }
@@ -100,7 +99,7 @@ destack_library_universe = { path = "library/universe" }
 destack_library_uuid = { path = "library/uuid" }
 destack_library_video = { path = "library/video" }
 destack_library_view = { path = "library/view" }
-destack_library_web = { path = "library/web" }
+destack_library_web = { path = "platform/web" }
 # demo
 destack_demo_breakout = { path = "demo/breakout" }
 destack_demo_tetris = { path = "demo/tetris" }
