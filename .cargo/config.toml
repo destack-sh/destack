@@ -1,5 +1,5 @@
 [env]
-RUST_BACKTRACE = "full"
+RUST_BACKTRACE = { value = "full", force = true }
 
 [target.x86_64-unknown-linux-gnu]
 linker = "x86_64-linux-gnu-gcc"
@@ -17,4 +17,3 @@ rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.wasm32-wasi]
 runner = "wasmtime run --dir=. --"
-

@@ -13,7 +13,7 @@
   "scss.lint.unknownAtRules": "ignore",
   "vsicons.associations.files": [
     {
-      "icon": "rust_toolchain",
+      "icon": "spacengine",
       "extensions": [".ds"]
     }
   ],

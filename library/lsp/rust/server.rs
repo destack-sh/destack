@@ -4,7 +4,7 @@ use crate::doc::DocumentStore;
 use crate::semantic::{get_semantic_tokens, get_token_type_at_position};
 use crate::vendor::jsonrpc::Result as JsonRpcResult;
 use crate::vendor::lsp_types::MessageType;
-use crate::vendor::{Client, LanguageServer, lsp as lsp};
+use crate::vendor::{Client, LanguageServer, lsp};
 
 #[derive(Debug, Clone)]
 pub struct Backend {
@@ -96,24 +96,22 @@ impl LanguageServer for Backend {
         params: lsp::SemanticTokensParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensResult>> {
         let uri = params.text_document.uri;
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!("destack: semantic_tokens_full: {:?}", uri),
-            );
+        self.client.log_message(
+            MessageType::INFO,
+            format!("destack: semantic_tokens_full: {:?}", uri),
+        );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
         let tokens = get_semantic_tokens(&text);
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!(
-                    "destack: semantic_tokens_full: {:?} -> {:?}",
-                    uri,
-                    tokens.len()
-                ),
-            );
+        self.client.log_message(
+            MessageType::INFO,
+            format!(
+                "destack: semantic_tokens_full: {:?} -> {:?}",
+                uri,
+                tokens.len()
+            ),
+        );
         Ok(Some(lsp::SemanticTokensResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -127,24 +125,22 @@ impl LanguageServer for Backend {
         params: lsp::SemanticTokensRangeParams,
     ) -> JsonRpcResult<Option<lsp::SemanticTokensRangeResult>> {
         let uri = params.text_document.uri;
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!("destack: semantic_tokens_range: {:?}", uri),
-            );
+        self.client.log_message(
+            MessageType::INFO,
+            format!("destack: semantic_tokens_range: {:?}", uri),
+        );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };
         let tokens = get_semantic_tokens(&text);
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!(
-                    "destack: semantic_tokens_range: {:?} -> {:?}",
-                    uri,
-                    tokens.len()
-                ),
-            );
+        self.client.log_message(
+            MessageType::INFO,
+            format!(
+                "destack: semantic_tokens_range: {:?} -> {:?}",
+                uri,
+                tokens.len()
+            ),
+        );
         Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
             lsp::SemanticTokens {
                 result_id: None,
@@ -156,11 +152,10 @@ impl LanguageServer for Backend {
     fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
-        self.client
-            .log_message(
-                MessageType::INFO,
-                format!("destack: hover: {:?} @ {:?}", uri, position),
-            );
+        self.client.log_message(
+            MessageType::INFO,
+            format!("destack: hover: {:?} @ {:?}", uri, position),
+        );
         let Some(text) = self.docs.get(&uri) else {
             return Ok(None);
         };

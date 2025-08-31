@@ -16,12 +16,12 @@ use crate::server::Backend;
 
 /// Run the language server over stdio.
 pub fn run_libraryio_server_stdio() -> Result<(), Box<dyn std::error::Error>> {
-	let stdin = std::io::stdin();
-	let stdout = std::io::stdout();
-	let (service, socket) = LspService::new(|client| Backend {
-		client,
-		docs: DocumentStore::default(),
-	});
-	Server::new(stdin, stdout, socket).serve(service)?;
-	Ok(())
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    let (service, socket) = LspService::new(|client| Backend {
+        client,
+        docs: DocumentStore::default(),
+    });
+    Server::new(stdin, stdout, socket).serve(service)?;
+    Ok(())
 }

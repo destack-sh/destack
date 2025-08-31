@@ -43,6 +43,8 @@ members = [
 	"library/web",
 	# extensions
 	"extensions/zed",
+	# platform
+	# ...
 	# demo
 	"demo/breakout",
 	"demo/tetris",

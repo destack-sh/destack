@@ -45,6 +45,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// float32
+    /// ?float32
     /// _
     /// !
     /// !Time
@@ -188,7 +189,7 @@ mod tests {
         let source = r##"
 float32
 geom.Vector2 // path
-MyMesh<Validate: false, Dims: 3, DType: float32> // path with static arguments
+MyMesh<false, Dims: 3> // path with static arguments
 "##;
         let tokens = tokenize_semantic(source);
         let mut parser = Parser::new(SourceFile::new(0, source, source.len() as u32), &tokens);
@@ -229,10 +230,11 @@ MyMesh<Validate: false, Dims: 3, DType: float32> // path with static arguments
                     },
                     Argument {
                         name: Some("Dims".to_string()),
-                        value: Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::Int64))
+                        value: Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::Int32))
                     },
                 ])
             }
-        )
+        );
+        parser.eat_newline().unwrap();
     }
 }

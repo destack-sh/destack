@@ -6,9 +6,3 @@
 //! here in a structured way.
 
 pub use lsp_types::*;
-
-// NOTE: keep legacy alias so existing code continues to compile
-pub type Uri = lsp_types::Uri;
-pub use lsp_types::MessageType;
-
-
