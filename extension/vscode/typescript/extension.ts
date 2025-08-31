@@ -110,7 +110,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     vscode.commands.registerCommand("destack.restart", async () => {
       try {
         await client!.restart();
-        vscode.window.showInformationMessage(`Destack restarted`);
+        vscode.window.showInformationMessage(`Destack restarted.`);
       } catch (e: any) {
         vscode.window.showErrorMessage(`Destack restart failed: ${e?.message || e}`);
       }

@@ -1,7 +1,7 @@
 {
   "name": "destack-vscode",
   "displayName": "Destack",
-  "description": "Destack VSCode integration (with support for Dyst .ds)",
+  "description": "Destack & Dyst VSCode integration (.ds, .dsb, .dst, .dsx)",
   "version": "2025.8.31-0",
   "license": "proprietary",
   "engines": {
@@ -22,9 +22,13 @@
     "README.md",
     "LICENSE.txt"
   ],
+  "activationEvents": [
+    "onLanguage:destack",
+    "onLanguage:dyst"
+  ],
   "contributes": {
     "configuration": {
-      "title": "Destack",
+      "title": "Destack & Dyst",
       "properties": {
         "destack.server.command": {
           "type": "string",
@@ -56,13 +60,14 @@
       {
         "id": "destack",
         "aliases": [
+          "Destack",
           "Dyst",
           "ds"
         ],
         "extension": [
           ".ds"
         ],
-        "configuration": "./languageuage-configuration.json"
+        "configuration": "./language-configuration.json"
       }
     ]
   },

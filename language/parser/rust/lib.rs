@@ -2,6 +2,7 @@
 
 mod argument;
 mod r#as;
+mod binary;
 mod call;
 mod expression;
 mod function;
@@ -9,6 +10,7 @@ mod identifier;
 mod keyword;
 mod literal;
 mod r#loop;
+mod r#match;
 mod parameter;
 mod path;
 mod pattern;
@@ -17,6 +19,7 @@ mod r#struct;
 mod r#trait;
 mod r#try;
 mod r#type;
+mod unary;
 mod union;
 mod using;
 
