@@ -1,8 +1,114 @@
 //! Parse all kinds of types.
 
+use std::str::FromStr;
+
 use destack_language_lexer::TokenType;
 
 use crate::{Keyword, ParseError, ParseResult, Parser, Type};
+
+/// An IntType represents an arbitrary width integer with signedness.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IntType {
+    /// Bit width.
+    width: u8,
+    is_signed: bool,
+}
+
+impl IntType {
+    /// 8-bit signed integer
+    pub const INT8: IntType = IntType {
+        width: 8,
+        is_signed: true,
+    };
+    /// 16-bit signed integer
+    pub const INT16: IntType = IntType {
+        width: 16,
+        is_signed: true,
+    };
+    /// 32-bit signed integer
+    pub const INT32: IntType = IntType {
+        width: 32,
+        is_signed: true,
+    };
+    /// 64-bit signed integer
+    pub const INT64: IntType = IntType {
+        width: 64,
+        is_signed: true,
+    };
+    /// 128-bit signed integer
+    pub const INT128: IntType = IntType {
+        width: 128,
+        is_signed: true,
+    };
+
+    /// 8-bit unsigned integer
+    pub const UINT8: IntType = IntType {
+        width: 8,
+        is_signed: false,
+    };
+    /// 16-bit unsigned integer
+    pub const UINT16: IntType = IntType {
+        width: 16,
+        is_signed: false,
+    };
+    /// 32-bit unsigned integer
+    pub const UINT32: IntType = IntType {
+        width: 32,
+        is_signed: false,
+    };
+    /// 64-bit unsigned integer
+    pub const UINT64: IntType = IntType {
+        width: 64,
+        is_signed: false,
+    };
+    /// 128-bit unsigned integer
+    pub const UINT128: IntType = IntType {
+        width: 128,
+        is_signed: false,
+    };
+}
+
+impl IntType {
+    #[inline]
+    pub fn as_str(self) -> String {
+        let mut as_str = if self.is_signed {
+            "int".to_string()
+        } else {
+            "uint".to_string()
+        };
+        as_str.push_str(&self.width.to_string());
+        as_str
+    }
+}
+
+/// A FloatType represents a IEEE-754 float.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FloatType {
+    Float32,
+    Float64,
+}
+
+impl FloatType {
+    #[inline]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            FloatType::Float32 => "float32",
+            FloatType::Float64 => "float64",
+        }
+    }
+}
+
+impl FromStr for FloatType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "float32" => Ok(FloatType::Float32),
+            "float64" => Ok(FloatType::Float64),
+            _ => Err(()),
+        }
+    }
+}
 
 impl<'a> Parser<'a> {
     /// Eat a Type.
@@ -239,7 +345,7 @@ MyMesh<false, Dims: 3> // path with static arguments
                     },
                     Argument {
                         name: Some("Dims".to_string()),
-                        value: Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::Int32))
+                        value: Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::INT32))
                     },
                 ])
             }
