@@ -95,72 +95,106 @@ pub enum TokenType {
     Dollar,
     /// `!`
     Bang,
-    /// `-`
-    Subtract,
     /// '---',
     Empty,
-    /// `&`
-    BitwiseAnd,
     /// `&&`
     LogicalAnd,
-    /// `|`
-    BitwiseOr,
     /// `||`
     LogicalOr,
-    /// `+`
-    Add,
-    /// `*`
-    Multiply,
-    /// `/`
-    Divide,
-    /// `^`
-    Caret,
-    /// `%`
-    Percent,
-
-    /// `==`
-    Equal,
-    /// `!=`
-    NotEqual,
-    /// `<`
-    LessThan,
-    /// `<<`
-    ShiftLeft,
-    /// `>`
-    GreaterThan,
-    /// `>>`
-    ShiftRight,
-    /// `>=`
-    GreaterThanEqual,
-    /// `<=`
-    LessThanEqual,
-
-    /// `=`
-    Assign,
     /// `=>`
     Arrow,
     /// `->`
     BadArrow,
-    /// `+=`
-    AddAssign,
-    /// `-=`
-    SubtractAssign,
-    /// `*=`
-    MultiplyAssign,
-    /// `/=`
-    DivideAssign,
-    /// `%=`
-    RemainderAssign,
-    /// `^=`
-    ExponentAssign,
-    /// `&=`
-    BitwiseAndAssign,
+
+    // Assignment
+    /// `=`
+    Assign,
+
+    // Comparison
+    /// `>`
+    GreaterThan,
+    /// `<`
+    LessThan,
+    /// `>=`
+    GreaterThanEqual,
+    /// `<=`
+    LessThanEqual,
+    /// `==`
+    Equal,
+    /// `!=`
+    NotEqual,
+
+    // Bitwise
+    /// `|`
+    BitwiseOr,
     /// `|=`
     BitwiseOrAssign,
+    /// `&`
+    BitwiseAnd,
+    /// `&=`
+    BitwiseAndAssign,
+    /// `^`
+    BitwiseXor,
+    /// `^=`
+    BitwiseXorAssign,
+    /// `<<`
+    ShiftLeft,
+    /// `<<|`
+    SaturatingShiftLeft,
     /// `<<=`
     ShiftLeftAssign,
+    /// `<<|=`
+    SaturatingShiftLeftAssign,
+    /// `>>`
+    ShiftRight,
     /// `>>=`
     ShiftRightAssign,
+
+    // Arithmetic
+    /// `+`
+    Add,
+    /// `+%`
+    WrappingAdd,
+    /// `+|`
+    SaturatingAdd,
+    /// `+=`
+    AddAssign,
+    /// `+%=`
+    WrappingAddAssign,
+    /// `+|=`
+    SaturatingAddAssign,
+    /// `-`
+    Subtract,
+    /// `-%`
+    WrappingSubtract,
+    /// `-|`
+    SaturatingSubtract,
+    /// `-=`
+    SubtractAssign,
+    /// `-%=`
+    WrappingSubtractAssign,
+    /// `-|=`
+    SaturatingSubtractAssign,
+    /// `*`
+    Multiply,
+    /// `*%`
+    WrappingMultiply,
+    /// `*|`
+    SaturatingMultiply,
+    /// `*=`
+    MultiplyAssign,
+    /// `*%=`
+    WrappingMultiplyAssign,
+    /// `*|=`
+    SaturatingMultiplyAssign,
+    /// `/`
+    Divide,
+    /// `/=`
+    DivideAssign,
+    /// `%`
+    Remainder,
+    /// `%=`
+    RemainderAssign,
 }
 
 /// Literal Token

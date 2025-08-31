@@ -145,7 +145,7 @@ impl Tokenizer<'_> {
                 TokenType::Literal(literal_kind)
             }
 
-            // one or multi-symbol tokens (ordered to mirror TokenType groups)
+            // punctuation
             ':' => TokenType::Colon,
             ';' => TokenType::Semicolon,
             ',' => TokenType::Comma,
@@ -161,19 +161,23 @@ impl Tokenizer<'_> {
                     TokenType::Dot
                 }
             }
+
+            // brackets
             '(' => TokenType::OpenParenthesis,
             ')' => TokenType::CloseParenthesis,
             '{' => TokenType::OpenBrace,
             '}' => TokenType::CloseBrace,
             '[' => TokenType::OpenBracket,
             ']' => TokenType::CloseBracket,
+
+            // symbols
             '@' => TokenType::At,
             '#' => TokenType::Pound,
             '~' => TokenType::Tilde,
             '?' => TokenType::Question,
             '$' => TokenType::Dollar,
 
-            // operators & punctuation cluster (non-comparison)
+            // bang
             '!' => {
                 if self.peek_next() == '=' {
                     self.bump();
@@ -182,6 +186,8 @@ impl Tokenizer<'_> {
                     TokenType::Bang
                 }
             }
+
+            // minus
             '-' => {
                 if self.peek_next() == '>' {
                     self.bump();
@@ -190,6 +196,22 @@ impl Tokenizer<'_> {
                     self.bump();
                     self.bump();
                     TokenType::Empty
+                } else if self.peek_next() == '%' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::WrappingSubtractAssign
+                    } else {
+                        TokenType::WrappingSubtract
+                    }
+                } else if self.peek_next() == '|' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::SaturatingSubtractAssign
+                    } else {
+                        TokenType::SaturatingSubtract
+                    }
                 } else if self.peek_next() == '=' {
                     self.bump();
                     TokenType::SubtractAssign
@@ -197,6 +219,8 @@ impl Tokenizer<'_> {
                     TokenType::Subtract
                 }
             }
+
+            // and
             '&' => {
                 if self.peek_next() == '&' {
                     self.bump();
@@ -208,6 +232,8 @@ impl Tokenizer<'_> {
                     TokenType::BitwiseAnd
                 }
             }
+
+            // or
             '|' => {
                 if self.peek_next() == '|' {
                     self.bump();
@@ -219,40 +245,8 @@ impl Tokenizer<'_> {
                     TokenType::BitwiseOr
                 }
             }
-            '+' => {
-                if self.peek_next() == '=' {
-                    self.bump();
-                    TokenType::AddAssign
-                } else {
-                    TokenType::Add
-                }
-            }
-            '*' => {
-                if self.peek_next() == '=' {
-                    self.bump();
-                    TokenType::MultiplyAssign
-                } else {
-                    TokenType::Multiply
-                }
-            }
-            '^' => {
-                if self.peek_next() == '=' {
-                    self.bump();
-                    TokenType::ExponentAssign
-                } else {
-                    TokenType::Caret
-                }
-            }
-            '%' => {
-                if self.peek_next() == '=' {
-                    self.bump();
-                    TokenType::RemainderAssign
-                } else {
-                    TokenType::Percent
-                }
-            }
 
-            // comparisons & shifts cluster, mirroring TokenType order
+            // equal
             '=' => {
                 if self.peek_next() == '>' {
                     self.bump();
@@ -264,10 +258,21 @@ impl Tokenizer<'_> {
                     TokenType::Assign
                 }
             }
+
+            // less than
             '<' => {
                 if self.peek_next() == '<' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    // check for saturating shift first (<<| or <<|=)
+                    if self.peek_next() == '|' {
+                        self.bump();
+                        if self.peek_next() == '=' {
+                            self.bump();
+                            TokenType::SaturatingShiftLeftAssign
+                        } else {
+                            TokenType::SaturatingShiftLeft
+                        }
+                    } else if self.peek_next() == '=' {
                         self.bump();
                         TokenType::ShiftLeftAssign
                     } else {
@@ -280,6 +285,8 @@ impl Tokenizer<'_> {
                     TokenType::LessThan
                 }
             }
+
+            // greater than
             '>' => {
                 if self.peek_next() == '>' {
                     self.bump();
@@ -294,6 +301,79 @@ impl Tokenizer<'_> {
                     TokenType::GreaterThanEqual
                 } else {
                     TokenType::GreaterThan
+                }
+            }
+
+            // xor
+            '^' => {
+                if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::BitwiseXorAssign
+                } else {
+                    TokenType::BitwiseXor
+                }
+            }
+
+            // plus
+            '+' => {
+                // wrapping and saturating variants take precedence
+                if self.peek_next() == '%' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::WrappingAddAssign
+                    } else {
+                        TokenType::WrappingAdd
+                    }
+                } else if self.peek_next() == '|' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::SaturatingAddAssign
+                    } else {
+                        TokenType::SaturatingAdd
+                    }
+                } else if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::AddAssign
+                } else {
+                    TokenType::Add
+                }
+            }
+
+            // multiply
+            '*' => {
+                if self.peek_next() == '%' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::WrappingMultiplyAssign
+                    } else {
+                        TokenType::WrappingMultiply
+                    }
+                } else if self.peek_next() == '|' {
+                    self.bump();
+                    if self.peek_next() == '=' {
+                        self.bump();
+                        TokenType::SaturatingMultiplyAssign
+                    } else {
+                        TokenType::SaturatingMultiply
+                    }
+                } else if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::MultiplyAssign
+                } else {
+                    TokenType::Multiply
+                }
+            }
+
+            // remainder
+            '%' => {
+                if self.peek_next() == '=' {
+                    self.bump();
+                    TokenType::RemainderAssign
+                } else {
+                    TokenType::Remainder
                 }
             }
 
