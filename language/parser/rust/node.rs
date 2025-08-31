@@ -812,6 +812,8 @@ pub struct FieldLiteral {
 pub enum Type {
     /// Infer placeholder `_`
     Infer,
+    /// Maybe '?'
+    Maybe(Option<Box<Type>>),
     /// Never `!`
     Never(Option<Box<Type>>),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`

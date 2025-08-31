@@ -53,8 +53,14 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_scalar_type(&mut self) -> ParseResult<Type> {
         let next = self.peek_next()?;
+        // maybe
+        if next.token.r#type == TokenType::Question {
+            self.bump();
+            let inner_type = self.eat_type()?;
+            Ok(Type::Maybe(Some(Box::new(inner_type))))
+        }
         // never
-        if next.token.r#type == TokenType::Bang {
+        else if next.token.r#type == TokenType::Bang {
             self.bump();
             if self.peek_next_token(TokenType::Identifier).is_ok() {
                 let inner_type = self.eat_type()?;
@@ -190,6 +196,9 @@ mod tests {
 float32
 geom.Vector2 // path
 MyMesh<false, Dims: 3> // path with static arguments
+?float32 // maybe type
+! // never type
+!Time // never type with inner
 "##;
         let tokens = tokenize_semantic(source);
         let mut parser = Parser::new(SourceFile::new(0, source, source.len() as u32), &tokens);
@@ -234,6 +243,33 @@ MyMesh<false, Dims: 3> // path with static arguments
                     },
                 ])
             }
+        );
+        parser.eat_newline().unwrap();
+
+        // ?float32
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Maybe(Some(Box::new(Type::Path {
+                path: "float32".parse().unwrap(),
+                static_arguments: None
+            })))
+        );
+        parser.eat_newline().unwrap();
+
+        // !
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(r#type, Type::Never(None));
+        parser.eat_newline().unwrap();
+
+        // !Time
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Never(Some(Box::new(Type::Path {
+                path: "Time".parse().unwrap(),
+                static_arguments: None
+            })))
         );
         parser.eat_newline().unwrap();
     }
