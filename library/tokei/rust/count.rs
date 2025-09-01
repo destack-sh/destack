@@ -48,9 +48,9 @@ pub struct Statistics {
     /// Total number of lines across matched files.
     pub total_lines: u64,
     /// Lines by language name.
-    pub lines_by_languageuage: HashMap<String, u64>,
+    pub lines_by_language: HashMap<String, u64>,
     /// Files by language name.
-    pub files_by_languageuage: HashMap<String, u64>,
+    pub files_by_language: HashMap<String, u64>,
 }
 
 impl Statistics {
@@ -59,8 +59,8 @@ impl Statistics {
         Self {
             total_files: 0,
             total_lines: 0,
-            lines_by_languageuage: HashMap::new(),
-            files_by_languageuage: HashMap::new(),
+            lines_by_language: HashMap::new(),
+            files_by_language: HashMap::new(),
         }
     }
 }
@@ -91,16 +91,16 @@ pub fn count(options: &Options) -> io::Result<Statistics> {
         glob: Some(options.patterns.clone()),
     };
     walk_directory(&walker_options, |path| {
-        if let Some((lang_name, _)) = match_languageuage(path, &ext_to_language) {
+        if let Some((lang_name, _)) = match_language(path, &ext_to_language) {
             let lines = count_file_lines(path).unwrap_or_default();
             statistics.total_files += 1;
             statistics.total_lines += lines;
             *statistics
-                .lines_by_languageuage
+                .lines_by_language
                 .entry(lang_name.to_string())
                 .or_insert(0) += lines;
             *statistics
-                .files_by_languageuage
+                .files_by_language
                 .entry(lang_name.to_string())
                 .or_insert(0) += 1;
         }
@@ -110,12 +110,12 @@ pub fn count(options: &Options) -> io::Result<Statistics> {
 }
 
 /// Find matching language for file path by checking endings.
-fn match_languageuage<'a>(
+fn match_language<'a>(
     path: &Path,
-    ext_to_languageuage: &'a [(String, &str)],
+    ext_to_language: &'a [(String, &str)],
 ) -> Option<(&'a str, &'a str)> {
     let fname = path.file_name()?.to_str()?;
-    for (ending, lang) in ext_to_languageuage.iter() {
+    for (ending, lang) in ext_to_language.iter() {
         if fname.ends_with(ending) {
             return Some((*lang, ending.as_str()));
         }
@@ -149,14 +149,23 @@ mod tests {
     #[test]
     fn test_count_simple() {
         // count lines in simple test files
-        let tmp = tempfile_dir();
-        let a = tmp.join("a.rs");
-        let b = tmp.join("b.py");
-        write_file(&a, "line1\nline2\n");
-        write_file(&b, "# c\nprint()\n");
+        let temp_dir = tempfile_dir();
+        let file_a = temp_dir.join("a.rs");
+        let file_b = temp_dir.join("b.py");
+        write_file(
+            &file_a,
+            r#"line1
+line2"#,
+        );
+        write_file(
+            &file_b,
+            r#"# c
+print()
+"#,
+        );
 
         let options = Options {
-            root: tmp.clone(),
+            root: temp_dir.clone(),
             languages: vec![
                 LanguageConfiguration {
                     name: "rs".into(),
@@ -167,31 +176,31 @@ mod tests {
                     endings: vec![".py".into()],
                 },
             ],
-            patterns: Vec::new(),
+            patterns: vec!["**/*.rs".into(), "**/*.py".into()],
             ignore_paths: Vec::new(),
         };
-        let s = count(&options).unwrap();
+        let stats = count(&options).unwrap();
 
-        assert_eq!(s.total_files, 2);
-        assert_eq!(s.total_lines, 4);
-        assert_eq!(*s.lines_by_languageuage.get("rs").unwrap(), 2);
-        assert_eq!(*s.lines_by_languageuage.get("py").unwrap(), 2);
+        assert_eq!(stats.total_files, 2);
+        assert_eq!(stats.total_lines, 4);
+        assert_eq!(*stats.lines_by_language.get("rs").unwrap(), 2);
+        assert_eq!(*stats.lines_by_language.get("py").unwrap(), 2);
     }
 
     /// Write content to file, creating parent directories as needed.
     fn write_file(path: &Path, content: &str) {
         let _ = std::fs::create_dir_all(path.parent().unwrap());
-        let mut f = File::create(path).unwrap();
-        f.write_all(content.as_bytes()).unwrap();
+        let mut file = File::create(path).unwrap();
+        file.write_all(content.as_bytes()).unwrap();
     }
 
     /// Create unique temporary directory for testing.
     fn tempfile_dir() -> PathBuf {
         let base = std::env::temp_dir();
-        let mut p = base.clone();
+        let mut path = base.clone();
         let unique = format!("destack_tokei_{}", Instant::now().elapsed().as_nanos());
-        p.push(unique);
-        let _ = std::fs::create_dir_all(&p);
-        p
+        path.push(unique);
+        let _ = std::fs::create_dir_all(&path);
+        path
     }
 }
