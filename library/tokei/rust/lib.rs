@@ -4,4 +4,4 @@
 
 pub mod count;
 
-pub use count::{CommentStyle, LanguageConfiguration, Options, Statistics, count};
+pub use count::{LanguageConfiguration, Options, Statistics, count};

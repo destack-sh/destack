@@ -2,7 +2,7 @@
 
 use crate::{Span, TokenSpan, is_id_continue, is_id_start, is_whitespace};
 
-use super::token::{LiteralToken, NumberBase, RawStringError, Token, TokenType};
+use super::token::{NumberBase, RawLiteralType, RawStringError, Token, TokenType};
 use super::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_library_unicode::UnicodeEmoji;
 
@@ -50,17 +50,17 @@ impl Tokenizer<'_> {
         // eat first character until nothing is left (=EOF)
         let Some(first_char) = self.bump() else {
             // EOF is also a Token
-            return Token::new(TokenType::End, 0);
+            return Token::new(TokenType::End, 0, None);
         };
 
         // parse token
-        let token_kind = match first_char {
+        let (token_type, literal) = match first_char {
             // whitespace
             c if is_whitespace(c) => {
                 if c == '\n' {
-                    TokenType::Newline
+                    (TokenType::Newline, None)
                 } else {
-                    self.eat_whitespace()
+                    (self.eat_whitespace(), None)
                 }
             }
 
@@ -79,16 +79,16 @@ impl Tokenizer<'_> {
                 if !has_second_slash {
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::DivideAssign
+                        (TokenType::DivideAssign, None)
                     } else {
-                        TokenType::Divide
+                        (TokenType::Divide, None)
                     }
                 } else {
                     self.eat_until(b'\n');
                     if is_doc_comment {
-                        TokenType::DocComment
+                        (TokenType::DocComment, None)
                     } else {
-                        TokenType::LineComment
+                        (TokenType::LineComment, None)
                     }
                 }
             }
@@ -98,13 +98,13 @@ impl Tokenizer<'_> {
                 // raw string literal
                 ('#', _) | ('"', _) => {
                     let raw_dq_string = self.eat_raw_double_quoted_string(1);
-                    let kind = LiteralToken::RawString {
+                    let literal = RawLiteralType::RawString {
                         hashes: raw_dq_string.ok(),
                     };
-                    TokenType::Literal(kind)
+                    (TokenType::RawLiteral, Some(literal))
                 }
                 // identifier fallback
-                _ => self.eat_identifier_or_unknown_prefix(),
+                _ => (self.eat_identifier_or_unknown_prefix(), None),
             },
 
             // byte literal, byte string literal, raw byte string literal
@@ -115,75 +115,84 @@ impl Tokenizer<'_> {
                     ('\'', _) => {
                         this.bump();
                         let is_terminated = this.eat_single_quoted_string();
-                        TokenType::Literal(LiteralToken::Byte { is_terminated })
+                        (
+                            TokenType::RawLiteral,
+                            Some(RawLiteralType::Byte { is_terminated }),
+                        )
                     }
                     // double-quoted byte string literal
                     ('"', _) => {
                         this.bump();
                         let is_terminated = this.eat_double_quoted_string();
-                        TokenType::Literal(LiteralToken::ByteString { is_terminated })
+                        (
+                            TokenType::RawLiteral,
+                            Some(RawLiteralType::ByteString { is_terminated }),
+                        )
                     }
                     // raw double-quoted byte string literal
                     ('r', '"') | ('r', '#') => {
                         this.bump();
                         let raw_dq_string = this.eat_raw_double_quoted_string(2);
-                        TokenType::Literal(LiteralToken::RawByteString {
-                            hashes: raw_dq_string.ok(),
-                        })
+                        (
+                            TokenType::RawLiteral,
+                            Some(RawLiteralType::RawByteString {
+                                hashes: raw_dq_string.ok(),
+                            }),
+                        )
                     }
                     // identifier fallback
-                    _ => this.eat_identifier_or_unknown_prefix(),
+                    _ => (this.eat_identifier_or_unknown_prefix(), None),
                 }
             }
 
             // identifier
-            c if is_id_start(c) => self.eat_identifier_or_unknown_prefix(),
+            c if is_id_start(c) => (self.eat_identifier_or_unknown_prefix(), None),
 
             // numeric literal
             c @ '0'..='9' => {
-                let literal_kind = self.eat_number_literal(c);
-                TokenType::Literal(literal_kind)
+                let literal = self.eat_number_literal(c);
+                (TokenType::RawLiteral, Some(literal))
             }
 
             // punctuation
-            ':' => TokenType::Colon,
-            ';' => TokenType::Semicolon,
-            ',' => TokenType::Comma,
+            ':' => (TokenType::Colon, None),
+            ';' => (TokenType::Semicolon, None),
+            ',' => (TokenType::Comma, None),
             '.' => {
                 if self.peek_next() == '.' && self.peek_next_next() == '.' {
                     self.bump();
                     self.bump();
-                    TokenType::Ellipsis
+                    (TokenType::Ellipsis, None)
                 } else if self.peek_next() == '.' {
                     self.bump();
-                    TokenType::Range
+                    (TokenType::Range, None)
                 } else {
-                    TokenType::Dot
+                    (TokenType::Dot, None)
                 }
             }
 
             // brackets
-            '(' => TokenType::OpenParenthesis,
-            ')' => TokenType::CloseParenthesis,
-            '{' => TokenType::OpenBrace,
-            '}' => TokenType::CloseBrace,
-            '[' => TokenType::OpenBracket,
-            ']' => TokenType::CloseBracket,
+            '(' => (TokenType::OpenParenthesis, None),
+            ')' => (TokenType::CloseParenthesis, None),
+            '{' => (TokenType::OpenBrace, None),
+            '}' => (TokenType::CloseBrace, None),
+            '[' => (TokenType::OpenBracket, None),
+            ']' => (TokenType::CloseBracket, None),
 
             // symbols
-            '@' => TokenType::At,
-            '#' => TokenType::Pound,
-            '~' => TokenType::Tilde,
-            '?' => TokenType::Question,
-            '$' => TokenType::Dollar,
+            '@' => (TokenType::At, None),
+            '#' => (TokenType::Pound, None),
+            '~' => (TokenType::Tilde, None),
+            '?' => (TokenType::Question, None),
+            '$' => (TokenType::Dollar, None),
 
             // bang
             '!' => {
                 if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::NotEqual
+                    (TokenType::NotEqual, None)
                 } else {
-                    TokenType::Bang
+                    (TokenType::Bang, None)
                 }
             }
 
@@ -191,32 +200,32 @@ impl Tokenizer<'_> {
             '-' => {
                 if self.peek_next() == '>' {
                     self.bump();
-                    TokenType::BadArrow
+                    (TokenType::BadArrow, None)
                 } else if self.peek_next() == '-' && self.peek_next_next() == '-' {
                     self.bump();
                     self.bump();
-                    TokenType::Empty
+                    (TokenType::Empty, None)
                 } else if self.peek_next() == '%' {
                     self.bump();
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::WrappingSubtractAssign
+                        (TokenType::WrappingSubtractAssign, None)
                     } else {
-                        TokenType::WrappingSubtract
+                        (TokenType::WrappingSubtract, None)
                     }
                 } else if self.peek_next() == '|' {
                     self.bump();
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::SaturatingSubtractAssign
+                        (TokenType::SaturatingSubtractAssign, None)
                     } else {
-                        TokenType::SaturatingSubtract
+                        (TokenType::SaturatingSubtract, None)
                     }
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::SubtractAssign
+                    (TokenType::SubtractAssign, None)
                 } else {
-                    TokenType::Subtract
+                    (TokenType::Subtract, None)
                 }
             }
 
@@ -224,12 +233,12 @@ impl Tokenizer<'_> {
             '&' => {
                 if self.peek_next() == '&' {
                     self.bump();
-                    TokenType::LogicalAnd
+                    (TokenType::LogicalAnd, None)
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::BitwiseAndAssign
+                    (TokenType::BitwiseAndAssign, None)
                 } else {
-                    TokenType::BitwiseAnd
+                    (TokenType::BitwiseAnd, None)
                 }
             }
 
@@ -237,12 +246,12 @@ impl Tokenizer<'_> {
             '|' => {
                 if self.peek_next() == '|' {
                     self.bump();
-                    TokenType::LogicalOr
+                    (TokenType::LogicalOr, None)
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::BitwiseOrAssign
+                    (TokenType::BitwiseOrAssign, None)
                 } else {
-                    TokenType::BitwiseOr
+                    (TokenType::BitwiseOr, None)
                 }
             }
 
@@ -250,12 +259,12 @@ impl Tokenizer<'_> {
             '=' => {
                 if self.peek_next() == '>' {
                     self.bump();
-                    TokenType::Arrow
+                    (TokenType::Arrow, None)
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::Equal
+                    (TokenType::Equal, None)
                 } else {
-                    TokenType::Assign
+                    (TokenType::Assign, None)
                 }
             }
 
@@ -268,39 +277,39 @@ impl Tokenizer<'_> {
                         self.bump();
                         if self.peek_next() == '=' {
                             self.bump();
-                            TokenType::SaturatingShiftLeftAssign
+                            (TokenType::SaturatingShiftLeftAssign, None)
                         } else {
-                            TokenType::SaturatingShiftLeft
+                            (TokenType::SaturatingShiftLeft, None)
                         }
                     } else if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::ShiftLeftAssign
+                        (TokenType::ShiftLeftAssign, None)
                     } else {
-                        TokenType::ShiftLeft
+                        (TokenType::ShiftLeft, None)
                     }
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::LessThanEqual
+                    (TokenType::LessThanEqual, None)
                 } else {
-                    TokenType::LessThan
+                    (TokenType::LessThan, None)
                 }
             }
 
-            // greater than
+            // greater than or shift right
             '>' => {
                 if self.peek_next() == '>' {
                     self.bump();
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::ShiftRightAssign
+                        (TokenType::ShiftRightAssign, None)
                     } else {
-                        TokenType::ShiftRight
+                        (TokenType::ShiftRight, None)
                     }
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::GreaterThanEqual
+                    (TokenType::GreaterThanEqual, None)
                 } else {
-                    TokenType::GreaterThan
+                    (TokenType::GreaterThan, None)
                 }
             }
 
@@ -308,9 +317,9 @@ impl Tokenizer<'_> {
             '^' => {
                 if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::BitwiseXorAssign
+                    (TokenType::BitwiseXorAssign, None)
                 } else {
-                    TokenType::BitwiseXor
+                    (TokenType::BitwiseXor, None)
                 }
             }
 
@@ -321,23 +330,23 @@ impl Tokenizer<'_> {
                     self.bump();
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::WrappingAddAssign
+                        (TokenType::WrappingAddAssign, None)
                     } else {
-                        TokenType::WrappingAdd
+                        (TokenType::WrappingAdd, None)
                     }
                 } else if self.peek_next() == '|' {
                     self.bump();
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::SaturatingAddAssign
+                        (TokenType::SaturatingAddAssign, None)
                     } else {
-                        TokenType::SaturatingAdd
+                        (TokenType::SaturatingAdd, None)
                     }
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::AddAssign
+                    (TokenType::AddAssign, None)
                 } else {
-                    TokenType::Add
+                    (TokenType::Add, None)
                 }
             }
 
@@ -347,23 +356,23 @@ impl Tokenizer<'_> {
                     self.bump();
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::WrappingMultiplyAssign
+                        (TokenType::WrappingMultiplyAssign, None)
                     } else {
-                        TokenType::WrappingMultiply
+                        (TokenType::WrappingMultiply, None)
                     }
                 } else if self.peek_next() == '|' {
                     self.bump();
                     if self.peek_next() == '=' {
                         self.bump();
-                        TokenType::SaturatingMultiplyAssign
+                        (TokenType::SaturatingMultiplyAssign, None)
                     } else {
-                        TokenType::SaturatingMultiply
+                        (TokenType::SaturatingMultiply, None)
                     }
                 } else if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::MultiplyAssign
+                    (TokenType::MultiplyAssign, None)
                 } else {
-                    TokenType::Multiply
+                    (TokenType::Multiply, None)
                 }
             }
 
@@ -371,37 +380,37 @@ impl Tokenizer<'_> {
             '%' => {
                 if self.peek_next() == '=' {
                     self.bump();
-                    TokenType::RemainderAssign
+                    (TokenType::RemainderAssign, None)
                 } else {
-                    TokenType::Remainder
+                    (TokenType::Remainder, None)
                 }
             }
 
             // character literal
             '\'' => {
                 let terminated = self.eat_single_quoted_string();
-                let kind = LiteralToken::Character {
+                let kind = RawLiteralType::Character {
                     is_terminated: terminated,
                 };
-                TokenType::Literal(kind)
+                (TokenType::RawLiteral, Some(kind))
             }
             // string literal
             '"' => {
                 let terminated = self.eat_double_quoted_string();
-                let kind = LiteralToken::String {
+                let kind = RawLiteralType::String {
                     is_terminated: terminated,
                 };
-                TokenType::Literal(kind)
+                (TokenType::RawLiteral, Some(kind))
             }
 
             // identifier starting with an emoji (for graceful error recovery)
-            c if !c.is_ascii() && c.is_emoji_char() => self.eat_invalid_identifier(),
-            _ => TokenType::Unknown,
+            c if !c.is_ascii() && c.is_emoji_char() => (self.eat_invalid_identifier(), None),
+            _ => (TokenType::Unknown, None),
         };
 
-        let res = Token::new(token_kind, self.get_pos_within_token());
+        let token = Token::new(token_type, self.get_pos_within_token(), literal);
         self.reset_pos_within_token();
-        res
+        token
     }
 
     /// Parses a whitespace sequence.
@@ -437,7 +446,7 @@ impl Tokenizer<'_> {
     }
 
     /// Parses a number literal.
-    fn eat_number_literal(&mut self, first_digit: char) -> LiteralToken {
+    fn eat_number_literal(&mut self, first_digit: char) -> RawLiteralType {
         debug_assert!('0' <= self.prev() && self.prev() <= '9');
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
@@ -447,7 +456,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Binary;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralToken::Int {
+                        return RawLiteralType::Int {
                             base,
                             is_empty: true,
                         };
@@ -457,7 +466,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Octal;
                     self.bump();
                     if !self.eat_decimal_digits() {
-                        return LiteralToken::Int {
+                        return RawLiteralType::Int {
                             base,
                             is_empty: true,
                         };
@@ -467,7 +476,7 @@ impl Tokenizer<'_> {
                     base = NumberBase::Hexadecimal;
                     self.bump();
                     if !self.eat_hexadecimal_digits() {
-                        return LiteralToken::Int {
+                        return RawLiteralType::Int {
                             base,
                             is_empty: true,
                         };
@@ -483,7 +492,7 @@ impl Tokenizer<'_> {
 
                 // just a 0
                 _ => {
-                    return LiteralToken::Int {
+                    return RawLiteralType::Int {
                         base,
                         is_empty: false,
                     };
@@ -512,7 +521,7 @@ impl Tokenizer<'_> {
                         _ => (),
                     }
                 }
-                LiteralToken::Float {
+                RawLiteralType::Float {
                     base,
                     is_empty_exponent,
                 }
@@ -520,12 +529,12 @@ impl Tokenizer<'_> {
             'e' | 'E' => {
                 self.bump();
                 let is_empty_exponent = !self.eat_float_exponent();
-                LiteralToken::Float {
+                RawLiteralType::Float {
                     base,
                     is_empty_exponent,
                 }
             }
-            _ => LiteralToken::Int {
+            _ => RawLiteralType::Int {
                 base,
                 is_empty: false,
             },

@@ -1,3 +1,5 @@
+#![feature(default_field_values)]
+
 pub mod format;
 pub mod parse;
 pub mod source;

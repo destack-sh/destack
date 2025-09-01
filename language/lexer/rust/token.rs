@@ -11,6 +11,8 @@ pub struct Token {
     pub r#type: TokenType,
     /// The length of the token in bytes.
     pub len: u32,
+    /// The literal body of the token.
+    pub body: Option<RawLiteralType> = None,
 }
 
 impl Display for Token {
@@ -20,14 +22,15 @@ impl Display for Token {
 }
 
 impl Token {
-    pub const fn new(r#type: TokenType, len: u32) -> Token {
-        Token { r#type, len }
+    pub const fn new(r#type: TokenType, len: u32, body: Option<RawLiteralType>) -> Token {
+        Token { r#type, len, body }
     }
 
     pub const fn eof() -> Token {
         Token {
             r#type: TokenType::End,
             len: 0,
+            body: None,
         }
     }
 }
@@ -54,8 +57,8 @@ pub enum TokenType {
     InvalidIdentifier,
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
     UnknownLiteralPrefix,
-    /// Literals, e.g. `12`, `1.0e-40`, `b"123"`.
-    Literal(LiteralToken),
+    /// "Raw" Literals, e.g. `12`, `1.0e-40`, `b"123"`.
+    RawLiteral,
 
     /// `:`
     Colon,
@@ -197,9 +200,9 @@ pub enum TokenType {
     RemainderAssign,
 }
 
-/// Literal Token
+/// "Raw" Literal Token for literal, scalar values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LiteralToken {
+pub enum RawLiteralType {
     /// 12, 0o100, 0x (is_empty), 0b120, 1.0
     Int { base: NumberBase, is_empty: bool },
     /// 1.0, 1e3

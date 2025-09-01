@@ -163,7 +163,7 @@ fn format_token_kind(kind: TokenType) -> String {
         TokenType::Identifier => "Identifier".to_string(),
         TokenType::InvalidIdentifier => "InvalidIdentifier".to_string(),
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "Unknown".to_string(),
-        TokenType::Literal(_) => "Literal".to_string(),
+        TokenType::RawLiteral => "Literal".to_string(),
         other => format!("{other:?}"),
     }
 }
@@ -176,7 +176,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Whitespace => "2",                                 // dim
         TokenType::Identifier => "36",                                // cyan
         TokenType::InvalidIdentifier => "31",                         // red
-        TokenType::Literal(_) => "35",                                // magenta
+        TokenType::RawLiteral => "35",                                // magenta
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "33", // yellow
         _ => "34",                                                    // blue for punctuators
     }

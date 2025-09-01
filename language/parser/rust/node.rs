@@ -119,6 +119,33 @@ pub struct UsingItem {
     pub alias: Option<Identifier>,
 }
 
+/// A Tuple is a tuple definition.
+/// Tuples are usually declared anonymously and inline.
+/// The ',' separator is optional if newline-delimited.
+///
+/// Examples:
+/// ```
+/// ()
+/// (a: int32, b: boolean)
+/// (
+///   a: int32
+///   b: boolean
+/// )
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tuple {
+    pub name: Option<Identifier>,
+    pub elements: Vec<TupleElement>,
+}
+
+/// A TupleElement is a tuple element definition.
+/// Tuple elements may be named or anonymous, but cannot have default values.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleElement {
+    pub name: Option<Identifier>,
+    pub r#type: Type,
+}
+
 /// A StructDefinition is a struct definition.
 /// May be named or anonymous.
 /// The ',' separator is optional if newline-delimited.
@@ -310,6 +337,7 @@ pub struct Implement {
 /// (x: int32)
 /// <Validate: boolean>(x: int32) => bool
 /// (x: int32) => int32, boolean
+/// (x: int32) => is_cool: boolean, coolness: int17
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
@@ -336,10 +364,10 @@ pub enum FunctionStyle {
 /// Examples:
 /// ```
 /// function foo() {
-///    @print("Hello, world!")
+///    print("Hello, world!")
 /// }
 ///
-/// function baz() => MyStruct {
+/// function baz(a: int32, b: boolean) => MyStruct {
 ///    ...
 /// }
 ///
@@ -350,6 +378,17 @@ pub enum FunctionStyle {
 /// function @comptime() {
 ///    ...
 /// }
+///
+/// // optional , if newline-delimited
+/// function longBar(
+///   /// doc comment for `a`
+///   a: int32
+///   /// doc comment for `b`
+///   b: boolean
+///   c: Vector2
+/// ) => int32, boolean {
+///    ...
+/// )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
@@ -717,7 +756,7 @@ pub enum Type {
         static_arguments: Option<Vec<Argument>>,
     },
     /// Inline Tuple type `(T1, T2, ...)` (no tuple keyword)
-    Tuple { elements: Vec<Type> },
+    Tuple(Tuple),
     /// Inline Array type `[T; N]`
     Array {
         element: Box<Type>,
@@ -1086,6 +1125,7 @@ pub enum PatternStructField {
 /// A Match is a match statement.
 /// The clauses must be exhaustive and return the same type.
 /// Match statements are Expressions and also used in catch patterns.
+/// Like other statements, match cases do not need to be terminated with a colon/semicolon.
 ///
 /// Examples:
 /// ```

@@ -1,4 +1,4 @@
-use destack_language_lexer::{LiteralToken, NumberBase, TokenType};
+use destack_language_lexer::{NumberBase, RawLiteralType, TokenType};
 use std::borrow::Cow;
 
 use crate::{
@@ -57,17 +57,20 @@ impl<'a> Parser<'a> {
             }
         } else {
             // regular literal
-            let literal = &self.eat_next()?.clone();
-            let literal_str = self.get_span_str(literal.span);
-            let TokenType::Literal(r#type) = literal.token.r#type else {
-                return Err(ParseError::UnexpectedToken(literal.span));
+            let literal_span = &self.eat_next()?.clone();
+            let literal_str = self.get_span_str(literal_span.span);
+            if literal_span.token.r#type != TokenType::RawLiteral {
+                return Err(ParseError::UnexpectedToken(literal_span.span));
+            }
+            let Some(literal) = literal_span.token.body else {
+                return Err(ParseError::UnexpectedToken(literal_span.span));
             };
 
-            match r#type {
+            match literal {
                 // int literal
-                LiteralToken::Int { base, is_empty } => {
+                RawLiteralType::Int { base, is_empty } => {
                     if is_empty {
-                        return Err(ParseError::UnexpectedToken(literal.span));
+                        return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
                     // strip underscores for parsing
                     let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
@@ -94,16 +97,16 @@ impl<'a> Parser<'a> {
                     };
                     match parsed_int {
                         Ok(value) => Ok(ScalarLiteral::Integer(value, IntType::INT32)),
-                        Err(_) => Err(ParseError::UnexpectedToken(literal.span)),
+                        Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
                     }
                 }
                 // float literal
-                LiteralToken::Float {
+                RawLiteralType::Float {
                     base: _,
                     is_empty_exponent,
                 } => {
                     if is_empty_exponent {
-                        return Err(ParseError::UnexpectedToken(literal.span));
+                        return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
                     let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
                         Cow::Owned(literal_str.replace('_', ""))
@@ -113,79 +116,79 @@ impl<'a> Parser<'a> {
                     let parsed_float = cleaned_str.parse::<f64>();
                     match parsed_float {
                         Ok(value) => Ok(ScalarLiteral::Float(value, FloatType::Float64)),
-                        Err(_) => Err(ParseError::UnexpectedToken(literal.span)),
+                        Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
                     }
                 }
                 // character literal (ignore quotes)
-                LiteralToken::Character { is_terminated } => {
+                RawLiteralType::Character { is_terminated } => {
                     if !is_terminated {
-                        return Err(ParseError::UnexpectedToken(literal.span));
+                        return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
                     let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
                     if let Some(literal_char) = content.chars().next() {
                         Ok(ScalarLiteral::Character(literal_char))
                     } else {
-                        Err(ParseError::UnexpectedToken(literal.span))
+                        Err(ParseError::UnexpectedToken(literal_span.span))
                     }
                 }
                 // byte character literal (ignore quotes)
-                LiteralToken::Byte { is_terminated } => {
+                RawLiteralType::Byte { is_terminated } => {
                     if !is_terminated {
-                        return Err(ParseError::UnexpectedToken(literal.span));
+                        return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
                     let content = literal_str.trim_start_matches("b'").trim_end_matches('\'');
                     if let Some(literal_char) = content.chars().next() {
                         Ok(ScalarLiteral::Byte(literal_char as u8))
                     } else {
-                        Err(ParseError::UnexpectedToken(literal.span))
+                        Err(ParseError::UnexpectedToken(literal_span.span))
                     }
                 }
                 // string literal (ignore quotes)
-                LiteralToken::String { is_terminated } => {
+                RawLiteralType::String { is_terminated } => {
                     if !is_terminated {
-                        return Err(ParseError::UnexpectedToken(literal.span));
+                        return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
                     let content = literal_str.trim_start_matches('"').trim_end_matches('"');
                     Ok(ScalarLiteral::String(content.to_string()))
                 }
                 // byte string literal (ignore quotes)
-                LiteralToken::ByteString { is_terminated } => {
+                RawLiteralType::ByteString { is_terminated } => {
                     if !is_terminated {
-                        return Err(ParseError::UnexpectedToken(literal.span));
+                        return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
                     let content = literal_str.trim_start_matches("b\"").trim_end_matches('"');
                     let bytes = content.as_bytes().to_vec();
                     Ok(ScalarLiteral::ByteString(bytes))
                 }
                 // raw string literal (ignore quotes and hashes)
-                LiteralToken::RawString { hashes } => {
+                RawLiteralType::RawString { hashes } => {
                     if let Some(hashes) = hashes {
                         let num_hashes = hashes as usize;
                         let prefix_len = 1 /* r */ + num_hashes + 1 /* opening " */;
                         let suffix_len = 1 /* closing " */ + num_hashes;
                         if literal_str.len() < prefix_len + suffix_len {
-                            return Err(ParseError::UnexpectedToken(literal.span));
+                            return Err(ParseError::UnexpectedToken(literal_span.span));
                         }
                         let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                         Ok(ScalarLiteral::String(content.to_string()))
                     } else {
-                        Err(ParseError::UnexpectedToken(literal.span))
+                        Err(ParseError::UnexpectedToken(literal_span.span))
                     }
                 }
                 // raw byte string literal (ignore quotes and hashes)
-                LiteralToken::RawByteString { hashes } => {
+                RawLiteralType::RawByteString { hashes } => {
                     if let Some(hashes) = hashes {
                         let num_hashes = hashes as usize;
                         let prefix_len = 2 /* br */ + num_hashes + 1 /* opening " */;
                         let suffix_len = 1 /* closing " */ + num_hashes;
                         if literal_str.len() < prefix_len + suffix_len {
-                            return Err(ParseError::UnexpectedToken(literal.span));
+                            return Err(ParseError::UnexpectedToken(literal_span.span));
                         }
                         let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                         let bytes = content.as_bytes().to_vec();
                         Ok(ScalarLiteral::ByteString(bytes))
                     } else {
-                        Err(ParseError::UnexpectedToken(literal.span))
+                        Err(ParseError::UnexpectedToken(literal_span.span))
                     }
                 }
             }
