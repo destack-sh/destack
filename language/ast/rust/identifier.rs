@@ -1,0 +1,12 @@
+use crate::{ParseResult, Parser};
+use destack_language_token::TokenType;
+
+pub type Identifier = String;
+
+impl<'a> Parser<'a> {
+    /// Eat an identifier.
+    pub fn eat_identifier(&mut self) -> ParseResult<Identifier> {
+        let token = *self.eat_token(TokenType::Identifier)?;
+        Ok(self.get_token_str(token).to_string())
+    }
+}

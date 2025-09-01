@@ -322,8 +322,8 @@ dependencies = [
 name = "destack_extension_lsp"
 version = "2025.8.31-2"
 dependencies = [
- "destack_language_lexer",
- "destack_language_parser",
+ "destack_language_ast",
+ "destack_language_token",
  "ls-types",
  "serde",
  "serde_json",
@@ -338,15 +338,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_language_codegen_cranelift"
+name = "destack_language_ast"
 version = "2025.8.31-2"
 dependencies = [
- "quickcheck",
- "quickcheck_macros",
+ "criterion",
+ "destack_language_token",
+ "pprof",
 ]
 
 [[package]]
-name = "destack_language_codegen_llvm"
+name = "destack_language_cranelift"
 version = "2025.8.31-2"
 dependencies = [
  "quickcheck",
@@ -362,32 +363,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_language_interpreter"
+name = "destack_language_llvm"
 version = "2025.8.31-2"
 dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_lexer"
-version = "2025.8.31-2"
-dependencies = [
- "criterion",
- "destack_library_file",
- "destack_library_unicode",
- "pprof",
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_libgen_rust"
-version = "2025.8.31-2"
-dependencies = [
- "destack_language_lexer",
- "destack_language_parser",
- "destack_library_prelude",
  "quickcheck",
  "quickcheck_macros",
 ]
@@ -401,12 +379,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_language_parser"
+name = "destack_language_rust"
+version = "2025.8.31-2"
+dependencies = [
+ "destack_language_ast",
+ "destack_language_token",
+ "destack_library_prelude",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "destack_language_token"
 version = "2025.8.31-2"
 dependencies = [
  "criterion",
- "destack_language_lexer",
+ "destack_library_file",
+ "destack_library_unicode",
  "pprof",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "destack_language_vm"
+version = "2025.8.31-2"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
 ]
 
 [[package]]
@@ -438,8 +438,8 @@ name = "destack_library_cli"
 version = "2025.8.31-2"
 dependencies = [
  "destack_extension_lsp",
- "destack_language_lexer",
- "destack_language_parser",
+ "destack_language_ast",
+ "destack_language_token",
  "destack_library_tokei",
  "tokio",
 ]

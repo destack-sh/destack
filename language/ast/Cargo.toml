@@ -1,0 +1,22 @@
+[package]
+name = "destack_language_ast"
+description = "Destack Language Parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = false
+
+[dependencies]
+destack_language_token = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+pprof = { workspace = true }
+
+[lints]
+workspace = true
