@@ -5,7 +5,7 @@
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
 //!  and in many cases we can suggest automatic fixes (like `->` -> `=>`, or drop `;`).
 
-use crate::{IdentifierId, NodeId};
+use crate::{NodeId, StringId};
 
 /// A Path is a static path to a named definition in a namespace.
 /// In the case of a Using declaration, the Path excludes the items.
@@ -37,7 +37,7 @@ impl Path {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct PathSegment {
-    pub name: IdentifierId,
+    pub name: StringId,
 }
 
 /// A Visibility is the visibility of an item.
@@ -59,7 +59,7 @@ pub enum Visibility {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
     /// The name of the module.
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The visibility of the module.
     pub visibility: Visibility,
     /// The body of the module.
@@ -82,7 +82,7 @@ pub struct Using {
     /// The path to the definition to use (like `foo.bar` in `using foo.bar.{baz, qux};`)
     pub path: Path,
     /// The alias to use for the entire item (like `baz` in `using foo as baz;`)
-    pub alias: Option<IdentifierId> = None,
+    pub alias: Option<StringId> = None,
     /// The sub-items to use from the item (like `{baz, qux}` in `using foo.bar.{baz, qux};`)
     pub items: Option<Vec<UsingItem>> = None,
 }
@@ -97,9 +97,9 @@ pub struct Using {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UsingItem {
     /// The source name of the item (like `foo` in `foo as bar;`)
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar;`)
-    pub alias: Option<IdentifierId>,
+    pub alias: Option<StringId>,
 }
 
 /// A Tuple is a tuple definition.
@@ -117,7 +117,7 @@ pub struct UsingItem {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
-    pub name: Option<IdentifierId>,
+    pub name: Option<StringId>,
     pub elements: Vec<TupleElement>,
 }
 
@@ -125,7 +125,7 @@ pub struct Tuple {
 /// Tuple elements may be named or anonymous, but cannot have default values.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TupleElement {
-    pub name: Option<IdentifierId>,
+    pub name: Option<StringId>,
     pub r#type: Type,
 }
 
@@ -155,7 +155,7 @@ pub struct TupleElement {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Struct {
     /// The name of the struct.
-    pub name: Option<IdentifierId>,
+    pub name: Option<StringId>,
     /// The visibility of the struct.
     pub visibility: Visibility,
     /// The fields of the struct.
@@ -175,7 +175,7 @@ pub struct Struct {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     /// The name of the field.
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The type of the field.
     pub r#type: Type,
     /// The default value of the field.
@@ -218,7 +218,7 @@ pub struct StructField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union {
     /// The name of the union.
-    pub name: Option<IdentifierId>,
+    pub name: Option<StringId>,
     /// The type of the union (if explicitly specified).
     pub r#type: Option<Box<Type>>,
     /// The declared style of the union (enum or union).
@@ -246,7 +246,7 @@ pub enum UnionStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnionField {
     /// The name of the union field.
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The type of the union field.
     pub r#type: Option<Type>,
     /// The default value of the union field.
@@ -268,7 +268,7 @@ pub struct UnionField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Trait {
     /// The name of the trait.
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<Parameter>>,
     /// The body of the trait.
@@ -387,7 +387,7 @@ pub enum FunctionStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     /// The name of the function (excluding the `@` prefix if static).
-    pub name: Option<IdentifierId>,
+    pub name: Option<StringId>,
     /// The style of the function.
     pub style: FunctionStyle,
     /// The signature of the function.
@@ -409,7 +409,7 @@ pub struct Function {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parameter {
     /// The name of the parameter.
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The type of the parameter.
     pub r#type: Type,
     /// The default value of the parameter.
@@ -428,7 +428,7 @@ pub struct Parameter {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Argument {
     /// The name of the argument.
-    pub name: Option<IdentifierId>,
+    pub name: Option<StringId>,
     /// The value of the argument.
     pub value: Expression,
 }
@@ -501,7 +501,7 @@ pub struct DynamicMethodCall {
     /// The receiver of the method call.
     pub receiver: Box<Expression>,
     /// The name of the method.
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The static arguments to the method `<Arg1, Arg2, ...>`.
     pub static_arguments: Vec<Argument>,
     /// The dynamic arguments to the method `(arg1, arg2, ...)`.
@@ -687,7 +687,7 @@ pub struct StructLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FieldLiteral {
     /// The name of the field to bind.
-    pub name: IdentifierId,
+    pub name: StringId,
     /// The value of the field. If unset, we take the field from context.
     pub value: Option<Expression>,
 }
@@ -792,7 +792,7 @@ pub enum PrimitiveType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Member {
     pub base: Box<Expression>,
-    pub name: IdentifierId,
+    pub name: StringId,
 }
 
 /// An Index is an index into an array or tuple.
@@ -910,7 +910,7 @@ pub enum BinaryOperator {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
-    pub label: Option<IdentifierId>,
+    pub label: Option<StringId>,
     pub statements: Vec<Statement>,
 }
 
@@ -924,7 +924,7 @@ pub struct Block {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
-    pub name: IdentifierId,
+    pub name: StringId,
     pub r#type: Option<Box<Type>>,
     pub value: Box<Expression>,
 }
@@ -941,7 +941,7 @@ pub struct Let {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Var {
-    pub name: IdentifierId,
+    pub name: StringId,
     pub r#type: Option<Box<Type>>,
     pub value: Option<Box<Expression>>,
     /// Whether the var is uninitialized with `---`.
@@ -1048,7 +1048,7 @@ pub struct Loop {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Break {
-    pub label: Option<IdentifierId>,
+    pub label: Option<StringId>,
     pub value: Option<Box<Expression>>,
 }
 
@@ -1061,7 +1061,7 @@ pub struct Break {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Continue {
-    pub label: Option<IdentifierId>,
+    pub label: Option<StringId>,
 }
 
 /// A Defer is a defer statement.
@@ -1131,7 +1131,7 @@ pub enum PatternTupleField {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternStructField {
     /// A literal field.
-    Literal { name: IdentifierId, value: Pattern },
+    Literal { name: StringId, value: Pattern },
 }
 
 /// A Match is a match statement.

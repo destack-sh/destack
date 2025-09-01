@@ -4,6 +4,7 @@ members = [
 	# language
 	"language/air",
 	"language/ast",
+	"language/arena",
 	"language/cranelift",
 	"language/dir",
 	"language/llvm",
@@ -64,6 +65,7 @@ rust-version = "1.88.0"
 # language
 destack_language_air = { path = "language/air" }
 destack_language_ast = { path = "language/ast" }
+destack_language_arena = { path = "language/arena" }
 destack_language_cranelift = { path = "language/cranelift" }
 destack_language_dir = { path = "language/dir" }
 destack_language_llvm = { path = "language/llvm" }
