@@ -1,5 +1,6 @@
 #![feature(default_field_values)]
 
+mod arena;
 mod argument;
 mod r#as;
 mod binary;
@@ -29,9 +30,9 @@ pub mod format;
 pub mod node;
 pub mod parse;
 
+pub use arena::*;
 pub use error::*;
 pub use format::*;
-pub use identifier::*;
 pub use keyword::*;
 pub use node::*;
 pub use parse::*;

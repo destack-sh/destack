@@ -7,4 +7,9 @@ impl<'a> Parser<'a> {
     pub fn eat_struct(&mut self) -> ParseResult<Type> {
         todo!()
     }
+
+    // Eat a struct body (without the header or `{` and `}`)
+    pub fn eat_struct_body(&mut self) -> ParseResult<Type> {
+        todo!()
+    }
 }

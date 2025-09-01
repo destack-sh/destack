@@ -371,7 +371,8 @@ mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
     use crate::{
-        Argument, Expression, FloatType, IntType, Parser, PrimitiveType, ScalarLiteral, Type,
+        Argument, Expression, FloatType, IntType, Parser, Path, PathSegment, PrimitiveType,
+        ScalarLiteral, Type,
     };
 
     #[test]
@@ -506,7 +507,16 @@ MyMesh<false, Dims: 3> // path with static arguments
         assert_eq!(
             r#type,
             Type::Path {
-                path: "geom.Vector2".parse().unwrap(),
+                path: Path {
+                    segments: vec![
+                        PathSegment {
+                            name: parser.identifiers.intern("geom")
+                        },
+                        PathSegment {
+                            name: parser.identifiers.intern("Vector2")
+                        }
+                    ]
+                },
                 static_arguments: None
             }
         );
@@ -517,14 +527,18 @@ MyMesh<false, Dims: 3> // path with static arguments
         assert_eq!(
             r#type,
             Type::Path {
-                path: "MyMesh".parse().unwrap(),
+                path: Path {
+                    segments: vec![PathSegment {
+                        name: parser.identifiers.intern("MyMesh")
+                    }]
+                },
                 static_arguments: Some(vec![
                     Argument {
                         name: None,
                         value: Expression::ScalarLiteral(ScalarLiteral::Boolean(false))
                     },
                     Argument {
-                        name: Some("Dims".to_string()),
+                        name: Some(parser.identifiers.intern("Dims")),
                         value: Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::INT32))
                     },
                 ])
@@ -552,7 +566,11 @@ MyMesh<false, Dims: 3> // path with static arguments
         assert_eq!(
             r#type,
             Type::Never(Some(Box::new(Type::Path {
-                path: "Time".parse().unwrap(),
+                path: Path {
+                    segments: vec![PathSegment {
+                        name: parser.identifiers.intern("Time")
+                    }]
+                },
                 static_arguments: None
             })))
         );
