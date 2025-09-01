@@ -1,6 +1,6 @@
 use crate::tokenize;
 
-use super::token::{LiteralToken, NumberBase, RawStringError, Token, TokenType};
+use super::token::{NumberBase, RawLiteralType, RawStringError, Token, TokenType};
 use super::tokenizer::Tokenizer;
 use super::*;
 
@@ -92,14 +92,8 @@ fn test_unterminated() {
 fn test_valid_weird_unicode() {
     assert_tokenize_eq_roundtrip!(
         "\u{3}\n",
-        Token {
-            r#type: TokenType::Unknown,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+        Token::new(TokenType::Unknown, 1, None),
+        Token::new(TokenType::Newline, 1, None),
     );
 }
 
@@ -115,62 +109,20 @@ fn test_invalid_start() {
 fn test_spread_and_arrows() {
     assert_tokenize_eq_roundtrip!(
         "a...b => c->d :: x",
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Ellipsis,
-            len: 3
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Arrow,
-            len: 2
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::BadArrow,
-            len: 2
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Colon,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Colon,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Ellipsis, 3, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Arrow, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::BadArrow, 2, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Colon, 1, None),
+        Token::new(TokenType::Colon, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
     );
 }
 
@@ -178,98 +130,29 @@ fn test_spread_and_arrows() {
 fn test_comparisons_and_equals() {
     assert_tokenize_eq_roundtrip!(
         "a==b != c <= d >= e < f > g",
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Equal,
-            len: 2
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::NotEqual,
-            len: 2
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::LessThanEqual,
-            len: 2
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::GreaterThanEqual,
-            len: 2
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::LessThan,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::GreaterThan,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 1
-        },
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Equal, 2, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::NotEqual, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::LessThanEqual, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::GreaterThanEqual, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::LessThan, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::GreaterThan, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
     );
 }
 
@@ -311,76 +194,29 @@ fn test_too_many_hashes() {
 fn test_smoke() {
     assert_tokenize_eq_roundtrip!(
         "fn main() { println!(\"zebra\"); }\n",
-        Token {
-            r#type: TokenType::Identifier,
-            len: 2
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 4
-        },
-        Token {
-            r#type: TokenType::OpenParenthesis,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::CloseParenthesis,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::OpenBrace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Identifier,
-            len: 7
-        },
-        Token {
-            r#type: TokenType::Bang,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::OpenParenthesis,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Literal(LiteralToken::String {
+        Token::new(TokenType::Identifier, 2, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 4, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::OpenBrace, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 7, None),
+        Token::new(TokenType::Bang, 1, None),
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(
+            TokenType::RawLiteral,
+            7,
+            Some(RawLiteralType::String {
                 is_terminated: true
-            }),
-            len: 7
-        },
-        Token {
-            r#type: TokenType::CloseParenthesis,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Semicolon,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::CloseBrace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+        Token::new(TokenType::Semicolon, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::CloseBrace, 1, None),
+        Token::new(TokenType::Newline, 1, None),
     );
 }
 
@@ -392,34 +228,13 @@ fn test_comments() {
 //// comment as well
 /// doc comment
 ",
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::LineComment,
-            len: 10
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::LineComment,
-            len: 20
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::DocComment,
-            len: 15
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::LineComment, 10, None),
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::LineComment, 20, None),
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(TokenType::DocComment, 15, None),
+        Token::new(TokenType::Newline, 1, None),
     );
 }
 
@@ -427,32 +242,29 @@ fn test_comments() {
 fn test_characters() {
     assert_tokenize_eq_roundtrip!(
         "'a' ' ' '\\n'",
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Character {
+        Token::new(
+            TokenType::RawLiteral,
+            3,
+            Some(RawLiteralType::Character {
                 is_terminated: true
-            }),
-            len: 3
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Character {
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::RawLiteral,
+            3,
+            Some(RawLiteralType::Character {
                 is_terminated: true
-            }),
-            len: 3
-        },
-        Token {
-            r#type: TokenType::Whitespace,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Character {
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::RawLiteral,
+            4,
+            Some(RawLiteralType::Character {
                 is_terminated: true
-            }),
-            len: 4
-        },
+            })
+        ),
     );
 }
 
@@ -460,10 +272,11 @@ fn test_characters() {
 fn test_raw_string() {
     assert_tokenize_eq_roundtrip!(
         "r###\"\"#a\\b\x00c\"\"###",
-        Token {
-            r#type: TokenType::Literal(LiteralToken::RawString { hashes: Some(3) }),
-            len: 17
-        },
+        Token::new(
+            TokenType::RawLiteral,
+            17,
+            Some(RawLiteralType::RawString { hashes: Some(3) })
+        ),
     );
 }
 
@@ -484,144 +297,117 @@ b"a"
 r###"raw"###
 br###"raw"###
 "####,
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+        Token::new(TokenType::Newline, 1, None),
         // 'a'
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Character {
+        Token::new(
+            TokenType::RawLiteral,
+            3,
+            Some(RawLiteralType::Character {
                 is_terminated: true
-            }),
-            len: 3
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // b'a'
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Byte {
+        Token::new(
+            TokenType::RawLiteral,
+            4,
+            Some(RawLiteralType::Byte {
                 is_terminated: true
-            }),
-            len: 4
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // "a"
-        Token {
-            r#type: TokenType::Literal(LiteralToken::String {
+        Token::new(
+            TokenType::RawLiteral,
+            3,
+            Some(RawLiteralType::String {
                 is_terminated: true
-            }),
-            len: 3
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // b"a"
-        Token {
-            r#type: TokenType::Literal(LiteralToken::ByteString {
+        Token::new(
+            TokenType::RawLiteral,
+            4,
+            Some(RawLiteralType::ByteString {
                 is_terminated: true
-            }),
-            len: 4
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // 1234
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Int {
+        Token::new(
+            TokenType::RawLiteral,
+            4,
+            Some(RawLiteralType::Int {
                 base: NumberBase::Decimal,
                 is_empty: false
-            }),
-            len: 4
-        },
+            })
+        ),
         // 0b101
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Int {
+        Token::new(TokenType::Newline, 1, None),
+        Token::new(
+            TokenType::RawLiteral,
+            5,
+            Some(RawLiteralType::Int {
                 base: NumberBase::Binary,
                 is_empty: false
-            }),
-            len: 5
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // 0xABC
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Int {
+        Token::new(
+            TokenType::RawLiteral,
+            5,
+            Some(RawLiteralType::Int {
                 base: NumberBase::Hexadecimal,
                 is_empty: false
-            }),
-            len: 5
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // 1.0
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Float {
+        Token::new(
+            TokenType::RawLiteral,
+            3,
+            Some(RawLiteralType::Float {
                 base: NumberBase::Decimal,
                 is_empty_exponent: false
-            }),
-            len: 3
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // 1.0e10
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Float {
+        Token::new(
+            TokenType::RawLiteral,
+            6,
+            Some(RawLiteralType::Float {
                 base: NumberBase::Decimal,
                 is_empty_exponent: false
-            }),
-            len: 6
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // 2
-        Token {
-            r#type: TokenType::Literal(LiteralToken::Int {
+        Token::new(
+            TokenType::RawLiteral,
+            1,
+            Some(RawLiteralType::Int {
                 base: NumberBase::Decimal,
                 is_empty: false
-            }),
-            len: 1
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+            })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // r###"raw"###
-        Token {
-            r#type: TokenType::Literal(LiteralToken::RawString { hashes: Some(3) }),
-            len: 12
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+        Token::new(
+            TokenType::RawLiteral,
+            12,
+            Some(RawLiteralType::RawString { hashes: Some(3) })
+        ),
+        Token::new(TokenType::Newline, 1, None),
         // br###"raw"###
-        Token {
-            r#type: TokenType::Literal(LiteralToken::RawByteString { hashes: Some(3) }),
-            len: 13
-        },
-        Token {
-            r#type: TokenType::Newline,
-            len: 1
-        },
+        Token::new(
+            TokenType::RawLiteral,
+            13,
+            Some(RawLiteralType::RawByteString { hashes: Some(3) })
+        ),
+        Token::new(TokenType::Newline, 1, None),
     );
 }
 
@@ -631,9 +417,9 @@ fn test_roundtrip_tetris() {
 /// Base component for all tetris game objects
 struct TetrisComponent {
 	/// Game instance this object belongs to
-	game_id: u32,
+	game_id: u32
 	/// Whether this object is active in the game
-	is_active: bool = true,
+	is_active: bool = true
 }
 
 /// A single cell in the tetris grid
@@ -652,7 +438,8 @@ struct TetrisCell {
 #[test]
 fn test_roundtrip_view() {
     let input = r##"
-#entity(View2D) struct MyCustomView {
+@entity 
+struct MyCustomView {
 	fn render(self) {
         let value: i32 = ---;
         @if target == 'macos' {

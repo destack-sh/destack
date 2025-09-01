@@ -14,17 +14,6 @@ pub struct LanguageConfiguration {
     pub name: String,
     /// File endings including dot (e.g., [".rs"]).
     pub endings: Vec<String>,
-    /// Optional comment markers.
-    pub comment: Option<CommentStyle> = None
-}
-
-/// Comment style markers.
-#[derive(Debug, Clone)]
-pub struct CommentStyle {
-    /// Single-line comment prefixes (e.g., ["//", "#"]).
-    pub line: Vec<String>,
-    /// Optional block comment delimiters (start, end) pairs (e.g., [("/*", "*/")]).
-    pub block: Vec<(String, String)>,
 }
 
 /// Options for counting.
@@ -172,12 +161,10 @@ mod tests {
                 LanguageConfiguration {
                     name: "rs".into(),
                     endings: vec![".rs".into()],
-                    comment: None,
                 },
                 LanguageConfiguration {
                     name: "py".into(),
                     endings: vec![".py".into()],
-                    comment: None,
                 },
             ],
             patterns: Vec::new(),

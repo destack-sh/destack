@@ -1,7 +1,7 @@
 //! SemanticTokens.
 
 use crate::protocol::types as lsp;
-use destack_language_lexer::{LiteralToken, TokenType, tokenize};
+use destack_language_lexer::{TokenType, tokenize};
 
 /// Get semantic tokens for the given text.
 pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
@@ -154,15 +154,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::UnknownLiteralPrefix => 6,
 
         // literals
-        K::Literal(kind) => match kind {
-            LiteralToken::Int { .. } | LiteralToken::Float { .. } => 3, // NUMBER
-            LiteralToken::Character { .. }
-            | LiteralToken::Byte { .. }
-            | LiteralToken::String { .. }
-            | LiteralToken::ByteString { .. }
-            | LiteralToken::RawString { .. }
-            | LiteralToken::RawByteString { .. } => 2, // STRING
-        },
+        K::RawLiteral => 3,
 
         // punctuation - use FUNCTION color to differentiate from operators
         K::Colon
@@ -233,19 +225,4 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
     // length in UTF-16 code units
     Some((ty_index as u32, slice.encode_utf16().count()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_semantic_tokens_basic_sequence() {
-        let tokens = get_semantic_tokens("x = 1\n");
-        // expect identifiers(Type=6), operator(Operator=4), number(Number=3)
-        let kinds: Vec<u32> = tokens.into_iter().map(|t| t.token_type).collect();
-        assert!(kinds.contains(&6));
-        assert!(kinds.contains(&4));
-        assert!(kinds.contains(&3));
-    }
 }

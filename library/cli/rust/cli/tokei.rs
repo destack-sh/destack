@@ -167,7 +167,6 @@ fn run(ctx: CommandArguments) -> i32 {
             tokei::LanguageConfiguration {
                 name,
                 endings: vec![format!(".{e}")],
-                comment: None,
             }
         })
         .collect();

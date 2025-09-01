@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use destack_language_lexer::TokenType;
 
-use crate::{Keyword, ParseError, ParseResult, Parser, Type};
+use crate::{Keyword, ParseError, ParseResult, Parser, Tuple, TupleElement, Type};
 
 /// An IntType represents an arbitrary width integer with signedness.
 #[derive(Debug, Clone, PartialEq)]
@@ -225,11 +225,12 @@ impl<'a> Parser<'a> {
     /// ```
     /// int32
     /// int32, int32
+    /// a: int32, b: boolean
     /// ```
     pub fn eat_tuple_type_body(&mut self) -> ParseResult<Type> {
-        let mut elements: Vec<Type> = Vec::new();
+        let mut elements: Vec<TupleElement> = Vec::new();
         loop {
-            let element = self.eat_type()?;
+            let element = self.eat_tuple_element()?;
             elements.push(element);
             if self.peek_next_token(TokenType::Comma).is_ok() {
                 self.eat_token(TokenType::Comma)?;
@@ -237,7 +238,21 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        Ok(Type::Tuple { elements })
+        Ok(Type::Tuple(Tuple {
+            elements,
+            name: None,
+        }))
+    }
+
+    /// Eat a tuple element.
+    ///
+    /// Examples:
+    /// ```
+    /// int32
+    /// a: int32
+    /// ```
+    pub fn eat_tuple_element(&mut self) -> ParseResult<TupleElement> {
+        todo!()
     }
 
     /// Eat an array or slice type (including the `[` and `]`).
