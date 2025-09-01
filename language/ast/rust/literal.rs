@@ -47,7 +47,8 @@ impl<'a> Parser<'a> {
         if self.peek_next_token(TokenType::Identifier).is_ok() {
             // may be reference to a built-in constant value
             // boolean literal (just an identifier)
-            let identifier = self.eat_identifier()?;
+            let identifier_id = self.eat_identifier()?;
+            let identifier = self.identifiers.get(identifier_id);
             if identifier == "true" {
                 Ok(ScalarLiteral::Boolean(true))
             } else if identifier == "false" {

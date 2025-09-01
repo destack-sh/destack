@@ -5,7 +5,7 @@ use crate::{Expression, ParseResult, Parser, ScalarLiteral};
 impl<'a> Parser<'a> {
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<Expression> {
-        // nocheckin: parse all expressions
+        // todo!: parse all expressions
         let literal: ScalarLiteral = self.eat_scalar_literal()?;
         Ok(Expression::ScalarLiteral(literal))
     }

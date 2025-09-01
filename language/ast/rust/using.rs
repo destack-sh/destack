@@ -110,7 +110,7 @@ using ds.geometry.{Vector2, Vector3 as V3}
             Using {
                 path: Path {
                     segments: vec![PathSegment {
-                        name: "destack".to_string()
+                        name: parser.identifiers.intern("destack")
                     }],
                 },
                 alias: None,
@@ -126,10 +126,10 @@ using ds.geometry.{Vector2, Vector3 as V3}
                 path: Path {
                     segments: vec![
                         PathSegment {
-                            name: "destack".to_string()
+                            name: parser.identifiers.intern("destack")
                         },
                         PathSegment {
-                            name: "geometry".to_string()
+                            name: parser.identifiers.intern("geometry")
                         }
                     ],
                 },
@@ -145,10 +145,10 @@ using ds.geometry.{Vector2, Vector3 as V3}
             Using {
                 path: Path {
                     segments: vec![PathSegment {
-                        name: "destack".to_string()
+                        name: parser.identifiers.intern("destack")
                     }],
                 },
-                alias: Some("ds".to_string()),
+                alias: Some(parser.identifiers.intern("ds")),
                 items: None,
             }
         );
@@ -161,14 +161,14 @@ using ds.geometry.{Vector2, Vector3 as V3}
                 path: Path {
                     segments: vec![
                         PathSegment {
-                            name: "ds".to_string()
+                            name: parser.identifiers.intern("ds")
                         },
                         PathSegment {
-                            name: "geometry".to_string()
+                            name: parser.identifiers.intern("geometry")
                         }
                     ],
                 },
-                alias: Some("geom".to_string()),
+                alias: Some(parser.identifiers.intern("geom")),
                 items: None,
             }
         );
@@ -181,22 +181,22 @@ using ds.geometry.{Vector2, Vector3 as V3}
                 path: Path {
                     segments: vec![
                         PathSegment {
-                            name: "ds".to_string()
+                            name: parser.identifiers.intern("ds")
                         },
                         PathSegment {
-                            name: "geometry".to_string()
+                            name: parser.identifiers.intern("geometry")
                         }
                     ],
                 },
                 alias: None,
                 items: Some(vec![
                     UsingItem {
-                        name: "Vector2".to_string(),
+                        name: parser.identifiers.intern("Vector2"),
                         alias: None,
                     },
                     UsingItem {
-                        name: "Vector3".to_string(),
-                        alias: Some("V3".to_string()),
+                        name: parser.identifiers.intern("Vector3"),
+                        alias: Some(parser.identifiers.intern("V3")),
                     }
                 ]),
             }

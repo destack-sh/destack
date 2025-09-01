@@ -1,6 +1,6 @@
 use destack_language_token::{SourceFile, Span, Token, TokenSpan, TokenType};
 
-use crate::{ParseError, ParseResult};
+use crate::{ParseError, ParseResult, StringPool};
 
 const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
     span: Span { start: 0, end: 0 },
@@ -11,12 +11,14 @@ const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct Parser<'a> {
     /// The file we're parsing.
     pub(crate) file: SourceFile<'a>,
     /// The tokens to parse.
     pub(crate) tokens: &'a [TokenSpan],
+    /// The identifier pool.
+    pub(crate) identifiers: StringPool,
     /// The current position in the tokens.
     pos: usize,
     /// The EOF token (the actual last token or a fake placeholder one if empty).
@@ -27,9 +29,11 @@ impl<'a> Parser<'a> {
     /// Create a new parser.
     pub fn new(file: SourceFile<'a>, tokens: &'a [TokenSpan]) -> Self {
         let eof_token = *tokens.last().unwrap_or(&DEFAULT_EOF_TOKEN_SPAN);
+        let identifiers = StringPool::new();
         Self {
             file,
             tokens,
+            identifiers,
             pos: 0,
             eof_token,
         }
