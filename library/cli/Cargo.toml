@@ -16,10 +16,10 @@ name = "destack_library_cli"
 path = "rust/main.rs"
 
 [dependencies]
-destack_extension_lsp = { workspace = true }
+destack_language_ast = { workspace = true }
+destack_language_token = { workspace = true }
 destack_library_tokei = { workspace = true }
-destack_language_lexer = { workspace = true }
-destack_language_parser = { workspace = true }
+destack_extension_lsp = { workspace = true }
 
 tokio = { version = "1.47.1" }
 

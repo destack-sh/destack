@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::console::parse::{CommandApp, CommandArguments};
 use crate::console::{console, table};
-use destack_language_lexer::{TokenType, tokenize_semantic};
+use destack_language_token::{TokenType, tokenize_semantic};
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
@@ -41,7 +41,7 @@ fn lex(ctx: CommandArguments) -> i32 {
 
     let use_color = !ctx.flag("no-color");
     let use_pager = !ctx.flag("no-pager");
-    let max_lexereme_len: usize = ctx
+    let max_tokeneme_len: usize = ctx
         .option("max-lexeme")
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(DEFAULT_MAX_LEXEME_LEN);
@@ -80,7 +80,7 @@ fn lex(ctx: CommandArguments) -> i32 {
         // prepare pretty fields
         let kind_str = format_token(tok.token.r#type, use_color);
         let lexeme_preview =
-            truncate_lexereme(slice, max_lexereme_len, tok.token.r#type, use_color);
+            truncate_tokeneme(slice, max_tokeneme_len, tok.token.r#type, use_color);
         let line_str = if use_color {
             console::color(&line.to_string(), "36") // cyan
         } else {
@@ -183,7 +183,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
 }
 
 /// Truncate a lexeme to a maximum length and escape newlines and tabs.
-fn truncate_lexereme(s: &str, max_len: usize, token_type: TokenType, color: bool) -> String {
+fn truncate_tokeneme(s: &str, max_len: usize, token_type: TokenType, color: bool) -> String {
     // escape newlines and tabs for readability
     let mut out = String::new();
     for ch in s.chars() {

@@ -1,0 +1,24 @@
+[package]
+name = "destack_language_rust"
+description = "Destack Rust Library Code Generator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+
+[dependencies]
+destack_language_token = { workspace = true }
+destack_language_ast = { workspace = true }
+
+destack_library_prelude = { workspace = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,3 +1,3 @@
-mod hir;
+mod node;
 
-pub use hir::*;
+pub use node::*;
