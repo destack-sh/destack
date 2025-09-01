@@ -2,11 +2,11 @@
 
 use destack_language_token::TokenType;
 
-use crate::{Keyword, ParseResult, Parser, UsingItemNode, UsingNode};
+use crate::{Keyword, NodeId, ParseResult, Parser, Using, UsingItem};
 
 impl<'a> Parser<'a> {
     /// Eat a using declaration (including keyword and semicolon or block).
-    pub fn eat_using(&mut self) -> ParseResult<UsingNode> {
+    pub fn eat_using(&mut self) -> ParseResult<NodeId<Using>> {
         self.eat_keyword(Keyword::Using)?;
         let using = self.eat_using_header()?;
         self.eat_stop()?;
@@ -14,7 +14,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat the content of a using declaration (without the `using` keyword).
-    pub fn eat_using_header(&mut self) -> ParseResult<UsingNode> {
+    pub fn eat_using_header(&mut self) -> ParseResult<NodeId<Using>> {
+        let start = self.mark();
         let path = self.eat_path()?;
 
         // try grouped items first: `. { ... }`
@@ -24,7 +25,7 @@ impl<'a> Parser<'a> {
 
             // parse zero or more items
             // (empty group `.{}` is valid)
-            let mut items: Vec<UsingItemNode> = Vec::new();
+            let mut items: Vec<NodeId<UsingItem>> = Vec::new();
             if self.peek_next_token(TokenType::CloseBrace).is_err() {
                 loop {
                     let item = self.eat_using_item()?;
@@ -63,15 +64,16 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Ok(UsingNode {
+        let using = self.tree.allocate(Using {
             target: path,
             alias,
             items,
-        })
+        }, self.get_mark_span(start));
+        Ok(using)
     }
 
     /// Eat a using item (like `geometry` or `geometry as geom`).
-    pub fn eat_using_item(&mut self) -> ParseResult<UsingItemNode> {
+    pub fn eat_using_item(&mut self) -> ParseResult<NodeId<UsingItem>> {
         let name = self.eat_identifier()?;
         let alias = if let Ok(next) = self.peek_next_token(TokenType::Identifier) {
             if self.get_token_str(*next) == Keyword::As.as_str() {
@@ -84,7 +86,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        Ok(UsingItemNode { name, alias })
+        Ok(UsingItem { name, alias })
     }
 }
 
@@ -92,7 +94,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{Parser, Path, PathSegment, UsingItemNode, UsingNode};
+    use crate::{Parser, Path, PathSegment, UsingItem, Using};
 
     #[test]
     fn test_parse_using_declaration() {
@@ -112,10 +114,10 @@ using destack, dyst
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
-            UsingNode {
+            Using {
                 target: Path {
                     segments: vec![PathSegment {
-                        name: parser.identifiers.intern("destack")
+                        name: parser.strings.intern("destack")
                     }],
                 },
                 alias: None,
@@ -127,14 +129,14 @@ using destack, dyst
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
-            UsingNode {
+            Using {
                 target: Path {
                     segments: vec![
                         PathSegment {
-                            name: parser.identifiers.intern("destack")
+                            name: parser.strings.intern("destack")
                         },
                         PathSegment {
-                            name: parser.identifiers.intern("geometry")
+                            name: parser.strings.intern("geometry")
                         }
                     ],
                 },
@@ -147,13 +149,13 @@ using destack, dyst
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
-            UsingNode {
+            Using {
                 target: Path {
                     segments: vec![PathSegment {
-                        name: parser.identifiers.intern("destack")
+                        name: parser.strings.intern("destack")
                     }],
                 },
-                alias: Some(parser.identifiers.intern("ds")),
+                alias: Some(parser.strings.intern("ds")),
                 items: None,
             }
         );
@@ -162,18 +164,18 @@ using destack, dyst
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
-            UsingNode {
+            Using {
                 target: Path {
                     segments: vec![
                         PathSegment {
-                            name: parser.identifiers.intern("ds")
+                            name: parser.strings.intern("ds")
                         },
                         PathSegment {
-                            name: parser.identifiers.intern("geometry")
+                            name: parser.strings.intern("geometry")
                         }
                     ],
                 },
-                alias: Some(parser.identifiers.intern("geom")),
+                alias: Some(parser.strings.intern("geom")),
                 items: None,
             }
         );
@@ -182,26 +184,26 @@ using destack, dyst
         let using = parser.eat_using().unwrap();
         assert_eq!(
             using,
-            UsingNode {
+            Using {
                 target: Path {
                     segments: vec![
                         PathSegment {
-                            name: parser.identifiers.intern("ds")
+                            name: parser.strings.intern("ds")
                         },
                         PathSegment {
-                            name: parser.identifiers.intern("geometry")
+                            name: parser.strings.intern("geometry")
                         }
                     ],
                 },
                 alias: None,
                 items: Some(vec![
-                    UsingItemNode {
-                        name: parser.identifiers.intern("Vector2"),
+                    UsingItem {
+                        name: parser.strings.intern("Vector2"),
                         alias: None,
                     },
-                    UsingItemNode {
-                        name: parser.identifiers.intern("Vector3"),
-                        alias: Some(parser.identifiers.intern("V3")),
+                    UsingItem {
+                        name: parser.strings.intern("Vector3"),
+                        alias: Some(parser.strings.intern("V3")),
                     }
                 ]),
             }

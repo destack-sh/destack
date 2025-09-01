@@ -1,6 +1,6 @@
 use destack_language_token::{SourceFile, Span, Token, TokenSpan, TokenType};
 
-use crate::{ParseError, ParseResult, StringPool};
+use crate::{NodeTree, ParseError, ParseResult, StringPool};
 
 const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
     span: Span { start: 0, end: 0 },
@@ -13,30 +13,58 @@ const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
 /// Whitespace and regular line comments are completely ignored.
 #[derive(Debug)]
 pub struct Parser<'a> {
+    // source
     /// The file we're parsing.
     pub(crate) file: SourceFile<'a>,
     /// The tokens to parse.
     pub(crate) tokens: &'a [TokenSpan],
-    /// The identifier pool.
-    pub(crate) identifiers: StringPool,
-    /// The current position in the tokens.
-    pos: usize,
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     eof_token: TokenSpan,
+
+    // ast
+    /// The string pool.
+    pub(crate) strings: StringPool,
+    /// The Node tree.
+    pub(crate) tree: NodeTree,
+    
+    // state
+    /// The current position in the tokens.
+    pos: usize,
+    
 }
 
 impl<'a> Parser<'a> {
     /// Create a new parser.
     pub fn new(file: SourceFile<'a>, tokens: &'a [TokenSpan]) -> Self {
         let eof_token = *tokens.last().unwrap_or(&DEFAULT_EOF_TOKEN_SPAN);
-        let identifiers = StringPool::new();
+        let strings = StringPool::new();
+        let tree = NodeTree::new();
         Self {
             file,
             tokens,
-            identifiers,
+            strings,
+            tree,
             pos: 0,
             eof_token,
         }
+    }
+
+    /// Gets a mark of the current position.
+    #[inline]
+    pub fn mark(&self) -> ParserMark {
+        ParserMark { pos: self.pos }
+    }
+
+    /// Get a mark and return the span of the current position.
+    #[inline]
+    pub fn get_mark_span(&self, mark: ParserMark) -> Span {
+        let start_token = self.tokens[mark.pos];
+        let end_token = self.tokens[self.pos];
+        let span = Span {
+            start: start_token.span.start,
+            end: end_token.span.end,
+        };
+        span
     }
 
     /// Gets the str source backing a Span.
@@ -179,4 +207,10 @@ impl<'a> Parser<'a> {
     pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {
         self.peek_next_token(TokenType::Colon)
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ParserMark {
+    /// The token position.
+    pos: usize,
 }
