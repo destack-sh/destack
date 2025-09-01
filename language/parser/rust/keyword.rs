@@ -7,7 +7,7 @@ use crate::{ParseError, ParseResult, Parser};
 pub enum Keyword {
     /// Mark the following item as public (with optional qualifier)
     Public,
-    /// Define a Module.
+    /// Define a Module (inline).
     Module,
     /// Define a Struct.
     Struct,
@@ -19,14 +19,12 @@ pub enum Keyword {
     Trait,
     /// Define a Function.
     Function,
-    /// Implement a Trait.
+    /// Implement a type (perhaps for a Trait).
     Implement,
     /// Use an item in this context (like importing items from a module).
     Using,
     /// Alias or cast an item in this context.
     As,
-    /// Where clause.
-    Where,
     /// Let expression.
     Let,
     /// Var expression.
@@ -73,7 +71,6 @@ impl Keyword {
             Keyword::Implement => "implement",
             Keyword::Using => "using",
             Keyword::As => "as",
-            Keyword::Where => "where",
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::If => "if",

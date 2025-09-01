@@ -2,9 +2,8 @@
 //!
 //! The AST is a syntax tree of nodes.
 //! The set of allowable ASTs is larger than the set of valid Destack programs.
-//! We later typecheck, validate and prune the AST to only include valid programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
-//!  and in many cases we can even suggest automatic fixes (like `->` -> `=>`).
+//!  and in many cases we can suggest automatic fixes (like `->` -> `=>`, or drop `;`).
 
 use std::str::FromStr;
 
@@ -46,7 +45,7 @@ impl FromStr for Path {
     }
 }
 
-/// A PathSegment is a segment of a path.
+/// A PathSegment is one part of a path.
 ///
 /// Examples:
 /// ```
@@ -120,23 +119,27 @@ pub struct UsingItem {
     pub alias: Option<Identifier>,
 }
 
-/// A StructDefinition is a named struct definition.
+/// A StructDefinition is a struct definition.
+/// May be named or anonymous.
+/// The ',' separator is optional if newline-delimited.
 ///
 /// Examples:
 /// ```
+/// struct { a: int32, b: boolean }
+///
 /// struct { // anonymous struct (for use as a value)
-///     myField: int32,
-///     myOtherField: boolean,
+///     myField: int32
+///     myOtherField: boolean
 /// }
 ///
 /// struct Bar {
-///     myField: int32,
-///     myOtherField: boolean,
+///     myField: int32
+///     myOtherField: boolean
 /// }
 ///
 /// struct Foo using Bar, Baz {
-///     myField: int32,
-///     myOtherField: boolean,
+///     myField: int32
+///     myOtherField: boolean
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -172,35 +175,34 @@ pub struct StructField {
 /// A Union is a sum type definition.
 /// Enums are just sugar for unions with only a tag (and no values).
 /// Unions (if all options are structs) may include structs with using declarations.
+/// Like with structs, the ',' separator is optional if newline-delimited.
 ///
 /// Examples:
 /// ```
-/// enum { // anonymous enum (for use as a value)
-///     Success,
-///     Failure,
-/// }
+/// // anonymous enum (for use as a value)
+/// enum { Success, Failure }
 ///
 /// union { // anonymous union (for use as a value)
-///     myField: int32,
-///     myOtherField: boolean,
+///     myField: int32
+///     myOtherField: boolean
 /// }
 ///
 /// enum Foo {
-///     A,
-///     B,
-///     C,
+///     A
+///     B
+///     C
 /// }
 ///
 /// enum(u8) Foo {
-///     Baz = 1,
-///     Qux = 2,
+///     Baz = 1
+///     Qux = 2
 /// }
 ///
 /// union Foo {
-///     A,
-///     B { x: int32, y: int32 } = 4,
-///     C(boolean),
-///     D(boolean, int32) = 6,
+///     A
+///     B { x: int32, y: int32 } = 4
+///     C(boolean)
+///     D(boolean, int32) = 6
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -850,9 +852,14 @@ pub enum BinaryOperator {
 ///     x = 1
 ///     y = 2
 /// }
+///
+/// label: {
+///     x = 1
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
+    pub label: Option<Identifier>,
     pub statements: Vec<Statement>,
 }
 
@@ -905,9 +912,6 @@ pub struct As {
 
 /// An If is an if/then/else statement.
 ///
-/// NOTE: `if (...) else if (...)` is just sugar (like in every language)
-///  (it's really just `if (...) { ... } else { if (...) { ... } }`)
-///
 /// Examples:
 /// ```
 /// if x > 1 {
@@ -930,6 +934,11 @@ pub struct If {
 /// while x > 1 {
 ///     y = 2
 /// }
+///
+/// while y < 10 l: {
+///     y = 2
+///     break :l
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
@@ -942,6 +951,13 @@ pub struct While {
 /// Examples:
 /// ```
 /// for x in 1..10 {
+///     y = 2
+/// }
+///
+/// for x in 1..10 a: {
+///     if y > 5 {
+///         continue :a
+///     }
 ///     y = 2
 /// }
 /// ```
@@ -975,19 +991,27 @@ pub struct Loop {
 ///
 /// Examples:
 /// ```
-/// break;
+/// break
+/// break :label
+/// break :label 17
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Break {}
+pub struct Break {
+    pub label: Option<Identifier>,
+    pub value: Option<Box<Expression>>,
+}
 
 /// A Continue is a continue statement.
 ///
 /// Examples:
 /// ```
-/// continue;
+/// continue
+/// continue :label
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Continue {}
+pub struct Continue {
+    pub label: Option<Identifier>,
+}
 
 /// A Defer is a defer statement.
 ///
@@ -1074,10 +1098,10 @@ pub enum PatternStructField {
 ///     }
 /// }
 ///
-/// catch {
-///     NetworkError => false
-///     FormatError => false
-///     _ => true
+/// catch <expr> {
+///     NetworkError => @panic("network error")
+///     FormatError => @panic("format error")
+///     _ => return false
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -1112,7 +1136,7 @@ pub struct MatchCase {
 ///     ...
 /// } catch e { // match all errors
 ///     NumericError(x) => Error(@format("bad number: {x}"))
-///     FormatError => Error(@format("bad format"))
+///     FormatError => Error(@format("bad format {e}"))
 ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
 /// }
 /// ```
