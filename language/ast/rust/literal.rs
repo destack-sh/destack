@@ -2,29 +2,29 @@ use destack_language_token::{NumberBase, RawLiteralType, TokenType};
 use std::borrow::Cow;
 
 use crate::{
-    ArrayLiteral, Expression, FieldLiteral, FloatType, IntType, ParseError, ParseResult, Parser,
-    ScalarLiteral, StructLiteral, TupleLiteral,
+    ArrayLiteral, ExpressionNode, FieldLiteralNode, FloatType, IntType, ParseError, ParseResult,
+    Parser, ScalarLiteral, StructLiteral, TupleLiteral,
 };
 
 impl<'a> Parser<'a> {
     /// Eat a literal.
-    pub fn eat_literal(&mut self) -> ParseResult<Expression> {
+    pub fn eat_literal(&mut self) -> ParseResult<ExpressionNode> {
         // array
         if self.peek_next_token(TokenType::OpenBracket).is_ok() {
             let array_literal = self.eat_array_literal()?;
-            Ok(Expression::ArrayLiteral(array_literal))
+            Ok(ExpressionNode::ArrayLiteral(array_literal))
         // tuple
         } else if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
             let tuple_literal = self.eat_tuple_literal()?;
-            Ok(Expression::TupleLiteral(tuple_literal))
+            Ok(ExpressionNode::TupleLiteral(tuple_literal))
         // struct
         } else if self.peek_next_token(TokenType::OpenBrace).is_ok() {
             let struct_literal = self.eat_struct_literal()?;
-            Ok(Expression::StructLiteral(struct_literal))
+            Ok(ExpressionNode::StructLiteral(struct_literal))
         // scalar
         } else {
             let scalar_literal = self.eat_scalar_literal()?;
-            Ok(Expression::ScalarLiteral(scalar_literal))
+            Ok(ExpressionNode::ScalarLiteral(scalar_literal))
         }
     }
 
@@ -208,7 +208,7 @@ impl<'a> Parser<'a> {
     /// [false; 40] // repeated array
     pub fn eat_array_literal(&mut self) -> ParseResult<ArrayLiteral> {
         self.eat_token(TokenType::OpenBracket)?;
-        let mut elements: Vec<Expression> = vec![];
+        let mut elements: Vec<ExpressionNode> = vec![];
         let first_element = self.eat_expression()?;
         elements.push(first_element);
 
@@ -242,7 +242,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_tuple_literal(&mut self) -> ParseResult<TupleLiteral> {
         self.eat_token(TokenType::OpenParenthesis)?;
-        let mut elements: Vec<Expression> = vec![];
+        let mut elements: Vec<ExpressionNode> = vec![];
         while self.peek_next_token(TokenType::Comma).is_ok() {
             self.eat_token(TokenType::Comma)?;
             let element = self.eat_expression()?;
@@ -277,21 +277,21 @@ impl<'a> Parser<'a> {
     /// ```
     /// { x: 1.0, y: 2.0, z }
     /// ```
-    pub fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<FieldLiteral>> {
+    pub fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<FieldLiteralNode>> {
         self.eat_token(TokenType::OpenBrace)?;
-        let mut fields: Vec<FieldLiteral> = vec![];
+        let mut fields: Vec<FieldLiteralNode> = vec![];
         while self.peek_next_token(TokenType::Comma).is_ok() {
             self.eat_token(TokenType::Comma)?;
             let name = self.eat_identifier()?;
             if self.peek_next_token(TokenType::Colon).is_ok() {
                 self.eat_token(TokenType::Colon)?;
                 let value = self.eat_expression()?;
-                fields.push(FieldLiteral {
+                fields.push(FieldLiteralNode {
                     name,
                     value: Some(value),
                 });
             } else {
-                fields.push(FieldLiteral { name, value: None });
+                fields.push(FieldLiteralNode { name, value: None });
             }
         }
         self.eat_token(TokenType::CloseBrace)?;
@@ -303,7 +303,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{ArrayLiteral, Expression, FloatType, IntType, Parser, ScalarLiteral};
+    use crate::{ArrayLiteral, ExpressionNode, FloatType, IntType, Parser, ScalarLiteral};
 
     #[test]
     fn test_scalar_literal() {
@@ -423,9 +423,9 @@ br##"a#b#c"##
             literal,
             ArrayLiteral::Fixed {
                 elements: vec![
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(1, IntType::INT32)),
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(2, IntType::INT32)),
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::INT32))
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Integer(1, IntType::INT32)),
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Integer(2, IntType::INT32)),
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Integer(3, IntType::INT32))
                 ]
             }
         );
@@ -437,9 +437,9 @@ br##"a#b#c"##
             literal,
             ArrayLiteral::Fixed {
                 elements: vec![
-                    Expression::ScalarLiteral(ScalarLiteral::Float(1.0, FloatType::Float64)),
-                    Expression::ScalarLiteral(ScalarLiteral::Float(2.0, FloatType::Float64)),
-                    Expression::ScalarLiteral(ScalarLiteral::Float(3.0, FloatType::Float64))
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Float(1.0, FloatType::Float64)),
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Float(2.0, FloatType::Float64)),
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Float(3.0, FloatType::Float64))
                 ]
             }
         );
@@ -451,9 +451,9 @@ br##"a#b#c"##
             literal,
             ArrayLiteral::Fixed {
                 elements: vec![
-                    Expression::ScalarLiteral(ScalarLiteral::Integer(10, IntType::INT32)),
-                    Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
-                    Expression::ScalarLiteral(ScalarLiteral::String("Hi".to_string()))
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Integer(10, IntType::INT32)),
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::Boolean(false)),
+                    ExpressionNode::ScalarLiteral(ScalarLiteral::String("Hi".to_string()))
                 ]
             }
         );

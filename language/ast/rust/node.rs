@@ -1,13 +1,62 @@
-//! The AST Nodes in Destack.
+//! The AST Nodes and data in Destack.
 //!
 //! The AST is a syntax tree of nodes.
 //! The set of allowable ASTs is larger than the set of valid Destack programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
 //!  and in many cases we can suggest automatic fixes (like `->` -> `=>`, or drop `;`).
 
-use crate::{NodeId, StringId};
+use std::marker::PhantomData;
+use std::num::NonZeroU32;
 
-/// A Path is a static path to a named definition in a namespace.
+use destack_language_token::Span;
+
+use crate::StringId;
+
+/// The type of a node in the AST.
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeType {
+    // Expression
+    Expression,
+    Statement,
+    Block,
+    // Literal
+    FieldLiteral,
+    // Structure
+    StructField,
+    TupleElement,
+    UnionField,
+    // Match
+    MatchCase,
+    Pattern,
+    PatternTupleField,
+    PatternStructField,
+    // Using
+    Using,
+    UsingClause,
+    UsingItem,
+    // Parameter / Argument
+    Parameter,
+    Argument,
+    // Type
+    Type,
+}
+
+/// Unique identifier for nodes in an arena, parameterized by node type.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct NodeId<T> {
+    pub(crate) idx: NonZeroU32,
+    pub(crate) _ty: PhantomData<fn() -> T>,
+}
+
+/// A node id that can be used to get the type of the node.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnyNodeId<T> {
+    pub r#type: NodeType,
+    pub idx: NodeId<T>,
+}
+
+/// A Path is static path data to a named definition in a namespace.
 /// In the case of a Using declaration, the Path excludes the items.
 ///
 /// Examples:
@@ -19,12 +68,6 @@ use crate::{NodeId, StringId};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
     pub segments: Vec<PathSegment>,
-}
-
-impl Path {
-    pub fn new(segments: Vec<PathSegment>) -> Self {
-        Self { segments }
-    }
 }
 
 /// A PathSegment is one part of a path.
@@ -40,14 +83,25 @@ pub struct PathSegment {
     pub name: StringId,
 }
 
-/// A Visibility is the visibility of an item.
+// nocheckin: use Identifiers for actual identifiers (see eat_identifier)
+//  (so we can track identifier span for navigation)
+
+/// An Identifier is a named identifier with a span.
+/// Useful for tracking identifiers without full Nodes for every little value.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Identifier {
+    pub name: StringId,
+    pub span: Span,
+}
+
+/// A Visibility is the visibility data of an item.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Visibility {
     Public,
     Private,
 }
 
-/// A Module is a module declaration.
+/// A Module is a module declaration AST node.
 /// Modules may be whole directories, single files, or nested within a file.
 ///
 /// Examples:
@@ -57,37 +111,65 @@ pub enum Visibility {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Module {
+pub struct ModuleNode {
     /// The name of the module.
     pub name: StringId,
     /// The visibility of the module.
     pub visibility: Visibility,
     /// The body of the module.
-    pub body: NodeId<Block>,
+    pub body: NodeId<BlockNode>,
 }
 
-/// A Using is a use declaration for dependency or context management.
+/// A Using is a use declaration AST node for dependency and context management.
+/// Using can be used as statement for the containing scope or in block form.
+/// Using can also serve as a type signature for functions.
 /// `using` includes all or some items from a definition in the relevant scope.
 ///
 /// Examples:
 /// ```
 /// using foo
+/// using foo, bar
 /// using foo.bar
 /// using foo.{bar, baz}
 /// using foo.{} // valid but linted
 /// using foo as baz
+///
+/// using Heap {
+///   ...
+/// }
+///
+/// using Time, !Disk, !Network, !Allocation {
+///   ...
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Using {
-    /// The path to the definition to use (like `foo.bar` in `using foo.bar.{baz, qux};`)
-    pub path: Path,
-    /// The alias to use for the entire item (like `baz` in `using foo as baz;`)
-    pub alias: Option<StringId> = None,
-    /// The sub-items to use from the item (like `{baz, qux}` in `using foo.bar.{baz, qux};`)
-    pub items: Option<Vec<UsingItem>> = None,
+pub struct UsingNode {
+    /// The clauses in this using declaration.
+    pub clauses: Vec<NodeId<UsingClauseNode>>,
+    /// The body of the using declaration.
+    pub body: Option<NodeId<BlockNode>>,
 }
 
-/// A UsingItem is an item to use from a definition.
+/// A UsingClause is a single clause AST node in a using declaration.
+///
+/// Examples:
+/// ```
+/// foo
+/// foo as bar
+/// foo.bar as baz
+/// foo.{baz, qux}
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct UsingClauseNode {
+    /// The target to use (like `foo.bar` in `using foo.bar.{baz, qux};`)
+    pub target: NodeId<ExpressionNode>,
+    /// The alias to use for the definition (like `bar` in `using foo as bar;`)
+    pub alias: Option<StringId>,
+    /// The items to use from the target (like `{baz, qux}` in `using foo.bar.{baz, qux};`)
+    pub items: Option<Vec<NodeId<UsingItemNode>>>,
+}
+
+/// A UsingItem is an item AST node to use in a using clause.
 ///
 /// Examples:
 /// ```
@@ -95,15 +177,15 @@ pub struct Using {
 /// qux as quux
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct UsingItem {
+pub struct UsingItemNode {
     /// The source name of the item (like `foo` in `foo as bar;`)
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar;`)
     pub alias: Option<StringId>,
 }
 
-/// A Tuple is a tuple definition.
-/// Tuples are usually declared anonymously and inline.
+/// A Tuple is tuple definition data.
+/// Tuples are declared anonymously and inline.
 /// The ',' separator is optional if newline-delimited.
 ///
 /// Examples:
@@ -117,19 +199,18 @@ pub struct UsingItem {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
-    pub name: Option<StringId>,
-    pub elements: Vec<TupleElement>,
+    pub elements: Vec<NodeId<TupleElementNode>>,
 }
 
-/// A TupleElement is a tuple element definition.
+/// A TupleElement is a tuple element definition AST node.
 /// Tuple elements may be named or anonymous, but cannot have default values.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TupleElement {
+pub struct TupleElementNode {
     pub name: Option<StringId>,
-    pub r#type: Type,
+    pub r#type: NodeId<TypeNode>,
 }
 
-/// A StructDefinition is a struct definition.
+/// A Struct is struct definition data.
 /// May be named or anonymous.
 /// The ',' separator is optional if newline-delimited.
 ///
@@ -159,12 +240,12 @@ pub struct Struct {
     /// The visibility of the struct.
     pub visibility: Visibility,
     /// The fields of the struct.
-    pub fields: Vec<StructField>,
-    /// The using declarations for the struct.
-    pub usings: Option<Vec<Using>>,
+    pub fields: Vec<NodeId<StructFieldNode>>,
+    /// The using declaration for the struct.
+    pub using: Option<NodeId<UsingNode>>,
 }
 
-/// A StructField is a (struct) field declaration.
+/// A StructField is a (struct) field declaration AST node.
 ///
 /// Examples:
 /// ```
@@ -173,16 +254,16 @@ pub struct Struct {
 /// baz: @someMacro(T)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct StructField {
+pub struct StructFieldNode {
     /// The name of the field.
     pub name: StringId,
     /// The type of the field.
-    pub r#type: Type,
+    pub r#type: NodeId<TypeNode>,
     /// The default value of the field.
-    pub default: Option<Expression>,
+    pub default: Option<NodeId<ExpressionNode>>,
 }
 
-/// A Union is a sum type definition.
+/// A Union is sum type definition data.
 /// Enums are just sugar for unions with only a tag (and no values).
 /// Unions (if all options are structs) may include structs with using declarations.
 /// Like with structs, the ',' separator is optional if newline-delimited.
@@ -220,40 +301,40 @@ pub struct Union {
     /// The name of the union.
     pub name: Option<StringId>,
     /// The type of the union (if explicitly specified).
-    pub r#type: Option<Box<Type>>,
+    pub r#type: Option<NodeId<TypeNode>>,
     /// The declared style of the union (enum or union).
     pub style: UnionStyle,
     /// The fields of the union.
-    pub fields: Vec<UnionField>,
+    pub fields: Vec<NodeId<UnionFieldNode>>,
     /// The using declarations for the union.
-    pub usings: Option<Vec<Using>>,
+    pub usings: Option<Vec<NodeId<UsingNode>>>,
 }
 
-/// A UnionStyle is the style of a union.
+/// A UnionStyle is the style data of a union.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnionStyle {
     Enum,
     Union,
 }
 
-/// A UnionField is a union field declaration.
+/// A UnionField is a union field declaration AST node.
 ///
 /// Examples:
 /// ```
-/// A(int32),
-/// B { x: int32, y: int32 } = 4,
+/// A(int32)
+/// B { x: int32, y: int32 } = 4
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct UnionField {
+pub struct UnionFieldNode {
     /// The name of the union field.
     pub name: StringId,
     /// The type of the union field.
-    pub r#type: Option<Type>,
+    pub r#type: Option<NodeId<TypeNode>>,
     /// The default value of the union field.
-    pub value: Option<Expression>,
+    pub value: Option<NodeId<ExpressionNode>>,
 }
 
-/// A Trait is a trait definition.
+/// A Trait is trait definition data.
 ///
 /// Examples:
 /// ```
@@ -270,12 +351,12 @@ pub struct Trait {
     /// The name of the trait.
     pub name: StringId,
     /// The static parameters to the trait.
-    pub static_parameters: Option<Vec<Parameter>>,
+    pub static_parameters: Option<Vec<NodeId<ParameterNode>>>,
     /// The body of the trait.
-    pub body: Option<Block>,
+    pub body: Option<NodeId<BlockNode>>,
 }
 
-/// An Impl defines the implementation of a concrete type.
+/// An Impl defines the implementation data of a concrete type.
 /// There may be multiple Impls for the same type, and even impls for different modules.
 /// (To add a module's implementation to your own just use the corresponding module.)
 ///
@@ -302,16 +383,18 @@ pub struct Trait {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Implement {
     /// The trait type to implement.
-    pub trait_type: Box<Type>,
+    pub trait_type: NodeId<TypeNode>,
     /// The type to implement the trait for.
-    pub for_type: Box<Type>,
+    pub for_type: NodeId<TypeNode>,
     /// The static arguments to the trait.
-    pub static_arguments: Option<Vec<Type>>,
+    pub static_trait_arguments: Option<Vec<NodeId<TypeNode>>>,
+    /// The static arguments to the for type.
+    pub static_for_arguments: Option<Vec<NodeId<TypeNode>>>,
     /// The body of the implement.
-    pub body: Option<Block>,
+    pub body: Option<NodeId<BlockNode>>,
 }
 
-/// A FunctionSignature is the type of a function definition or closure.
+/// A FunctionSignature is the type data of a function definition or closure.
 /// Function signatures may omit the tuple parentheses `()`  in return type.
 ///
 /// Examples:
@@ -325,14 +408,16 @@ pub struct Implement {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
     /// The static arguments to the function.
-    pub static_arguments: Vec<Parameter>,
+    pub static_arguments: Vec<NodeId<ParameterNode>>,
     /// The dynamic arguments to the function.
-    pub dynamic_arguments: Vec<Parameter>,
+    pub dynamic_arguments: Vec<NodeId<ParameterNode>>,
     /// The return type of the function.
-    pub return_type: Option<Box<Type>>,
+    pub return_type: Option<NodeId<TypeNode>>,
+    /// The using declaration for the function (can't have a body).
+    pub using: Option<NodeId<UsingNode>>,
 }
 
-/// A FunctionStyle is the style of a function.
+/// A FunctionStyle is the style data of a function.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionStyle {
     /// A normal function.
@@ -341,7 +426,7 @@ pub enum FunctionStyle {
     Static,
 }
 
-/// A Function is an associated or module function declaration or definition.
+/// A Function is function definition data for an associated or module function declaration or definition.
 /// If no body is provided, it is a declaration for a function defined elsewhere.
 ///
 /// Examples:
@@ -393,10 +478,10 @@ pub struct Function {
     /// The signature of the function.
     pub signature: FunctionSignature,
     /// The body of the function.
-    pub body: Option<Block>,
+    pub body: Option<NodeId<BlockNode>>,
 }
 
-/// A Parameter is a parameter to some expression.
+/// A Parameter is a parameter AST node to some expression.
 /// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
 ///
 /// Examples:
@@ -407,16 +492,16 @@ pub struct Function {
 /// z: int32 = 4
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Parameter {
+pub struct ParameterNode {
     /// The name of the parameter.
     pub name: StringId,
     /// The type of the parameter.
-    pub r#type: Type,
+    pub r#type: NodeId<TypeNode>,
     /// The default value of the parameter.
-    pub default: Option<Expression>,
+    pub default: Option<NodeId<ExpressionNode>>,
 }
 
-/// An Argument is an argument to a function call.
+/// An Argument is an argument AST node to a function call.
 /// It may be named or positional.
 /// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
 ///
@@ -426,16 +511,16 @@ pub struct Parameter {
 /// foo(1, 2)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Argument {
+pub struct ArgumentNode {
     /// The name of the argument.
     pub name: Option<StringId>,
     /// The value of the argument.
-    pub value: Expression,
+    pub value: NodeId<ExpressionNode>,
 }
 
-/// A StaticCall is a call to a function at compile time.
-/// The function may or may not be declared as comptime (with a `# prefix),
-///  but the call must be prefixed with a `#` to qualify as a static call.
+/// A StaticCall is call data to a function at compile time.
+/// The function may or may not be declared as comptime (with a `@ prefix),
+///  but the call must be prefixed with a `@` to qualify as a static call.
 ///
 /// Static functions may take the next sibling expression as an argument:
 ///  - `@entity struct MyEntity { ... }`
@@ -443,7 +528,7 @@ pub struct Argument {
 ///
 /// These cases are represented as two separate AST nodes (one static call, one definition)
 ///   and are then reconciled later during static analysis and compilation.
-///   (We don't know yet whether `#entity` is supposed to consume the next expression or not.)
+///   (We don't know yet whether `@entity` is supposed to consume the next expression or not.)
 /// This also makes error reporting easier.
 ///
 /// NOTE: There are no static method calls because static calls are statically resolved.
@@ -462,12 +547,12 @@ pub struct StaticCall {
     /// The path to the function to call (excluding the `@` prefix).
     pub path: Path,
     /// The static arguments to the function `<Arg1, Arg2, ...>`.
-    pub static_arguments: Option<Vec<Argument>>,
+    pub static_arguments: Option<Vec<NodeId<ArgumentNode>>>,
     /// The dynamic arguments to the function `(arg1, arg2, ...)`.
-    pub dynamic_arguments: Option<Vec<Argument>>,
+    pub dynamic_arguments: Option<Vec<NodeId<ArgumentNode>>>,
 }
 
-/// A DynamicCall is a call to a function at runtime.
+/// A DynamicCall is call data to a function at runtime.
 /// See DynamicMethodCall for calls on receivers.
 ///
 /// Examples:
@@ -482,12 +567,12 @@ pub struct DynamicCall {
     /// The path to the function to call.
     pub path: Path,
     /// The static arguments to the function `<Arg1, Arg2, ...>`.
-    pub static_arguments: Option<Vec<Argument>>,
+    pub static_arguments: Option<Vec<NodeId<ArgumentNode>>>,
     /// The dynamic arguments to the function `(arg1, arg2, ...)`.
-    pub dynamic_arguments: Option<Vec<Argument>>,
+    pub dynamic_arguments: Option<Vec<NodeId<ArgumentNode>>>,
 }
 
-/// A DynamicMethodCall is a call to an associated method at runtime.
+/// A DynamicMethodCall is call data to an associated method at runtime.
 /// See DynamicCall for calls on functions.
 ///
 /// Examples:
@@ -499,39 +584,39 @@ pub struct DynamicCall {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DynamicMethodCall {
     /// The receiver of the method call.
-    pub receiver: Box<Expression>,
+    pub receiver: NodeId<ExpressionNode>,
     /// The name of the method.
     pub name: StringId,
     /// The static arguments to the method `<Arg1, Arg2, ...>`.
-    pub static_arguments: Vec<Argument>,
+    pub static_arguments: Vec<NodeId<ArgumentNode>>,
     /// The dynamic arguments to the method `(arg1, arg2, ...)`.
-    pub dynamic_arguments: Vec<Argument>,
+    pub dynamic_arguments: Vec<NodeId<ArgumentNode>>,
 }
 
-/// An Statement is a top-level Statement that can appear in a module, type definition or function.
+/// An Statement is a top-level AST node in the AST.
 /// Statements do not have to produce values, but they can be any Expression.
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
-pub enum Statement {
+pub enum StatementNode {
     /// Expression
-    Expression(Expression),
-    /// Let binding
+    Expression(NodeId<ExpressionNode>),
+    /// Let binding (not a pattern binding)
     Let(Let),
     /// Var binding
     Var(Var),
     /// Assignment
     Assign(Assign),
     /// Using declaration
-    Using(Using),
+    Using(NodeId<UsingNode>),
 }
 
-/// An Expression is a generic container for all possible expressions.
+/// An Expression is a generic container AST node for all possible expression nodes in the AST.
 /// Expressions can be literals, assignments, calls, definitions, control flow, etc.
 ///
 /// Some Expressions are "place Expressions" and can be read from and written to,
-///  that is, they have a place in memory we can point to.
+///  that is, they have a place in memory we can point to and get the address of.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expression {
+pub enum ExpressionNode {
     /// Literal scalar value
     ScalarLiteral(ScalarLiteral),
     /// Array literal
@@ -554,11 +639,11 @@ pub enum Expression {
     /// Binary operation.
     BinaryOperation(BinaryOperation),
     /// Static call
-    StaticCall(Box<StaticCall>),
+    StaticCall(NodeId<StaticCall>),
     /// Dynamic call
-    DynamicCall(Box<DynamicCall>),
-    /// Dynamic associated method call
-    DynamicMethodCall(Box<DynamicMethodCall>),
+    DynamicCall(NodeId<DynamicCall>),
+    /// Dynamic associated method call on a receiver
+    DynamicMethodCall(NodeId<DynamicMethodCall>),
 
     /// Let for condition / guard positions.
     Let(Let),
@@ -585,7 +670,7 @@ pub enum Expression {
     /// Try/catch expression.
     Try(Try),
     /// Block expression.
-    Block(Block),
+    Block(NodeId<BlockNode>),
 
     /// Struct definition
     Struct(Struct),
@@ -594,15 +679,15 @@ pub enum Expression {
     /// Trait definition
     Trait(Trait),
     /// Function definition
-    Function(Box<Function>),
+    Function(NodeId<Function>),
     /// Implement definition
-    Implement(Box<Implement>),
+    Implement(NodeId<Implement>),
 
     /// Error placeholder.
     Error,
 }
 
-/// A ScalarLiteral is a literal scalar value.
+/// A ScalarLiteral is literal scalar value data.
 ///
 /// Examples:
 /// ```
@@ -628,7 +713,7 @@ pub enum ScalarLiteral {
     ByteString(Vec<u8>),
 }
 
-/// An ArrayLiteral is a literal array of homogeneous elements.
+/// An ArrayLiteral is literal array data of homogeneous elements.
 ///
 /// Examples:
 /// ```
@@ -641,15 +726,17 @@ pub enum ScalarLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArrayLiteral {
     /// A fixed-size array.
-    Fixed { elements: Vec<Expression> },
+    Fixed {
+        elements: Vec<NodeId<ExpressionNode>>,
+    },
     /// A repeated array.
     Repeated {
-        element: Box<Expression>,
-        count: Box<Expression>,
+        element: NodeId<ExpressionNode>,
+        count: NodeId<ExpressionNode>,
     },
 }
 
-/// A TupleLiteral is a literal tuple of heterogeneous elements.
+/// A TupleLiteral is literal tuple data of heterogeneous elements.
 ///
 /// Examples:
 /// ```
@@ -658,10 +745,10 @@ pub enum ArrayLiteral {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct TupleLiteral {
-    pub elements: Vec<Expression>,
+    pub elements: Vec<NodeId<ExpressionNode>>,
 }
 
-/// A StructLiteral is a literal struct of heterogeneous fields.
+/// A StructLiteral is literal struct data of heterogeneous fields.
 ///
 /// Examples:
 /// ```
@@ -671,12 +758,12 @@ pub struct TupleLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructLiteral {
     /// The type of the struct.
-    pub r#type: Type,
+    pub r#type: NodeId<TypeNode>,
     /// The fields of the struct.
-    pub fields: Vec<FieldLiteral>,
+    pub fields: Vec<NodeId<FieldLiteralNode>>,
 }
 
-/// A FieldLiteral is a literal field value.
+/// A FieldLiteral is a literal field value AST node.
 ///
 /// Examples:
 /// ```
@@ -685,14 +772,14 @@ pub struct StructLiteral {
 /// z
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct FieldLiteral {
+pub struct FieldLiteralNode {
     /// The name of the field to bind.
     pub name: StringId,
     /// The value of the field. If unset, we take the field from context.
-    pub value: Option<Expression>,
+    pub value: Option<NodeId<ExpressionNode>>,
 }
 
-/// An (unresolved) Type declaration.
+/// An (unresolved) Type declaration AST node in the AST.
 ///
 /// Type references don't support static evaluation directly for simplicity.
 /// They can refer to Paths that are themselves any static Expressions
@@ -710,37 +797,41 @@ pub struct FieldLiteral {
 /// MyEnum
 /// simulation.geometry.Vector2
 /// struct MyResponse { x: int32, y: int32 }
-/// union Result { Good, Bad }
+/// enum { Good, Bad }
 /// (int32) => int32
 /// function () => () // optional function keyword
-/// () => int32, Vector2
+/// () => int32, Vector2 // implicitly returns a tuple
 /// () => Result<int32, struct Error { message: string }>
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {
+pub enum TypeNode {
     /// Infer placeholder `_`.
     Infer,
     /// Maybe '?T'. Desugars to `Maybe<T>`.
-    Maybe(Option<Box<Type>>),
+    Maybe(Option<NodeId<TypeNode>>),
     /// Never `!T`. Desugars to `Never<T>`.
-    Never(Option<Box<Type>>),
-    // TODO: move primitive type parsing into DIR
+    Never(Option<NodeId<TypeNode>>),
+    // TODO: move primitive type parsing into DIR?
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
     Path {
         path: Path,
-        static_arguments: Option<Vec<Argument>>,
+        static_arguments: Option<Vec<NodeId<ArgumentNode>>>,
     },
-    /// Inline Tuple type `(T1, T2, ...)` (no tuple keyword).
-    Tuple(Tuple),
+    /// Pointer 'T*' to T.
+    Pointer(NodeId<TypeNode>),
     /// Inline Array type `[T; N]`. Must be fixed length.
     Array {
-        element_type: Box<Type>,
-        count: Box<Expression>,
+        element_type: NodeId<TypeNode>,
+        count: NodeId<ExpressionNode>,
     },
+    /// Inline Range type `T..T`.
+    Range(NodeId<TypeNode>),
     /// Inline Slice type `[T]`. Unknown length (dynamic).
-    Slice { element: Box<Type> },
+    Slice { element: NodeId<TypeNode> },
+    /// Inline Tuple type `(T1, T2, ...)` (no tuple keyword).
+    Tuple(Tuple),
     /// Inline nominal Struct type `struct MyStruct { ... }`.
     Struct(Struct),
     /// Inline nominal Union type `union MyUnion { ... }`.
@@ -749,7 +840,7 @@ pub enum Type {
     Function { signature: FunctionSignature },
 }
 
-/// An IntType represents an arbitrary width integer with signedness.
+/// An IntType represents arbitrary width integer data with signedness.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IntType {
     /// Bit width.
@@ -758,7 +849,7 @@ pub struct IntType {
     pub is_signed: bool,
 }
 
-/// A FloatType represents a IEEE-754 float.
+/// A FloatType represents IEEE-754 float data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FloatType {
     /// 32-bit IEEE-754 float.
@@ -767,7 +858,7 @@ pub enum FloatType {
     Float64,
 }
 
-/// A PrimitiveType represents a primitive type.
+/// A PrimitiveType represents primitive type data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PrimitiveType {
     /// Void type.
@@ -782,7 +873,7 @@ pub enum PrimitiveType {
     Float(FloatType),
 }
 
-/// A Member is a member reference.
+/// A Member is member reference data.
 ///
 /// Examples:
 /// ```
@@ -791,11 +882,11 @@ pub enum PrimitiveType {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Member {
-    pub base: Box<Expression>,
+    pub receiver: NodeId<ExpressionNode>,
     pub name: StringId,
 }
 
-/// An Index is an index into an array or tuple.
+/// An Index is index data into an array or tuple.
 ///
 /// Examples:
 /// ```
@@ -806,11 +897,11 @@ pub struct Member {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Index {
-    pub base: Box<Expression>,
-    pub index: Box<Expression>,
+    pub receiver: NodeId<ExpressionNode>,
+    pub index: NodeId<ExpressionNode>,
 }
 
-/// A Slice is a slice of an array or tuple.
+/// A Slice is slice data of an array or tuple.
 ///
 /// Examples:
 /// ```
@@ -818,18 +909,11 @@ pub struct Index {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Slice {
-    pub start: Option<Box<Expression>>,
-    pub end: Option<Box<Expression>>,
+    pub start: Option<NodeId<ExpressionNode>>,
+    pub end: Option<NodeId<ExpressionNode>>,
 }
 
-/// A UnaryOperation is a unary operation.
-#[derive(Debug, Clone, PartialEq)]
-pub struct UnaryOperation {
-    pub operator: UnaryOperator,
-    pub operand: Box<Expression>,
-}
-
-/// A UnaryOperator is a unary operator.
+/// A UnaryOperator is unary operator data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// '?'
@@ -846,56 +930,82 @@ pub enum UnaryOperator {
     Dereference,
 }
 
-/// A BinaryOperation is a binary operation.
+/// A UnaryOperation is unary operation data.
 #[derive(Debug, Clone, PartialEq)]
-pub struct BinaryOperation {
-    pub operator: BinaryOperator,
-    pub lhs: Box<Expression>,
-    pub rhs: Box<Expression>,
+pub struct UnaryOperation {
+    pub operator: UnaryOperator,
+    pub operand: NodeId<ExpressionNode>,
 }
 
-/// A BinaryOperator is a binary operator.
+/// A BinaryOperator is binary operator data.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOperator {
     /// `+`
     Add,
+    /// `+%`
+    WrappingAdd,
+    /// `+|`
+    SaturatingAdd,
     /// `-`
     Subtract,
+    /// `-%`
+    WrappingSubtract,
+    /// `-|`
+    SaturatingSubtract,
     /// `*`
     Multiply,
+    /// `*%`
+    WrappingMultiply,
+    /// `*|`
+    SaturatingMultiply,
     /// `/`
     Divide,
     /// `%`
     Modulo,
+    /// `**`
+    Power,
+
     /// `==`
     Equal,
     /// `!=`
     NotEqual,
     /// `<`
     LessThan,
-    /// `>`
-    GreaterThan,
     /// `<=`
     LessThanOrEqual,
+    /// `>`
+    GreaterThan,
     /// `>=`
     GreaterThanOrEqual,
+
     /// `&&`
-    And,
+    LogicalAnd,
     /// `||`
-    Or,
-    /// `^`
-    BitXor,
+    LogicalOr,
+
     /// `&`
-    BitAnd,
+    BitwiseAnd,
     /// `|`
-    BitOr,
+    BitwiseOr,
+    /// `^`
+    BitwiseXor,
     /// `<<`
-    BitLeftShift,
+    BitwiseLeftShift,
+    /// `<<|`
+    SaturatingBitwiseLeftShift,
     /// `>>`
-    BitRightShift,
+    BitwiseRightShift,
 }
 
-/// A Block is a block of statements.
+/// A BinaryOperation is binary operation data.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BinaryOperation {
+    pub operator: BinaryOperator,
+    pub lhs: NodeId<ExpressionNode>,
+    pub rhs: NodeId<ExpressionNode>,
+}
+
+/// A Block is a block AST node of statements.
 ///
 /// Examples:
 /// ```
@@ -909,12 +1019,12 @@ pub enum BinaryOperator {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Block {
+pub struct BlockNode {
     pub label: Option<StringId>,
-    pub statements: Vec<Statement>,
+    pub statements: Vec<NodeId<StatementNode>>,
 }
 
-/// A Let is a let binding to introduce a new constant into a scope.
+/// A Let is let binding data to introduce a new constant into a scope.
 /// A constant must always be initialized to a value and it cannot be changed.
 ///
 /// Examples:
@@ -925,11 +1035,11 @@ pub struct Block {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
     pub name: StringId,
-    pub r#type: Option<Box<Type>>,
-    pub value: Box<Expression>,
+    pub r#type: Option<NodeId<TypeNode>>,
+    pub value: NodeId<ExpressionNode>,
 }
 
-/// A Var is a var binding to introduce a new variable into a scope.
+/// A Var is var binding data to introduce a new variable into a scope.
 /// A variable may be explicitly uninintialized with `---`.
 ///
 /// Examples:
@@ -942,13 +1052,13 @@ pub struct Let {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Var {
     pub name: StringId,
-    pub r#type: Option<Box<Type>>,
-    pub value: Option<Box<Expression>>,
+    pub r#type: Option<NodeId<TypeNode>>,
+    pub value: Option<NodeId<ExpressionNode>>,
     /// Whether the var is uninitialized with `---`.
     pub is_uninitialized: bool,
 }
 
-/// As is a cast expression.
+/// As is cast expression data.
 ///
 /// Examples:
 /// ```
@@ -957,11 +1067,11 @@ pub struct Var {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct As {
-    pub r#type: Type,
-    pub value: Box<Expression>,
+    pub r#type: NodeId<TypeNode>,
+    pub value: NodeId<ExpressionNode>,
 }
 
-/// An If is an if/then/else statement.
+/// An If is if/then/else statement data.
 ///
 /// Examples:
 /// ```
@@ -973,12 +1083,12 @@ pub struct As {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct If {
-    pub condition: Box<Expression>,
-    pub then_block: Block,
-    pub else_block: Option<Block>,
+    pub condition: NodeId<ExpressionNode>,
+    pub then_block: NodeId<BlockNode>,
+    pub else_block: Option<NodeId<BlockNode>>,
 }
 
-/// A While is a while loop.
+/// A While is while loop data.
 ///
 /// Examples:
 /// ```
@@ -993,11 +1103,11 @@ pub struct If {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
-    pub condition: Box<Expression>,
-    pub body: Block,
+    pub condition: NodeId<ExpressionNode>,
+    pub body: NodeId<BlockNode>,
 }
 
-/// A For is a for loop over an iterator with a pattern.
+/// A For is for loop data over an iterator with a pattern.
 ///
 /// Examples:
 /// ```
@@ -1015,14 +1125,14 @@ pub struct While {
 #[derive(Debug, Clone, PartialEq)]
 pub struct For {
     /// The pattern to match the iterator against.
-    pub pattern: Pattern,
+    pub pattern: NodeId<PatternNode>,
     /// The iterator to iterate over.
-    pub iterator: Box<Expression>,
+    pub iterator: NodeId<ExpressionNode>,
     /// The body of the for loop.
-    pub body: Block,
+    pub body: NodeId<BlockNode>,
 }
 
-/// A Loop is an unconditional loop.
+/// A Loop is unconditional loop data.
 ///
 /// Examples:
 /// ```
@@ -1035,10 +1145,10 @@ pub struct For {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Loop {
-    pub body: Block,
+    pub body: NodeId<BlockNode>,
 }
 
-/// A Break is a break statement.
+/// A Break is break statement data.
 ///
 /// Examples:
 /// ```
@@ -1049,10 +1159,10 @@ pub struct Loop {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Break {
     pub label: Option<StringId>,
-    pub value: Option<Box<Expression>>,
+    pub value: Option<NodeId<ExpressionNode>>,
 }
 
-/// A Continue is a continue statement.
+/// A Continue is continue statement data.
 ///
 /// Examples:
 /// ```
@@ -1064,7 +1174,7 @@ pub struct Continue {
     pub label: Option<StringId>,
 }
 
-/// A Defer is a defer statement.
+/// A Defer is defer statement data.
 ///
 /// Examples:
 /// ```
@@ -1074,13 +1184,17 @@ pub struct Continue {
 ///     someFunction()
 ///     someOtherFunction()
 /// }
+///
+/// defer :label {
+///     someOtherFunction()
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Defer {
-    pub body: Box<Expression>,
+    pub body: NodeId<ExpressionNode>,
 }
 
-/// A Return is a return statement.
+/// A Return is return statement data.
 ///
 /// Examples:
 /// ```
@@ -1088,10 +1202,10 @@ pub struct Defer {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return {
-    pub value: Option<Box<Expression>>,
+    pub value: Option<NodeId<ExpressionNode>>,
 }
 
-/// A Pattern is a pattern to match something and unwrap it.
+/// A Pattern is a pattern AST node to match something and unwrap it.
 ///
 /// Examples:
 /// ```
@@ -1103,38 +1217,41 @@ pub struct Return {
 /// _
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum Pattern {
+pub enum PatternNode {
     /// A literal value.
     Literal(ScalarLiteral),
     /// Or pattern `1 | 2`.
-    Or(Vec<Pattern>),
+    Or(Vec<NodeId<PatternNode>>),
     /// Slice pattern `1..3`.
     Slice(Slice),
     /// Tuple pattern `(x, 0)`.
-    Tuple(Vec<PatternTupleField>),
+    Tuple(Vec<NodeId<PatternTupleFieldNode>>),
     /// Struct pattern `Vector2 { x: 0, y }`.
-    Struct(Vec<PatternStructField>),
+    Struct(Vec<NodeId<PatternStructFieldNode>>),
     /// Wildcard pattern `_`.
     Wildcard,
 }
 
-/// A PatternTupleField is a field of a tuple pattern.
+/// A PatternTupleField is a field AST node of a tuple pattern.
 #[derive(Debug, Clone, PartialEq)]
-pub enum PatternTupleField {
+pub enum PatternTupleFieldNode {
     /// A named field.
     Literal(ScalarLiteral),
     /// A wildcard field.
     Wildcard,
 }
 
-/// A PatternStructField is a field of a struct pattern.
+/// A PatternStructField is a field AST node of a struct pattern.
 #[derive(Debug, Clone, PartialEq)]
-pub enum PatternStructField {
+pub enum PatternStructFieldNode {
     /// A literal field.
-    Literal { name: StringId, value: Pattern },
+    Literal {
+        name: StringId,
+        value: NodeId<PatternNode>,
+    },
 }
 
-/// A Match is a match statement.
+/// A Match is match expression data with case patterns.
 /// The clauses must be exhaustive and return the same type.
 /// Match statements are Expressions and also used in catch patterns.
 /// Like other statements, match cases do not need to be terminated with a colon/semicolon.
@@ -1158,18 +1275,18 @@ pub enum PatternStructField {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Match {
-    pub value: Box<Expression>,
-    pub cases: Vec<MatchCase>,
+    pub value: NodeId<ExpressionNode>,
+    pub cases: Vec<NodeId<MatchCaseNode>>,
 }
 
-/// A MatchCase is a match case.
+/// A MatchCase is a match case AST node inside a Match expression.
 #[derive(Debug, Clone, PartialEq)]
-pub struct MatchCase {
-    pub pattern: Pattern,
-    pub body: Block,
+pub struct MatchCaseNode {
+    pub pattern: NodeId<PatternNode>,
+    pub body: NodeId<BlockNode>,
 }
 
-/// A Try is a try/catch statement.
+/// A Try is try/catch statement data.
 /// The try expression may be a single statement or a block of statements.
 /// Any error Result within the try expression aborts the try expression and:
 ///  1. If there is a catch, jumps to the catch pattern matching for handling.
@@ -1180,8 +1297,8 @@ pub struct MatchCase {
 /// try fileOperation(); // implicitly unwraps the Result, returns Error case
 ///
 /// try { // implicitly unwraps all Results inside
-///     let a = riskyOperationA(); // a is Result.Ok(_) from riskyOperationA
-///     riskyOperationB(a);
+///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
+///     riskyOperationB(a)
 /// } // no catch needed if containing function has compatible Result type (Into suffices)
 ///
 /// try { // explicitly unwraps all Results inside
@@ -1194,11 +1311,11 @@ pub struct MatchCase {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Try {
-    pub try_block: Box<Expression>,
-    pub catch_block: Option<Match>,
+    pub try_block: NodeId<ExpressionNode>,
+    pub catch_block: Option<NodeId<Match>>,
 }
 
-/// An Assignment is an assignment of an Expression to a place.
+/// An Assignment is assignment data of an Expression to a place.
 /// Assignments are not Expressions per se, they do not have a value.
 ///
 /// Examples:
@@ -1212,45 +1329,63 @@ pub struct Try {
 pub struct Assign {
     /// The left-hand side of the assignment.
     /// Should be a place Expression, but this is checked later.
-    pub lhs: Expression,
+    pub lhs: NodeId<ExpressionNode>,
     pub r#type: AssignType,
-    pub rhs: Expression,
+    pub rhs: NodeId<ExpressionNode>,
 }
 
-/// An AssignType is an assignment type.
+/// An AssignType is assignment type data.
 ///
 /// Examples:
 /// ```
 /// =
 /// +=
 /// -=
+/// *|=
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum AssignType {
     /// `=`
     Assign,
+
     /// `+=`
     AddAssign,
+    /// `+%=`
+    WrappingAddAssign,
+    /// `+|=`
+    SaturatingAddAssign,
     /// `-=`
     SubtractAssign,
+    /// `-%=`
+    WrappingSubtractAssign,
+    /// `-|=`
+    SaturatingSubtractAssign,
     /// `*=`
     MultiplyAssign,
+    /// `*%=`
+    WrappingMultiplyAssign,
+    /// `*|=`
+    SaturatingMultiplyAssign,
     /// `/=`
     DivideAssign,
     /// `%=`
-    ModuloAssign,
+    RemainderAssign,
+
+    /// `&&=`
+    LogicalAndAssign,
+    /// `||=`
+    LogicalOrAssign,
+
     /// `&=`
-    AndAssign,
+    BitwiseAndAssign,
     /// `|=`
-    OrAssign,
+    BitwiseOrAssign,
     /// `^=`
-    BitAndAssign,
-    /// `|=`
-    BitOrAssign,
-    /// `^=`
-    BitXorAssign,
+    BitwiseXorAssign,
     /// `<<=`
-    BitLeftShiftAssign,
+    ShiftLeftAssign,
+    /// `<<|=`
+    SaturatingShiftLeftAssign,
     /// `>>=`
-    BitRightShiftAssign,
+    ShiftRightAssign,
 }

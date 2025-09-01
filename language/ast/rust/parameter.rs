@@ -1,4 +1,4 @@
-use crate::{Parameter, ParseResult, Parser};
+use crate::{ParameterNode, ParseResult, Parser};
 use destack_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -9,7 +9,7 @@ impl<'a> Parser<'a> {
     /// x: int32
     /// Validate: bool = false
     /// ```
-    pub fn eat_parameter(&mut self) -> ParseResult<Parameter> {
+    pub fn eat_parameter(&mut self) -> ParseResult<ParameterNode> {
         // name: type
         let name = self.eat_identifier()?;
         self.eat_colon()?;
@@ -20,14 +20,14 @@ impl<'a> Parser<'a> {
             // has default value
             self.eat_token(TokenType::Assign)?;
             let value = self.eat_expression()?;
-            Ok(Parameter {
+            Ok(ParameterNode {
                 name,
                 r#type,
                 default: Some(value),
             })
         } else {
             // no default value
-            Ok(Parameter {
+            Ok(ParameterNode {
                 name,
                 r#type,
                 default: None,
@@ -42,8 +42,8 @@ impl<'a> Parser<'a> {
     /// x: int32
     /// x: int32, y: int32
     /// ```
-    pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<Parameter>> {
-        let mut parameters: Vec<Parameter> = Vec::new();
+    pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<ParameterNode>> {
+        let mut parameters: Vec<ParameterNode> = Vec::new();
         loop {
             let parameter = self.eat_parameter()?;
             parameters.push(parameter);
