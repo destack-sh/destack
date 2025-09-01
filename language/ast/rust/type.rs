@@ -6,7 +6,7 @@ use destack_language_token::TokenType;
 
 use crate::{
     FloatType, IntType, Keyword, ParseError, ParseResult, Parser, PrimitiveType, Tuple,
-    TupleElement, Type,
+    TupleElementNode, TypeNode,
 };
 
 impl IntType {
@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
     /// [float32]
     /// [float32; 5]
     /// ```
-    pub fn eat_type(&mut self) -> ParseResult<Type> {
+    pub fn eat_type(&mut self) -> ParseResult<TypeNode> {
         // tuple
         if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
             self.eat_tuple_type()
@@ -145,7 +145,7 @@ impl<'a> Parser<'a> {
     /// uint7
     /// float32
     /// ```
-    pub fn peek_primitive_type(&self) -> ParseResult<Type> {
+    pub fn peek_primitive_type(&self) -> ParseResult<TypeNode> {
         let next = self.peek_next()?;
         let next_str = self.get_span_str(next.span);
         let primitive_type = match next_str {
@@ -177,7 +177,7 @@ impl<'a> Parser<'a> {
             "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
             _ => Err(ParseError::UnexpectedToken(next.span)),
         };
-        Ok(Type::Primitive(primitive_type?))
+        Ok(TypeNode::Primitive(primitive_type?))
     }
 
     /// Eat a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
@@ -191,7 +191,7 @@ impl<'a> Parser<'a> {
     /// uint7
     /// float32
     /// ```
-    pub fn eat_primitive_type(&mut self) -> ParseResult<Type> {
+    pub fn eat_primitive_type(&mut self) -> ParseResult<TypeNode> {
         let r#type = self.peek_primitive_type()?;
         self.eat_identifier()?;
         Ok(r#type)
@@ -211,23 +211,23 @@ impl<'a> Parser<'a> {
     /// !Time
     /// geom.Vector<Dims: 2, float32>
     /// ```
-    pub fn eat_scalar_type(&mut self) -> ParseResult<Type> {
+    pub fn eat_scalar_type(&mut self) -> ParseResult<TypeNode> {
         let next = self.peek_next()?;
 
         // maybe
         if next.token.r#type == TokenType::Question {
             self.bump();
             let inner_type = self.eat_type()?;
-            Ok(Type::Maybe(Some(Box::new(inner_type))))
+            Ok(TypeNode::Maybe(Some(Box::new(inner_type))))
         }
         // never
         else if next.token.r#type == TokenType::Bang {
             self.bump();
             if self.peek_next_token(TokenType::Identifier).is_ok() {
                 let inner_type = self.eat_type()?;
-                Ok(Type::Never(Some(Box::new(inner_type))))
+                Ok(TypeNode::Never(Some(Box::new(inner_type))))
             } else {
-                Ok(Type::Never(None))
+                Ok(TypeNode::Never(None))
             }
 
         // primitive
@@ -240,7 +240,7 @@ impl<'a> Parser<'a> {
             let identifier = self.get_span_str(next.span);
             if identifier == "_" {
                 self.bump();
-                Ok(Type::Infer)
+                Ok(TypeNode::Infer)
             } else {
                 let path = self.eat_path()?;
                 // eat static arguments if present
@@ -248,12 +248,12 @@ impl<'a> Parser<'a> {
                     self.eat_token(TokenType::LessThan)?;
                     let static_arguments = self.eat_arguments_body()?;
                     self.eat_token(TokenType::GreaterThan)?;
-                    Ok(Type::Path {
+                    Ok(TypeNode::Path {
                         path,
                         static_arguments: Some(static_arguments),
                     })
                 } else {
-                    Ok(Type::Path {
+                    Ok(TypeNode::Path {
                         path,
                         static_arguments: None,
                     })
@@ -273,7 +273,7 @@ impl<'a> Parser<'a> {
     /// (int32)
     /// (int32, int32)
     /// ```
-    pub fn eat_tuple_type(&mut self) -> ParseResult<Type> {
+    pub fn eat_tuple_type(&mut self) -> ParseResult<TypeNode> {
         self.eat_token(TokenType::OpenParenthesis)?;
         let body = self.eat_tuple_type_body()?;
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -288,8 +288,8 @@ impl<'a> Parser<'a> {
     /// int32, int32
     /// a: int32, b: boolean
     /// ```
-    pub fn eat_tuple_type_body(&mut self) -> ParseResult<Type> {
-        let mut elements: Vec<TupleElement> = Vec::new();
+    pub fn eat_tuple_type_body(&mut self) -> ParseResult<TypeNode> {
+        let mut elements: Vec<TupleElementNode> = Vec::new();
         loop {
             let element = self.eat_tuple_element()?;
             elements.push(element);
@@ -299,7 +299,7 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        Ok(Type::Tuple(Tuple {
+        Ok(TypeNode::Tuple(Tuple {
             elements,
             name: None,
         }))
@@ -312,7 +312,7 @@ impl<'a> Parser<'a> {
     /// int32
     /// a: int32
     /// ```
-    pub fn eat_tuple_element(&mut self) -> ParseResult<TupleElement> {
+    pub fn eat_tuple_element(&mut self) -> ParseResult<TupleElementNode> {
         todo!()
     }
 
@@ -323,7 +323,7 @@ impl<'a> Parser<'a> {
     /// [int32] // slice
     /// [int32; 5] // array (fixed size)
     /// ```
-    pub fn eat_array_or_slice_type(&mut self) -> ParseResult<Type> {
+    pub fn eat_array_or_slice_type(&mut self) -> ParseResult<TypeNode> {
         self.eat_token(TokenType::OpenBracket)?;
         let body = self.eat_array_or_slice_type_body()?;
         self.eat_token(TokenType::CloseBracket)?;
@@ -337,17 +337,17 @@ impl<'a> Parser<'a> {
     /// int32
     /// int32; 5
     /// ```
-    pub fn eat_array_or_slice_type_body(&mut self) -> ParseResult<Type> {
+    pub fn eat_array_or_slice_type_body(&mut self) -> ParseResult<TypeNode> {
         let element = self.eat_type()?;
         if self.peek_semicolon().is_ok() {
             self.eat_semicolon()?;
             let count = self.eat_expression()?;
-            Ok(Type::Array {
+            Ok(TypeNode::Array {
                 element_type: Box::new(element),
                 count: Box::new(count),
             })
         } else {
-            Ok(Type::Slice {
+            Ok(TypeNode::Slice {
                 element: Box::new(element),
             })
         }
@@ -361,7 +361,7 @@ impl<'a> Parser<'a> {
     /// (int32) => (int32, int32) // explicit tuple return type
     /// (int32) => int32, int32 // implicit tuple return type
     /// ```
-    pub fn eat_function_signature(&mut self) -> ParseResult<Type> {
+    pub fn eat_function_signature(&mut self) -> ParseResult<TypeNode> {
         todo!()
     }
 }
@@ -371,8 +371,8 @@ mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
     use crate::{
-        Argument, Expression, FloatType, IntType, Parser, Path, PathSegment, PrimitiveType,
-        ScalarLiteral, Type,
+        ArgumentNode, ExpressionNode, FloatType, IntType, Parser, Path, PathSegment, PrimitiveType,
+        ScalarLiteral, TypeNode,
     };
 
     #[test]
@@ -395,24 +395,24 @@ float64
 
         // void
         let r#type = parser.eat_type().unwrap();
-        assert_eq!(r#type, Type::Primitive(PrimitiveType::Void));
+        assert_eq!(r#type, TypeNode::Primitive(PrimitiveType::Void));
         parser.eat_newline().unwrap();
 
         // boolean
         let r#type = parser.eat_type().unwrap();
-        assert_eq!(r#type, Type::Primitive(PrimitiveType::Boolean));
+        assert_eq!(r#type, TypeNode::Primitive(PrimitiveType::Boolean));
         parser.eat_newline().unwrap();
 
         // character
         let r#type = parser.eat_type().unwrap();
-        assert_eq!(r#type, Type::Primitive(PrimitiveType::Character));
+        assert_eq!(r#type, TypeNode::Primitive(PrimitiveType::Character));
         parser.eat_newline().unwrap();
 
         // int32
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Int(IntType {
+            TypeNode::Primitive(PrimitiveType::Int(IntType {
                 width: 32,
                 is_signed: true,
             }))
@@ -423,7 +423,7 @@ float64
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Int(IntType {
+            TypeNode::Primitive(PrimitiveType::Int(IntType {
                 width: 7,
                 is_signed: false,
             }))
@@ -434,7 +434,7 @@ float64
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Int(IntType {
+            TypeNode::Primitive(PrimitiveType::Int(IntType {
                 width: 0,
                 is_signed: false,
             }))
@@ -445,7 +445,7 @@ float64
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Int(IntType {
+            TypeNode::Primitive(PrimitiveType::Int(IntType {
                 width: 999,
                 is_signed: false,
             }))
@@ -456,7 +456,7 @@ float64
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Int(IntType {
+            TypeNode::Primitive(PrimitiveType::Int(IntType {
                 width: 128,
                 is_signed: true,
             }))
@@ -467,7 +467,7 @@ float64
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Float(FloatType::Float32))
+            TypeNode::Primitive(PrimitiveType::Float(FloatType::Float32))
         );
         parser.eat_newline().unwrap();
 
@@ -475,7 +475,7 @@ float64
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Float(FloatType::Float64))
+            TypeNode::Primitive(PrimitiveType::Float(FloatType::Float64))
         );
         parser.eat_newline().unwrap();
     }
@@ -498,7 +498,7 @@ MyMesh<false, Dims: 3> // path with static arguments
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Primitive(PrimitiveType::Float(FloatType::Float32))
+            TypeNode::Primitive(PrimitiveType::Float(FloatType::Float32))
         );
         parser.eat_newline().unwrap();
 
@@ -506,7 +506,7 @@ MyMesh<false, Dims: 3> // path with static arguments
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Path {
+            TypeNode::Path {
                 path: Path {
                     segments: vec![
                         PathSegment {
@@ -526,20 +526,23 @@ MyMesh<false, Dims: 3> // path with static arguments
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Path {
+            TypeNode::Path {
                 path: Path {
                     segments: vec![PathSegment {
                         name: parser.identifiers.intern("MyMesh")
                     }]
                 },
                 static_arguments: Some(vec![
-                    Argument {
+                    ArgumentNode {
                         name: None,
-                        value: Expression::ScalarLiteral(ScalarLiteral::Boolean(false))
+                        value: ExpressionNode::ScalarLiteral(ScalarLiteral::Boolean(false))
                     },
-                    Argument {
+                    ArgumentNode {
                         name: Some(parser.identifiers.intern("Dims")),
-                        value: Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::INT32))
+                        value: ExpressionNode::ScalarLiteral(ScalarLiteral::Integer(
+                            3,
+                            IntType::INT32
+                        ))
                     },
                 ])
             }
@@ -550,7 +553,7 @@ MyMesh<false, Dims: 3> // path with static arguments
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Maybe(Some(Box::new(Type::Primitive(PrimitiveType::Float(
+            TypeNode::Maybe(Some(Box::new(TypeNode::Primitive(PrimitiveType::Float(
                 FloatType::Float32
             )))))
         );
@@ -558,14 +561,14 @@ MyMesh<false, Dims: 3> // path with static arguments
 
         // !
         let r#type = parser.eat_type().unwrap();
-        assert_eq!(r#type, Type::Never(None));
+        assert_eq!(r#type, TypeNode::Never(None));
         parser.eat_newline().unwrap();
 
         // !Time
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Never(Some(Box::new(Type::Path {
+            TypeNode::Never(Some(Box::new(TypeNode::Path {
                 path: Path {
                     segments: vec![PathSegment {
                         name: parser.identifiers.intern("Time")

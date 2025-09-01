@@ -37,5 +37,7 @@ pub use keyword::*;
 pub use node::*;
 pub use parse::*;
 
+pub use destack_language_arena::{StringId, StringPool};
+
 #[cfg(test)]
 mod tests;
