@@ -46,7 +46,7 @@ pub enum TokenType {
     /// End of sequence (e.g., end of source file)
     End,
 
-    /// A doc line comment with exactly three slashes, e.g. `/// doc comment`. or `///`
+    /// A doc line comment with exactly three slashes, e.g. `/// doc comment` or just `///`
     DocComment,
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,

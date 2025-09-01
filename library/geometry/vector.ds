@@ -2,8 +2,8 @@ using destack.simulation
 
 /// A 2-dimensional vector with float32 components.
 struct Vector2 {
-    x: float32,
-    y: float32,
+    x: float32
+    y: float32
 }
 @assert(@sizeOf(Vector2) == 8)
 
@@ -158,9 +158,9 @@ implement Numeric<Vector2> for Vector2 {
 
 /// A 3-dimensional vector with float32 components.
 struct Vector3 {
-    x: float32,
-    y: float32,
-    z: float32,
+    x: float32
+    y: float32
+    z: float32
 }
 
 implement Vector3 {
@@ -333,10 +333,10 @@ implement Divide<float32> for Vector3 {
 
 /// A 4-dimensional vector with float32 components.
 struct Vector4 {
-    x: float32,
-    y: float32,
-    z: float32,
-    w: float32,
+    x: float32
+    y: float32
+    z: float32
+    w: float32
 }
 
 implement Vector4 {
@@ -656,9 +656,9 @@ implement Divide<int32> for Vector2i {
 
 /// A 3-dimensional vector with int32 components.
 struct Vector3i {
-    x: int32,
-    y: int32,
-    z: int32,
+    x: int32
+    y: int32
+    z: int32
 }
 
 implement Vector3i {
@@ -814,10 +814,10 @@ implement Divide<int32> for Vector3i {
 
 /// A 4-dimensional vector with int32 components.
 struct Vector4i {
-    x: int32,
-    y: int32,
-    z: int32,
-    w: int32,
+    x: int32
+    y: int32
+    z: int32
+    w: int32
 }
 
 implement Vector4i {

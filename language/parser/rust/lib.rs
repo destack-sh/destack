@@ -3,6 +3,7 @@
 mod argument;
 mod r#as;
 mod binary;
+mod block;
 mod call;
 mod expression;
 mod function;
