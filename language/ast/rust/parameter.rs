@@ -1,4 +1,4 @@
-use crate::{ParameterNode, ParseResult, Parser};
+use crate::{Parameter, NodeId, ParseResult, Parser};
 use destack_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -9,7 +9,9 @@ impl<'a> Parser<'a> {
     /// x: int32
     /// Validate: bool = false
     /// ```
-    pub fn eat_parameter(&mut self) -> ParseResult<ParameterNode> {
+    pub fn eat_parameter(&mut self) -> ParseResult<NodeId<Parameter>> {
+        let start = self.mark();
+
         // name: type
         let name = self.eat_identifier()?;
         self.eat_colon()?;
@@ -20,18 +22,20 @@ impl<'a> Parser<'a> {
             // has default value
             self.eat_token(TokenType::Assign)?;
             let value = self.eat_expression()?;
-            Ok(ParameterNode {
+            let parameter_id = self.tree.allocate_from_mark(Parameter {
                 name,
                 r#type,
                 default: Some(value),
-            })
+            }, start);
+            Ok(parameter_id)
         } else {
             // no default value
-            Ok(ParameterNode {
+            let parameter_id = self.tree.allocate_from_mark(Parameter {
                 name,
                 r#type,
                 default: None,
-            })
+            }, start);
+            Ok(parameter_id)
         }
     }
 
@@ -42,8 +46,8 @@ impl<'a> Parser<'a> {
     /// x: int32
     /// x: int32, y: int32
     /// ```
-    pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<ParameterNode>> {
-        let mut parameters: Vec<ParameterNode> = Vec::new();
+    pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
+        let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
         loop {
             let parameter = self.eat_parameter()?;
             parameters.push(parameter);

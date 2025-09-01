@@ -47,7 +47,7 @@ mod tests {
             path,
             Path {
                 segments: vec![PathSegment {
-                    name: parser.identifiers.intern("destack")
+                    name: parser.strings.intern("destack")
                 }]
             }
         );
@@ -65,13 +65,13 @@ mod tests {
             Path {
                 segments: vec![
                     PathSegment {
-                        name: parser.identifiers.intern("destack")
+                        name: parser.strings.intern("destack")
                     },
                     PathSegment {
-                        name: parser.identifiers.intern("geometry")
+                        name: parser.strings.intern("geometry")
                     },
                     PathSegment {
-                        name: parser.identifiers.intern("math")
+                        name: parser.strings.intern("math")
                     },
                 ],
             }
@@ -89,10 +89,10 @@ mod tests {
             Path {
                 segments: vec![
                     PathSegment {
-                        name: parser.identifiers.intern("ds")
+                        name: parser.strings.intern("ds")
                     },
                     PathSegment {
-                        name: parser.identifiers.intern("geometry")
+                        name: parser.strings.intern("geometry")
                     },
                 ],
             }
@@ -114,10 +114,10 @@ mod tests {
             Path {
                 segments: vec![
                     PathSegment {
-                        name: parser.identifiers.intern("geom")
+                        name: parser.strings.intern("geom")
                     },
                     PathSegment {
-                        name: parser.identifiers.intern("Vector")
+                        name: parser.strings.intern("Vector")
                     },
                 ],
             }

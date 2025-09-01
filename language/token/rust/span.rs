@@ -1,12 +1,33 @@
 use crate::Token;
 
-/// A position range in a `SourceFile`.
+/// A position range in a `SourceFile` in bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Span {
     /// The start position of the Span in bytes (absolute, inclusive).
     pub start: u32,
     /// The end position of the Span in bytes (absolute, exclusive).
     pub end: u32,
+}
+
+impl Span {
+    pub fn new(start: u32, end: u32) -> Self {
+        Self { start, end }
+    }
+
+    pub fn empty() -> Self {
+        Self { start: 0, end: 0 }
+    }
+
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            start: self.start.min(other.start),
+            end: self.end.max(other.end),
+        }
+    }
+
+    pub fn is_empty(self) -> bool {
+        self.start == self.end
+    }
 }
 
 /// A "semantic" Token with a Span.
