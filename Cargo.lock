@@ -338,10 +338,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_language_arena"
+version = "2025.8.31-2"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "destack_language_ast"
 version = "2025.8.31-2"
 dependencies = [
  "criterion",
+ "destack_language_arena",
  "destack_language_token",
  "pprof",
 ]

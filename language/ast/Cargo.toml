@@ -1,6 +1,6 @@
 [package]
 name = "destack_language_ast"
-description = "Destack Language Parser"
+description = "Destack Language AST"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 destack_language_token = { workspace = true }
+destack_language_arena = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

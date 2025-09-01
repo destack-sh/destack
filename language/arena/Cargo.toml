@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_token"
-description = "Destack Language Token"
+name = "destack_language_arena"
+description = "Destack Language Arena"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,19 +11,10 @@ rust-version.workspace = true
 path = "rust/lib.rs"
 
 [dependencies]
-destack_library_unicode = { workspace = true }
 
 [dev-dependencies]
-destack_library_file = { workspace = true }
-
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
-criterion = { workspace = true }
-pprof = { workspace = true }
-
-[[bench]]
-name = "destack_language_token"
-harness = false
 
 [lints]
 workspace = true
