@@ -4,15 +4,10 @@ use std::str::FromStr;
 
 use destack_language_lexer::TokenType;
 
-use crate::{Keyword, ParseError, ParseResult, Parser, Tuple, TupleElement, Type};
-
-/// An IntType represents an arbitrary width integer with signedness.
-#[derive(Debug, Clone, PartialEq)]
-pub struct IntType {
-    /// Bit width.
-    width: u8,
-    is_signed: bool,
-}
+use crate::{
+    FloatType, IntType, Keyword, ParseError, ParseResult, Parser, PrimitiveType, Tuple,
+    TupleElement, Type,
+};
 
 impl IntType {
     /// 8-bit signed integer
@@ -81,13 +76,6 @@ impl IntType {
     }
 }
 
-/// A FloatType represents a IEEE-754 float.
-#[derive(Debug, Clone, PartialEq)]
-pub enum FloatType {
-    Float32,
-    Float64,
-}
-
 impl FloatType {
     #[inline]
     pub const fn as_str(&self) -> &'static str {
@@ -146,10 +134,76 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
+    ///
+    /// Examples:
+    /// ```
+    /// void
+    /// boolean
+    /// character
+    /// int32
+    /// uint7
+    /// float32
+    /// ```
+    pub fn peek_primitive_type(&self) -> ParseResult<Type> {
+        let next = self.peek_next()?;
+        let next_str = self.get_span_str(next.span);
+        let primitive_type = match next_str {
+            // void
+            "void" => Ok(PrimitiveType::Void),
+            // boolean
+            "boolean" => Ok(PrimitiveType::Boolean),
+            // character
+            "character" => Ok(PrimitiveType::Character),
+            // int*
+            int_str if int_str.starts_with("int") => {
+                let width = int_str.trim_start_matches("int").parse::<u16>().unwrap();
+                Ok(PrimitiveType::Int(IntType {
+                    width,
+                    is_signed: true,
+                }))
+            }
+            // uint*
+            uint_str if uint_str.starts_with("uint") => {
+                let width = uint_str.trim_start_matches("uint").parse::<u16>().unwrap();
+                Ok(PrimitiveType::Int(IntType {
+                    width,
+                    is_signed: false,
+                }))
+            }
+            // float32
+            "float32" => Ok(PrimitiveType::Float(FloatType::Float32)),
+            // float64
+            "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
+            _ => Err(ParseError::UnexpectedToken(next.span)),
+        };
+        Ok(Type::Primitive(primitive_type?))
+    }
+
+    /// Eat a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
+    ///
+    /// Examples:
+    /// ```
+    /// void
+    /// boolean
+    /// character
+    /// int32
+    /// uint7
+    /// float32
+    /// ```
+    pub fn eat_primitive_type(&mut self) -> ParseResult<Type> {
+        let r#type = self.peek_primitive_type()?;
+        self.eat_identifier()?;
+        Ok(r#type)
+    }
+
     /// Eat a scalar type (Infer, Never, Path with optional static arguments).
     ///
     /// Examples:
     /// ```
+    /// void
+    /// uint8
+    /// int17
     /// float32
     /// ?float32
     /// _
@@ -159,6 +213,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_scalar_type(&mut self) -> ParseResult<Type> {
         let next = self.peek_next()?;
+
         // maybe
         if next.token.r#type == TokenType::Question {
             self.bump();
@@ -174,6 +229,12 @@ impl<'a> Parser<'a> {
             } else {
                 Ok(Type::Never(None))
             }
+
+        // primitive
+        } else if let Ok(primitive_type) = self.peek_primitive_type() {
+            self.bump();
+            Ok(primitive_type)
+
         // identifier (infer or path)
         } else if next.token.r#type == TokenType::Identifier {
             let identifier = self.get_span_str(next.span);
@@ -282,7 +343,7 @@ impl<'a> Parser<'a> {
             self.eat_semicolon()?;
             let count = self.eat_expression()?;
             Ok(Type::Array {
-                element: Box::new(element),
+                element_type: Box::new(element),
                 count: Box::new(count),
             })
         } else {
@@ -309,7 +370,114 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_lexer::{SourceFile, tokenize_semantic};
 
-    use crate::{Argument, Expression, IntType, Parser, ScalarLiteral, Type};
+    use crate::{
+        Argument, Expression, FloatType, IntType, Parser, PrimitiveType, ScalarLiteral, Type,
+    };
+
+    #[test]
+    fn test_eat_primitive_type() {
+        let source = r##"
+void
+boolean
+character
+int32
+uint7
+uint0
+uint999
+int128
+float32
+float64
+"##;
+        let tokens = tokenize_semantic(source);
+        let mut parser = Parser::new(SourceFile::new(0, source, source.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
+
+        // void
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(r#type, Type::Primitive(PrimitiveType::Void));
+        parser.eat_newline().unwrap();
+
+        // boolean
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(r#type, Type::Primitive(PrimitiveType::Boolean));
+        parser.eat_newline().unwrap();
+
+        // character
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(r#type, Type::Primitive(PrimitiveType::Character));
+        parser.eat_newline().unwrap();
+
+        // int32
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Primitive(PrimitiveType::Int(IntType {
+                width: 32,
+                is_signed: true,
+            }))
+        );
+        parser.eat_newline().unwrap();
+
+        // uint7
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Primitive(PrimitiveType::Int(IntType {
+                width: 7,
+                is_signed: false,
+            }))
+        );
+        parser.eat_newline().unwrap();
+
+        // uint0
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Primitive(PrimitiveType::Int(IntType {
+                width: 0,
+                is_signed: false,
+            }))
+        );
+        parser.eat_newline().unwrap();
+
+        // uint999
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Primitive(PrimitiveType::Int(IntType {
+                width: 999,
+                is_signed: false,
+            }))
+        );
+        parser.eat_newline().unwrap();
+
+        // int128
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Primitive(PrimitiveType::Int(IntType {
+                width: 128,
+                is_signed: true,
+            }))
+        );
+        parser.eat_newline().unwrap();
+
+        // float32
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Primitive(PrimitiveType::Float(FloatType::Float32))
+        );
+        parser.eat_newline().unwrap();
+
+        // float64
+        let r#type = parser.eat_type().unwrap();
+        assert_eq!(
+            r#type,
+            Type::Primitive(PrimitiveType::Float(FloatType::Float64))
+        );
+        parser.eat_newline().unwrap();
+    }
 
     #[test]
     fn test_eat_scalar_type() {
@@ -329,10 +497,7 @@ MyMesh<false, Dims: 3> // path with static arguments
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Path {
-                path: "float32".parse().unwrap(),
-                static_arguments: None
-            }
+            Type::Primitive(PrimitiveType::Float(FloatType::Float32))
         );
         parser.eat_newline().unwrap();
 
@@ -371,10 +536,9 @@ MyMesh<false, Dims: 3> // path with static arguments
         let r#type = parser.eat_type().unwrap();
         assert_eq!(
             r#type,
-            Type::Maybe(Some(Box::new(Type::Path {
-                path: "float32".parse().unwrap(),
-                static_arguments: None
-            })))
+            Type::Maybe(Some(Box::new(Type::Primitive(PrimitiveType::Float(
+                FloatType::Float32
+            )))))
         );
         parser.eat_newline().unwrap();
 

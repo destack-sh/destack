@@ -330,6 +330,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_language_air"
+version = "2025.8.31-2"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
 name = "destack_language_codegen_cranelift"
 version = "2025.8.31-2"
 dependencies = [
@@ -346,7 +354,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_language_hir"
+name = "destack_language_dir"
 version = "2025.8.31-2"
 dependencies = [
  "quickcheck",

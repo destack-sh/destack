@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_hir"
-description = "Destack Language HIR"
+name = "destack_language_air"
+description = "Destack Language Analytical IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
