@@ -216,12 +216,8 @@ fn run(ctx: CommandArguments) -> i32 {
         "Lines".to_string(),
     ];
     let mut rows: Vec<LanguageStatistic> = Vec::new();
-    for (lang, lines) in statistics.lines_by_languageuage.iter() {
-        let files = statistics
-            .files_by_languageuage
-            .get(lang)
-            .copied()
-            .unwrap_or(0);
+    for (lang, lines) in statistics.lines_by_language.iter() {
+        let files = statistics.files_by_language.get(lang).copied().unwrap_or(0);
         let extension = options
             .languages
             .iter()

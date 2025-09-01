@@ -10,7 +10,7 @@ impl zed::Extension for DestackZedExtension {
 
     fn language_server_command(
         &mut self,
-        _languageuage_server_id: &LanguageServerId,
+        _language_server_id: &LanguageServerId,
         _worktree: &zed::Worktree,
     ) -> zed::Result<zed::Command> {
         // prefer the workspace-installed CLI server via PATH

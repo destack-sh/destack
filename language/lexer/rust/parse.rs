@@ -611,7 +611,9 @@ impl Tokenizer<'_> {
         let n_hashes = self.eat_raw_string_unvalidated(prefix_len)?;
         match u8::try_from(n_hashes) {
             Ok(num) => Ok(num),
-            Err(_) => Err(RawStringError::TooManyDelimiters { found: n_hashes }),
+            Err(_) => Err(RawStringError::TooManyDelimiters {
+                found_hashes: n_hashes,
+            }),
         }
     }
 
@@ -649,8 +651,8 @@ impl Tokenizer<'_> {
 
             if self.is_eof() {
                 return Err(RawStringError::NoTerminator {
-                    expected: n_start_hashes,
-                    found: max_hashes,
+                    expected_hashes: n_start_hashes,
+                    found_hashes: max_hashes,
                     possible_terminator_offset,
                 });
             }

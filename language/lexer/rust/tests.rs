@@ -64,16 +64,16 @@ fn test_unterminated() {
     assert_raw_str_eq(
         r#"#"abc"#,
         Err(RawStringError::NoTerminator {
-            expected: 1,
-            found: 0,
+            expected_hashes: 1,
+            found_hashes: 0,
             possible_terminator_offset: None,
         }),
     );
     assert_raw_str_eq(
         r###"##"abc"#"###,
         Err(RawStringError::NoTerminator {
-            expected: 2,
-            found: 1,
+            expected_hashes: 2,
+            found_hashes: 1,
             possible_terminator_offset: Some(7),
         }),
     );
@@ -81,8 +81,8 @@ fn test_unterminated() {
     assert_raw_str_eq(
         r###"##"abc#"###,
         Err(RawStringError::NoTerminator {
-            expected: 2,
-            found: 0,
+            expected_hashes: 2,
+            found_hashes: 0,
             possible_terminator_offset: None,
         }),
     )
@@ -162,8 +162,8 @@ fn test_unterminated_no_pound() {
     assert_raw_str_eq(
         r#"""#,
         Err(RawStringError::NoTerminator {
-            expected: 0,
-            found: 0,
+            expected_hashes: 0,
+            found_hashes: 0,
             possible_terminator_offset: None,
         }),
     );
@@ -185,7 +185,7 @@ fn test_too_many_hashes() {
     assert_raw_str_eq(
         &s2,
         Err(RawStringError::TooManyDelimiters {
-            found: u32::from(max_count) + 1,
+            found_hashes: u32::from(max_count) + 1,
         }),
     );
 }
