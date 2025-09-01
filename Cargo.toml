@@ -2,14 +2,15 @@
 resolver = "2"
 members = [
 	# language
+	"language/air",
 	"language/codegen_cranelift",
 	"language/codegen_llvm",
-	"language/hir",
+	"language/dir",
+	"language/interpreter",
 	"language/lexer",
 	"language/libgen_rust",
 	"language/mir",
 	"language/parser",
-	"language/interpreter",
 	# library
 	"library/access",
 	"library/animation",
@@ -61,14 +62,15 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # language
+destack_language_air = { path = "language/air" }
 destack_language_codegen_cranelift = { path = "language/codegen_cranelift" }
 destack_language_codegen_llvm = { path = "language/codegen_llvm" }
-destack_language_hir = { path = "language/hir" }
+destack_language_dir = { path = "language/dir" }
+destack_language_interpreter = { path = "language/interpreter" }
 destack_language_lexer = { path = "language/lexer" }
 destack_language_libgen_rust = { path = "language/libgen_rust" }
 destack_language_mir = { path = "language/mir" }
 destack_language_parser = { path = "language/parser" }
-destack_language_interpreter = { path = "language/interpreter" }
 # library
 destack_library_access = { path = "library/access" }
 destack_library_animation = { path = "library/animation" }

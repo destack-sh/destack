@@ -7,7 +7,7 @@
 
 use std::str::FromStr;
 
-use crate::{FloatType, Identifier, IntType};
+use crate::Identifier;
 
 pub type NodeId = u32;
 
@@ -58,10 +58,11 @@ pub struct PathSegment {
     pub name: Identifier,
 }
 
+/// A Visibility is the visibility of an item.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Visibility {
     Public,
-    PublicModule,
+    Private,
 }
 
 /// A Module is a module declaration.
@@ -586,10 +587,10 @@ pub enum Expression {
     /// Dynamic associated method call
     DynamicMethodCall(Box<DynamicMethodCall>),
 
-    /// Expression form of Let for condition / guard positions.
+    /// Let for condition / guard positions.
     Let(Let),
     /// Casting.
-    Cast(As),
+    As(As),
     /// If/then/else expression.
     If(If),
     /// While loop.
@@ -744,32 +745,68 @@ pub struct FieldLiteral {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    /// Infer placeholder `_`
+    /// Infer placeholder `_`.
     Infer,
-    /// Maybe '?'
+    /// Maybe '?T'. Desugars to `Maybe<T>`.
     Maybe(Option<Box<Type>>),
-    /// Never `!`
+    /// Never `!T`. Desugars to `Never<T>`.
     Never(Option<Box<Type>>),
-    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`
+    // TODO: move primitive type parsing into DIR
+    /// Primitive type.
+    Primitive(PrimitiveType),
+    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
     Path {
         path: Path,
         static_arguments: Option<Vec<Argument>>,
     },
-    /// Inline Tuple type `(T1, T2, ...)` (no tuple keyword)
+    /// Inline Tuple type `(T1, T2, ...)` (no tuple keyword).
     Tuple(Tuple),
-    /// Inline Array type `[T; N]`
+    /// Inline Array type `[T; N]`. Must be fixed length.
     Array {
-        element: Box<Type>,
+        element_type: Box<Type>,
         count: Box<Expression>,
     },
-    /// Inline Slice type `[T]`
+    /// Inline Slice type `[T]`. Unknown length (dynamic).
     Slice { element: Box<Type> },
-    /// Inline nominal Struct type `struct MyStruct { ... }`
+    /// Inline nominal Struct type `struct MyStruct { ... }`.
     Struct(Struct),
-    /// Inline nominal Union type `union MyUnion { ... }`
+    /// Inline nominal Union type `union MyUnion { ... }`.
     Union(Union),
-    /// Inline anonymous Function type `(T1, T2, ...) => T`
+    /// Inline anonymous Function type `(T1, T2, ...) => T`.
     Function { signature: FunctionSignature },
+}
+
+/// An IntType represents an arbitrary width integer with signedness.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IntType {
+    /// Bit width.
+    pub width: u16,
+    /// Whether the integer is signed (`int*` or `uint*`).
+    pub is_signed: bool,
+}
+
+/// A FloatType represents a IEEE-754 float.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FloatType {
+    /// 32-bit IEEE-754 float.
+    Float32,
+    /// 64-bit IEEE-754 float.
+    Float64,
+}
+
+/// A PrimitiveType represents a primitive type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PrimitiveType {
+    /// Void type.
+    Void,
+    /// Boolean type.
+    Boolean,
+    /// Character type.
+    Character,
+    /// Integer type with arbitrary width.
+    Int(IntType),
+    /// Floating point number type.
+    Float(FloatType),
 }
 
 /// A Member is a member reference.
@@ -791,6 +828,8 @@ pub struct Member {
 /// ```
 /// foo[1]
 /// foo[1..3]
+/// foo["bar"]
+/// foo[variable]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Index {

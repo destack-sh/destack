@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_mir"
-description = "Destack Language Machine IR"
+name = "destack_language_dir"
+description = "Destack Language Dyst High-Level IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
