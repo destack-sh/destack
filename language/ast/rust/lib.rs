@@ -7,7 +7,6 @@ mod block;
 mod call;
 mod expression;
 mod function;
-mod identifier;
 mod keyword;
 mod literal;
 mod r#loop;

@@ -46,6 +46,12 @@ function @entity(structDecl: StructDefinition) => StructDefinition {
     structDeclr
 }
 
+trait Entity {
+    let name: string
+
+    function identity() => EntityReference;
+}
+
 /// A named, versioned, mutable object in the system.
 @entity
 struct Entity {
