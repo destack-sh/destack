@@ -89,6 +89,14 @@ impl<'a> Parser<'a> {
             };
 
             match literal {
+                // boolean literal
+                RawLiteralType::Boolean { value } => {
+                    let scalar_literal = self
+                        .tree
+                        .allocate_from_mark(ScalarLiteral::Boolean(value), start);
+                    Ok(scalar_literal)
+                }
+
                 // int literal
                 RawLiteralType::Int { base, is_empty } => {
                     if is_empty {
