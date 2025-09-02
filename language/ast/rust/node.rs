@@ -443,7 +443,9 @@ impl Node for UnionField {
 /// }
 ///
 /// trait Baz<T> {
-///     ...
+///     let x: T // constant
+/// 
+///     function foo() => T;
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -1420,7 +1422,7 @@ impl Node for Block {
 pub enum Pattern {
     /// A literal value.
     Literal(ScalarLiteral),
-    /// Or pattern `1 | 2`.
+    /// Or pattern `1 | 2 | 3`.
     Or(Vec<NodeId<Pattern>>),
     /// Range pattern `1..3`.
     Range(Range),

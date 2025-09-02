@@ -1,4 +1,4 @@
-using destack
+using dyst
 
 /// Notification status.
 enum NotificationStatus { Unread = 1, Read = 2, Dismissed = 3, Expired = 4, Rescinded = 5 }

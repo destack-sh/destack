@@ -1,4 +1,4 @@
-using destack
+using dyst
 
 /// Universe signup request.
 struct UniverseSignupRequest {

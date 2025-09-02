@@ -2,7 +2,7 @@
   "name": "destack-vscode",
   "displayName": "Destack",
   "description": "Destack & Dyst VSCode integration (.ds, .dsb, .dst, .dsx)",
-  "version": "2025.8.31-2",
+  "version": "2025.9.2-0",
   "license": "proprietary",
   "engines": {
     "vscode": "^1.90.0"
@@ -23,17 +23,18 @@
     "LICENSE.txt"
   ],
   "activationEvents": [
+    "onCommand:destack.restart",
     "onLanguage:destack",
     "onLanguage:dyst"
   ],
   "contributes": {
     "configuration": {
-      "title": "Destack & Dyst",
+      "title": "Destack",
       "properties": {
         "destack.server.command": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Absolute path to `destack_extension_lsp`. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
+          "markdownDescription": "Absolute path to Destack LSP. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
         },
         "destack.server.args": {
           "type": "array",
