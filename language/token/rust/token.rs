@@ -42,15 +42,20 @@ pub enum TokenType {
     Newline,
     /// Any non-newline whitespace character sequence.
     Whitespace,
-    /// A line comment, e.g. `// comment` `//// comment` `//////// comment`.
-    LineComment,
     /// Unknown/Unexpected (e.g., '№')
     Unknown,
     /// End of sequence (e.g., end of source file)
     End,
 
+    /// A line comment, e.g. `// comment` `//// comment` `//////// comment`.
+    LineComment,
+    /// A block comment, e.g. `/* comment */`
+    BlockComment,
     /// A doc line comment with exactly three slashes, e.g. `/// doc comment` or just `///`
-    DocComment,
+    DocLineComment,
+    /// A doc block comment, e.g. `/** doc comment *//`
+    DocBlockComment,
+
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
     /// An identifier that is invalid (e.g. because it contains emoji).

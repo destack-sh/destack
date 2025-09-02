@@ -33,7 +33,9 @@ pub enum NodeType {
     Tuple,
     TupleElement,
     FunctionSignature,
+    // Bindings
     Let,
+    Assign,
     // Using
     Using,
     UsingClause,
@@ -203,6 +205,7 @@ pub enum LetStyle {
     Var,
 }
 
+/// Let or var binding for constant or mutable variables.
 ///
 /// Examples:
 /// ```
@@ -228,6 +231,28 @@ pub struct Let {
 
 impl Node for Let {
     const KIND: NodeType = NodeType::Let;
+}
+
+/// Assignment to a variable (a "place expression").
+///
+/// Examples:
+/// ```
+/// x = 1
+/// x.y = 2
+/// x[0] = 3
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Assign {
+    /// The left-hand side of the assignment (should be a place Expression, checked later).
+    lhs: NodeId<Expression>,
+    /// The type of assignment.
+    r#type: AssignType,
+    /// The right-hand side of the assignment.
+    rhs: NodeId<Expression>,
+}
+
+impl Node for Assign {
+    const KIND: NodeType = NodeType::Assign;
 }
 
 /// A Tuple is tuple definition node in the AST.
@@ -657,6 +682,9 @@ pub enum Statement {
     /// Let definition (as a Statement, see Let).
     Let(NodeId<Let>),
 
+    /// Assignment to a variable (as a Statement, see Assign).
+    Assign(NodeId<Assign>),
+
     /// Expression (see Expression).
     /// Catch-all for any Expression used as a "top-level" statement.
     Expression(NodeId<Expression>),
@@ -670,7 +698,7 @@ impl Node for Statement {
 }
 
 /// An Expression is a generic container AST node for all possible expression nodes in the AST.
-/// Expressions can be literals, assignments, calls, definitions, control flow, etc.
+/// Expressions can be literals, bindings, calls, definitions, control flow, etc.
 ///
 /// Some Expressions are "place Expressions" and can be read from and written to,
 ///  that is, they have a place in memory we can point to and get the address of.
@@ -828,20 +856,6 @@ pub enum Expression {
 
     /// Let or var binding (as an Expression, see Let).
     Let(NodeId<Let>),
-
-    /// Assignment.
-    ///
-    /// Examples:
-    /// ```
-    /// x = 1
-    /// x.y = 2
-    /// x[0] = 3
-    /// ```
-    Assign {
-        lhs: NodeId<Expression>,
-        r#type: AssignType,
-        rhs: NodeId<Expression>,
-    },
 
     /// Casting.
     ///
@@ -1515,26 +1529,6 @@ impl Node for MatchCase {
 pub struct Try {
     pub try_block: NodeId<Expression>,
     pub catch_block: Option<NodeId<Expression>>,
-}
-
-/// An Assignment is assignment of an Expression to a place.
-/// Assignments are not Expressions per se, they do not have a value.
-///
-/// Examples:
-/// ```
-/// x = 1
-/// f[1] = 2
-/// foo.bar = 2
-/// foo.bar.baz = 3
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Assign {
-    /// The left-hand side of the assignment (should be a place Expression, checked later).
-    pub lhs: NodeId<Expression>,
-    /// The type of assignment.
-    pub r#type: AssignType,
-    /// The right-hand side of the assignment.
-    pub rhs: NodeId<Expression>,
 }
 
 /// An AssignType is assignment type.

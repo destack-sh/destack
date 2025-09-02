@@ -233,7 +233,7 @@ fn test_comments() {
         Token::new(TokenType::Newline, 1, None),
         Token::new(TokenType::LineComment, 20, None),
         Token::new(TokenType::Newline, 1, None),
-        Token::new(TokenType::DocComment, 15, None),
+        Token::new(TokenType::DocLineComment, 15, None),
         Token::new(TokenType::Newline, 1, None),
     );
 }
@@ -469,4 +469,40 @@ struct MyCustomView {
     println!("{tokens:?}");
 
     assert_tokenize_roundtrip!(input);
+}
+
+#[test]
+fn test_block_comments_basic_and_doc() {
+    assert_tokenize_eq_roundtrip!(
+        "/* abc */ /** doc */",
+        Token::new(TokenType::BlockComment, 9, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::DocBlockComment, 10, None),
+    );
+}
+
+#[test]
+fn test_block_comment_nested() {
+    assert_tokenize_eq_roundtrip!(
+        "/* a /* b */ c */ d",
+        Token::new(TokenType::BlockComment, 17, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+    );
+}
+
+#[test]
+fn test_doc_line_exact_three_slashes() {
+    assert_tokenize_eq_roundtrip!(
+        "//// not doc but line",
+        Token::new(TokenType::LineComment, 21, None),
+    );
+}
+
+#[test]
+fn test_doc_block_exact_two_stars() {
+    assert_tokenize_eq_roundtrip!(
+        "/*** not doc ***/",
+        Token::new(TokenType::BlockComment, 17, None),
+    );
 }
