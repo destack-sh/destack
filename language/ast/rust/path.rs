@@ -1,14 +1,15 @@
-use crate::{ParseResult, Parser, Path, PathSegment};
+use crate::{ParseResult, Parser, PathId};
+use destack_language_arena::StringId;
 use destack_language_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat a Path.
-    pub fn eat_path(&mut self) -> ParseResult<Path> {
-        let mut segments = Vec::new();
+    pub fn eat_path(&mut self) -> ParseResult<PathId> {
+        let mut segments: Vec<StringId> = Vec::new();
 
         // first identifier
         let first = self.eat_identifier()?;
-        segments.push(PathSegment { name: first });
+        segments.push(first);
 
         // zero or more `.identifier`
         // (but stop any non-[identifier/dot] token)
@@ -19,14 +20,15 @@ impl<'a> Parser<'a> {
             {
                 self.eat_token(TokenType::Dot)?;
                 let seg = self.eat_identifier()?;
-                segments.push(PathSegment { name: seg });
+                segments.push(seg);
                 continue;
             } else {
                 break;
             }
         }
 
-        Ok(Path { segments })
+        let path_id = self.paths.intern(segments);
+        Ok(path_id)
     }
 }
 
@@ -34,7 +36,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, TokenType, tokenize_semantic};
 
-    use crate::{Parser, Path, PathSegment};
+    use crate::Parser;
 
     /// Test that the parser can parse a path with a single segment.
     #[test]
@@ -45,11 +47,7 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            Path {
-                segments: vec![PathSegment {
-                    name: parser.strings.intern("destack")
-                }]
-            }
+            parser.paths.intern(vec![parser.strings.intern("destack")])
         );
     }
 
@@ -62,19 +60,11 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            Path {
-                segments: vec![
-                    PathSegment {
-                        name: parser.strings.intern("destack")
-                    },
-                    PathSegment {
-                        name: parser.strings.intern("geometry")
-                    },
-                    PathSegment {
-                        name: parser.strings.intern("math")
-                    },
-                ],
-            }
+            parser.paths.intern(vec![
+                parser.strings.intern("destack"),
+                parser.strings.intern("geometry"),
+                parser.strings.intern("math")
+            ])
         );
     }
     /// Test that the parser stops before non-path items (like for Using items).
@@ -86,16 +76,10 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            Path {
-                segments: vec![
-                    PathSegment {
-                        name: parser.strings.intern("ds")
-                    },
-                    PathSegment {
-                        name: parser.strings.intern("geometry")
-                    },
-                ],
-            }
+            parser.paths.intern(vec![
+                parser.strings.intern("ds"),
+                parser.strings.intern("geometry")
+            ])
         );
         // ensure next token is the `.` for the group
         let next = parser.peek_next().unwrap();
@@ -111,16 +95,10 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            Path {
-                segments: vec![
-                    PathSegment {
-                        name: parser.strings.intern("geom")
-                    },
-                    PathSegment {
-                        name: parser.strings.intern("Vector")
-                    },
-                ],
-            }
+            parser.paths.intern(vec![
+                parser.strings.intern("geom"),
+                parser.strings.intern("Vector")
+            ])
         );
         // ensure next token is the `<` for the generic arguments
         let next = parser.peek_next().unwrap();

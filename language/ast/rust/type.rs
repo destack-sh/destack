@@ -431,7 +431,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{FloatType, IntType, Parser, Path, PathSegment, PrimitiveType, Type};
+    use crate::{FloatType, IntType, Parser, PrimitiveType, Type};
 
     #[test]
     fn test_eat_primitive_type() {
@@ -577,16 +577,10 @@ MyMesh<false, Dims: 3> // path with static arguments
         assert_eq!(
             *ty,
             Type::Path {
-                path: Path {
-                    segments: vec![
-                        PathSegment {
-                            name: parser.strings.intern("geom")
-                        },
-                        PathSegment {
-                            name: parser.strings.intern("Vector2")
-                        }
-                    ]
-                },
+                path: parser.paths.intern(vec![
+                    parser.strings.intern("geom"),
+                    parser.strings.intern("Vector2")
+                ]),
                 static_arguments: None
             }
         );
