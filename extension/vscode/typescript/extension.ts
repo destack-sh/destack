@@ -19,7 +19,7 @@ let serverProc: ChildProcessWithoutNullStreams | undefined;
 export async function activate(ctx: vscode.ExtensionContext) {
   // create output channels for logging
   const clientLog = vscode.window.createOutputChannel("Destack Client", { log: true });
-  const serverLog = vscode.window.createOutputChannel("Destack Language Server", { log: true });
+  const serverLog = vscode.window.createOutputChannel("Destack LSP", { log: true });
 
   const cfg = vscode.workspace.getConfiguration("destack");
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];

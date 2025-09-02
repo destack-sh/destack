@@ -10,14 +10,18 @@ pub struct Span {
 }
 
 impl Span {
+    /// Create a new Span.
     pub fn new(start: u32, end: u32) -> Self {
         Self { start, end }
     }
 
+    /// Create an empty Span.
     pub fn empty() -> Self {
         Self { start: 0, end: 0 }
     }
 
+    /// Merge two Spans.
+    /// The resulting Span will be the smallest Span that contains both.
     pub fn merge(self, other: Self) -> Self {
         Self {
             start: self.start.min(other.start),
@@ -25,6 +29,7 @@ impl Span {
         }
     }
 
+    /// Check if the Span is empty.
     pub fn is_empty(self) -> bool {
         self.start == self.end
     }

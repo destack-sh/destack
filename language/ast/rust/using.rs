@@ -141,18 +141,18 @@ mod tests {
     #[test]
     fn test_parse_using_declaration() {
         let input = r##"
-using destack
-using destack.geometry
-using destack as ds
+using dyst
+using dyst.geometry
+using dyst as ds
 using ds.geometry as geom
 using ds.geometry.{Vector2, Vector3 as V3}
-using destack, dyst
+using dyst, dyst
 "##;
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
         parser.eat_newline().unwrap();
 
-        // using destack
+        // using dyst
         let using_id = parser.eat_using().unwrap();
         let using = parser.tree.get(using_id);
         assert_eq!(using.body, None);
@@ -168,7 +168,7 @@ using destack, dyst
             _ => panic!("expected path expression"),
         }
 
-        // using destack.geometry
+        // using dyst.geometry
         let using_id = parser.eat_using().unwrap();
         let using = parser.tree.get(using_id);
         assert_eq!(using.clauses.len(), 1);
@@ -186,7 +186,7 @@ using destack, dyst
             _ => panic!("expected path expression"),
         }
 
-        // using destack as ds
+        // using dyst as ds
         let using_id = parser.eat_using().unwrap();
         let using = parser.tree.get(using_id);
         assert_eq!(using.clauses.len(), 1);
@@ -244,7 +244,7 @@ using destack, dyst
             }
         );
 
-        // using destack, dyst
+        // using dyst, dyst
         let using_id = parser.eat_using().unwrap();
         let using = parser.tree.get(using_id);
         assert_eq!(using.body, None);

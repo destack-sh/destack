@@ -21,7 +21,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
 
 /// Tokenize the input string into an Iterator of semantic Tokens and Spans.
 /// Ignore non-semantic Tokens (Whitespace, LineComments).
-/// NOTE: DocComments: are considered semantic.
+/// NOTE: DocLineComments and DocBlockComments are considered semantic.
 pub fn tokenize_semantic(input: &str) -> Vec<TokenSpan> {
     let mut cursor = Tokenizer::new(input);
     let mut tokens: Vec<TokenSpan> = Vec::new();

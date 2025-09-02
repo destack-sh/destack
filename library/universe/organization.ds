@@ -1,4 +1,4 @@
-using destack
+using dyst
 
 /// An Organization with Users and Teams.
 @entity
