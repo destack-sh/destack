@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
                     name: Some(name),
                     value,
                 },
-                self.get_mark_span(start),
+                self.span_from(start),
             );
             Ok(argument_id)
         }
@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
             let value = self.eat_expression()?;
             let argument_id = self
                 .tree
-                .allocate(Argument { name: None, value }, self.get_mark_span(start));
+                .allocate(Argument { name: None, value }, self.span_from(start));
             Ok(argument_id)
         }
     }

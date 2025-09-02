@@ -7,6 +7,51 @@
 
 use crate::{NodeId, StringId};
 
+/// The type of a node in the AST.
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeType {
+    // Expression
+    Expression,
+    Statement,
+    Block,
+    // Literals
+    ScalarLiteral,
+    ArrayLiteral,
+    TupleLiteral,
+    StructLiteral,
+    FieldLiteral,
+    // Declarations
+    Module,
+    Struct,
+    StructField,
+    Union,
+    UnionField,
+    Trait,
+    Function,
+    Implement,
+    Type,
+    Tuple,
+    TupleElement,
+    FunctionSignature,
+    // Using
+    Using,
+    UsingClause,
+    UsingItem,
+    // Parameters
+    Parameter,
+    Argument,
+    // Patterns
+    Pattern,
+    PatternTupleField,
+    PatternStructField,
+    MatchCase,
+}
+
+/// A Node in the AST.
+pub trait Node: Sized {
+    const KIND: NodeType;
+}
+
 /// A Path is static path to a named definition in a namespace.
 /// In the case of a Using declaration, the Path excludes the items.
 ///
@@ -60,6 +105,10 @@ pub struct Module {
     pub body: NodeId<Block>,
 }
 
+impl Node for Module {
+    const KIND: NodeType = NodeType::Module;
+}
+
 /// A Using is a use declaration AST node for dependency and context management.
 /// Using can be used as statement for the containing scope or in block form.
 /// Using can also serve as a type signature for functions.
@@ -94,6 +143,10 @@ pub struct Using {
     pub body: Option<NodeId<Block>>,
 }
 
+impl Node for Using {
+    const KIND: NodeType = NodeType::Using;
+}
+
 /// A UsingClause is a single clause AST node in a using declaration.
 ///
 /// Examples:
@@ -113,6 +166,10 @@ pub struct UsingClause {
     pub items: Option<Vec<NodeId<UsingItem>>>,
 }
 
+impl Node for UsingClause {
+    const KIND: NodeType = NodeType::UsingClause;
+}
+
 /// A UsingItem is an item AST node to use in a using clause.
 ///
 /// Examples:
@@ -126,6 +183,10 @@ pub struct UsingItem {
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar;`)
     pub alias: Option<StringId>,
+}
+
+impl Node for UsingItem {
+    const KIND: NodeType = NodeType::UsingItem;
 }
 
 /// A Tuple is tuple definition node in the AST.
@@ -146,12 +207,20 @@ pub struct Tuple {
     pub elements: Vec<NodeId<TupleElement>>,
 }
 
+impl Node for Tuple {
+    const KIND: NodeType = NodeType::Tuple;
+}
+
 /// A TupleElement is a tuple element definition AST node.
 /// Tuple elements may be named or anonymous, but cannot have default values.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TupleElement {
     pub name: Option<StringId>,
     pub r#type: NodeId<Type>,
+}
+
+impl Node for TupleElement {
+    const KIND: NodeType = NodeType::TupleElement;
 }
 
 /// A Struct is struct definition node in the AST.
@@ -189,6 +258,10 @@ pub struct Struct {
     pub using: Option<NodeId<Using>>,
 }
 
+impl Node for Struct {
+    const KIND: NodeType = NodeType::Struct;
+}
+
 /// A StructField is a (struct) field declaration AST node.
 ///
 /// Examples:
@@ -205,6 +278,10 @@ pub struct StructField {
     pub r#type: NodeId<Type>,
     /// The default value of the field.
     pub default: Option<NodeId<Expression>>,
+}
+
+impl Node for StructField {
+    const KIND: NodeType = NodeType::StructField;
 }
 
 /// A Union is sum type definition node in the AST.
@@ -254,6 +331,10 @@ pub struct Union {
     pub usings: Option<Vec<NodeId<Using>>>,
 }
 
+impl Node for Union {
+    const KIND: NodeType = NodeType::Union;
+}
+
 /// A UnionStyle is the style of a union.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnionStyle {
@@ -278,6 +359,10 @@ pub struct UnionField {
     pub value: Option<NodeId<Expression>>,
 }
 
+impl Node for UnionField {
+    const KIND: NodeType = NodeType::UnionField;
+}
+
 /// A Trait is trait definition node in the AST.
 ///
 /// Examples:
@@ -298,6 +383,10 @@ pub struct Trait {
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The body of the trait.
     pub body: Option<NodeId<Block>>,
+}
+
+impl Node for Trait {
+    const KIND: NodeType = NodeType::Trait;
 }
 
 /// An Impl defines the implementation of a concrete type node in the AST.
@@ -336,6 +425,10 @@ pub struct Implement {
     pub static_for_arguments: Option<Vec<NodeId<Type>>>,
     /// The body of the implement.
     pub body: Option<NodeId<Block>>,
+}
+
+impl Node for Implement {
+    const KIND: NodeType = NodeType::Implement;
 }
 
 /// A FunctionStyle is the style of a function.
@@ -401,6 +494,10 @@ pub struct Function {
     pub body: Option<NodeId<Block>>,
 }
 
+impl Node for Function {
+    const KIND: NodeType = NodeType::Function;
+}
+
 /// The type of a Function type `(T1, T2, ...) => T`.
 /// Function signatures may omit the tuple parentheses `()`  in return type.
 ///
@@ -426,6 +523,10 @@ pub struct FunctionSignature {
     pub using: Option<NodeId<Using>>,
 }
 
+impl Node for FunctionSignature {
+    const KIND: NodeType = NodeType::FunctionSignature;
+}
+
 /// A Parameter is a parameter AST node to some expression.
 /// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
 ///
@@ -446,6 +547,10 @@ pub struct Parameter {
     pub default: Option<NodeId<Expression>>,
 }
 
+impl Node for Parameter {
+    const KIND: NodeType = NodeType::Parameter;
+}
+
 /// An Argument is an argument AST node to a function call in the AST.
 /// It may be named or positional.
 /// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
@@ -463,6 +568,10 @@ pub struct Argument {
     pub value: NodeId<Expression>,
 }
 
+impl Node for Argument {
+    const KIND: NodeType = NodeType::Argument;
+}
+
 /// An Statement is a top-level AST node in a container in the AST.
 /// Statements do not have to produce values, but they can be any Expression.
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
@@ -472,6 +581,10 @@ pub enum Statement {
     Expression(NodeId<Expression>),
     /// Using declaration
     Using(NodeId<Using>),
+}
+
+impl Node for Statement {
+    const KIND: NodeType = NodeType::Statement;
 }
 
 /// An Expression is a generic container AST node for all possible expression nodes in the AST.
@@ -888,6 +1001,10 @@ pub enum Expression {
     Error,
 }
 
+impl Node for Expression {
+    const KIND: NodeType = NodeType::Expression;
+}
+
 /// A ScalarLiteral is literal scalar value node in the AST.
 ///
 /// Examples:
@@ -914,6 +1031,10 @@ pub enum ScalarLiteral {
     ByteString(Vec<u8>),
 }
 
+impl Node for ScalarLiteral {
+    const KIND: NodeType = NodeType::ScalarLiteral;
+}
+
 /// An ArrayLiteral is literal array of homogeneous elements node in the AST.
 ///
 /// Examples:
@@ -935,6 +1056,10 @@ pub enum ArrayLiteral {
     },
 }
 
+impl Node for ArrayLiteral {
+    const KIND: NodeType = NodeType::ArrayLiteral;
+}
+
 /// A TupleLiteral is literal tuple of heterogeneous elements node in the AST.
 ///
 /// Examples:
@@ -945,6 +1070,10 @@ pub enum ArrayLiteral {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TupleLiteral {
     pub elements: Vec<NodeId<Expression>>,
+}
+
+impl Node for TupleLiteral {
+    const KIND: NodeType = NodeType::TupleLiteral;
 }
 
 /// A StructLiteral is literal struct of heterogeneous fields node in the AST.
@@ -962,6 +1091,10 @@ pub struct StructLiteral {
     pub fields: Vec<NodeId<FieldLiteral>>,
 }
 
+impl Node for StructLiteral {
+    const KIND: NodeType = NodeType::StructLiteral;
+}
+
 /// A FieldLiteral is a literal field value node in the AST.
 ///
 /// Examples:
@@ -976,6 +1109,10 @@ pub struct FieldLiteral {
     pub name: StringId,
     /// The value of the field. If unset, we take the field from context.
     pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for FieldLiteral {
+    const KIND: NodeType = NodeType::FieldLiteral;
 }
 
 /// An (unresolved) Type declaration node in the AST.
@@ -1049,6 +1186,10 @@ pub enum Type {
 
     /// Inline Function type `(T1, T2, ...) => T`.
     Function(NodeId<FunctionSignature>),
+}
+
+impl Node for Type {
+    const KIND: NodeType = NodeType::Type;
 }
 
 /// An IntType represents arbitrary width integer with signedness.
@@ -1192,6 +1333,10 @@ pub struct Block {
     pub statements: Vec<NodeId<Statement>>,
 }
 
+impl Node for Block {
+    const KIND: NodeType = NodeType::Block;
+}
+
 /// A Pattern is a pattern AST node to match something and unwrap it.
 ///
 /// Examples:
@@ -1219,6 +1364,10 @@ pub enum Pattern {
     Wildcard,
 }
 
+impl Node for Pattern {
+    const KIND: NodeType = NodeType::Pattern;
+}
+
 /// A PatternTupleField is a field AST node of a tuple pattern.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternTupleField {
@@ -1226,6 +1375,10 @@ pub enum PatternTupleField {
     Literal(ScalarLiteral),
     /// A wildcard field.
     Wildcard,
+}
+
+impl Node for PatternTupleField {
+    const KIND: NodeType = NodeType::PatternTupleField;
 }
 
 /// A PatternStructField is a field AST node of a struct pattern.
@@ -1236,6 +1389,10 @@ pub enum PatternStructField {
         name: StringId,
         value: NodeId<Pattern>,
     },
+}
+
+impl Node for PatternStructField {
+    const KIND: NodeType = NodeType::PatternStructField;
 }
 
 /// A Match is match expression with case patterns.
@@ -1271,6 +1428,10 @@ pub struct Match {
 pub struct MatchCase {
     pub pattern: NodeId<Pattern>,
     pub body: NodeId<Block>,
+}
+
+impl Node for MatchCase {
+    const KIND: NodeType = NodeType::MatchCase;
 }
 
 /// A Try is try/catch statement.
