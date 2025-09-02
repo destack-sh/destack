@@ -25,6 +25,8 @@ pub enum Keyword {
     Using,
     /// Alias or cast an item in this context.
     As,
+    /// Where expression.
+    Where,
     /// Let expression.
     Let,
     /// Var expression.
@@ -71,6 +73,7 @@ impl Keyword {
             Keyword::Implement => "implement",
             Keyword::Using => "using",
             Keyword::As => "as",
+            Keyword::Where => "where",
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::If => "if",

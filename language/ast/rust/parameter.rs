@@ -35,13 +35,11 @@ impl<'a> Parser<'a> {
                 default: None,
             }
         };
-        let parameter_id = self
-            .tree
-            .allocate(parameter, self.span_from(start));
+        let parameter_id = self.tree.allocate(parameter, self.span_from(start));
         Ok(parameter_id)
     }
 
-    /// Eat a parameter list.
+    /// Eat a parameter list. May be comma or newline separated.
     ///
     /// Examples:
     /// ```
@@ -50,11 +48,11 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
-        loop {
+        while self.peek_identifier().is_ok() {
             let parameter = self.eat_parameter()?;
             parameters.push(parameter);
-            if self.peek_next_token(TokenType::Comma).is_ok() {
-                self.eat_token(TokenType::Comma)?;
+            if self.peek_item_stop().is_ok() {
+                self.eat_item_stop()?;
             } else {
                 break;
             }

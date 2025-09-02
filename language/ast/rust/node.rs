@@ -214,9 +214,14 @@ impl Node for Tuple {
 /// A TupleElement is a tuple element definition AST node.
 /// Tuple elements may be named or anonymous, but cannot have default values.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TupleElement {
-    pub name: Option<StringId>,
-    pub r#type: NodeId<Type>,
+pub enum TupleElement {
+    Named {
+        name: StringId,
+        r#type: NodeId<Type>,
+    },
+    Positional {
+        r#type: NodeId<Type>,
+    },
 }
 
 impl Node for TupleElement {
@@ -557,15 +562,22 @@ impl Node for Parameter {
 ///
 /// Examples:
 /// ```
-/// foo(x: 1, y: 2)
-/// foo(1, 2)
+/// x: 1
+/// y: 2
+/// y
+/// false
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Argument {
-    /// The name of the argument.
-    pub name: Option<StringId>,
-    /// The value of the argument.
-    pub value: NodeId<Expression>,
+pub enum Argument {
+    /// A named argument.
+    Named {
+        name: StringId,
+        value: NodeId<Expression>,
+    },
+    /// A named shorthand argument.
+    NamedShorthand { name: StringId },
+    /// A positional argument.
+    Positional { value: NodeId<Expression> },
 }
 
 impl Node for Argument {
@@ -1104,11 +1116,14 @@ impl Node for StructLiteral {
 /// z
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct FieldLiteral {
+pub enum FieldLiteral {
     /// The name of the field to bind.
-    pub name: StringId,
-    /// The value of the field. If unset, we take the field from context.
-    pub value: Option<NodeId<Expression>>,
+    Named {
+        name: StringId,
+        value: NodeId<Expression>,
+    },
+    /// The name of the field to bind. Take the value from context.
+    NamedShorthand { name: StringId },
 }
 
 impl Node for FieldLiteral {
@@ -1193,7 +1208,7 @@ impl Node for Type {
 }
 
 /// An IntType represents arbitrary width integer with signedness.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct IntType {
     /// Bit width.
     pub width: u16,
@@ -1202,7 +1217,7 @@ pub struct IntType {
 }
 
 /// A FloatType represents IEEE-754 float.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FloatType {
     /// 32-bit IEEE-754 float.
     Float32,
@@ -1211,7 +1226,7 @@ pub enum FloatType {
 }
 
 /// A PrimitiveType represents primitive types.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveType {
     /// Void type.
     Void,

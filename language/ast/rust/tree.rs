@@ -5,18 +5,21 @@ use destack_language_token::Span;
 
 use crate::{
     Argument, ArrayLiteral, Block, Expression, FieldLiteral, Function, FunctionSignature,
-    Implement, MatchCase, Node, NodeType, Parameter, ParserMark, Pattern, PatternStructField,
+    Implement, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternStructField,
     PatternTupleField, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Tuple,
     TupleElement, TupleLiteral, Type, Union, UnionField, Using, UsingClause, UsingItem,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct NodeId<T> {
-    pub(crate) id: u32,
-    pub(crate) _ty: PhantomData<fn() -> T>,
+    pub id: u32,
+    _ty: PhantomData<fn() -> T>,
 }
+
+// manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
+impl<T: Clone> Copy for NodeId<T> {}
 
 impl<T> NodeId<T> {
     #[inline]
@@ -48,6 +51,7 @@ pub struct NodeTree {
     struct_literals: NodeArena<StructLiteral>,
     field_literals: NodeArena<FieldLiteral>,
     // declarations
+    modules: NodeArena<Module>,
     structs: NodeArena<Struct>,
     struct_fields: NodeArena<StructField>,
     unions: NodeArena<Union>,
@@ -81,6 +85,12 @@ impl Debug for NodeTree {
     }
 }
 
+impl Default for NodeTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NodeTree {
     /// Create a new NodeTree.
     pub fn new() -> Self {
@@ -105,6 +115,7 @@ impl NodeTree {
             struct_literals: NodeArena::with_capacity(capacity),
             field_literals: NodeArena::with_capacity(capacity),
             // declarations
+            modules: NodeArena::with_capacity(capacity),
             structs: NodeArena::with_capacity(capacity),
             struct_fields: NodeArena::with_capacity(capacity),
             unions: NodeArena::with_capacity(capacity),
@@ -134,11 +145,15 @@ impl NodeTree {
     /// Allocate a new node in the tree.
     ///
     /// Returns a stable NodeId that can be used to retrieve the node later.
-    pub fn allocate<T: Node>(&mut self, node: T, span: Span) -> NodeId<T> {
-        let local_id = <Self as NodeTreeStore<T>>::push(self, node);
+    pub fn allocate<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
         let global_id = self.next_id;
         self.next_id = global_id + 1;
         self.kinds.push(T::KIND);
+        let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_ids.push(local_id);
         self.spans.push(span);
         NodeId {
@@ -148,34 +163,23 @@ impl NodeTree {
     }
 
     /// Get an immutable reference to the node with the given NodeId.
-    pub fn get<T: Node>(&self, id: NodeId<T>) -> &T {
-        todo!()
+    pub fn get<T>(&self, id: NodeId<T>) -> &T
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        let local_id = self.local_ids[id.id as usize];
+        <Self as NodeTreeStore<T>>::get(self, local_id)
     }
 
     /// Get a mutable reference to the node with the given NodeId.
-    pub fn get_mut<T: Node>(&mut self, id: NodeId<T>) -> &mut T {
-        todo!()
-    }
-}
-
-/// Map node types to arenas.
-trait NodeTreeStore<T: Node> {
-    fn push(tree: &mut NodeTree, node: T) -> u32;
-    fn get<'a>(tree: &'a NodeTree, idx: u32) -> &'a T;
-    fn get_mut<'a>(tree: &'a mut NodeTree, idx: u32) -> &'a mut T;
-}
-
-impl NodeTreeStore<Expression> for NodeTree {
-    fn push(tree: &mut NodeTree, node: Expression) -> u32 {
-        tree.expressions.push(node)
-    }
-
-    fn get<'a>(tree: &'a NodeTree, idx: u32) -> &'a Expression {
-        tree.expressions.get(idx)
-    }
-
-    fn get_mut<'a>(tree: &'a mut NodeTree, idx: u32) -> &'a mut Expression {
-        tree.expressions.get_mut(idx)
+    pub fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        let local_id = self.local_ids[id.id as usize];
+        <Self as NodeTreeStore<T>>::get_mut(self, local_id)
     }
 }
 
@@ -233,4 +237,80 @@ impl<T> NodeArena<T> {
     pub fn reserve(&mut self, n: usize) {
         self.nodes.reserve(n);
     }
+}
+
+/// Map node types to arenas.
+pub trait NodeTreeStore<T: Node> {
+    /// Push a node into the relevant arena.
+    fn push(tree: &mut NodeTree, node: T) -> u32;
+    /// Get a node from the relevant arena.
+    fn get(tree: &NodeTree, idx: u32) -> &T;
+    /// Get a mutable node from the relevant arena.
+    fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut T;
+}
+
+macro_rules! impl_node_tree_store {
+    ($ty:ty, $field:ident) => {
+        impl NodeTreeStore<$ty> for NodeTree {
+            #[inline]
+            fn push(tree: &mut NodeTree, node: $ty) -> u32 {
+                tree.$field.push(node)
+            }
+
+            #[inline]
+            fn get(tree: &NodeTree, idx: u32) -> &$ty {
+                tree.$field.get(idx)
+            }
+
+            #[inline]
+            fn get_mut(tree: &mut NodeTree, idx: u32) -> &mut $ty {
+                tree.$field.get_mut(idx)
+            }
+        }
+    };
+}
+
+macro_rules! impl_node_tree_stores {
+    ( $( $ty:ty => $field:ident ),+ $(,)? ) => {
+        $( impl_node_tree_store!($ty, $field); )*
+    };
+}
+
+// usage
+impl_node_tree_stores! {
+    // Expression
+    Expression => expressions,
+    Statement => statements,
+    Block => blocks,
+    // Literals
+    ScalarLiteral => scalar_literals,
+    ArrayLiteral => array_literals,
+    TupleLiteral => tuple_literals,
+    StructLiteral => struct_literals,
+    FieldLiteral => field_literals,
+    // Declarations
+    Module => modules,
+    Struct => structs,
+    StructField => struct_fields,
+    Union => unions,
+    UnionField => union_fields,
+    Trait => traits,
+    Function => functions,
+    Implement => implements,
+    Type => types,
+    Tuple => tuples,
+    TupleElement => tuple_elements,
+    FunctionSignature => function_signatures,
+    // Using
+    Using => usings,
+    UsingClause => using_clauses,
+    UsingItem => using_items,
+    // Parameters
+    Parameter => parameters,
+    Argument => arguments,
+    // Patterns
+    Pattern => patterns,
+    PatternTupleField => pattern_tuple_fields,
+    PatternStructField => pattern_struct_fields,
+    MatchCase => match_cases,
 }

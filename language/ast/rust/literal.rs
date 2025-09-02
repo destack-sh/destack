@@ -284,26 +284,46 @@ impl<'a> Parser<'a> {
     /// [1.0, 2.0, .0]
     /// [10, false, "Hi"] // hetereogenous array is invalid but okay in AST
     /// [0; 10] // repeated array
-    /// [false; 40] // repeated array
     pub fn eat_array_literal(&mut self) -> ParseResult<NodeId<ArrayLiteral>> {
         let start = self.mark();
 
         self.eat_token(TokenType::OpenBracket)?;
-        let mut elements: Vec<NodeId<Expression>> = vec![];
+        self.eat_newlines()?;
+
+        // empty array
+        if self.peek_next_token(TokenType::CloseBracket).is_ok() {
+            self.eat_token(TokenType::CloseBracket)?;
+            let array_literal = self.tree.allocate(
+                ArrayLiteral::Fixed { elements: vec![] },
+                self.span_from(start),
+            );
+            return Ok(array_literal);
+        }
+
+        // parse first element
         let first_element = self.eat_expression()?;
-        elements.push(first_element);
 
         if self.peek_next_token(TokenType::Semicolon).is_ok() {
-            // repeated array
+            // repeated array: [value; count]
             self.eat_token(TokenType::Semicolon)?;
             let count = self.eat_expression()?;
-            elements.push(count);
             self.eat_token(TokenType::CloseBracket)?;
-            todo!("repeated array")
+            let array_literal = self.tree.allocate(
+                ArrayLiteral::Repeated {
+                    element: first_element,
+                    count,
+                },
+                self.span_from(start),
+            );
+            Ok(array_literal)
         } else {
-            // fixed array
-            while self.peek_next_token(TokenType::Comma).is_ok() {
-                self.eat_token(TokenType::Comma)?;
+            // fixed array: [elem1, elem2, ...]
+            let mut elements = vec![first_element];
+            while self.peek_item_stop().is_ok() {
+                self.eat_item_stop()?;
+                if self.peek_next_token(TokenType::CloseBracket).is_ok() {
+                    break;
+                }
                 let element = self.eat_expression()?;
                 elements.push(element);
             }
@@ -326,15 +346,18 @@ impl<'a> Parser<'a> {
     ///   1 // comma is optional here
     ///   2 // comma is optional here too
     /// )
-    /// (1.0, 2.0, .0)
+    /// (1.0, 2.0, 0.0)
     /// (10, false, "Hi") // okay because it's a tuple
     /// ```
     pub fn eat_tuple_literal(&mut self) -> ParseResult<NodeId<TupleLiteral>> {
         let start = self.mark();
         self.eat_token(TokenType::OpenParenthesis)?;
         let mut elements: Vec<NodeId<Expression>> = vec![];
-        while self.peek_next_token(TokenType::Comma).is_ok() {
-            self.eat_token(TokenType::Comma)?;
+        while self.peek_item_stop().is_ok() {
+            self.eat_item_stop()?;
+            if self.peek_next_token(TokenType::CloseParenthesis).is_ok() {
+                break;
+            }
             let element = self.eat_expression()?;
             elements.push(element);
         }
@@ -383,25 +406,29 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<NodeId<FieldLiteral>>> {
         self.eat_token(TokenType::OpenBrace)?;
+        self.eat_newlines()?;
         let mut fields: Vec<NodeId<FieldLiteral>> = vec![];
-        while self.peek_next_token(TokenType::Comma).is_ok() {
-            self.eat_token(TokenType::Comma)?;
+        while self.peek_item_stop().is_ok() {
+            self.eat_item_stop()?;
+            if self.peek_next_token(TokenType::CloseBrace).is_ok() {
+                break;
+            }
             let field_start = self.mark();
             let name = self.eat_identifier()?;
+            // named field
             if self.peek_next_token(TokenType::Colon).is_ok() {
                 self.eat_token(TokenType::Colon)?;
                 let value = self.eat_expression()?;
                 let field_literal = self.tree.allocate(
-                    FieldLiteral {
-                        name,
-                        value: Some(value),
-                    },
+                    FieldLiteral::Named { name, value },
                     self.span_from(field_start),
                 );
                 fields.push(field_literal);
-            } else {
+            }
+            // shorthand field
+            else {
                 let field_literal = self.tree.allocate(
-                    FieldLiteral { name, value: None },
+                    FieldLiteral::NamedShorthand { name },
                     self.span_from(field_start),
                 );
                 fields.push(field_literal);
@@ -416,11 +443,12 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{FloatType, IntType, Parser, ScalarLiteral};
+    use crate::{ArrayLiteral, Expression, FloatType, IntType, Parser, ScalarLiteral};
 
     #[test]
     fn test_scalar_literal() {
         let input = r###"
+true
 1
 731
 0x1234
@@ -439,6 +467,12 @@ br##"a#b#c"##
         "###;
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
+
+        // true
+        let literal_id = parser.eat_scalar_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        assert_eq!(*literal, ScalarLiteral::Boolean(true));
         parser.eat_newline().unwrap();
 
         // 1
@@ -538,57 +572,184 @@ br##"a#b#c"##
     #[test]
     fn test_array_literal() {
         let input = r###"
-    [1, 2, 3]
-    [1.0, 2.0, 3.0]
+    []
+    [1, ]
     [10, false, "Hi"]
+    [1.0, 
+     2.0
+     3.0
+    ]
     [0; 10]
-    [false; 40]
         "###;
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
         parser.eat_newline().unwrap();
 
-        // nocheckin
-        // // [1, 2, 3]
-        // let literal = parser.eat_array_literal().unwrap();
-        // assert_eq!(
-        //     literal,
-        //     ArrayLiteral::Fixed {
-        //         elements: vec![
-        //             Expression::ScalarLiteral(ScalarLiteral::Integer(1, IntType::INT32)),
-        //             Expression::ScalarLiteral(ScalarLiteral::Integer(2, IntType::INT32)),
-        //             Expression::ScalarLiteral(ScalarLiteral::Integer(3, IntType::INT32))
-        //         ]
-        //     }
-        // );
-        // parser.eat_newline().unwrap();
+        // []
+        let literal_id = parser.eat_array_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        match literal {
+            ArrayLiteral::Fixed { elements } => assert_eq!(elements.len(), 0),
+            _ => panic!("expected fixed array"),
+        }
+        parser.eat_newline().unwrap();
 
-        // // [1.0, 2.0, 3.0]
-        // let literal = parser.eat_array_literal().unwrap();
-        // assert_eq!(
-        //     literal,
-        //     ArrayLiteral::Fixed {
-        //         elements: vec![
-        //             Expression::ScalarLiteral(ScalarLiteral::Float(1.0, FloatType::Float64)),
-        //             Expression::ScalarLiteral(ScalarLiteral::Float(2.0, FloatType::Float64)),
-        //             Expression::ScalarLiteral(ScalarLiteral::Float(3.0, FloatType::Float64))
-        //         ]
-        //     }
-        // );
-        // parser.eat_newline().unwrap();
+        // [1, ]
+        let literal_id = parser.eat_array_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        match literal {
+            ArrayLiteral::Fixed { elements } => {
+                assert_eq!(elements.len(), 1);
+                // [0] = 1
+                let element_0 = parser.tree.get(elements[0]);
+                match element_0 {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
+                            _ => panic!("expected integer"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+            }
+            _ => panic!("expected fixed array"),
+        }
+        parser.eat_newline().unwrap();
 
-        // // [10, false, "Hi"]
-        // let literal = parser.eat_array_literal().unwrap();
-        // assert_eq!(
-        //     literal,
-        //     ArrayLiteral::Fixed {
-        //         elements: vec![
-        //             Expression::ScalarLiteral(ScalarLiteral::Integer(10, IntType::INT32)),
-        //             Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
-        //             Expression::ScalarLiteral(ScalarLiteral::String("Hi".to_string()))
-        //         ]
-        //     }
-        // );
-        // parser.eat_newline().unwrap();
+        // [10, false, "Hi"]
+        let literal_id = parser.eat_array_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        match literal {
+            ArrayLiteral::Fixed { elements } => {
+                assert_eq!(elements.len(), 3);
+                // [0] = 10
+                let element_0 = parser.tree.get(elements[0]);
+                match element_0 {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Integer(n, _) => assert_eq!(*n, 10),
+                            _ => panic!("expected integer"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+                // [1] = false
+                let element_1 = parser.tree.get(elements[1]);
+                match element_1 {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Boolean(b) => assert!(!(*b)),
+                            _ => panic!("expected boolean"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+                // [2] = "Hi"
+                let element_2 = parser.tree.get(elements[2]);
+                match element_2 {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::String(string_id) => {
+                                let expected_string_id = parser.strings.intern("Hi");
+                                assert_eq!(*string_id, expected_string_id);
+                            }
+                            _ => panic!("expected string"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+            }
+            _ => panic!("expected fixed array"),
+        }
+        parser.eat_newline().unwrap();
+
+        // [1.0,
+        //  2.0
+        //  3.0
+        // ]
+        let literal_id = parser.eat_array_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        match literal {
+            ArrayLiteral::Fixed { elements } => {
+                assert_eq!(elements.len(), 3);
+                // [0] = 1.0
+                let element_0 = parser.tree.get(elements[0]);
+                match element_0 {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Float(f, _) => assert_eq!(*f, 1.0),
+                            _ => panic!("expected float"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+                // [1] = 2.0
+                let element_1 = parser.tree.get(elements[1]);
+                match element_1 {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Float(f, _) => assert_eq!(*f, 2.0),
+                            _ => panic!("expected float"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+                // [2] = 3.0
+                let element_2 = parser.tree.get(elements[2]);
+                match element_2 {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Float(f, _) => assert_eq!(*f, 3.0),
+                            _ => panic!("expected float"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+            }
+            _ => panic!("expected fixed array"),
+        }
+        parser.eat_newline().unwrap();
+
+        // [0; 10]
+        let literal_id = parser.eat_array_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        match literal {
+            &ArrayLiteral::Repeated {
+                element: element_id,
+                count: count_id,
+            } => {
+                let element = parser.tree.get(element_id);
+                match element {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Integer(n, _) => assert_eq!(*n, 0),
+                            _ => panic!("expected integer"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+                let count = parser.tree.get(count_id);
+                match count {
+                    &Expression::ScalarLiteral(scalar_literal_id) => {
+                        let scalar_literal = parser.tree.get(scalar_literal_id);
+                        match scalar_literal {
+                            ScalarLiteral::Integer(n, _) => assert_eq!(*n, 10),
+                            _ => panic!("expected integer"),
+                        }
+                    }
+                    _ => panic!("expected scalar literal"),
+                };
+            }
+            _ => panic!("expected repeated array"),
+        }
+        parser.eat_newline().unwrap();
     }
 }

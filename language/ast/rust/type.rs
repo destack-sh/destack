@@ -247,9 +247,7 @@ impl<'a> Parser<'a> {
                     .allocate(Type::Never(Some(inner_type)), self.span_from(start));
                 Ok(ty_id)
             } else {
-                let ty_id = self
-                    .tree
-                    .allocate(Type::Never(None), self.span_from(start));
+                let ty_id = self.tree.allocate(Type::Never(None), self.span_from(start));
                 Ok(ty_id)
             }
 
@@ -326,8 +324,8 @@ impl<'a> Parser<'a> {
         loop {
             let element = self.eat_tuple_element()?;
             elements.push(element);
-            if self.peek_next_token(TokenType::Comma).is_ok() {
-                self.eat_token(TokenType::Comma)?;
+            if self.peek_item_stop().is_ok() {
+                self.eat_item_stop()?;
             } else {
                 break;
             }
@@ -349,7 +347,25 @@ impl<'a> Parser<'a> {
     /// a: int32
     /// ```
     pub fn eat_tuple_element(&mut self) -> ParseResult<NodeId<TupleElement>> {
-        todo!()
+        let start = self.mark();
+
+        if self.peek_next_next_token(TokenType::Colon).is_ok() {
+            // named tuple element
+            let name = self.eat_identifier()?;
+            self.eat_colon()?;
+            let r#type = self.eat_type()?;
+            let tuple_element_id = self
+                .tree
+                .allocate(TupleElement::Named { name, r#type }, self.span_from(start));
+            Ok(tuple_element_id)
+        } else {
+            // positional tuple element
+            let r#type = self.eat_type()?;
+            let tuple_element_id = self
+                .tree
+                .allocate(TupleElement::Positional { r#type }, self.span_from(start));
+            Ok(tuple_element_id)
+        }
     }
 
     /// Eat an array or slice type (including the `[` and `]`).

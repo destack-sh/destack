@@ -1,4 +1,4 @@
-
+use destack_language_arena::StringId;
 use destack_language_token::{SourceFile, Span, Token, TokenSpan, TokenType};
 
 use crate::{NodeTree, ParseError, ParseResult, StringPool};
@@ -90,24 +90,6 @@ impl<'a> Parser<'a> {
         self.tokens.get(self.pos)
     }
 
-    /// Eat the next Token or error.
-    #[inline]
-    pub fn eat_next(&mut self) -> ParseResult<&TokenSpan> {
-        if self.pos < self.tokens.len() {
-            let next = &self.tokens[self.pos];
-            self.pos += 1;
-            Ok(next)
-        } else {
-            Err(ParseError::SyntaxError(self.eof_token.span))
-        }
-    }
-
-    /// Bump the position.
-    #[inline]
-    pub fn bump(&mut self) {
-        self.pos += 1;
-    }
-
     /// Peek the next Token or error.
     #[inline]
     pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
@@ -124,15 +106,22 @@ impl<'a> Parser<'a> {
             .ok_or(ParseError::SyntaxError(self.eof_token.span))
     }
 
-    /// Eat a token.
+    /// Eat the next Token or error.
     #[inline]
-    pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        let current = self.eat_next()?;
-        if current.token.r#type == token_type {
-            Ok(current)
+    pub fn eat_next(&mut self) -> ParseResult<&TokenSpan> {
+        if self.pos < self.tokens.len() {
+            let next = &self.tokens[self.pos];
+            self.pos += 1;
+            Ok(next)
         } else {
-            Err(ParseError::SyntaxError(current.span))
+            Err(ParseError::SyntaxError(self.eof_token.span))
         }
+    }
+
+    /// Bump the position.
+    #[inline]
+    pub fn bump(&mut self) {
+        self.pos += 1;
     }
 
     /// Peek the next token.
@@ -157,48 +146,35 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat a semicolon.
+    /// Eat a token.
     #[inline]
-    pub fn eat_semicolon(&mut self) -> ParseResult<&TokenSpan> {
-        self.eat_token(TokenType::Semicolon)
-    }
-
-    /// Peek a semicolon.
-    #[inline]
-    pub fn peek_semicolon(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Semicolon)
-    }
-
-    /// Eat a newline.
-    #[inline]
-    pub fn eat_newline(&mut self) -> ParseResult<&TokenSpan> {
-        self.eat_token(TokenType::Newline)
-    }
-
-    /// Peek a newline.
-    #[inline]
-    pub fn peek_newline(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Newline)
-    }
-
-    /// Eat a "stop" (semicolon or newline).
-    #[inline]
-    pub fn eat_stop(&mut self) -> ParseResult<&TokenSpan> {
-        if self.peek_newline().is_ok() {
-            self.eat_newline()
+    pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+        let current = self.eat_next()?;
+        if current.token.r#type == token_type {
+            Ok(current)
         } else {
-            self.eat_semicolon()
+            Err(ParseError::SyntaxError(current.span))
         }
     }
 
-    /// Peek a "stop" (semicolon or newline).
+    /// Peek an identifier.
     #[inline]
-    pub fn peek_stop(&self) -> ParseResult<&TokenSpan> {
-        if let Ok(newline) = self.peek_newline() {
-            Ok(newline)
-        } else {
-            self.peek_semicolon()
-        }
+    pub fn peek_identifier(&self) -> ParseResult<&TokenSpan> {
+        self.peek_next_token(TokenType::Identifier)
+    }
+
+    /// Eat an identifier.
+    #[inline]
+    pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
+        let token = *self.eat_token(TokenType::Identifier)?;
+        let string_id = self.strings.intern(self.get_token_str(token));
+        Ok(string_id)
+    }
+
+    /// Peek a colon.
+    #[inline]
+    pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {
+        self.peek_next_token(TokenType::Colon)
     }
 
     /// Eat a colon.
@@ -207,10 +183,95 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Colon)
     }
 
-    /// Peek a colon.
+    /// Peek a semicolon.
     #[inline]
-    pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Colon)
+    pub fn peek_semicolon(&self) -> ParseResult<&TokenSpan> {
+        self.peek_next_token(TokenType::Semicolon)
+    }
+
+    /// Eat a semicolon.
+    #[inline]
+    pub fn eat_semicolon(&mut self) -> ParseResult<&TokenSpan> {
+        self.eat_token(TokenType::Semicolon)
+    }
+
+    /// Peek a comma.
+    #[inline]
+    pub fn peek_comma(&self) -> ParseResult<&TokenSpan> {
+        self.peek_next_token(TokenType::Comma)
+    }
+
+    /// Eat a comma.
+    #[inline]
+    pub fn eat_comma(&mut self) -> ParseResult<&TokenSpan> {
+        self.eat_token(TokenType::Comma)
+    }
+
+    /// Peek a newline.
+    #[inline]
+    pub fn peek_newline(&self) -> ParseResult<&TokenSpan> {
+        self.peek_next_token(TokenType::Newline)
+    }
+
+    /// Eat a newline.
+    #[inline]
+    pub fn eat_newline(&mut self) -> ParseResult<&TokenSpan> {
+        self.eat_token(TokenType::Newline)
+    }
+
+    /// Eat 0 or more newlines.
+    #[inline]
+    pub fn eat_newlines(&mut self) -> ParseResult<()> {
+        while self.peek_newline().is_ok() {
+            self.eat_newline()?;
+        }
+        Ok(())
+    }
+
+    /// Peek an item stop (comma or newline).
+    #[inline]
+    pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {
+        if let Ok(newline) = self.peek_newline() {
+            Ok(newline)
+        } else {
+            self.peek_comma()
+        }
+    }
+
+    /// Eat an item stop (comma or newline).
+    /// Eats all following newlines.
+    #[inline]
+    pub fn eat_item_stop(&mut self) -> ParseResult<()> {
+        if self.peek_newline().is_ok() {
+            self.eat_newline()?;
+        } else {
+            self.eat_comma()?;
+        }
+        self.eat_newlines()?;
+        Ok(())
+    }
+
+    /// Peek a statement stop (semicolon or newline).
+    #[inline]
+    pub fn peek_statement_stop(&self) -> ParseResult<&TokenSpan> {
+        if let Ok(newline) = self.peek_newline() {
+            Ok(newline)
+        } else {
+            self.peek_semicolon()
+        }
+    }
+
+    /// Eat a statement stop (semicolon or newline).
+    /// Eats all following newlines.
+    #[inline]
+    pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
+        if self.peek_newline().is_ok() {
+            self.eat_newline()?;
+        } else {
+            self.eat_semicolon()?;
+        }
+        self.eat_newlines()?;
+        Ok(())
     }
 }
 
