@@ -26,11 +26,10 @@ pub struct Parser<'a> {
     pub(crate) strings: StringPool,
     /// The Node tree.
     pub(crate) tree: NodeTree,
-    
+
     // state
     /// The current position in the tokens.
     pos: usize,
-    
 }
 
 impl<'a> Parser<'a> {
@@ -55,16 +54,21 @@ impl<'a> Parser<'a> {
         ParserMark { pos: self.pos }
     }
 
+    /// Rewind the position to the given mark.
+    #[inline]
+    pub fn rewind(&mut self, mark: ParserMark) {
+        self.pos = mark.pos;
+    }
+
     /// Get a mark and return the span of the current position.
     #[inline]
     pub fn get_mark_span(&self, mark: ParserMark) -> Span {
         let start_token = self.tokens[mark.pos];
         let end_token = self.tokens[self.pos];
-        let span = Span {
+        Span {
             start: start_token.span.start,
             end: end_token.span.end,
-        };
-        span
+        }
     }
 
     /// Gets the str source backing a Span.
@@ -210,7 +214,7 @@ impl<'a> Parser<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct ParserMark {
+pub struct ParserMark {
     /// The token position.
     pos: usize,
 }

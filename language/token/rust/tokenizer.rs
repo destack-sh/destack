@@ -5,8 +5,15 @@ use super::memchr::find_byte;
 
 /// Peekable iterator over a char sequence.
 pub struct Tokenizer<'a> {
+    /// The string to tokenize.
+    pub(crate) str: &'a str,
+    /// The current head ("next") byte position in the string.
+    pub(crate) pos: usize,
+    /// The number of bytes remaining in the current token.
     len_remaining: usize,
+    /// The character iterator over the string.
     chars: Chars<'a>, // Chars is faster than a &str (according to rustc)
+    /// The previous character.
     #[cfg(debug_assertions)]
     prev: char,
 }
@@ -15,8 +22,8 @@ impl Debug for Tokenizer<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<Tokenizer {{ len_remaining: {}, chars: {:?} }}>",
-            self.len_remaining, self.chars
+            "<Tokenizer {{ str: {}, pos: {}, len_remaining: {}, chars: {:?} }}>",
+            self.str, self.pos, self.len_remaining, self.chars
         )
     }
 }
@@ -25,10 +32,12 @@ pub const EOF_CHAR: char = '\0';
 
 impl<'a> Tokenizer<'a> {
     /// Create a new tokenizer from a string.
-    pub(crate) fn new(input: &'a str) -> Tokenizer<'a> {
+    pub(crate) fn new(str: &'a str) -> Tokenizer<'a> {
         Tokenizer {
-            len_remaining: input.len(),
-            chars: input.chars(),
+            str,
+            pos: 0,
+            len_remaining: str.len(),
+            chars: str.chars(),
             #[cfg(debug_assertions)]
             prev: EOF_CHAR,
         }
@@ -53,12 +62,14 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Peeks the next symbol from the input stream without consuming it.
+    #[inline]
     pub(crate) fn peek_next(&self) -> char {
         // NOTE: @Performance: `.next()` optimizes better than `.nth(0)`
         self.chars.clone().next().unwrap_or(EOF_CHAR)
     }
 
     /// Peeks the second symbol from the input stream without consuming it.
+    #[inline]
     pub(crate) fn peek_next_next(&self) -> char {
         // NOTE: @Performance: `.next()` optimizes better than `.nth(1)`
         let mut iter = self.chars.clone();
@@ -67,6 +78,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Checks if there is nothing more to consume.
+    #[inline]
     pub(crate) fn is_eof(&self) -> bool {
         self.chars.as_str().is_empty()
     }
@@ -86,6 +98,7 @@ impl<'a> Tokenizer<'a> {
     /// Moves to the next character.
     pub(crate) fn bump(&mut self) -> Option<char> {
         let c = self.chars.next()?;
+        self.pos = self.str.len() - self.chars.as_str().len();
         #[cfg(debug_assertions)]
         {
             self.prev = c;
@@ -113,9 +126,11 @@ impl<'a> Tokenizer<'a> {
             Some(idx) => {
                 // idx is at a UTF-8 boundary because we only search ASCII bytes
                 self.chars = s[idx..].chars();
+                self.pos = self.str.len() - self.chars.as_str().len();
             }
             None => {
                 self.chars = "".chars();
+                self.pos = self.str.len();
             }
         }
     }

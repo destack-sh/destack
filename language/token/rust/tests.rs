@@ -284,6 +284,8 @@ fn test_raw_string() {
 fn test_literals() {
     assert_tokenize_eq_roundtrip!(
         r####"
+true
+false
 'a'
 b'a'
 "a"
@@ -297,6 +299,20 @@ b"a"
 r###"raw"###
 br###"raw"###
 "####,
+        Token::new(TokenType::Newline, 1, None),
+        // true
+        Token::new(
+            TokenType::RawLiteral,
+            4,
+            Some(RawLiteralType::Boolean { value: true })
+        ),
+        Token::new(TokenType::Newline, 1, None),
+        // false
+        Token::new(
+            TokenType::RawLiteral,
+            5,
+            Some(RawLiteralType::Boolean { value: false })
+        ),
         Token::new(TokenType::Newline, 1, None),
         // 'a'
         Token::new(
