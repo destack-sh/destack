@@ -5,7 +5,7 @@
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
 //!  and in many cases we can suggest automatic fixes (like `->` -> `=>`, or drop `;`).
 
-use crate::{NodeId, StringId};
+use crate::{NodeId, PathId, StringId};
 
 /// The type of a node in the AST.
 #[derive(Debug, Clone, PartialEq)]
@@ -63,20 +63,7 @@ pub trait Node: Sized {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Path {
-    pub segments: Vec<PathSegment>,
-}
-
-/// A PathSegment is one part of a path.
-///
-/// Examples:
-/// ```
-/// foo
-/// bar
-/// BazQux
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct PathSegment {
-    pub name: StringId,
+    pub segments: Vec<StringId>,
 }
 
 /// A Visibility is the visibility of an item.
@@ -619,7 +606,7 @@ pub enum Expression {
     StructLiteral(NodeId<StructLiteral>),
 
     /// Path reference.
-    Path(Path),
+    Path(PathId),
 
     /// Member reference.
     ///
@@ -712,7 +699,7 @@ pub enum Expression {
     /// ```
     StaticCall {
         /// The target of the call.
-        target: Path,
+        target: PathId,
         /// The static arguments to the call `<Arg1, Arg2, ...>`.
         static_arguments: Vec<NodeId<Argument>>,
         /// The dynamic arguments to the call `(arg1, arg2, ...)`.
@@ -731,7 +718,7 @@ pub enum Expression {
     /// ```
     DynamicCall {
         /// The target of the call.
-        target: Path,
+        target: PathId,
         /// The dynamic arguments to the call `(arg1, arg2, ...)`.
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
@@ -747,7 +734,7 @@ pub enum Expression {
     /// ```
     DynamicMethodCall {
         /// The receiver of the method call.
-        target: Path,
+        target: PathId,
         /// The name of the method.
         name: StringId,
         /// The static arguments to the method `<Arg1, Arg2, ...>`.
@@ -1171,7 +1158,7 @@ pub enum Type {
 
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
     Path {
-        path: Path,
+        path: PathId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
 

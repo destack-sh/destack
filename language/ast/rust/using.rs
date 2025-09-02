@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{Expression, Parser, Path, PathSegment, UsingItem};
+    use crate::{Expression, Parser, UsingItem};
 
     #[test]
     fn test_parse_using_declaration() {
@@ -163,11 +163,7 @@ using destack, dyst
         match parser.tree.get(clause.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                Path {
-                    segments: vec![PathSegment {
-                        name: parser.strings.intern("destack")
-                    }]
-                }
+                parser.paths.intern(vec![parser.strings.intern("destack")])
             ),
             _ => panic!("expected path expression"),
         }
@@ -182,16 +178,10 @@ using destack, dyst
         match parser.tree.get(clause.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                Path {
-                    segments: vec![
-                        PathSegment {
-                            name: parser.strings.intern("destack")
-                        },
-                        PathSegment {
-                            name: parser.strings.intern("geometry")
-                        }
-                    ]
-                }
+                parser.paths.intern(vec![
+                    parser.strings.intern("destack"),
+                    parser.strings.intern("geometry")
+                ])
             ),
             _ => panic!("expected path expression"),
         }
@@ -206,11 +196,7 @@ using destack, dyst
         match parser.tree.get(clause.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                Path {
-                    segments: vec![PathSegment {
-                        name: parser.strings.intern("destack")
-                    }]
-                }
+                parser.paths.intern(vec![parser.strings.intern("destack")]),
             ),
             _ => panic!("expected path expression"),
         }
@@ -225,16 +211,10 @@ using destack, dyst
         match parser.tree.get(clause.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                Path {
-                    segments: vec![
-                        PathSegment {
-                            name: parser.strings.intern("ds")
-                        },
-                        PathSegment {
-                            name: parser.strings.intern("geometry")
-                        }
-                    ]
-                }
+                parser.paths.intern(vec![
+                    parser.strings.intern("ds"),
+                    parser.strings.intern("geometry")
+                ]),
             ),
             _ => panic!("expected path expression"),
         }
@@ -273,11 +253,7 @@ using destack, dyst
         match parser.tree.get(clause0.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                Path {
-                    segments: vec![PathSegment {
-                        name: parser.strings.intern("destack")
-                    }]
-                }
+                parser.paths.intern(vec![parser.strings.intern("destack")]),
             ),
             _ => panic!("expected path expression"),
         }
@@ -285,11 +261,7 @@ using destack, dyst
         match parser.tree.get(clause1.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                Path {
-                    segments: vec![PathSegment {
-                        name: parser.strings.intern("dyst")
-                    }]
-                }
+                parser.paths.intern(vec![parser.strings.intern("dyst")]),
             ),
             _ => panic!("expected path expression"),
         }
