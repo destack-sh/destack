@@ -1,3 +1,4 @@
+
 use destack_language_token::{SourceFile, Span, Token, TokenSpan, TokenType};
 
 use crate::{NodeTree, ParseError, ParseResult, StringPool};
@@ -62,7 +63,7 @@ impl<'a> Parser<'a> {
 
     /// Get a mark and return the span of the current position.
     #[inline]
-    pub fn get_mark_span(&self, mark: ParserMark) -> Span {
+    pub fn span_from(&self, mark: ParserMark) -> Span {
         let start_token = self.tokens[mark.pos];
         let end_token = self.tokens[self.pos];
         Span {

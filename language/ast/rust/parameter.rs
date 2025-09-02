@@ -1,4 +1,4 @@
-use crate::{Parameter, NodeId, ParseResult, Parser};
+use crate::{NodeId, Parameter, ParseResult, Parser};
 use destack_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -18,25 +18,27 @@ impl<'a> Parser<'a> {
         let r#type = self.eat_type()?;
 
         // default value
-        if self.peek_next_token(TokenType::Assign).is_ok() {
+        let parameter = if self.peek_next_token(TokenType::Assign).is_ok() {
             // has default value
             self.eat_token(TokenType::Assign)?;
             let value = self.eat_expression()?;
-            let parameter_id = self.tree.allocate_from_mark(Parameter {
+            Parameter {
                 name,
                 r#type,
                 default: Some(value),
-            }, start);
-            Ok(parameter_id)
+            }
         } else {
             // no default value
-            let parameter_id = self.tree.allocate_from_mark(Parameter {
+            Parameter {
                 name,
                 r#type,
                 default: None,
-            }, start);
-            Ok(parameter_id)
-        }
+            }
+        };
+        let parameter_id = self
+            .tree
+            .allocate(parameter, self.span_from(start));
+        Ok(parameter_id)
     }
 
     /// Eat a parameter list.

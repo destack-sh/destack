@@ -123,7 +123,7 @@ impl<'a> Parser<'a> {
             let struct_id = self.eat_struct()?;
             let ty_id = self
                 .tree
-                .allocate(Type::Struct(struct_id), self.get_mark_span(start));
+                .allocate(Type::Struct(struct_id), self.span_from(start));
             Ok(ty_id)
         // union
         } else if self.peek_keyword(Keyword::Union).is_ok()
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
             let union_id = self.eat_union_or_enum()?;
             let ty_id = self
                 .tree
-                .allocate(Type::Union(union_id), self.get_mark_span(start));
+                .allocate(Type::Union(union_id), self.span_from(start));
             Ok(ty_id)
         // function
         } else if self.peek_keyword(Keyword::Function).is_ok() {
@@ -189,7 +189,7 @@ impl<'a> Parser<'a> {
         };
         let ty_id = self
             .tree
-            .allocate(Type::Primitive(primitive_type?), self.get_mark_span(start));
+            .allocate(Type::Primitive(primitive_type?), self.span_from(start));
         Ok(ty_id)
     }
 
@@ -226,7 +226,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_scalar_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-        let next = self.peek_next()?.clone();
+        let next = *self.peek_next()?;
 
         // maybe
         if next.token.r#type == TokenType::Question {
@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
             let inner_type = self.eat_type()?;
             let ty_id = self
                 .tree
-                .allocate_from_mark(Type::Maybe(Some(inner_type)), start);
+                .allocate(Type::Maybe(Some(inner_type)), self.span_from(start));
             Ok(ty_id)
         }
         // never
@@ -244,10 +244,12 @@ impl<'a> Parser<'a> {
                 let inner_type = self.eat_type()?;
                 let ty_id = self
                     .tree
-                    .allocate_from_mark(Type::Never(Some(inner_type)), start);
+                    .allocate(Type::Never(Some(inner_type)), self.span_from(start));
                 Ok(ty_id)
             } else {
-                let ty_id = self.tree.allocate_from_mark(Type::Never(None), start);
+                let ty_id = self
+                    .tree
+                    .allocate(Type::Never(None), self.span_from(start));
                 Ok(ty_id)
             }
 
@@ -261,7 +263,7 @@ impl<'a> Parser<'a> {
             let identifier = self.get_span_str(next.span);
             if identifier == "_" {
                 self.bump();
-                let ty_id = self.tree.allocate_from_mark(Type::Infer, start);
+                let ty_id = self.tree.allocate(Type::Infer, self.span_from(start));
                 Ok(ty_id)
             } else {
                 let path = self.eat_path()?;
@@ -270,21 +272,21 @@ impl<'a> Parser<'a> {
                     self.eat_token(TokenType::LessThan)?;
                     let static_arguments = self.eat_arguments_body()?;
                     self.eat_token(TokenType::GreaterThan)?;
-                    let ty_id = self.tree.allocate_from_mark(
+                    let ty_id = self.tree.allocate(
                         Type::Path {
                             path,
                             static_arguments: Some(static_arguments),
                         },
-                        start,
+                        self.span_from(start),
                     );
                     Ok(ty_id)
                 } else {
-                    let ty_id = self.tree.allocate_from_mark(
+                    let ty_id = self.tree.allocate(
                         Type::Path {
                             path,
                             static_arguments: None,
                         },
-                        start,
+                        self.span_from(start),
                     );
                     Ok(ty_id)
                 }
@@ -330,8 +332,12 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-        let tuple_id = self.tree.allocate_from_mark(Tuple { elements }, start);
-        let ty_id = self.tree.allocate_from_mark(Type::Tuple(tuple_id), start);
+        let tuple_id = self
+            .tree
+            .allocate(Tuple { elements }, self.span_from(start));
+        let ty_id = self
+            .tree
+            .allocate(Type::Tuple(tuple_id), self.span_from(start));
         Ok(ty_id)
     }
 
@@ -373,20 +379,20 @@ impl<'a> Parser<'a> {
         if self.peek_semicolon().is_ok() {
             self.eat_semicolon()?;
             let count = self.eat_expression()?;
-            let ty_id = self.tree.allocate_from_mark(
+            let ty_id = self.tree.allocate(
                 Type::Array {
                     element_type,
                     count,
                 },
-                start,
+                self.span_from(start),
             );
             Ok(ty_id)
         } else {
-            let ty_id = self.tree.allocate_from_mark(
+            let ty_id = self.tree.allocate(
                 Type::Slice {
                     element: element_type,
                 },
-                start,
+                self.span_from(start),
             );
             Ok(ty_id)
         }

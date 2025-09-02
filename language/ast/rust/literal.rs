@@ -13,34 +13,37 @@ impl<'a> Parser<'a> {
         // array
         if self.peek_next_token(TokenType::OpenBracket).is_ok() {
             let array_literal = self.eat_array_literal()?;
-            let expression_id = self
-                .tree
-                .allocate_from_mark(Expression::ArrayLiteral(array_literal), start);
+            let expression_id = self.tree.allocate(
+                Expression::ArrayLiteral(array_literal),
+                self.span_from(start),
+            );
             Ok(expression_id)
         // tuple
         } else if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
             let tuple_literal = self.eat_tuple_literal()?;
-            let expression_id = self
-                .tree
-                .allocate_from_mark(Expression::TupleLiteral(tuple_literal), start);
+            let expression_id = self.tree.allocate(
+                Expression::TupleLiteral(tuple_literal),
+                self.span_from(start),
+            );
             Ok(expression_id)
         // struct
         } else if self.peek_next_token(TokenType::OpenBrace).is_ok() {
             let struct_literal = self.eat_struct_literal()?;
-            let expression_id = self
-                .tree
-                .allocate_from_mark(Expression::StructLiteral(struct_literal), start);
+            let expression_id = self.tree.allocate(
+                Expression::StructLiteral(struct_literal),
+                self.span_from(start),
+            );
             Ok(expression_id)
         // scalar
         } else {
             let scalar_literal = self.eat_scalar_literal()?;
-            let expression_id = self
-                .tree
-                .allocate_from_mark(Expression::ScalarLiteral(scalar_literal), start);
+            let expression_id = self.tree.allocate(
+                Expression::ScalarLiteral(scalar_literal),
+                self.span_from(start),
+            );
             Ok(expression_id)
         }
     }
-
     /// Eat a scalar literal.
     ///
     /// Examples:
@@ -67,12 +70,12 @@ impl<'a> Parser<'a> {
             if identifier == "true" {
                 let scalar_literal = self
                     .tree
-                    .allocate_from_mark(ScalarLiteral::Boolean(true), start);
+                    .allocate(ScalarLiteral::Boolean(true), self.span_from(start));
                 Ok(scalar_literal)
             } else if identifier == "false" {
                 let scalar_literal = self
                     .tree
-                    .allocate_from_mark(ScalarLiteral::Boolean(false), start);
+                    .allocate(ScalarLiteral::Boolean(false), self.span_from(start));
                 Ok(scalar_literal)
             } else {
                 Err(ParseError::UnexpectedToken(self.prev().unwrap().span))
@@ -93,7 +96,7 @@ impl<'a> Parser<'a> {
                 RawLiteralType::Boolean { value } => {
                     let scalar_literal = self
                         .tree
-                        .allocate_from_mark(ScalarLiteral::Boolean(value), start);
+                        .allocate(ScalarLiteral::Boolean(value), self.span_from(start));
                     Ok(scalar_literal)
                 }
 
@@ -127,9 +130,9 @@ impl<'a> Parser<'a> {
                     };
                     match parsed_int {
                         Ok(value) => {
-                            let scalar_literal = self.tree.allocate_from_mark(
+                            let scalar_literal = self.tree.allocate(
                                 ScalarLiteral::Integer(value, IntType::INT32),
-                                start,
+                                self.span_from(start),
                             );
                             Ok(scalar_literal)
                         }
@@ -153,9 +156,9 @@ impl<'a> Parser<'a> {
                     let parsed_float = cleaned_str.parse::<f64>();
                     match parsed_float {
                         Ok(value) => {
-                            let scalar_literal = self.tree.allocate_from_mark(
+                            let scalar_literal = self.tree.allocate(
                                 ScalarLiteral::Float(value, FloatType::Float64),
-                                start,
+                                self.span_from(start),
                             );
                             Ok(scalar_literal)
                         }
@@ -170,9 +173,10 @@ impl<'a> Parser<'a> {
                     }
                     let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
                     if let Some(literal_char) = content.chars().next() {
-                        let scalar_literal = self
-                            .tree
-                            .allocate_from_mark(ScalarLiteral::Character(literal_char), start);
+                        let scalar_literal = self.tree.allocate(
+                            ScalarLiteral::Character(literal_char),
+                            self.span_from(start),
+                        );
                         Ok(scalar_literal)
                     } else {
                         Err(ParseError::UnexpectedToken(literal_span.span))
@@ -186,9 +190,10 @@ impl<'a> Parser<'a> {
                     }
                     let content = literal_str.trim_start_matches("b'").trim_end_matches('\'');
                     if let Some(literal_char) = content.chars().next() {
-                        let scalar_literal = self
-                            .tree
-                            .allocate_from_mark(ScalarLiteral::Byte(literal_char as u8), start);
+                        let scalar_literal = self.tree.allocate(
+                            ScalarLiteral::Byte(literal_char as u8),
+                            self.span_from(start),
+                        );
                         Ok(scalar_literal)
                     } else {
                         Err(ParseError::UnexpectedToken(literal_span.span))
@@ -204,7 +209,7 @@ impl<'a> Parser<'a> {
                     let string_id = self.strings.intern(content);
                     let scalar_literal = self
                         .tree
-                        .allocate_from_mark(ScalarLiteral::String(string_id), start);
+                        .allocate(ScalarLiteral::String(string_id), self.span_from(start));
                     Ok(scalar_literal)
                 }
 
@@ -217,7 +222,7 @@ impl<'a> Parser<'a> {
                     let bytes = content.as_bytes().to_vec();
                     let scalar_literal = self
                         .tree
-                        .allocate_from_mark(ScalarLiteral::ByteString(bytes), start);
+                        .allocate(ScalarLiteral::ByteString(bytes), self.span_from(start));
                     Ok(scalar_literal)
                 }
 
@@ -234,7 +239,7 @@ impl<'a> Parser<'a> {
                         let string_id = self.strings.intern(content);
                         let scalar_literal = self
                             .tree
-                            .allocate_from_mark(ScalarLiteral::String(string_id), start);
+                            .allocate(ScalarLiteral::String(string_id), self.span_from(start));
                         Ok(scalar_literal)
                     } else {
                         Err(ParseError::UnexpectedToken(literal_span.span))
@@ -254,7 +259,7 @@ impl<'a> Parser<'a> {
                         let bytes = content.as_bytes().to_vec();
                         let scalar_literal = self
                             .tree
-                            .allocate_from_mark(ScalarLiteral::ByteString(bytes), start);
+                            .allocate(ScalarLiteral::ByteString(bytes), self.span_from(start));
                         Ok(scalar_literal)
                     } else {
                         Err(ParseError::UnexpectedToken(literal_span.span))
@@ -269,7 +274,13 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// [] // empty array
     /// [1, 2, ] // trailing comma is allowed
+    /// // multi-line array with implicit comma
+    /// [
+    ///   1 // comma is optional here
+    ///   2 // comma is optional here too
+    /// ]
     /// [1.0, 2.0, .0]
     /// [10, false, "Hi"] // hetereogenous array is invalid but okay in AST
     /// [0; 10] // repeated array
@@ -299,7 +310,7 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::CloseBracket)?;
             let array_literal = self
                 .tree
-                .allocate_from_mark(ArrayLiteral::Fixed { elements }, start);
+                .allocate(ArrayLiteral::Fixed { elements }, self.span_from(start));
             Ok(array_literal)
         }
     }
@@ -310,6 +321,11 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// (1, 2, ) // trailing comma is allowed
+    /// // multi-line tuple with implicit comma
+    /// (
+    ///   1 // comma is optional here
+    ///   2 // comma is optional here too
+    /// )
     /// (1.0, 2.0, .0)
     /// (10, false, "Hi") // okay because it's a tuple
     /// ```
@@ -325,7 +341,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseParenthesis)?;
         let tuple_literal = self
             .tree
-            .allocate_from_mark(TupleLiteral { elements }, start);
+            .allocate(TupleLiteral { elements }, self.span_from(start));
         Ok(tuple_literal)
     }
 
@@ -336,8 +352,8 @@ impl<'a> Parser<'a> {
     /// Vector2 { x: 1.0, y: 2.0, z }
     ///
     /// destack.geometry.Mesh2 {
-    ///     vertices: [Vector3 { x: 1.0, y: 2.0, z: .0 }],
-    ///     indices: [0, 1, 2]
+    ///     vertices: [Vector3 { x: 1.0, y: 2.0, z: .0 }], // optional comma
+    ///     indices: [0, 1, 2] // optional comma
     /// }
     ///
     /// Mesh2<float64> { something: [] }
@@ -348,7 +364,7 @@ impl<'a> Parser<'a> {
         let fields = self.eat_struct_literal_body()?;
         let struct_literal = self
             .tree
-            .allocate_from_mark(StructLiteral { r#type, fields }, start);
+            .allocate(StructLiteral { r#type, fields }, self.span_from(start));
         Ok(struct_literal)
     }
 
@@ -357,6 +373,13 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// { x: 1.0, y: 2.0, z }
+    ///
+    /// // multi-line struct with implicit comma
+    /// {
+    ///    x: 1.0
+    ///    y: 2.0
+    ///    z
+    /// }
     /// ```
     pub fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<NodeId<FieldLiteral>>> {
         self.eat_token(TokenType::OpenBrace)?;
@@ -368,18 +391,19 @@ impl<'a> Parser<'a> {
             if self.peek_next_token(TokenType::Colon).is_ok() {
                 self.eat_token(TokenType::Colon)?;
                 let value = self.eat_expression()?;
-                let field_literal = self.tree.allocate_from_mark(
+                let field_literal = self.tree.allocate(
                     FieldLiteral {
                         name,
                         value: Some(value),
                     },
-                    field_start,
+                    self.span_from(field_start),
                 );
                 fields.push(field_literal);
             } else {
-                let field_literal = self
-                    .tree
-                    .allocate_from_mark(FieldLiteral { name, value: None }, field_start);
+                let field_literal = self.tree.allocate(
+                    FieldLiteral { name, value: None },
+                    self.span_from(field_start),
+                );
                 fields.push(field_literal);
             }
         }

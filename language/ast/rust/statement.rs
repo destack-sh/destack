@@ -1,6 +1,6 @@
 //! Parse statements.
 
-use crate::{ParseResult, Parser, Statement, NodeId};
+use crate::{NodeId, ParseResult, Parser, Statement};
 
 impl<'a> Parser<'a> {
     /// Parse a statement (without the `;`).

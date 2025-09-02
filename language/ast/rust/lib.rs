@@ -1,6 +1,5 @@
 #![feature(default_field_values)]
 
-mod tree;
 mod argument;
 mod r#as;
 mod binary;
@@ -19,6 +18,7 @@ mod pattern;
 mod statement;
 mod r#struct;
 mod r#trait;
+mod tree;
 mod r#try;
 mod r#type;
 mod unary;
@@ -30,12 +30,12 @@ pub mod format;
 pub mod node;
 pub mod parse;
 
-pub use tree::*;
 pub use error::*;
 pub use format::*;
 pub use keyword::*;
 pub use node::*;
 pub use parse::*;
+pub use tree::*;
 
 pub use destack_language_arena::{StringId, StringPool};
 
