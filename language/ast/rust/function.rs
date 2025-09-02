@@ -7,7 +7,6 @@ impl<'a> Parser<'a> {
         todo!()
     }
 
-
     /// Eat a function signature.
     ///
     /// Examples:
