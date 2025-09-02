@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use destack_language_token::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Expression, FieldLiteral, Function, FunctionSignature,
+    Argument, ArrayLiteral, Block, Doc, Expression, FieldLiteral, Function, FunctionSignature,
     Implement, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternStructField,
     PatternTupleField, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Tuple,
     TupleElement, TupleLiteral, Type, Union, UnionField, Using, UsingClause, UsingItem,
@@ -33,11 +33,13 @@ pub struct NodeTree {
     /// The next id to allocate.
     pub(crate) next_id: u32,
     /// The local ids of all nodes in the AST. Index is the global node id.
-    pub(crate) local_ids: Vec<u32>,
+    pub(crate) local_id_by_node: Vec<u32>,
     /// The kinds of all nodes in the AST. Index is the global node id.
-    pub(crate) kinds: Vec<NodeType>,
+    pub(crate) kind_by_node: Vec<NodeType>,
     /// The spans of all nodes in the AST. Index is the global node id.
-    pub(crate) spans: Vec<Span>,
+    pub(crate) spans_per_node: Vec<Span>,
+    /// The documentation of all nodes in the AST. Index is the global node id.
+    pub(crate) docs_per_node: Vec<Option<NodeId<Doc>>>,
 
     // per-node arenas
     // expressions
@@ -70,6 +72,8 @@ pub struct NodeTree {
     // parameters
     parameters: NodeArena<Parameter>,
     arguments: NodeArena<Argument>,
+    // documentation
+    docs: NodeArena<Doc>,
     // patterns
     patterns: NodeArena<Pattern>,
     pattern_tuple_fields: NodeArena<PatternTupleField>,
@@ -80,7 +84,7 @@ pub struct NodeTree {
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
-            .field("spans", &self.spans)
+            .field("spans", &self.spans_per_node)
             .finish()
     }
 }
@@ -101,9 +105,10 @@ impl NodeTree {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             next_id: 0,
-            local_ids: Vec::with_capacity(capacity),
-            kinds: Vec::with_capacity(capacity),
-            spans: Vec::with_capacity(capacity),
+            local_id_by_node: Vec::with_capacity(capacity),
+            kind_by_node: Vec::with_capacity(capacity),
+            spans_per_node: Vec::with_capacity(capacity),
+            docs_per_node: Vec::with_capacity(capacity),
             // expressions
             expressions: NodeArena::with_capacity(capacity),
             statements: NodeArena::with_capacity(capacity),
@@ -134,6 +139,8 @@ impl NodeTree {
             // parameters
             parameters: NodeArena::with_capacity(capacity),
             arguments: NodeArena::with_capacity(capacity),
+            // documentation
+            docs: NodeArena::with_capacity(capacity),
             // patterns
             patterns: NodeArena::with_capacity(capacity),
             pattern_tuple_fields: NodeArena::with_capacity(capacity),
@@ -152,14 +159,29 @@ impl NodeTree {
     {
         let global_id = self.next_id;
         self.next_id = global_id + 1;
-        self.kinds.push(T::KIND);
+        self.kind_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
-        self.local_ids.push(local_id);
-        self.spans.push(span);
+        self.local_id_by_node.push(local_id);
+        self.spans_per_node.push(span);
+        self.docs_per_node.push(None);
         NodeId {
             id: global_id,
             _ty: PhantomData,
         }
+    }
+
+    /// Append documentation to a node.
+    /// Merges the documentation with the existing documentation (if it exists).
+    pub fn append_documentation<T>(&mut self, node_id: NodeId<T>, documentation: NodeId<Doc>)
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        let local_id = self.local_id_by_node[node_id.id as usize];
+        if self.docs_per_node[local_id as usize].is_some() {
+            todo!("merge documentation");
+        }
+        self.docs_per_node[local_id as usize] = Some(documentation);
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -168,7 +190,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        let local_id = self.local_ids[id.id as usize];
+        let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get(self, local_id)
     }
 
@@ -178,7 +200,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        let local_id = self.local_ids[id.id as usize];
+        let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get_mut(self, local_id)
     }
 }
@@ -308,6 +330,8 @@ impl_node_tree_stores! {
     // Parameters
     Parameter => parameters,
     Argument => arguments,
+    // Documentation
+    Doc => docs,
     // Patterns
     Pattern => patterns,
     PatternTupleField => pattern_tuple_fields,

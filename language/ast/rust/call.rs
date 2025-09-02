@@ -12,4 +12,9 @@ impl<'a> Parser<'a> {
     pub fn eat_dynamic_call(&mut self) -> ParseResult<NodeId<Expression>> {
         todo!()
     }
+
+    /// Eat a call body (e.g., `path(1, y: 2)`).
+    pub fn eat_call_body(&mut self) -> ParseResult<NodeId<Expression>> {
+        todo!()
+    }
 }

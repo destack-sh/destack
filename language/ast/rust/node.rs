@@ -11,9 +11,9 @@ use crate::{NodeId, PathId, StringId};
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
     // Expression
-    Expression,
-    Statement,
     Block,
+    Statement,
+    Expression,
     // Literals
     ScalarLiteral,
     ArrayLiteral,
@@ -33,10 +33,13 @@ pub enum NodeType {
     Tuple,
     TupleElement,
     FunctionSignature,
+    Let,
     // Using
     Using,
     UsingClause,
     UsingItem,
+    // Documentation
+    Doc,
     // Parameters
     Parameter,
     Argument,
@@ -174,6 +177,57 @@ pub struct UsingItem {
 
 impl Node for UsingItem {
     const KIND: NodeType = NodeType::UsingItem;
+}
+
+/// A Doc is a full documentation comment string AST node.
+/// Successive documentation comments are concatenated.
+///
+/// Because almost every Node can have documentation, we store it separately
+///  in `NodeTree.documentation_by_node` (just like we have `spans_per_node`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Doc {
+    /// The full, merged documentation comment string.
+    Single(StringId),
+    /// Multiple documentation comments.
+    Multi(Vec<NodeId<Doc>>),
+}
+
+impl Node for Doc {
+    const KIND: NodeType = NodeType::Doc;
+}
+
+/// A LetStyle is the style of a let binding (const or mutable).
+#[derive(Debug, Clone, PartialEq)]
+pub enum LetStyle {
+    Let,
+    Var,
+}
+
+///
+/// Examples:
+/// ```
+/// let x = 1
+/// let x: i32 = 1
+/// if let Some(x) = someFunction() {
+///     ...
+/// }
+/// var x = 1
+/// var x: i32 = 1
+/// var x: int32 // implicitly uninitialized, must be set before use
+/// var x: [float64; 3] = --- // explicitly uninitialized, can do whatever
+/// if var Some(x) = someFunction() {
+///     ...
+/// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Let {
+    name: StringId,
+    style: LetStyle,
+    r#type: Option<NodeId<Type>>,
+    value: Option<NodeId<Expression>>,
+}
+
+impl Node for Let {
+    const KIND: NodeType = NodeType::Let;
 }
 
 /// A Tuple is tuple definition node in the AST.
@@ -576,10 +630,39 @@ impl Node for Argument {
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    /// Expression
-    Expression(NodeId<Expression>),
-    /// Using declaration
+    /// Using declaration for dependency and context management (see Using).
     Using(NodeId<Using>),
+
+    /// Doc comment (free floating, otherwise this is attached inside the declaration).
+    Doc(NodeId<Doc>),
+
+    /// A Block is a block of statements.
+    Block(NodeId<Block>),
+
+    /// Struct definition (as a Statement, see Struct).
+    Struct(NodeId<Struct>),
+
+    /// Union definition (as a Statement, see Union).
+    Union(NodeId<Union>),
+
+    /// Trait definition (as a Statement, see Trait).
+    Trait(NodeId<Trait>),
+
+    /// Function definition (as a Statement, see Function).
+    Function(NodeId<Function>),
+
+    /// Implement definition (as a Statement, see Implement).
+    Implement(NodeId<Implement>),
+
+    /// Let definition (as a Statement, see Let).
+    Let(NodeId<Let>),
+
+    /// Expression (see Expression).
+    /// Catch-all for any Expression used as a "top-level" statement.
+    Expression(NodeId<Expression>),
+
+    /// Error placeholder.
+    Error,
 }
 
 impl Node for Statement {
@@ -627,7 +710,7 @@ pub enum Expression {
     /// foo[1]
     /// foo[1..3]
     /// foo["bar"]
-    /// foo[variable+1]
+    /// foo().result[0][variable+1]
     /// ```
     Index {
         receiver: NodeId<Expression>,
@@ -743,35 +826,8 @@ pub enum Expression {
         dynamic_arguments: Vec<NodeId<Argument>>,
     },
 
-    /// Let binding.
-    ///
-    /// Examples:
-    /// ```
-    /// let x = 1
-    /// let x: i32 = 1
-    /// ```
-    Let {
-        name: StringId,
-        r#type: Option<NodeId<Type>>,
-        value: Option<NodeId<Expression>>,
-    },
-
-    /// Var binding.
-    ///
-    /// Examples:
-    /// ```
-    /// var x = 1
-    /// var x: i32 = 1
-    /// var x: int32 // implicitly uninitialized, must be set before use
-    /// var x: [float64; 3] = --- // explicitly uninitialized, can do whatever
-    /// ```
-    Var {
-        name: StringId,
-        r#type: Option<NodeId<Type>>,
-        value: Option<NodeId<Expression>>,
-        /// Whether the var is uninitialized with `---`.
-        is_uninitialized: bool,
-    },
+    /// Let or var binding (as an Expression, see Let).
+    Let(NodeId<Let>),
 
     /// Assignment.
     ///
@@ -971,33 +1027,29 @@ pub enum Expression {
         catch_block: Option<NodeId<Expression>>,
     },
 
-    /// A Block is a block of statements.
-    ///
-    /// Examples:
-    /// ```
-    /// {
-    ///     ...
-    /// }
-    /// ```
+    /// A Block is a block of statements (used as an Expression, see Block).
     Block(NodeId<Block>),
 
-    /// Struct definition
+    /// Struct definition (used as an Expression, see Struct).
     Struct(NodeId<Struct>),
 
-    /// Union definition
+    /// Union definition (used as an Expression, see Union).
     Union(NodeId<Union>),
 
-    /// Trait definition
+    /// Trait definition (used as an Expression, see Trait).
     Trait(NodeId<Trait>),
 
-    /// Function definition
+    /// Function definition (used as an Expression, see Function).
     Function(NodeId<Function>),
 
-    /// Implement definition
+    /// Implement definition (used as an Expression, see Implement).
     Implement(NodeId<Implement>),
 
     /// Error placeholder.
-    Error,
+    Error {
+        // TODO: proper error handling
+        message: StringId,
+    },
 }
 
 impl Node for Expression {
@@ -1477,10 +1529,11 @@ pub struct Try {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assign {
-    /// The left-hand side of the assignment.
-    /// Should be a place Expression, but this is checked later.
+    /// The left-hand side of the assignment (should be a place Expression, checked later).
     pub lhs: NodeId<Expression>,
+    /// The type of assignment.
     pub r#type: AssignType,
+    /// The right-hand side of the assignment.
     pub rhs: NodeId<Expression>,
 }
 
