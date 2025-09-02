@@ -2,7 +2,6 @@
 
 mod argument;
 mod r#as;
-mod binary;
 mod block;
 mod call;
 mod doc;
@@ -22,7 +21,6 @@ mod r#trait;
 mod tree;
 mod r#try;
 mod r#type;
-mod unary;
 mod union;
 mod using;
 
