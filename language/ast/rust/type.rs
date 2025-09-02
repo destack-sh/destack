@@ -136,7 +136,11 @@ impl<'a> Parser<'a> {
             Ok(ty_id)
         // function
         } else if self.peek_keyword(Keyword::Function).is_ok() {
-            self.eat_function_signature()
+            let function_signature_id = self.eat_function_signature()?;
+            let ty_id = self
+                .tree
+                .allocate(Type::Function(function_signature_id), self.span_from(start));
+            Ok(ty_id)
         // scalar
         } else {
             self.eat_scalar_type()
@@ -412,18 +416,6 @@ impl<'a> Parser<'a> {
             );
             Ok(ty_id)
         }
-    }
-
-    /// Eat a function signature.
-    ///
-    /// Examples:
-    /// ```
-    /// () => int32
-    /// (int32) => (int32, int32) // explicit tuple return type
-    /// (int32) => int32, int32 // implicit tuple return type
-    /// ```
-    pub fn eat_function_signature(&mut self) -> ParseResult<NodeId<Type>> {
-        todo!()
     }
 }
 
