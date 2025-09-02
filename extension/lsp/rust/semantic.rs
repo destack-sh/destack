@@ -146,7 +146,9 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         // skip these token types first
         K::Newline | K::Whitespace | K::Unknown | K::End => return None,
 
-        K::LineComment | K::DocComment => 0, // COMMENT
+        // comments
+        K::LineComment | K::BlockComment => 0,
+        K::DocLineComment | K::DocBlockComment => 3,
 
         // identifiers
         K::Identifier | K::InvalidIdentifier => 6,

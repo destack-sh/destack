@@ -31,6 +31,7 @@ pub fn tokenize_semantic(input: &str) -> Vec<TokenSpan> {
         if token.r#type != TokenType::End
             && token.r#type != TokenType::Whitespace
             && token.r#type != TokenType::LineComment
+            && token.r#type != TokenType::BlockComment
         {
             let end = pos + token.len;
             tokens.push(TokenSpan {
@@ -64,31 +65,48 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // slash, comment (incl. doc comment)
+            // slash, comments (line, block, doc) or divide ops
             '/' => {
                 // fast-path using bytes to avoid iterator cloning and extra UTF-8 decoding
-                let (has_second_slash, is_doc_comment);
-                {
-                    let bytes = self.as_str().as_bytes();
-                    has_second_slash = bytes.first().copied() == Some(b'/');
-                    // doc comment if exactly "/// " (three slashes followed by a space)
-                    is_doc_comment = has_second_slash
-                        && bytes.get(1) == Some(&b'/')
-                        && bytes.get(2) == Some(&b' ');
-                }
-                if !has_second_slash {
-                    if self.peek_next() == '=' {
-                        self.bump();
-                        (TokenType::DivideAssign, None)
-                    } else {
-                        (TokenType::Divide, None)
+                let bytes = self.as_str().as_bytes();
+                let next = bytes.first().copied();
+                match next {
+                    // line comments starting with '//'
+                    Some(b'/') => {
+                        // doc line comment if exactly three slashes and the fourth is not '/'
+                        let third_is_slash = bytes.get(1).copied() == Some(b'/');
+                        let fourth_is_slash = bytes.get(2).copied() == Some(b'/');
+                        let is_doc_line = third_is_slash && !fourth_is_slash;
+                        self.eat_until(b'\n');
+                        if is_doc_line {
+                            (TokenType::DocLineComment, None)
+                        } else {
+                            (TokenType::LineComment, None)
+                        }
                     }
-                } else {
-                    self.eat_until(b'\n');
-                    if is_doc_comment {
-                        (TokenType::DocComment, None)
-                    } else {
-                        (TokenType::LineComment, None)
+                    // block comments starting with '/*' (with nesting)
+                    Some(b'*') => {
+                        // detect doc block comment for exactly '/**' (not '/***')
+                        let third_is_star = bytes.get(1).copied() == Some(b'*');
+                        let fourth_is_star = bytes.get(2).copied() == Some(b'*');
+                        let is_doc_block = third_is_star && !fourth_is_star;
+                        // consume the initial '*'
+                        self.bump();
+                        self.eat_block_comment_body();
+                        if is_doc_block {
+                            (TokenType::DocBlockComment, None)
+                        } else {
+                            (TokenType::BlockComment, None)
+                        }
+                    }
+                    // divide or '/='
+                    _ => {
+                        if self.peek_next() == '=' {
+                            self.bump();
+                            (TokenType::DivideAssign, None)
+                        } else {
+                            (TokenType::Divide, None)
+                        }
                     }
                 }
             }
@@ -756,5 +774,37 @@ impl Tokenizer<'_> {
             self.bump();
         }
         self.eat_decimal_digits()
+    }
+
+    /// Parses a block comment body with nesting support.
+    /// Assumes the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
+    pub(crate) fn eat_block_comment_body(&mut self) {
+        let mut depth: u32 = 1;
+        while !self.is_eof() {
+            let bytes = self.as_str().as_bytes();
+            if bytes.len() >= 2 {
+                // start of nested block comment
+                if bytes[0] == b'/' && bytes[1] == b'*' {
+                    // consume '/*'
+                    self.bump();
+                    self.bump();
+                    depth = depth.saturating_add(1);
+                    continue;
+                }
+                // end of current block comment level
+                if bytes[0] == b'*' && bytes[1] == b'/' {
+                    // consume '*/'
+                    self.bump();
+                    self.bump();
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        break;
+                    }
+                    continue;
+                }
+            }
+            // consume a single character and continue
+            let _ = self.bump();
+        }
     }
 }

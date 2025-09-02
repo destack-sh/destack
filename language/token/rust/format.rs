@@ -6,12 +6,9 @@ impl Token {
     pub fn render(&self, source: &str, offset: usize) -> String {
         let len = self.len as usize;
         match self.r#type {
+            // Structural
             TokenType::Newline => "\n".to_string(),
             TokenType::Whitespace => {
-                // emit original slice for lexemes where we don't want to reformat
-                source[offset..offset + len].to_string()
-            }
-            TokenType::LineComment => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
@@ -21,10 +18,25 @@ impl Token {
             }
             TokenType::End => String::new(),
 
-            TokenType::DocComment => {
+            // Comments
+            TokenType::LineComment => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
+            TokenType::BlockComment => {
+                // preserve original formatting
+                source[offset..offset + len].to_string()
+            }
+            TokenType::DocLineComment => {
+                // emit original slice for lexemes where we don't want to reformat
+                source[offset..offset + len].to_string()
+            }
+            TokenType::DocBlockComment => {
+                // preserve original formatting
+                source[offset..offset + len].to_string()
+            }
+
+            // Identifiers
             TokenType::Identifier => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
@@ -33,6 +45,8 @@ impl Token {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
+
+            // Literals
             TokenType::UnknownLiteralPrefix => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
@@ -42,6 +56,7 @@ impl Token {
                 source[offset..offset + len].to_string()
             }
 
+            // Punctuation
             TokenType::Colon => ":".to_string(),
             TokenType::Semicolon => ";".to_string(),
             TokenType::Comma => ",".to_string(),
@@ -49,6 +64,7 @@ impl Token {
             TokenType::Range => "..".to_string(),
             TokenType::Ellipsis => "...".to_string(),
 
+            // Delimiters
             TokenType::OpenParenthesis => "(".to_string(),
             TokenType::CloseParenthesis => ")".to_string(),
             TokenType::OpenBrace => "{".to_string(),
@@ -56,6 +72,7 @@ impl Token {
             TokenType::OpenBracket => "[".to_string(),
             TokenType::CloseBracket => "]".to_string(),
 
+            // Symbols
             TokenType::At => "@".to_string(),
             TokenType::Pound => "#".to_string(),
             TokenType::Tilde => "~".to_string(),
@@ -63,8 +80,12 @@ impl Token {
             TokenType::Dollar => "$".to_string(),
             TokenType::Bang => "!".to_string(),
             TokenType::Empty => "---".to_string(),
+
+            // Logical
             TokenType::LogicalAnd => "&&".to_string(),
             TokenType::LogicalOr => "||".to_string(),
+
+            // Control Flow
             TokenType::Arrow => "=>".to_string(),
             TokenType::BadArrow => "->".to_string(),
 
@@ -79,7 +100,7 @@ impl Token {
             TokenType::Equal => "==".to_string(),
             TokenType::NotEqual => "!=".to_string(),
 
-            // Bitwise (assignment form)
+            // Bitwise
             TokenType::BitwiseOr => "|".to_string(),
             TokenType::BitwiseOrAssign => "|=".to_string(),
             TokenType::BitwiseAnd => "&".to_string(),
@@ -93,7 +114,7 @@ impl Token {
             TokenType::ShiftRight => ">>".to_string(),
             TokenType::ShiftRightAssign => ">>=".to_string(),
 
-            // Arithmetic (assignment form)
+            // Arithmetic
             TokenType::Add => "+".to_string(),
             TokenType::AddAssign => "+=".to_string(),
             TokenType::WrappingAdd => "+%".to_string(),
