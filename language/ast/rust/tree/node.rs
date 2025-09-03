@@ -56,12 +56,10 @@ pub enum NodeType {
     // Calls
     StaticCall,
     DynamicCall,
-    DynamicMethodCall,
     // Matching
     Match,
     Pattern,
-    PatternTupleField,
-    PatternStructField,
+    PatternField,
     MatchCase,
     // Documentation
     Doc,
@@ -96,8 +94,8 @@ pub enum Visibility {
 /// A Mutability is the mutability of a binding (const or mutable).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Mutability {
-    Constant,
-    Variable,
+    Immutable,
+    Mutable,
 }
 
 // ----------------------------------------------------------------------------
@@ -273,8 +271,6 @@ pub enum Expression {
     StaticCall(NodeId<StaticCall>),
     /// A DynamicCall is call to a function at runtime (as an Expression, see DynamicCall).
     DynamicCall(NodeId<DynamicCall>),
-    /// A DynamicMethodCall is call to an associated method at runtime (as an Expression, see DynamicMethodCall).
-    DynamicMethodCall(NodeId<DynamicMethodCall>),
 
     /// A Match is match expression (as an Expression, see Match).
     Match(NodeId<Match>),
@@ -387,7 +383,7 @@ impl Node for StructField {
 /// enum { Success, Failure }
 ///
 /// enum Foo {
-///     A
+///     A // semicolon optional
 ///     B
 ///     C
 /// }
@@ -718,6 +714,9 @@ impl Node for TupleField {
 /// [float32]
 /// [float64; 3]
 /// (int32, int32)
+/// *T // pointer to T
+/// *?T // pointer to Maybe<T>
+/// ?*T // maybe pointer to T
 /// T<int32>
 /// T<Validate: false>
 /// MyEnum
@@ -734,9 +733,11 @@ pub enum Type {
     /// Infer placeholder `_`.
     Infer,
     /// Maybe '?T'. Desugars to `Maybe<T>`.
-    Maybe(Option<NodeId<Type>>),
-    /// Never `!T`. Desugars to `Never<T>`.
-    Never(Option<NodeId<Type>>),
+    Maybe(NodeId<Type>),
+    /// Not `!T`. Desugars to `Not<T>`.
+    Not(NodeId<Type>),
+    /// Never `!`. Desugars to `Never`.
+    Never,
 
     // TODO: move primitive type parsing into DIR (?)
     /// Primitive type.
@@ -747,8 +748,11 @@ pub enum Type {
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
 
-    /// Pointer 'T*' to T.
-    Pointer(NodeId<Type>),
+    /// Pointer `*T` to a `T`. Or `*var T` for a mutable pointer.
+    Pointer {
+        mutability: Mutability,
+        target: NodeId<Type>,
+    },
     /// Inline Array type `[T; N]`. Must be fixed length.
     Array {
         element_type: NodeId<Type>,
@@ -1393,10 +1397,8 @@ pub enum PrimitiveType {
 /// A UnaryOperator is unary operator.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOperator {
-    /// '?'
-    Maybe,
     /// `!`
-    Not, // or Never
+    LogicalNot,
     /// `-`
     Negate,
     /// `~`
@@ -1519,7 +1521,7 @@ impl Node for StaticCall {
 /// ```
 /// foo()
 /// foo(1, 2, 3)
-/// foo(foo.a {x: 1, y: 2}, (true, 3))
+/// foo.bar(foo.a {x: 1, y: 2}, (true, 3))
 /// foo<true>(1, 2, 3)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -1532,31 +1534,6 @@ pub struct DynamicCall {
 
 impl Node for DynamicCall {
     const KIND: NodeType = NodeType::DynamicCall;
-}
-
-/// A DynamicMethodCall is call to an associated method at runtime.
-/// See DynamicCall for calls on functions.
-///
-/// Examples:
-/// ```
-/// foo.bar()
-/// foo.bar(1, 2, 3)
-/// foo.bar<true>(1, 2, 3)
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct DynamicMethodCall {
-    /// The receiver of the method call.
-    target: PathId,
-    /// The name of the method.
-    name: StringId,
-    /// The static arguments to the method `<Arg1, Arg2, ...>`.
-    static_arguments: Vec<NodeId<Argument>>,
-    /// The dynamic arguments to the method `(arg1, arg2, ...)`.
-    dynamic_arguments: Vec<NodeId<Argument>>,
-}
-
-impl Node for DynamicMethodCall {
-    const KIND: NodeType = NodeType::DynamicMethodCall;
 }
 
 // ----------------------------------------------------------------------------
@@ -1615,9 +1592,9 @@ pub enum Pattern {
     /// Range pattern `1..3`.
     Range(Range),
     /// Tuple pattern `(x, 0)`.
-    Tuple(Vec<NodeId<PatternTupleField>>),
+    Tuple(Vec<NodeId<PatternField>>),
     /// Struct pattern `Vector2 { x: 0, y }`.
-    Struct(Vec<NodeId<PatternStructField>>),
+    Struct(Vec<NodeId<PatternField>>),
     /// Wildcard pattern `_`.
     Wildcard,
 }
@@ -1626,31 +1603,18 @@ impl Node for Pattern {
     const KIND: NodeType = NodeType::Pattern;
 }
 
-/// A PatternTupleField is a field AST node of a tuple pattern.
-#[derive(Debug, Clone, PartialEq)]
-pub enum PatternTupleField {
-    /// A named field.
-    Literal(ScalarLiteral),
-    /// A wildcard field `_`.
-    Wildcard,
-}
-
-impl Node for PatternTupleField {
-    const KIND: NodeType = NodeType::PatternTupleField;
-}
-
 /// A PatternStructField is a field AST node of a struct pattern.
 #[derive(Debug, Clone, PartialEq)]
-pub enum PatternStructField {
-    /// A literal field.
+pub enum PatternField {
+    /// A literal struct field.
     Literal {
         name: StringId,
         value: NodeId<Pattern>,
     },
 }
 
-impl Node for PatternStructField {
-    const KIND: NodeType = NodeType::PatternStructField;
+impl Node for PatternField {
+    const KIND: NodeType = NodeType::PatternField;
 }
 
 /// A MatchCase is a match case AST node inside a Match expression.

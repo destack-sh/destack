@@ -5,8 +5,8 @@ use std::str::FromStr;
 use destack_language_token::TokenType;
 
 use crate::{
-    FloatType, IntType, Keyword, NodeId, ParseError, ParseResult, Parser, PrimitiveType, Tuple,
-    TupleField, Type,
+    FloatType, IntType, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser,
+    PrimitiveType, Tuple, TupleField, Type,
 };
 
 impl IntType {
@@ -244,7 +244,7 @@ impl<'a> Parser<'a> {
             let inner_type = self.eat_type()?;
             let ty_id = self
                 .tree
-                .allocate(Type::Maybe(Some(inner_type)), self.span_from(start));
+                .allocate(Type::Maybe(inner_type), self.span_from(start));
             Ok(ty_id)
         }
         // never
@@ -254,20 +254,32 @@ impl<'a> Parser<'a> {
                 let inner_type = self.eat_type()?;
                 let ty_id = self
                     .tree
-                    .allocate(Type::Never(Some(inner_type)), self.span_from(start));
+                    .allocate(Type::Not(inner_type), self.span_from(start));
                 Ok(ty_id)
             } else {
-                let ty_id = self.tree.allocate(Type::Never(None), self.span_from(start));
+                let ty_id = self.tree.allocate(Type::Never, self.span_from(start));
                 Ok(ty_id)
             }
 
         // pointer
         } else if next.token.r#type == TokenType::Multiply {
             self.bump();
+            let mutability = if let Ok(identifier) = self.peek_next_token(TokenType::Identifier)
+                && self.get_token_str(*identifier) == "var"
+            {
+                self.eat_token(TokenType::Identifier)?;
+                Mutability::Mutable
+            } else {
+                Mutability::Immutable
+            };
             let inner_type = self.eat_type()?;
-            let ty_id = self
-                .tree
-                .allocate(Type::Pointer(inner_type), self.span_from(start));
+            let ty_id = self.tree.allocate(
+                Type::Pointer {
+                    mutability,
+                    target: inner_type,
+                },
+                self.span_from(start),
+            );
             Ok(ty_id)
 
         // primitive
@@ -442,7 +454,9 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{Argument, Expression, FloatType, IntType, Parser, PrimitiveType, Type};
+    use crate::{
+        Argument, Expression, FloatType, IntType, Mutability, Parser, PrimitiveType, Type,
+    };
 
     #[test]
     fn test_eat_primitive_type() {
@@ -569,6 +583,7 @@ MyMesh<false, Dims: 3> // path with static arguments
 ! // never type
 !Time // never type
 *Vector2 // pointer type
+*var T // mutable pointer type
 "##;
         let tokens = tokenize_semantic(source);
         let mut parser = Parser::new(SourceFile::new(0, source, source.len() as u32), &tokens);
@@ -658,7 +673,7 @@ MyMesh<false, Dims: 3> // path with static arguments
         let ty_id = parser.eat_type().unwrap();
         let ty = parser.tree.get(ty_id);
         match ty {
-            Type::Maybe(Some(inner_id)) => {
+            Type::Maybe(inner_id) => {
                 let inner = parser.tree.get(*inner_id);
                 assert_eq!(
                     *inner,
@@ -672,14 +687,14 @@ MyMesh<false, Dims: 3> // path with static arguments
         // !
         let ty_id = parser.eat_type().unwrap();
         let ty = parser.tree.get(ty_id);
-        assert_eq!(*ty, Type::Never(None));
+        assert_eq!(*ty, Type::Never);
         parser.eat_newline().unwrap();
 
         // !Time
         let ty_id = parser.eat_type().unwrap();
         let ty = parser.tree.get(ty_id);
         match ty {
-            Type::Never(Some(inner_id)) => {
+            Type::Not(inner_id) => {
                 let inner = parser.tree.get(*inner_id);
                 let expected_time_path = parser.paths.intern(vec![parser.strings.intern("Time")]);
                 assert_eq!(
@@ -690,7 +705,7 @@ MyMesh<false, Dims: 3> // path with static arguments
                     }
                 );
             }
-            _ => panic!("expected Never<Time>"),
+            _ => panic!("expected !Time"),
         }
         parser.eat_newline().unwrap();
 
@@ -698,7 +713,10 @@ MyMesh<false, Dims: 3> // path with static arguments
         let ty_id = parser.eat_type().unwrap();
         let ty = parser.tree.get(ty_id);
         match ty {
-            Type::Pointer(inner_id) => {
+            Type::Pointer {
+                mutability,
+                target: inner_id,
+            } => {
                 let inner = parser.tree.get(*inner_id);
                 assert_eq!(
                     *inner,
@@ -707,8 +725,31 @@ MyMesh<false, Dims: 3> // path with static arguments
                         static_arguments: None
                     }
                 );
+                assert_eq!(*mutability, Mutability::Immutable);
             }
-            _ => panic!("expected Pointer<Vector2>"),
+            _ => panic!("expected *Vector2"),
+        }
+        parser.eat_newline().unwrap();
+
+        // *var T
+        let ty_id = parser.eat_type().unwrap();
+        let ty = parser.tree.get(ty_id);
+        match ty {
+            Type::Pointer {
+                mutability,
+                target: inner_id,
+            } => {
+                let inner = parser.tree.get(*inner_id);
+                assert_eq!(
+                    *inner,
+                    Type::Path {
+                        path: parser.paths.intern(vec![parser.strings.intern("T")]),
+                        static_arguments: None
+                    }
+                );
+                assert_eq!(*mutability, Mutability::Mutable);
+            }
+            _ => panic!("expected *var T"),
         }
         parser.eat_newline().unwrap();
     }

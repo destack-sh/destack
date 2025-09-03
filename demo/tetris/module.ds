@@ -58,13 +58,13 @@ implement TetrisPiece {
 }
 
 implement Tick for TetrisGame {
-    function tick(self) using Time, Random => Result<TetrisPiece, GameError> {
-    
+    function tick(*self) using Time, Random => Result<TetrisPiece, GameError> {
+        
     }
 }
 
 implement Draw for TetrisGame {
-    function draw(self) {
+    function draw(*self) {
         // ...
     }
 }

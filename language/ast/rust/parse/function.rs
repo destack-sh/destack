@@ -43,9 +43,10 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// (int32) => void
     /// () => int32
-    /// (x: int32) => (int32, int32) // explicit tuple return type
-    /// (x: int32) => int32, int32 // implicit tuple return type
+    /// (int32) => (int32, int32) // explicit tuple return type
+    /// (int32) => int32, int32 // implicit tuple return type
     /// ```
     pub fn eat_function_signature(&mut self) -> ParseResult<NodeId<FunctionSignature>> {
         todo!()

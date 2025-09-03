@@ -4,12 +4,11 @@ use std::marker::PhantomData;
 use destack_language_token::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Assign, Block, Break, Continue, Defer, Doc, DynamicCall,
-    DynamicMethodCall, Enum, EnumField, Expression, FieldLiteral, For, Function, FunctionSignature,
-    If, Implement, Let, Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern,
-    PatternStructField, PatternTupleField, Return, ScalarLiteral, Statement, StaticCall, Struct,
-    StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
-    UnionField, Using, UsingClause, UsingItem, While,
+    Argument, ArrayLiteral, Assign, Block, Break, Continue, Defer, Doc, DynamicCall, Enum,
+    EnumField, Expression, FieldLiteral, For, Function, FunctionSignature, If, Implement, Let,
+    Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, Return,
+    ScalarLiteral, Statement, StaticCall, Struct, StructField, StructLiteral, Trait, Try, Tuple,
+    TupleField, TupleLiteral, Type, Union, UnionField, Using, UsingClause, UsingItem, While,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -91,12 +90,10 @@ pub struct NodeTree {
     // calls
     static_calls: NodeArena<StaticCall>,
     dynamic_calls: NodeArena<DynamicCall>,
-    dynamic_method_calls: NodeArena<DynamicMethodCall>,
     // matching
     matches: NodeArena<Match>,
     patterns: NodeArena<Pattern>,
-    pattern_tuple_fields: NodeArena<PatternTupleField>,
-    pattern_struct_fields: NodeArena<PatternStructField>,
+    pattern_fields: NodeArena<PatternField>,
     match_cases: NodeArena<MatchCase>,
     // documentation
     docs: NodeArena<Doc>,
@@ -177,12 +174,10 @@ impl NodeTree {
             // calls
             static_calls: NodeArena::with_capacity(capacity),
             dynamic_calls: NodeArena::with_capacity(capacity),
-            dynamic_method_calls: NodeArena::with_capacity(capacity),
             // matching
             matches: NodeArena::with_capacity(capacity),
             patterns: NodeArena::with_capacity(capacity),
-            pattern_tuple_fields: NodeArena::with_capacity(capacity),
-            pattern_struct_fields: NodeArena::with_capacity(capacity),
+            pattern_fields: NodeArena::with_capacity(capacity),
             match_cases: NodeArena::with_capacity(capacity),
             // documentation
             docs: NodeArena::with_capacity(capacity),
@@ -387,12 +382,10 @@ impl_node_tree_stores! {
     // calls
     StaticCall => static_calls,
     DynamicCall => dynamic_calls,
-    DynamicMethodCall => dynamic_method_calls,
     // matching
     Match => matches,
     Pattern => patterns,
-    PatternTupleField => pattern_tuple_fields,
-    PatternStructField => pattern_struct_fields,
+    PatternField => pattern_fields,
     MatchCase => match_cases,
     // documentation
     Doc => docs,
