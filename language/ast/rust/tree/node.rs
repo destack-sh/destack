@@ -1,55 +1,70 @@
 //! The AST Nodes and in Destack.
 //!
-//! The AST is a syntax tree of nodes.
 //! The set of allowable ASTs is larger than the set of valid Destack programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
-//!  and in many cases we can suggest automatic fixes (like `->` -> `=>`, or drop `;`).
+//!  and in many cases we can suggest automatic fixes (like `->` to `=>`, or drop `;`).
 
 use crate::{NodeId, PathId, StringId};
 
 /// The type of a node in the AST.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeType {
-    // Expression
+    // Groupings
     Block,
     Statement,
     Expression,
+    // Declarations
+    Module,
+    Struct,
+    StructField,
+    Enum,
+    EnumField,
+    Union,
+    UnionField,
+    Trait,
+    Implement,
+    Type,
+    Tuple,
+    TupleField,
+    Function,
+    FunctionSignature,
+    // Using
+    Using,
+    UsingClause,
+    UsingItem,
+    // Control
+    If,
+    While,
+    For,
+    Loop,
+    Break,
+    Continue,
+    Defer,
+    Return,
+    Try,
+    // Bindings
+    Let,
+    Assign,
+    Parameter,
+    Argument,
     // Literals
     ScalarLiteral,
     ArrayLiteral,
     TupleLiteral,
     StructLiteral,
     FieldLiteral,
-    // Declarations
-    Module,
-    Struct,
-    StructField,
-    Union,
-    UnionField,
-    Trait,
-    Function,
-    Implement,
-    Type,
-    Tuple,
-    TupleField,
-    FunctionSignature,
-    // Bindings
-    Let,
-    Assign,
-    // Using
-    Using,
-    UsingClause,
-    UsingItem,
-    // Documentation
-    Doc,
-    // Parameters
-    Parameter,
-    Argument,
-    // Patterns
+    // Calls
+    StaticCall,
+    DynamicCall,
+    DynamicMethodCall,
+    // Matching
+    Match,
     Pattern,
     PatternTupleField,
     PatternStructField,
     MatchCase,
+    // Documentation
+    Doc,
 }
 
 /// A Node in the AST.
@@ -78,6 +93,207 @@ pub enum Visibility {
     Private,
 }
 
+/// A Mutability is the mutability of a binding (const or mutable).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Mutability {
+    Constant,
+    Variable,
+}
+
+// ----------------------------------------------------------------------------
+// Groupings
+// ----------------------------------------------------------------------------
+
+/// A Block is a block AST node of statements.
+///
+/// Examples:
+/// ```
+/// {
+///     x = 1
+///     y = 2
+/// }
+///
+/// label: {
+///     x = 1
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block {
+    pub label: Option<StringId>,
+    pub statements: Vec<NodeId<Statement>>,
+}
+
+impl Node for Block {
+    const KIND: NodeType = NodeType::Block;
+}
+
+/// An Statement is a top-level AST node in a container in the AST.
+/// Statements do not have to produce values, but they can be any Expression.
+/// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
+#[derive(Debug, Clone, PartialEq)]
+pub enum Statement {
+    /// A Block is a block of statements.
+    Block(NodeId<Block>),
+    /// Expression (see Expression).
+    /// Catch-all for any Expression used as a "top-level" statement.
+    Expression(NodeId<Expression>),
+
+    /// Module definition (as a Statement, see Module).
+    Module(NodeId<Module>),
+    /// Struct definition (as a Statement, see Struct).
+    Struct(NodeId<Struct>),
+    /// Enum definition (as a Statement, see Enum).
+    Enum(NodeId<Enum>),
+    /// Union definition (as a Statement, see Union).
+    Union(NodeId<Union>),
+    /// Trait definition (as a Statement, see Trait).
+    Trait(NodeId<Trait>),
+    /// Implement definition (as a Statement, see Implement).
+    Implement(NodeId<Implement>),
+    /// Function definition (as a Statement, see Function).
+    Function(NodeId<Function>),
+
+    /// Using declaration for dependency and context management (see Using).
+    Using(NodeId<Using>),
+
+    /// Let definition (as a Statement, see Let).
+    Let(NodeId<Let>),
+    /// Assignment to a variable (as a Statement, see Assign).
+    Assign(NodeId<Assign>),
+
+    /// Doc comment (free floating, otherwise this is attached inside the declaration).
+    Doc(NodeId<Doc>),
+
+    /// Error placeholder.
+    Error,
+}
+
+impl Node for Statement {
+    const KIND: NodeType = NodeType::Statement;
+}
+
+/// An Expression is a generic container AST node for all possible expression nodes in the AST.
+/// Expressions can be literals, bindings, calls, definitions, control flow, etc.
+///
+/// Some Expressions are "place Expressions" and can be read from and written to,
+///  that is, they have a place in memory we can point to and get the address of.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expression {
+    /// Path reference.
+    Path(PathId),
+    /// Member reference.
+    ///
+    /// Examples:
+    /// ```
+    /// foo.bar
+    /// foo.baz
+    /// ```
+    Member {
+        receiver: NodeId<Expression>,
+        name: StringId,
+    },
+    /// Index reference.
+    ///
+    /// Examples:
+    /// ```
+    /// foo[1]
+    /// foo[1..3]
+    /// foo["bar"]
+    /// foo().result[0][variable+1]
+    /// ```
+    Index {
+        receiver: NodeId<Expression>,
+        index: NodeId<Expression>,
+    },
+    /// A Range is range of an array or tuple (like `1..3`).
+    Range(Range),
+    /// Unary operation (see UnaryOperator).
+    UnaryOperation {
+        operator: UnaryOperator,
+        operand: NodeId<Expression>,
+    },
+
+    /// Binary operation (see BinaryOperator).
+    BinaryOperation {
+        lhs: NodeId<Expression>,
+        operator: BinaryOperator,
+        rhs: NodeId<Expression>,
+    },
+
+    /// A Block is a block of statements (used as an Expression, see Block).
+    Block(NodeId<Block>),
+
+    /// Module definition (used as an Expression, see Module).
+    Module(NodeId<Module>),
+    /// Struct definition (used as an Expression, see Struct).
+    Struct(NodeId<Struct>),
+    /// Enum definition (used as an Expression, see Enum).
+    Enum(NodeId<Enum>),
+    /// Union definition (used as an Expression, see Union).
+    Union(NodeId<Union>),
+    /// Trait definition (used as an Expression, see Trait).
+    Trait(NodeId<Trait>),
+    /// Implement definition (used as an Expression, see Implement).
+    Implement(NodeId<Implement>),
+    /// Function definition (used as an Expression, see Function).
+    Function(NodeId<Function>),
+
+    /// An If is an if/then/else expression (as an Expression, see If).
+    If(NodeId<If>),
+    /// A While is a while loop (as an Expression, see While).
+    While(NodeId<While>),
+    /// A For is a for loop (as an Expression, see For).
+    For(NodeId<For>),
+    /// A Loop is an unconditional loop (as an Expression, see Loop).
+    Loop(NodeId<Loop>),
+    /// Break out of a scope (as an Expression, see Break).
+    Break(NodeId<Break>),
+    /// Continue to the next iteration of a scope (as an Expression, see Continue).
+    Continue(NodeId<Continue>),
+    /// Defer expression until scope exit (as an Expression, see Defer).
+    Defer(NodeId<Defer>),
+    /// Return expression (as an Expression, see Return).
+    Return(NodeId<Return>),
+    /// A Try is try/catch statement (as an Expression, see Try).
+    Try(NodeId<Try>),
+
+    /// Let or var binding (as an Expression, see Let).
+    Let(NodeId<Let>),
+
+    /// Literal scalar value (as an Expression, see ScalarLiteral).
+    ScalarLiteral(NodeId<ScalarLiteral>),
+    /// Array literal (as an Expression, see ArrayLiteral).
+    ArrayLiteral(NodeId<ArrayLiteral>),
+    /// Tuple literal (as an Expression, see TupleLiteral).
+    TupleLiteral(NodeId<TupleLiteral>),
+    /// Struct literal (as an Expression, see StructLiteral).
+    StructLiteral(NodeId<StructLiteral>),
+
+    /// A StaticCall is call to a function at compile time (as an Expression, see StaticCall).
+    StaticCall(NodeId<StaticCall>),
+    /// A DynamicCall is call to a function at runtime (as an Expression, see DynamicCall).
+    DynamicCall(NodeId<DynamicCall>),
+    /// A DynamicMethodCall is call to an associated method at runtime (as an Expression, see DynamicMethodCall).
+    DynamicMethodCall(NodeId<DynamicMethodCall>),
+
+    /// A Match is match expression (as an Expression, see Match).
+    Match(NodeId<Match>),
+
+    /// Error placeholder.
+    Error {
+        // TODO: proper error handling
+        message: StringId,
+    },
+}
+
+impl Node for Expression {
+    const KIND: NodeType = NodeType::Expression;
+}
+
+// ----------------------------------------------------------------------------
+// Declarations
+// ----------------------------------------------------------------------------
+
 /// A Module is a module declaration AST node.
 /// Modules may be whole directories, single files, or nested within a file.
 ///
@@ -100,6 +316,466 @@ pub struct Module {
 impl Node for Module {
     const KIND: NodeType = NodeType::Module;
 }
+
+/// A Struct is struct definition node in the AST.
+/// May be named or anonymous.
+/// The ',' separator is optional if newline-delimited.
+///
+/// Examples:
+/// ```
+/// struct { a: int32, b: boolean }
+///
+/// struct { // anonymous struct (for use as a value)
+///     myField: int32
+///     myOtherField: boolean
+/// }
+///
+/// struct Bar {
+///     myField: int32
+///     myOtherField: boolean
+/// }
+///
+/// struct Foo using Bar, Baz {
+///     myField: int32
+///     myOtherField: boolean
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Struct {
+    /// The name of the struct.
+    pub name: Option<StringId>,
+    /// The visibility of the struct.
+    pub visibility: Visibility,
+    /// The fields of the struct.
+    pub fields: Vec<NodeId<StructField>>,
+    /// The using declaration for the struct.
+    pub using: Option<NodeId<Using>>,
+}
+
+impl Node for Struct {
+    const KIND: NodeType = NodeType::Struct;
+}
+
+/// A StructField is a (struct) field declaration AST node.
+///
+/// Examples:
+/// ```
+/// bar: int32
+/// baz: T
+/// baz: @someMacro(T)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructField {
+    /// The name of the field.
+    pub name: StringId,
+    /// The type of the field.
+    pub r#type: NodeId<Type>,
+    /// The default value of the field.
+    pub default: Option<NodeId<Expression>>,
+}
+
+impl Node for StructField {
+    const KIND: NodeType = NodeType::StructField;
+}
+
+/// An Enum is an enumeration definition node in the AST.
+/// Like with structs, the ',' separator is optional if newline-delimited.
+///
+/// Examples:
+/// ```
+/// // anonymous enum (for use as a value)
+/// enum { Success, Failure }
+///
+/// enum Foo {
+///     A
+///     B
+///     C
+/// }
+///
+/// enum(u8) Foo {
+///     Baz = 1
+///     Qux = 2
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Enum {
+    /// The name of the union.
+    pub name: Option<StringId>,
+    /// The type of the union (if explicitly specified).
+    pub r#type: Option<NodeId<Type>>,
+    /// The fields of the union.
+    pub fields: Vec<NodeId<UnionField>>,
+    /// The using declarations for the union.
+    pub usings: Option<Vec<NodeId<Using>>>,
+}
+
+impl Node for Enum {
+    const KIND: NodeType = NodeType::Union;
+}
+
+/// A EnumField is a enum field declaration AST node.
+///
+/// Examples:
+/// ```
+/// A
+/// B = 4
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnumField {
+    /// The name of the union field.
+    pub name: StringId,
+    /// The default value of the enum field.
+    pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for EnumField {
+    const KIND: NodeType = NodeType::EnumField;
+}
+
+/// A Union is a tagged sum type definition node in the AST.
+/// Like with structs, the ',' separator is optional if newline-delimited.
+///
+/// Examples:
+/// ```
+/// union { // anonymous union (for use as a value)
+///     myField: int32
+///     myOtherField: boolean
+/// }
+///
+/// union(uint4) Foo {
+///     A
+///     B { x: int32, y: int32 } = 4
+///     C(boolean)
+///     D(boolean, int32) = 6
+/// }
+///
+/// // unions can be tagged with enums and include other types with using (like structs)
+/// union(TetrisShapeType) TetrisShape using GameObject {
+///     ...
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Union {
+    /// The name of the union.
+    pub name: Option<StringId>,
+    /// The type of the union (if explicitly specified).
+    pub r#type: Option<NodeId<Type>>,
+    /// The fields of the union.
+    pub fields: Vec<NodeId<UnionField>>,
+    /// The using declarations for the union.
+    pub usings: Option<Vec<NodeId<Using>>>,
+}
+
+impl Node for Union {
+    const KIND: NodeType = NodeType::Union;
+}
+
+/// A UnionField is a union field declaration AST node.
+///
+/// Examples:
+/// ```
+/// A(int32)
+/// B { x: int32, y: int32 } = 4
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnionField {
+    /// The name of the union field.
+    pub name: StringId,
+    /// The type of the union field.
+    pub r#type: Option<NodeId<Type>>,
+    /// The default value of the union field.
+    pub value: Option<NodeId<Expression>>,
+}
+
+impl Node for UnionField {
+    const KIND: NodeType = NodeType::UnionField;
+}
+
+/// A Trait is trait definition node in the AST.
+///
+/// Examples:
+/// ```
+/// trait Bar {
+///     ...
+/// }
+///
+/// trait Baz<T> {
+///     let x: T // constant
+///
+///     function foo() => T;
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Trait {
+    /// The name of the trait.
+    pub name: StringId,
+    /// The static parameters to the trait.
+    pub static_parameters: Option<Vec<NodeId<Parameter>>>,
+    /// The let bindings of the trait.
+    pub lets: Vec<NodeId<Let>>,
+    /// The functions of the trait.
+    pub functions: Vec<NodeId<Function>>,
+}
+
+impl Node for Trait {
+    const KIND: NodeType = NodeType::Trait;
+}
+
+/// An Impl defines the implementation of a concrete type node in the AST.
+/// There may be multiple Impls for the same type, and even impls for different modules.
+/// (To add a module's implementation to your own just use the corresponding module.)
+///
+/// Examples:
+/// ```
+/// implement Foo {
+///     ...
+/// }
+///
+/// implement Foo<int32> {
+///     ...
+/// }
+///
+/// implement Marker for Bar;
+///
+/// implement Bar<int32> for Baz {
+///     ...
+/// }
+///
+/// implement<T> Bar<T> for Baz {
+///     ...
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Implement {
+    /// The trait type to implement.
+    pub trait_type: NodeId<Type>,
+    /// The type to implement the trait for.
+    pub for_type: NodeId<Type>,
+    /// The static arguments to the implement (leftmost static arguments).
+    pub static_arguments: Option<Vec<NodeId<Type>>>,
+    /// The body of the implement.
+    pub body: Option<NodeId<Block>>,
+}
+
+impl Node for Implement {
+    const KIND: NodeType = NodeType::Implement;
+}
+
+/// A FunctionRuntime is the runtime of a function.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionRuntime {
+    /// A normal function.
+    Dynamic,
+    /// A static function.
+    Static,
+}
+
+/// A FunctionStyle is the style of a function.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionStyle {
+    /// A normal function.
+    Function,
+    /// A lambda function.
+    Lambda,
+}
+
+/// A Function is function or "lambda" definition or declaration node in the AST.
+/// If no body is provided, it is a declaration for a function defined elsewhere.
+///
+/// Examples:
+/// ```
+/// // function style
+///
+/// function foo() {
+///    print("Hello, world!")
+/// }
+///
+/// function baz(a: int32, b: boolean) => MyStruct, boolean {
+///    ...
+/// }
+///
+/// function @comptime() {
+///    ...
+/// }
+///
+/// // optional , if newline-delimited
+/// function longBar(
+///   /// doc comment for `a`
+///   a: int32
+///   /// doc comment for `b`
+///   b: boolean
+///   c: Vector2
+/// ) => int32, isGood: boolean {
+///    ...
+/// )
+///
+/// // lambda style
+///
+/// () => { 0 } // no function keyword
+/// () => None // slightly ambiguous but returns None
+/// (x: int32) => x + 1
+///
+/// // for return type in lambdas, you need a `{ ... }` body
+/// (a: int32, b: int32) => int32 {
+///      let y = someFunction(a, b)
+///      y + 4
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    /// The name of the function (excluding the `@` prefix if static).
+    pub name: Option<StringId>,
+    /// The runtime of the function (static or dynamic).
+    pub runtime: FunctionRuntime,
+    /// The style of the function (function or lambda).
+    pub style: FunctionStyle,
+    /// The type of the function.
+    pub r#type: NodeId<FunctionSignature>,
+    /// The body of the function.
+    pub body: Option<NodeId<Block>>,
+}
+
+impl Node for Function {
+    const KIND: NodeType = NodeType::Function;
+}
+
+/// The type of a Function type `(T1, T2, ...) => T`.
+/// Function signatures may omit the tuple parentheses `()`  in return type.
+///
+/// Examples:
+/// ```
+/// ()
+/// (x: int32)
+/// <Validate: boolean>(x: int32) => bool
+/// (x: int32) => int32, boolean
+/// (x: int32) using Disk => is_cool: boolean, coolness: int17
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionSignature {
+    /// The static arguments to the function.
+    pub static_arguments: Vec<NodeId<Parameter>>,
+    /// The dynamic arguments to the function.
+    pub dynamic_arguments: Vec<NodeId<Parameter>>,
+    /// The return type of the function.
+    pub return_type: Option<NodeId<Type>>,
+    /// The using declaration for the function (can't have a body).
+    pub using: Option<NodeId<Using>>,
+}
+
+impl Node for FunctionSignature {
+    const KIND: NodeType = NodeType::FunctionSignature;
+}
+
+/// A Tuple is tuple definition node in the AST.
+/// Tuples are declared anonymously and inline.
+/// The ',' separator is optional if newline-delimited.
+///
+/// Examples:
+/// ```
+/// ()
+/// (a: int32, b: boolean)
+/// (
+///   a: int32
+///   b: boolean
+/// )
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tuple {
+    pub elements: Vec<NodeId<TupleField>>,
+}
+
+impl Node for Tuple {
+    const KIND: NodeType = NodeType::Tuple;
+}
+
+/// A TupleField is a tuple field definition AST node.
+/// Tuple elements may be named or anonymous, but cannot have default values.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TupleField {
+    Named {
+        name: StringId,
+        r#type: NodeId<Type>,
+    },
+    Positional {
+        r#type: NodeId<Type>,
+    },
+}
+
+impl Node for TupleField {
+    const KIND: NodeType = NodeType::TupleField;
+}
+
+/// An (unresolved) Type declaration node in the AST.
+///
+/// Type references don't support static evaluation directly for simplicity.
+/// They can refer to Paths that are themselves any static Expressions
+///  (which enables the same feature set in a more structured way).
+///
+/// Examples:
+/// ```
+/// int32
+/// boolean
+/// [float32]
+/// [float64; 3]
+/// (int32, int32)
+/// T<int32>
+/// T<Validate: false>
+/// MyEnum
+/// simulation.geometry.Vector2
+/// struct MyResponse { x: int32, y: int32 }
+/// enum { Good, Bad }
+/// (int32) => int32
+/// function () => () // optional function keyword
+/// () => int32, Vector2 // implicitly returns a tuple
+/// () => Result<int32, struct Error { message: string }>
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    /// Infer placeholder `_`.
+    Infer,
+    /// Maybe '?T'. Desugars to `Maybe<T>`.
+    Maybe(Option<NodeId<Type>>),
+    /// Never `!T`. Desugars to `Never<T>`.
+    Never(Option<NodeId<Type>>),
+
+    // TODO: move primitive type parsing into DIR (?)
+    /// Primitive type.
+    Primitive(PrimitiveType),
+    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
+    Path {
+        path: PathId,
+        static_arguments: Option<Vec<NodeId<Argument>>>,
+    },
+
+    /// Pointer 'T*' to T.
+    Pointer(NodeId<Type>),
+    /// Inline Array type `[T; N]`. Must be fixed length.
+    Array {
+        element_type: NodeId<Type>,
+        count: NodeId<Expression>,
+    },
+    /// Inline Slice type `[T]`. Unknown length (dynamic).
+    Slice { element: NodeId<Type> },
+
+    /// Inline anonymous tuple type `(T1, T2, ...)` (no tuple keyword).
+    Tuple(NodeId<Tuple>),
+    /// Inline nominal Struct type `struct MyStruct { ... }`.
+    Struct(NodeId<Struct>),
+    /// Inline nominal Enum type `enum MyEnum { ... }`.
+    Enum(NodeId<Enum>),
+    /// Inline nominal Union type `union MyUnion { ... }`.
+    Union(NodeId<Union>),
+    /// Inline Function type `(T1, T2, ...) => T`.
+    Function(NodeId<FunctionSignature>),
+}
+
+impl Node for Type {
+    const KIND: NodeType = NodeType::Type;
+}
+
+// ----------------------------------------------------------------------------
+// Usings
+// ----------------------------------------------------------------------------
 
 /// A Using is a use declaration AST node for dependency and context management.
 /// Using can be used as statement for the containing scope or in block form.
@@ -181,29 +857,218 @@ impl Node for UsingItem {
     const KIND: NodeType = NodeType::UsingItem;
 }
 
-/// A Doc is a full documentation comment string AST node.
-/// Successive documentation comments are concatenated.
+// ----------------------------------------------------------------------------
+// Control
+// ----------------------------------------------------------------------------
+
+/// If/then/else expression.
 ///
-/// Because almost every Node can have documentation, we store it separately
-///  in `NodeTree.documentation_by_node` (just like we have `spans_per_node`).
+/// Examples:
+/// ```
+/// if x > 0 {
+///     print("positive")
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum Doc {
-    /// The full, merged documentation comment string.
-    Single(StringId),
-    /// Multiple documentation comments.
-    Multi(Vec<NodeId<Doc>>),
+pub struct If {
+    condition: NodeId<Expression>,
+    then_body: NodeId<Block>,
+    else_body: Option<NodeId<Block>>,
 }
 
-impl Node for Doc {
-    const KIND: NodeType = NodeType::Doc;
+impl Node for If {
+    const KIND: NodeType = NodeType::If;
 }
 
-/// A LetStyle is the style of a let binding (const or mutable).
+/// A While is while loop.
+///
+/// Examples:
+/// ```
+/// while x > 1 {
+///     y = 2
+/// }
+///
+/// while y < 10 l: {
+///     y = 2
+///     break :l
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum LetStyle {
-    Let,
-    Var,
+pub struct While {
+    condition: NodeId<Expression>,
+    body: NodeId<Block>,
 }
+
+impl Node for While {
+    const KIND: NodeType = NodeType::While;
+}
+
+/// A For is a for loop over an iterator with a pattern.
+///
+/// Examples:
+/// ```
+/// for x in 1..10 {
+///     y = 2
+/// }
+///
+/// for x in 1..10 a: {
+///     if y > 5 {
+///         continue :a
+///     }
+///     y = 2
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct For {
+    /// The pattern to match the iterator with (e.g., `x`).
+    pattern: NodeId<Pattern>,
+    /// The iterator to iterate over (e.g., `1..10`).
+    iterator: NodeId<Expression>,
+    /// The body of the for loop.
+    body: NodeId<Block>,
+}
+
+impl Node for For {
+    const KIND: NodeType = NodeType::For;
+}
+
+/// A Loop is an unconditional loop.
+///
+/// Examples:
+/// ```
+/// loop {
+///     y = getNext()
+///     if y < 0 {
+///         break
+///     }
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Loop {
+    /// The body of the loop.
+    pub body: NodeId<Block>,
+}
+
+impl Node for Loop {
+    const KIND: NodeType = NodeType::Loop;
+}
+
+/// A Break is break statement.
+///
+/// Examples:
+/// ```
+/// break
+/// break :label
+/// break :label 17
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Break {
+    /// The label to break to (e.g., `:label`).
+    label: Option<StringId>,
+    /// The value to break with (e.g., `17`).
+    value: Option<NodeId<Expression>>,
+}
+
+impl Node for Break {
+    const KIND: NodeType = NodeType::Break;
+}
+
+/// A Continue is continue statement.
+///
+/// Examples:
+/// ```
+/// continue
+/// continue :label
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Continue {
+    /// The label to continue to (e.g., `:label`).
+    label: Option<StringId>,
+}
+
+impl Node for Continue {
+    const KIND: NodeType = NodeType::Continue;
+}
+
+/// Defer expression until scope exit.
+///
+/// Examples:
+/// ```
+/// defer someFunction()
+///
+/// defer {
+///     someFunction()
+///     someOtherFunction()
+/// }
+///
+/// defer :label {
+///     someOtherFunction()
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum Defer {
+    /// Defer a single expression.
+    Expression(NodeId<Expression>),
+    /// Defer a block of statements.
+    Block(NodeId<Block>),
+}
+
+impl Node for Defer {
+    const KIND: NodeType = NodeType::Defer;
+}
+
+/// Return expression.
+///
+/// Examples:
+/// ```
+/// return
+/// return 1
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Return {
+    value: Option<NodeId<Expression>>,
+}
+
+impl Node for Return {
+    const KIND: NodeType = NodeType::Return;
+}
+
+/// A Try is try/catch statement.
+/// The try expression may be a single statement or a block of statements.
+/// Any error Result within the try expression aborts the try expression and:
+///  1. If there is a catch, jumps to the catch pattern matching for handling.
+///  2. If there is no catch, the error is propagated to the caller explicitly.
+///
+/// Examples:
+/// ```
+/// try fileOperation() // implicitly unwraps the Result, returns Error case
+///
+/// try { // implicitly unwraps all Results inside
+///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
+///     riskyOperationB(a)
+/// } // no catch needed if containing function has compatible Result type (Into suffices)
+///
+/// try { // explicitly unwraps all Results inside
+///     ...
+/// } catch e { // match all errors
+///     NumericError(x) => Error(@format("bad number: {x}"))
+///     FormatError => Error(@format("bad format {e}"))
+///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Try {
+    try_block: NodeId<Expression>,
+    catch_block: Option<NodeId<Match>>,
+}
+
+impl Node for Try {
+    const KIND: NodeType = NodeType::Try;
+}
+
+// ----------------------------------------------------------------------------
+// Bindings
+// ----------------------------------------------------------------------------
 
 /// Let or var binding for constant or mutable variables.
 ///
@@ -224,7 +1089,7 @@ pub enum LetStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
     name: StringId,
-    style: LetStyle,
+    mutability: Mutability,
     r#type: Option<NodeId<Type>>,
     value: Option<NodeId<Expression>>,
 }
@@ -255,358 +1120,60 @@ impl Node for Assign {
     const KIND: NodeType = NodeType::Assign;
 }
 
-/// A Tuple is tuple definition node in the AST.
-/// Tuples are declared anonymously and inline.
-/// The ',' separator is optional if newline-delimited.
+/// An AssignType is assignment type.
 ///
 /// Examples:
 /// ```
-/// ()
-/// (a: int32, b: boolean)
-/// (
-///   a: int32
-///   b: boolean
-/// )
+/// =
+/// +=
+/// -=
+/// *|=
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Tuple {
-    pub elements: Vec<NodeId<TupleField>>,
-}
+pub enum AssignType {
+    /// `=`
+    Assign,
 
-impl Node for Tuple {
-    const KIND: NodeType = NodeType::Tuple;
-}
+    /// `+=`
+    AddAssign,
+    /// `+%=`
+    WrappingAddAssign,
+    /// `+|=`
+    SaturatingAddAssign,
+    /// `-=`
+    SubtractAssign,
+    /// `-%=`
+    WrappingSubtractAssign,
+    /// `-|=`
+    SaturatingSubtractAssign,
+    /// `*=`
+    MultiplyAssign,
+    /// `*%=`
+    WrappingMultiplyAssign,
+    /// `*|=`
+    SaturatingMultiplyAssign,
+    /// `/=`
+    DivideAssign,
+    /// `%=`
+    RemainderAssign,
 
-/// A TupleField is a tuple field definition AST node.
-/// Tuple elements may be named or anonymous, but cannot have default values.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TupleField {
-    Named {
-        name: StringId,
-        r#type: NodeId<Type>,
-    },
-    Positional {
-        r#type: NodeId<Type>,
-    },
-}
+    /// `&&=`
+    LogicalAndAssign,
+    /// `||=`
+    LogicalOrAssign,
 
-impl Node for TupleField {
-    const KIND: NodeType = NodeType::TupleField;
-}
-
-/// A Struct is struct definition node in the AST.
-/// May be named or anonymous.
-/// The ',' separator is optional if newline-delimited.
-///
-/// Examples:
-/// ```
-/// struct { a: int32, b: boolean }
-///
-/// struct { // anonymous struct (for use as a value)
-///     myField: int32
-///     myOtherField: boolean
-/// }
-///
-/// struct Bar {
-///     myField: int32
-///     myOtherField: boolean
-/// }
-///
-/// struct Foo using Bar, Baz {
-///     myField: int32
-///     myOtherField: boolean
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Struct {
-    /// The name of the struct.
-    pub name: Option<StringId>,
-    /// The visibility of the struct.
-    pub visibility: Visibility,
-    /// The fields of the struct.
-    pub fields: Vec<NodeId<StructField>>,
-    /// The using declaration for the struct.
-    pub using: Option<NodeId<Using>>,
-}
-
-impl Node for Struct {
-    const KIND: NodeType = NodeType::Struct;
-}
-
-/// A StructField is a (struct) field declaration AST node.
-///
-/// Examples:
-/// ```
-/// bar: int32
-/// baz: T
-/// baz: @someMacro(T)
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct StructField {
-    /// The name of the field.
-    pub name: StringId,
-    /// The type of the field.
-    pub r#type: NodeId<Type>,
-    /// The default value of the field.
-    pub default: Option<NodeId<Expression>>,
-}
-
-impl Node for StructField {
-    const KIND: NodeType = NodeType::StructField;
-}
-
-/// A Union is sum type definition node in the AST.
-/// Enums are just sugar for unions with only a tag (and no values).
-/// Unions (if all options are structs) may include structs with using declarations.
-/// Like with structs, the ',' separator is optional if newline-delimited.
-///
-/// Examples:
-/// ```
-/// // anonymous enum (for use as a value)
-/// enum { Success, Failure }
-///
-/// union { // anonymous union (for use as a value)
-///     myField: int32
-///     myOtherField: boolean
-/// }
-///
-/// enum Foo {
-///     A
-///     B
-///     C
-/// }
-///
-/// enum(u8) Foo {
-///     Baz = 1
-///     Qux = 2
-/// }
-///
-/// union Foo {
-///     A
-///     B { x: int32, y: int32 } = 4
-///     C(boolean)
-///     D(boolean, int32) = 6
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Union {
-    /// The name of the union.
-    pub name: Option<StringId>,
-    /// The type of the union (if explicitly specified).
-    pub r#type: Option<NodeId<Type>>,
-    /// The declared style of the union (enum or union).
-    pub style: UnionStyle,
-    /// The fields of the union.
-    pub fields: Vec<NodeId<UnionField>>,
-    /// The using declarations for the union.
-    pub usings: Option<Vec<NodeId<Using>>>,
-}
-
-impl Node for Union {
-    const KIND: NodeType = NodeType::Union;
-}
-
-/// A UnionStyle is the style of a union.
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnionStyle {
-    Enum,
-    Union,
-}
-
-/// A UnionField is a union field declaration AST node.
-///
-/// Examples:
-/// ```
-/// A(int32)
-/// B { x: int32, y: int32 } = 4
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct UnionField {
-    /// The name of the union field.
-    pub name: StringId,
-    /// The type of the union field.
-    pub r#type: Option<NodeId<Type>>,
-    /// The default value of the union field.
-    pub value: Option<NodeId<Expression>>,
-}
-
-impl Node for UnionField {
-    const KIND: NodeType = NodeType::UnionField;
-}
-
-/// A Trait is trait definition node in the AST.
-///
-/// Examples:
-/// ```
-/// trait Bar {
-///     ...
-/// }
-///
-/// trait Baz<T> {
-///     let x: T // constant
-///
-///     function foo() => T;
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Trait {
-    /// The name of the trait.
-    pub name: StringId,
-    /// The static parameters to the trait.
-    pub static_parameters: Option<Vec<NodeId<Parameter>>>,
-    /// The body of the trait.
-    pub body: Option<NodeId<Block>>,
-}
-
-impl Node for Trait {
-    const KIND: NodeType = NodeType::Trait;
-}
-
-/// An Impl defines the implementation of a concrete type node in the AST.
-/// There may be multiple Impls for the same type, and even impls for different modules.
-/// (To add a module's implementation to your own just use the corresponding module.)
-///
-/// Examples:
-/// ```
-/// implement Foo {
-///     ...
-/// }
-///
-/// implement Foo<int32> {
-///     ...
-/// }
-///
-/// implement Marker for Bar;
-///
-/// implement Bar<int32> for Baz {
-///     ...
-/// }
-///
-/// implement<T> Bar<T> for Baz {
-///     ...
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Implement {
-    /// The trait type to implement.
-    pub trait_type: NodeId<Type>,
-    /// The type to implement the trait for.
-    pub for_type: NodeId<Type>,
-    /// The static arguments to the trait.
-    pub static_trait_arguments: Option<Vec<NodeId<Type>>>,
-    /// The static arguments to the for type.
-    pub static_for_arguments: Option<Vec<NodeId<Type>>>,
-    /// The body of the implement.
-    pub body: Option<NodeId<Block>>,
-}
-
-impl Node for Implement {
-    const KIND: NodeType = NodeType::Implement;
-}
-
-/// A FunctionRuntime is the runtime of a function.
-#[derive(Debug, Clone, PartialEq)]
-pub enum FunctionRuntime {
-    /// A normal function.
-    Dynamic,
-    /// A static function.
-    Static,
-}
-
-/// A FunctionStyle is the style of a function.
-#[derive(Debug, Clone, PartialEq)]
-pub enum FunctionStyle {
-    /// A normal function.
-    Function,
-    /// A lambda function.
-    Lambda,
-}
-
-/// A Function is function or "lambda" definition or declaration node in the AST.
-/// If no body is provided, it is a declaration for a function defined elsewhere.
-///
-/// Examples:
-/// ```
-/// // function style
-///
-/// function foo() {
-///    print("Hello, world!")
-/// }
-///
-/// function baz(a: int32, b: boolean) => MyStruct, boolean {
-///    ...
-/// }
-///
-/// function @comptime() {
-///    ...
-/// }
-///
-/// // optional , if newline-delimited
-/// function longBar(
-///   /// doc comment for `a`
-///   a: int32
-///   /// doc comment for `b`
-///   b: boolean
-///   c: Vector2
-/// ) => int32, boolean {
-///    ...
-/// )
-///
-/// // lambda style
-///
-/// () => { 0 } // no function keyword
-/// () => None // slightly ambiguous but returns None
-/// (x: int32) => x + 1
-///
-/// // for return type in lambdas, you need a `{ ... }` body
-/// (a: int32, b: int32) => int32 {
-///      let y = someFunction(a, b)
-///      y + 4
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Function {
-    /// The name of the function (excluding the `@` prefix if static).
-    pub name: Option<StringId>,
-    /// The runtime of the function (static or dynamic).
-    pub runtime: FunctionRuntime,
-    /// The style of the function (function or lambda).
-    pub style: FunctionStyle,
-    /// The type of the function.
-    pub r#type: NodeId<FunctionSignature>,
-    /// The body of the function.
-    pub body: Option<NodeId<Block>>,
-}
-
-impl Node for Function {
-    const KIND: NodeType = NodeType::Function;
-}
-
-/// The type of a Function type `(T1, T2, ...) => T`.
-/// Function signatures may omit the tuple parentheses `()`  in return type.
-///
-/// Examples:
-/// ```
-/// ()
-/// (x: int32)
-/// <Validate: boolean>(x: int32) => bool
-/// (x: int32) => int32, boolean
-/// (x: int32) using Disk => is_cool: boolean, coolness: int17
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct FunctionSignature {
-    /// The static arguments to the function.
-    pub static_arguments: Vec<NodeId<Parameter>>,
-    /// The dynamic arguments to the function.
-    pub dynamic_arguments: Vec<NodeId<Parameter>>,
-    /// The return type of the function.
-    pub return_type: Option<NodeId<Type>>,
-    /// The using declaration for the function (can't have a body).
-    pub using: Option<NodeId<Using>>,
-}
-
-impl Node for FunctionSignature {
-    const KIND: NodeType = NodeType::FunctionSignature;
+    /// `&=`
+    BitwiseAndAssign,
+    /// `|=`
+    BitwiseOrAssign,
+    /// `^=`
+    BitwiseXorAssign,
+    /// `<<=`
+    ShiftLeftAssign,
+    /// `<<|=`
+    SaturatingShiftLeftAssign,
+    /// `>>=`
+    ShiftRightAssign,
 }
 
 /// A Parameter is a parameter AST node to some expression.
@@ -661,425 +1228,9 @@ impl Node for Argument {
     const KIND: NodeType = NodeType::Argument;
 }
 
-/// An Statement is a top-level AST node in a container in the AST.
-/// Statements do not have to produce values, but they can be any Expression.
-/// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
-#[derive(Debug, Clone, PartialEq)]
-pub enum Statement {
-    /// Using declaration for dependency and context management (see Using).
-    Using(NodeId<Using>),
-
-    /// Doc comment (free floating, otherwise this is attached inside the declaration).
-    Doc(NodeId<Doc>),
-
-    /// A Block is a block of statements.
-    Block(NodeId<Block>),
-
-    /// Struct definition (as a Statement, see Struct).
-    Struct(NodeId<Struct>),
-
-    /// Union definition (as a Statement, see Union).
-    Union(NodeId<Union>),
-
-    /// Trait definition (as a Statement, see Trait).
-    Trait(NodeId<Trait>),
-
-    /// Function definition (as a Statement, see Function).
-    Function(NodeId<Function>),
-
-    /// Implement definition (as a Statement, see Implement).
-    Implement(NodeId<Implement>),
-
-    /// Let definition (as a Statement, see Let).
-    Let(NodeId<Let>),
-
-    /// Assignment to a variable (as a Statement, see Assign).
-    Assign(NodeId<Assign>),
-
-    /// Expression (see Expression).
-    /// Catch-all for any Expression used as a "top-level" statement.
-    Expression(NodeId<Expression>),
-
-    /// Error placeholder.
-    Error,
-}
-
-impl Node for Statement {
-    const KIND: NodeType = NodeType::Statement;
-}
-
-/// An Expression is a generic container AST node for all possible expression nodes in the AST.
-/// Expressions can be literals, bindings, calls, definitions, control flow, etc.
-///
-/// Some Expressions are "place Expressions" and can be read from and written to,
-///  that is, they have a place in memory we can point to and get the address of.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expression {
-    /// Literal scalar value
-    ScalarLiteral(NodeId<ScalarLiteral>),
-
-    /// Array literal
-    ArrayLiteral(NodeId<ArrayLiteral>),
-
-    /// Tuple literal
-    TupleLiteral(NodeId<TupleLiteral>),
-
-    /// Struct literal
-    StructLiteral(NodeId<StructLiteral>),
-
-    /// Path reference.
-    Path(PathId),
-
-    /// Member reference.
-    ///
-    /// Examples:
-    /// ```
-    /// foo.bar
-    /// foo.baz
-    /// ```
-    Member {
-        receiver: NodeId<Expression>,
-        name: StringId,
-    },
-
-    /// Index reference.
-    ///
-    /// Examples:
-    /// ```
-    /// foo[1]
-    /// foo[1..3]
-    /// foo["bar"]
-    /// foo().result[0][variable+1]
-    /// ```
-    Index {
-        receiver: NodeId<Expression>,
-        index: NodeId<Expression>,
-    },
-
-    /// A Range is range of an array or tuple.
-    ///
-    /// Examples:
-    /// ```
-    /// 1..3
-    /// ```
-    Range(Range),
-
-    /// Unary operation.
-    ///
-    /// Examples:
-    /// ```
-    /// !x
-    /// ?x
-    /// -x
-    /// ~x
-    /// &x
-    /// *x
-    /// ```
-    UnaryOperation {
-        operator: UnaryOperator,
-        operand: NodeId<Expression>,
-    },
-
-    /// Binary operation.
-    ///
-    /// Examples:
-    /// ```
-    /// x + y
-    /// x - y
-    /// x <% y
-    /// x >= y
-    /// ```
-    BinaryOperation {
-        lhs: NodeId<Expression>,
-        operator: BinaryOperator,
-        rhs: NodeId<Expression>,
-    },
-
-    /// A StaticCall is call to a function at compile time.
-    /// The function may or may not be declared as comptime (with a `@ prefix),
-    ///  but the call must be prefixed with a `@` to qualify as a static call.
-    ///
-    /// Static functions may take the next sibling expression as an argument:
-    ///  - `@entity struct MyEntity { ... }`
-    ///  - `@flag enum MyFlag { ... }`
-    ///
-    /// These cases are represented as two separate AST nodes (one static call, one definition)
-    ///   and are then reconciled later during static analysis and compilation.
-    ///   (We don't know yet whether `@entity` is supposed to consume the next expression or not.)
-    /// This also makes error reporting easier.
-    ///
-    /// NOTE: There are no static method calls because static calls are statically resolved.
-    ///       However, there are static calls namespaced to types like any other namespace.
-    ///
-    /// Examples:
-    /// ```
-    /// @foo()
-    /// @foo(1, 2, 3)
-    /// @foo<int32>(1, 2, 3)
-    /// @foo<Validate: false>(1, 2, 3)
-    /// @foo(Vector2 {x: 1, y: 2}, (true, 3))
-    /// ```
-    StaticCall {
-        /// The target of the call.
-        target: PathId,
-        /// The static arguments to the call `<Arg1, Arg2, ...>`.
-        static_arguments: Vec<NodeId<Argument>>,
-        /// The dynamic arguments to the call `(arg1, arg2, ...)`.
-        dynamic_arguments: Vec<NodeId<Argument>>,
-    },
-
-    /// A DynamicCall is call to a function at runtime.
-    /// See DynamicMethodCall for calls on receivers.
-    ///
-    /// Examples:
-    /// ```
-    /// foo()
-    /// foo(1, 2, 3)
-    /// foo(foo.a {x: 1, y: 2}, (true, 3))
-    /// foo<true>(1, 2, 3)
-    /// ```
-    DynamicCall {
-        /// The target of the call.
-        target: PathId,
-        /// The dynamic arguments to the call `(arg1, arg2, ...)`.
-        dynamic_arguments: Vec<NodeId<Argument>>,
-    },
-
-    /// A DynamicMethodCall is call to an associated method at runtime.
-    /// See DynamicCall for calls on functions.
-    ///
-    /// Examples:
-    /// ```
-    /// foo.bar()
-    /// foo.bar(1, 2, 3)
-    /// foo.bar<true>(1, 2, 3)
-    /// ```
-    DynamicMethodCall {
-        /// The receiver of the method call.
-        target: PathId,
-        /// The name of the method.
-        name: StringId,
-        /// The static arguments to the method `<Arg1, Arg2, ...>`.
-        static_arguments: Vec<NodeId<Argument>>,
-        /// The dynamic arguments to the method `(arg1, arg2, ...)`.
-        dynamic_arguments: Vec<NodeId<Argument>>,
-    },
-
-    /// Let or var binding (as an Expression, see Let).
-    Let(NodeId<Let>),
-
-    /// Casting.
-    ///
-    /// Examples:
-    /// ```
-    /// as int32
-    /// as float64
-    /// ```
-    As {
-        r#type: NodeId<Type>,
-        value: NodeId<Expression>,
-    },
-
-    /// If/then/else expression.
-    ///
-    /// Examples:
-    /// ```
-    /// if x > 0 {
-    ///     print("positive")
-    /// }
-    /// ```
-    If {
-        condition: NodeId<Expression>,
-        then_body: NodeId<Block>,
-        else_body: Option<NodeId<Expression>>,
-    },
-
-    /// A While is while loop.
-    ///
-    /// Examples:
-    /// ```
-    /// while x > 1 {
-    ///     y = 2
-    /// }
-    ///
-    /// while y < 10 l: {
-    ///     y = 2
-    ///     break :l
-    /// }
-    /// ```
-    While {
-        condition: NodeId<Expression>,
-        body: NodeId<Block>,
-    },
-
-    /// A For is for loop over an iterator with a pattern.
-    ///
-    /// Examples:
-    /// ```
-    /// for x in 1..10 {
-    ///     y = 2
-    /// }
-    ///
-    /// for x in 1..10 a: {
-    ///     if y > 5 {
-    ///         continue :a
-    ///     }
-    ///     y = 2
-    /// }
-    /// ```
-    For {
-        pattern: NodeId<Pattern>,
-        iterator: NodeId<Expression>,
-        body: NodeId<Block>,
-    },
-
-    /// A Loop is unconditional loop.
-    ///
-    /// Examples:
-    /// ```
-    /// loop {
-    ///     y = getNext()
-    ///     if y < 0 {
-    ///         break
-    ///     }
-    /// }
-    /// ```
-    Loop { body: NodeId<Block> },
-
-    /// A Break is break statement.
-    ///
-    /// Examples:
-    /// ```
-    /// break
-    /// break :label
-    /// break :label 17
-    /// ```
-    Break {
-        label: Option<StringId>,
-        value: Option<NodeId<Expression>>,
-    },
-
-    /// A Continue is continue statement.
-    ///
-    /// Examples:
-    /// ```
-    /// continue
-    /// continue :label
-    /// ```
-    Continue { label: Option<StringId> },
-
-    /// Defer expression until scope exit.
-    ///
-    /// Examples:
-    /// ```
-    /// defer someFunction()
-    ///
-    /// defer {
-    ///     someFunction()
-    ///     someOtherFunction()
-    /// }
-    ///
-    /// defer :label {
-    ///     someOtherFunction()
-    /// }
-    /// ```
-    Defer {
-        label: Option<StringId>,
-        body: NodeId<Expression>,
-    },
-
-    /// Return expression.
-    ///
-    /// Examples:
-    /// ```
-    /// return
-    /// return 1
-    /// ```
-    Return { value: Option<NodeId<Expression>> },
-
-    /// A Match is match expression with case patterns.
-    /// The clauses must be exhaustive and return the same type.
-    /// Match statements are Expressions and also used in catch patterns.
-    /// Like other statements, match cases do not need to be terminated with a colon/semicolon.
-    ///
-    /// Examples:
-    /// ```
-    /// match <expr> {
-    ///     (x, y) => {
-    ///         ...
-    ///     }
-    ///     (x, y, z) => {
-    ///         ...
-    ///     }
-    /// }
-    ///
-    /// catch <expr> {
-    ///     NetworkError => @panic("network error")
-    ///     FormatError => @panic("format error")
-    ///     _ => return false
-    /// }
-    /// ```
-    Match {
-        value: NodeId<Expression>,
-        cases: Vec<NodeId<MatchCase>>,
-    },
-
-    /// A Try is try/catch statement.
-    /// The try expression may be a single statement or a block of statements.
-    /// Any error Result within the try expression aborts the try expression and:
-    ///  1. If there is a catch, jumps to the catch pattern matching for handling.
-    ///  2. If there is no catch, the error is propagated to the caller explicitly.
-    ///
-    /// Examples:
-    /// ```
-    /// try fileOperation() // implicitly unwraps the Result, returns Error case
-    ///
-    /// try { // implicitly unwraps all Results inside
-    ///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
-    ///     riskyOperationB(a)
-    /// } // no catch needed if containing function has compatible Result type (Into suffices)
-    ///
-    /// try { // explicitly unwraps all Results inside
-    ///     ...
-    /// } catch e { // match all errors
-    ///     NumericError(x) => Error(@format("bad number: {x}"))
-    ///     FormatError => Error(@format("bad format {e}"))
-    ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
-    /// }
-    /// ```
-    Try {
-        try_block: NodeId<Expression>,
-        catch_block: Option<NodeId<Expression>>,
-    },
-
-    /// A Block is a block of statements (used as an Expression, see Block).
-    Block(NodeId<Block>),
-
-    /// Struct definition (used as an Expression, see Struct).
-    Struct(NodeId<Struct>),
-
-    /// Union definition (used as an Expression, see Union).
-    Union(NodeId<Union>),
-
-    /// Trait definition (used as an Expression, see Trait).
-    Trait(NodeId<Trait>),
-
-    /// Function definition (used as an Expression, see Function).
-    Function(NodeId<Function>),
-
-    /// Implement definition (used as an Expression, see Implement).
-    Implement(NodeId<Implement>),
-
-    /// Error placeholder.
-    Error {
-        // TODO: proper error handling
-        message: StringId,
-    },
-}
-
-impl Node for Expression {
-    const KIND: NodeType = NodeType::Expression;
-}
+// ----------------------------------------------------------------------------
+// Literals
+// ----------------------------------------------------------------------------
 
 /// A ScalarLiteral is literal scalar value node in the AST.
 ///
@@ -1194,81 +1345,16 @@ impl Node for FieldLiteral {
     const KIND: NodeType = NodeType::FieldLiteral;
 }
 
-/// An (unresolved) Type declaration node in the AST.
-///
-/// Type references don't support static evaluation directly for simplicity.
-/// They can refer to Paths that are themselves any static Expressions
-///  (which enables the same feature set in a more structured way).
+/// A Range is range of an array or tuple node in the AST.
 ///
 /// Examples:
 /// ```
-/// int32
-/// boolean
-/// [float32]
-/// [float64; 3]
-/// (int32, int32)
-/// T<int32>
-/// T<Validate: false>
-/// MyEnum
-/// simulation.geometry.Vector2
-/// struct MyResponse { x: int32, y: int32 }
-/// enum { Good, Bad }
-/// (int32) => int32
-/// function () => () // optional function keyword
-/// () => int32, Vector2 // implicitly returns a tuple
-/// () => Result<int32, struct Error { message: string }>
+/// 1..3
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-    /// Infer placeholder `_`.
-    Infer,
-
-    /// Maybe '?T'. Desugars to `Maybe<T>`.
-    Maybe(Option<NodeId<Type>>),
-
-    /// Never `!T`. Desugars to `Never<T>`.
-    Never(Option<NodeId<Type>>),
-
-    // TODO: move primitive type parsing into DIR (?)
-    /// Primitive type.
-    Primitive(PrimitiveType),
-
-    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
-    Path {
-        path: PathId,
-        static_arguments: Option<Vec<NodeId<Argument>>>,
-    },
-
-    /// Pointer 'T*' to T.
-    Pointer(NodeId<Type>),
-
-    /// Inline Array type `[T; N]`. Must be fixed length.
-    Array {
-        element_type: NodeId<Type>,
-        count: NodeId<Expression>,
-    },
-
-    /// Inline Range type `T..T`.
-    Range(NodeId<Type>),
-
-    /// Inline Slice type `[T]`. Unknown length (dynamic).
-    Slice { element: NodeId<Type> },
-
-    /// Inline Tuple type `(T1, T2, ...)` (no tuple keyword).
-    Tuple(NodeId<Tuple>),
-
-    /// Inline nominal Struct type `struct MyStruct { ... }`.
-    Struct(NodeId<Struct>),
-
-    /// Inline nominal Union type `union MyUnion { ... }`.
-    Union(NodeId<Union>),
-
-    /// Inline Function type `(T1, T2, ...) => T`.
-    Function(NodeId<FunctionSignature>),
-}
-
-impl Node for Type {
-    const KIND: NodeType = NodeType::Type;
+pub struct Range {
+    pub start: Option<NodeId<Expression>>,
+    pub end: Option<NodeId<Expression>>,
 }
 
 /// An IntType represents arbitrary width integer with signedness.
@@ -1302,18 +1388,6 @@ pub enum PrimitiveType {
     Int(IntType),
     /// Floating point number type.
     Float(FloatType),
-}
-
-/// A Range is range of an array or tuple node in the AST.
-///
-/// Examples:
-/// ```
-/// 1..3
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Range {
-    pub start: Option<NodeId<Expression>>,
-    pub end: Option<NodeId<Expression>>,
 }
 
 /// A UnaryOperator is unary operator.
@@ -1391,29 +1465,134 @@ pub enum BinaryOperator {
     SaturatingBitwiseLeftShift,
     /// `>>`
     BitwiseRightShift,
+
+    /// `as`
+    As,
 }
 
-/// A Block is a block AST node of statements.
+// ----------------------------------------------------------------------------
+// Calls
+// ----------------------------------------------------------------------------
+
+/// A StaticCall is call to a function at compile time.
+/// The function may or may not be declared as comptime (with a `@ prefix),
+///  but the call must be prefixed with a `@` to qualify as a static call.
+///
+/// Static functions may take the next sibling expression as an argument:
+///  - `@entity struct MyEntity { ... }`
+///  - `@flag enum MyFlag { ... }`
+///
+/// These cases are represented as two separate AST nodes (one static call, one definition)
+///   and are then reconciled later during static analysis and compilation.
+///   (We don't know yet whether `@entity` is supposed to consume the next expression or not.)
+/// This also makes error reporting easier.
+///
+/// NOTE: There are no static method calls because static calls are statically resolved.
+///       However, there are static calls namespaced to types like any other namespace.
 ///
 /// Examples:
 /// ```
-/// {
-///     x = 1
-///     y = 2
+/// @foo()
+/// @foo(1, 2, 3)
+/// @foo<int32>(1, 2, 3)
+/// @foo<Validate: false>(1, 2, 3)
+/// @foo(Vector2 {x: 1, y: 2}, (true, 3))
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct StaticCall {
+    /// The target of the call.
+    target: PathId,
+    /// The static arguments to the call `<Arg1, Arg2, ...>`.
+    static_arguments: Vec<NodeId<Argument>>,
+    /// The dynamic arguments to the call `(arg1, arg2, ...)`.
+    dynamic_arguments: Vec<NodeId<Argument>>,
+}
+
+impl Node for StaticCall {
+    const KIND: NodeType = NodeType::StaticCall;
+}
+
+/// A DynamicCall is call to a function at runtime.
+/// See DynamicMethodCall for calls on receivers.
+///
+/// Examples:
+/// ```
+/// foo()
+/// foo(1, 2, 3)
+/// foo(foo.a {x: 1, y: 2}, (true, 3))
+/// foo<true>(1, 2, 3)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct DynamicCall {
+    /// The target of the call.
+    target: PathId,
+    /// The dynamic arguments to the call `(arg1, arg2, ...)`.
+    dynamic_arguments: Vec<NodeId<Argument>>,
+}
+
+impl Node for DynamicCall {
+    const KIND: NodeType = NodeType::DynamicCall;
+}
+
+/// A DynamicMethodCall is call to an associated method at runtime.
+/// See DynamicCall for calls on functions.
+///
+/// Examples:
+/// ```
+/// foo.bar()
+/// foo.bar(1, 2, 3)
+/// foo.bar<true>(1, 2, 3)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct DynamicMethodCall {
+    /// The receiver of the method call.
+    target: PathId,
+    /// The name of the method.
+    name: StringId,
+    /// The static arguments to the method `<Arg1, Arg2, ...>`.
+    static_arguments: Vec<NodeId<Argument>>,
+    /// The dynamic arguments to the method `(arg1, arg2, ...)`.
+    dynamic_arguments: Vec<NodeId<Argument>>,
+}
+
+impl Node for DynamicMethodCall {
+    const KIND: NodeType = NodeType::DynamicMethodCall;
+}
+
+// ----------------------------------------------------------------------------
+// Matching
+// ----------------------------------------------------------------------------
+
+/// A Match is match expression with case patterns.
+/// The clauses must be exhaustive and return the same type.
+/// Match statements are Expressions and also used in catch patterns.
+/// Like other statements, match cases do not need to be terminated with a colon/semicolon.
+///
+/// Examples:
+/// ```
+/// match <expr> {
+///     (x, y) => {
+///         ...
+///     }
+///     (x, y, z) => {
+///         ...
+///     }
 /// }
 ///
-/// label: {
-///     x = 1
+/// catch <expr> {
+///     NetworkError => @panic("network error")
+///     FormatError => @panic("format error")
+///     _ => return false
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Block {
-    pub label: Option<StringId>,
-    pub statements: Vec<NodeId<Statement>>,
+pub struct Match {
+    value: NodeId<Expression>,
+    cases: Vec<NodeId<MatchCase>>,
 }
 
-impl Node for Block {
-    const KIND: NodeType = NodeType::Block;
+impl Node for Match {
+    const KIND: NodeType = NodeType::Match;
 }
 
 /// A Pattern is a pattern AST node to match something and unwrap it.
@@ -1452,7 +1631,7 @@ impl Node for Pattern {
 pub enum PatternTupleField {
     /// A named field.
     Literal(ScalarLiteral),
-    /// A wildcard field.
+    /// A wildcard field `_`.
     Wildcard,
 }
 
@@ -1474,35 +1653,6 @@ impl Node for PatternStructField {
     const KIND: NodeType = NodeType::PatternStructField;
 }
 
-/// A Match is match expression with case patterns.
-/// The clauses must be exhaustive and return the same type.
-/// Match statements are Expressions and also used in catch patterns.
-/// Like other statements, match cases do not need to be terminated with a colon/semicolon.
-///
-/// Examples:
-/// ```
-/// match <expr> {
-///     2 => None // comma is optional with newline
-///     (x, y) => {
-///         ...
-///     }
-///     (x, y, z) => label: {
-///         ...
-///     }
-/// }
-///
-/// catch <expr> {
-///     NetworkError => @panic("network error")
-///     FormatError => @panic("format error")
-///     _ => return false
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Match {
-    pub value: NodeId<Expression>,
-    pub cases: Vec<NodeId<MatchCase>>,
-}
-
 /// A MatchCase is a match case AST node inside a Match expression.
 /// MatchCases can be any Pattern.
 #[derive(Debug, Clone, PartialEq)]
@@ -1515,87 +1665,23 @@ impl Node for MatchCase {
     const KIND: NodeType = NodeType::MatchCase;
 }
 
-/// A Try is try/catch statement.
-/// The try expression may be a single statement or a block of statements.
-/// Any error Result within the try expression aborts the try expression and:
-///  1. If there is a catch, jumps to the catch pattern matching for handling.
-///  2. If there is no catch, the error is propagated to the caller explicitly.
+// ----------------------------------------------------------------------------
+// Documentation
+// ----------------------------------------------------------------------------
+
+/// A Doc is a full documentation comment string AST node.
+/// Successive documentation comments are concatenated.
 ///
-/// Examples:
-/// ```
-/// try fileOperation() // implicitly unwraps the Result, returns Error case up
-///
-/// try { // implicitly unwraps all Results inside
-///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
-///     riskyOperationB(a)
-/// } // no catch needed if containing function has compatible Result type (Into suffices)
-///
-/// try {
-///     ...
-/// } catch e { // match all errors and propagate
-///     NumericError(x) => Error(@format("bad number: {x}"))
-///     FormatError => Error(@format("bad format {e}"))
-///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)
-/// }
-/// ```
+/// Because almost every Node can have documentation, we store it separately
+///  in `NodeTree.documentation_by_node` (just like we have `spans_per_node`).
 #[derive(Debug, Clone, PartialEq)]
-pub struct Try {
-    pub try_block: NodeId<Expression>,
-    pub catch_block: Option<NodeId<Expression>>,
+pub enum Doc {
+    /// The full, merged documentation comment string.
+    Single(StringId),
+    /// Multiple documentation comments.
+    Multi(Vec<NodeId<Doc>>),
 }
 
-/// An AssignType is assignment type.
-///
-/// Examples:
-/// ```
-/// =
-/// +=
-/// -=
-/// *|=
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum AssignType {
-    /// `=`
-    Assign,
-
-    /// `+=`
-    AddAssign,
-    /// `+%=`
-    WrappingAddAssign,
-    /// `+|=`
-    SaturatingAddAssign,
-    /// `-=`
-    SubtractAssign,
-    /// `-%=`
-    WrappingSubtractAssign,
-    /// `-|=`
-    SaturatingSubtractAssign,
-    /// `*=`
-    MultiplyAssign,
-    /// `*%=`
-    WrappingMultiplyAssign,
-    /// `*|=`
-    SaturatingMultiplyAssign,
-    /// `/=`
-    DivideAssign,
-    /// `%=`
-    RemainderAssign,
-
-    /// `&&=`
-    LogicalAndAssign,
-    /// `||=`
-    LogicalOrAssign,
-
-    /// `&=`
-    BitwiseAndAssign,
-    /// `|=`
-    BitwiseOrAssign,
-    /// `^=`
-    BitwiseXorAssign,
-    /// `<<=`
-    ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
-    /// `>>=`
-    ShiftRightAssign,
+impl Node for Doc {
+    const KIND: NodeType = NodeType::Doc;
 }

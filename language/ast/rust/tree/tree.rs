@@ -4,11 +4,12 @@ use std::marker::PhantomData;
 use destack_language_token::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Assign, Block, Doc, Expression, FieldLiteral, Function,
-    FunctionSignature, Implement, Let, MatchCase, Module, Node, NodeType, Parameter, Pattern,
-    PatternStructField, PatternTupleField, ScalarLiteral, Statement, Struct, StructField,
-    StructLiteral, Trait, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Using,
-    UsingClause, UsingItem,
+    Argument, ArrayLiteral, Assign, Block, Break, Continue, Defer, Doc, DynamicCall,
+    DynamicMethodCall, Enum, EnumField, Expression, FieldLiteral, For, Function, FunctionSignature,
+    If, Implement, Let, Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern,
+    PatternStructField, PatternTupleField, Return, ScalarLiteral, Statement, StaticCall, Struct,
+    StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
+    UnionField, Using, UsingClause, UsingItem, While,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -43,46 +44,62 @@ pub struct NodeTree {
     pub(crate) docs_per_node: Vec<Option<NodeId<Doc>>>,
 
     // per-node arenas
-    // expressions
+    // groupings
     blocks: NodeArena<Block>,
     statements: NodeArena<Statement>,
     expressions: NodeArena<Expression>,
+    // declarations
+    modules: NodeArena<Module>,
+    structs: NodeArena<Struct>,
+    struct_fields: NodeArena<StructField>,
+    enums: NodeArena<Enum>,
+    enum_fields: NodeArena<EnumField>,
+    unions: NodeArena<Union>,
+    union_fields: NodeArena<UnionField>,
+    traits: NodeArena<Trait>,
+    implements: NodeArena<Implement>,
+    types: NodeArena<Type>,
+    tuples: NodeArena<Tuple>,
+    tuple_fields: NodeArena<TupleField>,
+    functions: NodeArena<Function>,
+    function_signatures: NodeArena<FunctionSignature>,
+    // using
+    usings: NodeArena<Using>,
+    using_clauses: NodeArena<UsingClause>,
+    using_items: NodeArena<UsingItem>,
+    // control
+    ifs: NodeArena<If>,
+    whiles: NodeArena<While>,
+    fors: NodeArena<For>,
+    loops: NodeArena<Loop>,
+    breaks: NodeArena<Break>,
+    continues: NodeArena<Continue>,
+    defers: NodeArena<Defer>,
+    returns: NodeArena<Return>,
+    trys: NodeArena<Try>,
+    // bindings
+    lets: NodeArena<Let>,
+    assigns: NodeArena<Assign>,
+    parameters: NodeArena<Parameter>,
+    arguments: NodeArena<Argument>,
     // literals
     scalar_literals: NodeArena<ScalarLiteral>,
     array_literals: NodeArena<ArrayLiteral>,
     tuple_literals: NodeArena<TupleLiteral>,
     struct_literals: NodeArena<StructLiteral>,
     field_literals: NodeArena<FieldLiteral>,
-    // declarations
-    modules: NodeArena<Module>,
-    structs: NodeArena<Struct>,
-    struct_fields: NodeArena<StructField>,
-    unions: NodeArena<Union>,
-    union_fields: NodeArena<UnionField>,
-    traits: NodeArena<Trait>,
-    functions: NodeArena<Function>,
-    implements: NodeArena<Implement>,
-    types: NodeArena<Type>,
-    tuples: NodeArena<Tuple>,
-    tuple_elements: NodeArena<TupleField>,
-    function_signatures: NodeArena<FunctionSignature>,
-    // bindings
-    lets: NodeArena<Let>,
-    assigns: NodeArena<Assign>,
-    // using
-    usings: NodeArena<Using>,
-    using_clauses: NodeArena<UsingClause>,
-    using_items: NodeArena<UsingItem>,
-    // parameters
-    parameters: NodeArena<Parameter>,
-    arguments: NodeArena<Argument>,
-    // documentation
-    docs: NodeArena<Doc>,
-    // patterns
+    // calls
+    static_calls: NodeArena<StaticCall>,
+    dynamic_calls: NodeArena<DynamicCall>,
+    dynamic_method_calls: NodeArena<DynamicMethodCall>,
+    // matching
+    matches: NodeArena<Match>,
     patterns: NodeArena<Pattern>,
     pattern_tuple_fields: NodeArena<PatternTupleField>,
     pattern_struct_fields: NodeArena<PatternStructField>,
     match_cases: NodeArena<MatchCase>,
+    // documentation
+    docs: NodeArena<Doc>,
 }
 
 impl Debug for NodeTree {
@@ -113,46 +130,62 @@ impl NodeTree {
             kind_by_node: Vec::with_capacity(capacity),
             spans_per_node: Vec::with_capacity(capacity),
             docs_per_node: Vec::with_capacity(capacity),
-            // expressions
+            // groupings
             blocks: NodeArena::with_capacity(capacity),
             statements: NodeArena::with_capacity(capacity),
             expressions: NodeArena::with_capacity(capacity),
+            // declarations
+            modules: NodeArena::with_capacity(capacity),
+            structs: NodeArena::with_capacity(capacity),
+            struct_fields: NodeArena::with_capacity(capacity),
+            enums: NodeArena::with_capacity(capacity),
+            enum_fields: NodeArena::with_capacity(capacity),
+            unions: NodeArena::with_capacity(capacity),
+            union_fields: NodeArena::with_capacity(capacity),
+            traits: NodeArena::with_capacity(capacity),
+            implements: NodeArena::with_capacity(capacity),
+            types: NodeArena::with_capacity(capacity),
+            tuples: NodeArena::with_capacity(capacity),
+            tuple_fields: NodeArena::with_capacity(capacity),
+            functions: NodeArena::with_capacity(capacity),
+            function_signatures: NodeArena::with_capacity(capacity),
+            // using
+            usings: NodeArena::with_capacity(capacity),
+            using_clauses: NodeArena::with_capacity(capacity),
+            using_items: NodeArena::with_capacity(capacity),
+            // control
+            ifs: NodeArena::with_capacity(capacity),
+            whiles: NodeArena::with_capacity(capacity),
+            fors: NodeArena::with_capacity(capacity),
+            loops: NodeArena::with_capacity(capacity),
+            breaks: NodeArena::with_capacity(capacity),
+            continues: NodeArena::with_capacity(capacity),
+            defers: NodeArena::with_capacity(capacity),
+            returns: NodeArena::with_capacity(capacity),
+            trys: NodeArena::with_capacity(capacity),
+            // bindings
+            lets: NodeArena::with_capacity(capacity),
+            assigns: NodeArena::with_capacity(capacity),
+            parameters: NodeArena::with_capacity(capacity),
+            arguments: NodeArena::with_capacity(capacity),
             // literals
             scalar_literals: NodeArena::with_capacity(capacity),
             array_literals: NodeArena::with_capacity(capacity),
             tuple_literals: NodeArena::with_capacity(capacity),
             struct_literals: NodeArena::with_capacity(capacity),
             field_literals: NodeArena::with_capacity(capacity),
-            // declarations
-            modules: NodeArena::with_capacity(capacity),
-            structs: NodeArena::with_capacity(capacity),
-            struct_fields: NodeArena::with_capacity(capacity),
-            unions: NodeArena::with_capacity(capacity),
-            union_fields: NodeArena::with_capacity(capacity),
-            traits: NodeArena::with_capacity(capacity),
-            functions: NodeArena::with_capacity(capacity),
-            implements: NodeArena::with_capacity(capacity),
-            types: NodeArena::with_capacity(capacity),
-            tuples: NodeArena::with_capacity(capacity),
-            tuple_elements: NodeArena::with_capacity(capacity),
-            function_signatures: NodeArena::with_capacity(capacity),
-            // bindings
-            lets: NodeArena::with_capacity(capacity),
-            assigns: NodeArena::with_capacity(capacity),
-            // using
-            usings: NodeArena::with_capacity(capacity),
-            using_clauses: NodeArena::with_capacity(capacity),
-            using_items: NodeArena::with_capacity(capacity),
-            // parameters
-            parameters: NodeArena::with_capacity(capacity),
-            arguments: NodeArena::with_capacity(capacity),
-            // documentation
-            docs: NodeArena::with_capacity(capacity),
-            // patterns
+            // calls
+            static_calls: NodeArena::with_capacity(capacity),
+            dynamic_calls: NodeArena::with_capacity(capacity),
+            dynamic_method_calls: NodeArena::with_capacity(capacity),
+            // matching
+            matches: NodeArena::with_capacity(capacity),
             patterns: NodeArena::with_capacity(capacity),
             pattern_tuple_fields: NodeArena::with_capacity(capacity),
             pattern_struct_fields: NodeArena::with_capacity(capacity),
             match_cases: NodeArena::with_capacity(capacity),
+            // documentation
+            docs: NodeArena::with_capacity(capacity),
         }
     }
 
@@ -307,44 +340,60 @@ macro_rules! impl_node_tree_stores {
 
 // usage
 impl_node_tree_stores! {
-    // expression
+    // groupings
     Block => blocks,
     Statement => statements,
     Expression => expressions,
+    // declarations
+    Module => modules,
+    Struct => structs,
+    StructField => struct_fields,
+    Enum => enums,
+    EnumField => enum_fields,
+    Union => unions,
+    UnionField => union_fields,
+    Trait => traits,
+    Implement => implements,
+    Type => types,
+    Tuple => tuples,
+    TupleField => tuple_fields,
+    Function => functions,
+    FunctionSignature => function_signatures,
+    // using
+    Using => usings,
+    UsingClause => using_clauses,
+    UsingItem => using_items,
+    // control
+    If => ifs,
+    While => whiles,
+    For => fors,
+    Loop => loops,
+    Break => breaks,
+    Continue => continues,
+    Defer => defers,
+    Return => returns,
+    Try => trys,
+    // bindings
+    Let => lets,
+    Assign => assigns,
+    Parameter => parameters,
+    Argument => arguments,
     // literals
     ScalarLiteral => scalar_literals,
     ArrayLiteral => array_literals,
     TupleLiteral => tuple_literals,
     StructLiteral => struct_literals,
     FieldLiteral => field_literals,
-    // declarations
-    Module => modules,
-    Struct => structs,
-    StructField => struct_fields,
-    Union => unions,
-    UnionField => union_fields,
-    Trait => traits,
-    Function => functions,
-    Implement => implements,
-    Type => types,
-    Tuple => tuples,
-    TupleField => tuple_elements,
-    FunctionSignature => function_signatures,
-    // bindings
-    Let => lets,
-    Assign => assigns,
-    // using
-    Using => usings,
-    UsingClause => using_clauses,
-    UsingItem => using_items,
-    // parameters
-    Parameter => parameters,
-    Argument => arguments,
-    // documentation
-    Doc => docs,
-    // patterns
+    // calls
+    StaticCall => static_calls,
+    DynamicCall => dynamic_calls,
+    DynamicMethodCall => dynamic_method_calls,
+    // matching
+    Match => matches,
     Pattern => patterns,
     PatternTupleField => pattern_tuple_fields,
     PatternStructField => pattern_struct_fields,
     MatchCase => match_cases,
+    // documentation
+    Doc => docs,
 }

@@ -35,17 +35,20 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an argument list. May be comma or newline separated.
+    /// Empty arguments are an error.
     ///
     /// Examples:
     /// ```
     /// x: 1, y: 2
+    ///
+    /// 3 // positional
     ///
     /// y: 2 // multiline
     /// z
     /// ```
     pub fn eat_arguments_body(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
-        while self.peek_identifier().is_ok() {
+        loop {
             let argument_id = self.eat_argument()?;
             arguments.push(argument_id);
             if self.peek_item_stop().is_ok() {
