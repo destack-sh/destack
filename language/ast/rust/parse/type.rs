@@ -6,7 +6,7 @@ use destack_language_token::TokenType;
 
 use crate::{
     FloatType, IntType, Keyword, NodeId, ParseError, ParseResult, Parser, PrimitiveType, Tuple,
-    TupleElement, Type,
+    TupleField, Type,
 };
 
 impl IntType {
@@ -324,7 +324,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_tuple_type_body(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-        let mut elements: Vec<NodeId<TupleElement>> = Vec::new();
+        let mut elements: Vec<NodeId<TupleField>> = Vec::new();
         loop {
             let element = self.eat_tuple_element()?;
             elements.push(element);
@@ -350,7 +350,7 @@ impl<'a> Parser<'a> {
     /// int32
     /// a: int32
     /// ```
-    pub fn eat_tuple_element(&mut self) -> ParseResult<NodeId<TupleElement>> {
+    pub fn eat_tuple_element(&mut self) -> ParseResult<NodeId<TupleField>> {
         let start = self.mark();
 
         if self.peek_next_next_token(TokenType::Colon).is_ok() {
@@ -360,14 +360,14 @@ impl<'a> Parser<'a> {
             let r#type = self.eat_type()?;
             let tuple_element_id = self
                 .tree
-                .allocate(TupleElement::Named { name, r#type }, self.span_from(start));
+                .allocate(TupleField::Named { name, r#type }, self.span_from(start));
             Ok(tuple_element_id)
         } else {
             // positional tuple element
             let r#type = self.eat_type()?;
             let tuple_element_id = self
                 .tree
-                .allocate(TupleElement::Positional { r#type }, self.span_from(start));
+                .allocate(TupleField::Positional { r#type }, self.span_from(start));
             Ok(tuple_element_id)
         }
     }

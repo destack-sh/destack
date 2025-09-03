@@ -222,7 +222,7 @@ impl<'a> Parser<'a> {
 
     /// Eat 0 or more newlines.
     #[inline]
-    pub fn eat_newlines(&mut self) -> ParseResult<()> {
+    pub fn eat_newlines_maybe(&mut self) -> ParseResult<()> {
         while self.peek_newline().is_ok() {
             self.eat_newline()?;
         }
@@ -248,7 +248,7 @@ impl<'a> Parser<'a> {
         } else {
             self.eat_comma()?;
         }
-        self.eat_newlines()?;
+        self.eat_newlines_maybe()?;
         Ok(())
     }
 
@@ -271,7 +271,7 @@ impl<'a> Parser<'a> {
         } else {
             self.eat_semicolon()?;
         }
-        self.eat_newlines()?;
+        self.eat_newlines_maybe()?;
         Ok(())
     }
 }
