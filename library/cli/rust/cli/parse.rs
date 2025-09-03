@@ -48,6 +48,7 @@ fn lex(ctx: CommandArguments) -> i32 {
 
     // build table
     let headers = vec![
+        "Index".to_string(),
         "Line".to_string(),
         "Col".to_string(),
         "Type".to_string(),
@@ -57,7 +58,7 @@ fn lex(ctx: CommandArguments) -> i32 {
     let mut rows: Vec<Vec<String>> = Vec::new();
     let tokens = tokenize_semantic(&input);
 
-    for tok in tokens.iter() {
+    for (index, tok) in tokens.iter().enumerate() {
         let start_offset = tok.span.start as usize;
         let end_offset = tok.span.end as usize;
         let len = end_offset - start_offset;
@@ -81,6 +82,11 @@ fn lex(ctx: CommandArguments) -> i32 {
         let kind_str = format_token(tok.token.r#type, use_color);
         let lexeme_preview =
             truncate_tokeneme(slice, max_tokeneme_len, tok.token.r#type, use_color);
+        let index_str = if use_color {
+            console::color(&index.to_string(), "35") // magenta
+        } else {
+            index.to_string()
+        };
         let line_str = if use_color {
             console::color(&line.to_string(), "36") // cyan
         } else {
@@ -97,11 +103,19 @@ fn lex(ctx: CommandArguments) -> i32 {
             len.to_string()
         };
 
-        rows.push(vec![line_str, col_str, kind_str, lexeme_preview, len_str]);
+        rows.push(vec![
+            index_str,
+            line_str,
+            col_str,
+            kind_str,
+            lexeme_preview,
+            len_str,
+        ]);
     }
 
     // prepare secondary headers
     let secondary_headers = vec![
+        "[0".to_string(),
         "[1".to_string(),
         "[1".to_string(),
         "".to_string(),

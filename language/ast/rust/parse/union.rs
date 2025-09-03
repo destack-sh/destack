@@ -1,6 +1,6 @@
 //! Parse unions and enums (which are just sugar for unions).
 
-use destack_language_token::TokenType;
+use destack_language_token::{TokenType, clean_identifier};
 
 use crate::{
     Keyword, NodeId, ParseResult, Parser, TupleField, Type, Union, UnionField, UnionStyle, Using,
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
 
         // optional explicit tag type in `(Type)`
         let explicit_type: Option<NodeId<Type>> =
-            if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
+            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let ty = self.eat_type()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
 
         // optional name (avoid consuming `using` as a name)
         let name = if self.peek_keyword(Keyword::Using).is_err()
-            && self.peek_next_token(TokenType::Identifier).is_ok()
+            && self.peek_token(TokenType::Identifier).is_ok()
         {
             Some(self.eat_identifier()?)
         } else {
@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
 
         // empty body
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
-        if self.peek_next_token(TokenType::CloseBrace).is_ok() {
+        if self.peek_token(TokenType::CloseBrace).is_ok() {
             let union_id = self.tree.allocate(
                 Union {
                     name: None,
@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
         // parse more fields while comma/newline separated
         while self.peek_item_stop().is_ok() {
             self.eat_item_stop()?;
-            if self.peek_next_token(TokenType::CloseBrace).is_ok() {
+            if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
             let field = self.eat_union_field()?;
@@ -132,16 +132,20 @@ impl<'a> Parser<'a> {
         // optional payload type: (Type ...) or none for unit variant
         // if there is only one field we unwrap the implicit tuple
         let payload_type: Option<NodeId<Type>> =
-            if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
+            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 let tuple_id = self.eat_tuple()?;
                 let tuple = self.tree.get(tuple_id);
                 // unwrap single positional tuple
-                if tuple.elements.len() == 1
-                    && let TupleField::Positional {
+                if tuple.elements.is_empty() {
+                    self.tree.free(tuple_id);
+                    None
+                } else if tuple.elements.len() == 1
+                    && let &TupleField::Positional {
                         r#type: inner_type_id,
                     } = self.tree.get(tuple.elements[0])
                 {
-                    Some(*inner_type_id)
+                    self.tree.free(tuple_id);
+                    Some(inner_type_id)
                 } else {
                     let type_id = self
                         .tree
@@ -153,7 +157,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional default value: `= <expr>`
-        let value = if self.peek_next_token(TokenType::Assign).is_ok() {
+        let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
             Some(self.eat_expression()?)
         } else {
@@ -171,9 +175,55 @@ impl<'a> Parser<'a> {
         Ok(field_id)
     }
 
-    /// Eat an implicit union (like `A | B | C`).
+    /// Eat an implicit union of scalars (like `A | B | C`).
+    /// Field names are just the literal type names.
     pub fn eat_implicit_union(&mut self) -> ParseResult<NodeId<Union>> {
-        todo!("nocheckin: implicit union")
+        let start = self.mark();
+        let mut fields: Vec<NodeId<UnionField>> = Vec::new();
+
+        // eat types separated with `|`
+        loop {
+            let field_start = self.mark();
+            let field_id = self.eat_scalar_type()?;
+
+            // field name is just type name without prefix/fluff
+            let field_span = self.tree.get_span(field_id);
+            let mut field_str = self.get_span_str(field_span);
+            if field_str.contains(' ') {
+                // split `*var T` cleanly
+                field_str = field_str.split(' ').nth_back(0).unwrap()
+            }
+            let field_str_clean = clean_identifier(field_str);
+
+            let union_field_id = self.tree.allocate(
+                UnionField {
+                    name: self.strings.intern(field_str_clean),
+                    value: None,
+                    r#type: Some(field_id),
+                },
+                self.span_from(field_start),
+            );
+            fields.push(union_field_id);
+
+            if self.peek_token(TokenType::BitwiseOr).is_ok() {
+                self.bump();
+                continue;
+            } else {
+                break;
+            }
+        }
+
+        let union_id = self.tree.allocate(
+            Union {
+                name: None,
+                style: UnionStyle::Implicit,
+                r#type: None,
+                fields,
+                using: None,
+            },
+            self.span_from(start),
+        );
+        Ok(union_id)
     }
 }
 
@@ -181,10 +231,12 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{Expression, Parser, PrimitiveType, ScalarLiteral, TupleField, Type};
+    use crate::{
+        Expression, Mutability, Parser, PrimitiveType, ScalarLiteral, TupleField, Type, UnionStyle,
+    };
 
     #[test]
-    fn test_parse_union_anonymous_simple() {
+    fn test_parse_union_anonymous() {
         let input = r###"
 union { A, B }
 "###;
@@ -214,7 +266,7 @@ union { A, B }
     }
 
     #[test]
-    fn test_parse_union_with_type_name_payload_and_values() {
+    fn test_parse_union_with_types() {
         let input = r###"
 union(uint4) Foo using Bar {
     A
@@ -280,6 +332,19 @@ union(uint4) Foo using Bar {
                     _ => panic!("expected boolean"),
                 }
                 // count: int32
+                match parser.tree.get(tuple.elements[1]) {
+                    TupleField::Named { name, r#type } => {
+                        assert_eq!(*name, parser.strings.intern("count"));
+                        assert_eq!(
+                            *parser.tree.get(*r#type),
+                            Type::Primitive(PrimitiveType::Int(crate::IntType {
+                                width: 32,
+                                is_signed: true
+                            }))
+                        );
+                    }
+                    _ => panic!("expected named field 'count'"),
+                }
             }
             _ => panic!("expected tuple"),
         }
@@ -292,5 +357,105 @@ union(uint4) Foo using Bar {
             },
             _ => panic!("expected integer"),
         }
+    }
+
+    #[test]
+    fn test_parse_implicit_union() {
+        let input = r"A | ?B | *C | ?*var D";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+
+        // A | ?B | *C | ?*var D
+        let union_id = parser.eat_implicit_union().unwrap();
+        let union = parser.tree.get(union_id);
+        assert_eq!(union.name, None);
+        assert_eq!(union.style, UnionStyle::Implicit);
+        assert!(union.r#type.is_none());
+        assert!(union.using.is_none());
+        assert_eq!(union.fields.len(), 4);
+
+        // A
+        let a = parser.tree.get(union.fields[0]);
+        assert_eq!(a.name, parser.strings.intern("A"));
+        assert!(a.r#type.is_none());
+        assert!(a.value.is_none());
+
+        // ?B
+        let b = parser.tree.get(union.fields[1]);
+        assert_eq!(b.name, parser.strings.intern("B"));
+        match b.r#type {
+            Some(ty_id) => match parser.tree.get(ty_id) {
+                Type::Maybe(inner_ty_id) => match parser.tree.get(*inner_ty_id) {
+                    Type::Path {
+                        path: path_id,
+                        static_arguments: _,
+                    } => {
+                        let path = parser.paths.get(*path_id);
+                        assert_eq!(path.segments.len(), 1);
+                        assert_eq!(path.segments[0], parser.strings.intern("B"));
+                    }
+                    _ => panic!("expected path type"),
+                },
+                _ => panic!("expected optional type"),
+            },
+            None => panic!("expected optional type"),
+        }
+        assert!(b.value.is_none());
+
+        // *C
+        let c = parser.tree.get(union.fields[2]);
+        assert_eq!(c.name, parser.strings.intern("C"));
+        match c.r#type {
+            Some(ty_id) => match parser.tree.get(ty_id) {
+                &Type::Pointer {
+                    target: ptr_ty_id,
+                    mutability: _,
+                } => match parser.tree.get(ptr_ty_id) {
+                    &Type::Path {
+                        path: path_id,
+                        static_arguments: _,
+                    } => {
+                        let path = parser.paths.get(path_id);
+                        assert_eq!(path.segments.len(), 1);
+                        assert_eq!(path.segments[0], parser.strings.intern("C"));
+                    }
+                    _ => panic!("expected path type"),
+                },
+                _ => panic!("expected pointer type"),
+            },
+            None => panic!("expected pointer type"),
+        }
+        assert!(c.value.is_none());
+
+        // ?*var D
+        let d = parser.tree.get(union.fields[3]);
+        assert_eq!(d.name, parser.strings.intern("D"));
+        match d.r#type {
+            Some(ty_id) => match parser.tree.get(ty_id) {
+                Type::Maybe(inner_ty_id) => match parser.tree.get(*inner_ty_id) {
+                    Type::Pointer {
+                        target: ptr_ty_id,
+                        mutability,
+                    } => {
+                        assert_eq!(*mutability, Mutability::Mutable);
+                        match parser.tree.get(*ptr_ty_id) {
+                            Type::Path {
+                                path: path_id,
+                                static_arguments: _,
+                            } => {
+                                let path = parser.paths.get(*path_id);
+                                assert_eq!(path.segments.len(), 1);
+                                assert_eq!(path.segments[0], parser.strings.intern("D"));
+                            }
+                            _ => panic!("expected path type"),
+                        }
+                    }
+                    _ => panic!("expected pointer type"),
+                },
+                _ => panic!("expected optional type"),
+            },
+            None => panic!("expected optional pointer type"),
+        }
+        assert!(d.value.is_none());
     }
 }

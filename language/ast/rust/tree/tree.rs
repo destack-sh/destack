@@ -41,6 +41,8 @@ pub struct NodeTree {
     pub(crate) spans_per_node: Vec<Span>,
     /// The documentation of all nodes in the AST. Index is the global node id.
     pub(crate) docs_per_node: Vec<Option<NodeId<Doc>>>,
+    /// The tombstones (compacted after parsing).
+    pub(crate) tombstones: Vec<u32>,
 
     // per-node arenas
     // groupings
@@ -127,60 +129,61 @@ impl NodeTree {
             kind_by_node: Vec::with_capacity(capacity),
             spans_per_node: Vec::with_capacity(capacity),
             docs_per_node: Vec::with_capacity(capacity),
+            tombstones: Vec::new(),
             // groupings
-            blocks: NodeArena::with_capacity(capacity),
-            statements: NodeArena::with_capacity(capacity),
-            expressions: NodeArena::with_capacity(capacity),
+            blocks: NodeArena::new(),
+            statements: NodeArena::new(),
+            expressions: NodeArena::new(),
             // declarations
-            modules: NodeArena::with_capacity(capacity),
-            structs: NodeArena::with_capacity(capacity),
-            struct_fields: NodeArena::with_capacity(capacity),
-            enums: NodeArena::with_capacity(capacity),
-            enum_fields: NodeArena::with_capacity(capacity),
-            unions: NodeArena::with_capacity(capacity),
-            union_fields: NodeArena::with_capacity(capacity),
-            traits: NodeArena::with_capacity(capacity),
-            implements: NodeArena::with_capacity(capacity),
-            types: NodeArena::with_capacity(capacity),
-            tuples: NodeArena::with_capacity(capacity),
-            tuple_fields: NodeArena::with_capacity(capacity),
-            functions: NodeArena::with_capacity(capacity),
-            function_signatures: NodeArena::with_capacity(capacity),
+            modules: NodeArena::new(),
+            structs: NodeArena::new(),
+            struct_fields: NodeArena::new(),
+            enums: NodeArena::new(),
+            enum_fields: NodeArena::new(),
+            unions: NodeArena::new(),
+            union_fields: NodeArena::new(),
+            traits: NodeArena::new(),
+            implements: NodeArena::new(),
+            types: NodeArena::new(),
+            tuples: NodeArena::new(),
+            tuple_fields: NodeArena::new(),
+            functions: NodeArena::new(),
+            function_signatures: NodeArena::new(),
             // using
-            usings: NodeArena::with_capacity(capacity),
-            using_clauses: NodeArena::with_capacity(capacity),
-            using_items: NodeArena::with_capacity(capacity),
+            usings: NodeArena::new(),
+            using_clauses: NodeArena::new(),
+            using_items: NodeArena::new(),
             // control
-            ifs: NodeArena::with_capacity(capacity),
-            whiles: NodeArena::with_capacity(capacity),
-            fors: NodeArena::with_capacity(capacity),
-            loops: NodeArena::with_capacity(capacity),
-            breaks: NodeArena::with_capacity(capacity),
-            continues: NodeArena::with_capacity(capacity),
-            defers: NodeArena::with_capacity(capacity),
-            returns: NodeArena::with_capacity(capacity),
-            trys: NodeArena::with_capacity(capacity),
+            ifs: NodeArena::new(),
+            whiles: NodeArena::new(),
+            fors: NodeArena::new(),
+            loops: NodeArena::new(),
+            breaks: NodeArena::new(),
+            continues: NodeArena::new(),
+            defers: NodeArena::new(),
+            returns: NodeArena::new(),
+            trys: NodeArena::new(),
             // bindings
-            lets: NodeArena::with_capacity(capacity),
-            assigns: NodeArena::with_capacity(capacity),
-            parameters: NodeArena::with_capacity(capacity),
-            arguments: NodeArena::with_capacity(capacity),
+            lets: NodeArena::new(),
+            assigns: NodeArena::new(),
+            parameters: NodeArena::new(),
+            arguments: NodeArena::new(),
             // literals
-            scalar_literals: NodeArena::with_capacity(capacity),
-            array_literals: NodeArena::with_capacity(capacity),
-            tuple_literals: NodeArena::with_capacity(capacity),
-            struct_literals: NodeArena::with_capacity(capacity),
-            field_literals: NodeArena::with_capacity(capacity),
+            scalar_literals: NodeArena::new(),
+            array_literals: NodeArena::new(),
+            tuple_literals: NodeArena::new(),
+            struct_literals: NodeArena::new(),
+            field_literals: NodeArena::new(),
             // calls
-            static_calls: NodeArena::with_capacity(capacity),
-            dynamic_calls: NodeArena::with_capacity(capacity),
+            static_calls: NodeArena::new(),
+            dynamic_calls: NodeArena::new(),
             // matching
-            matches: NodeArena::with_capacity(capacity),
-            patterns: NodeArena::with_capacity(capacity),
-            pattern_fields: NodeArena::with_capacity(capacity),
-            match_cases: NodeArena::with_capacity(capacity),
+            matches: NodeArena::new(),
+            patterns: NodeArena::new(),
+            pattern_fields: NodeArena::new(),
+            match_cases: NodeArena::new(),
             // documentation
-            docs: NodeArena::with_capacity(capacity),
+            docs: NodeArena::new(),
         }
     }
 
@@ -205,26 +208,17 @@ impl NodeTree {
         }
     }
 
-    /// Set the span for a node.
-    pub fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
-    where
-        T: Node,
-    {
-        self.spans_per_node[node_id.id as usize] = span;
-    }
-
-    /// Append documentation to a node.
-    /// Merges the documentation with the existing documentation (if it exists).
-    pub fn append_documentation<T>(&mut self, node_id: NodeId<T>, documentation: NodeId<Doc>)
-    where
-        T: Node,
-        Self: NodeTreeStore<T>,
-    {
-        let local_id = self.local_id_by_node[node_id.id as usize];
-        if self.docs_per_node[local_id as usize].is_some() {
-            todo!("merge documentation");
-        }
-        self.docs_per_node[local_id as usize] = Some(documentation);
+    /// Free an existing node in the tree.
+    /// Will be freed later.
+    ///
+    /// Returns whether the node was already freed.
+    pub fn free<T>(&mut self, node_id: NodeId<T>) {
+        let node_id_raw = node_id.get() as u32;
+        debug_assert!(
+            !self.tombstones.contains(&node_id_raw),
+            "node already freed"
+        );
+        self.tombstones.push(node_id_raw);
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -233,6 +227,7 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
+        debug_assert!(!self.tombstones.contains(&id.id), "node already freed");
         let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get(self, local_id)
     }
@@ -243,8 +238,39 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
+        debug_assert!(!self.tombstones.contains(&id.id), "node already freed");
         let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get_mut(self, local_id)
+    }
+
+    /// Get the span for a node.
+    pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
+    where
+        T: Node,
+    {
+        self.spans_per_node[node_id.id as usize]
+    }
+
+    /// Set the span for a node.
+    pub fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.spans_per_node[node_id.id as usize] = span;
+    }
+
+    /// Append documentation to a node.
+    /// Merges the documentation with the existing documentation (if it exists).
+    pub fn append_doc<T>(&mut self, node_id: NodeId<T>, documentation: NodeId<Doc>)
+    where
+        T: Node,
+        Self: NodeTreeStore<T>,
+    {
+        let local_id = self.local_id_by_node[node_id.id as usize];
+        if self.docs_per_node[local_id as usize].is_some() {
+            todo!("merge documentation");
+        }
+        self.docs_per_node[local_id as usize] = Some(documentation);
     }
 }
 
@@ -266,7 +292,19 @@ where
     }
 }
 
+impl<T> Default for NodeArena<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> NodeArena<T> {
+    /// Create a new empty Arena.
+    #[inline]
+    pub fn new() -> Self {
+        Self { nodes: Vec::new() }
+    }
+
     /// Create a new Arena with the given capacity.
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {

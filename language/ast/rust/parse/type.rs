@@ -6,7 +6,7 @@ use destack_language_token::TokenType;
 
 use crate::{
     FloatType, IntType, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser,
-    PrimitiveType, Tuple, TupleField, Type,
+    PrimitiveType, Type,
 };
 
 impl IntType {
@@ -114,11 +114,11 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // tuple
-        if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
+        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.eat_tuple_type()
 
         // array or slice
-        } else if self.peek_next_token(TokenType::OpenBracket).is_ok() {
+        } else if self.peek_token(TokenType::OpenBracket).is_ok() {
             self.eat_array_or_slice_type()
 
         // struct
@@ -153,9 +153,22 @@ impl<'a> Parser<'a> {
                 .allocate(Type::Function(function_signature_id), self.span_from(start));
             Ok(ty_id)
 
-        // scalar
+        // scalar or implicit union
         } else {
-            self.eat_scalar_type()
+            let scalar_type_id = self.eat_scalar_type()?;
+
+            // implicit union with `|`, rewind and reparse
+            if self.peek_token(TokenType::BitwiseOr).is_ok() {
+                self.tree.free(scalar_type_id);
+                self.rewind(start);
+                let union_id = self.eat_implicit_union()?;
+                let ty_id = self
+                    .tree
+                    .allocate(Type::Union(union_id), self.span_from(start));
+                Ok(ty_id)
+            } else {
+                Ok(scalar_type_id)
+            }
         }
     }
 
@@ -172,7 +185,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn peek_primitive_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-        let next = self.peek_next()?;
+        let next = self.peek()?;
         let next_str = self.get_span_str(next.span);
         let primitive_type = match next_str {
             // void
@@ -235,6 +248,7 @@ impl<'a> Parser<'a> {
     /// int17
     /// float32
     /// ?float32
+    /// *float32
     /// _
     /// !
     /// !Time
@@ -242,7 +256,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_scalar_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-        let next = *self.peek_next()?;
+        let next = *self.peek()?;
 
         // maybe
         if next.token.r#type == TokenType::Question {
@@ -253,10 +267,10 @@ impl<'a> Parser<'a> {
                 .allocate(Type::Maybe(inner_type), self.span_from(start));
             Ok(ty_id)
         }
-        // never
+        // not or never
         else if next.token.r#type == TokenType::Bang {
             self.bump();
-            if self.peek_next_token(TokenType::Identifier).is_ok() {
+            if self.peek_token(TokenType::Identifier).is_ok() {
                 let inner_type = self.eat_type()?;
                 let ty_id = self
                     .tree
@@ -270,7 +284,7 @@ impl<'a> Parser<'a> {
         // pointer
         } else if next.token.r#type == TokenType::Multiply {
             self.bump();
-            let mutability = if let Ok(identifier) = self.peek_next_token(TokenType::Identifier)
+            let mutability = if let Ok(identifier) = self.peek_token(TokenType::Identifier)
                 && self.get_token_str(*identifier) == "var"
             {
                 self.eat_token(TokenType::Identifier)?;
@@ -307,7 +321,7 @@ impl<'a> Parser<'a> {
             else {
                 let path = self.eat_path()?;
                 // eat static arguments if present
-                if self.peek_next_token(TokenType::LessThan).is_ok() {
+                if self.peek_token(TokenType::LessThan).is_ok() {
                     self.eat_token(TokenType::LessThan)?;
                     let static_arguments = self.eat_arguments_body()?;
                     self.eat_token(TokenType::GreaterThan)?;
@@ -344,37 +358,6 @@ impl<'a> Parser<'a> {
     /// (int32)
     /// (int32, int32)
     /// ```
-    pub fn eat_tuple(&mut self) -> ParseResult<NodeId<Tuple>> {
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let start = self.mark();
-        let mut elements: Vec<NodeId<TupleField>> = Vec::new();
-        loop {
-            if self.peek_next_token(TokenType::CloseParenthesis).is_ok() {
-                self.bump();
-                break;
-            }
-            let element = self.eat_tuple_field()?;
-            elements.push(element);
-            if self.peek_item_stop().is_ok() {
-                self.eat_item_stop()?;
-            } else {
-                break;
-            }
-        }
-        let tuple_id = self
-            .tree
-            .allocate(Tuple { elements }, self.span_from(start));
-        self.eat_token(TokenType::CloseParenthesis)?;
-        Ok(tuple_id)
-    }
-
-    /// Eat a tuple type (including the `(` and `)`).
-    ///
-    /// Examples:
-    /// ```
-    /// (int32)
-    /// (int32, int32)
-    /// ```
     pub fn eat_tuple_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
         let tuple_id = self.eat_tuple()?;
@@ -382,35 +365,6 @@ impl<'a> Parser<'a> {
             .tree
             .allocate(Type::Tuple(tuple_id), self.span_from(start));
         Ok(ty_id)
-    }
-
-    /// Eat a tuple element.
-    ///
-    /// Examples:
-    /// ```
-    /// int32
-    /// a: int32
-    /// ```
-    pub fn eat_tuple_field(&mut self) -> ParseResult<NodeId<TupleField>> {
-        let start = self.mark();
-
-        if self.peek_next_next_token(TokenType::Colon).is_ok() {
-            // named tuple element
-            let name = self.eat_identifier()?;
-            self.eat_colon()?;
-            let r#type = self.eat_type()?;
-            let tuple_element_id = self
-                .tree
-                .allocate(TupleField::Named { name, r#type }, self.span_from(start));
-            Ok(tuple_element_id)
-        } else {
-            // positional tuple element
-            let r#type = self.eat_type()?;
-            let tuple_element_id = self
-                .tree
-                .allocate(TupleField::Positional { r#type }, self.span_from(start));
-            Ok(tuple_element_id)
-        }
     }
 
     /// Eat an array or slice type (including the `[` and `]`).
@@ -469,7 +423,7 @@ mod tests {
     };
 
     #[test]
-    fn test_eat_primitive_type() {
+    fn test_primitive_type() {
         let source = r##"
 void
 boolean
@@ -584,7 +538,7 @@ float64
     }
 
     #[test]
-    fn test_eat_scalar_type() {
+    fn test_scalar_type() {
         let source = r##"
 float32
 geom.Vector2 // path

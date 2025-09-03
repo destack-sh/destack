@@ -609,6 +609,7 @@ pub enum FunctionStyle {
 ///   a: int32
 ///   /// doc comment for `b`
 ///   b: boolean
+///   // regular comment
 ///   c: Vector2
 /// ) => int32, isGood: boolean {
 ///    ...
@@ -720,6 +721,7 @@ impl Node for TupleField {
 /// ```
 /// int32
 /// boolean
+/// boolean | *int32
 /// [float32]
 /// [float64; 3]
 /// (int32, int32)
@@ -772,11 +774,11 @@ pub enum Type {
 
     /// Inline anonymous tuple type `(T1, T2, ...)` (no tuple keyword).
     Tuple(NodeId<Tuple>),
-    /// Inline nominal Struct type `struct MyStruct { ... }`.
+    /// Inline Struct type `struct MyStruct { ... }`.
     Struct(NodeId<Struct>),
-    /// Inline nominal Enum type `enum MyEnum { ... }`.
+    /// Inline Enum type `enum MyEnum { ... }`.
     Enum(NodeId<Enum>),
-    /// Inline nominal Union type `union MyUnion { ... }`.
+    /// Inline Union type `union MyUnion { ... }` or implicit `A | B`.
     Union(NodeId<Union>),
     /// Inline Function type `(T1, T2, ...) => T`.
     Function(NodeId<FunctionSignature>),

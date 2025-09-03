@@ -3,6 +3,8 @@
 pub enum Keyword {
     /// Mark the following item as public (with optional qualifier)
     Public,
+    /// Refer to the own type.
+    Self_,
     /// Define a Module (inline).
     Module,
     /// Define a Struct.
@@ -60,6 +62,7 @@ impl Keyword {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Keyword::Public => "public",
+            Keyword::Self_ => "self",
             Keyword::Module => "module",
             Keyword::Struct => "struct",
             Keyword::Enum => "enum",

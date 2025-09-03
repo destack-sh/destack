@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     pub fn eat_literal(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
         // array
-        if self.peek_next_token(TokenType::OpenBracket).is_ok() {
+        if self.peek_token(TokenType::OpenBracket).is_ok() {
             let array_literal = self.eat_array_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::ArrayLiteral(array_literal),
@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
             );
             Ok(expression_id)
         // tuple
-        } else if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
+        } else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             let tuple_literal = self.eat_tuple_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::TupleLiteral(tuple_literal),
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
             );
             Ok(expression_id)
         // struct
-        } else if self.peek_next_token(TokenType::OpenBrace).is_ok() {
+        } else if self.peek_token(TokenType::OpenBrace).is_ok() {
             let struct_literal = self.eat_struct_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::StructLiteral(struct_literal),
@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
     pub fn eat_scalar_literal(&mut self) -> ParseResult<NodeId<ScalarLiteral>> {
         let start = self.mark();
 
-        if self.peek_next_token(TokenType::Identifier).is_ok() {
+        if self.peek_token(TokenType::Identifier).is_ok() {
             // may be reference to a built-in constant value
             // boolean literal (just an identifier)
             let string_id = self.eat_identifier()?;
@@ -291,7 +291,7 @@ impl<'a> Parser<'a> {
         self.eat_newlines_maybe()?;
 
         // empty array
-        if self.peek_next_token(TokenType::CloseBracket).is_ok() {
+        if self.peek_token(TokenType::CloseBracket).is_ok() {
             self.eat_token(TokenType::CloseBracket)?;
             let array_literal = self.tree.allocate(
                 ArrayLiteral::Fixed { elements: vec![] },
@@ -303,7 +303,7 @@ impl<'a> Parser<'a> {
         // parse first element
         let first_element = self.eat_expression()?;
 
-        if self.peek_next_token(TokenType::Semicolon).is_ok() {
+        if self.peek_token(TokenType::Semicolon).is_ok() {
             // repeated array: [value; count]
             self.eat_token(TokenType::Semicolon)?;
             let count = self.eat_expression()?;
@@ -321,7 +321,7 @@ impl<'a> Parser<'a> {
             let mut elements = vec![first_element];
             while self.peek_item_stop().is_ok() {
                 self.eat_item_stop()?;
-                if self.peek_next_token(TokenType::CloseBracket).is_ok() {
+                if self.peek_token(TokenType::CloseBracket).is_ok() {
                     break;
                 }
                 let element = self.eat_expression()?;
@@ -355,7 +355,7 @@ impl<'a> Parser<'a> {
         let mut elements: Vec<NodeId<Expression>> = vec![];
         while self.peek_item_stop().is_ok() {
             self.eat_item_stop()?;
-            if self.peek_next_token(TokenType::CloseParenthesis).is_ok() {
+            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                 break;
             }
             let element = self.eat_expression()?;
@@ -410,13 +410,13 @@ impl<'a> Parser<'a> {
         let mut fields: Vec<NodeId<FieldLiteral>> = vec![];
         while self.peek_item_stop().is_ok() {
             self.eat_item_stop()?;
-            if self.peek_next_token(TokenType::CloseBrace).is_ok() {
+            if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
             let field_start = self.mark();
             let name = self.eat_identifier()?;
             // named field
-            if self.peek_next_token(TokenType::Colon).is_ok() {
+            if self.peek_token(TokenType::Colon).is_ok() {
                 self.eat_token(TokenType::Colon)?;
                 let value = self.eat_expression()?;
                 let field_literal = self.tree.allocate(

@@ -1,4 +1,3 @@
-use destack_language_arena::StringId;
 use destack_language_token::{SourceFile, Span, Token, TokenSpan, TokenType};
 
 use crate::{NodeTree, ParseError, ParseResult, PathPool, StringPool};
@@ -93,7 +92,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next Token or error.
     #[inline]
-    pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos)
             .ok_or(ParseError::SyntaxError(self.eof_token.span))
@@ -101,7 +100,7 @@ impl<'a> Parser<'a> {
 
     /// Peek the next next Token or error.
     #[inline]
-    pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 1)
             .ok_or(ParseError::SyntaxError(self.eof_token.span))
@@ -127,8 +126,8 @@ impl<'a> Parser<'a> {
 
     /// Peek the next token.
     #[inline]
-    pub fn peek_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        let next = self.peek_next()?;
+    pub fn peek_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+        let next = self.peek()?;
         if next.token.r#type == token_type {
             Ok(next)
         } else {
@@ -138,8 +137,8 @@ impl<'a> Parser<'a> {
 
     /// Peek the next next token.
     #[inline]
-    pub fn peek_next_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        let next = self.peek_next_next()?;
+    pub fn peek_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+        let next = self.peek_next()?;
         if next.token.r#type == token_type {
             Ok(next)
         } else {
@@ -158,24 +157,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Peek an identifier.
-    #[inline]
-    pub fn peek_identifier(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Identifier)
-    }
-
-    /// Eat an identifier.
-    #[inline]
-    pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
-        let token = *self.eat_token(TokenType::Identifier)?;
-        let string_id = self.strings.intern(self.get_token_str(token));
-        Ok(string_id)
-    }
-
     /// Peek a colon.
     #[inline]
     pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Colon)
+        self.peek_token(TokenType::Colon)
     }
 
     /// Eat a colon.
@@ -187,7 +172,7 @@ impl<'a> Parser<'a> {
     /// Peek a semicolon.
     #[inline]
     pub fn peek_semicolon(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Semicolon)
+        self.peek_token(TokenType::Semicolon)
     }
 
     /// Eat a semicolon.
@@ -199,7 +184,7 @@ impl<'a> Parser<'a> {
     /// Peek a comma.
     #[inline]
     pub fn peek_comma(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Comma)
+        self.peek_token(TokenType::Comma)
     }
 
     /// Eat a comma.
@@ -211,7 +196,7 @@ impl<'a> Parser<'a> {
     /// Peek a newline.
     #[inline]
     pub fn peek_newline(&self) -> ParseResult<&TokenSpan> {
-        self.peek_next_token(TokenType::Newline)
+        self.peek_token(TokenType::Newline)
     }
 
     /// Eat a newline.

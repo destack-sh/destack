@@ -13,8 +13,8 @@ impl<'a> Parser<'a> {
     pub fn eat_argument(&mut self) -> ParseResult<NodeId<Argument>> {
         let start = self.mark();
         // named argument
-        if self.peek_next_token(TokenType::Identifier).is_ok()
-            && self.peek_next_next_token(TokenType::Colon).is_ok()
+        if self.peek_token(TokenType::Identifier).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_ok()
         {
             let name = self.eat_identifier()?;
             self.eat_colon()?;
