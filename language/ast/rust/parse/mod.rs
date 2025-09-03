@@ -3,6 +3,7 @@ mod r#as;
 mod block;
 mod call;
 mod doc;
+mod r#enum;
 mod error;
 mod expression;
 mod function;
