@@ -112,12 +112,15 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
+
         // tuple
         if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
             self.eat_tuple_type()
-        // array
+
+        // array or slice
         } else if self.peek_next_token(TokenType::OpenBracket).is_ok() {
             self.eat_array_or_slice_type()
+
         // struct
         } else if self.peek_keyword(Keyword::Struct).is_ok() {
             let struct_id = self.eat_struct()?;
@@ -125,6 +128,7 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Struct(struct_id), self.span_from(start));
             Ok(ty_id)
+
         // enum
         } else if self.peek_keyword(Keyword::Enum).is_ok() {
             let enum_id = self.eat_enum()?;
@@ -140,6 +144,7 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Union(union_id), self.span_from(start));
             Ok(ty_id)
+
         // function
         } else if self.peek_keyword(Keyword::Function).is_ok() {
             let function_signature_id = self.eat_function_signature()?;
@@ -147,6 +152,7 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Function(function_signature_id), self.span_from(start));
             Ok(ty_id)
+
         // scalar
         } else {
             self.eat_scalar_type()
@@ -338,25 +344,15 @@ impl<'a> Parser<'a> {
     /// (int32)
     /// (int32, int32)
     /// ```
-    pub fn eat_tuple_type(&mut self) -> ParseResult<NodeId<Type>> {
+    pub fn eat_tuple(&mut self) -> ParseResult<NodeId<Tuple>> {
         self.eat_token(TokenType::OpenParenthesis)?;
-        let body = self.eat_tuple_type_body()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
-        Ok(body)
-    }
-
-    /// Eat a tuple type body.
-    ///
-    /// Examples:
-    /// ```
-    /// int32
-    /// int32, int32
-    /// a: int32, b: boolean
-    /// ```
-    pub fn eat_tuple_type_body(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
         let mut elements: Vec<NodeId<TupleField>> = Vec::new();
         loop {
+            if self.peek_next_token(TokenType::CloseParenthesis).is_ok() {
+                self.bump();
+                break;
+            }
             let element = self.eat_tuple_field()?;
             elements.push(element);
             if self.peek_item_stop().is_ok() {
@@ -368,6 +364,20 @@ impl<'a> Parser<'a> {
         let tuple_id = self
             .tree
             .allocate(Tuple { elements }, self.span_from(start));
+        self.eat_token(TokenType::CloseParenthesis)?;
+        Ok(tuple_id)
+    }
+
+    /// Eat a tuple type (including the `(` and `)`).
+    ///
+    /// Examples:
+    /// ```
+    /// (int32)
+    /// (int32, int32)
+    /// ```
+    pub fn eat_tuple_type(&mut self) -> ParseResult<NodeId<Type>> {
+        let start = self.mark();
+        let tuple_id = self.eat_tuple()?;
         let ty_id = self
             .tree
             .allocate(Type::Tuple(tuple_id), self.span_from(start));
