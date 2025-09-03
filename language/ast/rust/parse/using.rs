@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
                 clauses,
                 body: None,
             },
-            self.span_from(start),
+            self.get_span_from(start),
         );
         Ok(using)
     }
@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
         };
 
         // allocate the path expression for the target
-        let span = self.span_from(start);
+        let span = self.get_span_from(start);
         let target = self.tree.allocate(Expression::Alias { path }, span);
 
         let clause = self.tree.allocate(
@@ -127,7 +127,7 @@ impl<'a> Parser<'a> {
 
         let item = self
             .tree
-            .allocate(UsingItem { name, alias }, self.span_from(start));
+            .allocate(UsingItem { name, alias }, self.get_span_from(start));
         Ok(item)
     }
 }

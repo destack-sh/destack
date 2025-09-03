@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
         union.name = name;
         union.r#type = explicit_type;
         union.using = using;
-        self.tree.set_span(union_id, self.span_from(start));
+        self.tree.set_span(union_id, self.get_span_from(start));
 
         Ok(union_id)
     }
@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
                     fields,
                     using: None,
                 },
-                self.span_from(start),
+                self.get_span_from(start),
             );
             return Ok(union_id);
         }
@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
                 fields,
                 using: None,
             },
-            self.span_from(start),
+            self.get_span_from(start),
         );
         Ok(union_id)
     }
@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
                 } else {
                     let type_id = self
                         .tree
-                        .allocate(Type::Tuple(tuple_id), self.span_from(start));
+                        .allocate(Type::Tuple(tuple_id), self.get_span_from(start));
                     Some(type_id)
                 }
             } else {
@@ -170,7 +170,7 @@ impl<'a> Parser<'a> {
                 r#type: payload_type,
                 value,
             },
-            self.span_from(start),
+            self.get_span_from(start),
         );
         Ok(field_id)
     }
@@ -201,7 +201,7 @@ impl<'a> Parser<'a> {
                     value: None,
                     r#type: Some(field_id),
                 },
-                self.span_from(field_start),
+                self.get_span_from(field_start),
             );
             fields.push(union_field_id);
 
@@ -221,7 +221,7 @@ impl<'a> Parser<'a> {
                 fields,
                 using: None,
             },
-            self.span_from(start),
+            self.get_span_from(start),
         );
         Ok(union_id)
     }

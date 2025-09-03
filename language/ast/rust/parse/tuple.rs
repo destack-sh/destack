@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
         }
         let tuple_id = self
             .tree
-            .allocate(Tuple { elements }, self.span_from(start));
+            .allocate(Tuple { elements }, self.get_span_from(start));
         self.eat_token(TokenType::CloseParenthesis)?;
         Ok(tuple_id)
     }
@@ -51,16 +51,17 @@ impl<'a> Parser<'a> {
             let name = self.eat_identifier()?;
             self.eat_colon()?;
             let r#type = self.eat_type()?;
-            let tuple_element_id = self
-                .tree
-                .allocate(TupleField::Named { name, r#type }, self.span_from(start));
+            let tuple_element_id = self.tree.allocate(
+                TupleField::Named { name, r#type },
+                self.get_span_from(start),
+            );
             Ok(tuple_element_id)
         } else {
             // positional tuple element
             let r#type = self.eat_type()?;
             let tuple_element_id = self
                 .tree
-                .allocate(TupleField::Positional { r#type }, self.span_from(start));
+                .allocate(TupleField::Positional { r#type }, self.get_span_from(start));
             Ok(tuple_element_id)
         }
     }

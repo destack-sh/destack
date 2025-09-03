@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let statement_id = self.tree.allocate(statement, self.span_from(start));
+        let statement_id = self.tree.allocate(statement, self.get_span_from(start));
         Ok(statement_id)
     }
 }
