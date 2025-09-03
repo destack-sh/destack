@@ -190,7 +190,7 @@ impl<'a> Parser<'a> {
             let field_span = self.tree.get_span(field_id);
             let mut field_str = self.get_span_str(field_span);
             if field_str.contains(' ') {
-                // split `*var T` cleanly
+                // split `*var T` and such cleanly
                 field_str = field_str.split(' ').nth_back(0).unwrap()
             }
             let field_str_clean = clean_identifier(field_str);
@@ -377,7 +377,20 @@ union(uint4) Foo using Bar {
         // A
         let a = parser.tree.get(union.fields[0]);
         assert_eq!(a.name, parser.strings.intern("A"));
-        assert!(a.r#type.is_none());
+        match a.r#type {
+            Some(ty_id) => match parser.tree.get(ty_id) {
+                Type::Path {
+                    path: path_id,
+                    static_arguments: _,
+                } => {
+                    let path = parser.paths.get(*path_id);
+                    assert_eq!(path.segments.len(), 1);
+                    assert_eq!(path.segments[0], parser.strings.intern("A"));
+                }
+                _ => panic!("expected path type"),
+            },
+            None => panic!("expected path type"),
+        }
         assert!(a.value.is_none());
 
         // ?B

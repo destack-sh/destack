@@ -101,7 +101,7 @@ pub fn clean_identifier(string: &'_ str) -> Cow<'_, str> {
     let mut result = String::new();
 
     // scan until a valid start is found
-    while let Some(c) = iter.next() {
+    for c in iter.by_ref() {
         if is_id_start(c) {
             result.push(c);
             break;

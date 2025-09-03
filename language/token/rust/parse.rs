@@ -101,7 +101,7 @@ impl Tokenizer<'_> {
                     }
                     // divide or '/='
                     _ => {
-                        if self.peek_next() == '=' {
+                        if self.peek() == '=' {
                             self.bump();
                             (TokenType::DivideAssign, None)
                         } else {
@@ -112,7 +112,7 @@ impl Tokenizer<'_> {
             }
 
             // raw string literal, or identifier starting with 'r'
-            'r' => match (self.peek_next(), self.peek_next_next()) {
+            'r' => match (self.peek(), self.peek_next()) {
                 // raw string literal
                 ('#', _) | ('"', _) => {
                     let raw_dq_string = self.eat_raw_double_quoted_string(1);
@@ -128,7 +128,7 @@ impl Tokenizer<'_> {
             // byte literal, byte string literal, or identifier starting with 'b'
             'b' => {
                 let this = &mut *self;
-                match (this.peek_next(), this.peek_next_next()) {
+                match (this.peek(), this.peek_next()) {
                     // single-quoted byte literal
                     ('\'', _) => {
                         this.bump();
@@ -177,11 +177,11 @@ impl Tokenizer<'_> {
             ';' => (TokenType::Semicolon, None),
             ',' => (TokenType::Comma, None),
             '.' => {
-                if self.peek_next() == '.' && self.peek_next_next() == '.' {
+                if self.peek() == '.' && self.peek_next() == '.' {
                     self.bump();
                     self.bump();
                     (TokenType::Ellipsis, None)
-                } else if self.peek_next() == '.' {
+                } else if self.peek() == '.' {
                     self.bump();
                     (TokenType::Range, None)
                 } else {
@@ -206,7 +206,7 @@ impl Tokenizer<'_> {
 
             // bang
             '!' => {
-                if self.peek_next() == '=' {
+                if self.peek() == '=' {
                     self.bump();
                     (TokenType::NotEqual, None)
                 } else {
@@ -216,30 +216,30 @@ impl Tokenizer<'_> {
 
             // subtract or arrow
             '-' => {
-                if self.peek_next() == '>' {
+                if self.peek() == '>' {
                     self.bump();
                     (TokenType::BadArrow, None)
-                } else if self.peek_next() == '-' && self.peek_next_next() == '-' {
+                } else if self.peek() == '-' && self.peek_next() == '-' {
                     self.bump();
                     self.bump();
                     (TokenType::Empty, None)
-                } else if self.peek_next() == '%' {
+                } else if self.peek() == '%' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    if self.peek() == '=' {
                         self.bump();
                         (TokenType::WrappingSubtractAssign, None)
                     } else {
                         (TokenType::WrappingSubtract, None)
                     }
-                } else if self.peek_next() == '|' {
+                } else if self.peek() == '|' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    if self.peek() == '=' {
                         self.bump();
                         (TokenType::SaturatingSubtractAssign, None)
                     } else {
                         (TokenType::SaturatingSubtract, None)
                     }
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::SubtractAssign, None)
                 } else {
@@ -249,10 +249,10 @@ impl Tokenizer<'_> {
 
             // bitwise and or logical and
             '&' => {
-                if self.peek_next() == '&' {
+                if self.peek() == '&' {
                     self.bump();
                     (TokenType::LogicalAnd, None)
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseAndAssign, None)
                 } else {
@@ -262,10 +262,10 @@ impl Tokenizer<'_> {
 
             // bitwise or or logical or
             '|' => {
-                if self.peek_next() == '|' {
+                if self.peek() == '|' {
                     self.bump();
                     (TokenType::LogicalOr, None)
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseOrAssign, None)
                 } else {
@@ -275,10 +275,10 @@ impl Tokenizer<'_> {
 
             // equal or assign
             '=' => {
-                if self.peek_next() == '>' {
+                if self.peek() == '>' {
                     self.bump();
                     (TokenType::Arrow, None)
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::Equal, None)
                 } else {
@@ -288,24 +288,24 @@ impl Tokenizer<'_> {
 
             // less than or shift left
             '<' => {
-                if self.peek_next() == '<' {
+                if self.peek() == '<' {
                     self.bump();
                     // check for saturating shift first (<<| or <<|=)
-                    if self.peek_next() == '|' {
+                    if self.peek() == '|' {
                         self.bump();
-                        if self.peek_next() == '=' {
+                        if self.peek() == '=' {
                             self.bump();
                             (TokenType::SaturatingShiftLeftAssign, None)
                         } else {
                             (TokenType::SaturatingShiftLeft, None)
                         }
-                    } else if self.peek_next() == '=' {
+                    } else if self.peek() == '=' {
                         self.bump();
                         (TokenType::ShiftLeftAssign, None)
                     } else {
                         (TokenType::ShiftLeft, None)
                     }
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::LessThanEqual, None)
                 } else {
@@ -315,15 +315,15 @@ impl Tokenizer<'_> {
 
             // greater than or shift right
             '>' => {
-                if self.peek_next() == '>' {
+                if self.peek() == '>' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    if self.peek() == '=' {
                         self.bump();
                         (TokenType::ShiftRightAssign, None)
                     } else {
                         (TokenType::ShiftRight, None)
                     }
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::GreaterThanEqual, None)
                 } else {
@@ -333,7 +333,7 @@ impl Tokenizer<'_> {
 
             // xor
             '^' => {
-                if self.peek_next() == '=' {
+                if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseXorAssign, None)
                 } else {
@@ -344,23 +344,23 @@ impl Tokenizer<'_> {
             // add
             '+' => {
                 // wrapping and saturating variants take precedence
-                if self.peek_next() == '%' {
+                if self.peek() == '%' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    if self.peek() == '=' {
                         self.bump();
                         (TokenType::WrappingAddAssign, None)
                     } else {
                         (TokenType::WrappingAdd, None)
                     }
-                } else if self.peek_next() == '|' {
+                } else if self.peek() == '|' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    if self.peek() == '=' {
                         self.bump();
                         (TokenType::SaturatingAddAssign, None)
                     } else {
                         (TokenType::SaturatingAdd, None)
                     }
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::AddAssign, None)
                 } else {
@@ -370,23 +370,23 @@ impl Tokenizer<'_> {
 
             // multiply
             '*' => {
-                if self.peek_next() == '%' {
+                if self.peek() == '%' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    if self.peek() == '=' {
                         self.bump();
                         (TokenType::WrappingMultiplyAssign, None)
                     } else {
                         (TokenType::WrappingMultiply, None)
                     }
-                } else if self.peek_next() == '|' {
+                } else if self.peek() == '|' {
                     self.bump();
-                    if self.peek_next() == '=' {
+                    if self.peek() == '=' {
                         self.bump();
                         (TokenType::SaturatingMultiplyAssign, None)
                     } else {
                         (TokenType::SaturatingMultiply, None)
                     }
-                } else if self.peek_next() == '=' {
+                } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::MultiplyAssign, None)
                 } else {
@@ -396,7 +396,7 @@ impl Tokenizer<'_> {
 
             // remainder
             '%' => {
-                if self.peek_next() == '=' {
+                if self.peek() == '=' {
                     self.bump();
                     (TokenType::RemainderAssign, None)
                 } else {
@@ -447,7 +447,7 @@ impl Tokenizer<'_> {
         // consume continuation characters until an unknown character is met
         self.eat_while(is_id_continue);
         // known prefixes must have been handled earlier
-        match self.peek_next() {
+        match self.peek() {
             '#' | '"' | '\'' => return (TokenType::UnknownLiteralPrefix, None),
             c if !c.is_ascii() && c.is_emoji_char() => {
                 return (self.eat_invalid_identifier(), None);
@@ -489,7 +489,7 @@ impl Tokenizer<'_> {
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
             // parse encoding base
-            match self.peek_next() {
+            match self.peek() {
                 // binary literal
                 'b' => {
                     base = NumberBase::Binary;
@@ -547,17 +547,17 @@ impl Tokenizer<'_> {
             self.eat_decimal_digits();
         }
 
-        match self.peek_next() {
+        match self.peek() {
             // don't be greedy if this is actually an
             // integer literal followed by field/method access or a range pattern
             // (`0..2` and `12.foo()`)
-            '.' if self.peek_next_next() != '.' && !is_id_start(self.peek_next_next()) => {
+            '.' if self.peek_next() != '.' && !is_id_start(self.peek_next()) => {
                 // might have stuff after the ., and if it does, it starts with a number
                 self.bump();
                 let mut is_empty_exponent = false;
-                if self.peek_next().is_ascii_digit() {
+                if self.peek().is_ascii_digit() {
                     self.eat_decimal_digits();
-                    match self.peek_next() {
+                    match self.peek() {
                         'e' | 'E' => {
                             self.bump();
                             is_empty_exponent = !self.eat_float_exponent();
@@ -590,7 +590,7 @@ impl Tokenizer<'_> {
     fn eat_single_quoted_string(&mut self) -> bool {
         debug_assert!(self.prev() == '\'');
         // check if it's a one-symbol literal
-        if self.peek_next_next() == '\'' && self.peek_next() != '\\' {
+        if self.peek_next() == '\'' && self.peek() != '\\' {
             self.bump();
             self.bump();
             return true;
@@ -598,7 +598,7 @@ impl Tokenizer<'_> {
         // literal has more than one symbol
         // parse until either quotes are terminated or error is detected
         loop {
-            match self.peek_next() {
+            match self.peek() {
                 // quotes are terminated, finish parsing
                 '\'' => {
                     self.bump();
@@ -608,7 +608,7 @@ impl Tokenizer<'_> {
                 // to the error report
                 '/' => break,
                 // newline without following '\'' means unclosed quote, stop parsing
-                '\n' if self.peek_next_next() != '\'' => break,
+                '\n' if self.peek_next() != '\'' => break,
                 // end of file, stop parsing
                 EOF_CHAR if self.is_eof() => break,
                 // escaped slash is considered one character, so bump twice
@@ -635,7 +635,7 @@ impl Tokenizer<'_> {
                 '"' => {
                     return true;
                 }
-                '\\' if self.peek_next() == '\\' || self.peek_next() == '"' => {
+                '\\' if self.peek() == '\\' || self.peek() == '"' => {
                     // bump again to skip escaped character
                     self.bump();
                 }
@@ -674,7 +674,7 @@ impl Tokenizer<'_> {
 
         // count opening '#' symbols
         let mut eaten = 0;
-        while self.peek_next() == '#' {
+        while self.peek() == '#' {
             eaten += 1;
             self.bump();
         }
@@ -711,7 +711,7 @@ impl Tokenizer<'_> {
             // `r###"abcde"####` is lexed as a `RawStr { n_hashes: 3 }`
             // followed by a `#` token
             let mut n_end_hashes = 0;
-            while self.peek_next() == '#' && n_end_hashes < n_start_hashes {
+            while self.peek() == '#' && n_end_hashes < n_start_hashes {
                 n_end_hashes += 1;
                 self.bump();
             }
@@ -733,7 +733,7 @@ impl Tokenizer<'_> {
     pub(crate) fn eat_decimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
-            match self.peek_next() {
+            match self.peek() {
                 '_' => {
                     self.bump();
                 }
@@ -752,7 +752,7 @@ impl Tokenizer<'_> {
     pub(crate) fn eat_hexadecimal_digits(&mut self) -> bool {
         let mut has_digits = false;
         loop {
-            match self.peek_next() {
+            match self.peek() {
                 '_' => {
                     self.bump();
                 }
@@ -770,7 +770,7 @@ impl Tokenizer<'_> {
     /// Returns whether the exponent is non-empty.
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
         debug_assert!(self.prev() == 'e' || self.prev() == 'E');
-        if self.peek_next() == '-' || self.peek_next() == '+' {
+        if self.peek() == '-' || self.peek() == '+' {
             self.bump();
         }
         self.eat_decimal_digits()

@@ -4,11 +4,11 @@ use std::marker::PhantomData;
 use destack_language_token::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Assign, Block, Break, Continue, Defer, Doc, DynamicCall, Enum,
-    EnumField, Expression, FieldLiteral, For, Function, FunctionSignature, If, Implement, Let,
-    Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, Return,
-    ScalarLiteral, Statement, StaticCall, Struct, StructField, StructLiteral, Trait, Try, Tuple,
-    TupleField, TupleLiteral, Type, Union, UnionField, Using, UsingClause, UsingItem, While,
+    Argument, ArrayLiteral, Assign, Block, Break, Call, Continue, Defer, Doc, Enum, EnumField,
+    Expression, FieldLiteral, For, Function, FunctionSignature, If, Implement, Index, Let, Loop,
+    Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, Return,
+    ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField,
+    TupleLiteral, Type, Union, UnionField, Using, UsingClause, UsingItem, While,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -90,8 +90,8 @@ pub struct NodeTree {
     struct_literals: NodeArena<StructLiteral>,
     field_literals: NodeArena<FieldLiteral>,
     // calls
-    static_calls: NodeArena<StaticCall>,
-    dynamic_calls: NodeArena<DynamicCall>,
+    indexes: NodeArena<Index>,
+    calls: NodeArena<Call>,
     // matching
     matches: NodeArena<Match>,
     patterns: NodeArena<Pattern>,
@@ -175,8 +175,8 @@ impl NodeTree {
             struct_literals: NodeArena::new(),
             field_literals: NodeArena::new(),
             // calls
-            static_calls: NodeArena::new(),
-            dynamic_calls: NodeArena::new(),
+            indexes: NodeArena::new(),
+            calls: NodeArena::new(),
             // matching
             matches: NodeArena::new(),
             patterns: NodeArena::new(),
@@ -426,8 +426,8 @@ impl_node_tree_stores! {
     StructLiteral => struct_literals,
     FieldLiteral => field_literals,
     // calls
-    StaticCall => static_calls,
-    DynamicCall => dynamic_calls,
+    Index => indexes,
+    Call => calls,
     // matching
     Match => matches,
     Pattern => patterns,
