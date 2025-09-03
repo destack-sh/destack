@@ -153,22 +153,10 @@ impl<'a> Parser<'a> {
                 .allocate(Type::Function(function_signature_id), self.span_from(start));
             Ok(ty_id)
 
-        // scalar or implicit union
+        // scalar
+        // TODO: parse implicit union type (with proper recursion, need some global flag?)
         } else {
-            let scalar_type_id = self.eat_scalar_type()?;
-
-            // implicit union with `|`, rewind and reparse
-            if self.peek_token(TokenType::BitwiseOr).is_ok() {
-                self.tree.free(scalar_type_id);
-                self.rewind(start);
-                let union_id = self.eat_implicit_union()?;
-                let ty_id = self
-                    .tree
-                    .allocate(Type::Union(union_id), self.span_from(start));
-                Ok(ty_id)
-            } else {
-                Ok(scalar_type_id)
-            }
+            Ok(self.eat_scalar_type()?)
         }
     }
 

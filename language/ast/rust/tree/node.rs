@@ -49,11 +49,13 @@ pub enum NodeType {
     Argument,
     // Literals
     ScalarLiteral,
+    RangeLiteral,
     ArrayLiteral,
     TupleLiteral,
     StructLiteral,
     FieldLiteral,
     // Calls
+    Index,
     StaticCall,
     DynamicCall,
     // Matching
@@ -130,8 +132,6 @@ impl Node for Block {
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    /// A Block is a block of statements.
-    Block(NodeId<Block>),
     /// Expression (see Expression).
     /// Catch-all for any Expression used as a "top-level" statement.
     Expression(NodeId<Expression>),
@@ -154,16 +154,8 @@ pub enum Statement {
     /// Using declaration for dependency and context management (see Using).
     Using(NodeId<Using>),
 
-    /// Let definition (as a Statement, see Let).
-    Let(NodeId<Let>),
-    /// Assignment to a variable (as a Statement, see Assign).
-    Assign(NodeId<Assign>),
-
     /// Doc comment (free floating, otherwise this is attached inside the declaration).
     Doc(NodeId<Doc>),
-
-    /// Error placeholder.
-    Error,
 }
 
 impl Node for Statement {
@@ -177,50 +169,6 @@ impl Node for Statement {
 ///  that is, they have a place in memory we can point to and get the address of.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    /// Path reference.
-    Path(PathId),
-    /// Member reference.
-    ///
-    /// Examples:
-    /// ```
-    /// foo.bar
-    /// foo.baz
-    /// ```
-    Member {
-        receiver: NodeId<Expression>,
-        name: StringId,
-    },
-    /// Index reference.
-    ///
-    /// Examples:
-    /// ```
-    /// foo[1]
-    /// foo[1..3]
-    /// foo["bar"]
-    /// foo().result[0][variable+1]
-    /// ```
-    Index {
-        receiver: NodeId<Expression>,
-        index: NodeId<Expression>,
-    },
-    /// A Range is range of an array or tuple (like `1..3`).
-    Range(Range),
-    /// Unary operation (see UnaryOperator).
-    UnaryOperation {
-        operator: UnaryOperator,
-        operand: NodeId<Expression>,
-    },
-
-    /// Binary operation (see BinaryOperator).
-    BinaryOperation {
-        lhs: NodeId<Expression>,
-        operator: BinaryOperator,
-        rhs: NodeId<Expression>,
-    },
-
-    /// A Block is a block of statements (used as an Expression, see Block).
-    Block(NodeId<Block>),
-
     /// Module definition (used as an Expression, see Module).
     Module(NodeId<Module>),
     /// Struct definition (used as an Expression, see Struct).
@@ -235,7 +183,11 @@ pub enum Expression {
     Implement(NodeId<Implement>),
     /// Function definition (used as an Expression, see Function).
     Function(NodeId<Function>),
+    /// Let or var binding (as an Expression, see Let).
+    Let(NodeId<Let>),
 
+    /// A Block is a block of statements (used as an Expression, see Block).
+    Block(NodeId<Block>),
     /// An If is an if/then/else expression (as an Expression, see If).
     If(NodeId<If>),
     /// A While is a while loop (as an Expression, see While).
@@ -254,12 +206,15 @@ pub enum Expression {
     Return(NodeId<Return>),
     /// A Try is try/catch statement (as an Expression, see Try).
     Try(NodeId<Try>),
+    /// A Match is match expression (as an Expression, see Match).
+    Match(NodeId<Match>),
 
-    /// Let or var binding (as an Expression, see Let).
-    Let(NodeId<Let>),
-
+    /// Alias reference to some path (might me a member or constant).
+    Alias { path: PathId },
     /// Literal scalar value (as an Expression, see ScalarLiteral).
     ScalarLiteral(NodeId<ScalarLiteral>),
+    /// Range literal (as an Expression, see RangeLiteral).
+    RangeLiteral(NodeId<RangeLiteral>),
     /// Array literal (as an Expression, see ArrayLiteral).
     ArrayLiteral(NodeId<ArrayLiteral>),
     /// Tuple literal (as an Expression, see TupleLiteral).
@@ -267,19 +222,24 @@ pub enum Expression {
     /// Struct literal (as an Expression, see StructLiteral).
     StructLiteral(NodeId<StructLiteral>),
 
-    /// A StaticCall is call to a function at compile time (as an Expression, see StaticCall).
-    StaticCall(NodeId<StaticCall>),
-    /// A DynamicCall is call to a function at runtime (as an Expression, see DynamicCall).
-    DynamicCall(NodeId<DynamicCall>),
-
-    /// A Match is match expression (as an Expression, see Match).
-    Match(NodeId<Match>),
+    /// Unary operation (prefix as Expression).
+    UnaryOperation {
+        operator: UnaryOperator,
+        rhs: NodeId<Expression>,
+    },
+    /// Index access (postfix as an Expression, see Index).
+    Index(NodeId<Index>),
+    /// A Call is call to a function (postfix as an Expression, see Call).
+    Call(NodeId<Call>),
+    /// Binary operation (infox between Expressions).
+    BinaryOperation {
+        lhs: NodeId<Expression>,
+        operator: BinaryOperator,
+        rhs: NodeId<Expression>,
+    },
 
     /// Error placeholder.
-    Error {
-        // TODO: proper error handling
-        message: StringId,
-    },
+    Error,
 }
 
 impl Node for Expression {
@@ -302,9 +262,7 @@ impl Node for Expression {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
     /// The name of the module.
-    pub name: StringId,
-    /// The visibility of the module.
-    pub visibility: Visibility,
+    pub name: Option<StringId>,
     /// The body of the module.
     pub body: NodeId<Block>,
 }
@@ -340,8 +298,6 @@ impl Node for Module {
 pub struct Struct {
     /// The name of the struct.
     pub name: Option<StringId>,
-    /// The visibility of the struct.
-    pub visibility: Visibility,
     /// The fields of the struct.
     pub fields: Vec<NodeId<StructField>>,
     /// The using declaration for the struct.
@@ -670,6 +626,34 @@ pub struct FunctionSignature {
 
 impl Node for FunctionSignature {
     const KIND: NodeType = NodeType::FunctionSignature;
+}
+
+/// Let or var binding for constant or mutable variables.
+///
+/// Examples:
+/// ```
+/// let x = 1
+/// let x: i32 = 1
+/// if let Some(x) = someFunction() {
+///     ...
+/// }
+/// var x = 1
+/// var x: i32 = 1
+/// var x: int32 // implicitly uninitialized, must be set before use
+/// var x: [float64; 3] = --- // explicitly uninitialized, can do whatever
+/// if var Some(x) = someFunction() {
+///     ...
+/// }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Let {
+    name: StringId,
+    mutability: Mutability,
+    r#type: Option<NodeId<Type>>,
+    value: Option<NodeId<Expression>>,
+}
+
+impl Node for Let {
+    const KIND: NodeType = NodeType::Let;
 }
 
 /// A Tuple is tuple definition node in the AST.
@@ -1048,6 +1032,38 @@ impl Node for Return {
     const KIND: NodeType = NodeType::Return;
 }
 
+/// A Match is match expression with case patterns.
+/// The clauses must be exhaustive and return the same type.
+/// Match statements are Expressions and also used in catch patterns.
+/// Like other statements, match cases do not need to be terminated with a colon/semicolon.
+///
+/// Examples:
+/// ```
+/// match <expr> {
+///     (x, y) => {
+///         ...
+///     }
+///     (x, y, z) => {
+///         ...
+///     }
+/// }
+///
+/// catch <expr> {
+///     NetworkError => @panic("network error")
+///     FormatError => @panic("format error")
+///     _ => return false
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Match {
+    value: NodeId<Expression>,
+    cases: Vec<NodeId<MatchCase>>,
+}
+
+impl Node for Match {
+    const KIND: NodeType = NodeType::Match;
+}
+
 /// A Try is try/catch statement.
 /// The try expression may be a single statement or a block of statements.
 /// Any error Result within the try expression aborts the try expression and:
@@ -1081,38 +1097,6 @@ impl Node for Try {
     const KIND: NodeType = NodeType::Try;
 }
 
-// ----------------------------------------------------------------------------
-// Bindings
-// ----------------------------------------------------------------------------
-
-/// Let or var binding for constant or mutable variables.
-///
-/// Examples:
-/// ```
-/// let x = 1
-/// let x: i32 = 1
-/// if let Some(x) = someFunction() {
-///     ...
-/// }
-/// var x = 1
-/// var x: i32 = 1
-/// var x: int32 // implicitly uninitialized, must be set before use
-/// var x: [float64; 3] = --- // explicitly uninitialized, can do whatever
-/// if var Some(x) = someFunction() {
-///     ...
-/// }
-#[derive(Debug, Clone, PartialEq)]
-pub struct Let {
-    name: StringId,
-    mutability: Mutability,
-    r#type: Option<NodeId<Type>>,
-    value: Option<NodeId<Expression>>,
-}
-
-impl Node for Let {
-    const KIND: NodeType = NodeType::Let;
-}
-
 /// Assignment to a variable (a "place expression").
 ///
 /// Examples:
@@ -1120,6 +1104,7 @@ impl Node for Let {
 /// x = 1
 /// x.y = 2
 /// x[0] = 3
+/// *x = *y
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assign {
@@ -1277,6 +1262,24 @@ impl Node for ScalarLiteral {
     const KIND: NodeType = NodeType::ScalarLiteral;
 }
 
+/// A RangeLiteral is range of an array or tuple node in the AST.
+///
+/// Examples:
+/// ```
+/// 1..3
+/// 1..n
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct RangeLiteral {
+    pub start: Option<NodeId<Expression>>,
+    pub end: Option<NodeId<Expression>>,
+    pub is_inclusive: bool,
+}
+
+impl Node for RangeLiteral {
+    const KIND: NodeType = NodeType::RangeLiteral;
+}
+
 /// An ArrayLiteral is literal array of homogeneous elements node in the AST.
 ///
 /// Examples:
@@ -1358,18 +1361,6 @@ pub enum FieldLiteral {
 
 impl Node for FieldLiteral {
     const KIND: NodeType = NodeType::FieldLiteral;
-}
-
-/// A Range is range of an array or tuple node in the AST.
-///
-/// Examples:
-/// ```
-/// 1..3
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Range {
-    pub start: Option<NodeId<Expression>>,
-    pub end: Option<NodeId<Expression>>,
 }
 
 /// An IntType represents arbitrary width integer with signedness.
@@ -1483,11 +1474,31 @@ pub enum BinaryOperator {
     As,
 }
 
+/// Index reference.
+///
+/// Examples:
+/// ```
+/// foo[1]
+/// foo[1..3]
+/// foo["bar"]
+/// foo().result[0][variable+1]
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Index {
+    pub receiver: NodeId<Expression>,
+    pub index: NodeId<Expression>,
+}
+
+impl Node for Index {
+    const KIND: NodeType = NodeType::Index;
+}
+
 // ----------------------------------------------------------------------------
 // Calls
 // ----------------------------------------------------------------------------
 
-/// A StaticCall is call to a function at compile time.
+/// A Call is call to a function at runtime or compile time.
+///
 /// The function may or may not be declared as comptime (with a `@ prefix),
 ///  but the call must be prefixed with a `@` to qualify as a static call.
 ///
@@ -1495,24 +1506,16 @@ pub enum BinaryOperator {
 ///  - `@entity struct MyEntity { ... }`
 ///  - `@flag enum MyFlag { ... }`
 ///
-/// These cases are represented as two separate AST nodes (one static call, one definition)
-///   and are then reconciled later during static analysis and compilation.
-///   (We don't know yet whether `@entity` is supposed to consume the next expression or not.)
-/// This also makes error reporting easier.
-///
-/// NOTE: There are no static method calls because static calls are statically resolved.
-///       However, there are static calls namespaced to types like any other namespace.
-///
 /// Examples:
 /// ```
-/// @foo()
+/// foo()
 /// @foo(1, 2, 3)
-/// @foo<int32>(1, 2, 3)
-/// @foo<Validate: false>(1, 2, 3)
+/// foo<int32>(1, 2, 3)
+/// foo<Validate: false>(1, 2, 3)
 /// @foo(Vector2 {x: 1, y: 2}, (true, 3))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct StaticCall {
+pub struct Call {
     /// The target of the call.
     target: PathId,
     /// The static arguments to the call `<Arg1, Arg2, ...>`.
@@ -1521,67 +1524,13 @@ pub struct StaticCall {
     dynamic_arguments: Vec<NodeId<Argument>>,
 }
 
-impl Node for StaticCall {
+impl Node for Call {
     const KIND: NodeType = NodeType::StaticCall;
 }
 
-/// A DynamicCall is call to a function at runtime.
-/// See DynamicMethodCall for calls on receivers.
-///
-/// Examples:
-/// ```
-/// foo()
-/// foo(1, 2, 3)
-/// foo.bar(foo.a {x: 1, y: 2}, (true, 3))
-/// foo<true>(1, 2, 3)
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct DynamicCall {
-    /// The target of the call.
-    target: PathId,
-    /// The dynamic arguments to the call `(arg1, arg2, ...)`.
-    dynamic_arguments: Vec<NodeId<Argument>>,
-}
-
-impl Node for DynamicCall {
-    const KIND: NodeType = NodeType::DynamicCall;
-}
-
 // ----------------------------------------------------------------------------
-// Matching
+// Patterns
 // ----------------------------------------------------------------------------
-
-/// A Match is match expression with case patterns.
-/// The clauses must be exhaustive and return the same type.
-/// Match statements are Expressions and also used in catch patterns.
-/// Like other statements, match cases do not need to be terminated with a colon/semicolon.
-///
-/// Examples:
-/// ```
-/// match <expr> {
-///     (x, y) => {
-///         ...
-///     }
-///     (x, y, z) => {
-///         ...
-///     }
-/// }
-///
-/// catch <expr> {
-///     NetworkError => @panic("network error")
-///     FormatError => @panic("format error")
-///     _ => return false
-/// }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Match {
-    value: NodeId<Expression>,
-    cases: Vec<NodeId<MatchCase>>,
-}
-
-impl Node for Match {
-    const KIND: NodeType = NodeType::Match;
-}
 
 /// A Pattern is a pattern AST node to match something and unwrap it.
 ///
@@ -1596,12 +1545,12 @@ impl Node for Match {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    /// A literal value.
-    Literal(ScalarLiteral),
+    /// A scalar literal value.
+    Scalar(ScalarLiteral),
+    /// A range literal value.
+    Range(RangeLiteral),
     /// Or pattern `1 | 2 | 3`.
     Or(Vec<NodeId<Pattern>>),
-    /// Range pattern `1..3`.
-    Range(Range),
     /// Tuple pattern `(x, 0)`.
     Tuple(Vec<NodeId<PatternField>>),
     /// Struct pattern `Vector2 { x: 0, y }`.

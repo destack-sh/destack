@@ -3,7 +3,7 @@
 use destack_language_arena::StringId;
 use destack_language_token::{TokenSpan, TokenType};
 
-use crate::{ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Peek an identifier.
@@ -12,11 +12,30 @@ impl<'a> Parser<'a> {
         self.peek_token(TokenType::Identifier)
     }
 
+    /// Peek an identifier that matches a given string.
+    #[inline]
+    pub fn peek_identifier_str(&self, string: &str) -> ParseResult<&TokenSpan> {
+        let span = self.peek_token(TokenType::Identifier)?;
+        if self.get_token_str(*span) == string {
+            Ok(span)
+        } else {
+            Err(ParseError::UnexpectedToken(span.span))
+        }
+    }
+
     /// Eat an identifier.
     #[inline]
     pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
         let token = *self.eat_token(TokenType::Identifier)?;
         let string_id = self.strings.intern(self.get_token_str(token));
+        Ok(string_id)
+    }
+
+    /// Eat an identifier that matches a given string.
+    #[inline]
+    pub fn eat_identifier_str(&mut self, string: &str) -> ParseResult<StringId> {
+        let span = self.peek_identifier_str(string)?;
+        let string_id = self.strings.intern(self.get_token_str(*span));
         Ok(string_id)
     }
 }

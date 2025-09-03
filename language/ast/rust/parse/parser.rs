@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn span_from(&self, mark: ParserMark) -> Span {
         let start_token = self.tokens[mark.pos];
-        let end_token = self.tokens[self.pos];
+        let end_token = self.tokens[self.pos - 1]; // pos is lookahead
         Span {
             start: start_token.span.start,
             end: end_token.span.end,
@@ -106,6 +106,14 @@ impl<'a> Parser<'a> {
             .ok_or(ParseError::SyntaxError(self.eof_token.span))
     }
 
+    /// Peek the next next Token or error.
+    #[inline]
+    pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
+        self.tokens
+            .get(self.pos + 2)
+            .ok_or(ParseError::SyntaxError(self.eof_token.span))
+    }
+
     /// Eat the next Token or error.
     #[inline]
     pub fn eat_next(&mut self) -> ParseResult<&TokenSpan> {
@@ -139,6 +147,17 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
         let next = self.peek_next()?;
+        if next.token.r#type == token_type {
+            Ok(next)
+        } else {
+            Err(ParseError::SyntaxError(next.span))
+        }
+    }
+
+    /// Peek the next next next token.
+    #[inline]
+    pub fn peek_next_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
+        let next = self.peek_next_next()?;
         if next.token.r#type == token_type {
             Ok(next)
         } else {

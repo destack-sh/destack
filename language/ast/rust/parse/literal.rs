@@ -35,15 +35,21 @@ impl<'a> Parser<'a> {
             );
             Ok(expression_id)
         // scalar
-        } else {
+        } else if self.peek_token(TokenType::RawLiteral).is_ok()
+            || self.peek_identifier_str("true").is_ok()
+            || self.peek_identifier_str("false").is_ok()
+        {
             let scalar_literal = self.eat_scalar_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::ScalarLiteral(scalar_literal),
                 self.span_from(start),
             );
             Ok(expression_id)
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek()?.span))
         }
     }
+
     /// Eat a scalar literal.
     ///
     /// Examples:
@@ -62,24 +68,20 @@ impl<'a> Parser<'a> {
     pub fn eat_scalar_literal(&mut self) -> ParseResult<NodeId<ScalarLiteral>> {
         let start = self.mark();
 
-        if self.peek_token(TokenType::Identifier).is_ok() {
-            // may be reference to a built-in constant value
-            // boolean literal (just an identifier)
-            let string_id = self.eat_identifier()?;
-            let identifier = self.strings.get(string_id);
-            if identifier == "true" {
-                let scalar_literal = self
-                    .tree
-                    .allocate(ScalarLiteral::Boolean(true), self.span_from(start));
-                Ok(scalar_literal)
-            } else if identifier == "false" {
-                let scalar_literal = self
-                    .tree
-                    .allocate(ScalarLiteral::Boolean(false), self.span_from(start));
-                Ok(scalar_literal)
-            } else {
-                Err(ParseError::UnexpectedToken(self.prev().unwrap().span))
-            }
+        if self.peek_identifier_str("true").is_ok() {
+            // boolean literal true
+            self.bump();
+            let scalar_literal = self
+                .tree
+                .allocate(ScalarLiteral::Boolean(true), self.span_from(start));
+            Ok(scalar_literal)
+        } else if self.peek_identifier_str("false").is_ok() {
+            // boolean literal false
+            self.bump();
+            let scalar_literal = self
+                .tree
+                .allocate(ScalarLiteral::Boolean(false), self.span_from(start));
+            Ok(scalar_literal)
         } else {
             // regular literal
             let literal_span = &self.eat_next()?.clone();

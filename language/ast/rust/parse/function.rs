@@ -1,6 +1,6 @@
 //! Parse functions and closures.
 
-use crate::{Expression, FunctionSignature, NodeId, ParseResult, Parser};
+use crate::{Function, FunctionSignature, NodeId, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Eat a Function or "lambda" definition or declaration.
@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
     ///      y + 4
     /// }
     /// ```
-    pub fn eat_function(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_function(&mut self) -> ParseResult<NodeId<Function>> {
         todo!()
     }
 
