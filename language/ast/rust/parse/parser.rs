@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
 
     /// Get a mark and return the span of the current position.
     #[inline]
-    pub fn span_from(&self, mark: ParserMark) -> Span {
+    pub fn get_span_from(&self, mark: ParserMark) -> Span {
         let start_token = self.tokens[mark.pos];
         let end_token = self.tokens[self.pos - 1]; // pos is lookahead
         Span {

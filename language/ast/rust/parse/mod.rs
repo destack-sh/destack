@@ -22,7 +22,6 @@ mod pattern;
 mod statement;
 mod r#struct;
 mod r#trait;
-mod r#try;
 mod r#tuple;
 mod r#type;
 mod union;

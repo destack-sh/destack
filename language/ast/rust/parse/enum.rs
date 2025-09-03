@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
                     r#type: None,
                     fields,
                 },
-                self.span_from(start),
+                self.get_span_from(start),
             );
             return Ok(enum_id);
         }
@@ -107,7 +107,7 @@ impl<'a> Parser<'a> {
                 r#type: None,
                 fields,
             },
-            self.span_from(start),
+            self.get_span_from(start),
         );
         Ok(enum_id)
     }
@@ -131,7 +131,7 @@ impl<'a> Parser<'a> {
                 r#type: None,
                 value,
             },
-            self.span_from(start),
+            self.get_span_from(start),
         );
         Ok(field_id)
     }

@@ -646,10 +646,10 @@ impl Node for FunctionSignature {
 /// }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
-    name: StringId,
-    mutability: Mutability,
-    r#type: Option<NodeId<Type>>,
-    value: Option<NodeId<Expression>>,
+    pub name: StringId,
+    pub mutability: Mutability,
+    pub r#type: Option<NodeId<Type>>,
+    pub value: Option<NodeId<Expression>>,
 }
 
 impl Node for Let {
@@ -870,9 +870,9 @@ impl Node for UsingItem {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct If {
-    condition: NodeId<Expression>,
-    then_body: NodeId<Block>,
-    else_body: Option<NodeId<Block>>,
+    pub condition: NodeId<Expression>,
+    pub then_body: NodeId<Block>,
+    pub else_body: Option<NodeId<Block>>,
 }
 
 impl Node for If {
@@ -894,8 +894,8 @@ impl Node for If {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
-    condition: NodeId<Expression>,
-    body: NodeId<Block>,
+    pub condition: NodeId<Expression>,
+    pub body: NodeId<Block>,
 }
 
 impl Node for While {
@@ -920,11 +920,11 @@ impl Node for While {
 #[derive(Debug, Clone, PartialEq)]
 pub struct For {
     /// The pattern to match the iterator with (e.g., `x`).
-    pattern: NodeId<Pattern>,
+    pub pattern: NodeId<Pattern>,
     /// The iterator to iterate over (e.g., `1..10`).
-    iterator: NodeId<Expression>,
+    pub iterator: NodeId<Expression>,
     /// The body of the for loop.
-    body: NodeId<Block>,
+    pub body: NodeId<Block>,
 }
 
 impl Node for For {
@@ -959,13 +959,14 @@ impl Node for Loop {
 /// break
 /// break :label
 /// break :label 17
+/// break 15
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Break {
     /// The label to break to (e.g., `:label`).
-    label: Option<StringId>,
+    pub label: Option<StringId>,
     /// The value to break with (e.g., `17`).
-    value: Option<NodeId<Expression>>,
+    pub value: Option<NodeId<Expression>>,
 }
 
 impl Node for Break {
@@ -982,7 +983,7 @@ impl Node for Break {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Continue {
     /// The label to continue to (e.g., `:label`).
-    label: Option<StringId>,
+    pub label: Option<StringId>,
 }
 
 impl Node for Continue {
@@ -1025,7 +1026,7 @@ impl Node for Defer {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Return {
-    value: Option<NodeId<Expression>>,
+    pub value: Option<NodeId<Expression>>,
 }
 
 impl Node for Return {
@@ -1056,8 +1057,8 @@ impl Node for Return {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Match {
-    value: NodeId<Expression>,
-    cases: Vec<NodeId<MatchCase>>,
+    pub value: NodeId<Expression>,
+    pub cases: Vec<NodeId<MatchCase>>,
 }
 
 impl Node for Match {
@@ -1088,9 +1089,17 @@ impl Node for Match {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Try {
-    try_block: NodeId<Expression>,
-    catch_block: Option<NodeId<Match>>,
+pub enum Try {
+    Expression {
+        try_expression: NodeId<Expression>,
+    },
+    Block {
+        try_block: NodeId<Block>,
+    },
+    BlockWithCatch {
+        try_block: NodeId<Block>,
+        catch_match: NodeId<Match>,
+    },
 }
 
 impl Node for Try {
@@ -1109,11 +1118,11 @@ impl Node for Try {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assign {
     /// The left-hand side of the assignment (should be a place Expression, checked later).
-    lhs: NodeId<Expression>,
+    pub lhs: NodeId<Expression>,
     /// The type of assignment.
-    r#type: AssignType,
+    pub r#type: AssignType,
     /// The right-hand side of the assignment.
-    rhs: NodeId<Expression>,
+    pub rhs: NodeId<Expression>,
 }
 
 impl Node for Assign {
@@ -1517,11 +1526,11 @@ impl Node for Index {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     /// The target of the call.
-    target: PathId,
+    pub target: PathId,
     /// The static arguments to the call `<Arg1, Arg2, ...>`.
-    static_arguments: Vec<NodeId<Argument>>,
+    pub static_arguments: Vec<NodeId<Argument>>,
     /// The dynamic arguments to the call `(arg1, arg2, ...)`.
-    dynamic_arguments: Vec<NodeId<Argument>>,
+    pub dynamic_arguments: Vec<NodeId<Argument>>,
 }
 
 impl Node for Call {
@@ -1580,9 +1589,15 @@ impl Node for PatternField {
 /// A MatchCase is a match case AST node inside a Match expression.
 /// MatchCases can be any Pattern.
 #[derive(Debug, Clone, PartialEq)]
-pub struct MatchCase {
-    pub pattern: NodeId<Pattern>,
-    pub body: NodeId<Block>,
+pub enum MatchCase {
+    Expression {
+        pattern: NodeId<Pattern>,
+        body: NodeId<Expression>,
+    },
+    Block {
+        pattern: NodeId<Pattern>,
+        body: NodeId<Block>,
+    },
 }
 
 impl Node for MatchCase {

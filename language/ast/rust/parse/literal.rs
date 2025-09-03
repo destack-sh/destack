@@ -15,7 +15,7 @@ impl<'a> Parser<'a> {
             let array_literal = self.eat_array_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::ArrayLiteral(array_literal),
-                self.span_from(start),
+                self.get_span_from(start),
             );
             Ok(expression_id)
         // tuple
@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
             let tuple_literal = self.eat_tuple_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::TupleLiteral(tuple_literal),
-                self.span_from(start),
+                self.get_span_from(start),
             );
             Ok(expression_id)
         // struct
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
             let struct_literal = self.eat_struct_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::StructLiteral(struct_literal),
-                self.span_from(start),
+                self.get_span_from(start),
             );
             Ok(expression_id)
         // scalar
@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
             let scalar_literal = self.eat_scalar_literal()?;
             let expression_id = self.tree.allocate(
                 Expression::ScalarLiteral(scalar_literal),
-                self.span_from(start),
+                self.get_span_from(start),
             );
             Ok(expression_id)
         } else {
@@ -73,14 +73,14 @@ impl<'a> Parser<'a> {
             self.bump();
             let scalar_literal = self
                 .tree
-                .allocate(ScalarLiteral::Boolean(true), self.span_from(start));
+                .allocate(ScalarLiteral::Boolean(true), self.get_span_from(start));
             Ok(scalar_literal)
         } else if self.peek_identifier_str("false").is_ok() {
             // boolean literal false
             self.bump();
             let scalar_literal = self
                 .tree
-                .allocate(ScalarLiteral::Boolean(false), self.span_from(start));
+                .allocate(ScalarLiteral::Boolean(false), self.get_span_from(start));
             Ok(scalar_literal)
         } else {
             // regular literal
@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
                 RawLiteralType::Boolean { value } => {
                     let scalar_literal = self
                         .tree
-                        .allocate(ScalarLiteral::Boolean(value), self.span_from(start));
+                        .allocate(ScalarLiteral::Boolean(value), self.get_span_from(start));
                     Ok(scalar_literal)
                 }
 
@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
                         Ok(value) => {
                             let scalar_literal = self.tree.allocate(
                                 ScalarLiteral::Integer(value, IntType::INT32),
-                                self.span_from(start),
+                                self.get_span_from(start),
                             );
                             Ok(scalar_literal)
                         }
@@ -160,7 +160,7 @@ impl<'a> Parser<'a> {
                         Ok(value) => {
                             let scalar_literal = self.tree.allocate(
                                 ScalarLiteral::Float(value, FloatType::Float64),
-                                self.span_from(start),
+                                self.get_span_from(start),
                             );
                             Ok(scalar_literal)
                         }
@@ -177,7 +177,7 @@ impl<'a> Parser<'a> {
                     if let Some(literal_char) = content.chars().next() {
                         let scalar_literal = self.tree.allocate(
                             ScalarLiteral::Character(literal_char),
-                            self.span_from(start),
+                            self.get_span_from(start),
                         );
                         Ok(scalar_literal)
                     } else {
@@ -194,7 +194,7 @@ impl<'a> Parser<'a> {
                     if let Some(literal_char) = content.chars().next() {
                         let scalar_literal = self.tree.allocate(
                             ScalarLiteral::Byte(literal_char as u8),
-                            self.span_from(start),
+                            self.get_span_from(start),
                         );
                         Ok(scalar_literal)
                     } else {
@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
                     let string_id = self.strings.intern(content);
                     let scalar_literal = self
                         .tree
-                        .allocate(ScalarLiteral::String(string_id), self.span_from(start));
+                        .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
                     Ok(scalar_literal)
                 }
 
@@ -224,7 +224,7 @@ impl<'a> Parser<'a> {
                     let bytes = content.as_bytes().to_vec();
                     let scalar_literal = self
                         .tree
-                        .allocate(ScalarLiteral::ByteString(bytes), self.span_from(start));
+                        .allocate(ScalarLiteral::ByteString(bytes), self.get_span_from(start));
                     Ok(scalar_literal)
                 }
 
@@ -241,7 +241,7 @@ impl<'a> Parser<'a> {
                         let string_id = self.strings.intern(content);
                         let scalar_literal = self
                             .tree
-                            .allocate(ScalarLiteral::String(string_id), self.span_from(start));
+                            .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
                         Ok(scalar_literal)
                     } else {
                         Err(ParseError::UnexpectedToken(literal_span.span))
@@ -261,7 +261,7 @@ impl<'a> Parser<'a> {
                         let bytes = content.as_bytes().to_vec();
                         let scalar_literal = self
                             .tree
-                            .allocate(ScalarLiteral::ByteString(bytes), self.span_from(start));
+                            .allocate(ScalarLiteral::ByteString(bytes), self.get_span_from(start));
                         Ok(scalar_literal)
                     } else {
                         Err(ParseError::UnexpectedToken(literal_span.span))
@@ -297,7 +297,7 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::CloseBracket)?;
             let array_literal = self.tree.allocate(
                 ArrayLiteral::Fixed { elements: vec![] },
-                self.span_from(start),
+                self.get_span_from(start),
             );
             return Ok(array_literal);
         }
@@ -315,7 +315,7 @@ impl<'a> Parser<'a> {
                     element: first_element,
                     count,
                 },
-                self.span_from(start),
+                self.get_span_from(start),
             );
             Ok(array_literal)
         } else {
@@ -332,7 +332,7 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::CloseBracket)?;
             let array_literal = self
                 .tree
-                .allocate(ArrayLiteral::Fixed { elements }, self.span_from(start));
+                .allocate(ArrayLiteral::Fixed { elements }, self.get_span_from(start));
             Ok(array_literal)
         }
     }
@@ -366,7 +366,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseParenthesis)?;
         let tuple_literal = self
             .tree
-            .allocate(TupleLiteral { elements }, self.span_from(start));
+            .allocate(TupleLiteral { elements }, self.get_span_from(start));
         Ok(tuple_literal)
     }
 
@@ -389,7 +389,7 @@ impl<'a> Parser<'a> {
         let fields = self.eat_struct_literal_body()?;
         let struct_literal = self
             .tree
-            .allocate(StructLiteral { r#type, fields }, self.span_from(start));
+            .allocate(StructLiteral { r#type, fields }, self.get_span_from(start));
         Ok(struct_literal)
     }
 
@@ -423,7 +423,7 @@ impl<'a> Parser<'a> {
                 let value = self.eat_expression()?;
                 let field_literal = self.tree.allocate(
                     FieldLiteral::Named { name, value },
-                    self.span_from(field_start),
+                    self.get_span_from(field_start),
                 );
                 fields.push(field_literal);
             }
@@ -431,7 +431,7 @@ impl<'a> Parser<'a> {
             else {
                 let field_literal = self.tree.allocate(
                     FieldLiteral::NamedShorthand { name },
-                    self.span_from(field_start),
+                    self.get_span_from(field_start),
                 );
                 fields.push(field_literal);
             }

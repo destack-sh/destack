@@ -12,7 +12,7 @@ impl<'a> Parser<'a> {
         };
         let block = self.eat_block()?;
         let module = Module { name, body: block };
-        let module_id = self.tree.allocate(module, self.span_from(start));
+        let module_id = self.tree.allocate(module, self.get_span_from(start));
         Ok(module_id)
     }
 }

@@ -9,6 +9,15 @@ impl<'a> Parser<'a> {
     pub fn eat_expression(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
+        // grouping parentheses
+        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            self.bump();
+            let expression_id = self.eat_expression()?;
+            self.eat_token(TokenType::CloseParenthesis)?;
+            self.tree.set_span(expression_id, self.get_span_from(start));
+            return Ok(expression_id);
+        }
+
         //
         // ------------------------------------------------------------
         // Unary operations (prefix)
@@ -38,7 +47,7 @@ impl<'a> Parser<'a> {
                 operator: unary_operator,
                 rhs,
             };
-            let expression_id = self.tree.allocate(expression, self.span_from(start));
+            let expression_id = self.tree.allocate(expression, self.get_span_from(start));
             return Ok(expression_id);
         }
 
@@ -171,7 +180,7 @@ impl<'a> Parser<'a> {
                 Expression::Error
             }
         };
-        let mut expression_id = self.tree.allocate(expression, self.span_from(start));
+        let mut expression_id = self.tree.allocate(expression, self.get_span_from(start));
 
         //
         // ------------------------------------------------------------
@@ -183,13 +192,13 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::OpenBracket).is_ok() {
             let index_id = self.eat_index()?;
             let expression = Expression::Index(index_id);
-            expression_id = self.tree.allocate(expression, self.span_from(start));
+            expression_id = self.tree.allocate(expression, self.get_span_from(start));
         }
         // call
         else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             let call_id = self.eat_call()?;
             let expression = Expression::Call(call_id);
-            expression_id = self.tree.allocate(expression, self.span_from(start));
+            expression_id = self.tree.allocate(expression, self.get_span_from(start));
         }
 
         Ok(expression_id)

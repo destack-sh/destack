@@ -20,11 +20,11 @@ impl<'a> Parser<'a> {
         let block_id = self.eat_block()?;
         let loop_id = self
             .tree
-            .allocate(Loop { body: block_id }, self.span_from(start));
+            .allocate(Loop { body: block_id }, self.get_span_from(start));
         Ok(loop_id)
     }
 
-    /// Eat a for loop (e.g., `for x in items { ... }`).
+    /// Eat a for loop (including keyword and header).
     ///
     /// Examples:
     /// ```
@@ -40,18 +40,54 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     pub fn eat_for(&mut self) -> ParseResult<NodeId<For>> {
-        todo!()
+        let start = self.mark();
+        // header
+        self.eat_keyword(Keyword::For)?;
+        let pattern_id = self.eat_pattern()?;
+        self.eat_keyword(Keyword::In)?;
+        let iterator_id = self.eat_expression()?;
+        // body
+        let block_id = self.eat_block()?;
+        // for
+        let for_id = self.tree.allocate(
+            For {
+                pattern: pattern_id,
+                iterator: iterator_id,
+                body: block_id,
+            },
+            self.get_span_from(start),
+        );
+        Ok(for_id)
     }
 
-    pub fn eat_for_header(&mut self) -> ParseResult<NodeId<For>> {
-        todo!()
-    }
-
+    /// Eat a while loop (including keyword and header).
+    ///
+    /// Examples:
+    /// ```
+    /// while x > 1 {
+    ///     y = 2
+    /// }
+    ///
+    /// while y < 10 l: {
+    ///     y = 2
+    ///     break :l
+    /// }
+    /// ```
     pub fn eat_while(&mut self) -> ParseResult<NodeId<While>> {
-        todo!()
-    }
-
-    pub fn eat_while_header(&mut self) -> ParseResult<NodeId<While>> {
-        todo!()
+        let start = self.mark();
+        // header
+        self.eat_keyword(Keyword::While)?;
+        let condition_id = self.eat_expression()?;
+        // body
+        let block_id = self.eat_block()?;
+        // while
+        let while_id = self.tree.allocate(
+            While {
+                condition: condition_id,
+                body: block_id,
+            },
+            self.get_span_from(start),
+        );
+        Ok(while_id)
     }
 }
