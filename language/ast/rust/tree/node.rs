@@ -31,7 +31,7 @@ pub enum NodeType {
     Implement,
     Type,
     Tuple,
-    TupleElement,
+    TupleField,
     FunctionSignature,
     // Bindings
     Let,
@@ -270,17 +270,17 @@ impl Node for Assign {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
-    pub elements: Vec<NodeId<TupleElement>>,
+    pub elements: Vec<NodeId<TupleField>>,
 }
 
 impl Node for Tuple {
     const KIND: NodeType = NodeType::Tuple;
 }
 
-/// A TupleElement is a tuple element definition AST node.
+/// A TupleField is a tuple field definition AST node.
 /// Tuple elements may be named or anonymous, but cannot have default values.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TupleElement {
+pub enum TupleField {
     Named {
         name: StringId,
         r#type: NodeId<Type>,
@@ -290,8 +290,8 @@ pub enum TupleElement {
     },
 }
 
-impl Node for TupleElement {
-    const KIND: NodeType = NodeType::TupleElement;
+impl Node for TupleField {
+    const KIND: NodeType = NodeType::TupleField;
 }
 
 /// A Struct is struct definition node in the AST.
@@ -444,7 +444,7 @@ impl Node for UnionField {
 ///
 /// trait Baz<T> {
 ///     let x: T // constant
-/// 
+///
 ///     function foo() => T;
 /// }
 /// ```
@@ -504,29 +504,36 @@ impl Node for Implement {
     const KIND: NodeType = NodeType::Implement;
 }
 
-/// A FunctionStyle is the style of a function.
+/// A FunctionRuntime is the runtime of a function.
 #[derive(Debug, Clone, PartialEq)]
-pub enum FunctionStyle {
+pub enum FunctionRuntime {
     /// A normal function.
     Dynamic,
     /// A static function.
     Static,
 }
 
-/// A Function is function definition or declaration node in the AST.
+/// A FunctionStyle is the style of a function.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionStyle {
+    /// A normal function.
+    Function,
+    /// A lambda function.
+    Lambda,
+}
+
+/// A Function is function or "lambda" definition or declaration node in the AST.
 /// If no body is provided, it is a declaration for a function defined elsewhere.
 ///
 /// Examples:
 /// ```
+/// // function style
+///
 /// function foo() {
 ///    print("Hello, world!")
 /// }
 ///
-/// function baz(a: int32, b: boolean) => MyStruct {
-///    ...
-/// }
-///
-/// function baz() => int32, boolean {
+/// function baz(a: int32, b: boolean) => MyStruct, boolean {
 ///    ...
 /// }
 ///
@@ -545,15 +552,15 @@ pub enum FunctionStyle {
 ///    ...
 /// )
 ///
-/// // closure style
+/// // lambda style
 ///
-/// function () => { 0 }
-/// () => None // slightly ambiguous but returns
+/// () => { 0 } // no function keyword
+/// () => None // slightly ambiguous but returns None
 /// (x: int32) => x + 1
 ///
-/// // if you want return type you need a `{ ... }`` body
+/// // for return type in lambdas, you need a `{ ... }` body
 /// (a: int32, b: int32) => int32 {
-///      let y = someFunction(a, b);
+///      let y = someFunction(a, b)
 ///      y + 4
 /// }
 /// ```
@@ -561,6 +568,10 @@ pub enum FunctionStyle {
 pub struct Function {
     /// The name of the function (excluding the `@` prefix if static).
     pub name: Option<StringId>,
+    /// The runtime of the function (static or dynamic).
+    pub runtime: FunctionRuntime,
+    /// The style of the function (function or lambda).
+    pub style: FunctionStyle,
     /// The type of the function.
     pub r#type: NodeId<FunctionSignature>,
     /// The body of the function.
@@ -580,12 +591,10 @@ impl Node for Function {
 /// (x: int32)
 /// <Validate: boolean>(x: int32) => bool
 /// (x: int32) => int32, boolean
-/// (x: int32) => is_cool: boolean, coolness: int17
+/// (x: int32) using Disk => is_cool: boolean, coolness: int17
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
-    /// The style of the function.
-    pub style: FunctionStyle,
     /// The static arguments to the function.
     pub static_arguments: Vec<NodeId<Parameter>>,
     /// The dynamic arguments to the function.
@@ -1220,7 +1229,7 @@ pub enum Type {
     /// Never `!T`. Desugars to `Never<T>`.
     Never(Option<NodeId<Type>>),
 
-    // TODO: move primitive type parsing into DIR?
+    // TODO: move primitive type parsing into DIR (?)
     /// Primitive type.
     Primitive(PrimitiveType),
 
@@ -1473,10 +1482,11 @@ impl Node for PatternStructField {
 /// Examples:
 /// ```
 /// match <expr> {
+///     2 => None // comma is optional with newline
 ///     (x, y) => {
 ///         ...
 ///     }
-///     (x, y, z) => {
+///     (x, y, z) => label: {
 ///         ...
 ///     }
 /// }
@@ -1494,6 +1504,7 @@ pub struct Match {
 }
 
 /// A MatchCase is a match case AST node inside a Match expression.
+/// MatchCases can be any Pattern.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchCase {
     pub pattern: NodeId<Pattern>,
@@ -1512,16 +1523,16 @@ impl Node for MatchCase {
 ///
 /// Examples:
 /// ```
-/// try fileOperation() // implicitly unwraps the Result, returns Error case
+/// try fileOperation() // implicitly unwraps the Result, returns Error case up
 ///
 /// try { // implicitly unwraps all Results inside
 ///     let a = riskyOperationA() // a is Result.Ok(_) from riskyOperationA
 ///     riskyOperationB(a)
 /// } // no catch needed if containing function has compatible Result type (Into suffices)
 ///
-/// try { // explicitly unwraps all Results inside
+/// try {
 ///     ...
-/// } catch e { // match all errors
+/// } catch e { // match all errors and propagate
 ///     NumericError(x) => Error(@format("bad number: {x}"))
 ///     FormatError => Error(@format("bad format {e}"))
 ///     // it's exhaustive! otherwise `_ =>` like in match (it is a match)

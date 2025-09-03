@@ -4,10 +4,11 @@ use std::marker::PhantomData;
 use destack_language_token::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Doc, Expression, FieldLiteral, Function, FunctionSignature,
-    Implement, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternStructField,
-    PatternTupleField, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Tuple,
-    TupleElement, TupleLiteral, Type, Union, UnionField, Using, UsingClause, UsingItem,
+    Argument, ArrayLiteral, Assign, Block, Doc, Expression, FieldLiteral, Function,
+    FunctionSignature, Implement, Let, MatchCase, Module, Node, NodeType, Parameter, Pattern,
+    PatternStructField, PatternTupleField, ScalarLiteral, Statement, Struct, StructField,
+    StructLiteral, Trait, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Using,
+    UsingClause, UsingItem,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -43,9 +44,9 @@ pub struct NodeTree {
 
     // per-node arenas
     // expressions
-    expressions: NodeArena<Expression>,
-    statements: NodeArena<Statement>,
     blocks: NodeArena<Block>,
+    statements: NodeArena<Statement>,
+    expressions: NodeArena<Expression>,
     // literals
     scalar_literals: NodeArena<ScalarLiteral>,
     array_literals: NodeArena<ArrayLiteral>,
@@ -63,8 +64,11 @@ pub struct NodeTree {
     implements: NodeArena<Implement>,
     types: NodeArena<Type>,
     tuples: NodeArena<Tuple>,
-    tuple_elements: NodeArena<TupleElement>,
+    tuple_elements: NodeArena<TupleField>,
     function_signatures: NodeArena<FunctionSignature>,
+    // bindings
+    lets: NodeArena<Let>,
+    assigns: NodeArena<Assign>,
     // using
     usings: NodeArena<Using>,
     using_clauses: NodeArena<UsingClause>,
@@ -110,9 +114,9 @@ impl NodeTree {
             spans_per_node: Vec::with_capacity(capacity),
             docs_per_node: Vec::with_capacity(capacity),
             // expressions
-            expressions: NodeArena::with_capacity(capacity),
-            statements: NodeArena::with_capacity(capacity),
             blocks: NodeArena::with_capacity(capacity),
+            statements: NodeArena::with_capacity(capacity),
+            expressions: NodeArena::with_capacity(capacity),
             // literals
             scalar_literals: NodeArena::with_capacity(capacity),
             array_literals: NodeArena::with_capacity(capacity),
@@ -132,6 +136,9 @@ impl NodeTree {
             tuples: NodeArena::with_capacity(capacity),
             tuple_elements: NodeArena::with_capacity(capacity),
             function_signatures: NodeArena::with_capacity(capacity),
+            // bindings
+            lets: NodeArena::with_capacity(capacity),
+            assigns: NodeArena::with_capacity(capacity),
             // using
             usings: NodeArena::with_capacity(capacity),
             using_clauses: NodeArena::with_capacity(capacity),
@@ -300,17 +307,17 @@ macro_rules! impl_node_tree_stores {
 
 // usage
 impl_node_tree_stores! {
-    // Expression
-    Expression => expressions,
-    Statement => statements,
+    // expression
     Block => blocks,
-    // Literals
+    Statement => statements,
+    Expression => expressions,
+    // literals
     ScalarLiteral => scalar_literals,
     ArrayLiteral => array_literals,
     TupleLiteral => tuple_literals,
     StructLiteral => struct_literals,
     FieldLiteral => field_literals,
-    // Declarations
+    // declarations
     Module => modules,
     Struct => structs,
     StructField => struct_fields,
@@ -321,18 +328,21 @@ impl_node_tree_stores! {
     Implement => implements,
     Type => types,
     Tuple => tuples,
-    TupleElement => tuple_elements,
+    TupleField => tuple_elements,
     FunctionSignature => function_signatures,
-    // Using
+    // bindings
+    Let => lets,
+    Assign => assigns,
+    // using
     Using => usings,
     UsingClause => using_clauses,
     UsingItem => using_items,
-    // Parameters
+    // parameters
     Parameter => parameters,
     Argument => arguments,
-    // Documentation
+    // documentation
     Doc => docs,
-    // Patterns
+    // patterns
     Pattern => patterns,
     PatternTupleField => pattern_tuple_fields,
     PatternStructField => pattern_struct_fields,

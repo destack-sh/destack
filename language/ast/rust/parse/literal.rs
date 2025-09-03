@@ -288,7 +288,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         self.eat_token(TokenType::OpenBracket)?;
-        self.eat_newlines()?;
+        self.eat_newlines_maybe()?;
 
         // empty array
         if self.peek_next_token(TokenType::CloseBracket).is_ok() {
@@ -317,7 +317,7 @@ impl<'a> Parser<'a> {
             );
             Ok(array_literal)
         } else {
-            // fixed array: [elem1, elem2, ...]
+            // fixed array: [elem1, elem2, elem3, ...]
             let mut elements = vec![first_element];
             while self.peek_item_stop().is_ok() {
                 self.eat_item_stop()?;
@@ -406,7 +406,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<NodeId<FieldLiteral>>> {
         self.eat_token(TokenType::OpenBrace)?;
-        self.eat_newlines()?;
+        self.eat_newlines_maybe()?;
         let mut fields: Vec<NodeId<FieldLiteral>> = vec![];
         while self.peek_item_stop().is_ok() {
             self.eat_item_stop()?;

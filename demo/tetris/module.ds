@@ -1,13 +1,13 @@
 using dyst
 
 enum Color {
-    Red,
-    Orange,
-    Yellow,
-    Green,
-    Blue,
-    Purple,
-    Brown,
+    Red
+    Orange
+    Yellow
+    Green
+    Blue
+    Purple
+    Brown
 }
 
 @entity
@@ -23,17 +23,17 @@ implement Context for TetrisGame {
 @entity 
 struct TetrisBoard<Width: int32, Height: int32> using TetrisComponent {
     /// The grid of the board.
-    grid: TetrisPiece[Width][Height],
+    grid: TetrisPiece[Width][Height]
 }
 
 enum TetrisPieceShape {
-    I,
-    J,
-    L,
-    O,
-    S,
-    T,
-    Z,
+    I
+    J
+    L
+    O
+    S
+    T
+    Z
 }
 
 @entity
@@ -46,13 +46,13 @@ implement TetrisPiece {
 
     function getColor(self) => Color {
         match self {
-            TetrisPieceShape.I => Color.Blue,
-            TetrisPieceShape.J => Color.Red,
-            TetrisPieceShape.L => Color.Orange,
-            TetrisPieceShape.O => Color.Yellow,
-            TetrisPieceShape.S => Color.Green,
-            TetrisPieceShape.T => Color.Purple,
-            TetrisPieceShape.Z => Color.Brown,
+            TetrisPieceShape.I => Color.Blue
+            TetrisPieceShape.J => Color.Red
+            TetrisPieceShape.L => Color.Orange
+            TetrisPieceShape.O => Color.Yellow
+            TetrisPieceShape.S => Color.Green
+            TetrisPieceShape.T => Color.Purple
+            TetrisPieceShape.Z => Color.Brown
         }
     }
 }

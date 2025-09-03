@@ -163,7 +163,7 @@ using dyst, dyst
         match parser.tree.get(clause.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                parser.paths.intern(vec![parser.strings.intern("destack")])
+                parser.paths.intern(vec![parser.strings.intern("dyst")])
             ),
             _ => panic!("expected path expression"),
         }
@@ -179,7 +179,7 @@ using dyst, dyst
             Expression::Path(path) => assert_eq!(
                 *path,
                 parser.paths.intern(vec![
-                    parser.strings.intern("destack"),
+                    parser.strings.intern("dyst"),
                     parser.strings.intern("geometry")
                 ])
             ),
@@ -196,7 +196,7 @@ using dyst, dyst
         match parser.tree.get(clause.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                parser.paths.intern(vec![parser.strings.intern("destack")]),
+                parser.paths.intern(vec![parser.strings.intern("dyst")]),
             ),
             _ => panic!("expected path expression"),
         }
@@ -253,7 +253,7 @@ using dyst, dyst
         match parser.tree.get(clause0.target) {
             Expression::Path(path) => assert_eq!(
                 *path,
-                parser.paths.intern(vec![parser.strings.intern("destack")]),
+                parser.paths.intern(vec![parser.strings.intern("dyst")]),
             ),
             _ => panic!("expected path expression"),
         }
