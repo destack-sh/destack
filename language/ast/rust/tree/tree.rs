@@ -205,6 +205,14 @@ impl NodeTree {
         }
     }
 
+    /// Set the span for a node.
+    pub fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.spans_per_node[node_id.id as usize] = span;
+    }
+
     /// Append documentation to a node.
     /// Merges the documentation with the existing documentation (if it exists).
     pub fn append_documentation<T>(&mut self, node_id: NodeId<T>, documentation: NodeId<Doc>)

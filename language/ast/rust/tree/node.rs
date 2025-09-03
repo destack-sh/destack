@@ -401,8 +401,6 @@ pub struct Enum {
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
-    /// The using declarations for the union.
-    pub usings: Option<Vec<NodeId<Using>>>,
 }
 
 impl Node for Enum {
@@ -426,6 +424,15 @@ pub struct EnumField {
 
 impl Node for EnumField {
     const KIND: NodeType = NodeType::EnumField;
+}
+
+/// The "style" of union. Implicit unions get some extra sugar.
+#[derive(Debug, Clone, PartialEq)]
+pub enum UnionStyle {
+    /// Explicit with `union`.
+    Explicit,
+    /// Implicit with `|`.
+    Implicit,
 }
 
 /// A Union is a tagged sum type definition node in the AST.
@@ -454,12 +461,14 @@ impl Node for EnumField {
 pub struct Union {
     /// The name of the union.
     pub name: Option<StringId>,
+    /// The style of union (explicit or implicit).
+    pub style: UnionStyle,
     /// The type of the union (if explicitly specified).
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
     /// The using declarations for the union.
-    pub usings: Option<Vec<NodeId<Using>>>,
+    pub using: Option<NodeId<Using>>,
 }
 
 impl Node for Union {
