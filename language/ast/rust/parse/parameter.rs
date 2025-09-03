@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
         let r#type = self.eat_type()?;
 
         // default value
-        let parameter = if self.peek_next_token(TokenType::Assign).is_ok() {
+        let parameter = if self.peek_token(TokenType::Assign).is_ok() {
             // has default value
             self.eat_token(TokenType::Assign)?;
             let value = self.eat_expression()?;

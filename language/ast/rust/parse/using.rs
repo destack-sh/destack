@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
         let clause = self.eat_using_clause()?;
         clauses.push(clause);
         loop {
-            if self.peek_next_token(TokenType::Comma).is_ok() {
+            if self.peek_token(TokenType::Comma).is_ok() {
                 self.eat_token(TokenType::Comma)?;
                 // allow trailing comma before stop
                 if self.peek_statement_stop().is_ok() {
@@ -50,21 +50,21 @@ impl<'a> Parser<'a> {
         let path = self.eat_path()?;
 
         // try grouped items first: `. { ... }`
-        let items = if self.peek_next_token(TokenType::Dot).is_ok() {
+        let items = if self.peek_token(TokenType::Dot).is_ok() {
             self.eat_token(TokenType::Dot)?;
             self.eat_token(TokenType::OpenBrace)?;
 
             // parse zero or more items
             // (empty group `.{}` is valid)
             let mut items: Vec<NodeId<UsingItem>> = Vec::new();
-            if self.peek_next_token(TokenType::CloseBrace).is_err() {
+            if self.peek_token(TokenType::CloseBrace).is_err() {
                 loop {
                     let item = self.eat_using_item()?;
                     items.push(item);
-                    if self.peek_next_token(TokenType::Comma).is_ok() {
+                    if self.peek_token(TokenType::Comma).is_ok() {
                         self.eat_token(TokenType::Comma)?;
                         // allow trailing comma
-                        if self.peek_next_token(TokenType::CloseBrace).is_ok() {
+                        if self.peek_token(TokenType::CloseBrace).is_ok() {
                             break;
                         }
                         continue;
@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
 
         // optional alias `as Ident` (only when no grouped items were present)
         let alias = if items.is_none() {
-            if let Ok(next) = self.peek_next_token(TokenType::Identifier) {
+            if let Ok(next) = self.peek_token(TokenType::Identifier) {
                 if self.get_token_str(*next) == Keyword::As.as_str() {
                     self.eat_keyword(Keyword::As)?;
                     Some(self.eat_identifier()?)
@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
     pub fn eat_using_item(&mut self) -> ParseResult<NodeId<UsingItem>> {
         let start = self.mark();
         let name = self.eat_identifier()?;
-        let alias = if let Ok(next) = self.peek_next_token(TokenType::Identifier) {
+        let alias = if let Ok(next) = self.peek_token(TokenType::Identifier) {
             if self.get_token_str(*next) == Keyword::As.as_str() {
                 self.eat_keyword(Keyword::As)?;
                 Some(self.eat_identifier()?)

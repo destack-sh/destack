@@ -14,8 +14,8 @@ impl<'a> Parser<'a> {
         // zero or more `.identifier`
         // (but stop any non-[identifier/dot] token)
         loop {
-            if self.peek_next_token(TokenType::Dot).is_ok()
-                && let Ok(after_dot) = self.peek_next_next()
+            if self.peek_token(TokenType::Dot).is_ok()
+                && let Ok(after_dot) = self.peek_next()
                 && after_dot.token.r#type == TokenType::Identifier
             {
                 self.eat_token(TokenType::Dot)?;
@@ -82,7 +82,7 @@ mod tests {
             ])
         );
         // ensure next token is the `.` for the group
-        let next = parser.peek_next().unwrap();
+        let next = parser.peek().unwrap();
         assert_eq!(next.token.r#type, TokenType::Dot);
     }
 
@@ -101,7 +101,7 @@ mod tests {
             ])
         );
         // ensure next token is the `<` for the generic arguments
-        let next = parser.peek_next().unwrap();
+        let next = parser.peek().unwrap();
         assert_eq!(next.token.r#type, TokenType::LessThan);
     }
 }

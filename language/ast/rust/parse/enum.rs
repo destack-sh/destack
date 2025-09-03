@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
 
         // optional explicit tag type in `(Type)`
         let explicit_type: Option<NodeId<Type>> =
-            if self.peek_next_token(TokenType::OpenParenthesis).is_ok() {
+            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 let ty = self.eat_type()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
@@ -39,10 +39,10 @@ impl<'a> Parser<'a> {
             };
 
         // optional name (avoid consuming `using` as a name)
-        let name = if let Ok(next) = self.peek_next_token(TokenType::Identifier) {
+        let name = if let Ok(next) = self.peek_token(TokenType::Identifier) {
             let ident_str = self.get_token_str(*next);
             if ident_str != Keyword::Using.as_str()
-                && self.peek_next_token(TokenType::OpenBrace).is_err()
+                && self.peek_token(TokenType::OpenBrace).is_err()
             {
                 Some(self.eat_identifier()?)
             } else {
@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
 
         // bail on empty body
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
-        if self.peek_next_token(TokenType::CloseBrace).is_ok() {
+        if self.peek_token(TokenType::CloseBrace).is_ok() {
             let enum_id = self.tree.allocate(
                 Enum {
                     name: None,
@@ -94,7 +94,7 @@ impl<'a> Parser<'a> {
         // parse more fields while comma/newline separated
         while self.peek_item_stop().is_ok() {
             self.eat_item_stop()?;
-            if self.peek_next_token(TokenType::CloseBrace).is_ok() {
+            if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
             let field = self.eat_enum_field_as_union_field()?;
@@ -118,7 +118,7 @@ impl<'a> Parser<'a> {
         let name = self.eat_identifier()?;
 
         // optional `= <expr>` value
-        let value = if self.peek_next_token(TokenType::Assign).is_ok() {
+        let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
             Some(self.eat_expression()?)
         } else {
