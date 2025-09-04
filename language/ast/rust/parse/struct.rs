@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
         // optional default value: `= <expr>`
         let default = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
-            Some(self.eat_expression()?)
+            Some(self.eat_expression(None)?)
         } else {
             None
         };

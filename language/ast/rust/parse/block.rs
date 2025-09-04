@@ -94,7 +94,7 @@ impl<'a> Parser<'a> {
         };
         // value (if not at a statement stop)
         let value_id = if self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression()?;
+            let value_id = self.eat_expression(None)?;
             Some(value_id)
         } else {
             None
@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Return)?;
         // value
         let value_id = if self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression()?;
+            let value_id = self.eat_expression(None)?;
             Some(value_id)
         } else {
             None
@@ -189,7 +189,7 @@ impl<'a> Parser<'a> {
         }
         // statement
         else {
-            let expression_id = self.eat_expression()?;
+            let expression_id = self.eat_expression(None)?;
             let defer_id = self
                 .tree
                 .allocate(Defer::Expression(expression_id), self.get_span_from(start));

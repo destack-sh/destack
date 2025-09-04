@@ -3,7 +3,7 @@
 use destack_language_token::TokenType;
 
 use crate::{
-    Assign, AssignOperator, BinaryOperator, Expression, Keyword, NodeId, OperatorPrecedence,
+    AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, OperatorPrecedence,
     ParseError, ParseResult, Parser, UnaryOperator,
 };
 
@@ -312,27 +312,89 @@ impl AssignOperator {
     }
 }
 
+impl InfixOperator {
+    /// Get the precedence of the infix operator.
+    #[inline]
+    pub fn precedence_group(&self) -> OperatorPrecedence {
+        match self {
+            InfixOperator::Binary(binary_operator) => binary_operator.precedence_group(),
+            InfixOperator::Assign(assign_operator) => assign_operator.precedence_group(),
+        }
+    }
+
+    /// Get the precedence of the infix operator.
+    #[inline]
+    pub fn precedence(self) -> u8 {
+        match self {
+            InfixOperator::Binary(binary_operator) => binary_operator.precedence(),
+            InfixOperator::Assign(assign_operator) => assign_operator.precedence(),
+        }
+    }
+}
+
 impl<'a> Parser<'a> {
+    /// Peek a binary operator.
+    #[inline]
     pub fn peek_binary_operator(&self) -> ParseResult<BinaryOperator> {
         let token = self.peek()?;
         BinaryOperator::from_token_type(token.token.r#type)
             .ok_or(ParseError::UnexpectedToken(token.span))
     }
 
+    /// Peek an assign operator.
+    #[inline]
     pub fn peek_assign_operator(&self) -> ParseResult<AssignOperator> {
         let token = self.peek()?;
         AssignOperator::from_token_type(token.token.r#type)
             .ok_or(ParseError::UnexpectedToken(token.span))
     }
 
+    /// Peek an infix operator.
+    #[inline]
+    pub fn peek_infix_operator(&self) -> ParseResult<InfixOperator> {
+        let token = self.peek()?;
+        if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type) {
+            Ok(InfixOperator::Binary(binary_operator))
+        } else if let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type) {
+            Ok(InfixOperator::Assign(assign_operator))
+        } else {
+            Err(ParseError::UnexpectedToken(token.span))
+        }
+    }
+
+    /// Make an expression from an infix operator.
+    #[inline]
+    fn make_infix_expression(
+        &self,
+        lhs: NodeId<Expression>,
+        operator: InfixOperator,
+        rhs: NodeId<Expression>,
+    ) -> Expression {
+        match operator {
+            InfixOperator::Binary(binary_operator) => Expression::Binary {
+                lhs,
+                operator: binary_operator,
+                rhs,
+            },
+            InfixOperator::Assign(assign_operator) => Expression::Assign {
+                lhs,
+                operator: assign_operator,
+                rhs,
+            },
+        }
+    }
+
     /// Eat an expression.
-    pub fn eat_expression(&mut self) -> ParseResult<NodeId<Expression>> {
+    pub fn eat_expression(
+        &mut self,
+        left_precedence: Option<u8>,
+    ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
         // grouping parentheses
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump();
-            let expression_id = self.eat_expression()?;
+            let expression_id = self.eat_expression(left_precedence)?;
             self.eat_token(TokenType::CloseParenthesis)?;
             self.tree.set_span(expression_id, self.get_span_from(start));
             return Ok(expression_id);
@@ -351,7 +413,7 @@ impl<'a> Parser<'a> {
             None
         };
         if let Some(unary_operator) = unary_operator {
-            let rhs = self.eat_expression()?;
+            let rhs = self.eat_expression(left_precedence)?;
             let expression = Expression::Unary {
                 operator: unary_operator,
                 rhs,
@@ -487,7 +549,7 @@ impl<'a> Parser<'a> {
                 Expression::Error
             }
         };
-        let mut expression_id = self.tree.allocate(expression, self.get_span_from(start));
+        let mut left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
 
         //
         // ------------------------------------------------------------
@@ -499,21 +561,21 @@ impl<'a> Parser<'a> {
         loop {
             // index
             if self.peek_token(TokenType::OpenBracket).is_ok() {
-                let index_id = self.eat_index_postfix(expression_id)?;
+                let index_id = self.eat_index_postfix(left_expression_id)?;
                 let expression = Expression::Index(index_id);
-                expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // call
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                let call_id = self.eat_call_postfix(expression_id)?;
+                let call_id = self.eat_call_postfix(left_expression_id)?;
                 let expression = Expression::Call(call_id);
-                expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // as
             else if self.peek_keyword(Keyword::As).is_ok() {
-                let cast_id = self.eat_as_postfix(expression_id)?;
+                let cast_id = self.eat_as_postfix(left_expression_id)?;
                 let expression = Expression::Cast(cast_id);
-                expression_id = self.tree.allocate(expression, self.get_span_from(start));
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // done
             else {
@@ -523,40 +585,38 @@ impl<'a> Parser<'a> {
 
         //
         // ------------------------------------------------------------
-        // 4. Assignment infix operations
+        // 4. Binary and assignment infix operations
         // ------------------------------------------------------------
         //
 
-        // assignment concludes this expression
-        if let Ok(assign_operator) = self.peek_assign_operator() {
-            self.bump();
-            let rhs = self.eat_expression()?;
-            let assign_id = self.tree.allocate(
-                Assign {
-                    lhs: expression_id,
-                    operator: assign_operator,
-                    rhs,
-                },
-                self.get_span_from(start),
-            );
-            let expression = Expression::Assign(assign_id);
-            expression_id = self.tree.allocate(expression, self.get_span_from(start));
-            return Ok(expression_id);
+        // infix binary operations
+        while let Ok(right_operator) = self.peek_infix_operator() {
+            let right_precedence = right_operator.precedence();
+
+            // left_precedence is set and >= right_precedence
+            //  => leave to outer expression (left associative)
+            if let Some(left_precedence) = left_precedence
+                && left_precedence >= right_precedence
+            {
+                break;
+            }
+            // left_precedence is unset or < right_precedence
+            //  => consume operator + rhs
+            else {
+                self.bump(); // eat infix operator
+                let right_expression_id = self.eat_expression(Some(right_precedence))?;
+                let left_expression = self.make_infix_expression(
+                    left_expression_id,
+                    right_operator,
+                    right_expression_id,
+                );
+                left_expression_id = self
+                    .tree
+                    .allocate(left_expression, self.get_span_from(start))
+            }
         }
 
-        //
-        // ------------------------------------------------------------
-        // 5. Binary infix operations
-        // ------------------------------------------------------------
-        //
-
-        // todo!: infix binary operations
-        // while let Ok(binary_operator) = self.peek_binary_operator() {
-        //     // TODO @Incomplete: implement binary operator parsing
-        //     self.bump();
-        // }
-
-        Ok(expression_id)
+        Ok(left_expression_id)
     }
 }
 
@@ -567,7 +627,7 @@ mod tests {
     use crate::{BinaryOperator, Call, Expression, Parser, StringId};
 
     // assert an Expression::Path with a single-segment name id
-    fn assert_path_is(
+    fn assert_path_eq(
         parser: &crate::Parser<'_>,
         expr_id: crate::NodeId<Expression>,
         expected: StringId,
@@ -590,7 +650,7 @@ mod tests {
         let input = "a + b + c";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
@@ -600,12 +660,12 @@ mod tests {
                 match parser.tree.get(*lhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_is(&parser, *lhs, a);
-                        assert_path_is(&parser, *rhs, b);
+                        assert_path_eq(&parser, *lhs, a);
+                        assert_path_eq(&parser, *rhs, b);
                     }
                     other => panic!("expected binary add, got {other:?}"),
                 }
-                assert_path_is(&parser, *rhs, c);
+                assert_path_eq(&parser, *rhs, c);
             }
             other => panic!("expected binary add, got {other:?}"),
         }
@@ -619,51 +679,22 @@ mod tests {
         let input = "a + b * c";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
         match parser.tree.get(expr_id) {
             Expression::Binary { lhs, operator, rhs } => {
                 assert_eq!(*operator, BinaryOperator::Add);
-                assert_path_is(&parser, *lhs, a);
+                assert_path_eq(&parser, *lhs, a);
                 match parser.tree.get(*rhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Multiply);
-                        assert_path_is(&parser, *lhs, b);
-                        assert_path_is(&parser, *rhs, c);
+                        assert_path_eq(&parser, *lhs, b);
+                        assert_path_eq(&parser, *rhs, c);
                     }
                     other => panic!("expected binary multiply, got {other:?}"),
                 }
-            }
-            other => panic!("expected binary add, got {other:?}"),
-        }
-    }
-
-    /// Multiplication then addition groups multiplication first.
-    /// a * b + c
-    /// => ((a * b) + c)
-    #[test]
-    fn test_precedence_multiply_then_addition() {
-        let input = "a * b + c";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
-        let a = parser.strings.intern("a");
-        let b = parser.strings.intern("b");
-        let c = parser.strings.intern("c");
-        match parser.tree.get(expr_id) {
-            Expression::Binary { lhs, operator, rhs } => {
-                assert_eq!(*operator, BinaryOperator::Add);
-                match parser.tree.get(*lhs) {
-                    Expression::Binary { lhs, operator, rhs } => {
-                        assert_eq!(*operator, BinaryOperator::Multiply);
-                        assert_path_is(&parser, *lhs, a);
-                        assert_path_is(&parser, *rhs, b);
-                    }
-                    other => panic!("expected binary multiply, got {other:?}"),
-                }
-                assert_path_is(&parser, *rhs, c);
             }
             other => panic!("expected binary add, got {other:?}"),
         }
@@ -677,7 +708,7 @@ mod tests {
         let input = "(a + b) * c";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
@@ -687,12 +718,12 @@ mod tests {
                 match parser.tree.get(*lhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_is(&parser, *lhs, a);
-                        assert_path_is(&parser, *rhs, b);
+                        assert_path_eq(&parser, *lhs, a);
+                        assert_path_eq(&parser, *rhs, b);
                     }
                     other => panic!("expected binary add, got {other:?}"),
                 }
-                assert_path_is(&parser, *rhs, c);
+                assert_path_eq(&parser, *rhs, c);
             }
             other => panic!("expected binary multiply, got {other:?}"),
         }
@@ -706,7 +737,7 @@ mod tests {
         let input = "a + b * c + d";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
@@ -717,19 +748,19 @@ mod tests {
                 match parser.tree.get(*lhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_is(&parser, *lhs, a);
+                        assert_path_eq(&parser, *lhs, a);
                         match parser.tree.get(*rhs) {
                             Expression::Binary { lhs, operator, rhs } => {
                                 assert_eq!(*operator, BinaryOperator::Multiply);
-                                assert_path_is(&parser, *lhs, b);
-                                assert_path_is(&parser, *rhs, c);
+                                assert_path_eq(&parser, *lhs, b);
+                                assert_path_eq(&parser, *rhs, c);
                             }
                             other => panic!("expected binary multiply, got {other:?}"),
                         }
                     }
                     other => panic!("expected binary add, got {other:?}"),
                 }
-                assert_path_is(&parser, *rhs, d);
+                assert_path_eq(&parser, *rhs, d);
             }
             other => panic!("expected binary add, got {other:?}"),
         }
@@ -743,7 +774,7 @@ mod tests {
         let input = "a + b | c + d";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
@@ -754,16 +785,16 @@ mod tests {
                 match parser.tree.get(*lhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_is(&parser, *lhs, a);
-                        assert_path_is(&parser, *rhs, b);
+                        assert_path_eq(&parser, *lhs, a);
+                        assert_path_eq(&parser, *rhs, b);
                     }
                     other => panic!("expected binary add, got {other:?}"),
                 }
                 match parser.tree.get(*rhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_is(&parser, *lhs, c);
-                        assert_path_is(&parser, *rhs, d);
+                        assert_path_eq(&parser, *lhs, c);
+                        assert_path_eq(&parser, *rhs, d);
                     }
                     other => panic!("expected binary add, got {other:?}"),
                 }
@@ -780,7 +811,7 @@ mod tests {
         let input = "a == b && c == d";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
@@ -791,16 +822,16 @@ mod tests {
                 match parser.tree.get(*lhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Equal);
-                        assert_path_is(&parser, *lhs, a);
-                        assert_path_is(&parser, *rhs, b);
+                        assert_path_eq(&parser, *lhs, a);
+                        assert_path_eq(&parser, *rhs, b);
                     }
                     other => panic!("expected binary equal, got {other:?}"),
                 }
                 match parser.tree.get(*rhs) {
                     Expression::Binary { lhs, operator, rhs } => {
                         assert_eq!(*operator, BinaryOperator::Equal);
-                        assert_path_is(&parser, *lhs, c);
-                        assert_path_is(&parser, *rhs, d);
+                        assert_path_eq(&parser, *lhs, c);
+                        assert_path_eq(&parser, *rhs, d);
                     }
                     other => panic!("expected binary equal, got {other:?}"),
                 }
@@ -817,7 +848,7 @@ mod tests {
         let input = "-a * b";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         match parser.tree.get(expr_id) {
@@ -825,11 +856,11 @@ mod tests {
                 assert_eq!(*operator, BinaryOperator::Multiply);
                 match parser.tree.get(*lhs) {
                     Expression::Unary { operator: _, rhs } => {
-                        assert_path_is(&parser, *rhs, a);
+                        assert_path_eq(&parser, *rhs, a);
                     }
                     other => panic!("expected unary on lhs, got {other:?}"),
                 }
-                assert_path_is(&parser, *rhs, b);
+                assert_path_eq(&parser, *rhs, b);
             }
             other => panic!("expected binary multiply, got {other:?}"),
         }
@@ -843,7 +874,7 @@ mod tests {
         let input = "a() + b";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let expr_id = parser.eat_expression().unwrap();
+        let expr_id = parser.eat_expression(None).unwrap();
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         match parser.tree.get(expr_id) {
@@ -860,11 +891,11 @@ mod tests {
                         } = call;
                         assert!(static_arguments.is_none());
                         assert!(dynamic_arguments.is_empty());
-                        assert_path_is(&parser, *receiver, a);
+                        assert_path_eq(&parser, *receiver, a);
                     }
                     other => panic!("expected call on lhs, got {other:?}"),
                 }
-                assert_path_is(&parser, *rhs, b);
+                assert_path_eq(&parser, *rhs, b);
             }
             other => panic!("expected binary add, got {other:?}"),
         }

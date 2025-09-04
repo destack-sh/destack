@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Index>> {
         let start = self.mark();
         self.eat_token(TokenType::OpenBracket)?;
-        let index = self.eat_expression()?;
+        let index = self.eat_expression(None)?;
         self.eat_token(TokenType::CloseBracket)?;
         let index_id = self.tree.allocate(
             Index {
