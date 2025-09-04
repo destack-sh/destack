@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
     pub fn eat_if(&mut self) -> ParseResult<NodeId<If>> {
         let start = self.mark();
         self.eat_keyword(Keyword::If)?;
-        let condition_id = self.eat_expression()?;
+        let condition_id = self.eat_expression(None)?;
         let then_block_id = self.eat_block()?;
         let if_node = if self.peek_keyword(Keyword::Else).is_ok() {
             self.eat_keyword(Keyword::Else)?;

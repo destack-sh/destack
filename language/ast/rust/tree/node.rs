@@ -43,7 +43,6 @@ pub enum NodeType {
     Try,
     // Bindings
     Let,
-    Assign,
     Parameter,
     Argument,
     // Literals
@@ -182,6 +181,7 @@ pub enum Expression {
     Implement(NodeId<Implement>),
     /// Function definition (used as an Expression, see Function).
     Function(NodeId<Function>),
+
     /// Let or var binding (as an Expression, see Let).
     Let(NodeId<Let>),
 
@@ -232,14 +232,18 @@ pub enum Expression {
     Call(NodeId<Call>),
     /// As casting (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
-    /// Binary operation (infix between Expressions).
+    /// Binary operation (infix between Expressions, see BinaryOperator).
     Binary {
         lhs: NodeId<Expression>,
         operator: BinaryOperator,
         rhs: NodeId<Expression>,
     },
-    /// Assignment operation (infix as an Expression, see Assign).
-    Assign(NodeId<Assign>),
+    /// Assignment operation (infix as an Expression, see AssignOperator).
+    Assign {
+        lhs: NodeId<Expression>,
+        operator: AssignOperator,
+        rhs: NodeId<Expression>,
+    },
 
     /// Error placeholder.
     Error,
@@ -1371,135 +1375,135 @@ pub enum PrimitiveType {
 /// &= ^= |=                 // assignment bitwise
 /// &&= ||=                  // assignment logical
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OperatorPrecedence {
-    /// Prefix unary operators.
+    /// Unary prefix operators.
     /// `!x -x -%x ~x &x *x`
-    Prefix = 1,
-    /// Postfix unary operators.
+    Prefix = 240,
+    /// Unary postfix operators.
     /// `x() x[] x{} x as y`
-    Postfix = 2,
+    Postfix = 230,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
-    Multiplication = 3,
+    Multiplication = 220,
     /// Addition-related binary operators.
     /// `+ - +% -% +| -|`
-    Addition = 4,
+    Addition = 210,
     /// Shift-related binary operators.
     /// `<< >> <<|`
-    Shift = 5,
+    Shift = 200,
     /// Bitwise-related binary operators.
     /// `& ^ |`
-    Bitwise = 6,
+    Bitwise = 190,
     /// Comparison-related binary operators.
     /// `== != < > <= >=`
-    Comparison = 7,
+    Comparison = 180,
     /// Logical-related binary operators.
     /// `&& ||`
-    Logical = 8,
+    Logical = 170,
     /// Assignment-related binary operators.
     /// `=`
-    Assignment = 9,
+    Assignment = 160,
     /// Assignment multiplication-related binary operators.
     /// `*= /= %= **= *%= *|=`
-    AssignmentMultiplication = 10,
+    AssignmentMultiplication = 150,
     /// Assignment addition-related binary operators.
     /// `+= -= +%= -%= +|= -|=`
-    AssignmentAddition = 11,
+    AssignmentAddition = 140,
     /// Assignment shift-related binary operators.
     /// `<<= >>= <<|=`
-    AssignmentShift = 12,
+    AssignmentShift = 130,
     /// Assignment bitwise-related binary operators.
     /// `&= ^= |=`
-    AssignmentBitwise = 13,
+    AssignmentBitwise = 120,
     /// Assignment logical-related binary operators.
     /// `&&= ||=`
-    AssignmentLogical = 14,
+    AssignmentLogical = 110,
 }
 
 /// A UnaryOperator is unary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `!`
-    LogicalNot = 1,
+    LogicalNot = 245,
     /// `-`
-    Negate = 2,
+    Negate = 244,
     /// `-%`
-    WrappingNegate = 3,
+    WrappingNegate = 243,
     /// `~`
-    BitwiseNot = 6,
+    BitwiseNot = 242,
     /// `*`
-    Dereference = 4,
+    Dereference = 241,
     /// `&`
-    Reference = 5,
+    Reference = 240,
 }
 
 /// A BinaryOperator is an infix binary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BinaryOperator {
     // multiplication
     /// `*`
-    Multiply = 30,
+    Multiply = 224,
     /// `*%`
-    WrappingMultiply = 31,
+    WrappingMultiply = 223,
     /// `*|`
-    SaturatingMultiply = 32,
+    SaturatingMultiply = 222,
     /// `/`
-    Divide = 33,
+    Divide = 221,
     /// `%`
-    Remainder = 34,
+    Remainder = 220,
 
     // addition
     /// `+`
-    Add = 40,
+    Add = 215,
     /// `+%`
-    WrappingAdd = 41,
+    WrappingAdd = 214,
     /// `+|`
-    SaturatingAdd = 42,
+    SaturatingAdd = 213,
     /// `-`
-    Subtract = 43,
+    Subtract = 212,
     /// `-%`
-    WrappingSubtract = 44,
+    WrappingSubtract = 211,
     /// `-|`
-    SaturatingSubtract = 45,
+    SaturatingSubtract = 210,
 
     // shift
     /// `<<`
-    ShiftLeft = 50,
+    ShiftLeft = 202,
     /// `<<|`
-    SaturatingShiftLeft = 51,
+    SaturatingShiftLeft = 201,
     /// `>>`
-    ShiftRight = 52,
+    ShiftRight = 200,
 
     // bitwise
     /// `&`
-    BitwiseAnd = 60,
+    BitwiseAnd = 192,
     /// `^`
-    BitwiseXor = 61,
+    BitwiseXor = 191,
     /// `|`
-    BitwiseOr = 62,
+    BitwiseOr = 190,
 
     // comparison
     /// `==`
-    Equal = 70,
+    Equal = 185,
     /// `!=`
-    NotEqual = 71,
+    NotEqual = 184,
     /// `<`
-    LessThan = 72,
+    LessThan = 183,
     /// `<=`
-    LessThanOrEqual = 73,
+    LessThanOrEqual = 182,
     /// `>`
-    GreaterThan = 74,
+    GreaterThan = 181,
     /// `>=`
-    GreaterThanOrEqual = 75,
+    GreaterThanOrEqual = 180,
 
     // logical
     /// `&&`
-    LogicalAnd = 80,
+    LogicalAnd = 171,
     /// `||`
-    LogicalOr = 81,
+    LogicalOr = 170,
 }
 
 /// An AssignOperator is assignment type.
@@ -1513,82 +1517,67 @@ pub enum BinaryOperator {
 /// x &= 1
 /// x |= 1
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AssignOperator {
     /// `=`
-    Assign = 90,
+    Assign = 160,
 
     // assignment multiplication
     /// `*=`
-    MultiplyAssign = 100,
+    MultiplyAssign = 154,
     /// `*%=`
-    WrappingMultiplyAssign = 101,
+    WrappingMultiplyAssign = 153,
     /// `*|=`
-    SaturatingMultiplyAssign = 102,
+    SaturatingMultiplyAssign = 152,
     /// `/=`
-    DivideAssign = 103,
+    DivideAssign = 151,
     /// `%=`
-    RemainderAssign = 104,
+    RemainderAssign = 150,
 
     // assignment addition
     /// `+=`
-    AddAssign = 110,
+    AddAssign = 145,
     /// `+%=`
-    WrappingAddAssign = 111,
+    WrappingAddAssign = 144,
     /// `+|=`
-    SaturatingAddAssign = 112,
+    SaturatingAddAssign = 143,
     /// `-=`
-    SubtractAssign = 113,
+    SubtractAssign = 142,
     /// `-%=`
-    WrappingSubtractAssign = 114,
+    WrappingSubtractAssign = 141,
     /// `-|=`
-    SaturatingSubtractAssign = 115,
+    SaturatingSubtractAssign = 140,
 
     // assignment shift
     /// `<<=`
-    ShiftLeftAssign = 120,
+    ShiftLeftAssign = 132,
     /// `<<|=`
-    SaturatingShiftLeftAssign = 121,
+    SaturatingShiftLeftAssign = 131,
     /// `>>=`
-    ShiftRightAssign = 122,
+    ShiftRightAssign = 130,
 
     // assignment bitwise
     /// `&=`
-    BitwiseAndAssign = 130,
+    BitwiseAndAssign = 122,
     /// `^=`
-    BitwiseXorAssign = 131,
+    BitwiseXorAssign = 121,
     /// `|=`
-    BitwiseOrAssign = 132,
+    BitwiseOrAssign = 120,
 
     // assignment logical
     /// `&&=`
-    LogicalAndAssign = 140,
+    LogicalAndAssign = 111,
     /// `||=`
-    LogicalOrAssign = 141,
+    LogicalOrAssign = 110,
 }
 
-/// Assignment to a variable (a "place expression").
-/// Also see OperatorPrecedence.
-///
-/// Examples:
-/// ```
-/// x = 1
-/// x.y = 2
-/// x[0] = 3
-/// *x = *y
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Assign {
-    /// The left-hand side of the assignment (should be a place Expression, checked later).
-    pub lhs: NodeId<Expression>,
-    /// The type of assignment.
-    pub operator: AssignOperator,
-    /// The right-hand side of the assignment.
-    pub rhs: NodeId<Expression>,
-}
-
-impl Node for Assign {
-    const KIND: NodeType = NodeType::Assign;
+/// An InfixOperator is an umbrella for either a binary or assignment operator.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum InfixOperator {
+    /// A binary operator.
+    Binary(BinaryOperator),
+    /// An assignment operator.
+    Assign(AssignOperator),
 }
 
 /// Index reference.

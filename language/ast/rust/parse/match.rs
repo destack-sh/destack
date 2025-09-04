@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     pub fn eat_match(&mut self) -> ParseResult<NodeId<Match>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Match)?;
-        let value_id = self.eat_expression()?;
+        let value_id = self.eat_expression(None)?;
         let cases_id = self.eat_match_body()?;
         let match_id = self.tree.allocate(
             Match {
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
         // guard
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
             self.eat_keyword(Keyword::If)?;
-            let guard = self.eat_expression()?;
+            let guard = self.eat_expression(None)?;
             Some(guard)
         } else {
             None
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
         }
         // statement
         else {
-            let expression_id = self.eat_expression()?;
+            let expression_id = self.eat_expression(None)?;
             let match_case_id = self.tree.allocate(
                 MatchCase::Expression {
                     pattern: pattern_id,
@@ -137,7 +137,7 @@ impl<'a> Parser<'a> {
             if self.peek_keyword(Keyword::Catch).is_ok() {
                 // catch match
                 self.eat_keyword(Keyword::Catch)?;
-                let catch_expression_id = self.eat_expression()?;
+                let catch_expression_id = self.eat_expression(None)?;
                 let catch_match_cases_id = self.eat_match_body()?;
                 let catch_match_id = self.tree.allocate(
                     Match {
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
         }
         // try expression
         else {
-            let expression_id = self.eat_expression()?;
+            let expression_id = self.eat_expression(None)?;
             let try_id = self.tree.allocate(
                 Try::Expression {
                     try_expression: expression_id,

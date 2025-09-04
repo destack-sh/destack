@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
                 (None, LetInitialization::ExplicitUninitialized)
             } else {
                 (
-                    Some(self.eat_expression()?),
+                    Some(self.eat_expression(None)?),
                     LetInitialization::ExplicitInitialized,
                 )
             }

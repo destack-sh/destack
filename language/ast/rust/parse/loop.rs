@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::For)?;
         let pattern_id = self.eat_pattern()?;
         self.eat_keyword(Keyword::In)?;
-        let iterator_id = self.eat_expression()?;
+        let iterator_id = self.eat_expression(None)?;
         // body
         let block_id = self.eat_block()?;
         // for
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // header
         self.eat_keyword(Keyword::While)?;
-        let condition_id = self.eat_expression()?;
+        let condition_id = self.eat_expression(None)?;
         // body
         let block_id = self.eat_block()?;
         // while

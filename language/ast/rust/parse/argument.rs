@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
         let parameter = if self.peek_token(TokenType::Assign).is_ok() {
             // has default value
             self.eat_token(TokenType::Assign)?;
-            let value = self.eat_expression()?;
+            let value = self.eat_expression(None)?;
             Parameter {
                 name,
                 r#type,
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         {
             let name = self.eat_identifier()?;
             self.eat_colon()?;
-            let value = self.eat_expression()?;
+            let value = self.eat_expression(None)?;
             let argument_id = self
                 .tree
                 .allocate(Argument::Named { name, value }, self.get_span_from(start));
@@ -85,7 +85,7 @@ impl<'a> Parser<'a> {
         }
         // positional argument
         else {
-            let value = self.eat_expression()?;
+            let value = self.eat_expression(None)?;
             let argument_id = self
                 .tree
                 .allocate(Argument::Positional { value }, self.get_span_from(start));

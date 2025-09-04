@@ -255,12 +255,12 @@ impl<'a> Parser<'a> {
         }
 
         // parse first element
-        let first_element = self.eat_expression()?;
+        let first_element = self.eat_expression(None)?;
 
         if self.peek_token(TokenType::Semicolon).is_ok() {
             // repeated array: [value; count]
             self.eat_token(TokenType::Semicolon)?;
-            let count = self.eat_expression()?;
+            let count = self.eat_expression(None)?;
             self.eat_token(TokenType::CloseBracket)?;
             let array_literal = self.tree.allocate(
                 ArrayLiteral::Repeated {
@@ -278,7 +278,7 @@ impl<'a> Parser<'a> {
                 if self.peek_token(TokenType::CloseBracket).is_ok() {
                     break;
                 }
-                let element = self.eat_expression()?;
+                let element = self.eat_expression(None)?;
                 elements.push(element);
             }
             self.eat_token(TokenType::CloseBracket)?;
@@ -318,7 +318,7 @@ impl<'a> Parser<'a> {
         }
 
         // parse first element
-        let first_element = self.eat_expression()?;
+        let first_element = self.eat_expression(None)?;
 
         // parse remaining elements separated by comma or newline, allow trailing comma
         let mut elements: Vec<NodeId<Expression>> = vec![first_element];
@@ -327,7 +327,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                 break;
             }
-            let element = self.eat_expression()?;
+            let element = self.eat_expression(None)?;
             elements.push(element);
         }
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -387,7 +387,7 @@ impl<'a> Parser<'a> {
             // named field
             if self.peek_token(TokenType::Colon).is_ok() {
                 self.eat_token(TokenType::Colon)?;
-                let value = self.eat_expression()?;
+                let value = self.eat_expression(None)?;
                 let field_literal = self.tree.allocate(
                     FieldLiteral::Named { name, value },
                     self.get_span_from(field_start),

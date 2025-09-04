@@ -394,7 +394,7 @@ impl<'a> Parser<'a> {
         let element_type = self.eat_type()?;
         if self.peek_semicolon().is_ok() {
             self.eat_semicolon()?;
-            let count = self.eat_expression()?;
+            let count = self.eat_expression(None)?;
             let ty_id = self.tree.allocate(
                 Type::Array {
                     element_type,

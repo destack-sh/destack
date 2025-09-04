@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
             //
             // expression (fallback)
             else {
-                let expression_id = self.eat_expression()?;
+                let expression_id = self.eat_expression(None)?;
                 Statement::Expression(expression_id)
             }
         };

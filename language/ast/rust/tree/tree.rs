@@ -4,11 +4,11 @@ use std::marker::PhantomData;
 use destack_language_token::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Assign, Block, Break, Call, Cast, Continue, Defer, Doc, Enum,
-    EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match,
-    MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, Return, ScalarLiteral,
-    Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral,
-    Type, Union, UnionField, Using, UsingClause, UsingItem, While,
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Continue, Defer, Doc, Enum, EnumField,
+    Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase,
+    Module, Node, NodeType, Parameter, Pattern, PatternField, Return, ScalarLiteral, Statement,
+    Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
+    UnionField, Using, UsingClause, UsingItem, While,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -79,7 +79,6 @@ pub struct NodeTree {
     trys: NodeArena<Try>,
     // bindings
     lets: NodeArena<Let>,
-    assigns: NodeArena<Assign>,
     parameters: NodeArena<Parameter>,
     arguments: NodeArena<Argument>,
     // literals
@@ -164,7 +163,6 @@ impl NodeTree {
             trys: NodeArena::new(),
             // bindings
             lets: NodeArena::new(),
-            assigns: NodeArena::new(),
             parameters: NodeArena::new(),
             arguments: NodeArena::new(),
             // literals
@@ -415,7 +413,6 @@ impl_node_tree_stores! {
     Try => trys,
     // bindings
     Let => lets,
-    Assign => assigns,
     Parameter => parameters,
     Argument => arguments,
     // literals
