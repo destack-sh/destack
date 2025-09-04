@@ -124,9 +124,9 @@ pub enum TokenType {
     /// `<`
     LessThan,
     /// `>=`
-    GreaterThanEqual,
+    GreaterThanOrEqual,
     /// `<=`
-    LessThanEqual,
+    LessThanOrEqual,
     /// `==`
     Equal,
     /// `!=`

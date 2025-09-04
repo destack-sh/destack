@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Bump the position.
+    /// Bump the Token position.
     #[inline]
     pub fn bump(&mut self) {
         self.pos += 1;

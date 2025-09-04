@@ -56,8 +56,8 @@ pub enum NodeType {
     FieldLiteral,
     // Calls
     Index,
-    StaticCall,
-    DynamicCall,
+    Call,
+    Cast,
     // Matching
     Match,
     Pattern,
@@ -231,6 +231,8 @@ pub enum Expression {
     Index(NodeId<Index>),
     /// A Call is call to a function (postfix as an Expression, see Call).
     Call(NodeId<Call>),
+    /// As casting (postfix as an Expression, see As).
+    Cast(NodeId<Cast>),
     /// Binary operation (infox between Expressions).
     BinaryOperation {
         lhs: NodeId<Expression>,
@@ -499,7 +501,7 @@ impl Node for Trait {
 ///     ...
 /// }
 ///
-/// implement Marker for Bar;
+/// implement Marker for Bar; // optional semicolon
 /// implement OtherMarker for Bar
 ///
 /// implement Bar<int32> for Baz {
@@ -1123,6 +1125,7 @@ impl Node for Try {
 }
 
 /// Assignment to a variable (a "place expression").
+/// Also see OperatorPrecedence.
 ///
 /// Examples:
 /// ```
@@ -1146,6 +1149,7 @@ impl Node for Assign {
 }
 
 /// An AssignType is assignment type.
+/// Also see OperatorPrecedence.
 ///
 /// Examples:
 /// ```
@@ -1421,7 +1425,53 @@ pub enum PrimitiveType {
     Float(FloatType),
 }
 
+/// The operator group (for precedence parsing).
+///
+/// Precedence:
+/// ```
+/// !x -x -%x ~x &x      // prefix
+/// x() x[] x {}         // postfix
+/// * / % ** *% *|       // multiplication
+/// + - ++ +% -% +| -|   // addition
+/// << >> <<|            // shift
+/// & ^ |                // bitwise
+/// == != < > <= >=      // comparison
+/// && ||                // logical
+/// = *= *%= *|= /= %= += +%= +|= -= -%= -|= <<= <<|= >>= &= ^= |= // assignment
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum OperatorPrecedence {
+    /// Prefix operators.
+    /// `!x -x -%x ~x &x`
+    Prefix = 1,
+    /// Postfix operators.
+    /// `x() x[] x {}`
+    Postfix = 2,
+    /// Multiplication related operators.
+    /// `* / % ** *% *|`
+    Multiplication = 3,
+    /// Addition related operators.
+    /// `+ - ++ +% -% +| -|`
+    Addition = 4,
+    /// Shift related operators.
+    /// `<< >> <<|`
+    Shift = 5,
+    /// Bitwise related operators.
+    /// `& ^ |`
+    Bitwise = 6,
+    /// Comparison related operators.
+    /// `== != < > <= >=`
+    Comparison = 7,
+    /// Logical related operators.
+    /// `&& ||`
+    Logical = 8,
+    /// Assignment related operators.
+    /// `= *= *%= *|= /= %= += +%= +|= -= -%= -|= <<= <<|= >>= &= ^= |=`
+    Assignment = 9,
+}
+
 /// A UnaryOperator is unary operator.
+/// Also see OperatorPrecedence.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `!`
@@ -1436,9 +1486,11 @@ pub enum UnaryOperator {
     Dereference,
 }
 
-/// A BinaryOperator is binary operator.
+/// A BinaryOperator is an infix binary operator.
+/// Also see OperatorPrecedence.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOperator {
+    // arithmetic
     /// `+`
     Add,
     /// `+%`
@@ -1460,10 +1512,9 @@ pub enum BinaryOperator {
     /// `/`
     Divide,
     /// `%`
-    Modulo,
-    /// `**`
-    Power,
+    Remainder,
 
+    // comparison
     /// `==`
     Equal,
     /// `!=`
@@ -1477,11 +1528,13 @@ pub enum BinaryOperator {
     /// `>=`
     GreaterThanOrEqual,
 
+    // logical
     /// `&&`
     LogicalAnd,
     /// `||`
     LogicalOr,
 
+    // bitwise
     /// `&`
     BitwiseAnd,
     /// `|`
@@ -1489,14 +1542,11 @@ pub enum BinaryOperator {
     /// `^`
     BitwiseXor,
     /// `<<`
-    BitwiseLeftShift,
+    ShiftLeft,
     /// `<<|`
-    SaturatingBitwiseLeftShift,
+    SaturatingShiftLeft,
     /// `>>`
-    BitwiseRightShift,
-
-    /// `as`
-    As,
+    ShiftRight,
 }
 
 /// Index reference.
@@ -1552,7 +1602,26 @@ pub struct Call {
 }
 
 impl Node for Call {
-    const KIND: NodeType = NodeType::StaticCall;
+    const KIND: NodeType = NodeType::Call;
+}
+
+/// A Cast is an `as` infallible type cast or transmutation.
+///
+/// Examples:
+/// ```
+/// x as int32
+/// x as Vector2
+/// y() as Mesh<Dims: 2>
+/// ```
+///
+#[derive(Debug, Clone, PartialEq)]
+pub struct Cast {
+    pub receiver: NodeId<Expression>,
+    pub r#type: NodeId<Type>,
+}
+
+impl Node for Cast {
+    const KIND: NodeType = NodeType::Cast;
 }
 
 // ----------------------------------------------------------------------------

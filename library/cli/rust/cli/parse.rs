@@ -259,8 +259,8 @@ fn get_token_color(kind: TokenType) -> &'static str {
         // comparison
         TokenType::GreaterThan
         | TokenType::LessThan
-        | TokenType::GreaterThanEqual
-        | TokenType::LessThanEqual
+        | TokenType::GreaterThanOrEqual
+        | TokenType::LessThanOrEqual
         | TokenType::Equal
         | TokenType::NotEqual => "92", // bright green
 

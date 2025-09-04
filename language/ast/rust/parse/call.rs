@@ -2,7 +2,7 @@
 
 use destack_language_token::TokenType;
 
-use crate::{Call, Expression, FunctionRuntime, Index, NodeId, ParseResult, Parser};
+use crate::{Call, Cast, Expression, FunctionRuntime, Index, Keyword, NodeId, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Eat an index (postfix, excluding the receiver).
@@ -72,5 +72,27 @@ impl<'a> Parser<'a> {
             self.get_span_from(start),
         );
         Ok(call_id)
+    }
+
+    /// Eat an as cast (postfix, excluding the receiver).
+    ///
+    /// Examples:
+    /// ```
+    /// as int32
+    /// as Vector2
+    /// as some_module.MyType
+    /// ```
+    pub fn eat_as_postfix(&mut self, receiver_id: NodeId<Expression>) -> ParseResult<NodeId<Cast>> {
+        let start = self.mark();
+        self.eat_keyword(Keyword::As)?;
+        let r#type = self.eat_type()?;
+        let cast_id = self.tree.allocate(
+            Cast {
+                receiver: receiver_id,
+                r#type,
+            },
+            self.get_span_from(start),
+        );
+        Ok(cast_id)
     }
 }

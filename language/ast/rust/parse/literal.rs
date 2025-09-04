@@ -339,13 +339,6 @@ impl<'a> Parser<'a> {
         Ok(tuple_literal)
     }
 
-    /// Peek a struct literal (including the type prefix).
-    /// Tests for path (with optional static arguments) followed by open brace `{`.
-    pub fn peek_struct_literal(&self) -> ParseResult<()> {
-        // nocheckin: parse struct literals somehow (without unbounded lookahead?)
-        Ok(())
-    }
-
     /// Eat a struct literal (including the type prefix).
     ///
     /// Examples:
@@ -353,7 +346,7 @@ impl<'a> Parser<'a> {
     /// Vector2 { x: 1.0, y: 2.0, z }
     ///
     /// destack.geometry.Mesh2 {
-    ///     vertices: [Vector3 { x: 1.0, y: 2.0, z: .0 }], // optional comma
+    ///     vertices: [Vector3 { x: 1.0, y: 2.0, z: .0 }] // optional comma
     ///     indices: [0, 1, 2] // optional comma
     /// }
     ///

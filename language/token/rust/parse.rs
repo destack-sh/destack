@@ -307,7 +307,7 @@ impl Tokenizer<'_> {
                     }
                 } else if self.peek() == '=' {
                     self.bump();
-                    (TokenType::LessThanEqual, None)
+                    (TokenType::LessThanOrEqual, None)
                 } else {
                     (TokenType::LessThan, None)
                 }
@@ -325,7 +325,7 @@ impl Tokenizer<'_> {
                     }
                 } else if self.peek() == '=' {
                     self.bump();
-                    (TokenType::GreaterThanEqual, None)
+                    (TokenType::GreaterThanOrEqual, None)
                 } else {
                     (TokenType::GreaterThan, None)
                 }

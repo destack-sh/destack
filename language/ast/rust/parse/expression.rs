@@ -2,7 +2,132 @@
 
 use destack_language_token::TokenType;
 
-use crate::{Expression, Keyword, NodeId, ParseResult, Parser, UnaryOperator};
+use crate::{
+    BinaryOperator, Expression, Keyword, NodeId, OperatorPrecedence, ParseResult, Parser,
+    UnaryOperator,
+};
+
+impl BinaryOperator {
+    /// Get the precedence of the binary operator.
+    pub fn precedence(&self) -> OperatorPrecedence {
+        match self {
+            // arithmetic - multiplication
+            BinaryOperator::Multiply => OperatorPrecedence::Multiplication,
+            BinaryOperator::WrappingMultiply => OperatorPrecedence::Multiplication,
+            BinaryOperator::SaturatingMultiply => OperatorPrecedence::Multiplication,
+            BinaryOperator::Divide => OperatorPrecedence::Multiplication,
+            BinaryOperator::Remainder => OperatorPrecedence::Multiplication,
+
+            // arithmetic - addition
+            BinaryOperator::Add => OperatorPrecedence::Addition,
+            BinaryOperator::WrappingAdd => OperatorPrecedence::Addition,
+            BinaryOperator::SaturatingAdd => OperatorPrecedence::Addition,
+            BinaryOperator::Subtract => OperatorPrecedence::Addition,
+            BinaryOperator::WrappingSubtract => OperatorPrecedence::Addition,
+            BinaryOperator::SaturatingSubtract => OperatorPrecedence::Addition,
+
+            // shift
+            BinaryOperator::ShiftLeft => OperatorPrecedence::Shift,
+            BinaryOperator::SaturatingShiftLeft => OperatorPrecedence::Shift,
+            BinaryOperator::ShiftRight => OperatorPrecedence::Shift,
+
+            // bitwise
+            BinaryOperator::BitwiseAnd => OperatorPrecedence::Bitwise,
+            BinaryOperator::BitwiseOr => OperatorPrecedence::Bitwise,
+            BinaryOperator::BitwiseXor => OperatorPrecedence::Bitwise,
+
+            // comparison
+            BinaryOperator::Equal => OperatorPrecedence::Comparison,
+            BinaryOperator::NotEqual => OperatorPrecedence::Comparison,
+            BinaryOperator::LessThan => OperatorPrecedence::Comparison,
+            BinaryOperator::LessThanOrEqual => OperatorPrecedence::Comparison,
+            BinaryOperator::GreaterThan => OperatorPrecedence::Comparison,
+            BinaryOperator::GreaterThanOrEqual => OperatorPrecedence::Comparison,
+
+            // logical
+            BinaryOperator::LogicalAnd => OperatorPrecedence::Logical,
+            BinaryOperator::LogicalOr => OperatorPrecedence::Logical,
+        }
+    }
+
+    /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
+    pub fn from_token_type(token_type: TokenType) -> Option<BinaryOperator> {
+        match token_type {
+            // arithmetic
+            TokenType::Add => Some(BinaryOperator::Add),
+            TokenType::WrappingAdd => Some(BinaryOperator::WrappingAdd),
+            TokenType::SaturatingAdd => Some(BinaryOperator::SaturatingAdd),
+            TokenType::Subtract => Some(BinaryOperator::Subtract),
+            TokenType::WrappingSubtract => Some(BinaryOperator::WrappingSubtract),
+            TokenType::SaturatingSubtract => Some(BinaryOperator::SaturatingSubtract),
+            TokenType::Multiply => Some(BinaryOperator::Multiply),
+            TokenType::WrappingMultiply => Some(BinaryOperator::WrappingMultiply),
+            TokenType::SaturatingMultiply => Some(BinaryOperator::SaturatingMultiply),
+            TokenType::Divide => Some(BinaryOperator::Divide),
+            TokenType::Remainder => Some(BinaryOperator::Remainder),
+
+            // comparison
+            TokenType::Equal => Some(BinaryOperator::Equal),
+            TokenType::NotEqual => Some(BinaryOperator::NotEqual),
+            TokenType::LessThan => Some(BinaryOperator::LessThan),
+            TokenType::LessThanOrEqual => Some(BinaryOperator::LessThanOrEqual),
+            TokenType::GreaterThan => Some(BinaryOperator::GreaterThan),
+            TokenType::GreaterThanOrEqual => Some(BinaryOperator::GreaterThanOrEqual),
+
+            // logical
+            TokenType::LogicalAnd => Some(BinaryOperator::LogicalAnd),
+            TokenType::LogicalOr => Some(BinaryOperator::LogicalOr),
+
+            // bitwise
+            TokenType::BitwiseAnd => Some(BinaryOperator::BitwiseAnd),
+            TokenType::BitwiseOr => Some(BinaryOperator::BitwiseOr),
+            TokenType::BitwiseXor => Some(BinaryOperator::BitwiseXor),
+            TokenType::ShiftLeft => Some(BinaryOperator::ShiftLeft),
+            TokenType::SaturatingShiftLeft => Some(BinaryOperator::SaturatingShiftLeft),
+            TokenType::ShiftRight => Some(BinaryOperator::ShiftRight),
+
+            _ => None,
+        }
+    }
+
+    /// Convert a BinaryOperator to a TokenType (if a direct mapping exists).
+    pub fn as_token_type(&self) -> Option<TokenType> {
+        match self {
+            // arithmetic
+            BinaryOperator::Add => Some(TokenType::Add),
+            BinaryOperator::WrappingAdd => Some(TokenType::WrappingAdd),
+            BinaryOperator::SaturatingAdd => Some(TokenType::SaturatingAdd),
+            BinaryOperator::Subtract => Some(TokenType::Subtract),
+            BinaryOperator::WrappingSubtract => Some(TokenType::WrappingSubtract),
+            BinaryOperator::SaturatingSubtract => Some(TokenType::SaturatingSubtract),
+            BinaryOperator::Multiply => Some(TokenType::Multiply),
+            BinaryOperator::WrappingMultiply => Some(TokenType::WrappingMultiply),
+            BinaryOperator::SaturatingMultiply => Some(TokenType::SaturatingMultiply),
+            BinaryOperator::Divide => Some(TokenType::Divide),
+            BinaryOperator::Remainder => Some(TokenType::Remainder),
+
+            // comparison
+            BinaryOperator::Equal => Some(TokenType::Equal),
+            BinaryOperator::NotEqual => Some(TokenType::NotEqual),
+            BinaryOperator::LessThan => Some(TokenType::LessThan),
+            BinaryOperator::LessThanOrEqual => Some(TokenType::LessThanOrEqual),
+            BinaryOperator::GreaterThan => Some(TokenType::GreaterThan),
+            BinaryOperator::GreaterThanOrEqual => Some(TokenType::GreaterThanOrEqual),
+
+            // logical
+            BinaryOperator::LogicalAnd => Some(TokenType::LogicalAnd),
+            BinaryOperator::LogicalOr => Some(TokenType::LogicalOr),
+
+            // bitwise
+            BinaryOperator::BitwiseAnd => Some(TokenType::BitwiseAnd),
+            BinaryOperator::BitwiseOr => Some(TokenType::BitwiseOr),
+            BinaryOperator::BitwiseXor => Some(TokenType::BitwiseXor),
+            BinaryOperator::ShiftLeft => Some(TokenType::ShiftLeft),
+            BinaryOperator::SaturatingShiftLeft => Some(TokenType::SaturatingShiftLeft),
+            BinaryOperator::ShiftRight => Some(TokenType::ShiftRight),
+        }
+    }
+}
 
 impl<'a> Parser<'a> {
     /// Eat an expression.
@@ -160,10 +285,7 @@ impl<'a> Parser<'a> {
             } else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 let tuple_literal = self.eat_tuple_literal()?;
                 Expression::TupleLiteral(tuple_literal)
-            // struct
-            } else if self.peek_token(TokenType::OpenBrace).is_ok() {
-                let struct_literal = self.eat_struct_literal()?;
-                Expression::StructLiteral(struct_literal)
+            // TODO: parse struct literals (postfix to avoid unbounded lookahead)
             // scalar
             } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
@@ -199,7 +321,13 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Call(call_id);
                 expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // no more postfix operations
+            // as
+            else if self.peek_keyword(Keyword::As).is_ok() {
+                let cast_id = self.eat_as_postfix(expression_id)?;
+                let expression = Expression::Cast(cast_id);
+                expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // done
             else {
                 break;
             }
