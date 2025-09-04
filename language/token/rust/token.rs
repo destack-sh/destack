@@ -63,7 +63,7 @@ pub enum TokenType {
     /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
     UnknownLiteralPrefix,
     /// "Raw" Literals, e.g. `12`, `1.0e-40`, `b"123"`.
-    RawLiteral,
+    Literal,
 
     /// `:`
     Colon,
@@ -96,7 +96,7 @@ pub enum TokenType {
     /// `#`
     Pound,
     /// `~`
-    Tilde,
+    BitwiseNot,
     /// `?`
     Question,
     /// `$`

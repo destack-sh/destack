@@ -4,6 +4,7 @@ use crate::{Doc, NodeId, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
     /// Peek a doc comment (incl. `///` or `/**`).
+    #[inline]
     pub fn peek_doc(&self) -> ParseResult<&TokenSpan> {
         if let Ok(doc_line_comment) = self.peek_token(TokenType::DocLineComment) {
             Ok(doc_line_comment)
@@ -27,4 +28,9 @@ impl<'a> Parser<'a> {
     pub fn eat_doc(&mut self) -> ParseResult<NodeId<Doc>> {
         todo!()
     }
+}
+
+#[cfg(test)]
+mod tests {
+    // todo!: test doc
 }

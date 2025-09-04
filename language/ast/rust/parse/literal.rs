@@ -9,13 +9,20 @@ use crate::{
 impl<'a> Parser<'a> {
     /// Peek a scalar literal.
     pub fn peek_scalar_literal(&self) -> ParseResult<&TokenSpan> {
-        if self.peek_token(TokenType::RawLiteral).is_ok()
-            || self.peek_identifier_str("true").is_ok()
-            || self.peek_identifier_str("false").is_ok()
-        {
+        if self.peek_token(TokenType::Literal).is_ok() {
             Ok(self.peek()?)
         } else {
             Err(ParseError::UnexpectedToken(self.peek()?.span))
+        }
+    }
+
+    /// Eat a raw literal token.
+    pub fn eat_raw_literal(&mut self) -> ParseResult<(TokenSpan, RawLiteralType)> {
+        let literal_span = *self.eat_next()?;
+        if let Some(literal) = literal_span.token.body {
+            Ok((literal_span, literal))
+        } else {
+            Err(ParseError::UnexpectedToken(literal_span.span))
         }
     }
 
@@ -36,205 +43,181 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParseResult<NodeId<ScalarLiteral>> {
         let start = self.mark();
+        let (literal_span, literal) = self.eat_raw_literal()?;
+        let literal_str = self.get_span_str(literal_span.span);
 
-        if self.peek_identifier_str("true").is_ok() {
-            // boolean literal true
-            self.bump();
-            let scalar_literal = self
-                .tree
-                .allocate(ScalarLiteral::Boolean(true), self.get_span_from(start));
-            Ok(scalar_literal)
-        } else if self.peek_identifier_str("false").is_ok() {
-            // boolean literal false
-            self.bump();
-            let scalar_literal = self
-                .tree
-                .allocate(ScalarLiteral::Boolean(false), self.get_span_from(start));
-            Ok(scalar_literal)
-        } else {
-            // regular literal
-            let literal_span = &self.eat_next()?.clone();
-            let literal_str = self.get_span_str(literal_span.span);
-            if literal_span.token.r#type != TokenType::RawLiteral {
-                return Err(ParseError::UnexpectedToken(literal_span.span));
+        match literal {
+            // boolean literal
+            RawLiteralType::Boolean { value } => {
+                let scalar_literal = self
+                    .tree
+                    .allocate(ScalarLiteral::Boolean(value), self.get_span_from(start));
+                Ok(scalar_literal)
             }
-            let Some(literal) = literal_span.token.body else {
-                return Err(ParseError::UnexpectedToken(literal_span.span));
-            };
 
-            match literal {
-                // boolean literal
-                RawLiteralType::Boolean { value } => {
-                    let scalar_literal = self
-                        .tree
-                        .allocate(ScalarLiteral::Boolean(value), self.get_span_from(start));
+            // int literal
+            RawLiteralType::Int { base, is_empty } => {
+                if is_empty {
+                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                }
+                // strip underscores for parsing
+                let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
+                    Cow::Owned(literal_str.replace('_', ""))
+                } else {
+                    Cow::Borrowed(literal_str)
+                };
+                // handle base-specific prefixes
+                let parsed_int = match base {
+                    NumberBase::Decimal => cleaned_str.parse::<i64>(),
+                    NumberBase::Binary => {
+                        // strip leading 0b
+                        let body = cleaned_str.trim_start_matches("0b");
+                        i64::from_str_radix(body, 2)
+                    }
+                    NumberBase::Octal => {
+                        let body = cleaned_str.trim_start_matches("0o");
+                        i64::from_str_radix(body, 8)
+                    }
+                    NumberBase::Hexadecimal => {
+                        let body = cleaned_str.trim_start_matches("0x");
+                        i64::from_str_radix(body, 16)
+                    }
+                };
+                match parsed_int {
+                    Ok(value) => {
+                        let scalar_literal = self.tree.allocate(
+                            ScalarLiteral::Integer(value, IntType::INT32),
+                            self.get_span_from(start),
+                        );
+                        Ok(scalar_literal)
+                    }
+                    Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
+                }
+            }
+
+            // float literal
+            RawLiteralType::Float {
+                base: _,
+                is_empty_exponent,
+            } => {
+                if is_empty_exponent {
+                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                }
+                let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
+                    Cow::Owned(literal_str.replace('_', ""))
+                } else {
+                    Cow::Borrowed(literal_str)
+                };
+                let parsed_float = cleaned_str.parse::<f64>();
+                match parsed_float {
+                    Ok(value) => {
+                        let scalar_literal = self.tree.allocate(
+                            ScalarLiteral::Float(value, FloatType::Float64),
+                            self.get_span_from(start),
+                        );
+                        Ok(scalar_literal)
+                    }
+                    Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
+                }
+            }
+
+            // character literal (ignore quotes)
+            RawLiteralType::Character { is_terminated } => {
+                if !is_terminated {
+                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                }
+                let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
+                if let Some(literal_char) = content.chars().next() {
+                    let scalar_literal = self.tree.allocate(
+                        ScalarLiteral::Character(literal_char),
+                        self.get_span_from(start),
+                    );
                     Ok(scalar_literal)
+                } else {
+                    Err(ParseError::UnexpectedToken(literal_span.span))
                 }
+            }
 
-                // int literal
-                RawLiteralType::Int { base, is_empty } => {
-                    if is_empty {
+            // byte character literal (ignore quotes)
+            RawLiteralType::Byte { is_terminated } => {
+                if !is_terminated {
+                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                }
+                let content = literal_str.trim_start_matches("b'").trim_end_matches('\'');
+                if let Some(literal_char) = content.chars().next() {
+                    let scalar_literal = self.tree.allocate(
+                        ScalarLiteral::Byte(literal_char as u8),
+                        self.get_span_from(start),
+                    );
+                    Ok(scalar_literal)
+                } else {
+                    Err(ParseError::UnexpectedToken(literal_span.span))
+                }
+            }
+
+            // string literal (ignore quotes)
+            RawLiteralType::String { is_terminated } => {
+                if !is_terminated {
+                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                }
+                let content = literal_str.trim_start_matches('"').trim_end_matches('"');
+                let string_id = self.strings.intern(content);
+                let scalar_literal = self
+                    .tree
+                    .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
+                Ok(scalar_literal)
+            }
+
+            // byte string literal (ignore quotes)
+            RawLiteralType::ByteString { is_terminated } => {
+                if !is_terminated {
+                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                }
+                let content = literal_str.trim_start_matches("b\"").trim_end_matches('"');
+                let bytes = content.as_bytes().to_vec();
+                let scalar_literal = self
+                    .tree
+                    .allocate(ScalarLiteral::ByteString(bytes), self.get_span_from(start));
+                Ok(scalar_literal)
+            }
+
+            // raw string literal (ignore quotes and hashes)
+            RawLiteralType::RawString { hashes } => {
+                if let Some(hashes) = hashes {
+                    let num_hashes = hashes as usize;
+                    let prefix_len = 1 /* r */ + num_hashes + 1 /* opening " */;
+                    let suffix_len = 1 /* closing " */ + num_hashes;
+                    if literal_str.len() < prefix_len + suffix_len {
                         return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
-                    // strip underscores for parsing
-                    let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
-                        Cow::Owned(literal_str.replace('_', ""))
-                    } else {
-                        Cow::Borrowed(literal_str)
-                    };
-                    // handle base-specific prefixes
-                    let parsed_int = match base {
-                        NumberBase::Decimal => cleaned_str.parse::<i64>(),
-                        NumberBase::Binary => {
-                            // strip leading 0b
-                            let body = cleaned_str.trim_start_matches("0b");
-                            i64::from_str_radix(body, 2)
-                        }
-                        NumberBase::Octal => {
-                            let body = cleaned_str.trim_start_matches("0o");
-                            i64::from_str_radix(body, 8)
-                        }
-                        NumberBase::Hexadecimal => {
-                            let body = cleaned_str.trim_start_matches("0x");
-                            i64::from_str_radix(body, 16)
-                        }
-                    };
-                    match parsed_int {
-                        Ok(value) => {
-                            let scalar_literal = self.tree.allocate(
-                                ScalarLiteral::Integer(value, IntType::INT32),
-                                self.get_span_from(start),
-                            );
-                            Ok(scalar_literal)
-                        }
-                        Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
-                    }
-                }
-
-                // float literal
-                RawLiteralType::Float {
-                    base: _,
-                    is_empty_exponent,
-                } => {
-                    if is_empty_exponent {
-                        return Err(ParseError::UnexpectedToken(literal_span.span));
-                    }
-                    let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
-                        Cow::Owned(literal_str.replace('_', ""))
-                    } else {
-                        Cow::Borrowed(literal_str)
-                    };
-                    let parsed_float = cleaned_str.parse::<f64>();
-                    match parsed_float {
-                        Ok(value) => {
-                            let scalar_literal = self.tree.allocate(
-                                ScalarLiteral::Float(value, FloatType::Float64),
-                                self.get_span_from(start),
-                            );
-                            Ok(scalar_literal)
-                        }
-                        Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
-                    }
-                }
-
-                // character literal (ignore quotes)
-                RawLiteralType::Character { is_terminated } => {
-                    if !is_terminated {
-                        return Err(ParseError::UnexpectedToken(literal_span.span));
-                    }
-                    let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
-                    if let Some(literal_char) = content.chars().next() {
-                        let scalar_literal = self.tree.allocate(
-                            ScalarLiteral::Character(literal_char),
-                            self.get_span_from(start),
-                        );
-                        Ok(scalar_literal)
-                    } else {
-                        Err(ParseError::UnexpectedToken(literal_span.span))
-                    }
-                }
-
-                // byte character literal (ignore quotes)
-                RawLiteralType::Byte { is_terminated } => {
-                    if !is_terminated {
-                        return Err(ParseError::UnexpectedToken(literal_span.span));
-                    }
-                    let content = literal_str.trim_start_matches("b'").trim_end_matches('\'');
-                    if let Some(literal_char) = content.chars().next() {
-                        let scalar_literal = self.tree.allocate(
-                            ScalarLiteral::Byte(literal_char as u8),
-                            self.get_span_from(start),
-                        );
-                        Ok(scalar_literal)
-                    } else {
-                        Err(ParseError::UnexpectedToken(literal_span.span))
-                    }
-                }
-
-                // string literal (ignore quotes)
-                RawLiteralType::String { is_terminated } => {
-                    if !is_terminated {
-                        return Err(ParseError::UnexpectedToken(literal_span.span));
-                    }
-                    let content = literal_str.trim_start_matches('"').trim_end_matches('"');
+                    let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                     let string_id = self.strings.intern(content);
                     let scalar_literal = self
                         .tree
                         .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
                     Ok(scalar_literal)
+                } else {
+                    Err(ParseError::UnexpectedToken(literal_span.span))
                 }
+            }
 
-                // byte string literal (ignore quotes)
-                RawLiteralType::ByteString { is_terminated } => {
-                    if !is_terminated {
+            // raw byte string literal (ignore quotes and hashes)
+            RawLiteralType::RawByteString { hashes } => {
+                if let Some(hashes) = hashes {
+                    let num_hashes = hashes as usize;
+                    let prefix_len = 2 /* br */ + num_hashes + 1 /* opening " */;
+                    let suffix_len = 1 /* closing " */ + num_hashes;
+                    if literal_str.len() < prefix_len + suffix_len {
                         return Err(ParseError::UnexpectedToken(literal_span.span));
                     }
-                    let content = literal_str.trim_start_matches("b\"").trim_end_matches('"');
+                    let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                     let bytes = content.as_bytes().to_vec();
                     let scalar_literal = self
                         .tree
                         .allocate(ScalarLiteral::ByteString(bytes), self.get_span_from(start));
                     Ok(scalar_literal)
-                }
-
-                // raw string literal (ignore quotes and hashes)
-                RawLiteralType::RawString { hashes } => {
-                    if let Some(hashes) = hashes {
-                        let num_hashes = hashes as usize;
-                        let prefix_len = 1 /* r */ + num_hashes + 1 /* opening " */;
-                        let suffix_len = 1 /* closing " */ + num_hashes;
-                        if literal_str.len() < prefix_len + suffix_len {
-                            return Err(ParseError::UnexpectedToken(literal_span.span));
-                        }
-                        let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
-                        let string_id = self.strings.intern(content);
-                        let scalar_literal = self
-                            .tree
-                            .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
-                        Ok(scalar_literal)
-                    } else {
-                        Err(ParseError::UnexpectedToken(literal_span.span))
-                    }
-                }
-
-                // raw byte string literal (ignore quotes and hashes)
-                RawLiteralType::RawByteString { hashes } => {
-                    if let Some(hashes) = hashes {
-                        let num_hashes = hashes as usize;
-                        let prefix_len = 2 /* br */ + num_hashes + 1 /* opening " */;
-                        let suffix_len = 1 /* closing " */ + num_hashes;
-                        if literal_str.len() < prefix_len + suffix_len {
-                            return Err(ParseError::UnexpectedToken(literal_span.span));
-                        }
-                        let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
-                        let bytes = content.as_bytes().to_vec();
-                        let scalar_literal = self
-                            .tree
-                            .allocate(ScalarLiteral::ByteString(bytes), self.get_span_from(start));
-                        Ok(scalar_literal)
-                    } else {
-                        Err(ParseError::UnexpectedToken(literal_span.span))
-                    }
+                } else {
+                    Err(ParseError::UnexpectedToken(literal_span.span))
                 }
             }
         }
@@ -323,7 +306,22 @@ impl<'a> Parser<'a> {
     pub fn eat_tuple_literal(&mut self) -> ParseResult<NodeId<TupleLiteral>> {
         let start = self.mark();
         self.eat_token(TokenType::OpenParenthesis)?;
-        let mut elements: Vec<NodeId<Expression>> = vec![];
+        self.eat_newlines_maybe()?;
+
+        // empty tuple
+        if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            self.eat_token(TokenType::CloseParenthesis)?;
+            let tuple_literal = self
+                .tree
+                .allocate(TupleLiteral { elements: vec![] }, self.get_span_from(start));
+            return Ok(tuple_literal);
+        }
+
+        // parse first element
+        let first_element = self.eat_expression()?;
+
+        // parse remaining elements separated by comma or newline, allow trailing comma
+        let mut elements: Vec<NodeId<Expression>> = vec![first_element];
         while self.peek_item_stop().is_ok() {
             self.eat_item_stop()?;
             if self.peek_token(TokenType::CloseParenthesis).is_ok() {
@@ -414,12 +412,13 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{ArrayLiteral, Expression, FloatType, IntType, Parser, ScalarLiteral};
+    use crate::{
+        ArrayLiteral, Expression, FloatType, IntType, Parser, ScalarLiteral, TupleLiteral,
+    };
 
     #[test]
     fn test_scalar_literal() {
         let input = r###"
-true
 1
 731
 0x1234
@@ -438,12 +437,6 @@ br##"a#b#c"##
         "###;
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
-        // true
-        let literal_id = parser.eat_scalar_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        assert_eq!(*literal, ScalarLiteral::Boolean(true));
         parser.eat_newline().unwrap();
 
         // 1
@@ -720,6 +713,140 @@ br##"a#b#c"##
                 };
             }
             _ => panic!("expected repeated array"),
+        }
+        parser.eat_newline().unwrap();
+    }
+
+    #[test]
+    fn test_tuple_literal() {
+        let input = r###"
+(1, )
+(10, false, "Hi")
+(
+  1.0
+  2.0
+  3.0
+)
+        "###;
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
+
+        // (1, )
+        let literal_id = parser.eat_tuple_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        let TupleLiteral { elements } = literal;
+        {
+            assert_eq!(elements.len(), 1);
+            // [0] = 1
+            let element_0 = parser.tree.get(elements[0]);
+            match element_0 {
+                &Expression::ScalarLiteral(scalar_literal_id) => {
+                    let scalar_literal = parser.tree.get(scalar_literal_id);
+                    match scalar_literal {
+                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
+                        _ => panic!("expected integer"),
+                    }
+                }
+                _ => panic!("expected scalar literal"),
+            };
+        }
+        parser.eat_newline().unwrap();
+
+        // (10, false, "Hi")
+        let literal_id = parser.eat_tuple_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        let TupleLiteral { elements } = literal;
+        {
+            assert_eq!(elements.len(), 3);
+            // [0] = 10
+            let element_0 = parser.tree.get(elements[0]);
+            match element_0 {
+                &Expression::ScalarLiteral(scalar_literal_id) => {
+                    let scalar_literal = parser.tree.get(scalar_literal_id);
+                    match scalar_literal {
+                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 10),
+                        _ => panic!("expected integer"),
+                    }
+                }
+                _ => panic!("expected scalar literal"),
+            };
+            // [1] = false
+            let element_1 = parser.tree.get(elements[1]);
+            match element_1 {
+                &Expression::ScalarLiteral(scalar_literal_id) => {
+                    let scalar_literal = parser.tree.get(scalar_literal_id);
+                    match scalar_literal {
+                        ScalarLiteral::Boolean(b) => assert!(!(*b)),
+                        _ => panic!("expected boolean"),
+                    }
+                }
+                _ => panic!("expected scalar literal"),
+            };
+            // [2] = "Hi"
+            let element_2 = parser.tree.get(elements[2]);
+            match element_2 {
+                &Expression::ScalarLiteral(scalar_literal_id) => {
+                    let scalar_literal = parser.tree.get(scalar_literal_id);
+                    match scalar_literal {
+                        ScalarLiteral::String(string_id) => {
+                            let expected_string_id = parser.strings.intern("Hi");
+                            assert_eq!(*string_id, expected_string_id);
+                        }
+                        _ => panic!("expected string"),
+                    }
+                }
+                _ => panic!("expected scalar literal"),
+            };
+        }
+        parser.eat_newline().unwrap();
+
+        // (
+        //   1.0
+        //   2.0
+        //   3.0
+        // )
+        let literal_id = parser.eat_tuple_literal().unwrap();
+        let literal = parser.tree.get(literal_id);
+        let TupleLiteral { elements } = literal;
+        {
+            assert_eq!(elements.len(), 3);
+            // [0] = 1.0
+            let element_0 = parser.tree.get(elements[0]);
+            match element_0 {
+                &Expression::ScalarLiteral(scalar_literal_id) => {
+                    let scalar_literal = parser.tree.get(scalar_literal_id);
+                    match scalar_literal {
+                        ScalarLiteral::Float(f, _) => assert_eq!(*f, 1.0),
+                        _ => panic!("expected float"),
+                    }
+                }
+                _ => panic!("expected scalar literal"),
+            };
+            // [1] = 2.0
+            let element_1 = parser.tree.get(elements[1]);
+            match element_1 {
+                &Expression::ScalarLiteral(scalar_literal_id) => {
+                    let scalar_literal = parser.tree.get(scalar_literal_id);
+                    match scalar_literal {
+                        ScalarLiteral::Float(f, _) => assert_eq!(*f, 2.0),
+                        _ => panic!("expected float"),
+                    }
+                }
+                _ => panic!("expected scalar literal"),
+            };
+            // [2] = 3.0
+            let element_2 = parser.tree.get(elements[2]);
+            match element_2 {
+                &Expression::ScalarLiteral(scalar_literal_id) => {
+                    let scalar_literal = parser.tree.get(scalar_literal_id);
+                    match scalar_literal {
+                        ScalarLiteral::Float(f, _) => assert_eq!(*f, 3.0),
+                        _ => panic!("expected float"),
+                    }
+                }
+                _ => panic!("expected scalar literal"),
+            };
         }
         parser.eat_newline().unwrap();
     }

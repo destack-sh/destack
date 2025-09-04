@@ -9,16 +9,17 @@ use crate::{
 
 impl BinaryOperator {
     /// Get the precedence of the binary operator.
+    #[inline]
     pub fn precedence(&self) -> OperatorPrecedence {
         match self {
-            // arithmetic - multiplication
+            // multiplication
             BinaryOperator::Multiply => OperatorPrecedence::Multiplication,
             BinaryOperator::WrappingMultiply => OperatorPrecedence::Multiplication,
             BinaryOperator::SaturatingMultiply => OperatorPrecedence::Multiplication,
             BinaryOperator::Divide => OperatorPrecedence::Multiplication,
             BinaryOperator::Remainder => OperatorPrecedence::Multiplication,
 
-            // arithmetic - addition
+            // addition
             BinaryOperator::Add => OperatorPrecedence::Addition,
             BinaryOperator::WrappingAdd => OperatorPrecedence::Addition,
             BinaryOperator::SaturatingAdd => OperatorPrecedence::Addition,
@@ -33,8 +34,8 @@ impl BinaryOperator {
 
             // bitwise
             BinaryOperator::BitwiseAnd => OperatorPrecedence::Bitwise,
-            BinaryOperator::BitwiseOr => OperatorPrecedence::Bitwise,
             BinaryOperator::BitwiseXor => OperatorPrecedence::Bitwise,
+            BinaryOperator::BitwiseOr => OperatorPrecedence::Bitwise,
 
             // comparison
             BinaryOperator::Equal => OperatorPrecedence::Comparison,
@@ -51,20 +52,33 @@ impl BinaryOperator {
     }
 
     /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
+    #[inline]
     pub fn from_token_type(token_type: TokenType) -> Option<BinaryOperator> {
         match token_type {
-            // arithmetic
+            // multiplication
+            TokenType::Multiply => Some(BinaryOperator::Multiply),
+            TokenType::WrappingMultiply => Some(BinaryOperator::WrappingMultiply),
+            TokenType::SaturatingMultiply => Some(BinaryOperator::SaturatingMultiply),
+            TokenType::Divide => Some(BinaryOperator::Divide),
+            TokenType::Remainder => Some(BinaryOperator::Remainder),
+
+            // addition
             TokenType::Add => Some(BinaryOperator::Add),
             TokenType::WrappingAdd => Some(BinaryOperator::WrappingAdd),
             TokenType::SaturatingAdd => Some(BinaryOperator::SaturatingAdd),
             TokenType::Subtract => Some(BinaryOperator::Subtract),
             TokenType::WrappingSubtract => Some(BinaryOperator::WrappingSubtract),
             TokenType::SaturatingSubtract => Some(BinaryOperator::SaturatingSubtract),
-            TokenType::Multiply => Some(BinaryOperator::Multiply),
-            TokenType::WrappingMultiply => Some(BinaryOperator::WrappingMultiply),
-            TokenType::SaturatingMultiply => Some(BinaryOperator::SaturatingMultiply),
-            TokenType::Divide => Some(BinaryOperator::Divide),
-            TokenType::Remainder => Some(BinaryOperator::Remainder),
+
+            // shift
+            TokenType::ShiftLeft => Some(BinaryOperator::ShiftLeft),
+            TokenType::SaturatingShiftLeft => Some(BinaryOperator::SaturatingShiftLeft),
+            TokenType::ShiftRight => Some(BinaryOperator::ShiftRight),
+
+            // bitwise
+            TokenType::BitwiseAnd => Some(BinaryOperator::BitwiseAnd),
+            TokenType::BitwiseXor => Some(BinaryOperator::BitwiseXor),
+            TokenType::BitwiseOr => Some(BinaryOperator::BitwiseOr),
 
             // comparison
             TokenType::Equal => Some(BinaryOperator::Equal),
@@ -78,33 +92,38 @@ impl BinaryOperator {
             TokenType::LogicalAnd => Some(BinaryOperator::LogicalAnd),
             TokenType::LogicalOr => Some(BinaryOperator::LogicalOr),
 
-            // bitwise
-            TokenType::BitwiseAnd => Some(BinaryOperator::BitwiseAnd),
-            TokenType::BitwiseOr => Some(BinaryOperator::BitwiseOr),
-            TokenType::BitwiseXor => Some(BinaryOperator::BitwiseXor),
-            TokenType::ShiftLeft => Some(BinaryOperator::ShiftLeft),
-            TokenType::SaturatingShiftLeft => Some(BinaryOperator::SaturatingShiftLeft),
-            TokenType::ShiftRight => Some(BinaryOperator::ShiftRight),
-
             _ => None,
         }
     }
 
     /// Convert a BinaryOperator to a TokenType (if a direct mapping exists).
+    #[inline]
     pub fn as_token_type(&self) -> Option<TokenType> {
         match self {
-            // arithmetic
+            // multiplication
+            BinaryOperator::Multiply => Some(TokenType::Multiply),
+            BinaryOperator::WrappingMultiply => Some(TokenType::WrappingMultiply),
+            BinaryOperator::SaturatingMultiply => Some(TokenType::SaturatingMultiply),
+            BinaryOperator::Divide => Some(TokenType::Divide),
+            BinaryOperator::Remainder => Some(TokenType::Remainder),
+
+            // addition
             BinaryOperator::Add => Some(TokenType::Add),
             BinaryOperator::WrappingAdd => Some(TokenType::WrappingAdd),
             BinaryOperator::SaturatingAdd => Some(TokenType::SaturatingAdd),
             BinaryOperator::Subtract => Some(TokenType::Subtract),
             BinaryOperator::WrappingSubtract => Some(TokenType::WrappingSubtract),
             BinaryOperator::SaturatingSubtract => Some(TokenType::SaturatingSubtract),
-            BinaryOperator::Multiply => Some(TokenType::Multiply),
-            BinaryOperator::WrappingMultiply => Some(TokenType::WrappingMultiply),
-            BinaryOperator::SaturatingMultiply => Some(TokenType::SaturatingMultiply),
-            BinaryOperator::Divide => Some(TokenType::Divide),
-            BinaryOperator::Remainder => Some(TokenType::Remainder),
+
+            // shift
+            BinaryOperator::ShiftLeft => Some(TokenType::ShiftLeft),
+            BinaryOperator::SaturatingShiftLeft => Some(TokenType::SaturatingShiftLeft),
+            BinaryOperator::ShiftRight => Some(TokenType::ShiftRight),
+
+            // bitwise
+            BinaryOperator::BitwiseAnd => Some(TokenType::BitwiseAnd),
+            BinaryOperator::BitwiseXor => Some(TokenType::BitwiseXor),
+            BinaryOperator::BitwiseOr => Some(TokenType::BitwiseOr),
 
             // comparison
             BinaryOperator::Equal => Some(TokenType::Equal),
@@ -117,17 +136,45 @@ impl BinaryOperator {
             // logical
             BinaryOperator::LogicalAnd => Some(TokenType::LogicalAnd),
             BinaryOperator::LogicalOr => Some(TokenType::LogicalOr),
-
-            // bitwise
-            BinaryOperator::BitwiseAnd => Some(TokenType::BitwiseAnd),
-            BinaryOperator::BitwiseOr => Some(TokenType::BitwiseOr),
-            BinaryOperator::BitwiseXor => Some(TokenType::BitwiseXor),
-            BinaryOperator::ShiftLeft => Some(TokenType::ShiftLeft),
-            BinaryOperator::SaturatingShiftLeft => Some(TokenType::SaturatingShiftLeft),
-            BinaryOperator::ShiftRight => Some(TokenType::ShiftRight),
         }
     }
 }
+
+impl UnaryOperator {
+    /// Get the precedence of the unary operator.
+    #[inline]
+    pub fn precedence(&self) -> OperatorPrecedence {
+        OperatorPrecedence::Prefix
+    }
+
+    /// Convert a TokenType to a UnaryOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_token_type(token_type: TokenType) -> Option<UnaryOperator> {
+        match token_type {
+            TokenType::Bang => Some(UnaryOperator::LogicalNot),
+            TokenType::Subtract => Some(UnaryOperator::Negate),
+            TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
+            TokenType::Multiply => Some(UnaryOperator::Dereference),
+            TokenType::BitwiseAnd => Some(UnaryOperator::Reference),
+            TokenType::BitwiseNot => Some(UnaryOperator::BitwiseNot),
+            _ => None,
+        }
+    }
+
+    /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
+    #[inline]
+    pub fn as_token_type(&self) -> Option<TokenType> {
+        match self {
+            UnaryOperator::LogicalNot => Some(TokenType::Bang),
+            UnaryOperator::Negate => Some(TokenType::Subtract),
+            UnaryOperator::WrappingNegate => Some(TokenType::WrappingSubtract),
+            UnaryOperator::Dereference => Some(TokenType::Multiply),
+            UnaryOperator::Reference => Some(TokenType::BitwiseAnd),
+            UnaryOperator::BitwiseNot => Some(TokenType::BitwiseNot),
+        }
+    }
+}
+
 
 impl<'a> Parser<'a> {
     /// Eat an expression.
@@ -149,17 +196,20 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
+        // unary operations
         let unary_operator: Option<UnaryOperator> = {
             if self.peek_token(TokenType::Bang).is_ok() {
                 Some(UnaryOperator::LogicalNot)
             } else if self.peek_token(TokenType::Subtract).is_ok() {
                 Some(UnaryOperator::Negate)
-            } else if self.peek_token(TokenType::Tilde).is_ok() {
+            } else if self.peek_token(TokenType::WrappingSubtract).is_ok() {
+                Some(UnaryOperator::WrappingNegate)
+            } else if self.peek_token(TokenType::BitwiseNot).is_ok() {
                 Some(UnaryOperator::BitwiseNot)
-            } else if self.peek_token(TokenType::BitwiseAnd).is_ok() {
-                Some(UnaryOperator::Reference)
             } else if self.peek_token(TokenType::Multiply).is_ok() {
                 Some(UnaryOperator::Dereference)
+            } else if self.peek_token(TokenType::BitwiseAnd).is_ok() {
+                Some(UnaryOperator::Reference)
             } else if self.peek_token(TokenType::At).is_ok() {
                 todo!("mark function or call as static?")
             } else {
@@ -168,7 +218,7 @@ impl<'a> Parser<'a> {
         };
         if let Some(unary_operator) = unary_operator {
             let rhs = self.eat_expression()?;
-            let expression = Expression::UnaryOperation {
+            let expression = Expression::Unary {
                 operator: unary_operator,
                 rhs,
             };
@@ -176,6 +226,7 @@ impl<'a> Parser<'a> {
             return Ok(expression_id);
         }
 
+        // primary expressions (no infix operations)
         let expression = {
             //
             // ------------------------------------------------------------

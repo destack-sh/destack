@@ -51,7 +51,7 @@ impl Token {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
-            TokenType::RawLiteral => {
+            TokenType::Literal => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
@@ -75,7 +75,7 @@ impl Token {
             // Symbols
             TokenType::At => "@".to_string(),
             TokenType::Pound => "#".to_string(),
-            TokenType::Tilde => "~".to_string(),
+            TokenType::BitwiseNot => "~".to_string(),
             TokenType::Question => "?".to_string(),
             TokenType::Dollar => "$".to_string(),
             TokenType::Bang => "!".to_string(),
