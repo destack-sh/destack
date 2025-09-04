@@ -285,7 +285,8 @@ impl<'a> Parser<'a> {
             } else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 let tuple_literal = self.eat_tuple_literal()?;
                 Expression::TupleLiteral(tuple_literal)
-            // TODO: parse struct literals (postfix to avoid unbounded lookahead)
+            // todo!: parse struct literals (postfix to avoid unbounded lookahead?)
+            //  (also for patterns?)
             // scalar
             } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
@@ -339,7 +340,7 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
-        // nocheckin: infix binary operations
+        // todo!: infix binary operations
 
         Ok(expression_id)
     }

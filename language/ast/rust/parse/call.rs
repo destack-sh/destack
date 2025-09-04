@@ -47,18 +47,27 @@ impl<'a> Parser<'a> {
         receiver_id: NodeId<Expression>,
     ) -> ParseResult<NodeId<Call>> {
         let start = self.mark();
-        // static arguments
+        // static arguments (may not exist or be empty)
         let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
             self.eat_token(TokenType::LessThan)?;
-            let static_arguments = self.eat_arguments_body()?;
-            self.eat_token(TokenType::GreaterThan)?;
-            Some(static_arguments)
+            if self.peek_token(TokenType::GreaterThan).is_ok() {
+                self.eat_token(TokenType::GreaterThan)?;
+                None
+            } else {
+                let static_arguments = self.eat_arguments_body()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                Some(static_arguments)
+            }
         } else {
             None
         };
-        // dynamic arguments
+        // dynamic arguments (may be empty)
         self.eat_token(TokenType::OpenParenthesis)?;
-        let dynamic_arguments = self.eat_arguments_body()?;
+        let dynamic_arguments = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            vec![]
+        } else {
+            self.eat_arguments_body()?
+        };
         self.eat_token(TokenType::CloseParenthesis)?;
         // call
         let call_id = self.tree.allocate(
@@ -195,6 +204,64 @@ mod tests {
             }
             _ => panic!("expected named argument"),
         }
+    }
+
+    #[test]
+    fn test_parse_call_postfix_empty() {
+        let input = "()";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let recv = make_dummy_receiver(&mut parser);
+
+        let call_id = parser.eat_call_postfix(recv).unwrap();
+        let call = parser.tree.get(call_id);
+
+        assert_eq!(call.receiver, recv);
+        assert_eq!(call.runtime, FunctionRuntime::Dynamic);
+        assert_eq!(call.dynamic_arguments.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_call_postfix_multiline_dynamic() {
+        let input = "(\n1\nx: 2\n)";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let recv = make_dummy_receiver(&mut parser);
+
+        let call_id = parser.eat_call_postfix(recv).unwrap();
+        let call = parser.tree.get(call_id);
+
+        assert!(call.static_arguments.is_none());
+        assert!(call.dynamic_arguments.len() >= 2);
+
+        // find positional integer 1 among dynamic args
+        let mut found_positional_one = false;
+        let mut found_named_x_two = false;
+        for arg_id in &call.dynamic_arguments {
+            match parser.tree.get(*arg_id) {
+                Argument::Positional { value } => {
+                    if let Expression::ScalarLiteral(lit_id) = parser.tree.get(*value) {
+                        match parser.tree.get(*lit_id) {
+                            ScalarLiteral::Integer(n, _) if *n == 1 => found_positional_one = true,
+                            _ => {}
+                        }
+                    }
+                }
+                Argument::Named { name, value } => {
+                    if *name == parser.strings.intern("x")
+                        && let Expression::ScalarLiteral(lit_id) = parser.tree.get(*value)
+                    {
+                        match parser.tree.get(*lit_id) {
+                            ScalarLiteral::Integer(n, _) if *n == 2 => found_named_x_two = true,
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        assert!(found_positional_one, "missing positional integer 1");
+        assert!(found_named_x_two, "missing named x: 2");
     }
 
     #[test]

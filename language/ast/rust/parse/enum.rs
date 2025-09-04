@@ -1,4 +1,4 @@
-//! Parse unions and enums (which are just sugar for unions).
+//! Parse enums.
 
 use destack_language_token::TokenType;
 
