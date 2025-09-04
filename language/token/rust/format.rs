@@ -95,8 +95,8 @@ impl Token {
             // Comparison
             TokenType::GreaterThan => ">".to_string(),
             TokenType::LessThan => "<".to_string(),
-            TokenType::GreaterThanEqual => ">=".to_string(),
-            TokenType::LessThanEqual => "<=".to_string(),
+            TokenType::GreaterThanOrEqual => ">=".to_string(),
+            TokenType::LessThanOrEqual => "<=".to_string(),
             TokenType::Equal => "==".to_string(),
             TokenType::NotEqual => "!=".to_string(),
 

@@ -181,9 +181,9 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::Bang
         | K::Empty
         | K::LessThan
-        | K::LessThanEqual
+        | K::LessThanOrEqual
         | K::GreaterThan
-        | K::GreaterThanEqual
+        | K::GreaterThanOrEqual
         | K::Equal
         | K::NotEqual
         | K::BitwiseOr
