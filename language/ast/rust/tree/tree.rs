@@ -5,10 +5,10 @@ use destack_language_token::Span;
 
 use crate::{
     Argument, ArrayLiteral, Assign, Block, Break, Call, Cast, Continue, Defer, Doc, Enum,
-    EnumField, Expression, FieldLiteral, For, Function, FunctionSignature, If, Implement, Index,
-    Let, Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, Return,
-    ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField,
-    TupleLiteral, Type, Union, UnionField, Using, UsingClause, UsingItem, While,
+    EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match,
+    MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, Return, ScalarLiteral,
+    Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral,
+    Type, Union, UnionField, Using, UsingClause, UsingItem, While,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -63,7 +63,6 @@ pub struct NodeTree {
     tuples: NodeArena<Tuple>,
     tuple_fields: NodeArena<TupleField>,
     functions: NodeArena<Function>,
-    function_signatures: NodeArena<FunctionSignature>,
     // using
     usings: NodeArena<Using>,
     using_clauses: NodeArena<UsingClause>,
@@ -149,7 +148,6 @@ impl NodeTree {
             tuples: NodeArena::new(),
             tuple_fields: NodeArena::new(),
             functions: NodeArena::new(),
-            function_signatures: NodeArena::new(),
             // using
             usings: NodeArena::new(),
             using_clauses: NodeArena::new(),
@@ -401,7 +399,6 @@ impl_node_tree_stores! {
     Tuple => tuples,
     TupleField => tuple_fields,
     Function => functions,
-    FunctionSignature => function_signatures,
     // using
     Using => usings,
     UsingClause => using_clauses,

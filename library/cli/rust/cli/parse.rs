@@ -254,7 +254,9 @@ fn get_token_color(kind: TokenType) -> &'static str {
         | TokenType::WrappingMultiplyAssign
         | TokenType::SaturatingMultiplyAssign
         | TokenType::DivideAssign
-        | TokenType::RemainderAssign => "91", // bright red
+        | TokenType::RemainderAssign
+        | TokenType::LogicalAndAssign
+        | TokenType::LogicalOrAssign => "91", // bright red
 
         // comparison
         TokenType::GreaterThan
@@ -267,7 +269,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         // identifiers and literals
         TokenType::Identifier => "36",        // cyan
         TokenType::InvalidIdentifier => "31", // red
-        TokenType::Literal => "35",        // magenta
+        TokenType::Literal => "35",           // magenta
 
         // unknown/error tokens
         TokenType::Unknown | TokenType::UnknownLiteralPrefix => "31", // red

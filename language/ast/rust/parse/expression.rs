@@ -3,14 +3,14 @@
 use destack_language_token::TokenType;
 
 use crate::{
-    BinaryOperator, Expression, Keyword, NodeId, OperatorPrecedence, ParseResult, Parser,
-    UnaryOperator,
+    Assign, AssignOperator, BinaryOperator, Expression, Keyword, NodeId, OperatorPrecedence,
+    ParseError, ParseResult, Parser, UnaryOperator,
 };
 
 impl BinaryOperator {
     /// Get the precedence of the binary operator.
     #[inline]
-    pub fn precedence(&self) -> OperatorPrecedence {
+    pub fn precedence_group(&self) -> OperatorPrecedence {
         match self {
             // multiplication
             BinaryOperator::Multiply => OperatorPrecedence::Multiplication,
@@ -49,6 +49,12 @@ impl BinaryOperator {
             BinaryOperator::LogicalAnd => OperatorPrecedence::Logical,
             BinaryOperator::LogicalOr => OperatorPrecedence::Logical,
         }
+    }
+
+    /// Get the precedence of the binary operator.
+    pub fn precedence(self) -> u8 {
+        // just transmute the enum value to an u8
+        self as u8
     }
 
     /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
@@ -143,8 +149,15 @@ impl BinaryOperator {
 impl UnaryOperator {
     /// Get the precedence of the unary operator.
     #[inline]
-    pub fn precedence(&self) -> OperatorPrecedence {
+    pub fn precedence_group(&self) -> OperatorPrecedence {
         OperatorPrecedence::Prefix
+    }
+
+    /// Get the precedence of the unary operator.
+    #[inline]
+    pub fn precedence(self) -> u8 {
+        // just transmute the enum value to an u8
+        self as u8
     }
 
     /// Convert a TokenType to a UnaryOperator (if a direct mapping exists).
@@ -175,8 +188,143 @@ impl UnaryOperator {
     }
 }
 
+impl AssignOperator {
+    /// Get the precedence of the assignment type.
+    #[inline]
+    pub fn precedence_group(&self) -> OperatorPrecedence {
+        match self {
+            // assignment
+            AssignOperator::Assign => OperatorPrecedence::Assignment,
+
+            // assignment multiplication
+            AssignOperator::MultiplyAssign
+            | AssignOperator::WrappingMultiplyAssign
+            | AssignOperator::SaturatingMultiplyAssign
+            | AssignOperator::DivideAssign
+            | AssignOperator::RemainderAssign => OperatorPrecedence::AssignmentMultiplication,
+
+            // assignment addition
+            AssignOperator::AddAssign
+            | AssignOperator::WrappingAddAssign
+            | AssignOperator::SaturatingAddAssign
+            | AssignOperator::SubtractAssign
+            | AssignOperator::WrappingSubtractAssign
+            | AssignOperator::SaturatingSubtractAssign => OperatorPrecedence::AssignmentAddition,
+
+            // assignment shift
+            AssignOperator::ShiftLeftAssign
+            | AssignOperator::SaturatingShiftLeftAssign
+            | AssignOperator::ShiftRightAssign => OperatorPrecedence::AssignmentShift,
+
+            // assignment bitwise
+            AssignOperator::BitwiseAndAssign
+            | AssignOperator::BitwiseXorAssign
+            | AssignOperator::BitwiseOrAssign => OperatorPrecedence::AssignmentBitwise,
+
+            // assignment logical
+            AssignOperator::LogicalAndAssign | AssignOperator::LogicalOrAssign => {
+                OperatorPrecedence::AssignmentLogical
+            }
+        }
+    }
+
+    /// Get the precedence of the assignment type.
+    #[inline]
+    pub fn precedence(self) -> u8 {
+        // just transmute the enum value to an u8
+        self as u8
+    }
+
+    /// Convert a TokenType to an AssignOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_token_type(token_type: TokenType) -> Option<AssignOperator> {
+        match token_type {
+            TokenType::Assign => Some(AssignOperator::Assign),
+
+            // addition
+            TokenType::AddAssign => Some(AssignOperator::AddAssign),
+            TokenType::WrappingAddAssign => Some(AssignOperator::WrappingAddAssign),
+            TokenType::SaturatingAddAssign => Some(AssignOperator::SaturatingAddAssign),
+            TokenType::SubtractAssign => Some(AssignOperator::SubtractAssign),
+            TokenType::WrappingSubtractAssign => Some(AssignOperator::WrappingSubtractAssign),
+            TokenType::SaturatingSubtractAssign => Some(AssignOperator::SaturatingSubtractAssign),
+
+            // multiplication
+            TokenType::MultiplyAssign => Some(AssignOperator::MultiplyAssign),
+            TokenType::WrappingMultiplyAssign => Some(AssignOperator::WrappingMultiplyAssign),
+            TokenType::SaturatingMultiplyAssign => Some(AssignOperator::SaturatingMultiplyAssign),
+            TokenType::DivideAssign => Some(AssignOperator::DivideAssign),
+            TokenType::RemainderAssign => Some(AssignOperator::RemainderAssign),
+
+            // shift
+            TokenType::ShiftLeftAssign => Some(AssignOperator::ShiftLeftAssign),
+            TokenType::SaturatingShiftLeftAssign => Some(AssignOperator::SaturatingShiftLeftAssign),
+            TokenType::ShiftRightAssign => Some(AssignOperator::ShiftRightAssign),
+
+            // bitwise
+            TokenType::BitwiseAndAssign => Some(AssignOperator::BitwiseAndAssign),
+            TokenType::BitwiseOrAssign => Some(AssignOperator::BitwiseOrAssign),
+            TokenType::BitwiseXorAssign => Some(AssignOperator::BitwiseXorAssign),
+
+            // logical
+            TokenType::LogicalAndAssign => Some(AssignOperator::LogicalAndAssign),
+            TokenType::LogicalOrAssign => Some(AssignOperator::LogicalOrAssign),
+
+            _ => None,
+        }
+    }
+
+    /// Convert an AssignOperator to a TokenType (if a direct mapping exists).
+    #[inline]
+    pub fn as_token_type(&self) -> Option<TokenType> {
+        match self {
+            AssignOperator::Assign => Some(TokenType::Assign),
+
+            // addition
+            AssignOperator::AddAssign => Some(TokenType::AddAssign),
+            AssignOperator::WrappingAddAssign => Some(TokenType::WrappingAddAssign),
+            AssignOperator::SaturatingAddAssign => Some(TokenType::SaturatingAddAssign),
+            AssignOperator::SubtractAssign => Some(TokenType::SubtractAssign),
+            AssignOperator::WrappingSubtractAssign => Some(TokenType::WrappingSubtractAssign),
+            AssignOperator::SaturatingSubtractAssign => Some(TokenType::SaturatingSubtractAssign),
+
+            // multiplication
+            AssignOperator::MultiplyAssign => Some(TokenType::MultiplyAssign),
+            AssignOperator::WrappingMultiplyAssign => Some(TokenType::WrappingMultiplyAssign),
+            AssignOperator::SaturatingMultiplyAssign => Some(TokenType::SaturatingMultiplyAssign),
+            AssignOperator::DivideAssign => Some(TokenType::DivideAssign),
+            AssignOperator::RemainderAssign => Some(TokenType::RemainderAssign),
+
+            // shift
+            AssignOperator::ShiftLeftAssign => Some(TokenType::ShiftLeftAssign),
+            AssignOperator::SaturatingShiftLeftAssign => Some(TokenType::SaturatingShiftLeftAssign),
+            AssignOperator::ShiftRightAssign => Some(TokenType::ShiftRightAssign),
+
+            // bitwise
+            AssignOperator::BitwiseAndAssign => Some(TokenType::BitwiseAndAssign),
+            AssignOperator::BitwiseOrAssign => Some(TokenType::BitwiseOrAssign),
+            AssignOperator::BitwiseXorAssign => Some(TokenType::BitwiseXorAssign),
+
+            // logical
+            AssignOperator::LogicalAndAssign => Some(TokenType::LogicalAndAssign),
+            AssignOperator::LogicalOrAssign => Some(TokenType::LogicalOrAssign),
+        }
+    }
+}
 
 impl<'a> Parser<'a> {
+    pub fn peek_binary_operator(&self) -> ParseResult<BinaryOperator> {
+        let token = self.peek()?;
+        BinaryOperator::from_token_type(token.token.r#type)
+            .ok_or(ParseError::UnexpectedToken(token.span))
+    }
+
+    pub fn peek_assign_operator(&self) -> ParseResult<AssignOperator> {
+        let token = self.peek()?;
+        AssignOperator::from_token_type(token.token.r#type)
+            .ok_or(ParseError::UnexpectedToken(token.span))
+    }
+
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
@@ -192,29 +340,15 @@ impl<'a> Parser<'a> {
 
         //
         // ------------------------------------------------------------
-        // Unary operations (prefix)
+        // 1. Unary operations (prefix)
         // ------------------------------------------------------------
         //
 
         // unary operations
-        let unary_operator: Option<UnaryOperator> = {
-            if self.peek_token(TokenType::Bang).is_ok() {
-                Some(UnaryOperator::LogicalNot)
-            } else if self.peek_token(TokenType::Subtract).is_ok() {
-                Some(UnaryOperator::Negate)
-            } else if self.peek_token(TokenType::WrappingSubtract).is_ok() {
-                Some(UnaryOperator::WrappingNegate)
-            } else if self.peek_token(TokenType::BitwiseNot).is_ok() {
-                Some(UnaryOperator::BitwiseNot)
-            } else if self.peek_token(TokenType::Multiply).is_ok() {
-                Some(UnaryOperator::Dereference)
-            } else if self.peek_token(TokenType::BitwiseAnd).is_ok() {
-                Some(UnaryOperator::Reference)
-            } else if self.peek_token(TokenType::At).is_ok() {
-                todo!("mark function or call as static?")
-            } else {
-                None
-            }
+        let unary_operator: Option<UnaryOperator> = if let Ok(token) = self.peek() {
+            UnaryOperator::from_token_type(token.token.r#type)
+        } else {
+            None
         };
         if let Some(unary_operator) = unary_operator {
             let rhs = self.eat_expression()?;
@@ -226,11 +360,13 @@ impl<'a> Parser<'a> {
             return Ok(expression_id);
         }
 
-        // primary expressions (no infix operations)
+        // ------------------------------------------------------------
+        // 2. Primary expressions (no infix operations)
+        // ------------------------------------------------------------
         let expression = {
             //
             // ------------------------------------------------------------
-            // Declarations
+            // 2a. Declarations
             // ------------------------------------------------------------
             //
             // module
@@ -270,7 +406,7 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Control flow
+            // 2b. Control flow
             // ------------------------------------------------------------
             //
             // if
@@ -325,7 +461,7 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Literals / aliases
+            // 2c. Literals / aliases
             // ------------------------------------------------------------
             //
             // array
@@ -355,7 +491,7 @@ impl<'a> Parser<'a> {
 
         //
         // ------------------------------------------------------------
-        // Postfix operations
+        // 3. Postfix operations
         // ------------------------------------------------------------
         //
 
@@ -387,12 +523,350 @@ impl<'a> Parser<'a> {
 
         //
         // ------------------------------------------------------------
-        // Infix operations
+        // 4. Assignment infix operations
+        // ------------------------------------------------------------
+        //
+
+        // assignment concludes this expression
+        if let Ok(assign_operator) = self.peek_assign_operator() {
+            self.bump();
+            let rhs = self.eat_expression()?;
+            let assign_id = self.tree.allocate(
+                Assign {
+                    lhs: expression_id,
+                    operator: assign_operator,
+                    rhs,
+                },
+                self.get_span_from(start),
+            );
+            let expression = Expression::Assign(assign_id);
+            expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            return Ok(expression_id);
+        }
+
+        //
+        // ------------------------------------------------------------
+        // 5. Binary infix operations
         // ------------------------------------------------------------
         //
 
         // todo!: infix binary operations
+        // while let Ok(binary_operator) = self.peek_binary_operator() {
+        //     // TODO @Incomplete: implement binary operator parsing
+        //     self.bump();
+        // }
 
         Ok(expression_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_language_token::{SourceFile, tokenize_semantic};
+
+    use crate::{BinaryOperator, Call, Expression, Parser, StringId};
+
+    // assert an Expression::Path with a single-segment name id
+    fn assert_path_is(
+        parser: &crate::Parser<'_>,
+        expr_id: crate::NodeId<Expression>,
+        expected: StringId,
+    ) {
+        match parser.tree.get(expr_id) {
+            &Expression::Path { path } => {
+                let p = parser.paths.get(path);
+                assert_eq!(p.segments.len(), 1);
+                assert_eq!(p.segments[0], expected);
+            }
+            other => panic!("expected path {expected:?}, got {other:?}"),
+        }
+    }
+
+    /// Addition is left associative.
+    /// a + b + c
+    /// => ((a + b) + c)
+    #[test]
+    fn test_precedence_addition_left_associative() {
+        let input = "a + b + c";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                match parser.tree.get(*lhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        assert_path_is(&parser, *lhs, a);
+                        assert_path_is(&parser, *rhs, b);
+                    }
+                    other => panic!("expected binary add, got {other:?}"),
+                }
+                assert_path_is(&parser, *rhs, c);
+            }
+            other => panic!("expected binary add, got {other:?}"),
+        }
+    }
+
+    /// Multiplication has higher precedence than addition.
+    /// a + b * c
+    /// => (a + (b * c))
+    #[test]
+    fn test_precedence_multiply_before_addition() {
+        let input = "a + b * c";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                assert_path_is(&parser, *lhs, a);
+                match parser.tree.get(*rhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Multiply);
+                        assert_path_is(&parser, *lhs, b);
+                        assert_path_is(&parser, *rhs, c);
+                    }
+                    other => panic!("expected binary multiply, got {other:?}"),
+                }
+            }
+            other => panic!("expected binary add, got {other:?}"),
+        }
+    }
+
+    /// Multiplication then addition groups multiplication first.
+    /// a * b + c
+    /// => ((a * b) + c)
+    #[test]
+    fn test_precedence_multiply_then_addition() {
+        let input = "a * b + c";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                match parser.tree.get(*lhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Multiply);
+                        assert_path_is(&parser, *lhs, a);
+                        assert_path_is(&parser, *rhs, b);
+                    }
+                    other => panic!("expected binary multiply, got {other:?}"),
+                }
+                assert_path_is(&parser, *rhs, c);
+            }
+            other => panic!("expected binary add, got {other:?}"),
+        }
+    }
+
+    /// Parentheses override operator precedence.
+    /// (a + b) * c
+    /// => ((a + b) * c)
+    #[test]
+    fn test_precedence_parentheses_override() {
+        let input = "(a + b) * c";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::Multiply);
+                match parser.tree.get(*lhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        assert_path_is(&parser, *lhs, a);
+                        assert_path_is(&parser, *rhs, b);
+                    }
+                    other => panic!("expected binary add, got {other:?}"),
+                }
+                assert_path_is(&parser, *rhs, c);
+            }
+            other => panic!("expected binary multiply, got {other:?}"),
+        }
+    }
+
+    /// Mixed precedence chain with addition and multiplication.
+    /// a + b * c + d
+    /// => ((a + (b * c)) + d)
+    #[test]
+    fn test_precedence_chain_mixed() {
+        let input = "a + b * c + d";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
+        let d = parser.strings.intern("d");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                match parser.tree.get(*lhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        assert_path_is(&parser, *lhs, a);
+                        match parser.tree.get(*rhs) {
+                            Expression::Binary { lhs, operator, rhs } => {
+                                assert_eq!(*operator, BinaryOperator::Multiply);
+                                assert_path_is(&parser, *lhs, b);
+                                assert_path_is(&parser, *rhs, c);
+                            }
+                            other => panic!("expected binary multiply, got {other:?}"),
+                        }
+                    }
+                    other => panic!("expected binary add, got {other:?}"),
+                }
+                assert_path_is(&parser, *rhs, d);
+            }
+            other => panic!("expected binary add, got {other:?}"),
+        }
+    }
+
+    /// Addition has higher precedence than bitwise or.
+    /// a + b | c + d
+    /// => ((a + b) | (c + d))
+    #[test]
+    fn test_precedence_bitwise_vs_addition() {
+        let input = "a + b | c + d";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
+        let d = parser.strings.intern("d");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::BitwiseOr);
+                match parser.tree.get(*lhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        assert_path_is(&parser, *lhs, a);
+                        assert_path_is(&parser, *rhs, b);
+                    }
+                    other => panic!("expected binary add, got {other:?}"),
+                }
+                match parser.tree.get(*rhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        assert_path_is(&parser, *lhs, c);
+                        assert_path_is(&parser, *rhs, d);
+                    }
+                    other => panic!("expected binary add, got {other:?}"),
+                }
+            }
+            other => panic!("expected binary bitwise or, got {other:?}"),
+        }
+    }
+
+    /// Comparison has higher precedence than logical and.
+    /// a == b && c == d
+    /// => ((a == b) && (c == d))
+    #[test]
+    fn test_precedence_comparison_vs_logical() {
+        let input = "a == b && c == d";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
+        let d = parser.strings.intern("d");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::LogicalAnd);
+                match parser.tree.get(*lhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Equal);
+                        assert_path_is(&parser, *lhs, a);
+                        assert_path_is(&parser, *rhs, b);
+                    }
+                    other => panic!("expected binary equal, got {other:?}"),
+                }
+                match parser.tree.get(*rhs) {
+                    Expression::Binary { lhs, operator, rhs } => {
+                        assert_eq!(*operator, BinaryOperator::Equal);
+                        assert_path_is(&parser, *lhs, c);
+                        assert_path_is(&parser, *rhs, d);
+                    }
+                    other => panic!("expected binary equal, got {other:?}"),
+                }
+            }
+            other => panic!("expected binary logical and, got {other:?}"),
+        }
+    }
+
+    /// Unary prefix has higher precedence than multiplication.
+    /// -a * b
+    /// => ((-a) * b)
+    #[test]
+    fn test_precedence_unary_before_multiply() {
+        let input = "-a * b";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::Multiply);
+                match parser.tree.get(*lhs) {
+                    Expression::Unary { operator: _, rhs } => {
+                        assert_path_is(&parser, *rhs, a);
+                    }
+                    other => panic!("expected unary on lhs, got {other:?}"),
+                }
+                assert_path_is(&parser, *rhs, b);
+            }
+            other => panic!("expected binary multiply, got {other:?}"),
+        }
+    }
+
+    /// Postfix call has higher precedence than addition.
+    /// a() + b
+    /// => (a() + b)
+    #[test]
+    fn test_precedence_postfix_call_before_add() {
+        let input = "a() + b";
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let expr_id = parser.eat_expression().unwrap();
+        let a = parser.strings.intern("a");
+        let b = parser.strings.intern("b");
+        match parser.tree.get(expr_id) {
+            Expression::Binary { lhs, operator, rhs } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                match parser.tree.get(*lhs) {
+                    &Expression::Call(call_id) => {
+                        let call = parser.tree.get(call_id);
+                        let Call {
+                            receiver,
+                            static_arguments,
+                            dynamic_arguments,
+                            ..
+                        } = call;
+                        assert!(static_arguments.is_none());
+                        assert!(dynamic_arguments.is_empty());
+                        assert_path_is(&parser, *receiver, a);
+                    }
+                    other => panic!("expected call on lhs, got {other:?}"),
+                }
+                assert_path_is(&parser, *rhs, b);
+            }
+            other => panic!("expected binary add, got {other:?}"),
+        }
     }
 }

@@ -6,7 +6,7 @@ impl Token {
     pub fn render(&self, source: &str, offset: usize) -> String {
         let len = self.len as usize;
         match self.r#type {
-            // Structural
+            // structural
             TokenType::Newline => "\n".to_string(),
             TokenType::Whitespace => {
                 // emit original slice for lexemes where we don't want to reformat
@@ -18,7 +18,7 @@ impl Token {
             }
             TokenType::End => String::new(),
 
-            // Comments
+            // comments
             TokenType::LineComment => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
@@ -36,7 +36,7 @@ impl Token {
                 source[offset..offset + len].to_string()
             }
 
-            // Identifiers
+            // identifiers / literals
             TokenType::Identifier => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
@@ -45,8 +45,6 @@ impl Token {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
             }
-
-            // Literals
             TokenType::UnknownLiteralPrefix => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
@@ -56,15 +54,19 @@ impl Token {
                 source[offset..offset + len].to_string()
             }
 
-            // Punctuation
+            // symbols
             TokenType::Colon => ":".to_string(),
             TokenType::Semicolon => ";".to_string(),
             TokenType::Comma => ",".to_string(),
             TokenType::Dot => ".".to_string(),
             TokenType::Range => "..".to_string(),
             TokenType::Ellipsis => "...".to_string(),
+            TokenType::Pound => "#".to_string(),
+            TokenType::Empty => "---".to_string(),
+            TokenType::Arrow => "=>".to_string(),
+            TokenType::BadArrow => "->".to_string(),
 
-            // Delimiters
+            // parentheses
             TokenType::OpenParenthesis => "(".to_string(),
             TokenType::CloseParenthesis => ")".to_string(),
             TokenType::OpenBrace => "{".to_string(),
@@ -72,71 +74,80 @@ impl Token {
             TokenType::OpenBracket => "[".to_string(),
             TokenType::CloseBracket => "]".to_string(),
 
-            // Symbols
             TokenType::At => "@".to_string(),
-            TokenType::Pound => "#".to_string(),
             TokenType::BitwiseNot => "~".to_string(),
             TokenType::Question => "?".to_string(),
             TokenType::Dollar => "$".to_string(),
             TokenType::Bang => "!".to_string(),
-            TokenType::Empty => "---".to_string(),
 
-            // Logical
+            // multiplication
+            TokenType::Multiply => "*".to_string(),
+            TokenType::WrappingMultiply => "*%".to_string(),
+            TokenType::SaturatingMultiply => "*|".to_string(),
+            TokenType::Divide => "/".to_string(),
+            TokenType::Remainder => "%".to_string(),
+
+            // addition
+            TokenType::Add => "+".to_string(),
+            TokenType::WrappingAdd => "+%".to_string(),
+            TokenType::SaturatingAdd => "+|".to_string(),
+            TokenType::Subtract => "-".to_string(),
+            TokenType::WrappingSubtract => "-%".to_string(),
+            TokenType::SaturatingSubtract => "-|".to_string(),
+
+            // shift
+            TokenType::ShiftLeft => "<<".to_string(),
+            TokenType::SaturatingShiftLeft => "<<|".to_string(),
+            TokenType::ShiftRight => ">>".to_string(),
+
+            // bitwise
+            TokenType::BitwiseAnd => "&".to_string(),
+            TokenType::BitwiseXor => "^".to_string(),
+            TokenType::BitwiseOr => "|".to_string(),
+
+            // comparison
+            TokenType::Equal => "==".to_string(),
+            TokenType::NotEqual => "!=".to_string(),
+            TokenType::LessThan => "<".to_string(),
+            TokenType::LessThanOrEqual => "<=".to_string(),
+            TokenType::GreaterThan => ">".to_string(),
+            TokenType::GreaterThanOrEqual => ">=".to_string(),
+
+            // logical
             TokenType::LogicalAnd => "&&".to_string(),
             TokenType::LogicalOr => "||".to_string(),
 
-            // Control Flow
-            TokenType::Arrow => "=>".to_string(),
-            TokenType::BadArrow => "->".to_string(),
-
-            // Assignment
+            // assignment
             TokenType::Assign => "=".to_string(),
 
-            // Comparison
-            TokenType::GreaterThan => ">".to_string(),
-            TokenType::LessThan => "<".to_string(),
-            TokenType::GreaterThanOrEqual => ">=".to_string(),
-            TokenType::LessThanOrEqual => "<=".to_string(),
-            TokenType::Equal => "==".to_string(),
-            TokenType::NotEqual => "!=".to_string(),
+            // assignment multiplication
+            TokenType::MultiplyAssign => "*=".to_string(),
+            TokenType::WrappingMultiplyAssign => "*%=".to_string(),
+            TokenType::SaturatingMultiplyAssign => "*|=".to_string(),
+            TokenType::DivideAssign => "/=".to_string(),
+            TokenType::RemainderAssign => "%=".to_string(),
 
-            // Bitwise
-            TokenType::BitwiseOr => "|".to_string(),
-            TokenType::BitwiseOrAssign => "|=".to_string(),
-            TokenType::BitwiseAnd => "&".to_string(),
-            TokenType::BitwiseAndAssign => "&=".to_string(),
-            TokenType::BitwiseXor => "^".to_string(),
-            TokenType::BitwiseXorAssign => "^=".to_string(),
-            TokenType::ShiftLeft => "<<".to_string(),
+            // assignment addition
+            TokenType::AddAssign => "+=".to_string(),
+            TokenType::WrappingAddAssign => "+%=".to_string(),
+            TokenType::SaturatingAddAssign => "+|=".to_string(),
+            TokenType::SubtractAssign => "-=".to_string(),
+            TokenType::WrappingSubtractAssign => "-%=".to_string(),
+            TokenType::SaturatingSubtractAssign => "-|=".to_string(),
+
+            // assignment shift
             TokenType::ShiftLeftAssign => "<<=".to_string(),
-            TokenType::SaturatingShiftLeft => "<<|".to_string(),
             TokenType::SaturatingShiftLeftAssign => "<<|=".to_string(),
-            TokenType::ShiftRight => ">>".to_string(),
             TokenType::ShiftRightAssign => ">>=".to_string(),
 
-            // Arithmetic
-            TokenType::Add => "+".to_string(),
-            TokenType::AddAssign => "+=".to_string(),
-            TokenType::WrappingAdd => "+%".to_string(),
-            TokenType::WrappingAddAssign => "+%=".to_string(),
-            TokenType::SaturatingAdd => "+|".to_string(),
-            TokenType::SaturatingAddAssign => "+|=".to_string(),
-            TokenType::Subtract => "-".to_string(),
-            TokenType::SubtractAssign => "-=".to_string(),
-            TokenType::WrappingSubtract => "-%".to_string(),
-            TokenType::WrappingSubtractAssign => "-%=".to_string(),
-            TokenType::SaturatingSubtract => "-|".to_string(),
-            TokenType::SaturatingSubtractAssign => "-|=".to_string(),
-            TokenType::Multiply => "*".to_string(),
-            TokenType::MultiplyAssign => "*=".to_string(),
-            TokenType::WrappingMultiply => "*%".to_string(),
-            TokenType::WrappingMultiplyAssign => "*%=".to_string(),
-            TokenType::SaturatingMultiply => "*|".to_string(),
-            TokenType::SaturatingMultiplyAssign => "*|=".to_string(),
-            TokenType::Divide => "/".to_string(),
-            TokenType::DivideAssign => "/=".to_string(),
-            TokenType::Remainder => "%".to_string(),
-            TokenType::RemainderAssign => "%=".to_string(),
+            // assignment bitwise
+            TokenType::BitwiseAndAssign => "&=".to_string(),
+            TokenType::BitwiseXorAssign => "^=".to_string(),
+            TokenType::BitwiseOrAssign => "|=".to_string(),
+
+            // assignment logical
+            TokenType::LogicalAndAssign => "&&=".to_string(),
+            TokenType::LogicalOrAssign => "||=".to_string(),
         }
     }
 }

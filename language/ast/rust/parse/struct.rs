@@ -142,9 +142,7 @@ mod tests {
     #[test]
     fn test_parse_struct_anonymous() {
         let input = r###"
-struct {
-    x: int32
-    y: boolean
+struct { x: int32, y: boolean
 }
 "###;
         let tokens = tokenize_semantic(input);

@@ -31,8 +31,8 @@ impl<'a> Parser<'a> {
         Ok(match_id)
     }
 
-    /// Eat multiple match cases separated as statements. 
-    /// 
+    /// Eat multiple match cases separated as statements.
+    ///
     /// Examples:
     /// ```
     /// 2 => parse_int(2)

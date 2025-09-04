@@ -47,6 +47,7 @@ pub enum TokenType {
     /// End of sequence (e.g., end of source file)
     End,
 
+    // comments
     /// A line comment, e.g. `// comment` `//// comment` `//////// comment`.
     LineComment,
     /// A block comment, e.g. `/* comment */`
@@ -56,6 +57,7 @@ pub enum TokenType {
     /// A doc block comment, e.g. `/** doc comment *//`
     DocBlockComment,
 
+    // identifiers / literals
     /// An identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
     /// An identifier that is invalid (e.g. because it contains emoji).
@@ -65,6 +67,7 @@ pub enum TokenType {
     /// "Raw" Literals, e.g. `12`, `1.0e-40`, `b"123"`.
     Literal,
 
+    // symbols
     /// `:`
     Colon,
     /// `;`
@@ -77,7 +80,16 @@ pub enum TokenType {
     Range,
     /// `...`
     Ellipsis,
+    /// `#`
+    Pound,
+    /// '---',
+    Empty,
+    /// `=>`
+    Arrow,
+    /// `->`
+    BadArrow,
 
+    // parentheses
     /// `(`
     OpenParenthesis,
     /// `)`
@@ -93,8 +105,6 @@ pub enum TokenType {
 
     /// `@`
     At,
-    /// `#`
-    Pound,
     /// `~`
     BitwiseNot,
     /// `?`
@@ -103,106 +113,120 @@ pub enum TokenType {
     Dollar,
     /// `!`
     Bang,
-    /// '---',
-    Empty,
-    /// `&&`
-    LogicalAnd,
-    /// `||`
-    LogicalOr,
-    /// `=>`
-    Arrow,
-    /// `->`
-    BadArrow,
 
-    // Assignment
-    /// `=`
-    Assign,
-
-    // Comparison
-    /// `>`
-    GreaterThan,
-    /// `<`
-    LessThan,
-    /// `>=`
-    GreaterThanOrEqual,
-    /// `<=`
-    LessThanOrEqual,
-    /// `==`
-    Equal,
-    /// `!=`
-    NotEqual,
-
-    // Bitwise
-    /// `|`
-    BitwiseOr,
-    /// `|=`
-    BitwiseOrAssign,
-    /// `&`
-    BitwiseAnd,
-    /// `&=`
-    BitwiseAndAssign,
-    /// `^`
-    BitwiseXor,
-    /// `^=`
-    BitwiseXorAssign,
-    /// `<<`
-    ShiftLeft,
-    /// `<<|`
-    SaturatingShiftLeft,
-    /// `<<=`
-    ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
-    /// `>>`
-    ShiftRight,
-    /// `>>=`
-    ShiftRightAssign,
-
-    // Arithmetic
-    /// `+`
-    Add,
-    /// `+%`
-    WrappingAdd,
-    /// `+|`
-    SaturatingAdd,
-    /// `+=`
-    AddAssign,
-    /// `+%=`
-    WrappingAddAssign,
-    /// `+|=`
-    SaturatingAddAssign,
-    /// `-`
-    Subtract,
-    /// `-%`
-    WrappingSubtract,
-    /// `-|`
-    SaturatingSubtract,
-    /// `-=`
-    SubtractAssign,
-    /// `-%=`
-    WrappingSubtractAssign,
-    /// `-|=`
-    SaturatingSubtractAssign,
+    // multiplication
     /// `*`
     Multiply,
     /// `*%`
     WrappingMultiply,
     /// `*|`
     SaturatingMultiply,
+    /// `/`
+    Divide,
+    /// `%`
+    Remainder,
+
+    // addition
+    /// `+`
+    Add,
+    /// `+%`
+    WrappingAdd,
+    /// `+|`
+    SaturatingAdd,
+    /// `-`
+    Subtract,
+    /// `-%`
+    WrappingSubtract,
+    /// `-|`
+    SaturatingSubtract,
+
+    // shift
+    /// `<<`
+    ShiftLeft,
+    /// `<<|`
+    SaturatingShiftLeft,
+    /// `>>`
+    ShiftRight,
+
+    // bitwise
+    /// `&`
+    BitwiseAnd,
+    /// `^`
+    BitwiseXor,
+    /// `|`
+    BitwiseOr,
+
+    // comparison
+    /// `==`
+    Equal,
+    /// `!=`
+    NotEqual,
+    /// `<`
+    LessThan,
+    /// `<=`
+    LessThanOrEqual,
+    /// `>`
+    GreaterThan,
+    /// `>=`
+    GreaterThanOrEqual,
+
+    // logical
+    /// `&&`
+    LogicalAnd,
+    /// `||`
+    LogicalOr,
+
+    // assignment
+    /// `=`
+    Assign,
+
+    // assignment multiplication
     /// `*=`
     MultiplyAssign,
     /// `*%=`
     WrappingMultiplyAssign,
     /// `*|=`
     SaturatingMultiplyAssign,
-    /// `/`
-    Divide,
     /// `/=`
     DivideAssign,
-    /// `%`
-    Remainder,
     /// `%=`
     RemainderAssign,
+
+    // assignment addition
+    /// `+=`
+    AddAssign,
+    /// `+%=`
+    WrappingAddAssign,
+    /// `+|=`
+    SaturatingAddAssign,
+    /// `-=`
+    SubtractAssign,
+    /// `-%=`
+    WrappingSubtractAssign,
+    /// `-|=`
+    SaturatingSubtractAssign,
+
+    // assignment shift
+    /// `<<=`
+    ShiftLeftAssign,
+    /// `<<|=`
+    SaturatingShiftLeftAssign,
+    /// `>>=`
+    ShiftRightAssign,
+
+    // assignment bitwise
+    /// `&=`
+    BitwiseAndAssign,
+    /// `^=`
+    BitwiseXorAssign,
+    /// `|=`
+    BitwiseOrAssign,
+
+    // assignment logical
+    /// `&&=`
+    LogicalAndAssign,
+    /// `||=`
+    LogicalOrAssign,
 }
 
 /// "Raw" Literal Token for literal, scalar values.

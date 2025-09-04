@@ -65,7 +65,11 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn get_span_from(&self, mark: ParserMark) -> Span {
         let start_token = self.tokens[mark.pos];
-        let end_token = self.tokens[self.pos - 1]; // pos is lookahead
+        let end_token = if self.pos > 0 {
+            self.tokens[self.pos - 1]
+        } else {
+            self.tokens[0]
+        };
         Span {
             start: start_token.span.start,
             end: end_token.span.end,
@@ -130,6 +134,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn bump(&mut self) {
         self.pos += 1;
+        debug_assert!(self.pos <= self.tokens.len(), "bump past end of tokens");
     }
 
     /// Peek the next token.
