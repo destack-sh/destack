@@ -1,6 +1,11 @@
 //! Parse functions and closures.
 
-use crate::{Function, FunctionSignature, NodeId, ParseResult, Parser};
+use destack_language_token::TokenType;
+
+use crate::{
+    Function, FunctionRuntime, FunctionSignature, FunctionStyle, Keyword, NodeId, ParseResult,
+    Parser,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a Function or "lambda" definition or declaration.
@@ -8,18 +13,24 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// // function style
+    ///
     /// function @baz(a: int32, b: boolean) => MyStruct, boolean {
-    ///    ...
+    ///      ...
     /// }
     ///
-    /// // optional , if newline-delimited
+    /// // optional `,` for arguments and return type if newline-delimited
     /// function longBar(
-    ///   /// doc comment for `a`
-    ///   a: int32
-    ///   /// doc comment for `b`
-    ///   b: boolean
-    ///   c: Vector2
-    /// ) => int32, boolean {
+    ///     /// doc comment for `a`
+    ///     a: int32
+    ///     /// doc comment for `b`
+    ///     b: boolean
+    ///     c: Vector2
+    /// ) => (
+    ///     int32
+    ///     /// can also add docs here
+    ///     isSuccess: boolean
+    /// ) {
     ///    ...
     /// )
     ///
@@ -36,6 +47,27 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     pub fn eat_function(&mut self) -> ParseResult<NodeId<Function>> {
+        // eat optional function keyword
+        let style = if self.peek_keyword(Keyword::Function).is_ok() {
+            self.bump();
+            FunctionStyle::Function
+        } else {
+            FunctionStyle::Lambda
+        };
+        // runtime (optional @)
+        let runtime = if self.peek_token(TokenType::At).is_ok() {
+            self.bump();
+            FunctionRuntime::Static
+        } else {
+            FunctionRuntime::Dynamic
+        };
+        // name
+        let name = if self.peek_identifier().is_ok() {
+            Some(self.eat_identifier()?)
+        } else {
+            None
+        };
+        // signature
         todo!()
     }
 

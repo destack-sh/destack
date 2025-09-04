@@ -147,6 +147,7 @@ impl<'a> Parser<'a> {
 
         // function
         } else if self.peek_keyword(Keyword::Function).is_ok() {
+            // TODO: handle function types without function keyword
             let function_signature_id = self.eat_function_signature()?;
             let ty_id = self.tree.allocate(
                 Type::Function(function_signature_id),

@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
             } else if self.peek_token(TokenType::Multiply).is_ok() {
                 Some(UnaryOperator::Dereference)
             } else if self.peek_token(TokenType::At).is_ok() {
-                todo!()
+                todo!("mark function or call as static?")
             } else {
                 None
             }
@@ -165,10 +165,7 @@ impl<'a> Parser<'a> {
                 let struct_literal = self.eat_struct_literal()?;
                 Expression::StructLiteral(struct_literal)
             // scalar
-            } else if self.peek_token(TokenType::RawLiteral).is_ok()
-                || self.peek_identifier_str("true").is_ok()
-                || self.peek_identifier_str("false").is_ok()
-            {
+            } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
                 Expression::ScalarLiteral(scalar_literal)
             // alias / path
@@ -184,22 +181,37 @@ impl<'a> Parser<'a> {
 
         //
         // ------------------------------------------------------------
-        // Infix operations (infix)
+        // Postfix operations
         // ------------------------------------------------------------
         //
 
-        // index
-        if self.peek_token(TokenType::OpenBracket).is_ok() {
-            let index_id = self.eat_index()?;
-            let expression = Expression::Index(index_id);
-            expression_id = self.tree.allocate(expression, self.get_span_from(start));
+        // eat all postfix operations
+        loop {
+            // index
+            if self.peek_token(TokenType::OpenBracket).is_ok() {
+                let index_id = self.eat_index_postfix(expression_id)?;
+                let expression = Expression::Index(index_id);
+                expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // call
+            else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                let call_id = self.eat_call_postfix(expression_id)?;
+                let expression = Expression::Call(call_id);
+                expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // no more postfix operations
+            else {
+                break;
+            }
         }
-        // call
-        else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            let call_id = self.eat_call()?;
-            let expression = Expression::Call(call_id);
-            expression_id = self.tree.allocate(expression, self.get_span_from(start));
-        }
+
+        //
+        // ------------------------------------------------------------
+        // Infix operations
+        // ------------------------------------------------------------
+        //
+
+        // nocheckin: infix binary operations
 
         Ok(expression_id)
     }

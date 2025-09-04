@@ -10,6 +10,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a keyword.
+    #[inline]
     pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
         let current = self.peek_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
