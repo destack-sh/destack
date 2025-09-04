@@ -99,16 +99,30 @@ impl FromStr for FloatType {
 }
 
 impl<'a> Parser<'a> {
-    /// Eat a Type.
+    /// Eat any Type (including nominal and anonymous declarations and implicit unions).
     ///
     /// Examples:
     /// ```
     /// int32
-    /// (int32)
-    /// (int32, int32)
-    /// (int32, int32) => int32
+    /// boolean
     /// [float32]
-    /// [float32; 5]
+    /// [float64; 3]
+    /// (int32, int32)
+    /// *T // pointer to T
+    /// *?T // pointer to Maybe<T>
+    /// ?*T // Maybe pointer to T
+    /// T<int32>
+    /// T<Validate: false>
+    /// MyEnum
+    /// simulation.geometry.Vector2
+    ///
+    /// struct MyResponse { x: int32, y: int32 }
+    /// enum { Good, Bad }
+    /// union { A(int), B(float) } // explicit anonymous union
+    /// boolean | *int32 // implicit anonymous union
+    /// function (int32) => int32
+    /// function () => int32, Vector2 // implicitly returns a tuple
+    /// function () => Result<int32, struct Error { message: string }>
     /// ```
     pub fn eat_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
@@ -147,16 +161,13 @@ impl<'a> Parser<'a> {
 
         // function
         } else if self.peek_keyword(Keyword::Function).is_ok() {
-            // TODO: handle function types without function keyword
-            let function_signature_id = self.eat_function_signature()?;
-            let ty_id = self.tree.allocate(
-                Type::Function(function_signature_id),
-                self.get_span_from(start),
-            );
+            let function_id = self.eat_function()?;
+            let ty_id = self
+                .tree
+                .allocate(Type::Function(function_id), self.get_span_from(start));
             Ok(ty_id)
 
         // scalar
-        // TODO: parse implicit union type (with proper recursion, need some global flag?)
         } else {
             Ok(self.eat_scalar_type()?)
         }

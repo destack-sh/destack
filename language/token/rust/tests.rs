@@ -506,3 +506,17 @@ fn test_doc_block_exact_two_stars() {
         Token::new(TokenType::BlockComment, 17, None),
     );
 }
+
+#[test]
+fn test_logical_assignments() {
+    assert_tokenize_eq_roundtrip!(
+        "a&&=b ||= c",
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::LogicalAndAssign, 3, None),
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::LogicalOrAssign, 3, None),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None),
+    );
+}

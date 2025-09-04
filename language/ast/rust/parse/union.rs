@@ -7,16 +7,16 @@ use crate::{
 };
 
 impl<'a> Parser<'a> {
-    /// Eat a union declaration.
+    /// Eat an explicit union declaration (with `union` keyword).
     ///
     /// Examples:
     /// ```
-    /// union { // anonymous union (for use as a value)
+    /// union { // anonymous explicit union (for use as a value)
     ///     myField: int32
     ///     myOtherField: boolean
     /// }
     ///
-    /// union(uint4) Foo {
+    /// union(uint4) Foo { // explicit named union
     ///     A // comma optional
     ///     B { x: int32, y: int32 } = 4
     ///     C(boolean)
@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     /// }
     ///
     /// // unions can be tagged with enums and include other types with using (like structs)
-    /// union(TetrisShapeType) TetrisShape using GameObject {
+    /// union(TetrisShapeType) TetrisShape using GameObject { // explicit named union with using
     ///     ...
     /// }
     /// ```
@@ -177,40 +177,49 @@ impl<'a> Parser<'a> {
 
     /// Eat an implicit union of scalars (like `A | B | C`).
     /// Field names are just the literal type names.
-    pub fn eat_implicit_union(&mut self) -> ParseResult<NodeId<Union>> {
+    pub fn eat_implicit_union(
+        &mut self,
+        first_type: Option<NodeId<Type>>,
+    ) -> ParseResult<NodeId<Union>> {
         let start = self.mark();
-        let mut fields: Vec<NodeId<UnionField>> = Vec::new();
 
-        // eat types separated with `|`
+        // collect all types separated with `|`
+        let mut types: Vec<NodeId<Type>> = first_type.into_iter().collect();
         loop {
-            let field_start = self.mark();
-            let field_id = self.eat_scalar_type()?;
+            let type_id = self.eat_scalar_type()?;
+            types.push(type_id);
+            if self.peek_token(TokenType::BitwiseOr).is_err() {
+                break;
+            }
+            self.eat_token(TokenType::BitwiseOr)?;
+        }
 
+        // map types to union fields
+        let mut fields = Vec::new();
+        for type_id in types {
             // field name is just type name without prefix/fluff
-            let field_span = self.tree.get_span(field_id);
-            let mut field_str = self.get_span_str(field_span);
+            let type_span = self.tree.get_span(type_id);
+            let mut field_str = self.get_span_str(type_span);
             if field_str.contains(' ') {
                 // split `*var T` and such cleanly
                 field_str = field_str.split(' ').nth_back(0).unwrap()
             }
+            if field_str.contains('.') {
+                // split `simulation.geometry.Vector2` cleanly
+                field_str = field_str.split('.').nth_back(0).unwrap()
+            }
             let field_str_clean = clean_identifier(field_str);
 
-            let union_field_id = self.tree.allocate(
+            // map type to union field
+            let union_field = self.tree.allocate(
                 UnionField {
                     name: self.strings.intern(field_str_clean),
                     value: None,
-                    r#type: Some(field_id),
+                    r#type: Some(type_id),
                 },
-                self.get_span_from(field_start),
+                type_span,
             );
-            fields.push(union_field_id);
-
-            if self.peek_token(TokenType::BitwiseOr).is_ok() {
-                self.bump();
-                continue;
-            } else {
-                break;
-            }
+            fields.push(union_field);
         }
 
         let union_id = self.tree.allocate(
@@ -237,7 +246,7 @@ mod tests {
     };
 
     #[test]
-    fn test_parse_union_anonymous() {
+    fn test_parse_explicit_anonymous_union() {
         let input = r###"
 union { A, B }
 "###;
@@ -267,7 +276,7 @@ union { A, B }
     }
 
     #[test]
-    fn test_parse_union_with_types() {
+    fn test_parse_explicit_heterogeneous_union() {
         let input = r###"
 union(uint4) Foo using Bar {
     A
@@ -367,7 +376,7 @@ union(uint4) Foo using Bar {
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
 
         // A | ?B | *C | ?*var D
-        let union_id = parser.eat_implicit_union().unwrap();
+        let union_id = parser.eat_implicit_union(None).unwrap();
         let union = parser.tree.get(union_id);
         assert_eq!(union.name, None);
         assert_eq!(union.style, UnionStyle::Implicit);

@@ -27,7 +27,6 @@ pub enum NodeType {
     Tuple,
     TupleField,
     Function,
-    FunctionSignature,
     // Using
     Using,
     UsingClause,
@@ -416,6 +415,11 @@ pub enum UnionStyle {
 /// union(TetrisShapeType) TetrisShape using GameObject {
 ///     ...
 /// }
+///
+/// // implicit anonymous union
+/// boolean | *int32
+/// // desugars to
+/// union { boolean(boolean) = boolean, int32(*int32) = *int32 }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union {
@@ -557,13 +561,15 @@ pub enum FunctionStyle {
 /// ```
 /// // function style
 ///
+/// function () // anonymous function with empty signature
+///
 /// function foo() // just declaration, no body, no opening `{`
 ///
-/// function foo() {
+/// function foo<T, U>(x: T) => int32, boolean {
 ///    print("Hello, world!")
 /// }
 ///
-/// function baz(a: int32, b: boolean) => MyStruct, boolean {
+/// function baz(a: int32, b: boolean) using Disk, Time => MyStruct, boolean {
 ///    ...
 /// }
 ///
@@ -572,7 +578,7 @@ pub enum FunctionStyle {
 /// }
 ///
 /// // optional , if newline-delimited
-/// function longBar(
+/// function longBar<Validate: boolean>(
 ///   /// doc comment for `a`
 ///   a: int32
 ///   /// doc comment for `b`
@@ -585,15 +591,9 @@ pub enum FunctionStyle {
 ///
 /// // lambda style
 ///
-/// () => { 0 } // no function keyword
-/// () => None // slightly ambiguous but returns None
-/// (x: int32) => x + 1
-///
-/// // for return type in lambdas, you need a `{ ... }` body
-/// (a: int32, b: int32) => int32 {
-///      let y = someFunction(a, b)
-///      y + 4
-/// }
+/// function () => 0
+/// function x(x) => x + 1
+/// function y(x: int32) => x + 1
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
@@ -603,41 +603,20 @@ pub struct Function {
     pub runtime: FunctionRuntime,
     /// The style of the function (function or lambda).
     pub style: FunctionStyle,
-    /// The type of the function.
-    pub signature: NodeId<FunctionSignature>,
-    /// The body of the function.
-    pub body: Option<NodeId<Block>>,
-}
-
-impl Node for Function {
-    const KIND: NodeType = NodeType::Function;
-}
-
-/// The type of a Function type `(T1, T2, ...) => T`.
-/// Function signatures may omit the tuple parentheses `()`  in return type.
-///
-/// Examples:
-/// ```
-/// ()
-/// (x: int32)
-/// <Validate: boolean>(x: int32) => bool
-/// (x: int32) => int32, boolean
-/// (x: int32) using Disk => is_cool: boolean, coolness: int17
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct FunctionSignature {
     /// The static parameters to the function.
-    pub static_parameters: Vec<NodeId<Parameter>>,
+    pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The dynamic parameters to the function.
     pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<NodeId<Type>>,
     /// The using declaration for the function (can't have a body).
     pub using: Option<NodeId<Using>>,
+    /// The body of the function.
+    pub body: Option<NodeId<Block>>,
 }
 
-impl Node for FunctionSignature {
-    const KIND: NodeType = NodeType::FunctionSignature;
+impl Node for Function {
+    const KIND: NodeType = NodeType::Function;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -732,17 +711,19 @@ impl Node for TupleField {
 /// (int32, int32)
 /// *T // pointer to T
 /// *?T // pointer to Maybe<T>
-/// ?*T // maybe pointer to T
+/// ?*T // Maybe pointer to T
 /// T<int32>
 /// T<Validate: false>
 /// MyEnum
 /// simulation.geometry.Vector2
+///
 /// struct MyResponse { x: int32, y: int32 }
 /// enum { Good, Bad }
-/// (int32) => int32
-/// function () => () // optional function keyword
-/// () => int32, Vector2 // implicitly returns a tuple
-/// () => Result<int32, struct Error { message: string }>
+/// union { A(int), B(float) } // explicit anonymous union
+/// boolean | *int32 // implicit anonymous union
+/// function (int32) => int32
+/// function () => int32, Vector2 // implicitly returns a tuple
+/// function () => Result<int32, struct Error { message: string }>
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -750,13 +731,11 @@ pub enum Type {
     Infer,
     /// Maybe '?T'. Desugars to `Maybe<T>`.
     Maybe(NodeId<Type>),
-    /// Not `!T`. Desugars to `Not<T>`.
+    /// Not `!T`.
     Not(NodeId<Type>),
-    /// Never `!`. Desugars to `Never`.
+    /// Never `!`.
     Never,
-    // TODO: add self type?
-
-    // NOTE :Architecture: move primitive type parsing into DIR (?)
+    // TODO: add self/Self type?
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
@@ -783,10 +762,10 @@ pub enum Type {
     Struct(NodeId<Struct>),
     /// Inline Enum type `enum MyEnum { ... }`.
     Enum(NodeId<Enum>),
-    /// Inline Union type `union MyUnion { ... }` or implicit `A | B`.
+    /// Inline Union type `union MyUnion { ... }` or implicit `A | B | C`.
     Union(NodeId<Union>),
     /// Inline Function type `(T1, T2, ...) => T`.
-    Function(NodeId<FunctionSignature>),
+    Function(NodeId<Function>),
 }
 
 impl Node for Type {
@@ -1361,7 +1340,7 @@ pub enum FloatType {
 /// A PrimitiveType represents primitive types.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveType {
-    /// Void type.
+    /// Void / empty type.
     Void,
     /// Boolean type.
     Boolean,
@@ -1523,7 +1502,7 @@ pub enum BinaryOperator {
     LogicalOr = 81,
 }
 
-/// An AssignType is assignment type.
+/// An AssignOperator is assignment type.
 /// Relative order matches precedence. Also see OperatorPrecedence.
 ///
 /// Examples:
@@ -1535,7 +1514,7 @@ pub enum BinaryOperator {
 /// x |= 1
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub enum AssignType {
+pub enum AssignOperator {
     /// `=`
     Assign = 90,
 
@@ -1603,7 +1582,7 @@ pub struct Assign {
     /// The left-hand side of the assignment (should be a place Expression, checked later).
     pub lhs: NodeId<Expression>,
     /// The type of assignment.
-    pub r#type: AssignType,
+    pub operator: AssignOperator,
     /// The right-hand side of the assignment.
     pub rhs: NodeId<Expression>,
 }
@@ -1783,11 +1762,10 @@ impl Node for MatchCase {
 /// Because almost every Node can have documentation, we store it separately
 ///  in `NodeTree.documentation_by_node` (just like we have `spans_per_node`).
 #[derive(Debug, Clone, PartialEq)]
-pub enum Doc {
+pub struct Doc {
     /// The full, merged documentation comment string.
-    Single(StringId),
-    /// Multiple documentation comments.
-    Multi(Vec<NodeId<Doc>>),
+    /// Newlines preserved, leading/trailing whitespace stripped.
+    pub string: StringId,
 }
 
 impl Node for Doc {

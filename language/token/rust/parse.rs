@@ -247,11 +247,16 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // bitwise and or logical and
+            // bitwise and, logical and and their assignments
             '&' => {
                 if self.peek() == '&' {
                     self.bump();
-                    (TokenType::LogicalAnd, None)
+                    if self.peek() == '=' {
+                        self.bump();
+                        (TokenType::LogicalAndAssign, None)
+                    } else {
+                        (TokenType::LogicalAnd, None)
+                    }
                 } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseAndAssign, None)
@@ -260,11 +265,16 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // bitwise or or logical or
+            // bitwise or, logical or and their assignments
             '|' => {
                 if self.peek() == '|' {
                     self.bump();
-                    (TokenType::LogicalOr, None)
+                    if self.peek() == '=' {
+                        self.bump();
+                        (TokenType::LogicalOrAssign, None)
+                    } else {
+                        (TokenType::LogicalOr, None)
+                    }
                 } else if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseOrAssign, None)
