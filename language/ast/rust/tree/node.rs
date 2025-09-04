@@ -885,6 +885,14 @@ impl Node for UsingItem {
 /// if x > 0 {
 ///     print("positive")
 /// }
+/// 
+/// if x > 0 {
+///     print("positive")
+/// } else if x == 0 {
+///     print("zero")
+/// } else {
+///     print("negative")
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct If {
@@ -1629,15 +1637,19 @@ impl Node for Cast {
 // ----------------------------------------------------------------------------
 
 /// A Pattern is a pattern AST node to match something and unwrap it.
+/// Guards are handled only for match cases (see MatchCase).
 ///
 /// Examples:
 /// ```
+/// _
 /// 1
 /// 2 | 3
 /// 4..6
-/// (x, 0)
+/// (x, 0, ..)
+/// x, y
+/// y, x, ..
 /// Vector2 { x: 0, y }
-/// _
+/// Point(x, y: new_y)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
@@ -1647,12 +1659,14 @@ pub enum Pattern {
     Range(RangeLiteral),
     /// Or pattern (like `1 | 2 | 3`).
     Or(Vec<NodeId<Pattern>>),
-    /// Tuple pattern (like `(x, 0)`).
+    /// Tuple pattern (like `(x, 0)`, `x, y`, `y, x, ..`).
     Tuple(Vec<NodeId<PatternField>>),
-    /// Struct pattern (like `Vector2 { x: 0, y }`).
+    /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct(Vec<NodeId<PatternField>>),
-    /// Wildcard pattern (`_`).
+    /// Wildcard single pattern (`_`).
     Wildcard,
+    /// Wildcard rest pattern (`..`).
+    Rest,
 }
 
 impl Node for Pattern {
@@ -1665,6 +1679,7 @@ pub enum PatternField {
     /// A literal struct field.
     Literal {
         name: StringId,
+        alias: Option<StringId>,
         value: NodeId<Pattern>,
     },
 }
@@ -1674,16 +1689,28 @@ impl Node for PatternField {
 }
 
 /// A MatchCase is a match case AST node inside a Match expression.
-/// MatchCases can be any Pattern.
+/// MatchCases can be any Pattern and can have an optional `if` guard.
+///
+/// Examples:
+/// ```
+/// 2 => parse_int(2)
+/// (x, y) if x > y => {
+///     ...
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchCase {
+    /// A match case with an expression body.
     Expression {
         pattern: NodeId<Pattern>,
         body: NodeId<Expression>,
+        guard: Option<NodeId<Expression>>,
     },
+    /// A match case with a block body.
     Block {
         pattern: NodeId<Pattern>,
         body: NodeId<Block>,
+        guard: Option<NodeId<Expression>>,
     },
 }
 

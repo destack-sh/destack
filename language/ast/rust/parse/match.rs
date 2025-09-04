@@ -8,7 +8,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// match <expr> {
-    ///     (x, y) => {
+    ///     (x, y, ..) => {
     ///         ...
     ///     }
     ///     (x, y, z) => {
@@ -37,6 +37,8 @@ impl<'a> Parser<'a> {
         Ok(match_id)
     }
 
+    /// Eat multiple match cases separated as statements. 
+    /// 
     /// Examples:
     /// ```
     /// 2 => parse_int(2)
@@ -64,7 +66,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// 2 => parse_int(2)
     ///
-    /// (x, y) => {
+    /// (x, y) if x > y => {
     ///     ...
     /// }
     /// ```
@@ -72,6 +74,14 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // pattern
         let pattern_id = self.eat_pattern()?;
+        // guard
+        let guard = if self.peek_keyword(Keyword::If).is_ok() {
+            self.eat_keyword(Keyword::If)?;
+            let guard = self.eat_expression()?;
+            Some(guard)
+        } else {
+            None
+        };
         // arrow
         self.eat_token(TokenType::Arrow)?;
         // body
@@ -81,6 +91,7 @@ impl<'a> Parser<'a> {
                 MatchCase::Block {
                     pattern: pattern_id,
                     body: block_id,
+                    guard,
                 },
                 self.get_span_from(start),
             );
@@ -93,6 +104,7 @@ impl<'a> Parser<'a> {
                 MatchCase::Expression {
                     pattern: pattern_id,
                     body: expression_id,
+                    guard,
                 },
                 self.get_span_from(start),
             );

@@ -14,9 +14,9 @@ impl<'a> Parser<'a> {
     /// var x: int32 // implicitly uninitialized, must be set before use
     /// var x: [float64; 3] = --- // explicitly uninitialized, can do whatever
     ///
-    /// // TODO: let pattern destructuring
+    /// // todo!: let pattern destructuring
     /// let Some(x) = someFunction()
-    /// var Some(x) = someFunction()
+    /// var Point { x, .. } = someFunction()
     /// ```
     pub fn eat_let_or_var(&mut self) -> ParseResult<NodeId<Let>> {
         let start = self.mark();
