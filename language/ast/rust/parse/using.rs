@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
 
         // allocate the path expression for the target
         let span = self.get_span_from(start);
-        let target = self.tree.allocate(Expression::Alias { path }, span);
+        let target = self.tree.allocate(Expression::Path { path }, span);
 
         let clause = self.tree.allocate(
             UsingClause {
@@ -161,7 +161,7 @@ using dyst, dyst
         assert!(clause.alias.is_none());
         assert!(clause.items.is_none());
         match parser.tree.get(clause.target) {
-            Expression::Alias { path } => assert_eq!(
+            Expression::Path { path } => assert_eq!(
                 *path,
                 parser.paths.intern(vec![parser.strings.intern("dyst")])
             ),
@@ -176,7 +176,7 @@ using dyst, dyst
         assert!(clause.alias.is_none());
         assert!(clause.items.is_none());
         match parser.tree.get(clause.target) {
-            Expression::Alias { path } => assert_eq!(
+            Expression::Path { path } => assert_eq!(
                 *path,
                 parser.paths.intern(vec![
                     parser.strings.intern("dyst"),
@@ -194,7 +194,7 @@ using dyst, dyst
         assert_eq!(clause.alias, Some(parser.strings.intern("ds")));
         assert!(clause.items.is_none());
         match parser.tree.get(clause.target) {
-            Expression::Alias { path } => assert_eq!(
+            Expression::Path { path } => assert_eq!(
                 *path,
                 parser.paths.intern(vec![parser.strings.intern("dyst")]),
             ),
@@ -209,7 +209,7 @@ using dyst, dyst
         assert_eq!(clause.alias, Some(parser.strings.intern("geom")));
         assert!(clause.items.is_none());
         match parser.tree.get(clause.target) {
-            Expression::Alias { path } => assert_eq!(
+            Expression::Path { path } => assert_eq!(
                 *path,
                 parser.paths.intern(vec![
                     parser.strings.intern("ds"),
@@ -251,7 +251,7 @@ using dyst, dyst
         assert_eq!(using.clauses.len(), 2);
         let clause0 = parser.tree.get(using.clauses[0]);
         match parser.tree.get(clause0.target) {
-            Expression::Alias { path } => assert_eq!(
+            Expression::Path { path } => assert_eq!(
                 *path,
                 parser.paths.intern(vec![parser.strings.intern("dyst")]),
             ),
@@ -259,7 +259,7 @@ using dyst, dyst
         }
         let clause1 = parser.tree.get(using.clauses[1]);
         match parser.tree.get(clause1.target) {
-            Expression::Alias { path } => assert_eq!(
+            Expression::Path { path } => assert_eq!(
                 *path,
                 parser.paths.intern(vec![parser.strings.intern("dyst")]),
             ),
