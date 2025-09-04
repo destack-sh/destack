@@ -156,7 +156,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         K::UnknownLiteralPrefix => 6,
 
         // literals
-        K::RawLiteral => 3,
+        K::Literal => 3,
 
         // punctuation - use FUNCTION color to differentiate from operators
         K::Colon
@@ -173,7 +173,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::CloseBracket
         | K::At
         | K::Pound
-        | K::Tilde
+        | K::BitwiseNot
         | K::Question
         | K::Dollar => 5, // FUNCTION color to differentiate
 

@@ -206,7 +206,7 @@ fn test_smoke() {
         Token::new(TokenType::Bang, 1, None),
         Token::new(TokenType::OpenParenthesis, 1, None),
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             7,
             Some(RawLiteralType::String {
                 is_terminated: true
@@ -243,7 +243,7 @@ fn test_characters() {
     assert_tokenize_eq_roundtrip!(
         "'a' ' ' '\\n'",
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             3,
             Some(RawLiteralType::Character {
                 is_terminated: true
@@ -251,7 +251,7 @@ fn test_characters() {
         ),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             3,
             Some(RawLiteralType::Character {
                 is_terminated: true
@@ -259,7 +259,7 @@ fn test_characters() {
         ),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             4,
             Some(RawLiteralType::Character {
                 is_terminated: true
@@ -273,7 +273,7 @@ fn test_raw_string() {
     assert_tokenize_eq_roundtrip!(
         "r###\"\"#a\\b\x00c\"\"###",
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             17,
             Some(RawLiteralType::RawString { hashes: Some(3) })
         ),
@@ -302,21 +302,21 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // true
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             4,
             Some(RawLiteralType::Boolean { value: true })
         ),
         Token::new(TokenType::Newline, 1, None),
         // false
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             5,
             Some(RawLiteralType::Boolean { value: false })
         ),
         Token::new(TokenType::Newline, 1, None),
         // 'a'
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             3,
             Some(RawLiteralType::Character {
                 is_terminated: true
@@ -325,7 +325,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // b'a'
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             4,
             Some(RawLiteralType::Byte {
                 is_terminated: true
@@ -334,7 +334,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // "a"
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             3,
             Some(RawLiteralType::String {
                 is_terminated: true
@@ -343,7 +343,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // b"a"
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             4,
             Some(RawLiteralType::ByteString {
                 is_terminated: true
@@ -352,7 +352,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // 1234
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             4,
             Some(RawLiteralType::Int {
                 base: NumberBase::Decimal,
@@ -362,7 +362,7 @@ br###"raw"###
         // 0b101
         Token::new(TokenType::Newline, 1, None),
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             5,
             Some(RawLiteralType::Int {
                 base: NumberBase::Binary,
@@ -372,7 +372,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // 0xABC
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             5,
             Some(RawLiteralType::Int {
                 base: NumberBase::Hexadecimal,
@@ -382,7 +382,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // 1.0
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             3,
             Some(RawLiteralType::Float {
                 base: NumberBase::Decimal,
@@ -392,7 +392,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // 1.0e10
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             6,
             Some(RawLiteralType::Float {
                 base: NumberBase::Decimal,
@@ -402,7 +402,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // 2
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             1,
             Some(RawLiteralType::Int {
                 base: NumberBase::Decimal,
@@ -412,14 +412,14 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // r###"raw"###
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             12,
             Some(RawLiteralType::RawString { hashes: Some(3) })
         ),
         Token::new(TokenType::Newline, 1, None),
         // br###"raw"###
         Token::new(
-            TokenType::RawLiteral,
+            TokenType::Literal,
             13,
             Some(RawLiteralType::RawByteString { hashes: Some(3) })
         ),

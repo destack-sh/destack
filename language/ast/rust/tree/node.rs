@@ -223,7 +223,7 @@ pub enum Expression {
     StructLiteral(NodeId<StructLiteral>),
 
     /// Unary operation (prefix as Expression).
-    UnaryOperation {
+    Unary {
         operator: UnaryOperator,
         rhs: NodeId<Expression>,
     },
@@ -233,12 +233,14 @@ pub enum Expression {
     Call(NodeId<Call>),
     /// As casting (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
-    /// Binary operation (infox between Expressions).
-    BinaryOperation {
+    /// Binary operation (infix between Expressions).
+    Binary {
         lhs: NodeId<Expression>,
         operator: BinaryOperator,
         rhs: NodeId<Expression>,
     },
+    /// Assignment operation (infix as an Expression, see Assign).
+    Assign(NodeId<Assign>),
 
     /// Error placeholder.
     Error,
@@ -282,7 +284,7 @@ impl Node for Module {
 /// struct { a: int32, b: boolean }
 ///
 /// struct { // anonymous struct (for use as a value)
-///     myField: int32
+///     myField: int32 // semicolon optional
 ///     myOtherField: boolean
 /// }
 ///
@@ -646,6 +648,7 @@ pub enum LetInitialization {
 }
 
 /// Let or var binding for constant or mutable variables.
+/// Both let and var may destructure and pattern match.
 ///
 /// Examples:
 /// ```
@@ -879,13 +882,23 @@ impl Node for UsingItem {
 // ----------------------------------------------------------------------------
 
 /// If/then/else expression.
+/// Then and else must be blocks.
 ///
 /// Examples:
 /// ```
+/// // if
 /// if x > 0 {
 ///     print("positive")
 /// }
-/// 
+///
+/// // if else
+/// if x > 0 {
+///     print("positive")
+/// } else {
+///     print("not positive")
+/// }
+///
+/// // if else if
 /// if x > 0 {
 ///     print("positive")
 /// } else if x == 0 {
@@ -895,10 +908,24 @@ impl Node for UsingItem {
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct If {
-    pub condition: NodeId<Expression>,
-    pub then_body: NodeId<Block>,
-    pub else_body: Option<NodeId<Block>>,
+pub enum If {
+    // `if` with then block.
+    If {
+        condition: NodeId<Expression>,
+        then_block: NodeId<Block>,
+    },
+    // `if` with then block and else block.
+    IfElse {
+        condition: NodeId<Expression>,
+        then_block: NodeId<Block>,
+        else_block: NodeId<Block>,
+    },
+    // `if` with then block and else if block.
+    IfElseIf {
+        condition: NodeId<Expression>,
+        then_block: NodeId<Block>,
+        else_if: NodeId<If>,
+    },
 }
 
 impl Node for If {
@@ -1074,12 +1101,6 @@ impl Node for Return {
 ///         ...
 ///     }
 /// }
-///
-/// catch <expr> {
-///     NetworkError => @panic("network error")
-///     FormatError => @panic("format error")
-///     _ => return false
-/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Match {
@@ -1130,87 +1151,6 @@ pub enum Try {
 
 impl Node for Try {
     const KIND: NodeType = NodeType::Try;
-}
-
-/// Assignment to a variable (a "place expression").
-/// Also see OperatorPrecedence.
-///
-/// Examples:
-/// ```
-/// x = 1
-/// x.y = 2
-/// x[0] = 3
-/// *x = *y
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Assign {
-    /// The left-hand side of the assignment (should be a place Expression, checked later).
-    pub lhs: NodeId<Expression>,
-    /// The type of assignment.
-    pub r#type: AssignType,
-    /// The right-hand side of the assignment.
-    pub rhs: NodeId<Expression>,
-}
-
-impl Node for Assign {
-    const KIND: NodeType = NodeType::Assign;
-}
-
-/// An AssignType is assignment type.
-/// Also see OperatorPrecedence.
-///
-/// Examples:
-/// ```
-/// =
-/// +=
-/// -=
-/// *|=
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum AssignType {
-    /// `=`
-    Assign,
-
-    /// `+=`
-    AddAssign,
-    /// `+%=`
-    WrappingAddAssign,
-    /// `+|=`
-    SaturatingAddAssign,
-    /// `-=`
-    SubtractAssign,
-    /// `-%=`
-    WrappingSubtractAssign,
-    /// `-|=`
-    SaturatingSubtractAssign,
-    /// `*=`
-    MultiplyAssign,
-    /// `*%=`
-    WrappingMultiplyAssign,
-    /// `*|=`
-    SaturatingMultiplyAssign,
-    /// `/=`
-    DivideAssign,
-    /// `%=`
-    RemainderAssign,
-
-    /// `&&=`
-    LogicalAndAssign,
-    /// `||=`
-    LogicalOrAssign,
-
-    /// `&=`
-    BitwiseAndAssign,
-    /// `|=`
-    BitwiseOrAssign,
-    /// `^=`
-    BitwiseXorAssign,
-    /// `<<=`
-    ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
-    /// `>>=`
-    ShiftRightAssign,
 }
 
 /// A Parameter is a parameter AST node to some expression.
@@ -1437,124 +1377,239 @@ pub enum PrimitiveType {
 ///
 /// Precedence:
 /// ```
-/// !x -x -%x ~x &x      // prefix
-/// x() x[] x {}         // postfix
-/// * / % ** *% *|       // multiplication
-/// + - ++ +% -% +| -|   // addition
-/// << >> <<|            // shift
-/// & ^ |                // bitwise
-/// == != < > <= >=      // comparison
-/// && ||                // logical
-/// = *= *%= *|= /= %= += +%= +|= -= -%= -|= <<= <<|= >>= &= ^= |= // assignment
+/// !x -x -%x ~x &x *x       // prefix
+/// x() x[] x{} x as y       // postfix
+/// * / % ** *% *|           // multiplication
+/// + - +% -% +| -|          // addition
+/// << >> <<|                // shift
+/// & ^ |                    // bitwise
+/// == != < > <= >=          // comparison
+/// && ||                    // logical
+/// =                        // assignment
+/// *= /= %= **= *%= *|=     // assignment multiplication
+/// += -= +%= -%= +|= -|=    // assignment addition
+/// <<= >>= <<|=             // assignment shift
+/// &= ^= |=                 // assignment bitwise
+/// &&= ||=                  // assignment logical
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum OperatorPrecedence {
-    /// Prefix operators.
-    /// `!x -x -%x ~x &x`
+    /// Prefix unary operators.
+    /// `!x -x -%x ~x &x *x`
     Prefix = 1,
-    /// Postfix operators.
-    /// `x() x[] x {}`
+    /// Postfix unary operators.
+    /// `x() x[] x{} x as y`
     Postfix = 2,
-    /// Multiplication related operators.
+    /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
     Multiplication = 3,
-    /// Addition related operators.
-    /// `+ - ++ +% -% +| -|`
+    /// Addition-related binary operators.
+    /// `+ - +% -% +| -|`
     Addition = 4,
-    /// Shift related operators.
+    /// Shift-related binary operators.
     /// `<< >> <<|`
     Shift = 5,
-    /// Bitwise related operators.
+    /// Bitwise-related binary operators.
     /// `& ^ |`
     Bitwise = 6,
-    /// Comparison related operators.
+    /// Comparison-related binary operators.
     /// `== != < > <= >=`
     Comparison = 7,
-    /// Logical related operators.
+    /// Logical-related binary operators.
     /// `&& ||`
     Logical = 8,
-    /// Assignment related operators.
-    /// `= *= *%= *|= /= %= += +%= +|= -= -%= -|= <<= <<|= >>= &= ^= |=`
+    /// Assignment-related binary operators.
+    /// `=`
     Assignment = 9,
+    /// Assignment multiplication-related binary operators.
+    /// `*= /= %= **= *%= *|=`
+    AssignmentMultiplication = 10,
+    /// Assignment addition-related binary operators.
+    /// `+= -= +%= -%= +|= -|=`
+    AssignmentAddition = 11,
+    /// Assignment shift-related binary operators.
+    /// `<<= >>= <<|=`
+    AssignmentShift = 12,
+    /// Assignment bitwise-related binary operators.
+    /// `&= ^= |=`
+    AssignmentBitwise = 13,
+    /// Assignment logical-related binary operators.
+    /// `&&= ||=`
+    AssignmentLogical = 14,
 }
 
 /// A UnaryOperator is unary operator.
-/// Also see OperatorPrecedence.
+/// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `!`
-    LogicalNot,
+    LogicalNot = 1,
     /// `-`
-    Negate,
+    Negate = 2,
+    /// `-%`
+    WrappingNegate = 3,
     /// `~`
-    BitwiseNot,
-    /// `&`
-    Reference,
+    BitwiseNot = 6,
     /// `*`
-    Dereference,
+    Dereference = 4,
+    /// `&`
+    Reference = 5,
 }
 
 /// A BinaryOperator is an infix binary operator.
-/// Also see OperatorPrecedence.
+/// Relative order matches precedence. Also see OperatorPrecedence.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryOperator {
-    // arithmetic
-    /// `+`
-    Add,
-    /// `+%`
-    WrappingAdd,
-    /// `+|`
-    SaturatingAdd,
-    /// `-`
-    Subtract,
-    /// `-%`
-    WrappingSubtract,
-    /// `-|`
-    SaturatingSubtract,
+    // multiplication
     /// `*`
-    Multiply,
+    Multiply = 30,
     /// `*%`
-    WrappingMultiply,
+    WrappingMultiply = 31,
     /// `*|`
-    SaturatingMultiply,
+    SaturatingMultiply = 32,
     /// `/`
-    Divide,
+    Divide = 33,
     /// `%`
-    Remainder,
+    Remainder = 34,
 
-    // comparison
-    /// `==`
-    Equal,
-    /// `!=`
-    NotEqual,
-    /// `<`
-    LessThan,
-    /// `<=`
-    LessThanOrEqual,
-    /// `>`
-    GreaterThan,
-    /// `>=`
-    GreaterThanOrEqual,
+    // addition
+    /// `+`
+    Add = 40,
+    /// `+%`
+    WrappingAdd = 41,
+    /// `+|`
+    SaturatingAdd = 42,
+    /// `-`
+    Subtract = 43,
+    /// `-%`
+    WrappingSubtract = 44,
+    /// `-|`
+    SaturatingSubtract = 45,
 
-    // logical
-    /// `&&`
-    LogicalAnd,
-    /// `||`
-    LogicalOr,
+    // shift
+    /// `<<`
+    ShiftLeft = 50,
+    /// `<<|`
+    SaturatingShiftLeft = 51,
+    /// `>>`
+    ShiftRight = 52,
 
     // bitwise
     /// `&`
-    BitwiseAnd,
-    /// `|`
-    BitwiseOr,
+    BitwiseAnd = 60,
     /// `^`
-    BitwiseXor,
-    /// `<<`
-    ShiftLeft,
-    /// `<<|`
-    SaturatingShiftLeft,
-    /// `>>`
-    ShiftRight,
+    BitwiseXor = 61,
+    /// `|`
+    BitwiseOr = 62,
+
+    // comparison
+    /// `==`
+    Equal = 70,
+    /// `!=`
+    NotEqual = 71,
+    /// `<`
+    LessThan = 72,
+    /// `<=`
+    LessThanOrEqual = 73,
+    /// `>`
+    GreaterThan = 74,
+    /// `>=`
+    GreaterThanOrEqual = 75,
+
+    // logical
+    /// `&&`
+    LogicalAnd = 80,
+    /// `||`
+    LogicalOr = 81,
+}
+
+/// An AssignType is assignment type.
+/// Relative order matches precedence. Also see OperatorPrecedence.
+///
+/// Examples:
+/// ```
+/// x = 1
+/// x += 1
+/// x >>= 1
+/// x &= 1
+/// x |= 1
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum AssignType {
+    /// `=`
+    Assign = 90,
+
+    // assignment multiplication
+    /// `*=`
+    MultiplyAssign = 100,
+    /// `*%=`
+    WrappingMultiplyAssign = 101,
+    /// `*|=`
+    SaturatingMultiplyAssign = 102,
+    /// `/=`
+    DivideAssign = 103,
+    /// `%=`
+    RemainderAssign = 104,
+
+    // assignment addition
+    /// `+=`
+    AddAssign = 110,
+    /// `+%=`
+    WrappingAddAssign = 111,
+    /// `+|=`
+    SaturatingAddAssign = 112,
+    /// `-=`
+    SubtractAssign = 113,
+    /// `-%=`
+    WrappingSubtractAssign = 114,
+    /// `-|=`
+    SaturatingSubtractAssign = 115,
+
+    // assignment shift
+    /// `<<=`
+    ShiftLeftAssign = 120,
+    /// `<<|=`
+    SaturatingShiftLeftAssign = 121,
+    /// `>>=`
+    ShiftRightAssign = 122,
+
+    // assignment bitwise
+    /// `&=`
+    BitwiseAndAssign = 130,
+    /// `^=`
+    BitwiseXorAssign = 131,
+    /// `|=`
+    BitwiseOrAssign = 132,
+
+    // assignment logical
+    /// `&&=`
+    LogicalAndAssign = 140,
+    /// `||=`
+    LogicalOrAssign = 141,
+}
+
+/// Assignment to a variable (a "place expression").
+/// Also see OperatorPrecedence.
+///
+/// Examples:
+/// ```
+/// x = 1
+/// x.y = 2
+/// x[0] = 3
+/// *x = *y
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Assign {
+    /// The left-hand side of the assignment (should be a place Expression, checked later).
+    pub lhs: NodeId<Expression>,
+    /// The type of assignment.
+    pub r#type: AssignType,
+    /// The right-hand side of the assignment.
+    pub rhs: NodeId<Expression>,
+}
+
+impl Node for Assign {
+    const KIND: NodeType = NodeType::Assign;
 }
 
 /// Index reference.
@@ -1580,7 +1635,7 @@ impl Node for Index {
 // Calls
 // ----------------------------------------------------------------------------
 
-/// A Call is call to a function at runtime or compile time.
+/// A Call is call to a function at runtime or compile time ("dynamic" or "static").
 ///
 /// The function may or may not be declared as comptime (with a `@ prefix),
 ///  but the call must be prefixed with a `@` to qualify as a static call.
@@ -1657,8 +1712,8 @@ pub enum Pattern {
     Scalar(ScalarLiteral),
     /// A range literal value (like `1..3`).
     Range(RangeLiteral),
-    /// Or pattern (like `1 | 2 | 3`).
-    Or(Vec<NodeId<Pattern>>),
+    /// Union pattern (like `1 | 2 | 3`).
+    Union(Vec<NodeId<Pattern>>),
     /// Tuple pattern (like `(x, 0)`, `x, y`, `y, x, ..`).
     Tuple(Vec<NodeId<PatternField>>),
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).

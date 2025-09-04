@@ -82,3 +82,8 @@ impl<'a> Parser<'a> {
         Ok(implement_id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    // todo!: test implement
+}

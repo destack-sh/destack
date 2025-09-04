@@ -17,7 +17,7 @@ impl<'a> Parser<'a> {
     /// }
     ///
     /// union(uint4) Foo {
-    ///     A // semicolon optional
+    ///     A // comma optional
     ///     B { x: int32, y: int32 } = 4
     ///     C(boolean)
     ///     D(boolean, int32) = 6
@@ -232,7 +232,8 @@ mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
     use crate::{
-        Expression, Mutability, Parser, PrimitiveType, ScalarLiteral, TupleField, Type, UnionStyle,
+        Expression, IntType, Mutability, Parser, PrimitiveType, ScalarLiteral, TupleField, Type,
+        UnionStyle,
     };
 
     #[test]
@@ -287,7 +288,7 @@ union(uint4) Foo using Bar {
         // (uint4)
         let ty = uni.r#type.expect("expected explicit type");
         match parser.tree.get(ty) {
-            Type::Primitive(crate::PrimitiveType::Int(int_ty)) => {
+            Type::Primitive(PrimitiveType::Int(int_ty)) => {
                 assert_eq!(int_ty.width, 4);
                 assert!(!int_ty.is_signed);
             }
@@ -337,7 +338,7 @@ union(uint4) Foo using Bar {
                         assert_eq!(*name, parser.strings.intern("count"));
                         assert_eq!(
                             *parser.tree.get(*r#type),
-                            Type::Primitive(PrimitiveType::Int(crate::IntType {
+                            Type::Primitive(PrimitiveType::Int(IntType {
                                 width: 32,
                                 is_signed: true
                             }))

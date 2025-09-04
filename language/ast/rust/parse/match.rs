@@ -15,12 +15,6 @@ impl<'a> Parser<'a> {
     ///         ...
     ///     }
     /// }
-    ///
-    /// catch <expr> {
-    ///     NetworkError => @panic("network error")
-    ///     FormatError => @panic("format error")
-    ///     _ => return false
-    /// }
     /// ```
     pub fn eat_match(&mut self) -> ParseResult<NodeId<Match>> {
         let start = self.mark();
@@ -141,6 +135,7 @@ impl<'a> Parser<'a> {
 
             // try block with catch
             if self.peek_keyword(Keyword::Catch).is_ok() {
+                // catch match
                 self.eat_keyword(Keyword::Catch)?;
                 let catch_expression_id = self.eat_expression()?;
                 let catch_match_cases_id = self.eat_match_body()?;
@@ -183,4 +178,9 @@ impl<'a> Parser<'a> {
             Ok(try_id)
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    // todo!: test match / try catch
 }

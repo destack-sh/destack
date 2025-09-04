@@ -5,7 +5,9 @@ alwaysApply: false
 ---
 Performance is very important.
 
-Rust tests usually go in the bottom of the file in a `tests` mod.
+Imports SHOULD Be up top, then relative references within the file wherever possible (NO `crate::X` within functions).
+
+Rust tests SHOULD go in the bottom of the file in a `tests` mod.
 
 Import common stuff and use the inner name like:
 ```

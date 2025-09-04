@@ -119,7 +119,7 @@ impl Tokenizer<'_> {
                     let literal = RawLiteralType::RawString {
                         hashes: raw_dq_string.ok(),
                     };
-                    (TokenType::RawLiteral, Some(literal))
+                    (TokenType::Literal, Some(literal))
                 }
                 // identifier fallback
                 _ => self.eat_identifier_or_such('r'),
@@ -134,7 +134,7 @@ impl Tokenizer<'_> {
                         this.bump();
                         let is_terminated = this.eat_single_quoted_string();
                         (
-                            TokenType::RawLiteral,
+                            TokenType::Literal,
                             Some(RawLiteralType::Byte { is_terminated }),
                         )
                     }
@@ -143,7 +143,7 @@ impl Tokenizer<'_> {
                         this.bump();
                         let is_terminated = this.eat_double_quoted_string();
                         (
-                            TokenType::RawLiteral,
+                            TokenType::Literal,
                             Some(RawLiteralType::ByteString { is_terminated }),
                         )
                     }
@@ -152,7 +152,7 @@ impl Tokenizer<'_> {
                         this.bump();
                         let raw_dq_string = this.eat_raw_double_quoted_string(2);
                         (
-                            TokenType::RawLiteral,
+                            TokenType::Literal,
                             Some(RawLiteralType::RawByteString {
                                 hashes: raw_dq_string.ok(),
                             }),
@@ -169,7 +169,7 @@ impl Tokenizer<'_> {
             // numeric literal
             c @ '0'..='9' => {
                 let literal = self.eat_number_literal(c);
-                (TokenType::RawLiteral, Some(literal))
+                (TokenType::Literal, Some(literal))
             }
 
             // punctuation
@@ -200,7 +200,7 @@ impl Tokenizer<'_> {
             // symbols
             '@' => (TokenType::At, None),
             '#' => (TokenType::Pound, None),
-            '~' => (TokenType::Tilde, None),
+            '~' => (TokenType::BitwiseNot, None),
             '?' => (TokenType::Question, None),
             '$' => (TokenType::Dollar, None),
 
@@ -410,7 +410,7 @@ impl Tokenizer<'_> {
                 let kind = RawLiteralType::Character {
                     is_terminated: terminated,
                 };
-                (TokenType::RawLiteral, Some(kind))
+                (TokenType::Literal, Some(kind))
             }
 
             // string literal
@@ -419,7 +419,7 @@ impl Tokenizer<'_> {
                 let kind = RawLiteralType::String {
                     is_terminated: terminated,
                 };
-                (TokenType::RawLiteral, Some(kind))
+                (TokenType::Literal, Some(kind))
             }
 
             // identifier starting with an emoji (for graceful error recovery)
@@ -457,12 +457,12 @@ impl Tokenizer<'_> {
         // special case: literal `true` or `false`
         if first_char == 't' && self.str[start_pos - 1..self.pos].eq("true") {
             (
-                TokenType::RawLiteral,
+                TokenType::Literal,
                 Some(RawLiteralType::Boolean { value: true }),
             )
         } else if first_char == 'f' && self.str[start_pos - 1..self.pos].eq("false") {
             (
-                TokenType::RawLiteral,
+                TokenType::Literal,
                 Some(RawLiteralType::Boolean { value: false }),
             )
         }
