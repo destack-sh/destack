@@ -293,7 +293,7 @@ impl<'a> Parser<'a> {
             // alias / path
             } else if self.peek_identifier().is_ok() {
                 let path_id = self.eat_path()?;
-                Expression::Alias { path: path_id }
+                Expression::Path { path: path_id }
             // _
             } else {
                 Expression::Error

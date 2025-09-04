@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
             FunctionStyle::Function
         } else {
             FunctionStyle::Lambda
-        };    
+        };
         // runtime (optional @)
         let runtime = if self.peek_token(TokenType::At).is_ok() {
             self.bump();

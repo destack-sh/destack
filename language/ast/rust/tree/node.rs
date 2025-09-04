@@ -209,8 +209,8 @@ pub enum Expression {
     /// A Match is match expression (as an Expression, see Match).
     Match(NodeId<Match>),
 
-    /// Alias reference to some path (might me a member or constant).
-    Alias { path: PathId },
+    /// Alias reference to some path (might me a member, constant, ...).
+    Path { path: PathId },
     /// Literal scalar value (as an Expression, see ScalarLiteral).
     ScalarLiteral(NodeId<ScalarLiteral>),
     /// Range literal (as an Expression, see RangeLiteral).
@@ -1641,17 +1641,17 @@ impl Node for Cast {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    /// A scalar literal value.
+    /// A scalar literal value (like `1`).
     Scalar(ScalarLiteral),
-    /// A range literal value.
+    /// A range literal value (like `1..3`).
     Range(RangeLiteral),
-    /// Or pattern `1 | 2 | 3`.
+    /// Or pattern (like `1 | 2 | 3`).
     Or(Vec<NodeId<Pattern>>),
-    /// Tuple pattern `(x, 0)`.
+    /// Tuple pattern (like `(x, 0)`).
     Tuple(Vec<NodeId<PatternField>>),
-    /// Struct pattern `Vector2 { x: 0, y }`.
+    /// Struct pattern (like `Vector2 { x: 0, y }`).
     Struct(Vec<NodeId<PatternField>>),
-    /// Wildcard pattern `_`.
+    /// Wildcard pattern (`_`).
     Wildcard,
 }
 
