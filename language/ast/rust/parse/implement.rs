@@ -1,4 +1,5 @@
-use crate::{Implement, NodeId, ParseResult, Parser};
+use crate::{Function, Implement, Keyword, Let, NodeId, ParseResult, Parser};
+use destack_language_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).
@@ -8,8 +9,76 @@ impl<'a> Parser<'a> {
     /// implement Foo {
     ///     ...
     /// }
+    ///
+    /// implement Foo<int32> {
+    ///     ...
+    /// }
+    ///
+    /// implement Marker for Bar; // optional semicolon
+    /// implement OtherMarker for Bar
+    ///
+    /// implement Bar<int32> for Baz {
+    ///     ...
+    /// }
+    ///
+    /// implement<T> Bar<T> for Baz {
+    ///     ...
+    /// }
     /// ```
     pub fn eat_implement(&mut self) -> ParseResult<NodeId<Implement>> {
-        todo!()
+        let start = self.mark();
+        self.eat_keyword(Keyword::Implement)?;
+        // static arguments
+        let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+            self.eat_token(TokenType::LessThan)?;
+            let static_arguments = self.eat_arguments_body()?;
+            self.eat_token(TokenType::GreaterThan)?;
+            Some(static_arguments)
+        } else {
+            None
+        };
+        // the type being implemented
+        let receiver = self.eat_type()?;
+        // for
+        let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
+            self.eat_keyword(Keyword::For)?;
+            Some(self.eat_type()?)
+        } else {
+            None
+        };
+        // body (lets and functions)
+        let mut lets: Vec<NodeId<Let>> = vec![];
+        let mut functions: Vec<NodeId<Function>> = vec![];
+        if self.peek_token(TokenType::OpenBrace).is_ok() {
+            self.eat_token(TokenType::OpenBrace)?;
+            loop {
+                if self.peek_keyword(Keyword::Let).is_ok() {
+                    let let_id = self.eat_let_or_var()?;
+                    lets.push(let_id);
+                } else if self.peek_keyword(Keyword::Function).is_ok() {
+                    let function_id = self.eat_function()?;
+                    functions.push(function_id);
+                } else if self.peek_token(TokenType::CloseBrace).is_ok() {
+                    break;
+                } else {
+                    // TODO: report error
+                    self.bump();
+                    continue;
+                }
+            }
+            self.eat_token(TokenType::CloseBrace)?;
+        }
+        let implement_id = self.tree.allocate(
+            Implement {
+                static_arguments,
+                receiver,
+                for_trait,
+                lets,
+                functions,
+            },
+            self.get_span_from(start),
+        );
+        self.eat_token(TokenType::CloseBrace)?;
+        Ok(implement_id)
     }
 }

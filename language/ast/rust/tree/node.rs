@@ -456,20 +456,23 @@ impl Node for UnionField {
 ///
 /// Examples:
 /// ```
-/// trait Bar {
+/// trait { // anonymous trait
 ///     ...
 /// }
 ///
-/// trait Baz<T> {
-///     let x: T // constant
+/// trait Foo {
+///     let x: int32 // constant
+///     function foo() => int32
+/// }
 ///
-///     function foo() => T;
+/// trait Baz<T> {
+///     function baz() => T // semicolon optional
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Trait {
     /// The name of the trait.
-    pub name: StringId,
+    pub name: Option<StringId>,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The let bindings of the trait.
@@ -497,6 +500,7 @@ impl Node for Trait {
 /// }
 ///
 /// implement Marker for Bar;
+/// implement OtherMarker for Bar
 ///
 /// implement Bar<int32> for Baz {
 ///     ...
@@ -508,14 +512,16 @@ impl Node for Trait {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Implement {
-    /// The trait type to implement.
-    pub trait_type: NodeId<Type>,
-    /// The type to implement the trait for.
-    pub for_type: NodeId<Type>,
     /// The static arguments to the implement (leftmost static arguments).
-    pub static_arguments: Option<Vec<NodeId<Type>>>,
-    /// The body of the implement.
-    pub body: Option<NodeId<Block>>,
+    pub static_arguments: Option<Vec<NodeId<Argument>>>,
+    /// The trait type to implement.
+    pub receiver: NodeId<Type>,
+    /// The type to implement the trait for.
+    pub for_trait: Option<NodeId<Type>>,
+    /// The let bindings of the implement.
+    pub lets: Vec<NodeId<Let>>,
+    /// The functions of the implement.
+    pub functions: Vec<NodeId<Function>>,
 }
 
 impl Node for Implement {
@@ -546,6 +552,8 @@ pub enum FunctionStyle {
 /// Examples:
 /// ```
 /// // function style
+///
+/// function foo() // just declaration, no body, no opening `{`
 ///
 /// function foo() {
 ///    print("Hello, world!")
@@ -592,7 +600,7 @@ pub struct Function {
     /// The style of the function (function or lambda).
     pub style: FunctionStyle,
     /// The type of the function.
-    pub r#type: NodeId<FunctionSignature>,
+    pub signature: NodeId<FunctionSignature>,
     /// The body of the function.
     pub body: Option<NodeId<Block>>,
 }
@@ -614,10 +622,10 @@ impl Node for Function {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionSignature {
-    /// The static arguments to the function.
-    pub static_arguments: Vec<NodeId<Parameter>>,
-    /// The dynamic arguments to the function.
-    pub dynamic_arguments: Vec<NodeId<Parameter>>,
+    /// The static parameters to the function.
+    pub static_parameters: Vec<NodeId<Parameter>>,
+    /// The dynamic parameters to the function.
+    pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<NodeId<Type>>,
     /// The using declaration for the function (can't have a body).
@@ -628,17 +636,24 @@ impl Node for FunctionSignature {
     const KIND: NodeType = NodeType::FunctionSignature;
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum LetInitialization {
+    ExplicitInitialized,
+    ImplicitUninitialized,
+    ExplicitUninitialized,
+}
+
 /// Let or var binding for constant or mutable variables.
 ///
 /// Examples:
 /// ```
 /// let x = 1
-/// let x: i32 = 1
+/// let x: int32 = 1
 /// if let Some(x) = someFunction() {
 ///     ...
 /// }
 /// var x = 1
-/// var x: i32 = 1
+/// var x: int32 = 1
 /// var x: int32 // implicitly uninitialized, must be set before use
 /// var x: [float64; 3] = --- // explicitly uninitialized, can do whatever
 /// if var Some(x) = someFunction() {
@@ -650,6 +665,7 @@ pub struct Let {
     pub mutability: Mutability,
     pub r#type: Option<NodeId<Type>>,
     pub value: Option<NodeId<Expression>>,
+    pub initialization: LetInitialization,
 }
 
 impl Node for Let {
@@ -733,8 +749,9 @@ pub enum Type {
     Not(NodeId<Type>),
     /// Never `!`. Desugars to `Never`.
     Never,
+    // TODO: add self type?
 
-    // TODO: move primitive type parsing into DIR (?)
+    // NOTE :Architecture: move primitive type parsing into DIR (?)
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
@@ -742,7 +759,6 @@ pub enum Type {
         path: PathId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
-
     /// Pointer `*T` to a `T`. Or `*var T` for a mutable pointer.
     Pointer {
         mutability: Mutability,
@@ -1525,10 +1541,12 @@ impl Node for Index {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
-    /// The target of the call.
-    pub target: PathId,
+    /// The runtime of the call (static or dynamic).
+    pub runtime: FunctionRuntime,
+    /// The receiver of the call.
+    pub receiver: NodeId<Expression>,
     /// The static arguments to the call `<Arg1, Arg2, ...>`.
-    pub static_arguments: Vec<NodeId<Argument>>,
+    pub static_arguments: Option<Vec<NodeId<Argument>>>,
     /// The dynamic arguments to the call `(arg1, arg2, ...)`.
     pub dynamic_arguments: Vec<NodeId<Argument>>,
 }

@@ -1,4 +1,4 @@
-use destack_language_token::{NumberBase, RawLiteralType, TokenType};
+use destack_language_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 use std::borrow::Cow;
 
 use crate::{
@@ -7,44 +7,13 @@ use crate::{
 };
 
 impl<'a> Parser<'a> {
-    /// Eat a literal.
-    pub fn eat_literal(&mut self) -> ParseResult<NodeId<Expression>> {
-        let start = self.mark();
-        // array
-        if self.peek_token(TokenType::OpenBracket).is_ok() {
-            let array_literal = self.eat_array_literal()?;
-            let expression_id = self.tree.allocate(
-                Expression::ArrayLiteral(array_literal),
-                self.get_span_from(start),
-            );
-            Ok(expression_id)
-        // tuple
-        } else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            let tuple_literal = self.eat_tuple_literal()?;
-            let expression_id = self.tree.allocate(
-                Expression::TupleLiteral(tuple_literal),
-                self.get_span_from(start),
-            );
-            Ok(expression_id)
-        // struct
-        } else if self.peek_token(TokenType::OpenBrace).is_ok() {
-            let struct_literal = self.eat_struct_literal()?;
-            let expression_id = self.tree.allocate(
-                Expression::StructLiteral(struct_literal),
-                self.get_span_from(start),
-            );
-            Ok(expression_id)
-        // scalar
-        } else if self.peek_token(TokenType::RawLiteral).is_ok()
+    /// Peek a scalar literal.
+    pub fn peek_scalar_literal(&self) -> ParseResult<&TokenSpan> {
+        if self.peek_token(TokenType::RawLiteral).is_ok()
             || self.peek_identifier_str("true").is_ok()
             || self.peek_identifier_str("false").is_ok()
         {
-            let scalar_literal = self.eat_scalar_literal()?;
-            let expression_id = self.tree.allocate(
-                Expression::ScalarLiteral(scalar_literal),
-                self.get_span_from(start),
-            );
-            Ok(expression_id)
+            Ok(self.peek()?)
         } else {
             Err(ParseError::UnexpectedToken(self.peek()?.span))
         }
@@ -368,6 +337,13 @@ impl<'a> Parser<'a> {
             .tree
             .allocate(TupleLiteral { elements }, self.get_span_from(start));
         Ok(tuple_literal)
+    }
+
+    /// Peek a struct literal (including the type prefix).
+    /// Tests for path (with optional static arguments) followed by open brace `{`.
+    pub fn peek_struct_literal(&self) -> ParseResult<()> {
+        // nocheckin: parse struct literals somehow (without unbounded lookahead?)
+        Ok(())
     }
 
     /// Eat a struct literal (including the type prefix).

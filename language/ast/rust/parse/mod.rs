@@ -15,7 +15,6 @@ mod literal;
 mod r#loop;
 mod r#match;
 mod module;
-mod parameter;
 mod parser;
 mod path;
 mod pattern;
