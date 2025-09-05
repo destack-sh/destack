@@ -71,7 +71,7 @@ impl Tokenizer<'_> {
                 let bytes = self.as_str().as_bytes();
                 let next = bytes.first().copied();
                 match next {
-                    // line comments starting with '//'
+                    // //
                     Some(b'/') => {
                         // doc line comment if exactly three slashes and the fourth is not '/'
                         let third_is_slash = bytes.get(1).copied() == Some(b'/');
@@ -84,6 +84,7 @@ impl Tokenizer<'_> {
                             (TokenType::LineComment, None)
                         }
                     }
+                    // /*
                     // block comments starting with '/*' (with nesting)
                     Some(b'*') => {
                         // detect doc block comment for exactly '/**' (not '/***')
@@ -101,10 +102,13 @@ impl Tokenizer<'_> {
                     }
                     // divide or '/='
                     _ => {
+                        // /=
                         if self.peek() == '=' {
                             self.bump();
                             (TokenType::DivideAssign, None)
-                        } else {
+                        }
+                        // /
+                        else {
                             (TokenType::Divide, None)
                         }
                     }
@@ -129,6 +133,7 @@ impl Tokenizer<'_> {
             'b' => {
                 let this = &mut *self;
                 match (this.peek(), this.peek_next()) {
+                    // b'
                     // single-quoted byte literal
                     ('\'', _) => {
                         this.bump();
@@ -138,6 +143,7 @@ impl Tokenizer<'_> {
                             Some(RawLiteralType::Byte { is_terminated }),
                         )
                     }
+                    // b"
                     // double-quoted byte string literal
                     ('"', _) => {
                         this.bump();
@@ -147,6 +153,7 @@ impl Tokenizer<'_> {
                             Some(RawLiteralType::ByteString { is_terminated }),
                         )
                     }
+                    // br" or br#
                     // raw double-quoted byte string literal
                     ('r', '"') | ('r', '#') => {
                         this.bump();
@@ -158,7 +165,7 @@ impl Tokenizer<'_> {
                             }),
                         )
                     }
-                    // identifier fallback
+                    // identifier fallback (starting with 'b')
                     _ => this.eat_identifier_or_such('b'),
                 }
             }
@@ -177,24 +184,26 @@ impl Tokenizer<'_> {
 
             // symbols
             ':' => {
+                // ::
                 if self.peek() == ':' {
                     self.bump();
                     (TokenType::DoubleColon, None)
-                } else {
+                }
+                // :
+                else {
                     (TokenType::Colon, None)
                 }
             }
             ';' => (TokenType::Semicolon, None),
             ',' => (TokenType::Comma, None),
             '.' => {
-                if self.peek() == '.' && self.peek_next() == '.' {
-                    self.bump();
-                    self.bump();
-                    (TokenType::Ellipsis, None)
-                } else if self.peek() == '.' {
+                // ..
+                if self.peek() == '.' {
                     self.bump();
                     (TokenType::Range, None)
-                } else {
+                }
+                // .
+                else {
                     (TokenType::Dot, None)
                 }
             }
@@ -214,210 +223,302 @@ impl Tokenizer<'_> {
 
             // bang
             '!' => {
+                // !=
                 if self.peek() == '=' {
                     self.bump();
                     (TokenType::NotEqual, None)
-                } else {
+                }
+                // !
+                else {
                     (TokenType::Bang, None)
                 }
             }
 
             // subtract or arrow
             '-' => {
+                // ->
                 if self.peek() == '>' {
                     self.bump();
                     (TokenType::BadArrow, None)
-                } else if self.peek() == '-' && self.peek_next() == '-' {
+                }
+                // --
+                else if self.peek() == '-' {
                     self.bump();
                     self.bump();
                     (TokenType::Empty, None)
-                } else if self.peek() == '%' {
+                }
+                // -%
+                else if self.peek() == '%' {
                     self.bump();
+                    // -%=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::WrappingSubtractAssign, None)
-                    } else {
+                    }
+                    // -%
+                    else {
                         (TokenType::WrappingSubtract, None)
                     }
-                } else if self.peek() == '|' {
+                }
+                // -|
+                else if self.peek() == '|' {
                     self.bump();
+                    // -|=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::SaturatingSubtractAssign, None)
-                    } else {
+                    }
+                    // -|
+                    else {
                         (TokenType::SaturatingSubtract, None)
                     }
-                } else if self.peek() == '=' {
+                }
+                // -=
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::SubtractAssign, None)
-                } else {
+                }
+                // -
+                else {
                     (TokenType::Subtract, None)
                 }
             }
 
             // bitwise and, logical and and their assignments
             '&' => {
+                // &&
                 if self.peek() == '&' {
                     self.bump();
+                    // &&=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::LogicalAndAssign, None)
-                    } else {
+                    }
+                    // &&
+                    else {
                         (TokenType::LogicalAnd, None)
                     }
-                } else if self.peek() == '=' {
+                }
+                // &=
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseAndAssign, None)
-                } else {
+                }
+                // &
+                else {
                     (TokenType::BitwiseAnd, None)
                 }
             }
 
             // bitwise or, logical or and their assignments
             '|' => {
+                // ||
                 if self.peek() == '|' {
                     self.bump();
+                    // ||=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::LogicalOrAssign, None)
-                    } else {
+                    }
+                    // ||
+                    else {
                         (TokenType::LogicalOr, None)
                     }
-                } else if self.peek() == '=' {
+                }
+                // |=
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseOrAssign, None)
-                } else {
+                }
+                // |
+                else {
                     (TokenType::BitwiseOr, None)
                 }
             }
 
             // equal or assign
             '=' => {
+                // =>
                 if self.peek() == '>' {
                     self.bump();
                     (TokenType::Arrow, None)
-                } else if self.peek() == '=' {
+                }
+                // ==
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::Equal, None)
-                } else {
+                }
+                // =
+                else {
                     (TokenType::Assign, None)
                 }
             }
 
             // less than or shift left
             '<' => {
+                // <<
                 if self.peek() == '<' {
                     self.bump();
-                    // check for saturating shift first (<<| or <<|=)
+                    // <<|
                     if self.peek() == '|' {
                         self.bump();
+                        // <<|=
                         if self.peek() == '=' {
                             self.bump();
                             (TokenType::SaturatingShiftLeftAssign, None)
-                        } else {
+                        }
+                        // <<|
+                        else {
                             (TokenType::SaturatingShiftLeft, None)
                         }
-                    } else if self.peek() == '=' {
+                    }
+                    // <<=
+                    else if self.peek() == '=' {
                         self.bump();
                         (TokenType::ShiftLeftAssign, None)
-                    } else {
+                    }
+                    // <<
+                    else {
                         (TokenType::ShiftLeft, None)
                     }
-                } else if self.peek() == '=' {
+                }
+                // <=
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::LessThanOrEqual, None)
-                } else {
+                }
+                // <
+                else {
                     (TokenType::LessThan, None)
                 }
             }
 
             // greater than or shift right
             '>' => {
+                // >>
                 if self.peek() == '>' {
                     self.bump();
+                    // >>=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::ShiftRightAssign, None)
-                    } else {
+                    }
+                    // >>
+                    else {
                         (TokenType::ShiftRight, None)
                     }
-                } else if self.peek() == '=' {
+                }
+                // >=
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::GreaterThanOrEqual, None)
-                } else {
+                }
+                // >
+                else {
                     (TokenType::GreaterThan, None)
                 }
             }
 
             // xor
             '^' => {
+                // ^=
                 if self.peek() == '=' {
                     self.bump();
                     (TokenType::BitwiseXorAssign, None)
-                } else {
+                }
+                // ^
+                else {
                     (TokenType::BitwiseXor, None)
                 }
             }
 
             // add
             '+' => {
-                // wrapping and saturating variants take precedence
+                // +%
                 if self.peek() == '%' {
                     self.bump();
+                    // +%=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::WrappingAddAssign, None)
-                    } else {
+                    }
+                    // +%
+                    else {
                         (TokenType::WrappingAdd, None)
                     }
-                } else if self.peek() == '|' {
+                }
+                // +|
+                else if self.peek() == '|' {
                     self.bump();
+                    // +|=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::SaturatingAddAssign, None)
-                    } else {
+                    }
+                    // +|
+                    else {
                         (TokenType::SaturatingAdd, None)
                     }
-                } else if self.peek() == '=' {
+                }
+                // +=
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::AddAssign, None)
-                } else {
+                }
+                // +
+                else {
                     (TokenType::Add, None)
                 }
             }
 
             // multiply
             '*' => {
+                // *%
                 if self.peek() == '%' {
                     self.bump();
+                    // *%=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::WrappingMultiplyAssign, None)
-                    } else {
+                    }
+                    // *%
+                    else {
                         (TokenType::WrappingMultiply, None)
                     }
-                } else if self.peek() == '|' {
+                }
+                // *|
+                else if self.peek() == '|' {
                     self.bump();
+                    // *|=
                     if self.peek() == '=' {
                         self.bump();
                         (TokenType::SaturatingMultiplyAssign, None)
-                    } else {
+                    }
+                    // *|
+                    else {
                         (TokenType::SaturatingMultiply, None)
                     }
-                } else if self.peek() == '=' {
+                }
+                // *=
+                else if self.peek() == '=' {
                     self.bump();
                     (TokenType::MultiplyAssign, None)
-                } else {
+                }
+                // *
+                else {
                     (TokenType::Multiply, None)
                 }
             }
 
             // remainder
             '%' => {
+                // %=
                 if self.peek() == '=' {
                     self.bump();
                     (TokenType::RemainderAssign, None)
-                } else {
+                }
+                // %
+                else {
                     (TokenType::Remainder, None)
                 }
             }

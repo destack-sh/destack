@@ -197,7 +197,7 @@ mod tests {
     use crate::{IntType, Mutability, Parser, PrimitiveType, Type, WithClause};
 
     #[test]
-    fn test_parse_function_with_parenthesized_multiline_with() {
+    fn test_parse_function_with() {
         let input = r##"
 function foo() with (
   !Bar,
@@ -330,7 +330,7 @@ function c(*var self) {}
             None => panic!("expected type for parameter x"),
         }
         parser.eat_newline().unwrap();
-        
+
         // function c(*var self) {}
         let c_id = parser.eat_function().unwrap();
         let c = parser.tree.get(c_id);

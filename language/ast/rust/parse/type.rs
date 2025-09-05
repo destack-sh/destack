@@ -121,8 +121,7 @@ impl<'a> Parser<'a> {
     /// union { A(int), B(float) } // explicit anonymous union
     /// boolean | *int32 // implicit anonymous union
     /// function (int32) => int32
-    /// function () => int32, Vector2 // implicitly returns a tuple
-    /// function () => Result<int32, struct Error { message: string }>
+    /// function () => Result[int32, struct Error { message: string }]
     /// ```
     pub fn eat_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();

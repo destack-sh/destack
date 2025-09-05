@@ -62,9 +62,8 @@ impl Token {
             TokenType::Comma => ",".to_string(),
             TokenType::Dot => ".".to_string(),
             TokenType::Range => "..".to_string(),
-            TokenType::Ellipsis => "...".to_string(),
             TokenType::Pound => "#".to_string(),
-            TokenType::Empty => "---".to_string(),
+            TokenType::Empty => "--".to_string(),
             TokenType::Arrow => "=>".to_string(),
             TokenType::BadArrow => "->".to_string(),
 

@@ -165,7 +165,6 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Comma
         | K::Dot
         | K::Range
-        | K::Ellipsis
         | K::OpenParenthesis
         | K::CloseParenthesis
         | K::OpenBrace

@@ -108,16 +108,12 @@ fn test_invalid_start() {
 #[test]
 fn test_random_symbols() {
     assert_tokenize_eq_roundtrip!(
-        "a..b...f => c->d :: x _ : ? $ ! @ ~",
+        "a..b => c->d :: x _ : ? $ ! @ ~",
         // a
         Token::new(TokenType::Identifier, 1, None),
         // ..
         Token::new(TokenType::Range, 2, None),
         // b
-        Token::new(TokenType::Identifier, 1, None),
-        // ...
-        Token::new(TokenType::Ellipsis, 3, None),
-        // f
         Token::new(TokenType::Identifier, 1, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
@@ -491,26 +487,6 @@ struct TetrisCell {
 	/// Shape type that occupies this cell
 	shapeType: ?TetrisShape = None,
 }"##;
-
-    assert_tokenize_roundtrip!(input);
-}
-
-#[test]
-fn test_roundtrip_view() {
-    let input = r##"
-@entity 
-struct MyCustomView {
-	fn render(*self) {
-        let value: int32 = ---;
-        @if target == 'macos' {
-            ButtonView { test: @format("Hi {self.name}!") }
-        } @else {
-            None
-        }
-	}
-}"##;
-    let tokens: Vec<_> = tokenize(input).collect();
-    println!("{tokens:?}");
 
     assert_tokenize_roundtrip!(input);
 }

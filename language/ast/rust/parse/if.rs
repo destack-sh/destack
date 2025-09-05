@@ -77,7 +77,10 @@ mod tests {
 
         let if_id = parser.eat_if().unwrap();
         match parser.tree.get(if_id) {
-            If::If { condition, then_block } => {
+            If::If {
+                condition,
+                then_block,
+            } => {
                 // condition is boolean true
                 match parser.tree.get(*condition) {
                     Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
@@ -101,7 +104,11 @@ mod tests {
 
         let if_id = parser.eat_if().unwrap();
         match parser.tree.get(if_id) {
-            If::IfElse { condition, then_block, else_block } => {
+            If::IfElse {
+                condition,
+                then_block,
+                else_block,
+            } => {
                 // condition is boolean false
                 match parser.tree.get(*condition) {
                     Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
@@ -128,7 +135,11 @@ mod tests {
         let top_if_id = parser.eat_if().unwrap();
         // top: IfElseIf
         match parser.tree.get(top_if_id) {
-            If::IfElseIf { condition, then_block, else_if } => {
+            If::IfElseIf {
+                condition,
+                then_block,
+                else_if,
+            } => {
                 // top condition is boolean true
                 match parser.tree.get(*condition) {
                     Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
@@ -142,7 +153,11 @@ mod tests {
 
                 // nested else-if should become IfElse with final else
                 match parser.tree.get(*else_if) {
-                    If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else } => {
+                    If::IfElse {
+                        condition: inner_condition,
+                        then_block: inner_then,
+                        else_block: inner_else,
+                    } => {
                         // inner condition is boolean false
                         match parser.tree.get(*inner_condition) {
                             Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {

@@ -657,7 +657,7 @@ impl Node for Function {
 }
 
 /// A FunctionSelfParameter the a self parameter for a function.
-/// 
+///
 /// Examples:
 /// ```
 /// self
@@ -672,9 +672,8 @@ pub struct SelfParameter {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LetInitialization {
-    ExplicitInitialized,
-    ImplicitUninitialized,
-    ExplicitUninitialized,
+    Implicit,
+    Explicit,
 }
 
 /// Let or var binding for constant or mutable variables.
@@ -684,20 +683,21 @@ pub enum LetInitialization {
 /// ```
 /// let x = 1
 /// let x: int32 = 1
+/// let (x, y) = foo()
 /// if let Some(x) = someFunction() {
 ///     ...
 /// }
 /// var x = 1
 /// var x: int32 = 1
 /// var x: int32 // implicitly uninitialized, must be set before use
-/// var x: [float64; 3] = --- // explicitly uninitialized, can do whatever
+/// var x: [float64; 3] = -- // explicitly uninitialized, can do whatever
 /// if var Some(x) = someFunction() {
 ///     ...
 /// }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
-    pub name: StringId,
     pub mutability: Mutability,
+    pub pattern: NodeId<Pattern>,
     pub r#type: Option<NodeId<Type>>,
     pub value: Option<NodeId<Expression>>,
     pub initialization: LetInitialization,
@@ -773,7 +773,6 @@ impl Node for TupleField {
 /// union { A(int), B(float) } // explicit anonymous union
 /// boolean | *int32 // implicit anonymous union
 /// function (int32) => int32
-/// function () => int32, Vector2 // implicitly returns a tuple
 /// function () => Result[int32, struct Error { message: string }]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -1777,12 +1776,12 @@ impl Node for Cast {
 /// _
 /// x
 /// 1
+/// *MyEnum.A
 /// 2 | 3
 /// 4..6
 /// (x, 0, ..)
-/// x, y
-/// y, x, ..
 /// Vector2 { x: 0, y, z: zed }
+/// geom.Mesh[2, float32] { vertices: [2, ..] }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
@@ -1790,30 +1789,32 @@ pub enum Pattern {
     Wildcard,
     /// Wildcard rest pattern (`..`).
     Rest,
-    /// Literal value / expression pattern (like `1` or `math.Pi * 2`).
-    Literal(NodeId<Expression>),
+    /// Pointer pattern (like `*x`).
+    Pointer {
+        target: NodeId<Pattern>,
+        mutability: Mutability,
+    },
+    /// Literal value pattern (like `1`).
+    Literal(NodeId<ScalarLiteral>),
+    /// Identifier pattern (like `x`).
+    Identifier(StringId),
     /// Range pattern (like `1..3`).
     Range {
         start: Option<NodeId<Pattern>>,
         end: Option<NodeId<Pattern>>,
         is_inclusive: bool,
     },
-    /// Pointer pattern (like `*x`).
-    Pointer {
-        target: NodeId<Pattern>,
-        mutability: Mutability,
-    },
-    /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
-    Slice { elements: Vec<NodeId<Pattern>> },
-    /// Tuple pattern (like `(x, 0)`, `x, y`, `y, x, ..`).
+    /// Tuple pattern (like `(x, 0)`).
     Tuple { fields: Vec<NodeId<PatternField>> },
+    /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
+    Slice { fields: Vec<NodeId<PatternField>> },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
         r#type: NodeId<Type>,
         fields: Vec<NodeId<PatternField>>,
     },
     /// Union pattern (like `1 | 2 | 3`).
-    Union { patterns: Vec<NodeId<Pattern>> },
+    Union { fields: Vec<NodeId<Pattern>> },
 }
 
 impl Node for Pattern {
@@ -1821,11 +1822,26 @@ impl Node for Pattern {
 }
 
 /// A PatternStructField is a field AST node of a struct pattern.
+/// A PatternField is a field in a pattern (tuple, struct, union, etc.).
+///
+/// Examples:
+/// ```
+/// x // named
+/// x: 4  // named
+/// x: y  // named alias  
+/// 4     // positional
+/// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct PatternField {
-    pub name: Option<StringId>,
-    pub alias: Option<StringId>,
-    pub value: NodeId<Pattern>,
+pub enum PatternField {
+    /// Named field, maybe with a pattern (like `x` or `x: 4`).
+    Named {
+        name: StringId,
+        pattern: Option<NodeId<Pattern>>,
+    },
+    /// Named field with an alias (like `x: y`).
+    NamedAlias { name: StringId, alias: StringId },
+    /// Positional field with just a pattern (like `4`).
+    Positional { pattern: NodeId<Pattern> },
 }
 
 impl Node for PatternField {
