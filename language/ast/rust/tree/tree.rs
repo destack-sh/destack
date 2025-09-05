@@ -14,15 +14,15 @@ use crate::{
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct NodeId<T> {
+pub struct NodeId<T: Node> {
     pub id: u32,
     _ty: PhantomData<fn() -> T>,
 }
 
 // manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
-impl<T: Clone> Copy for NodeId<T> {}
+impl<T: Clone + Node> Copy for NodeId<T> {}
 
-impl<T> NodeId<T> {
+impl<T: Node> NodeId<T> {
     #[inline]
     pub fn get(&self) -> usize {
         self.id as usize
@@ -214,7 +214,7 @@ impl NodeTree {
     /// Will be freed later.
     ///
     /// Returns whether the node was already freed.
-    pub fn free<T>(&mut self, node_id: NodeId<T>) {
+    pub fn free<T: Node>(&mut self, node_id: NodeId<T>) {
         let node_id_raw = node_id.get() as u32;
         debug_assert!(
             !self.tombstones.contains(&node_id_raw),

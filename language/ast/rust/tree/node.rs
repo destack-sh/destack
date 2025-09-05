@@ -824,7 +824,7 @@ impl Node for Type {
 /// with !Bar
 /// with (
 ///    !Bar,
-///    Time<F>,
+///    Time<F> // optional comma
 ///    F: Numeric
 /// )
 /// ```
@@ -1758,31 +1758,42 @@ impl Node for Cast {
 /// Examples:
 /// ```
 /// _
+/// x
 /// 1
 /// 2 | 3
 /// 4..6
 /// (x, 0, ..)
 /// x, y
 /// y, x, ..
-/// Vector2 { x: 0, y }
-/// Point(x, y: new_y)
+/// Vector2 { x: 0, y, z: zed }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
-    /// A scalar literal value (like `1`).
-    Scalar(ScalarLiteral),
-    /// A range literal value (like `1..3`).
-    Range(RangeLiteral),
-    /// Union pattern (like `1 | 2 | 3`).
-    Union(Vec<NodeId<Pattern>>),
-    /// Tuple pattern (like `(x, 0)`, `x, y`, `y, x, ..`).
-    Tuple(Vec<NodeId<PatternField>>),
-    /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
-    Struct(Vec<NodeId<PatternField>>),
     /// Wildcard single pattern (`_`).
     Wildcard,
     /// Wildcard rest pattern (`..`).
     Rest,
+    /// A scalar literal value (like `1`).
+    Scalar(NodeId<ScalarLiteral>),
+    /// A range literal value (like `1..3`).
+    Range {
+        start: Option<NodeId<Pattern>>,
+        end: Option<NodeId<Pattern>>,
+        is_inclusive: bool,
+    },
+    /// Union pattern (like `1 | 2 | 3`).
+    Union {
+        patterns: Vec<NodeId<Pattern>>,
+    },
+    /// Tuple pattern (like `(x, 0)`, `x, y`, `y, x, ..`).
+    Tuple {
+        fields: Vec<NodeId<PatternField>>,
+    },
+    /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
+    Struct {
+        r#type: NodeId<Type>,
+        fields: Vec<NodeId<PatternField>>,
+    },
 }
 
 impl Node for Pattern {

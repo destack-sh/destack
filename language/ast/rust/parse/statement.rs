@@ -56,10 +56,15 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Usings
+            // Context
             // ------------------------------------------------------------
             //
-            // using
+            // with
+            else if self.peek_keyword(Keyword::With).is_ok() {
+                let with_id = self.eat_with()?;
+                Statement::With(with_id)
+            }
+            // use
             else if self.peek_keyword(Keyword::Use).is_ok() {
                 let use_id = self.eat_use()?;
                 Statement::Use(use_id)
