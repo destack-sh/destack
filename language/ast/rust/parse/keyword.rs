@@ -19,6 +19,28 @@ impl<'a> Parser<'a> {
             Ok(current)
         }
     }
+
+    /// Peek the next keyword.
+    #[inline]
+    pub fn peek_next_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+        let current = self.peek_next_token(TokenType::Identifier)?;
+        if self.get_span_str(current.span) != keyword.as_str() {
+            Err(ParseError::UnexpectedToken(current.span))
+        } else {
+            Ok(current)
+        }
+    }
+
+    /// Peek the next next keyword.
+    #[inline]
+    pub fn peek_next_next_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+        let current = self.peek_next_next_token(TokenType::Identifier)?;
+        if self.get_span_str(current.span) != keyword.as_str() {
+            Err(ParseError::UnexpectedToken(current.span))
+        } else {
+            Ok(current)
+        }
+    }
 }
 
 #[cfg(test)]
