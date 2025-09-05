@@ -70,6 +70,8 @@ pub enum TokenType {
     // symbols
     /// `:`
     Colon,
+    /// `::`
+    DoubleColon,
     /// `;`
     Semicolon,
     /// `,`
@@ -88,6 +90,16 @@ pub enum TokenType {
     Arrow,
     /// `->`
     BadArrow,
+    /// `@`
+    At,
+    /// `~`
+    BitwiseNot,
+    /// `?`
+    Question,
+    /// `$`
+    Dollar,
+    /// `!`
+    Bang,
 
     // parentheses
     /// `(`
@@ -103,16 +115,6 @@ pub enum TokenType {
     /// `]`
     CloseBracket,
 
-    /// `@`
-    At,
-    /// `~`
-    BitwiseNot,
-    /// `?`
-    Question,
-    /// `$`
-    Dollar,
-    /// `!`
-    Bang,
 
     // multiplication
     /// `*`

@@ -16,7 +16,7 @@ impl<'a> Parser<'a> {
     ///
     /// function foo() // just declaration, no body, no opening `{`
     ///
-    /// function foo<T, U>(x: T) => int32, boolean {
+    /// function foo[T, U](x: T) => int32, boolean {
     ///    print("Hello, world!")
     /// }
     ///
@@ -67,10 +67,10 @@ impl<'a> Parser<'a> {
         };
 
         // static parameters
-        let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
-            self.eat_token(TokenType::LessThan)?;
+        let static_parameters = if self.peek_token(TokenType::OpenBracket).is_ok() {
+            self.eat_token(TokenType::OpenBracket)?;
             let static_parameters = self.eat_parameters_body()?;
-            self.eat_token(TokenType::GreaterThan)?;
+            self.eat_token(TokenType::CloseBracket)?;
             Some(static_parameters)
         } else {
             None

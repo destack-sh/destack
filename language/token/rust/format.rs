@@ -56,6 +56,7 @@ impl Token {
 
             // symbols
             TokenType::Colon => ":".to_string(),
+            TokenType::DoubleColon => "::".to_string(),
             TokenType::Semicolon => ";".to_string(),
             TokenType::Comma => ",".to_string(),
             TokenType::Dot => ".".to_string(),

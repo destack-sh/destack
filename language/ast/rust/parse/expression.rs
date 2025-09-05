@@ -618,30 +618,17 @@ impl<'a> Parser<'a> {
         //
 
         // infix binary operations
-        while let Ok(right_operator) = self.peek_infix_operator() {
-            let right_precedence = right_operator.precedence();
-
-            // left_precedence is set and >= right_precedence
-            //  => leave to outer expression (left associative)
-            if let Some(left_precedence) = left_precedence
-                && left_precedence >= right_precedence
-            {
-                break;
-            }
-            // left_precedence is unset or < right_precedence
-            //  => consume operator + rhs
-            else {
-                self.bump(); // eat infix operator
-                let right_expression_id = self.eat_expression(Some(right_precedence))?;
-                let left_expression = self.make_infix_expression(
-                    left_expression_id,
-                    right_operator,
-                    right_expression_id,
-                );
-                left_expression_id = self
-                    .tree
-                    .allocate(left_expression, self.get_span_from(start))
-            }
+        // keep eating while left precedence is weaker than right precedence
+        while let Ok(right_operator) = self.peek_infix_operator()
+            && (left_precedence.is_none() || left_precedence.unwrap() < right_operator.precedence())
+        {
+            self.bump(); // eat infix operator
+            let right_expression_id = self.eat_expression(Some(right_operator.precedence()))?;
+            let left_expression =
+                self.make_infix_expression(left_expression_id, right_operator, right_expression_id);
+            left_expression_id = self
+                .tree
+                .allocate(left_expression, self.get_span_from(start))
         }
 
         Ok(left_expression_id)

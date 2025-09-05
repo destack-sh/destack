@@ -108,7 +108,9 @@ fn test_invalid_start() {
 #[test]
 fn test_spread_and_arrows() {
     assert_tokenize_eq_roundtrip!(
-        "a...b => c->d :: x",
+        "a..b...f => c->d :: x",
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::Range, 2, None),
         Token::new(TokenType::Identifier, 1, None),
         Token::new(TokenType::Ellipsis, 3, None),
         Token::new(TokenType::Identifier, 1, None),
@@ -119,8 +121,7 @@ fn test_spread_and_arrows() {
         Token::new(TokenType::BadArrow, 2, None),
         Token::new(TokenType::Identifier, 1, None),
         Token::new(TokenType::Whitespace, 1, None),
-        Token::new(TokenType::Colon, 1, None),
-        Token::new(TokenType::Colon, 1, None),
+        Token::new(TokenType::DoubleColon, 2, None),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::Identifier, 1, None),
     );
