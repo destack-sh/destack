@@ -409,7 +409,7 @@ impl<'a> Parser<'a> {
             // parenthesis
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open paranthesis
-                // parse inner expression without outer precedence
+                // parse inner expressions with reset precedence (new precedence "scope")
                 let expression_id = self.eat_expression(None)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.set_span(expression_id, self.get_span_from(start));
@@ -560,8 +560,7 @@ impl<'a> Parser<'a> {
                 let tuple_literal = self.eat_tuple_literal()?;
                 let expression = Expression::TupleLiteral(tuple_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
-            // todo!: parse struct literals (postfix to avoid unbounded lookahead?)
-            //  (also for patterns?)
+            // todo!: parse struct literals/patterns (postfix to avoid unbounded lookahead?)
             // scalar
             } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;

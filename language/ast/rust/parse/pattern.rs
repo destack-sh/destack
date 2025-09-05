@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
                             let alias = self.eat_identifier()?;
                             PatternField::NamedAlias { name, alias }
                         }
-                        // named
+                        // named with pattern
                         else {
                             let pattern = self.eat_pattern(mode)?;
                             PatternField::Named {
@@ -163,7 +163,9 @@ impl<'a> Parser<'a> {
                                 pattern: Some(pattern),
                             }
                         }
-                    } else {
+                    }
+                    // named without pattern
+                    else {
                         PatternField::Named {
                             name,
                             pattern: None,

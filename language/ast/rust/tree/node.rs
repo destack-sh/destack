@@ -1353,11 +1353,15 @@ impl Node for RangeLiteral {
 ///
 /// Examples:
 /// ```
-/// [1, 2, 3]
-/// [1.0, 2.0, 3.0]
-/// [10, false, "Hi"] // okay in AST, but errors in type-checker
-/// [0; 10]
-/// [false; 40]
+/// [] // empty array
+/// [1, 2, ] // trailing comma is allowed
+/// // multi-line array with implicit comma
+/// [
+///   1 // comma is optional here
+///   2 // comma is optional here too
+/// ]
+/// [10, false, "Hi"] // hetereogenous array is invalid but legal in AST
+/// [0; 10] // repeated array
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArrayLiteral {

@@ -25,13 +25,13 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_with(&mut self) -> ParseResult<NodeId<With>> {
         self.eat_keyword(Keyword::With)?;
-        let with = self.eat_with_header()?;
+        let with = self.eat_with_body()?;
         self.eat_statement_stop()?;
         Ok(with)
     }
 
     /// Eat the clauses of a `with` declaration (without the `with` keyword).
-    pub fn eat_with_header(&mut self) -> ParseResult<NodeId<With>> {
+    pub fn eat_with_body(&mut self) -> ParseResult<NodeId<With>> {
         let start = self.mark();
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
 

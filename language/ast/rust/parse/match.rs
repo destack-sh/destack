@@ -372,12 +372,11 @@ try {
                 match parser.tree.get(m.cases[0]) {
                     MatchCase::Block {
                         pattern,
-                        body,
+                        body: _,
                         guard,
                     } => {
                         assert!(guard.is_none());
                         assert_eq!(parser.tree.get(*pattern), &Pattern::Wildcard);
-                        let _body_block = parser.tree.get(*body);
                     }
                     other => panic!("expected block case, got {other:?}"),
                 }

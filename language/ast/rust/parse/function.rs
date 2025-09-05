@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
         // with
         let with = if self.peek_keyword(Keyword::With).is_ok() {
             self.eat_keyword(Keyword::With)?;
-            let with = self.eat_with_header()?;
+            let with = self.eat_with_body()?;
             Some(with)
         } else {
             None
@@ -175,7 +175,7 @@ impl<'a> Parser<'a> {
             Function {
                 name,
                 runtime,
-                // TODO: support lambda function style
+                // todo!: support lambda function style
                 style: FunctionStyle::Function,
                 with,
                 static_parameters,

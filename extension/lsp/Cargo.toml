@@ -18,7 +18,7 @@ path = "rust/main.rs"
 destack_language_token = { workspace = true }
 destack_language_ast = { workspace = true }
 
-# TODO: vendor LSP types & serde (once Dyst is more mature)
+# NOTE: vendor LSP types & serde (once Dyst is more mature)
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 ls-types = { git = "https://github.com/tower-lsp-community/ls-types", branch = "main" }
