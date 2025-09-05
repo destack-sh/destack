@@ -28,6 +28,7 @@ impl<'a> Parser<'a> {
     pub fn eat_implement(&mut self) -> ParseResult<NodeId<Implement>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Implement)?;
+
         // static arguments
         let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
             self.eat_token(TokenType::LessThan)?;
@@ -37,8 +38,10 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        // the type being implemented
+
+        // target
         let receiver = self.eat_type()?;
+
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.eat_keyword(Keyword::For)?;
@@ -46,13 +49,16 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        // body (lets and functions)
+
+        // body (if any)
         let mut lets: Vec<NodeId<Let>> = vec![];
         let mut functions: Vec<NodeId<Function>> = vec![];
         if self.peek_token(TokenType::OpenBrace).is_ok() {
             self.eat_token(TokenType::OpenBrace)?;
             loop {
-                if self.peek_keyword(Keyword::Let).is_ok() {
+                if self.peek_keyword(Keyword::Let).is_ok()
+                    || self.peek_keyword(Keyword::Var).is_ok()
+                {
                     let let_id = self.eat_let_or_var()?;
                     lets.push(let_id);
                 } else if self.peek_keyword(Keyword::Function).is_ok() {
@@ -67,7 +73,11 @@ impl<'a> Parser<'a> {
                 }
             }
             self.eat_token(TokenType::CloseBrace)?;
+        } else {
+            self.eat_any_stop()?;
         }
+
+        // implement
         let implement_id = self.tree.allocate(
             Implement {
                 static_arguments,
@@ -81,9 +91,4 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
         Ok(implement_id)
     }
-}
-
-#[cfg(test)]
-mod tests {
-    // todo!: test implement
 }

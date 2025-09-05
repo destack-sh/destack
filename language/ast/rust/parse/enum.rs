@@ -41,8 +41,7 @@ impl<'a> Parser<'a> {
         // optional name (avoid consuming `using` as a name)
         let name = if let Ok(next) = self.peek_token(TokenType::Identifier) {
             let ident_str = self.get_token_str(*next);
-            if ident_str != Keyword::Use.as_str()
-                && self.peek_token(TokenType::OpenBrace).is_err()
+            if ident_str != Keyword::Use.as_str() && self.peek_token(TokenType::OpenBrace).is_err()
             {
                 Some(self.eat_identifier()?)
             } else {
@@ -80,21 +79,20 @@ impl<'a> Parser<'a> {
                     name: None,
                     r#type: None,
                     fields: Vec::new(),
-                    lets: None,
                 },
                 self.get_span_from(start),
             );
             return Ok(enum_id);
         }
-        
+
         // parse first field
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
         let first_field = self.eat_enum_field_as_union_field()?;
         fields.push(first_field);
 
         // parse more fields while comma/newline separated
-        while self.peek_item_stop().is_ok() {
-            self.eat_item_stop()?;
+        while self.peek_any_stop().is_ok() {
+            self.eat_any_stop()?;
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }

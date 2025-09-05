@@ -131,6 +131,7 @@ impl<'a> Parser<'a> {
 
         // try block
         if self.peek_block().is_ok() {
+            // try block
             let block_id = self.eat_block()?;
 
             // try block with catch

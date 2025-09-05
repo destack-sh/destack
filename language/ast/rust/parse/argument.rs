@@ -6,6 +6,7 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// T
     /// x: int32
     /// Validate: bool = false
     /// baz: @someMacro(T)
@@ -14,10 +15,17 @@ impl<'a> Parser<'a> {
     pub fn eat_parameter(&mut self) -> ParseResult<NodeId<Parameter>> {
         let start = self.mark();
 
-        // name: type
+        // name
         let name = self.eat_identifier()?;
-        self.eat_colon()?;
-        let r#type = self.eat_type()?;
+
+        // : type
+        let r#type = if self.peek_colon().is_ok() {
+            self.eat_colon()?;
+            let r#type = self.eat_type()?;
+            Some(r#type)
+        } else {
+            None
+        };
 
         // default value
         let parameter = if self.peek_token(TokenType::Assign).is_ok() {
@@ -132,11 +140,20 @@ mod tests {
     #[test]
     fn test_parameters() {
         let input = r###"
+T
 x: int32
 validate: boolean = false
         "###;
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
+
+        // T
+        let parameter_id = parser.eat_parameter().unwrap();
+        let parameter = parser.tree.get(parameter_id);
+        assert_eq!(parameter.name, parser.strings.intern("T"));
+        assert!(parameter.r#type.is_none());
+        assert!(parameter.default.is_none());
         parser.eat_newline().unwrap();
 
         // x: int32
@@ -145,7 +162,7 @@ validate: boolean = false
         // x
         assert_eq!(parameter.name, parser.strings.intern("x"));
         // int32
-        let type_node = parser.tree.get(parameter.r#type);
+        let type_node = parser.tree.get(parameter.r#type.unwrap());
         match type_node {
             &Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
                 assert_eq!(width, 32);
@@ -162,7 +179,7 @@ validate: boolean = false
         // validate
         assert_eq!(parameter.name, parser.strings.intern("validate"));
         // bool
-        let type_node = parser.tree.get(parameter.r#type);
+        let type_node = parser.tree.get(parameter.r#type.unwrap());
         match type_node {
             &Type::Primitive(PrimitiveType::Boolean) => {}
             _ => panic!("expected boolean type"),

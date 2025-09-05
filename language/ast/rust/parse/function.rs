@@ -16,11 +16,17 @@ impl<'a> Parser<'a> {
     ///
     /// function foo() // just declaration, no body, no opening `{`
     ///
-    /// function foo[T, U](x: T) => int32, boolean {
+    /// function foo[T, U](x: T) => (int32, boolean) with (
+    ///    T: Copy
+    ///    U: Numeric
+    /// ) {
     ///    print("Hello, world!")
     /// }
     ///
-    /// function baz(a: int32, b: boolean) with Disk, Time => MyStruct, boolean {
+    /// function baz(a: int32, b: boolean) => (
+    ///    MyStruct,
+    ///    boolean
+    /// ) with Disk, Time { // with can be on next line
     ///    ...
     /// }
     ///
@@ -28,22 +34,28 @@ impl<'a> Parser<'a> {
     ///    ...
     /// }
     ///
-    /// function longBar(
+    /// // optional , if newline-delimited
+    /// function longBar[Validate: boolean](
     ///   /// doc comment for `a`
     ///   a: int32
     ///   /// doc comment for `b`
     ///   b: boolean
     ///   // regular comment
     ///   c: Vector2
-    /// ) => int32, isGood: boolean {
+    /// ) => (
+    ///    int32,
+    ///    isGood: boolean
+    /// ) with (
+    ///   Time
+    /// ) {
     ///    ...
-    /// )
+    /// }
     ///
     /// // lambda style
     ///
-    /// function () { 0 }
-    /// function x(x) { x + 1 }
-    /// function y(x: int32) { x + 1 }
+    /// function () => 0
+    /// function x(x) => x + 1
+    /// function y(x: int32) => x + 1
     /// ```
     pub fn eat_function(&mut self) -> ParseResult<NodeId<Function>> {
         let start = self.mark();
@@ -86,9 +98,9 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseParenthesis)?;
 
         // with
-        let with =  if self.peek_keyword(Keyword::With).is_ok() {
+        let with = if self.peek_keyword(Keyword::With).is_ok() {
             self.eat_keyword(Keyword::With)?;
-            let with =  self.eat_with_header()?;
+            let with = self.eat_with_header()?;
             Some(with)
         } else {
             None

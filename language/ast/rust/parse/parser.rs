@@ -241,10 +241,14 @@ impl<'a> Parser<'a> {
     /// Peek an item stop (comma or newline).
     #[inline]
     pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {
-        if let Ok(newline) = self.peek_newline() {
-            Ok(newline)
+        if let Ok(token) = self.peek()
+            && (token.token.r#type == TokenType::Newline || token.token.r#type == TokenType::Comma)
+        {
+            Ok(token)
         } else {
-            self.peek_comma()
+            Err(ParseError::SyntaxError(
+                self.peek().unwrap_or(&self.eof_token).span,
+            ))
         }
     }
 
@@ -252,10 +256,14 @@ impl<'a> Parser<'a> {
     /// Eats all following newlines.
     #[inline]
     pub fn eat_item_stop(&mut self) -> ParseResult<()> {
-        if self.peek_newline().is_ok() {
-            self.eat_newline()?;
+        if let Ok(token) = self.peek()
+            && (token.token.r#type == TokenType::Newline || token.token.r#type == TokenType::Comma)
+        {
+            self.bump();
         } else {
-            self.eat_comma()?;
+            return Err(ParseError::SyntaxError(
+                self.peek().unwrap_or(&self.eof_token).span,
+            ));
         }
         self.eat_newlines_maybe()?;
         Ok(())
@@ -264,10 +272,15 @@ impl<'a> Parser<'a> {
     /// Peek a statement stop (semicolon or newline).
     #[inline]
     pub fn peek_statement_stop(&self) -> ParseResult<&TokenSpan> {
-        if let Ok(newline) = self.peek_newline() {
-            Ok(newline)
+        if let Ok(token) = self.peek()
+            && (token.token.r#type == TokenType::Newline
+                || token.token.r#type == TokenType::Semicolon)
+        {
+            Ok(token)
         } else {
-            self.peek_semicolon()
+            Err(ParseError::SyntaxError(
+                self.peek().unwrap_or(&self.eof_token).span,
+            ))
         }
     }
 
@@ -275,10 +288,50 @@ impl<'a> Parser<'a> {
     /// Eats all following newlines.
     #[inline]
     pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
-        if self.peek_newline().is_ok() {
-            self.eat_newline()?;
+        if let Ok(token) = self.peek()
+            && (token.token.r#type == TokenType::Newline
+                || token.token.r#type == TokenType::Semicolon)
+        {
+            self.bump();
         } else {
-            self.eat_semicolon()?;
+            return Err(ParseError::SyntaxError(
+                self.peek().unwrap_or(&self.eof_token).span,
+            ));
+        }
+        self.eat_newlines_maybe()?;
+        Ok(())
+    }
+
+    /// Peek any stop (comma, semicolon, or newline).
+    #[inline]
+    pub fn peek_any_stop(&self) -> ParseResult<&TokenSpan> {
+        if let Ok(token) = self.peek()
+            && (token.token.r#type == TokenType::Newline
+                || token.token.r#type == TokenType::Semicolon
+                || token.token.r#type == TokenType::Comma)
+        {
+            Ok(token)
+        } else {
+            Err(ParseError::SyntaxError(
+                self.peek().unwrap_or(&self.eof_token).span,
+            ))
+        }
+    }
+
+    /// Eat any stop (comma, semicolon, or newline).
+    /// Eats all following newlines.
+    #[inline]
+    pub fn eat_any_stop(&mut self) -> ParseResult<()> {
+        if let Ok(token) = self.peek()
+            && (token.token.r#type == TokenType::Newline
+                || token.token.r#type == TokenType::Semicolon
+                || token.token.r#type == TokenType::Comma)
+        {
+            self.bump();
+        } else {
+            return Err(ParseError::SyntaxError(
+                self.peek().unwrap_or(&self.eof_token).span,
+            ));
         }
         self.eat_newlines_maybe()?;
         Ok(())

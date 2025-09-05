@@ -2,7 +2,7 @@
 
 use destack_language_token::TokenType;
 
-use crate::{Keyword, NodeId, ParseResult, Parser, Struct, StructField, Use};
+use crate::{Keyword, Let, NodeId, ParseResult, Parser, Struct, StructField, Use};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -34,20 +34,9 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         self.eat_keyword(Keyword::Struct)?;
 
-        // optional name (avoid consuming `using` as a name)
-        let name = if self.peek_keyword(Keyword::Use).is_err()
-            && self.peek_token(TokenType::Identifier).is_ok()
-        {
+        // optional name
+        let name = if self.peek_token(TokenType::Identifier).is_ok() {
             Some(self.eat_identifier()?)
-        } else {
-            None
-        };
-
-        // optional `use ...` header
-        let using: Option<NodeId<Use>> = if self.peek_keyword(Keyword::Use).is_ok() {
-            self.eat_keyword(Keyword::Use)?;
-            let using = self.eat_use_header()?;
-            Some(using)
         } else {
             None
         };
@@ -61,7 +50,6 @@ impl<'a> Parser<'a> {
         // fill in header data
         let struct_ = self.tree.get_mut(struct_id);
         struct_.name = name;
-        struct_.usings = using;
         self.tree.set_span(struct_id, self.get_span_from(start));
 
         Ok(struct_id)
@@ -71,40 +59,44 @@ impl<'a> Parser<'a> {
     pub fn eat_struct_body(&mut self) -> ParseResult<NodeId<Struct>> {
         let start = self.mark();
 
-        // empty body
+        // eat everything
         let mut fields: Vec<NodeId<StructField>> = Vec::new();
-        if self.peek_token(TokenType::CloseBrace).is_ok() {
-            let struct_id = self.tree.allocate(
-                Struct {
-                    name: None,
-                    fields,
-                    usings: None,
-                    lets: None,
-                },
-                self.get_span_from(start),
-            );
-            return Ok(struct_id);
-        }
-
-        // parse first field
-        let first_field = self.eat_struct_field()?;
-        fields.push(first_field);
-
-        // parse more fields while comma/newline separated
-        while self.peek_item_stop().is_ok() {
-            self.eat_item_stop()?;
+        let mut usings: Vec<NodeId<Use>> = Vec::new();
+        let mut lets: Vec<NodeId<Let>> = Vec::new();
+        loop {
+            // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
-            let field = self.eat_struct_field()?;
-            fields.push(field);
+            // consume any stop
+            else if self.peek_any_stop().is_ok() {
+                self.eat_any_stop()?;
+            }
+            // let
+            else if self.peek_keyword(Keyword::Let).is_ok()
+                || self.peek_keyword(Keyword::Var).is_ok()
+            {
+                let let_declaration = self.eat_let_or_var()?;
+                lets.push(let_declaration);
+            }
+            // use
+            else if self.peek_keyword(Keyword::Use).is_ok() {
+                let using = self.eat_use()?;
+                usings.push(using);
+            }
+            // field
+            else {
+                let field = self.eat_struct_field()?;
+                fields.push(field);
+            }
         }
 
         let struct_id = self.tree.allocate(
             Struct {
                 name: None,
                 fields,
-                usings: None,
+                usings,
+                lets,
             },
             self.get_span_from(start),
         );
@@ -158,7 +150,8 @@ struct { x: int32, y: boolean
         let struct_id = parser.eat_struct().unwrap();
         let r#struct = parser.tree.get(struct_id);
         assert_eq!(r#struct.name, None);
-        assert!(r#struct.usings.is_none());
+        assert!(r#struct.usings.is_empty());
+        assert!(r#struct.lets.is_empty());
         assert_eq!(r#struct.fields.len(), 2);
 
         // x: int32
@@ -198,7 +191,11 @@ struct { x: int32, y: boolean
     #[test]
     fn test_parse_struct_with_name_and_using_and_default() {
         let input = r###"
-struct Foo use Bar, Baz {
+struct Foo {
+    use Bar, Baz
+    
+    let x: int32 = 4
+
     a: boolean
     b: int32 = 4
 }
@@ -210,7 +207,8 @@ struct Foo use Bar, Baz {
         let struct_id = parser.eat_struct().unwrap();
         let r#struct = parser.tree.get(struct_id);
         assert_eq!(r#struct.name, Some(parser.strings.intern("Foo")));
-        assert!(r#struct.usings.is_some());
+        assert_eq!(r#struct.usings.len(), 1);
+        assert_eq!(r#struct.lets.len(), 1);
         assert_eq!(r#struct.fields.len(), 2);
 
         // a: boolean
