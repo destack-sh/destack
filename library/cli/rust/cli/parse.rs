@@ -187,6 +187,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
 
         // colon, semi, comma, dot, range, ellipsis
         TokenType::Colon
+        | TokenType::DoubleColon
         | TokenType::Semicolon
         | TokenType::Comma
         | TokenType::Dot

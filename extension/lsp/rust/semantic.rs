@@ -158,8 +158,9 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         // literals
         K::Literal => 3,
 
-        // punctuation - use FUNCTION color to differentiate from operators
+        // punctuation
         K::Colon
+        | K::DoubleColon
         | K::Semicolon
         | K::Comma
         | K::Dot
@@ -175,7 +176,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Pound
         | K::BitwiseNot
         | K::Question
-        | K::Dollar => 5, // FUNCTION color to differentiate
+        | K::Dollar => 5,
 
         // operators
         K::Bang
@@ -223,7 +224,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Divide
         | K::DivideAssign
         | K::Remainder
-        | K::RemainderAssign => 4, // OPERATOR
+        | K::RemainderAssign => 4,
 
         // handle remaining tokens we don't classify yet
         _ => return None,

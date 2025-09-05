@@ -477,7 +477,7 @@ impl Node for UnionField {
 ///     function foo() => int32
 /// }
 ///
-/// trait Baz<T> {
+/// trait Baz[T] {
 ///     function baz() => T // semicolon optional
 /// }
 /// ```
@@ -507,18 +507,18 @@ impl Node for Trait {
 ///     ...
 /// }
 ///
-/// implement Foo<int32> {
+/// implement Foo[int32] {
 ///     ...
 /// }
 ///
 /// implement Marker for Bar; // optional semicolon
 /// implement OtherMarker for Bar
 ///
-/// implement Bar<int32> for Baz {
+/// implement Bar[int32] for Baz {
 ///     ...
 /// }
 ///
-/// implement<T> Bar<T> for Baz {
+/// implement[T] Bar[T] for Baz {
 ///     ...
 /// }
 /// ```
@@ -569,7 +569,7 @@ pub enum FunctionStyle {
 ///
 /// function foo() // just declaration, no body, no opening `{`
 ///
-/// function foo<T, U>(x: T) => int32, boolean {
+/// function foo[T, U](x: T) => int32, boolean {
 ///    print("Hello, world!")
 /// }
 ///
@@ -582,7 +582,7 @@ pub enum FunctionStyle {
 /// }
 ///
 /// // optional , if newline-delimited
-/// function longBar<Validate: boolean>(
+/// function longBar[Validate: boolean](
 ///   /// doc comment for `a`
 ///   a: int32
 ///   /// doc comment for `b`
@@ -716,8 +716,8 @@ impl Node for TupleField {
 /// *T // pointer to T
 /// *?T // pointer to Maybe<T>
 /// ?*T // Maybe pointer to T
-/// T<int32>
-/// T<Validate: false>
+/// T[int32]
+/// T[Validate: false]
 /// MyEnum
 /// simulation.geometry.Vector2
 ///
@@ -727,7 +727,7 @@ impl Node for TupleField {
 /// boolean | *int32 // implicit anonymous union
 /// function (int32) => int32
 /// function () => int32, Vector2 // implicitly returns a tuple
-/// function () => Result<int32, struct Error { message: string }>
+/// function () => Result[int32, struct Error { message: string }]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -742,7 +742,7 @@ pub enum Type {
     // TODO: add self/Self type?
     /// Primitive type.
     Primitive(PrimitiveType),
-    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
+    /// Path to a type like `MyModule.MyType` or `MyModule.MyType[T1, T2, ...]`.
     Path {
         path: PathId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
@@ -1137,7 +1137,7 @@ impl Node for Try {
 }
 
 /// A Parameter is a parameter AST node to some expression.
-/// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
+/// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
 ///
 /// Examples:
 /// ```
@@ -1162,7 +1162,7 @@ impl Node for Parameter {
 
 /// An Argument is an argument AST node to a function call in the AST.
 /// It may be named or positional.
-/// Can be used in static and dynamic contexts (e.g. in <..> or (..)).
+/// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
 ///
 /// Examples:
 /// ```
@@ -1616,8 +1616,8 @@ impl Node for Index {
 /// ```
 /// foo()
 /// @foo(1, 2, 3)
-/// foo<int32>(1, 2, 3)
-/// foo<Validate: false>(1, 2, 3)
+/// foo[int32](1, 2, 3)
+/// foo[Validate: false](1, 2, 3)
 /// @foo(Vector2 {x: 1, y: 2}, (true, 3))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -1626,7 +1626,7 @@ pub struct Call {
     pub runtime: FunctionRuntime,
     /// The receiver of the call.
     pub receiver: NodeId<Expression>,
-    /// The static arguments to the call `<Arg1, Arg2, ...>`.
+    /// The static arguments to the call `[Arg1, Arg2, ...]`.
     pub static_arguments: Option<Vec<NodeId<Argument>>>,
     /// The dynamic arguments to the call `(arg1, arg2, ...)`.
     pub dynamic_arguments: Vec<NodeId<Argument>>,
@@ -1642,7 +1642,7 @@ impl Node for Call {
 /// ```
 /// x as int32
 /// x as Vector2
-/// y() as Mesh<Dims: 2>
+/// y() as Mesh[Dims: 2]
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq)]

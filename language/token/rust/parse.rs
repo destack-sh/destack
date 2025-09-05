@@ -172,8 +172,15 @@ impl Tokenizer<'_> {
                 (TokenType::Literal, Some(literal))
             }
 
-            // punctuation
-            ':' => (TokenType::Colon, None),
+            // symbols
+            ':' => {
+                if self.peek() == ':' {
+                    self.bump();
+                    (TokenType::DoubleColon, None)
+                } else {
+                    (TokenType::Colon, None)
+                }
+            }
             ';' => (TokenType::Semicolon, None),
             ',' => (TokenType::Comma, None),
             '.' => {
@@ -188,6 +195,11 @@ impl Tokenizer<'_> {
                     (TokenType::Dot, None)
                 }
             }
+            '@' => (TokenType::At, None),
+            '#' => (TokenType::Pound, None),
+            '~' => (TokenType::BitwiseNot, None),
+            '?' => (TokenType::Question, None),
+            '$' => (TokenType::Dollar, None),
 
             // brackets
             '(' => (TokenType::OpenParenthesis, None),
@@ -196,13 +208,6 @@ impl Tokenizer<'_> {
             '}' => (TokenType::CloseBrace, None),
             '[' => (TokenType::OpenBracket, None),
             ']' => (TokenType::CloseBracket, None),
-
-            // symbols
-            '@' => (TokenType::At, None),
-            '#' => (TokenType::Pound, None),
-            '~' => (TokenType::BitwiseNot, None),
-            '?' => (TokenType::Question, None),
-            '$' => (TokenType::Dollar, None),
 
             // bang
             '!' => {

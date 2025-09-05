@@ -111,8 +111,8 @@ impl<'a> Parser<'a> {
     /// *T // pointer to T
     /// *?T // pointer to Maybe<T>
     /// ?*T // Maybe pointer to T
-    /// T<int32>
-    /// T<Validate: false>
+    /// T[int32]
+    /// T[Validate: false]
     /// MyEnum
     /// simulation.geometry.Vector2
     ///
@@ -253,7 +253,7 @@ impl<'a> Parser<'a> {
     /// _
     /// !
     /// !Time
-    /// geom.Vector<Dims: 2, float32>
+    /// geom.Vector[Dims: 2, float32]
     /// ```
     pub fn eat_scalar_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
@@ -322,10 +322,10 @@ impl<'a> Parser<'a> {
             else {
                 let path = self.eat_path()?;
                 // eat static arguments if present
-                if self.peek_token(TokenType::LessThan).is_ok() {
-                    self.eat_token(TokenType::LessThan)?;
+                if self.peek_token(TokenType::OpenBracket).is_ok() {
+                    self.eat_token(TokenType::OpenBracket)?;
                     let static_arguments = self.eat_arguments_body()?;
-                    self.eat_token(TokenType::GreaterThan)?;
+                    self.eat_token(TokenType::CloseBracket)?;
                     let ty_id = self.tree.allocate(
                         Type::Path {
                             path,
@@ -543,7 +543,7 @@ float64
         let source = r##"
 float32
 geom.Vector2 // path
-MyMesh<false, Dims: 3> // path with static arguments
+MyMesh[false, Dims: 3] // path with static arguments
 ?float32 // maybe type
 ! // never type
 !Time // never type
@@ -579,7 +579,7 @@ MyMesh<false, Dims: 3> // path with static arguments
         );
         parser.eat_newline().unwrap();
 
-        // MyMesh<false, Dims: 3>
+        // MyMesh[false, Dims: 3]
         let ty_id = parser.eat_type().unwrap();
         let ty = parser.tree.get(ty_id);
         let expected_path = parser.paths.intern(vec![parser.strings.intern("MyMesh")]);
@@ -645,7 +645,7 @@ MyMesh<false, Dims: 3> // path with static arguments
                     Type::Primitive(PrimitiveType::Float(FloatType::Float32))
                 );
             }
-            _ => panic!("expected Maybe<float32>"),
+            _ => panic!("expected ?float32"),
         }
         parser.eat_newline().unwrap();
 

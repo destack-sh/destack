@@ -38,8 +38,8 @@ impl<'a> Parser<'a> {
     /// ```
     /// ()
     /// (1, 2, 3)
-    /// <int32>(1, 2, 3)
-    /// <Validate: false>(1, 2, 3)
+    /// [int32](1, 2, 3)
+    /// [Validate: false](1, 2, 3)
     /// (Vector2 {x: 1, y: 2}, (true, 3))
     /// ```
     pub fn eat_call_postfix(
@@ -48,14 +48,14 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Call>> {
         let start = self.mark();
         // static arguments (may not exist or be empty)
-        let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-            self.eat_token(TokenType::LessThan)?;
-            if self.peek_token(TokenType::GreaterThan).is_ok() {
-                self.eat_token(TokenType::GreaterThan)?;
+        let static_arguments = if self.peek_token(TokenType::OpenBracket).is_ok() {
+            self.eat_token(TokenType::OpenBracket)?;
+            if self.peek_token(TokenType::CloseBracket).is_ok() {
+                self.eat_token(TokenType::CloseBracket)?;
                 None
             } else {
                 let static_arguments = self.eat_arguments_body()?;
-                self.eat_token(TokenType::GreaterThan)?;
+                self.eat_token(TokenType::CloseBracket)?;
                 Some(static_arguments)
             }
         } else {
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn test_parse_call_postfix() {
-        let input = "<Validate: false>(1, x: 2)";
+        let input = "[Validate: false](1, x: 2)";
         let tokens = tokenize_semantic(input);
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
         let recv = make_dummy_receiver(&mut parser);
@@ -157,7 +157,7 @@ mod tests {
         assert_eq!(call.receiver, recv);
         assert_eq!(call.runtime, FunctionRuntime::Dynamic);
 
-        // <Validate: false>
+        // [Validate: false]
         let static_args = call
             .static_arguments
             .as_ref()
