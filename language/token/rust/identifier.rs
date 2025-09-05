@@ -25,20 +25,23 @@ pub fn is_whitespace(c: char) -> bool {
 }
 
 /// Checks if `c` is valid as a first character of an identifier.
-pub fn is_id_start(c: char) -> bool {
+#[inline]
+pub fn is_identifier_start(c: char) -> bool {
     c == '_' || UnicodeXID::is_xid_start(c)
 }
 
 /// Checks if `c` is valid as a non-first character of an identifier.
-pub fn is_id_continue(c: char) -> bool {
+#[inline]
+pub fn is_identifier_continue(c: char) -> bool {
     UnicodeXID::is_xid_continue(c)
 }
 
 /// Checks if the passed string is lexically an identifier.
+#[inline]
 pub fn is_identifier(string: &str) -> bool {
     let mut chars = string.chars();
     if let Some(start) = chars.next() {
-        is_id_start(start) && chars.all(is_id_continue)
+        is_identifier_start(start) && chars.all(is_identifier_continue)
     } else {
         false
     }
@@ -59,12 +62,12 @@ pub fn to_identifier(string: &'_ str, replacement: char) -> Cow<'_, str> {
         let mut result = String::new();
 
         // prepend replacement if first character is invalid
-        if !is_id_start(start) {
+        if !is_identifier_start(start) {
             result.push(replacement);
         }
 
         // handle first character
-        if is_id_continue(start) {
+        if is_identifier_continue(start) {
             result.push(start);
         } else {
             result.push(replacement);
@@ -72,7 +75,7 @@ pub fn to_identifier(string: &'_ str, replacement: char) -> Cow<'_, str> {
 
         // handle remaining characters
         for c in chars {
-            if is_id_continue(c) {
+            if is_identifier_continue(c) {
                 result.push(c);
             } else {
                 result.push(replacement);
@@ -102,7 +105,7 @@ pub fn clean_identifier(string: &'_ str) -> Cow<'_, str> {
 
     // scan until a valid start is found
     for c in iter.by_ref() {
-        if is_id_start(c) {
+        if is_identifier_start(c) {
             result.push(c);
             break;
         }
@@ -115,7 +118,7 @@ pub fn clean_identifier(string: &'_ str) -> Cow<'_, str> {
 
     // collect remaining valid continues
     for c in iter {
-        if is_id_continue(c) {
+        if is_identifier_continue(c) {
             result.push(c);
         }
     }

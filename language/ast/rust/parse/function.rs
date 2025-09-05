@@ -2,7 +2,10 @@
 
 use destack_language_token::TokenType;
 
-use crate::{Function, FunctionRuntime, FunctionStyle, Keyword, NodeId, ParseResult, Parser};
+use crate::{
+    Function, FunctionRuntime, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser,
+    SelfParameter,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a Function or "lambda" definition or declaration.
@@ -53,9 +56,9 @@ impl<'a> Parser<'a> {
     ///
     /// // lambda style
     ///
-    /// function () => 0
-    /// function x(x) => x + 1
-    /// function y(x: int32) => x + 1
+    /// () => 0
+    /// (x) => x + 1
+    /// (x: int32) => x + 1
     /// ```
     pub fn eat_function(&mut self) -> ParseResult<NodeId<Function>> {
         let start = self.mark();
@@ -90,11 +93,58 @@ impl<'a> Parser<'a> {
 
         // dynamic parameters
         self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_newlines_maybe()?;
+        // self, *self, *var self parameter
+        let self_parameter: Option<SelfParameter> = {
+            // self
+            if self.peek_keyword(Keyword::Self_).is_ok() {
+                self.bump(); // eat self
+                Some(SelfParameter {
+                    mutability: Mutability::Immutable,
+                    is_pointer: false,
+                })
+            }
+            // *self
+            else if self.peek_token(TokenType::Multiply).is_ok()
+                && self.peek_next_keyword(Keyword::Self_).is_ok()
+            {
+                self.bump(); // eat *
+                self.bump(); // eat self
+                Some(SelfParameter {
+                    mutability: Mutability::Immutable,
+                    is_pointer: true,
+                })
+            }
+            // *var self
+            else if self.peek_token(TokenType::Multiply).is_ok()
+                && self.peek_next_keyword(Keyword::Var).is_ok()
+                && self.peek_next_next_keyword(Keyword::Self_).is_ok()
+            {
+                self.bump(); // eat *
+                self.bump(); // eat var
+                self.bump(); // eat self
+                Some(SelfParameter {
+                    mutability: Mutability::Mutable,
+                    is_pointer: true,
+                })
+            }
+            // other
+            else {
+                None
+            }
+        };
+        // optional separator after self (comma or newline) before other parameters
+        if self_parameter.is_some() && self.peek_item_stop().is_ok() {
+            self.eat_item_stop()?;
+        }
+
+        // other parameters
         let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
             vec![]
         } else {
             self.eat_parameters_body()?
         };
+        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
         // with
@@ -129,6 +179,7 @@ impl<'a> Parser<'a> {
                 style: FunctionStyle::Function,
                 with,
                 static_parameters,
+                self_parameter,
                 dynamic_parameters,
                 return_type,
                 body,
@@ -143,7 +194,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use destack_language_token::{SourceFile, tokenize_semantic};
 
-    use crate::{Parser, PrimitiveType, Type, WithClause};
+    use crate::{IntType, Mutability, Parser, PrimitiveType, Type, WithClause};
 
     #[test]
     fn test_parse_function_with_parenthesized_multiline_with() {
@@ -234,5 +285,59 @@ function foo() with (
             }
             _ => panic!("expected int32 return type"),
         }
+    }
+
+    #[test]
+    fn test_parse_function_self_parameter() {
+        let input = r##"
+function a(self) {}
+function b(
+  *self
+  x: int32
+) {}
+function c(*var self) {}
+"##;
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
+
+        // function a(self) {}
+        let a_id = parser.eat_function().unwrap();
+        let a = parser.tree.get(a_id);
+        let a_self = a.self_parameter.as_ref().expect("expected self param");
+        assert!(!a_self.is_pointer);
+        assert_eq!(a_self.mutability, Mutability::Immutable);
+        assert!(a.dynamic_parameters.is_empty());
+        parser.eat_newline().unwrap();
+
+        // function b(*self \n x: int32) {}
+        let b_id = parser.eat_function().unwrap();
+        let b = parser.tree.get(b_id);
+        let b_self = b.self_parameter.as_ref().expect("expected self param");
+        assert!(b_self.is_pointer);
+        assert_eq!(b_self.mutability, Mutability::Immutable);
+        assert_eq!(b.dynamic_parameters.len(), 1);
+        let b_param = parser.tree.get(b.dynamic_parameters[0]);
+        assert_eq!(b_param.name, parser.strings.intern("x"));
+        match b_param.r#type {
+            Some(ty_id) => match parser.tree.get(ty_id) {
+                Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
+                    assert_eq!(*width, 32);
+                    assert!(*is_signed);
+                }
+                _ => panic!("expected int32 type for parameter x"),
+            },
+            None => panic!("expected type for parameter x"),
+        }
+        parser.eat_newline().unwrap();
+        
+        // function c(*var self) {}
+        let c_id = parser.eat_function().unwrap();
+        let c = parser.tree.get(c_id);
+        let c_self = c.self_parameter.as_ref().expect("expected self param");
+        assert!(c_self.is_pointer);
+        assert_eq!(c_self.mutability, Mutability::Mutable);
+        assert!(c.dynamic_parameters.is_empty());
+        parser.eat_newline().unwrap();
     }
 }

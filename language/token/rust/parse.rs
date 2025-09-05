@@ -1,6 +1,6 @@
 //! Low-level general purpose DS lexer (adapted from rustc).
 
-use crate::{Span, TokenSpan, is_id_continue, is_id_start, is_whitespace};
+use crate::{Span, TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
 
 use super::token::{NumberBase, RawLiteralType, RawStringError, Token, TokenType};
 use super::tokenizer::{EOF_CHAR, Tokenizer};
@@ -163,8 +163,11 @@ impl Tokenizer<'_> {
                 }
             }
 
-            // identifier
-            c if is_id_start(c) => self.eat_identifier_or_such(c),
+            // wildcard (if not followed by identifier)
+            '_' if !is_identifier_continue(self.peek()) => (TokenType::Wildcard, None),
+
+            // other identifier
+            c if is_identifier_start(c) => self.eat_identifier_or_such(c),
 
             // numeric literal
             c @ '0'..='9' => {
@@ -457,10 +460,10 @@ impl Tokenizer<'_> {
     /// Parses an identifier, unknown prefix or some literal string (excluding first character).
     /// Returns the token type and the literal type if it's a hardcoded literal.
     fn eat_identifier_or_such(&mut self, first_char: char) -> (TokenType, Option<RawLiteralType>) {
-        debug_assert!(is_id_start(first_char));
+        debug_assert!(is_identifier_start(first_char));
         let start_pos = self.pos;
         // consume continuation characters until an unknown character is met
-        self.eat_while(is_id_continue);
+        self.eat_while(is_identifier_continue);
         // known prefixes must have been handled earlier
         match self.peek() {
             '#' | '"' | '\'' => return (TokenType::UnknownLiteralPrefix, None),
@@ -492,7 +495,9 @@ impl Tokenizer<'_> {
         // start is already eaten, eat the rest of identifier
         self.eat_while(|c| {
             const ZERO_WIDTH_JOINER: char = '\u{200d}';
-            is_id_continue(c) || (!c.is_ascii() && c.is_emoji_char()) || c == ZERO_WIDTH_JOINER
+            is_identifier_continue(c)
+                || (!c.is_ascii() && c.is_emoji_char())
+                || c == ZERO_WIDTH_JOINER
         });
         TokenType::InvalidIdentifier
     }
@@ -566,7 +571,7 @@ impl Tokenizer<'_> {
             // don't be greedy if this is actually an
             // integer literal followed by field/method access or a range pattern
             // (`0..2` and `12.foo()`)
-            '.' if self.peek_next() != '.' && !is_id_start(self.peek_next()) => {
+            '.' if self.peek_next() != '.' && !is_identifier_start(self.peek_next()) => {
                 // might have stuff after the ., and if it does, it starts with a number
                 self.bump();
                 let mut is_empty_exponent = false;

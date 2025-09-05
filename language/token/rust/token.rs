@@ -66,8 +66,10 @@ pub enum TokenType {
     UnknownLiteralPrefix,
     /// "Raw" Literals, e.g. `12`, `1.0e-40`, `b"123"`.
     Literal,
-
+    
     // symbols
+    /// Wildcard literal `_`.
+    Wildcard,
     /// `:`
     Colon,
     /// `::`

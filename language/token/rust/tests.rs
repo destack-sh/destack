@@ -106,24 +106,67 @@ fn test_invalid_start() {
 }
 
 #[test]
-fn test_spread_and_arrows() {
+fn test_random_symbols() {
     assert_tokenize_eq_roundtrip!(
-        "a..b...f => c->d :: x",
+        "a..b...f => c->d :: x _ : ? $ ! @ ~",
+        // a
         Token::new(TokenType::Identifier, 1, None),
+        // ..
         Token::new(TokenType::Range, 2, None),
+        // b
         Token::new(TokenType::Identifier, 1, None),
+        // ...
         Token::new(TokenType::Ellipsis, 3, None),
+        // f
         Token::new(TokenType::Identifier, 1, None),
+        // (space)
         Token::new(TokenType::Whitespace, 1, None),
+        // =>
         Token::new(TokenType::Arrow, 2, None),
+        // (space)
         Token::new(TokenType::Whitespace, 1, None),
+        // c
         Token::new(TokenType::Identifier, 1, None),
+        // ->
         Token::new(TokenType::BadArrow, 2, None),
+        // d
         Token::new(TokenType::Identifier, 1, None),
+        // (space)
         Token::new(TokenType::Whitespace, 1, None),
+        // ::
         Token::new(TokenType::DoubleColon, 2, None),
+        // (space)
         Token::new(TokenType::Whitespace, 1, None),
+        // x
         Token::new(TokenType::Identifier, 1, None),
+        // (space)
+        Token::new(TokenType::Whitespace, 1, None),
+        // _
+        Token::new(TokenType::Wildcard, 1, None),
+        // (space)
+        Token::new(TokenType::Whitespace, 1, None),
+        // :
+        Token::new(TokenType::Colon, 1, None),
+        // (space)
+        Token::new(TokenType::Whitespace, 1, None),
+        // ?
+        Token::new(TokenType::Question, 1, None),
+        // (space)
+        Token::new(TokenType::Whitespace, 1, None),
+        // $
+        Token::new(TokenType::Dollar, 1, None),
+        // (space)
+        Token::new(TokenType::Whitespace, 1, None),
+        // !
+        Token::new(TokenType::Bang, 1, None),
+        // (space)
+        Token::new(TokenType::Whitespace, 1, None),
+        // @
+        Token::new(TokenType::At, 1, None),
+        // (space)
+        Token::new(TokenType::Whitespace, 1, None),
+        // ~
+        Token::new(TokenType::BitwiseNot, 1, None),
     );
 }
 
@@ -434,19 +477,19 @@ fn test_roundtrip_tetris() {
 /// Base component for all tetris game objects
 struct TetrisComponent {
 	/// Game instance this object belongs to
-	game_id: u32
+	gameId: uint32
 	/// Whether this object is active in the game
-	is_active: bool = true
+	isActive: bool = true
 }
 
 /// A single cell in the tetris grid
 struct TetrisCell {
 	/// Whether the cell is occupied by a placed piece
-	is_occupied: bool = false,
+	isOccupied: bool = false,
 	/// Color of the piece in this cell
-	color: Option<Color> = None,
+	color: ?Color = None,
 	/// Shape type that occupies this cell
-	shape_type: Option<TetrisShape> = None,
+	shapeType: ?TetrisShape = None,
 }"##;
 
     assert_tokenize_roundtrip!(input);
@@ -457,10 +500,10 @@ fn test_roundtrip_view() {
     let input = r##"
 @entity 
 struct MyCustomView {
-	fn render(self) {
-        let value: i32 = ---;
+	fn render(*self) {
+        let value: int32 = ---;
         @if target == 'macos' {
-            ButtonView::new({ test: f"Hi {self.name}!" })
+            ButtonView { test: @format("Hi {self.name}!") }
         } @else {
             None
         }

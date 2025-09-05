@@ -176,104 +176,106 @@ fn format_token_kind(kind: TokenType) -> String {
 /// Get the color code for a token type.
 fn get_token_color(kind: TokenType) -> &'static str {
     match kind {
-        // regular comments
-        TokenType::LineComment | TokenType::BlockComment => "2", // dim
+        // structural
+        TokenType::Newline | TokenType::Whitespace | TokenType::End => "2", // dim
+        TokenType::Unknown => "31",                                         // red
 
-        // doc comments
+        // comments
+        TokenType::LineComment | TokenType::BlockComment => "2", // dim
         TokenType::DocLineComment | TokenType::DocBlockComment => "32", // green
 
-        // whitespaces / end / newline
-        TokenType::Whitespace | TokenType::Newline | TokenType::End => "2", // dim
+        // identifiers / literals
+        TokenType::Identifier => "36",           // cyan
+        TokenType::InvalidIdentifier => "31",    // red
+        TokenType::UnknownLiteralPrefix => "31", // red
+        TokenType::Literal => "35",              // magenta
 
-        // colon, semi, comma, dot, range, ellipsis
-        TokenType::Colon
-        | TokenType::DoubleColon
-        | TokenType::Semicolon
-        | TokenType::Comma
-        | TokenType::Dot
-        | TokenType::Range
-        | TokenType::Ellipsis => "37", // white
+        // symbols
+        TokenType::Wildcard => "37",    // white
+        TokenType::Colon => "37",       // white
+        TokenType::DoubleColon => "37", // white
+        TokenType::Semicolon => "37",   // white
+        TokenType::Comma => "37",       // white
+        TokenType::Dot => "37",         // white
+        TokenType::Range => "37",       // white
+        TokenType::Ellipsis => "37",    // white
+        TokenType::Pound => "95",       // bright magenta
+        TokenType::Empty => "95",       // bright magenta
+        TokenType::Arrow => "95",       // bright magenta
+        TokenType::BadArrow => "95",    // bright magenta
 
-        // all parens
-        TokenType::OpenParenthesis
-        | TokenType::CloseParenthesis
-        | TokenType::OpenBrace
-        | TokenType::CloseBrace
-        | TokenType::OpenBracket
-        | TokenType::CloseBracket => "33", // yellow
+        // parentheses
+        TokenType::OpenParenthesis => "33",  // yellow
+        TokenType::CloseParenthesis => "33", // yellow
+        TokenType::OpenBrace => "33",        // yellow
+        TokenType::CloseBrace => "33",       // yellow
+        TokenType::OpenBracket => "33",      // yellow
+        TokenType::CloseBracket => "33",     // yellow
 
-        // weird symbols like at pound arrows
-        TokenType::At
-        | TokenType::Pound
-        | TokenType::BitwiseNot
-        | TokenType::Question
-        | TokenType::Dollar
-        | TokenType::Bang
-        | TokenType::Empty
-        | TokenType::Arrow
-        | TokenType::BadArrow => "95", // bright magenta
+        TokenType::At => "95",         // bright magenta
+        TokenType::BitwiseNot => "96", // bright cyan
+        TokenType::Question => "95",   // bright magenta
+        TokenType::Dollar => "95",     // bright magenta
+        TokenType::Bang => "95",       // bright magenta
 
-        // logical operators (excl. assignment)
-        TokenType::LogicalAnd | TokenType::LogicalOr => "94", // bright blue
+        // multiplication
+        TokenType::Multiply => "93",           // bright yellow
+        TokenType::WrappingMultiply => "93",   // bright yellow
+        TokenType::SaturatingMultiply => "93", // bright yellow
+        TokenType::Divide => "93",             // bright yellow
+        TokenType::Remainder => "93",          // bright yellow
 
-        // shifting and bitwise ops (excl. assignment)
-        TokenType::BitwiseOr
-        | TokenType::BitwiseAnd
-        | TokenType::BitwiseXor
-        | TokenType::ShiftLeft
-        | TokenType::SaturatingShiftLeft
-        | TokenType::ShiftRight => "96", // bright cyan
+        // addition
+        TokenType::Add => "93",                // bright yellow
+        TokenType::WrappingAdd => "93",        // bright yellow
+        TokenType::SaturatingAdd => "93",      // bright yellow
+        TokenType::Subtract => "93",           // bright yellow
+        TokenType::WrappingSubtract => "93",   // bright yellow
+        TokenType::SaturatingSubtract => "93", // bright yellow
 
-        // math operators (excl. assignment)
-        TokenType::Add
-        | TokenType::WrappingAdd
-        | TokenType::SaturatingAdd
-        | TokenType::Subtract
-        | TokenType::WrappingSubtract
-        | TokenType::SaturatingSubtract
-        | TokenType::Multiply
-        | TokenType::WrappingMultiply
-        | TokenType::SaturatingMultiply
-        | TokenType::Divide
-        | TokenType::Remainder => "93", // bright yellow
+        // shift
+        TokenType::ShiftLeft => "96",           // bright cyan
+        TokenType::SaturatingShiftLeft => "96", // bright cyan
+        TokenType::ShiftRight => "96",          // bright cyan
 
-        // assignments (all)
-        TokenType::Assign
-        | TokenType::BitwiseOrAssign
-        | TokenType::BitwiseAndAssign
-        | TokenType::BitwiseXorAssign
-        | TokenType::ShiftLeftAssign
-        | TokenType::SaturatingShiftLeftAssign
-        | TokenType::ShiftRightAssign
-        | TokenType::AddAssign
-        | TokenType::WrappingAddAssign
-        | TokenType::SaturatingAddAssign
-        | TokenType::SubtractAssign
-        | TokenType::WrappingSubtractAssign
-        | TokenType::SaturatingSubtractAssign
-        | TokenType::MultiplyAssign
-        | TokenType::WrappingMultiplyAssign
-        | TokenType::SaturatingMultiplyAssign
-        | TokenType::DivideAssign
-        | TokenType::RemainderAssign
-        | TokenType::LogicalAndAssign
-        | TokenType::LogicalOrAssign => "91", // bright red
+        // bitwise
+        TokenType::BitwiseAnd => "96", // bright cyan
+        TokenType::BitwiseXor => "96", // bright cyan
+        TokenType::BitwiseOr => "96",  // bright cyan
+
+        // logical
+        TokenType::LogicalAnd => "94", // bright blue
+        TokenType::LogicalOr => "94",  // bright blue
 
         // comparison
-        TokenType::GreaterThan
-        | TokenType::LessThan
-        | TokenType::GreaterThanOrEqual
-        | TokenType::LessThanOrEqual
-        | TokenType::Equal
-        | TokenType::NotEqual => "92", // bright green
+        TokenType::GreaterThan => "92",        // bright green
+        TokenType::LessThan => "92",           // bright green
+        TokenType::GreaterThanOrEqual => "92", // bright green
+        TokenType::LessThanOrEqual => "92",    // bright green
+        TokenType::Equal => "92",              // bright green
+        TokenType::NotEqual => "92",           // bright green
 
-        // identifiers and literals
-        TokenType::Identifier => "36",        // cyan
-        TokenType::InvalidIdentifier => "31", // red
-        TokenType::Literal => "35",           // magenta
-
-        // unknown/error tokens
-        TokenType::Unknown | TokenType::UnknownLiteralPrefix => "31", // red
+        // assignment
+        TokenType::Assign => "91",                    // bright red
+        TokenType::BitwiseOrAssign => "91",           // bright red
+        TokenType::BitwiseAndAssign => "91",          // bright red
+        TokenType::BitwiseXorAssign => "91",          // bright red
+        TokenType::ShiftLeftAssign => "91",           // bright red
+        TokenType::SaturatingShiftLeftAssign => "91", // bright red
+        TokenType::ShiftRightAssign => "91",          // bright red
+        TokenType::AddAssign => "91",                 // bright red
+        TokenType::WrappingAddAssign => "91",         // bright red
+        TokenType::SaturatingAddAssign => "91",       // bright red
+        TokenType::SubtractAssign => "91",            // bright red
+        TokenType::WrappingSubtractAssign => "91",    // bright red
+        TokenType::SaturatingSubtractAssign => "91",  // bright red
+        TokenType::MultiplyAssign => "91",            // bright red
+        TokenType::WrappingMultiplyAssign => "91",    // bright red
+        TokenType::SaturatingMultiplyAssign => "91",  // bright red
+        TokenType::DivideAssign => "91",              // bright red
+        TokenType::RemainderAssign => "91",           // bright red
+        TokenType::LogicalAndAssign => "91",          // bright red
+        TokenType::LogicalOrAssign => "91",           // bright red
     }
 }
 

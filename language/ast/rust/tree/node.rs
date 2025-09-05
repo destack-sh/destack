@@ -60,9 +60,9 @@ pub enum NodeType {
     Cast,
     // Matching
     Match,
+    MatchCase,
     Pattern,
     PatternField,
-    MatchCase,
     // Documentation
     Doc,
 }
@@ -626,9 +626,9 @@ pub enum FunctionStyle {
 ///
 /// // lambda style
 ///
-/// function () => 0
-/// function x(x) => x + 1
-/// function y(x: int32) => x + 1
+/// () => 0
+/// (x) => x + 1
+/// (x: int32) => x + 1
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
@@ -640,6 +640,8 @@ pub struct Function {
     pub style: FunctionStyle,
     /// The static parameters to the function.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
+    /// The self parameter to the function.
+    pub self_parameter: Option<SelfParameter>,
     /// The dynamic parameters to the function.
     pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.
@@ -652,6 +654,20 @@ pub struct Function {
 
 impl Node for Function {
     const KIND: NodeType = NodeType::Function;
+}
+
+/// A FunctionSelfParameter the a self parameter for a function.
+/// 
+/// Examples:
+/// ```
+/// self
+/// *self
+/// *var self
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct SelfParameter {
+    pub mutability: Mutability,
+    pub is_pointer: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -770,7 +786,7 @@ pub enum Type {
     Not(NodeId<Type>),
     /// Never `!`.
     Never,
-    /// Self type.
+    /// Self type (only inside associated scopes for types).
     Self_,
     /// Primitive type.
     Primitive(PrimitiveType),
@@ -791,13 +807,14 @@ pub enum Type {
     },
     /// Inline Slice type `[T]`. Unknown length (dynamic).
     Slice { element: NodeId<Type> },
-
     /// Inline anonymous tuple type `(T1, T2, ...)` (no tuple keyword).
     Tuple(NodeId<Tuple>),
     /// Inline Struct type `struct MyStruct { ... }`.
     Struct(NodeId<Struct>),
     /// Inline Enum type `enum MyEnum { ... }`.
     Enum(NodeId<Enum>),
+    /// Inline anonymous intersection type `T1 & T2 & ...` (for type bounds and assertions).
+    Intersection(Vec<NodeId<Type>>),
     /// Inline Union type `union MyUnion { ... }` or implicit `A | B | C`.
     Union(NodeId<Union>),
     /// Inline Function type `(T1, T2, ...) => T`.
@@ -1773,27 +1790,30 @@ pub enum Pattern {
     Wildcard,
     /// Wildcard rest pattern (`..`).
     Rest,
-    /// A scalar literal value (like `1`).
-    Scalar(NodeId<ScalarLiteral>),
-    /// A range literal value (like `1..3`).
+    /// Literal value / expression pattern (like `1` or `math.Pi * 2`).
+    Literal(NodeId<Expression>),
+    /// Range pattern (like `1..3`).
     Range {
         start: Option<NodeId<Pattern>>,
         end: Option<NodeId<Pattern>>,
         is_inclusive: bool,
     },
-    /// Union pattern (like `1 | 2 | 3`).
-    Union {
-        patterns: Vec<NodeId<Pattern>>,
+    /// Pointer pattern (like `*x`).
+    Pointer {
+        target: NodeId<Pattern>,
+        mutability: Mutability,
     },
+    /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
+    Slice { elements: Vec<NodeId<Pattern>> },
     /// Tuple pattern (like `(x, 0)`, `x, y`, `y, x, ..`).
-    Tuple {
-        fields: Vec<NodeId<PatternField>>,
-    },
+    Tuple { fields: Vec<NodeId<PatternField>> },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
     Struct {
         r#type: NodeId<Type>,
         fields: Vec<NodeId<PatternField>>,
     },
+    /// Union pattern (like `1 | 2 | 3`).
+    Union { patterns: Vec<NodeId<Pattern>> },
 }
 
 impl Node for Pattern {
@@ -1802,13 +1822,10 @@ impl Node for Pattern {
 
 /// A PatternStructField is a field AST node of a struct pattern.
 #[derive(Debug, Clone, PartialEq)]
-pub enum PatternField {
-    /// A literal struct field.
-    Literal {
-        name: StringId,
-        alias: Option<StringId>,
-        value: NodeId<Pattern>,
-    },
+pub struct PatternField {
+    pub name: Option<StringId>,
+    pub alias: Option<StringId>,
+    pub value: NodeId<Pattern>,
 }
 
 impl Node for PatternField {

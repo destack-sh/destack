@@ -2,7 +2,7 @@
 
 use destack_language_token::TokenType;
 
-use crate::{NodeId, ParseError, ParseResult, Parser, Pattern, RangeLiteral};
+use crate::{NodeId, ParseError, ParseResult, Parser, Pattern};
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.
@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         let pattern_id = {
             // wildcard
-            if self.peek_identifier_char('_').is_ok() {
+            if self.peek_token(TokenType::Wildcard).is_ok() {
                 self.bump();
                 self.tree
                     .allocate(Pattern::Wildcard, self.get_span_from(start))
@@ -36,18 +36,20 @@ impl<'a> Parser<'a> {
                 self.bump();
                 self.tree.allocate(Pattern::Rest, self.get_span_from(start))
             }
-            // scalar literal
-            else if self.peek_scalar_literal().is_ok() {
-                let literal_id = self.eat_scalar_literal()?;
-                self.tree
-                    .allocate(Pattern::Scalar(literal_id), self.get_span_from(start))
-            }
             // tuple (explicit)
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                // eat parens, handle as implicit tuple
                 self.eat_token(TokenType::OpenParenthesis)?;
-                let pattern_id = self.eat_pattern()?; // handle as implicit tuple
+                let pattern_id = self.eat_pattern()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 pattern_id
+            }
+            // todo!("more patterns");
+            // literal
+            else if self.peek_scalar_literal().is_ok() {
+                let literal_id = self.eat_expression(None)?;
+                self.tree
+                    .allocate(Pattern::Literal(literal_id), self.get_span_from(start))
             }
             // error
             else {
@@ -73,11 +75,11 @@ impl<'a> Parser<'a> {
         }
         // union
         else if self.peek_token(TokenType::BitwiseOr).is_ok() {
-            todo!("union");
+            todo!("union pattern");
         }
         // tuple (implicit)
         else if self.peek_token(TokenType::Comma).is_ok() {
-            todo!("tuple");
+            todo!("tuple pattern");
         }
         // no infix
         else {
