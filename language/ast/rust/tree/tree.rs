@@ -8,7 +8,7 @@ use crate::{
     Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase,
     Module, Node, NodeType, Parameter, Pattern, PatternField, Return, ScalarLiteral, Statement,
     Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
-    UnionField, Using, UsingClause, UsingItem, While,
+    UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -63,10 +63,12 @@ pub struct NodeTree {
     tuples: NodeArena<Tuple>,
     tuple_fields: NodeArena<TupleField>,
     functions: NodeArena<Function>,
-    // using
-    usings: NodeArena<Using>,
-    using_clauses: NodeArena<UsingClause>,
-    using_items: NodeArena<UsingItem>,
+    // context
+    withs: NodeArena<With>,
+    with_clauses: NodeArena<WithClause>,
+    uses: NodeArena<Use>,
+    use_clauses: NodeArena<UseClause>,
+    use_items: NodeArena<UseItem>,
     // control
     ifs: NodeArena<If>,
     whiles: NodeArena<While>,
@@ -147,10 +149,12 @@ impl NodeTree {
             tuples: NodeArena::new(),
             tuple_fields: NodeArena::new(),
             functions: NodeArena::new(),
-            // using
-            usings: NodeArena::new(),
-            using_clauses: NodeArena::new(),
-            using_items: NodeArena::new(),
+            // context
+            withs: NodeArena::new(),
+            with_clauses: NodeArena::new(),
+            uses: NodeArena::new(),
+            use_clauses: NodeArena::new(),
+            use_items: NodeArena::new(),
             // control
             ifs: NodeArena::new(),
             whiles: NodeArena::new(),
@@ -397,10 +401,12 @@ impl_node_tree_stores! {
     Tuple => tuples,
     TupleField => tuple_fields,
     Function => functions,
-    // using
-    Using => usings,
-    UsingClause => using_clauses,
-    UsingItem => using_items,
+    // context
+    With => withs,
+    WithClause => with_clauses,
+    Use => uses,
+    UseClause => use_clauses,
+    UseItem => use_items,
     // control
     If => ifs,
     While => whiles,

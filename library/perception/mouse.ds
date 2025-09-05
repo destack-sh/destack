@@ -1,10 +1,10 @@
-using dyst
+use dyst
 
-/// A Mousing is a user input device that can be used to interact with the UI
+/// A Mouse is a user input device that can be used to interact with the UI
 @entity
-struct Mouse2D using Pointer2D {}
+struct Mouse2D use Pointer2D {}
 
-/// Mousing buttons
+/// Mouse buttons
 enum MouseButton {
     Left = 1,
     Right = 2,
@@ -13,29 +13,29 @@ enum MouseButton {
 
 /// Mouse-derived event with a button
 @event
-struct MouseEvent using PointerEvent {
+struct MouseEvent use PointerEvent {
     button: MouseButton,
 }
 
 /// Click event base
 @event
-struct ClickEvent using MouseEvent {}
+struct ClickEvent use MouseEvent {}
 
 /// Single click
 @event
-struct SingleClickEvent using ClickEvent {}
+struct SingleClickEvent use ClickEvent {}
 
 /// Double click
 @event
-struct DoubleClickEvent using ClickEvent {}
+struct DoubleClickEvent use ClickEvent {}
 
 /// Triple click
 @event
-struct TripleClickEvent using ClickEvent {}
+struct TripleClickEvent use ClickEvent {}
 
 /// Wheel scroll
 @event
-struct WheelEvent using MouseEvent {
+struct WheelEvent use MouseEvent {
     delta: Vector2,
 }
 

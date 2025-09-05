@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Base event regarding a Role.
 @event
@@ -11,11 +11,11 @@ struct RoleEvent {
 
 /// A Role was assigned.
 @event
-struct RoleAssignedEvent using RoleEvent {}
+struct RoleAssignedEvent use RoleEvent {}
 
 /// A Role was unassigned.
 @event
-struct RoleUnassignedEvent using RoleEvent {}
+struct RoleUnassignedEvent use RoleEvent {}
 
 /// A Role for Actors to take.
 @entity

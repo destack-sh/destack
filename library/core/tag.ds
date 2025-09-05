@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Definition of a builtin Tag to associate builtin definitions to.
 struct TagDefinition {

@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Definition of a builtin Function.
 struct FunctionDefinition {

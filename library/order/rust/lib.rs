@@ -1,4 +1,4 @@
-//! Fractional indexing using raw bytes (base-256).
+//! Fractional indexing use raw bytes (base-256).
 //!
 //! Invariant: stored tails contain **no 0x00 bytes**. We reserve 0x00 internally
 //! as a virtual padding symbol during midpoint computation. Lexicographic byte
@@ -305,7 +305,7 @@ pub fn get_order_between(a: Option<&Order>, b: Option<&Order>) -> Result<Order, 
 }
 
 /// Generate `n` evenly spread keys between `a` and `b` (inclusive-ish),
-/// using recursive bisection (logarithmic fraction growth for tails, capped at 4 bytes).
+/// use recursive bisection (logarithmic fraction growth for tails, capped at 4 bytes).
 pub fn get_orders_between(
     a: Option<&Order>,
     b: Option<&Order>,

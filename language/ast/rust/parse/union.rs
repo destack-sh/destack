@@ -3,28 +3,29 @@
 use destack_language_token::{TokenType, clean_identifier};
 
 use crate::{
-    Keyword, NodeId, ParseResult, Parser, TupleField, Type, Union, UnionField, UnionStyle, Using,
+    Keyword, NodeId, ParseResult, Parser, TupleField, Type, Union, UnionField, UnionStyle, Use,
 };
 
 impl<'a> Parser<'a> {
-    /// Eat an explicit union declaration (with `union` keyword).
+    /// Eat an *explicit* union declaration (with `union` keyword).
     ///
     /// Examples:
     /// ```
-    /// union { // anonymous explicit union (for use as a value)
+    /// union { // anonymous union (for use as a value)
     ///     myField: int32
     ///     myOtherField: boolean
     /// }
     ///
-    /// union(uint4) Foo { // explicit named union
-    ///     A // comma optional
+    /// union(uint4) Foo {
+    ///     A
     ///     B { x: int32, y: int32 } = 4
     ///     C(boolean)
     ///     D(boolean, int32) = 6
     /// }
     ///
-    /// // unions can be tagged with enums and include other types with using (like structs)
-    /// union(TetrisShapeType) TetrisShape using GameObject { // explicit named union with using
+    /// // unions can be tagged with enums and include other types with use (like structs)
+    /// union(TetrisShapeType) TetrisShape {
+    ///     use GameObject
     ///     ...
     /// }
     /// ```
@@ -43,8 +44,8 @@ impl<'a> Parser<'a> {
                 None
             };
 
-        // optional name (avoid consuming `using` as a name)
-        let name = if self.peek_keyword(Keyword::Using).is_err()
+        // optional name (avoid consuming `use` as a name)
+        let name = if self.peek_keyword(Keyword::Use).is_err()
             && self.peek_token(TokenType::Identifier).is_ok()
         {
             Some(self.eat_identifier()?)
@@ -52,10 +53,10 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // optional `using ...` header
-        let using: Option<NodeId<Using>> = if self.peek_keyword(Keyword::Using).is_ok() {
-            self.eat_keyword(Keyword::Using)?;
-            let using = self.eat_using_header()?;
+        // optional `use ...` header
+        let using: Option<NodeId<Use>> = if self.peek_keyword(Keyword::Use).is_ok() {
+            self.eat_keyword(Keyword::Use)?;
+            let using = self.eat_use_header()?;
             Some(using)
         } else {
             None
@@ -278,7 +279,7 @@ union { A, B }
     #[test]
     fn test_parse_explicit_heterogeneous_union() {
         let input = r###"
-union(uint4) Foo using Bar {
+union(uint4) Foo use Bar {
     A
 
     C(boolean)
@@ -290,7 +291,7 @@ union(uint4) Foo using Bar {
         let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
         parser.eat_newline().unwrap();
 
-        // union(uint4) Foo using Bar
+        // union(uint4) Foo use Bar
         let union_id = parser.eat_union().unwrap();
         let uni = parser.tree.get(union_id);
         assert_eq!(uni.name, Some(parser.strings.intern("Foo")));
@@ -303,7 +304,7 @@ union(uint4) Foo using Bar {
             }
             other => panic!("expected primitive int type, got {other:?}"),
         }
-        // using Bar
+        // use Bar
         assert!(uni.using.is_some());
         assert_eq!(uni.fields.len(), 3);
 

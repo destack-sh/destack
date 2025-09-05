@@ -20,7 +20,7 @@ impl<'a> Parser<'a> {
     ///    print("Hello, world!")
     /// }
     ///
-    /// function baz(a: int32, b: boolean) => MyStruct, boolean {
+    /// function baz(a: int32, b: boolean) with Disk, Time => MyStruct, boolean {
     ///    ...
     /// }
     ///
@@ -85,11 +85,11 @@ impl<'a> Parser<'a> {
         };
         self.eat_token(TokenType::CloseParenthesis)?;
 
-        // using
-        let using = if self.peek_keyword(Keyword::Using).is_ok() {
-            self.eat_keyword(Keyword::Union)?;
-            let using = self.eat_using_header()?;
-            Some(using)
+        // with
+        let with =  if self.peek_keyword(Keyword::With).is_ok() {
+            self.eat_keyword(Keyword::With)?;
+            let with =  self.eat_with_header()?;
+            Some(with)
         } else {
             None
         };
@@ -115,7 +115,7 @@ impl<'a> Parser<'a> {
                 runtime,
                 // TODO: support lambda function style
                 style: FunctionStyle::Function,
-                using,
+                with,
                 static_parameters,
                 dynamic_parameters,
                 return_type,

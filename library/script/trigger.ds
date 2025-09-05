@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Trigger types.
 enum TriggerType { Event = 1 }

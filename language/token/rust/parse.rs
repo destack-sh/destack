@@ -67,7 +67,7 @@ impl Tokenizer<'_> {
 
             // slash, comments (line, block, doc) or divide ops
             '/' => {
-                // fast-path using bytes to avoid iterator cloning and extra UTF-8 decoding
+                // fast-path use bytes to avoid iterator cloning and extra UTF-8 decoding
                 let bytes = self.as_str().as_bytes();
                 let next = bytes.first().copied();
                 match next {

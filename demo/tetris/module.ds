@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 enum Color {
     Red
@@ -14,14 +14,14 @@ enum Color {
 struct TetrisComponent {}
 
 @entity
-struct TetrisGame using TetrisComponent {}
+struct TetrisGame use TetrisComponent {}
 
 implement Context for TetrisGame {
 
 }
 
 @entity 
-struct TetrisBoard<Width: int32, Height: int32> using TetrisComponent {
+struct TetrisBoard<Width: int32, Height: int32> use TetrisComponent {
     /// The grid of the board.
     grid: TetrisPiece[Width][Height]
 }
@@ -37,7 +37,7 @@ enum TetrisPieceShape {
 }
 
 @entity
-union(TetrisPieceShape) TetrisPiece using RigidBody2D, TetrisComponent {}
+union(TetrisPieceShape) TetrisPiece use RigidBody2D, TetrisComponent {}
 
 implement TetrisPiece {
     function new(shape: TetrisPieceShape) => TetrisPiece {
@@ -58,7 +58,7 @@ implement TetrisPiece {
 }
 
 implement Tick for TetrisGame {
-    function tick(*self) using Time, Random => Result<TetrisPiece, GameError> {
+    function tick(*self) use Time, Random => Result<TetrisPiece, GameError> {
         
     }
 }

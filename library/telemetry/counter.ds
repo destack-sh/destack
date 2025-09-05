@@ -1,12 +1,12 @@
-using dyst
+use dyst
 
 /// A Counter Metric.
 @entity
-struct  CounterMetric using Metric {}
+struct  CounterMetric use Metric {}
 
 /// A Counter Measurement.
 @event
-struct CounterMeasurementEvent using MeasurementEvent {
+struct CounterMeasurementEvent use MeasurementEvent {
     /// The Counter metric definition.
     definition: EntityReference<CounterMetric>,
 }

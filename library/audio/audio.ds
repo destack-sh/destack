@@ -1,8 +1,8 @@
-using dyst
+use dyst
 
 /// An Audio File
 @entity
-struct Audio using File {
+struct Audio use File {
     duration: Duration,
 }
 

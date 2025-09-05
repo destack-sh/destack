@@ -1,11 +1,11 @@
-using dyst
+use dyst
 
 /// A deformable body in 2D
 @entity
-struct SoftBody2D using Body2D {}
+struct SoftBody2D use Body2D {}
 
 /// A deformable body in 3D
 @entity
-struct SoftBody3D using Body3D {}
+struct SoftBody3D use Body3D {}
 
 

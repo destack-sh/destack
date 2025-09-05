@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// A Follow is a relationship between an Actor and a followable Node.
 @entity
@@ -13,8 +13,8 @@ struct FollowEvent {
 
 /// Follow added.
 @event
-struct FollowAddedEvent using FollowEvent {}
+struct FollowAddedEvent use FollowEvent {}
 
 /// Follow removed.
 @event
-struct FollowRemovedEvent using FollowEvent {}
+struct FollowRemovedEvent use FollowEvent {}

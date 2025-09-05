@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// The consensus status of an Event.
 enum EventStatus {

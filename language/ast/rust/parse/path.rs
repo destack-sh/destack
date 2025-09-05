@@ -67,7 +67,7 @@ mod tests {
             ])
         );
     }
-    /// Test that the parser stops before non-path items (like for Using items).
+    /// Test that the parser stops before non-path items (like for Use items).
     #[test]
     fn test_parse_path_stops_before_group_brace() {
         let input = "ds.geometry.{Vector2}";

@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Run status values.
 enum RunStatus { Scheduled = 2, Running = 10, Paused = 21, Yielded = 23, Cancelled = 51, Aborted = 52, Failed = 53, Completed = 54 }
@@ -14,28 +14,28 @@ struct RunEvent {
 
 /// A Run was started.
 @event
-struct RunStartedEvent using RunEvent {}
-/// A Run pausing was requested.
+struct RunStartedEvent use RunEvent {}
+/// A Run pause was requested.
 @event
-struct RunPauseRequestedEvent using RunEvent {}
+struct RunPauseRequestedEvent use RunEvent {}
 /// A Run was paused.
 @event
-struct RunPausedEvent using RunEvent {}
+struct RunPausedEvent use RunEvent {}
 /// A Run resume was requested.
 @event
-struct RunResumeRequestedEvent using RunEvent {}
+struct RunResumeRequestedEvent use RunEvent {}
 /// A Run was resumed.
 @event
-struct RunResumedEvent using RunEvent {}
+struct RunResumedEvent use RunEvent {}
 /// A Run stop was requested.
 @event
-struct RunStopRequestedEvent using RunEvent {}
+struct RunStopRequestedEvent use RunEvent {}
 /// A Run failed.
 @event
-struct RunFailedEvent using RunEvent {}
+struct RunFailedEvent use RunEvent {}
 /// A Run completed.
 @event
-struct RunCompletedEvent using RunEvent {}
+struct RunCompletedEvent use RunEvent {}
 
 /// Run of an Action.
 @entity

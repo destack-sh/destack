@@ -60,9 +60,9 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // using
-            else if self.peek_keyword(Keyword::Using).is_ok() {
-                let using_id = self.eat_using()?;
-                Statement::Using(using_id)
+            else if self.peek_keyword(Keyword::Use).is_ok() {
+                let use_id = self.eat_use()?;
+                Statement::Use(use_id)
             }
             //
             // ------------------------------------------------------------

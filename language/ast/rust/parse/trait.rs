@@ -11,12 +11,14 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     ///
-    /// trait Foo {
+    /// trait Foo: Bar, Boz { // Foo *is* a subtype of Bar and Boz
+    ///     use Baz // Foo is not a subtype of Baz, Foo *has* a Baz
+    ///
     ///     let x: int32 // constant
     ///     function foo() => int32
     /// }
     ///
-    /// trait Baz<T> {
+    /// trait Baz[T] with T: Copy {
     ///     function baz() => T // semicolon optional
     /// }
     /// ```

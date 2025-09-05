@@ -1,6 +1,6 @@
-using dyst
+use dyst
 
-/// A User is a human using Destack.
+/// A User is a human use Destack.
 @entity
 struct User {
     /// The URL-friendly slug of the User.

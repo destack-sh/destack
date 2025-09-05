@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Definition of a builtin Method.
 struct MethodDefinition {
@@ -14,6 +14,6 @@ struct MethodDefinition {
 
 /// A Method is a small runtime-specific piece of logic.
 @entity
-struct Method using Function {}
+struct Method use Function {}
 
 

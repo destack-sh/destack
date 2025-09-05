@@ -1,18 +1,18 @@
-using dyst
+use dyst
 
 /// A Path is a polyline of multiple points.
-struct Path2D using Form2D {
+struct Path2D use Form2D {
     points: List<Vector2>
     isClosed: boolean
 }
 
 /// A PathShape is a shape that represents a polyline of multiple points.
 @entity
-struct PathShape2D using Shape2D, Path2D {}
+struct PathShape2D use Shape2D, Path2D {}
 
 /// A Polyline3D is a polygonal chain in 3D space.
 struct Polyline3D {
-    using Form3D
+    use Form3D
 
     points: List<Vector3>
     isClosed: boolean
@@ -20,4 +20,4 @@ struct Polyline3D {
 
 /// A PolylineShape3D represents a polygonal chain in 3D space.
 @entity
-struct PolylineShape3D using Shape3D, Polyline3D {}
+struct PolylineShape3D use Shape3D, Polyline3D {}

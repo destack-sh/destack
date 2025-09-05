@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Built-in transition types
 enum TransitionType {

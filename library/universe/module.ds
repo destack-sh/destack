@@ -1,10 +1,10 @@
 /// Core Universe Module.
 
 
-using client
-using organization
-using team
-using universe
-using user
+use client
+use organization
+use team
+use universe
+use user
 
 

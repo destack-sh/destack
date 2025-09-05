@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// A Reaction is a relationship between an Actor and a reactable Node.
 @entity
@@ -18,10 +18,10 @@ struct ReactionEvent {
 
 /// Reaction added.
 @event
-struct ReactionAddedEvent using ReactionEvent {}
+struct ReactionAddedEvent use ReactionEvent {}
 
 /// Reaction removed.
 @event
-struct ReactionRemovedEvent using ReactionEvent {}
+struct ReactionRemovedEvent use ReactionEvent {}
 
 

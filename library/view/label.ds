@@ -1,7 +1,7 @@
-using dyst
+use dyst
 
 /// A label container View for form-like input views
 @entity
-struct LabelView2D using LayoutView2D {}
+struct LabelView2D use LayoutView2D {}
 
 

@@ -1,15 +1,15 @@
-using dyst
+use dyst
 
 /// A 2D content View
 @entity
-struct ContentView2D using View2D {}
+struct ContentView2D use View2D {}
 
 /// A 2D Text View
 @entity
-struct TextView2D using ContentView2D {
+struct TextView2D use ContentView2D {
     /// The text to display
     text: ?Text,
-    /// The font to using for the text
+    /// The font to use for the text
     font: ?Font,
     /// The color of the text
     color: ?Fill,

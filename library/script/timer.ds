@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Timer types.
 enum TimerType { Once = 1, Recurring = 2 }
@@ -12,19 +12,19 @@ struct TimerEvent {
 
 /// Timer started.
 @event
-struct TimerStartedEvent using TimerEvent {}
+struct TimerStartedEvent use TimerEvent {}
 /// Timer paused.
 @event
-struct TimerPausedEvent using TimerEvent {}
+struct TimerPausedEvent use TimerEvent {}
 /// Timer resumed.
 @event
-struct TimerResumedEvent using TimerEvent {}
+struct TimerResumedEvent use TimerEvent {}
 /// Timer completed.
 @event
-struct TimerCompletedEvent using TimerEvent {}
+struct TimerCompletedEvent use TimerEvent {}
 /// Timer cancelled.
 @event
-struct TimerCancelledEvent using TimerEvent {}
+struct TimerCancelledEvent use TimerEvent {}
 
 /// A Timer.
 @entity

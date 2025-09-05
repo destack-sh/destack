@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// A Mesh2D is defined by vertices and triangle indices.
 struct Mesh2D {
@@ -14,8 +14,8 @@ struct Mesh3D {
 
 /// A MeshShape2D represents a triangle mesh.
 @entity
-struct MeshShape2D using Shape2D, Mesh2D {}
+struct MeshShape2D use Shape2D, Mesh2D {}
 
 /// A MeshShape3D represents a triangle mesh.
 @entity
-struct MeshShape3D using Shape3D, Mesh3D {}
+struct MeshShape3D use Shape3D, Mesh3D {}

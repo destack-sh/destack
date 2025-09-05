@@ -183,7 +183,7 @@ fn strip_prefix<'a>(path: &'a Path, base: &Path) -> Option<&'a Path> {
     path.strip_prefix(base).ok()
 }
 
-// removed local glob impl; reusing crate::util::glob_match
+// removed local glob impl; reuse crate::util::glob_match
 
 #[cfg(test)]
 mod tests {
