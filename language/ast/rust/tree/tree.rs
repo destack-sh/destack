@@ -261,17 +261,17 @@ impl NodeTree {
         self.spans_per_node[node_id.id as usize] = span;
     }
 
-    /// Append documentation to a node.
-    /// Merges the documentation with the existing documentation (if it exists).
-    pub fn append_doc<T>(&mut self, node_id: NodeId<T>, doc: NodeId<Doc>)
+    /// Set documentation for a node.
+    pub fn set_doc<T>(&mut self, node_id: NodeId<T>, doc: NodeId<Doc>)
     where
         T: Node,
         Self: NodeTreeStore<T>,
     {
         let local_id = self.local_id_by_node[node_id.id as usize];
-        if self.docs_per_node[local_id as usize].is_some() {
-            todo!("merge docs");
-        }
+        debug_assert!(
+            self.docs_per_node[local_id as usize].is_none(),
+            "documentation already set for node"
+        );
         self.docs_per_node[local_id as usize] = Some(doc);
     }
 }

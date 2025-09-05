@@ -235,7 +235,6 @@ impl<'a> Parser<'a> {
     ///   1 // comma is optional here
     ///   2 // comma is optional here too
     /// ]
-    /// [1.0, 2.0, .0]
     /// [10, false, "Hi"] // hetereogenous array is invalid but okay in AST
     /// [0; 10] // repeated array
     pub fn eat_array_literal(&mut self) -> ParseResult<NodeId<ArrayLiteral>> {
@@ -348,7 +347,7 @@ impl<'a> Parser<'a> {
     ///     indices: [0, 1, 2] // optional comma
     /// }
     ///
-    /// Mesh2<float64> { something: [] }
+    /// Mesh2[float64] { something: [] }
     /// ```
     pub fn eat_struct_literal(&mut self) -> ParseResult<NodeId<StructLiteral>> {
         let start = self.mark();

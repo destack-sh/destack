@@ -62,7 +62,7 @@ impl<'a> Parser<'a> {
         let mut withs: Vec<NodeId<With>> = Vec::new();
         if self.peek_keyword(Keyword::With).is_ok() {
             self.eat_keyword(Keyword::With)?;
-            let with = self.eat_with_header()?;
+            let with = self.eat_with_body()?;
             withs.push(with);
         }
 

@@ -15,4 +15,16 @@ impl<'a> Parser<'a> {
         let module_id = self.tree.allocate(module, self.get_span_from(start));
         Ok(module_id)
     }
+
+    // Eat a module body (aka a module file, without `module` keyword or braces).
+    pub fn eat_module_body(&mut self) -> ParseResult<NodeId<Module>> {
+        let start = self.mark();
+        let block = self.eat_block_body()?;
+        let module = Module {
+            name: None,
+            body: block,
+        };
+        let module_id = self.tree.allocate(module, self.get_span_from(start));
+        Ok(module_id)
+    }
 }

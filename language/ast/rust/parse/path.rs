@@ -37,13 +37,13 @@ mod tests {
     use destack_language_token::{SourceFile, TokenType, tokenize_semantic};
 
     use crate::Parser;
+    use crate::parse::tests::TestParse;
 
     /// Test that the parser can parse a path with a single segment.
     #[test]
     fn test_parse_simple_path_single_segment() {
-        let input = "destack";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("destack");
+        let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,

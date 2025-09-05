@@ -122,29 +122,36 @@ impl<'a> Parser<'a> {
         let name = self.eat_identifier()?;
 
         // optional payload type: (Type ...) or none for unit variant
-        // if there is only one field we unwrap the implicit tuple
+        // if there is only one field we unwrap the implicit tuple (it's not really a tuple then)
         let payload_type: Option<NodeId<Type>> =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 let tuple_id = self.eat_tuple()?;
                 let tuple = self.tree.get(tuple_id);
-                // unwrap single positional tuple
+
+                // empty tuple
                 if tuple.elements.is_empty() {
                     self.tree.free(tuple_id);
                     None
-                } else if tuple.elements.len() == 1
+                }
+                // single positional tuple (unwrap inner)
+                else if tuple.elements.len() == 1
                     && let &TupleField::Positional {
                         r#type: inner_type_id,
                     } = self.tree.get(tuple.elements[0])
                 {
                     self.tree.free(tuple_id);
                     Some(inner_type_id)
-                } else {
+                }
+                // normal tuple (keep outer)
+                else {
                     let type_id = self
                         .tree
                         .allocate(Type::Tuple(tuple_id), self.get_span_from(start));
                     Some(type_id)
                 }
-            } else {
+            }
+            // no payload type
+            else {
                 None
             };
 

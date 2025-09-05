@@ -38,15 +38,9 @@ impl<'a> Parser<'a> {
                 None
             };
 
-        // optional name (avoid consuming `using` as a name)
-        let name = if let Ok(next) = self.peek_token(TokenType::Identifier) {
-            let ident_str = self.get_token_str(*next);
-            if ident_str != Keyword::Use.as_str() && self.peek_token(TokenType::OpenBrace).is_err()
-            {
-                Some(self.eat_identifier()?)
-            } else {
-                None
-            }
+        // optional name
+        let name = if self.peek_token(TokenType::Identifier).is_ok() {
+            Some(self.eat_identifier()?)
         } else {
             None
         };
