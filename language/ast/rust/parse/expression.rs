@@ -333,6 +333,14 @@ impl InfixOperator {
 }
 
 impl<'a> Parser<'a> {
+    /// Peek a unary operator.
+    #[inline]
+    pub fn peek_unary_operator(&self) -> ParseResult<UnaryOperator> {
+        let token = self.peek()?;
+        UnaryOperator::from_token_type(token.token.r#type)
+            .ok_or(ParseError::UnexpectedToken(token.span))
+    }
+
     /// Peek a binary operator.
     #[inline]
     pub fn peek_binary_operator(&self) -> ParseResult<BinaryOperator> {
@@ -391,169 +399,189 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
-        // grouping parentheses
-        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            self.bump();
-            let expression_id = self.eat_expression(left_precedence)?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-            self.tree.set_span(expression_id, self.get_span_from(start));
-            return Ok(expression_id);
-        }
-
-        //
-        // ------------------------------------------------------------
-        // 1. Unary operations (prefix)
-        // ------------------------------------------------------------
-        //
-
-        // unary operations
-        let unary_operator: Option<UnaryOperator> = if let Ok(token) = self.peek() {
-            UnaryOperator::from_token_type(token.token.r#type)
-        } else {
-            None
-        };
-        if let Some(unary_operator) = unary_operator {
-            let rhs = self.eat_expression(left_precedence)?;
-            let expression = Expression::Unary {
-                operator: unary_operator,
-                rhs,
-            };
-            let expression_id = self.tree.allocate(expression, self.get_span_from(start));
-            return Ok(expression_id);
-        }
-
-        // ------------------------------------------------------------
-        // 2. Primary expressions (no infix operations)
-        // ------------------------------------------------------------
-        let expression = {
+        let mut left_expression_id: NodeId<Expression> = {
             //
             // ------------------------------------------------------------
-            // 2a. Declarations
+            // Grouping
             // ------------------------------------------------------------
             //
+
+            // parenthesis
+            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                self.bump(); // eat open paranthesis
+                // parse inner expression without outer precedence
+                let expression_id = self.eat_expression(None)?;
+                self.eat_token(TokenType::CloseParenthesis)?;
+                self.tree.set_span(expression_id, self.get_span_from(start));
+                expression_id
+            }
+            //
+            // ------------------------------------------------------------
+            // Unary operations (prefix, right associative)
+            // ------------------------------------------------------------
+            //
+
+            // unary operations
+            else if let Ok(unary_operator) = self.peek_unary_operator() {
+                let right_precedence = unary_operator.precedence();
+                self.bump(); // eat unary operator (always because right associative)
+                let rhs = self.eat_expression(Some(right_precedence))?;
+                let expression = Expression::Unary {
+                    operator: unary_operator,
+                    rhs,
+                };
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            //
+            // ------------------------------------------------------------
+            // Declarations
+            // ------------------------------------------------------------
+            //
+
             // module
-            if self.peek_keyword(Keyword::Module).is_ok() {
+            else if self.peek_keyword(Keyword::Module).is_ok() {
                 let module_id = self.eat_module()?;
-                Expression::Module(module_id)
+                let expression = Expression::Module(module_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // struct
             else if self.peek_keyword(Keyword::Struct).is_ok() {
                 let struct_id = self.eat_struct()?;
-                Expression::Struct(struct_id)
+                let expression = Expression::Struct(struct_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // enum
             else if self.peek_keyword(Keyword::Enum).is_ok() {
                 let enum_id = self.eat_enum()?;
-                Expression::Enum(enum_id)
+                let expression = Expression::Enum(enum_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // union
             else if self.peek_keyword(Keyword::Union).is_ok() {
                 let union_id = self.eat_union()?;
-                Expression::Union(union_id)
+                let expression = Expression::Union(union_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // trait
             else if self.peek_keyword(Keyword::Trait).is_ok() {
                 let trait_id = self.eat_trait()?;
-                Expression::Trait(trait_id)
+                let expression = Expression::Trait(trait_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // implement
             else if self.peek_keyword(Keyword::Implement).is_ok() {
                 let implement_id = self.eat_implement()?;
-                Expression::Implement(implement_id)
+                let expression = Expression::Implement(implement_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // function
             else if self.peek_keyword(Keyword::Function).is_ok() {
                 let function_id = self.eat_function()?;
-                Expression::Function(function_id)
+                let expression = Expression::Function(function_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             //
             // ------------------------------------------------------------
-            // 2b. Control flow
+            // Control flow
             // ------------------------------------------------------------
             //
             // if
             else if self.peek_keyword(Keyword::If).is_ok() {
                 let if_id = self.eat_if()?;
-                Expression::If(if_id)
+                let expression = Expression::If(if_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // while
             else if self.peek_keyword(Keyword::While).is_ok() {
                 let while_id = self.eat_while()?;
-                Expression::While(while_id)
+                let expression = Expression::While(while_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // for
             else if self.peek_keyword(Keyword::For).is_ok() {
                 let for_id = self.eat_for()?;
-                Expression::For(for_id)
+                let expression = Expression::For(for_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // loop
             else if self.peek_keyword(Keyword::Loop).is_ok() {
                 let loop_id = self.eat_loop()?;
-                Expression::Loop(loop_id)
+                let expression = Expression::Loop(loop_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // break
             else if self.peek_keyword(Keyword::Break).is_ok() {
                 let break_id = self.eat_break()?;
-                Expression::Break(break_id)
+                let expression = Expression::Break(break_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // continue
             else if self.peek_keyword(Keyword::Continue).is_ok() {
                 let continue_id = self.eat_continue()?;
-                Expression::Continue(continue_id)
+                let expression = Expression::Continue(continue_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // defer
             else if self.peek_keyword(Keyword::Defer).is_ok() {
                 let defer_id = self.eat_defer()?;
-                Expression::Defer(defer_id)
+                let expression = Expression::Defer(defer_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // return
             else if self.peek_keyword(Keyword::Return).is_ok() {
                 let return_id = self.eat_return()?;
-                Expression::Return(return_id)
+                let expression = Expression::Return(return_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // try
             else if self.peek_keyword(Keyword::Try).is_ok() {
                 let try_id = self.eat_try_catch()?;
-                Expression::Try(try_id)
+                let expression = Expression::Try(try_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             // match
             else if self.peek_keyword(Keyword::Match).is_ok() {
                 let match_id = self.eat_match()?;
-                Expression::Match(match_id)
+                let expression = Expression::Match(match_id);
+                self.tree.allocate(expression, self.get_span_from(start))
             }
             //
             // ------------------------------------------------------------
-            // 2c. Literals / aliases
+            // Literals / aliases
             // ------------------------------------------------------------
             //
             // array
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 let array_literal = self.eat_array_literal()?;
-                Expression::ArrayLiteral(array_literal)
+                let expression = Expression::ArrayLiteral(array_literal);
+                self.tree.allocate(expression, self.get_span_from(start))
             // tuple
             } else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 let tuple_literal = self.eat_tuple_literal()?;
-                Expression::TupleLiteral(tuple_literal)
+                let expression = Expression::TupleLiteral(tuple_literal);
+                self.tree.allocate(expression, self.get_span_from(start))
             // todo!: parse struct literals (postfix to avoid unbounded lookahead?)
             //  (also for patterns?)
             // scalar
             } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
-                Expression::ScalarLiteral(scalar_literal)
+                let expression = Expression::ScalarLiteral(scalar_literal);
+                self.tree.allocate(expression, self.get_span_from(start))
             // alias / path
             } else if self.peek_identifier().is_ok() {
                 let path_id = self.eat_path()?;
-                Expression::Path { path: path_id }
+                let expression = Expression::Path { path: path_id };
+                self.tree.allocate(expression, self.get_span_from(start))
             // _
             } else {
-                Expression::Error
+                let expression = Expression::Error;
+                self.tree.allocate(expression, self.get_span_from(start))
             }
         };
-        let mut left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
 
         //
         // ------------------------------------------------------------
-        // 3. Postfix operations
+        // Postfix operations
         // ------------------------------------------------------------
         //
 
@@ -585,7 +613,7 @@ impl<'a> Parser<'a> {
 
         //
         // ------------------------------------------------------------
-        // 4. Binary and assignment infix operations
+        // Binary and assignment operations (infix, left associative)
         // ------------------------------------------------------------
         //
 
