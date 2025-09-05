@@ -115,7 +115,6 @@ pub enum TokenType {
     /// `]`
     CloseBracket,
 
-
     // multiplication
     /// `*`
     Multiply,

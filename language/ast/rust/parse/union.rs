@@ -3,7 +3,7 @@
 use destack_language_token::{TokenType, clean_identifier};
 
 use crate::{
-    Keyword, NodeId, ParseResult, Parser, TupleField, Type, Union, UnionField, UnionStyle, Use,
+    Keyword, Let, NodeId, ParseResult, Parser, TupleField, Type, Union, UnionField, UnionStyle, Use,
 };
 
 impl<'a> Parser<'a> {
@@ -44,20 +44,9 @@ impl<'a> Parser<'a> {
                 None
             };
 
-        // optional name (avoid consuming `use` as a name)
-        let name = if self.peek_keyword(Keyword::Use).is_err()
-            && self.peek_token(TokenType::Identifier).is_ok()
-        {
+        // optional name
+        let name = if self.peek_token(TokenType::Identifier).is_ok() {
             Some(self.eat_identifier()?)
-        } else {
-            None
-        };
-
-        // optional `use ...` header
-        let using: Option<NodeId<Use>> = if self.peek_keyword(Keyword::Use).is_ok() {
-            self.eat_keyword(Keyword::Use)?;
-            let using = self.eat_use_header()?;
-            Some(using)
         } else {
             None
         };
@@ -72,7 +61,6 @@ impl<'a> Parser<'a> {
         let union = self.tree.get_mut(union_id);
         union.name = name;
         union.r#type = explicit_type;
-        union.using = using;
         self.tree.set_span(union_id, self.get_span_from(start));
 
         Ok(union_id)
@@ -82,34 +70,36 @@ impl<'a> Parser<'a> {
     pub fn eat_union_body(&mut self) -> ParseResult<NodeId<Union>> {
         let start = self.mark();
 
-        // empty body
+        // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
-        if self.peek_token(TokenType::CloseBrace).is_ok() {
-            let union_id = self.tree.allocate(
-                Union {
-                    name: None,
-                    style: UnionStyle::Explicit,
-                    r#type: None,
-                    fields,
-                    using: None,
-                },
-                self.get_span_from(start),
-            );
-            return Ok(union_id);
-        }
-
-        // parse first field
-        let first_field = self.eat_union_field()?;
-        fields.push(first_field);
-
-        // parse more fields while comma/newline separated
-        while self.peek_item_stop().is_ok() {
-            self.eat_item_stop()?;
+        let mut usings: Vec<NodeId<Use>> = Vec::new();
+        let mut lets: Vec<NodeId<Let>> = Vec::new();
+        loop {
+            // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
-            let field = self.eat_union_field()?;
-            fields.push(field);
+            // consume any stop
+            else if self.peek_any_stop().is_ok() {
+                self.eat_any_stop()?;
+            }
+            // let
+            else if self.peek_keyword(Keyword::Let).is_ok()
+                || self.peek_keyword(Keyword::Var).is_ok()
+            {
+                let let_declaration = self.eat_let_or_var()?;
+                lets.push(let_declaration);
+            }
+            // use
+            else if self.peek_keyword(Keyword::Use).is_ok() {
+                let using = self.eat_use()?;
+                usings.push(using);
+            }
+            // field
+            else {
+                let field = self.eat_union_field()?;
+                fields.push(field);
+            }
         }
 
         let union_id = self.tree.allocate(
@@ -118,7 +108,8 @@ impl<'a> Parser<'a> {
                 style: UnionStyle::Explicit,
                 r#type: None,
                 fields,
-                using: None,
+                usings,
+                lets,
             },
             self.get_span_from(start),
         );
@@ -229,7 +220,8 @@ impl<'a> Parser<'a> {
                 style: UnionStyle::Implicit,
                 r#type: None,
                 fields,
-                using: None,
+                usings: Vec::new(),
+                lets: Vec::new(),
             },
             self.get_span_from(start),
         );
@@ -260,7 +252,8 @@ union { A, B }
         let uni = parser.tree.get(union_id);
         assert_eq!(uni.name, None);
         assert!(uni.r#type.is_none());
-        assert!(uni.using.is_none());
+        assert!(uni.usings.is_empty());
+        assert!(uni.lets.is_empty());
         assert_eq!(uni.fields.len(), 2);
 
         // A
@@ -279,8 +272,10 @@ union { A, B }
     #[test]
     fn test_parse_explicit_heterogeneous_union() {
         let input = r###"
-union(uint4) Foo use Bar {
+union(uint4) Foo {
     A
+
+    use Bar
 
     C(boolean)
     
@@ -304,9 +299,14 @@ union(uint4) Foo use Bar {
             }
             other => panic!("expected primitive int type, got {other:?}"),
         }
-        // use Bar
-        assert!(uni.using.is_some());
+
+        assert_eq!(uni.usings.len(), 1);
+        assert!(uni.lets.is_empty());
         assert_eq!(uni.fields.len(), 3);
+
+        // use Bar
+        let using = parser.tree.get(uni.usings[0]);
+        assert_eq!(using.clauses.len(), 1);
 
         // A
         let a = parser.tree.get(uni.fields[0]);
@@ -382,7 +382,8 @@ union(uint4) Foo use Bar {
         assert_eq!(union.name, None);
         assert_eq!(union.style, UnionStyle::Implicit);
         assert!(union.r#type.is_none());
-        assert!(union.using.is_none());
+        assert!(union.usings.is_empty());
+        assert!(union.lets.is_empty());
         assert_eq!(union.fields.len(), 4);
 
         // A

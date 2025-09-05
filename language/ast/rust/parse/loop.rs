@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
     ///     y = 2
     /// }
     ///
-    /// for x in zeds a: {
+    /// for x in zeds.iter() a: {
     ///     if y > 5 {
     ///         continue :a
     ///     }

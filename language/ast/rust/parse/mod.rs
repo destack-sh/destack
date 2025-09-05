@@ -1,6 +1,7 @@
 mod argument;
 mod block;
 mod call;
+mod context;
 mod doc;
 mod r#enum;
 mod error;
@@ -24,7 +25,6 @@ mod r#trait;
 mod r#tuple;
 mod r#type;
 mod union;
-mod context;
 
 pub use error::*;
 pub use parser::*;

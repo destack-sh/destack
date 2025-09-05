@@ -2,7 +2,7 @@
 //!
 //! The set of allowable ASTs is larger than the set of valid Destack programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
-//!  and in many cases we can suggest automatic fixes (like `->` to `=>`, or drop `;`).
+//!  and in many cases we can suggest automatic fixes (like `->` to `=>`, or drop ``).
 
 use crate::{NodeId, PathId, StringId};
 
@@ -302,7 +302,7 @@ impl Node for Module {
 ///
 /// struct Foo {
 ///     let x: int32 = 7 // constant
-/// 
+///
 ///     use Bar // Foo has a Bar
 ///
 ///     myField: int32
@@ -315,10 +315,10 @@ pub struct Struct {
     pub name: Option<StringId>,
     /// The fields of the struct.
     pub fields: Vec<NodeId<StructField>>,
-    /// The use declaration for the struct.
-    pub usings: Option<Vec<NodeId<Use>>>,
+    /// The use declarations for the struct.
+    pub usings: Vec<NodeId<Use>>,
     /// The let bindings of the struct.
-    pub lets: Option<Vec<NodeId<Let>>>,
+    pub lets: Vec<NodeId<Let>>,
 }
 
 impl Node for Struct {
@@ -374,8 +374,6 @@ pub struct Enum {
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
-    /// The let bindings of the enum.
-    pub lets: Option<Vec<NodeId<Let>>>,
 }
 
 impl Node for Enum {
@@ -449,9 +447,9 @@ pub struct Union {
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
     /// The use declarations for the union.
-    pub usings: Option<Vec<NodeId<Use>>>,
+    pub usings: Vec<NodeId<Use>>,
     /// The let bindings of the union.
-    pub lets: Option<Vec<NodeId<Let>>>,
+    pub lets: Vec<NodeId<Let>>,
 }
 
 impl Node for Union {
@@ -479,9 +477,8 @@ impl Node for UnionField {
     const KIND: NodeType = NodeType::UnionField;
 }
 
-/// A Trait is trait definition node in the AST.
-/// Traits can be subtypes of other traits (with A: B),
-///  but can also `use` other traits without subtyping if needed (like structs with `use Baz`).
+/// A Trait is trait definition node in the AST defining behavior and constants.
+/// Traits can be subtypes of other traits (with A: B), but cannot `use` structs.
 ///
 /// Examples:
 /// ```
@@ -490,8 +487,6 @@ impl Node for UnionField {
 /// }
 ///
 /// trait Foo: Bar, Boz { // Foo *is* a subtype of Bar and Boz
-///     use Baz // Foo is not a subtype of Baz, Foo *has* a Baz
-/// 
 ///     let x: int32 // constant
 ///     function foo() => int32
 /// }
@@ -508,6 +503,8 @@ pub struct Trait {
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The supertraits of the trait.
     pub supertraits: Vec<NodeId<Type>>,
+    /// The with declarations of the trait.
+    pub withs: Vec<NodeId<With>>,
     /// The use declarations of the trait.  
     pub usings: Vec<NodeId<Use>>,
     /// The let bindings of the trait.
@@ -592,11 +589,17 @@ pub enum FunctionStyle {
 ///
 /// function foo() // just declaration, no body, no opening `{`
 ///
-/// function foo[T, U](x: T) => int32, boolean {
+/// function foo[T, U](x: T) => (int32, boolean) with (
+///    T: Copy
+///    U: Numeric
+/// ) {
 ///    print("Hello, world!")
 /// }
 ///
-/// function baz(a: int32, b: boolean) with Disk, Time => MyStruct, boolean {
+/// function baz(a: int32, b: boolean) => (
+///    MyStruct,
+///    boolean
+/// ) with Disk, Time { // with can be on next line
 ///    ...
 /// }
 ///
@@ -612,9 +615,14 @@ pub enum FunctionStyle {
 ///   b: boolean
 ///   // regular comment
 ///   c: Vector2
-/// ) => int32, isGood: boolean {
+/// ) => (
+///    int32,
+///    isGood: boolean
+/// ) with (
+///   Time
+/// ) {
 ///    ...
-/// )
+/// }
 ///
 /// // lambda style
 ///
@@ -814,7 +822,11 @@ impl Node for Type {
 /// with Foo, Bar
 /// with Foo.Bar
 /// with !Bar
-/// with !Bar, Time<F>, F: Numeric
+/// with (
+///    !Bar,
+///    Time<F>,
+///    F: Numeric
+/// )
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct With {
@@ -909,11 +921,11 @@ impl Node for Use {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct UseClause {
-    /// The target to use (like `foo.bar` in `use foo.bar.{baz, qux};`)
+    /// The target to use (like `foo.bar` in `use foo.bar.{baz, qux}`)
     pub target: NodeId<Expression>,
-    /// The alias to use for the definition (like `bar` in `use foo as bar;`)
+    /// The alias to use for the definition (like `bar` in `use foo as bar`)
     pub alias: Option<StringId>,
-    /// The items to use from the target (like `{baz, qux}` in `use foo.bar.{baz, qux};`)
+    /// The items to use from the target (like `{baz, qux}` in `use foo.bar.{baz, qux}`)
     pub items: Option<Vec<NodeId<UseItem>>>,
 }
 
@@ -930,9 +942,9 @@ impl Node for UseClause {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct UseItem {
-    /// The source name of the item (like `foo` in `foo as bar;`)
+    /// The source name of the item (like `foo` in `foo as bar`)
     pub name: StringId,
-    /// The alias to use for the item (like `bar` in `foo as bar;`)
+    /// The alias to use for the item (like `bar` in `foo as bar`)
     pub alias: Option<StringId>,
 }
 
@@ -1221,6 +1233,7 @@ impl Node for Try {
 ///
 /// Examples:
 /// ```
+/// T
 /// x: int32
 /// y: (int32, boolean, Vector2)
 /// Validate: boolean = true
@@ -1231,7 +1244,7 @@ pub struct Parameter {
     /// The name of the parameter.
     pub name: StringId,
     /// The type of the parameter.
-    pub r#type: NodeId<Type>,
+    pub r#type: Option<NodeId<Type>>,
     /// The default value of the parameter.
     pub default: Option<NodeId<Expression>>,
 }

@@ -635,8 +635,3 @@ fn read_message<R: Read>(reader: &mut R) -> std::io::Result<jsonrpc::JsonRpcRequ
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     Ok(req)
 }
-
-#[cfg(test)]
-mod tests {
-    // TODO @Incomplete: add integration tests use OS pipes
-}

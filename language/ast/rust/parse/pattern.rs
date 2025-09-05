@@ -37,6 +37,6 @@ impl<'a> Parser<'a> {
             return Ok(pattern);
         }
 
-        todo!()
+        todo!("patterns")
     }
 }
