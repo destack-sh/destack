@@ -198,7 +198,6 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Comma => "37",       // white
         TokenType::Dot => "37",         // white
         TokenType::Range => "37",       // white
-        TokenType::Ellipsis => "37",    // white
         TokenType::Pound => "95",       // bright magenta
         TokenType::Empty => "95",       // bright magenta
         TokenType::Arrow => "95",       // bright magenta

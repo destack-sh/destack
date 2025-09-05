@@ -1,9 +1,9 @@
 #![feature(default_field_values)]
 
-mod print;
 mod parse;
+mod print;
 mod tree;
 
-pub use print::*;
 pub use parse::{ParseError, ParseResult, Parser, ParserMark};
+pub use print::*;
 pub use tree::*;
