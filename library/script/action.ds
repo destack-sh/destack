@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Definition of a builtin Action.
 struct ActionDefinition {
@@ -14,7 +14,7 @@ struct ActionDefinition {
 
 /// An implementation of a unit of work implemented for some runtimes.
 @entity
-struct Action using Function {
+struct Action use Function {
     /// The Action type.
     type: ActionType,
 }

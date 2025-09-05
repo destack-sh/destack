@@ -1,7 +1,7 @@
-using dyst
+use dyst
 
 /// An Ellipse is centered at a point with radii along x and y and a rotation.
-struct Ellipse2D using Form2D {
+struct Ellipse2D use Form2D {
     radiusX: float32,
     radiusY: float32,
     rotation: float32 = 0.0,
@@ -9,10 +9,10 @@ struct Ellipse2D using Form2D {
 
 /// A EllipseShape is a shape that represents a ellipse.
 @entity
-struct EllipseShape2D using Shape2D, Ellipse2D {}
+struct EllipseShape2D use Shape2D, Ellipse2D {}
 
 /// An Ellipsoid is centered at a point with radii along x, y and z axes.
-struct Ellipsoid3D using Form3D {
+struct Ellipsoid3D use Form3D {
     radiusX: float32,
     radiusY: float32,
     radiusZ: float32,
@@ -20,4 +20,4 @@ struct Ellipsoid3D using Form3D {
 
 /// An EllipsoidShape3D is a shape that represents an ellipsoid in 3D.
 @entity
-struct EllipsoidShape3D using Shape3D, Ellipsoid3D {}
+struct EllipsoidShape3D use Shape3D, Ellipsoid3D {}

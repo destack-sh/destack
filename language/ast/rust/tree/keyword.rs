@@ -17,14 +17,14 @@ pub enum Keyword {
     Trait,
     /// Define a Function.
     Function,
-    /// Implement a type (perhaps for a Trait).
+    /// Implement a type.
     Implement,
-    /// Use an item in this context (like importing items from a module).
-    Using,
-    /// Alias or cast an item in this context.
+    /// Use an item in this scope.
+    Use,
+    /// With expression to declare use of items for a scope.
+    With,
+    /// Alias or cast an item.
     As,
-    /// Where expression.
-    Where,
     /// Let expression.
     Let,
     /// Var expression.
@@ -70,9 +70,9 @@ impl Keyword {
             Keyword::Trait => "trait",
             Keyword::Function => "function",
             Keyword::Implement => "implement",
-            Keyword::Using => "using",
+            Keyword::Use => "use",
+            Keyword::With => "with",
             Keyword::As => "as",
-            Keyword::Where => "where",
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::If => "if",

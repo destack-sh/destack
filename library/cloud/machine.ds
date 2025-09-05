@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Types of machines that provide compute.
 enum MachineType {

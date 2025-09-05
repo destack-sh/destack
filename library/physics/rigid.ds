@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Motion mode of a rigid body
 enum RigidMotionMode {
@@ -33,7 +33,7 @@ struct Mass2D {
 
 /// A solid simulated Body in 2D space
 @entity
-struct RigidBody2D using Body2D, Kinematic2D, Mass2D {
+struct RigidBody2D use Body2D, Kinematic2D, Mass2D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic,
 }
@@ -64,7 +64,7 @@ struct Mass3D {
 
 /// A solid simulated Body in 3D space
 @entity
-struct RigidBody3D using Body3D, Kinematic3D, Mass3D {
+struct RigidBody3D use Body3D, Kinematic3D, Mass3D {
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic,
 }

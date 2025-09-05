@@ -25,7 +25,7 @@ impl Default for WalkOptions {
     }
 }
 
-/// Visit files under a root using a stack-based DFS, applying ignore rules and filters.
+/// Visit files under a root use a stack-based DFS, applying ignore rules and filters.
 ///
 /// The visitor closure receives `&Path` of a file.
 /// Errors are ignored.

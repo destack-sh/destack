@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Base event regarding a Membership.
 @event
@@ -13,7 +13,7 @@ struct MembershipEvent {
 
 /// Membership was joined.
 @event
-struct MembershipJoinedEvent using MembershipEvent {
+struct MembershipJoinedEvent use MembershipEvent {
     /// The Role assigned by the Membership.
     role: EntityReference<Role>,
     /// The type of the Role.
@@ -22,7 +22,7 @@ struct MembershipJoinedEvent using MembershipEvent {
 
 /// Membership was left.
 @event
-struct MembershipLeftEvent using MembershipEvent {}
+struct MembershipLeftEvent use MembershipEvent {}
 
 /// A Membership of an Actor in a Joinable.
 @entity

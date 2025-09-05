@@ -1,9 +1,9 @@
 /// Observability Module
 
 
-using metric
-using counter
-using gauge
-using histogram
+use metric
+use counter
+use gauge
+use histogram
 
 

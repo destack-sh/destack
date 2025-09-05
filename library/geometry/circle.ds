@@ -1,19 +1,19 @@
-using dyst
+use dyst
 
 /// A Circle is centered at a point with a radius.
-struct Circle2D using Form2D {
+struct Circle2D use Form2D {
     radius: float32,
 }
 
 /// A CircleShape is a shape that represents a circle.
 @entity
-struct CircleShape2D using Shape2D, Circle2D {}
+struct CircleShape2D use Shape2D, Circle2D {}
 
 /// A Sphere is centered at a point with a radius.
-struct Sphere3D using Form3D {
+struct Sphere3D use Form3D {
     radius: float32,
 }
 
 /// A SphereShape3D is a shape that represents a sphere.
 @entity
-struct SphereShape3D using Shape3D, Sphere3D {}
+struct SphereShape3D use Shape3D, Sphere3D {}

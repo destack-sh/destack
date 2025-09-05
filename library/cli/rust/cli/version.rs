@@ -29,7 +29,7 @@ pub fn app() -> CommandApp {
         )
 }
 
-/// Bump the version using CalVer format.
+/// Bump the version use CalVer format.
 ///
 /// Increments the revision number if the date is the same, otherwise resets to 0.
 /// Updates all relevant files with the new version.

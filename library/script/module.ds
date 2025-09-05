@@ -1,16 +1,16 @@
 /// Basics Script Module.
 
 
-using action
-using environment
-using function
-using log
-using method
-using run
-using schedule
-using script
-using span
-using timer
-using trigger
+use action
+use environment
+use function
+use log
+use method
+use run
+use schedule
+use script
+use span
+use timer
+use trigger
 
 

@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Layout properties for a 2D view.
 struct LayoutComponent2D {
@@ -26,4 +26,4 @@ struct LayoutComponent2D {
 
 /// A 2D layout View defines how its children are laid out.
 @entity
-struct LayoutView2D using View2D, LayoutComponent2D {}
+struct LayoutView2D use View2D, LayoutComponent2D {}

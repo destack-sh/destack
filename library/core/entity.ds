@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 struct Epoch(uint64)
 

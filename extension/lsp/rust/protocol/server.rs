@@ -638,5 +638,5 @@ fn read_message<R: Read>(reader: &mut R) -> std::io::Result<jsonrpc::JsonRpcRequ
 
 #[cfg(test)]
 mod tests {
-    // TODO @Incomplete: add integration tests using OS pipes
+    // TODO @Incomplete: add integration tests use OS pipes
 }

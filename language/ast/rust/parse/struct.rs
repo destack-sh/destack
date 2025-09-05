@@ -2,7 +2,7 @@
 
 use destack_language_token::TokenType;
 
-use crate::{Keyword, NodeId, ParseResult, Parser, Struct, StructField, Using};
+use crate::{Keyword, NodeId, ParseResult, Parser, Struct, StructField, Use};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -11,17 +11,21 @@ impl<'a> Parser<'a> {
     /// ```
     /// struct { a: int32, b: boolean }
     ///
-    /// struct {
+    /// struct { // anonymous struct (for use as a value)
+    ///     myField: int32 // colon optional
+    ///     myOtherField: boolean
+    /// }
+    ///
+    /// struct Bar {
     ///     myField: int32
     ///     myOtherField: boolean
     /// }
     ///
     /// struct Foo {
-    ///     myField: int32
-    ///     myOtherField: boolean
-    /// }
+    ///     let x: int32 = 7 // constant
     ///
-    /// struct Foo using Bar, Baz {
+    ///     use Bar // Foo has a Bar
+    ///
     ///     myField: int32
     ///     myOtherField: boolean
     /// }
@@ -31,7 +35,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Struct)?;
 
         // optional name (avoid consuming `using` as a name)
-        let name = if self.peek_keyword(Keyword::Using).is_err()
+        let name = if self.peek_keyword(Keyword::Use).is_err()
             && self.peek_token(TokenType::Identifier).is_ok()
         {
             Some(self.eat_identifier()?)
@@ -39,10 +43,10 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // optional `using ...` header
-        let using: Option<NodeId<Using>> = if self.peek_keyword(Keyword::Using).is_ok() {
-            self.eat_keyword(Keyword::Using)?;
-            let using = self.eat_using_header()?;
+        // optional `use ...` header
+        let using: Option<NodeId<Use>> = if self.peek_keyword(Keyword::Use).is_ok() {
+            self.eat_keyword(Keyword::Use)?;
+            let using = self.eat_use_header()?;
             Some(using)
         } else {
             None
@@ -55,9 +59,9 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // fill in header data
-        let r#struct = self.tree.get_mut(struct_id);
-        r#struct.name = name;
-        r#struct.using = using;
+        let struct_ = self.tree.get_mut(struct_id);
+        struct_.name = name;
+        struct_.usings = using;
         self.tree.set_span(struct_id, self.get_span_from(start));
 
         Ok(struct_id)
@@ -74,7 +78,8 @@ impl<'a> Parser<'a> {
                 Struct {
                     name: None,
                     fields,
-                    using: None,
+                    usings: None,
+                    lets: None,
                 },
                 self.get_span_from(start),
             );
@@ -99,7 +104,7 @@ impl<'a> Parser<'a> {
             Struct {
                 name: None,
                 fields,
-                using: None,
+                usings: None,
             },
             self.get_span_from(start),
         );
@@ -153,7 +158,7 @@ struct { x: int32, y: boolean
         let struct_id = parser.eat_struct().unwrap();
         let r#struct = parser.tree.get(struct_id);
         assert_eq!(r#struct.name, None);
-        assert!(r#struct.using.is_none());
+        assert!(r#struct.usings.is_none());
         assert_eq!(r#struct.fields.len(), 2);
 
         // x: int32
@@ -193,7 +198,7 @@ struct { x: int32, y: boolean
     #[test]
     fn test_parse_struct_with_name_and_using_and_default() {
         let input = r###"
-struct Foo using Bar, Baz {
+struct Foo use Bar, Baz {
     a: boolean
     b: int32 = 4
 }
@@ -205,7 +210,7 @@ struct Foo using Bar, Baz {
         let struct_id = parser.eat_struct().unwrap();
         let r#struct = parser.tree.get(struct_id);
         assert_eq!(r#struct.name, Some(parser.strings.intern("Foo")));
-        assert!(r#struct.using.is_some());
+        assert!(r#struct.usings.is_some());
         assert_eq!(r#struct.fields.len(), 2);
 
         // a: boolean

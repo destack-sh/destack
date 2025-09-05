@@ -72,7 +72,7 @@ pub trait LanguageServer: Send + Sync + 'static {
     /// [`textDocument/didOpen`]: https://microsoft.github.io/language-server-protocol/specification#textDocument_didOpen
     ///
     /// The document's truth is now managed by the client and the server must not try to read the
-    /// document's truth using the document's URI. "Open" in this sense means it is managed by the
+    /// document's truth use the document's URI. "Open" in this sense means it is managed by the
     /// client. It doesn't necessarily mean that its content is presented in an editor.
     fn did_open(&self, _params: types::DidOpenTextDocumentParams) {}
 
@@ -573,13 +573,13 @@ pub trait LanguageServer: Send + Sync + 'static {
     /// request.
     ///
     /// Consider a client announces the `label.location` property as a property that can be
-    /// resolved lazily using the client capability:
+    /// resolved lazily use the client capability:
     ///
     /// ```js
     /// textDocument.inlayHint.resolveSupport = { properties: ['label.location'] };
     /// ```
     ///
-    /// then an inlay hint with a label part, but without a location, must be resolved using the
+    /// then an inlay hint with a label part, but without a location, must be resolved use the
     /// `inlayHint/resolve` request before it can be used.
     ///
     /// # Compatibility
@@ -633,7 +633,7 @@ pub trait LanguageServer: Send + Sync + 'static {
     /// # Compatibility
     ///
     /// Since 3.16.0, the client can signal that it can resolve more properties lazily. This is
-    /// done using the `completion_item.resolve_support` client capability which lists all
+    /// done use the `completion_item.resolve_support` client capability which lists all
     /// properties that can be filled in during a `completionItem/resolve` request.
     ///
     /// All other properties (usually `sort_text`, `filter_text`, `insert_text`, and `text_edit`)
@@ -779,7 +779,7 @@ pub trait LanguageServer: Send + Sync + 'static {
     ///   or the edits are huge it might still be beneficial if the result is simply a command and
     ///   the actual edit is only computed when needed.
     ///
-    /// * The ability to group code actions using a kind. Clients are allowed to ignore that
+    /// * The ability to group code actions use a kind. Clients are allowed to ignore that
     ///   information. However it allows them to better group code action, for example, into
     ///   corresponding menus (e.g. all refactor code actions into a refactor menu).
     fn code_action(
@@ -950,7 +950,7 @@ pub trait LanguageServer: Send + Sync + 'static {
     ///
     /// Since 3.17.0, servers can also provider a handler for [`workspaceSymbol/resolve`] requests.
     /// This allows servers to return workspace symbols without a range for a `workspace/symbol`
-    /// request. Clients then need to resolve the range when necessary using the
+    /// request. Clients then need to resolve the range when necessary use the
     /// `workspaceSymbol/resolve` request.
     ///
     /// [`workspaceSymbol/resolve`]: Self::symbol_resolve
@@ -1093,7 +1093,7 @@ pub trait LanguageServer: Send + Sync + 'static {
     ///
     /// [`workspace/didChangeWatchedFiles`]: https://microsoft.github.io/language-server-protocol/specification#workspace_didChangeWatchedFiles
     ///
-    /// It is recommended that servers register for these file events using the registration
+    /// It is recommended that servers register for these file events use the registration
     /// mechanism. This can be done here or in the [`initialized`](Self::initialized) method using
     /// [`Client::register_capability`](crate::Client::register_capability).
     fn did_change_watched_files(&self, _params: types::DidChangeWatchedFilesParams) {}
@@ -1104,7 +1104,7 @@ pub trait LanguageServer: Send + Sync + 'static {
     /// [`workspace/executeCommand`]: https://microsoft.github.io/language-server-protocol/specification#workspace_executeCommand
     ///
     /// In most cases, the server creates a [`WorkspaceEdit`] structure and applies the changes to
-    /// the workspace using `Client::apply_edit()` before returning from this function.
+    /// the workspace use `Client::apply_edit()` before returning from this function.
     fn execute_command(
         &self,
         params: types::ExecuteCommandParams,

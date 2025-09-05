@@ -1,22 +1,22 @@
-using dyst
+use dyst
 
 /// A Halfspace2D splits 2D space by a line with normal and distance from origin.
-struct Halfspace2D using Form2D {
+struct Halfspace2D use Form2D {
     normal: Vector2,
     distance: float32,
 }
 
 /// A HalfspaceShape2D represents a half-space in 2D defined by a line.
 @entity
-struct HalfspaceShape2D using Shape2D, Halfspace2D {
+struct HalfspaceShape2D use Shape2D, Halfspace2D {
 }
 
 /// A Plane3D splits 3D space by a plane with normal and distance from origin.
-struct Plane3D using Form3D {
+struct Plane3D use Form3D {
     normal: Vector3,
     distance: float32,
 }
 
 /// A PlaneShape3D represents a half-space in 3D defined by a plane.
 @entity
-struct PlaneShape3D using Shape3D, Plane3D {}
+struct PlaneShape3D use Shape3D, Plane3D {}

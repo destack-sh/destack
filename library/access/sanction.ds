@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// A type of Sanction.
 enum SanctionType {
@@ -17,19 +17,19 @@ struct SanctionEvent {
 
 /// Sanction was requested.
 @event
-struct SanctionRequestedEvent using SanctionEvent {}
+struct SanctionRequestedEvent use SanctionEvent {}
 
 /// Sanction was granted.
 @event
-struct SanctionGrantedEvent using SanctionEvent {}
+struct SanctionGrantedEvent use SanctionEvent {}
 
 /// Sanction was revoked.
 @event
-struct SanctionRevokedEvent using SanctionEvent {}
+struct SanctionRevokedEvent use SanctionEvent {}
 
 /// Sanction has expired.
 @event
-struct SanctionExpiredEvent using SanctionEvent {}
+struct SanctionExpiredEvent use SanctionEvent {}
 
 /// A Sanction on some Actor.
 @entity

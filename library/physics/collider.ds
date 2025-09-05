@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// Base Collider event
 @event
@@ -6,7 +6,7 @@ struct ColliderEvent {}
 
 /// Collision contact between two colliders
 @event
-struct ColliderContactEvent using ColliderEvent {
+struct ColliderContactEvent use ColliderEvent {
     /// First collider
     colliderA: EntityReference<Collider2D>,
     /// Second collider
@@ -15,10 +15,10 @@ struct ColliderContactEvent using ColliderEvent {
 
 /// A Collider in 2D space
 @entity
-struct Collider2D using Entity2D {}
+struct Collider2D use Entity2D {}
 
 /// A Collider in 3D space
 @entity
-struct Collider3D using Entity3D {}
+struct Collider3D use Entity3D {}
 
 

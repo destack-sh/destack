@@ -27,10 +27,12 @@ pub enum NodeType {
     Tuple,
     TupleField,
     Function,
-    // Using
-    Using,
-    UsingClause,
-    UsingItem,
+    // Context
+    With,
+    WithClause,
+    Use,
+    UseClause,
+    UseItem,
     // Control
     If,
     While,
@@ -71,7 +73,7 @@ pub trait Node: Sized {
 }
 
 /// A Path is static path to a named definition in a namespace.
-/// In the case of a Using declaration, the Path excludes the items.
+/// In the case of a Use declaration, the Path excludes the items.
 ///
 /// Examples:
 /// ```
@@ -149,8 +151,10 @@ pub enum Statement {
     /// Function definition (as a Statement, see Function).
     Function(NodeId<Function>),
 
-    /// Using declaration for dependency and context management (see Using).
-    Using(NodeId<Using>),
+    /// With declaration for dependency and context management (see With).
+    With(NodeId<With>),
+    /// Use declaration for dependency and context management (see Use).
+    Use(NodeId<Use>),
 
     /// Doc comment (free floating, otherwise this is attached inside the declaration).
     Doc(NodeId<Doc>),
@@ -287,7 +291,7 @@ impl Node for Module {
 /// struct { a: int32, b: boolean }
 ///
 /// struct { // anonymous struct (for use as a value)
-///     myField: int32 // semicolon optional
+///     myField: int32 // colon optional
 ///     myOtherField: boolean
 /// }
 ///
@@ -296,7 +300,11 @@ impl Node for Module {
 ///     myOtherField: boolean
 /// }
 ///
-/// struct Foo using Bar, Baz {
+/// struct Foo {
+///     let x: int32 = 7 // constant
+/// 
+///     use Bar // Foo has a Bar
+///
 ///     myField: int32
 ///     myOtherField: boolean
 /// }
@@ -307,8 +315,10 @@ pub struct Struct {
     pub name: Option<StringId>,
     /// The fields of the struct.
     pub fields: Vec<NodeId<StructField>>,
-    /// The using declaration for the struct.
-    pub using: Option<NodeId<Using>>,
+    /// The use declaration for the struct.
+    pub usings: Option<Vec<NodeId<Use>>>,
+    /// The let bindings of the struct.
+    pub lets: Option<Vec<NodeId<Let>>>,
 }
 
 impl Node for Struct {
@@ -346,7 +356,7 @@ impl Node for StructField {
 /// enum { Success, Failure }
 ///
 /// enum Foo {
-///     A // semicolon optional
+///     A // colon optional
 ///     B
 ///     C
 /// }
@@ -364,10 +374,12 @@ pub struct Enum {
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
+    /// The let bindings of the enum.
+    pub lets: Option<Vec<NodeId<Let>>>,
 }
 
 impl Node for Enum {
-    const KIND: NodeType = NodeType::Union;
+    const KIND: NodeType = NodeType::Enum;
 }
 
 /// A EnumField is a enum field declaration AST node.
@@ -415,8 +427,9 @@ pub enum UnionStyle {
 ///     D(boolean, int32) = 6
 /// }
 ///
-/// // unions can be tagged with enums and include other types with using (like structs)
-/// union(TetrisShapeType) TetrisShape using GameObject {
+/// // unions can be tagged with enums and include other types with use (like structs)
+/// union(TetrisShapeType) TetrisShape {
+///     use GameObject
 ///     ...
 /// }
 ///
@@ -435,8 +448,10 @@ pub struct Union {
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
-    /// The using declarations for the union.
-    pub using: Option<NodeId<Using>>,
+    /// The use declarations for the union.
+    pub usings: Option<Vec<NodeId<Use>>>,
+    /// The let bindings of the union.
+    pub lets: Option<Vec<NodeId<Let>>>,
 }
 
 impl Node for Union {
@@ -465,6 +480,8 @@ impl Node for UnionField {
 }
 
 /// A Trait is trait definition node in the AST.
+/// Traits can be subtypes of other traits (with A: B),
+///  but can also `use` other traits without subtyping if needed (like structs with `use Baz`).
 ///
 /// Examples:
 /// ```
@@ -472,12 +489,14 @@ impl Node for UnionField {
 ///     ...
 /// }
 ///
-/// trait Foo {
+/// trait Foo: Bar, Boz { // Foo *is* a subtype of Bar and Boz
+///     use Baz // Foo is not a subtype of Baz, Foo *has* a Baz
+/// 
 ///     let x: int32 // constant
 ///     function foo() => int32
 /// }
 ///
-/// trait Baz[T] {
+/// trait Baz[T] with T: Copy {
 ///     function baz() => T // semicolon optional
 /// }
 /// ```
@@ -487,6 +506,10 @@ pub struct Trait {
     pub name: Option<StringId>,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
+    /// The supertraits of the trait.
+    pub supertraits: Vec<NodeId<Type>>,
+    /// The use declarations of the trait.  
+    pub usings: Vec<NodeId<Use>>,
     /// The let bindings of the trait.
     pub lets: Vec<NodeId<Let>>,
     /// The functions of the trait.
@@ -573,7 +596,7 @@ pub enum FunctionStyle {
 ///    print("Hello, world!")
 /// }
 ///
-/// function baz(a: int32, b: boolean) using Disk, Time => MyStruct, boolean {
+/// function baz(a: int32, b: boolean) with Disk, Time => MyStruct, boolean {
 ///    ...
 /// }
 ///
@@ -613,8 +636,8 @@ pub struct Function {
     pub dynamic_parameters: Vec<NodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<NodeId<Type>>,
-    /// The using declaration for the function (can't have a body).
-    pub using: Option<NodeId<Using>>,
+    /// The with declaration for the function (can't have a body).
+    pub with: Option<NodeId<With>>,
     /// The body of the function.
     pub body: Option<NodeId<Block>>,
 }
@@ -739,7 +762,8 @@ pub enum Type {
     Not(NodeId<Type>),
     /// Never `!`.
     Never,
-    // TODO: add self/Self type?
+    /// Self type.
+    Self_,
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType[T1, T2, ...]`.
@@ -777,48 +801,104 @@ impl Node for Type {
 }
 
 // ----------------------------------------------------------------------------
-// Usings
+// Context
 // ----------------------------------------------------------------------------
 
-/// A Using is a use declaration AST node for dependency and context management.
-/// Using can be used as statement for the containing scope or in block form.
-/// Using can also serve as a type signature for functions.
-/// `using` includes all or some items from a definition in the relevant scope.
+/// A With is a with declaration AST node for dependency and context management.
+/// With can declare the use of an item in a scope and refine type bounds.
 ///
 /// Examples:
 /// ```
-/// using foo
-/// using foo, bar
-/// using foo.bar
-/// using foo.{bar, baz}
-/// using foo.{} // valid but linted
-/// using foo as baz
+/// with T: int32
+/// with Foo
+/// with Foo, Bar
+/// with Foo.Bar
+/// with !Bar
+/// with !Bar, Time<F>, F: Numeric
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct With {
+    /// The clauses in this use declaration.
+    pub clauses: Vec<NodeId<WithClause>>,
+}
+
+impl Node for With {
+    const KIND: NodeType = NodeType::With;
+}
+
+/// A WithClause is a single clause AST node in a with declaration.
+/// It can be a type assertion (`T: Y`) or a use declaration (`Foo` or `Foo.Bar as Zeb`).
+/// Only positive declarations should have aliases (checked later).
 ///
-/// using Heap {
+/// Examples:
+/// ```
+/// // declaration
+/// Foo
+/// Foo as Bar
+/// Foo.Bar as Baz
+/// // assertion
+/// T: int32
+/// Self: geom.Mesh[T]
+/// T.Item: Copy
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum WithClause {
+    Declaration {
+        /// The item to use (like `Foo.Bar` in `with Foo.Bar`)
+        target: NodeId<Type>,
+        /// The alias to use for the item (like `Baz` in `with Foo.Bar as Baz`)
+        alias: Option<StringId>,
+    },
+    Assertion {
+        /// The target to assert (like `T` in `with T: int32`)
+        target: NodeId<Type>,
+        /// The assertion type (like `int32` in `with T: int32`)
+        assertion: NodeId<Type>,
+    },
+}
+
+impl Node for WithClause {
+    const KIND: NodeType = NodeType::WithClause;
+}
+
+/// A Use is a use declaration AST node for dependency and context management.
+/// Use can be used as statement for the containing scope or in block form.
+/// `use` includes all or some items from a definition in the relevant scope.
+///
+/// Examples:
+/// ```
+/// use foo
+/// use foo, bar
+/// use foo.bar
+/// use foo.{bar, baz}
+/// use foo.{} // valid but linted
+/// use foo as baz
+///
+/// use Heap {
 ///   ...
 /// }
 ///
-/// using Time, !Disk, !Network, !Allocation {
+/// use Time, !Disk, !Network, !Allocation {
 ///   ...
 /// }
 ///
-/// using someLock() {
+/// use someLock() {
 ///
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Using {
-    /// The clauses in this using declaration.
-    pub clauses: Vec<NodeId<UsingClause>>,
-    /// The body of the using declaration.
+pub struct Use {
+    /// The clauses in this use declaration.
+    pub clauses: Vec<NodeId<UseClause>>,
+    /// The body of the use declaration.
     pub body: Option<NodeId<Block>>,
 }
 
-impl Node for Using {
-    const KIND: NodeType = NodeType::Using;
+impl Node for Use {
+    const KIND: NodeType = NodeType::Use;
 }
 
-/// A UsingClause is a single clause AST node in a using declaration.
+/// A UseClause is a single clause AST node in a use declaration.
 ///
 /// Examples:
 /// ```
@@ -828,20 +908,20 @@ impl Node for Using {
 /// foo.{baz, qux}
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct UsingClause {
-    /// The target to use (like `foo.bar` in `using foo.bar.{baz, qux};`)
+pub struct UseClause {
+    /// The target to use (like `foo.bar` in `use foo.bar.{baz, qux};`)
     pub target: NodeId<Expression>,
-    /// The alias to use for the definition (like `bar` in `using foo as bar;`)
+    /// The alias to use for the definition (like `bar` in `use foo as bar;`)
     pub alias: Option<StringId>,
-    /// The items to use from the target (like `{baz, qux}` in `using foo.bar.{baz, qux};`)
-    pub items: Option<Vec<NodeId<UsingItem>>>,
+    /// The items to use from the target (like `{baz, qux}` in `use foo.bar.{baz, qux};`)
+    pub items: Option<Vec<NodeId<UseItem>>>,
 }
 
-impl Node for UsingClause {
-    const KIND: NodeType = NodeType::UsingClause;
+impl Node for UseClause {
+    const KIND: NodeType = NodeType::UseClause;
 }
 
-/// A UsingItem is an item AST node to use in a using clause.
+/// A UseItem is an item AST node to use in a use clause.
 ///
 /// Examples:
 /// ```
@@ -849,15 +929,15 @@ impl Node for UsingClause {
 /// qux as quux
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct UsingItem {
+pub struct UseItem {
     /// The source name of the item (like `foo` in `foo as bar;`)
     pub name: StringId,
     /// The alias to use for the item (like `bar` in `foo as bar;`)
     pub alias: Option<StringId>,
 }
 
-impl Node for UsingItem {
-    const KIND: NodeType = NodeType::UsingItem;
+impl Node for UseItem {
+    const KIND: NodeType = NodeType::UseItem;
 }
 
 // ----------------------------------------------------------------------------

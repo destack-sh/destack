@@ -22,7 +22,7 @@ pub fn app() -> CommandApp {
 			--file <path>    Read input from file
 			--string <string>  Read input from provided string
 			--no-color       Disable ANSI colors
-			--no-pager       Print directly instead of using less -R
+			--no-pager       Print directly instead of use less -R
 			--max-lexeme <n> Truncate lexeme preview to n chars (default {DEFAULT_MAX_LEXEME_LEN})"
             )),
         )

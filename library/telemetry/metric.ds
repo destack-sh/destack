@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// An Entity that represents a Metric.
 @entity

@@ -10,6 +10,7 @@ impl<'a> Parser<'a> {
     /// Validate: bool = false
     /// baz: @someMacro(T)
     /// ```
+    #[inline]
     pub fn eat_parameter(&mut self) -> ParseResult<NodeId<Parameter>> {
         let start = self.mark();
 
@@ -47,6 +48,7 @@ impl<'a> Parser<'a> {
     /// x: int32
     /// x: int32, y: int32
     /// ```
+    #[inline]
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
         while self.peek_identifier().is_ok() {
@@ -69,6 +71,7 @@ impl<'a> Parser<'a> {
     /// y
     /// 2
     /// ```
+    #[inline]
     pub fn eat_argument(&mut self) -> ParseResult<NodeId<Argument>> {
         let start = self.mark();
         // named argument
@@ -105,6 +108,7 @@ impl<'a> Parser<'a> {
     /// y: 2 // multiline
     /// z
     /// ```
+    #[inline]
     pub fn eat_arguments_body(&mut self) -> ParseResult<Vec<NodeId<Argument>>> {
         let mut arguments: Vec<NodeId<Argument>> = Vec::new();
         loop {

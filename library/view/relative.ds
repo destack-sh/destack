@@ -1,4 +1,4 @@
-using dyst
+use dyst
 
 /// The layout of elements
 enum Layout {
