@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
                 } else if self.peek_token(TokenType::CloseBrace).is_ok() {
                     break;
                 } else {
-                    // TODO: report error
+                    // todo!: proper parse errors (and continue parsing)
                     self.bump();
                     continue;
                 }
@@ -88,7 +88,6 @@ impl<'a> Parser<'a> {
             },
             self.get_span_from(start),
         );
-        self.eat_token(TokenType::CloseBrace)?;
         Ok(implement_id)
     }
 }

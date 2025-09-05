@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     /// with !Bar
     /// with (
     ///    !Bar,
-    ///    Time[float32],
+    ///    Time[float32] // optional comma
     ///    F: Numeric
     /// )
     /// ```
@@ -30,26 +30,41 @@ impl<'a> Parser<'a> {
         Ok(with)
     }
 
-    /// Eat the content of a with declaration (without the `with` keyword).
+    /// Eat the clauses of a `with` declaration (without the `with` keyword).
     pub fn eat_with_header(&mut self) -> ParseResult<NodeId<With>> {
         let start = self.mark();
-
-        // parse one or more clauses separated by commas
         let mut clauses: Vec<NodeId<WithClause>> = Vec::new();
-        let clause = self.eat_with_clause()?;
-        clauses.push(clause);
-        loop {
-            if self.peek_token(TokenType::Comma).is_ok() {
-                self.eat_token(TokenType::Comma)?;
-                // allow trailing comma before stop
-                if self.peek_statement_stop().is_ok() {
+
+        // parenthesized list with newlines
+        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            self.eat_token(TokenType::OpenParenthesis)?;
+            self.eat_newlines_maybe()?;
+            loop {
+                self.eat_newlines_maybe()?;
+                if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                     break;
                 }
                 let next_clause = self.eat_with_clause()?;
                 clauses.push(next_clause);
-                continue;
+                // optional comma with newlines
+                if self.peek_token(TokenType::Comma).is_ok() {
+                    self.eat_token(TokenType::Comma)?;
+                }
             }
-            break;
+            self.eat_token(TokenType::CloseParenthesis)?;
+        }
+        // plain list separated by commas
+        else {
+            loop {
+                let clause = self.eat_with_clause()?;
+                clauses.push(clause);
+                // required comma
+                if self.peek_token(TokenType::Comma).is_ok() {
+                    self.eat_token(TokenType::Comma)?;
+                } else {
+                    break;
+                }
+            }
         }
 
         let with = self
@@ -579,6 +594,82 @@ use dyst, dyst
                 parser.paths.intern(vec![parser.strings.intern("dyst")]),
             ),
             _ => panic!("expected path expression"),
+        }
+    }
+
+    #[test]
+    fn test_parse_with_parenthesized_multiline() {
+        let input = r##"
+with (
+  !Bar,
+  Time[float32],
+  F: Numeric,
+)
+"##;
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
+
+        let with_id = parser.eat_with().unwrap();
+        let with = parser.tree.get(with_id);
+        assert_eq!(with.clauses.len(), 3);
+
+        // !Bar
+        match parser.tree.get(with.clauses[0]) {
+            WithClause::Declaration { target, .. } => match parser.tree.get(*target) {
+                Type::Not(inner_id) => match parser.tree.get(*inner_id) {
+                    Type::Path { path, .. } => {
+                        assert_eq!(
+                            *path,
+                            parser.paths.intern(vec![parser.strings.intern("Bar")])
+                        );
+                    }
+                    _ => panic!("expected path type inside !"),
+                },
+                _ => panic!("expected Not type"),
+            },
+            _ => panic!("expected declaration clause"),
+        }
+
+        // Time[float32]
+        match parser.tree.get(with.clauses[1]) {
+            WithClause::Declaration { target, .. } => match parser.tree.get(*target) {
+                Type::Path {
+                    path,
+                    static_arguments,
+                } => {
+                    assert_eq!(
+                        *path,
+                        parser.paths.intern(vec![parser.strings.intern("Time")])
+                    );
+                    let args = static_arguments.as_ref().expect("expected static args");
+                    assert_eq!(args.len(), 1);
+                }
+                _ => panic!("expected path type with static args"),
+            },
+            _ => panic!("expected declaration clause"),
+        }
+
+        // F: Numeric
+        match parser.tree.get(with.clauses[2]) {
+            WithClause::Assertion { target, assertion } => {
+                match parser.tree.get(*target) {
+                    Type::Path { path, .. } => {
+                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("F")]));
+                    }
+                    _ => panic!("expected path type for target"),
+                }
+                match parser.tree.get(*assertion) {
+                    Type::Path { path, .. } => {
+                        assert_eq!(
+                            *path,
+                            parser.paths.intern(vec![parser.strings.intern("Numeric")])
+                        );
+                    }
+                    _ => panic!("expected path type for assertion"),
+                }
+            }
+            _ => panic!("expected assertion clause"),
         }
     }
 }

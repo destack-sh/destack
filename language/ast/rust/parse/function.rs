@@ -141,5 +141,98 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    // todo!: test functions
+    use destack_language_token::{SourceFile, tokenize_semantic};
+
+    use crate::{Parser, PrimitiveType, Type, WithClause};
+
+    #[test]
+    fn test_parse_function_with_parenthesized_multiline_with() {
+        let input = r##"
+function foo() with (
+  !Bar,
+  Time[float32],
+  F: Numeric,
+) => int32 {
+}
+"##;
+        let tokens = tokenize_semantic(input);
+        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        parser.eat_newline().unwrap();
+
+        let function_id = parser.eat_function().unwrap();
+        let function = parser.tree.get(function_id);
+
+        // with present
+        let with_id = function.with.expect("expected with declaration");
+        let with = parser.tree.get(with_id);
+        assert_eq!(with.clauses.len(), 3);
+
+        // !Bar
+        match parser.tree.get(with.clauses[0]) {
+            WithClause::Declaration { target, .. } => match parser.tree.get(*target) {
+                Type::Not(inner_id) => match parser.tree.get(*inner_id) {
+                    Type::Path { path, .. } => {
+                        assert_eq!(
+                            *path,
+                            parser.paths.intern(vec![parser.strings.intern("Bar")])
+                        );
+                    }
+                    _ => panic!("expected path type inside !"),
+                },
+                _ => panic!("expected Not type"),
+            },
+            _ => panic!("expected declaration clause"),
+        }
+
+        // Time[float32]
+        match parser.tree.get(with.clauses[1]) {
+            WithClause::Declaration { target, .. } => match parser.tree.get(*target) {
+                Type::Path {
+                    path,
+                    static_arguments,
+                } => {
+                    assert_eq!(
+                        *path,
+                        parser.paths.intern(vec![parser.strings.intern("Time")])
+                    );
+                    let args = static_arguments.as_ref().expect("expected static args");
+                    assert_eq!(args.len(), 1);
+                }
+                _ => panic!("expected path type with static args"),
+            },
+            _ => panic!("expected declaration clause"),
+        }
+
+        // F: Numeric
+        match parser.tree.get(with.clauses[2]) {
+            WithClause::Assertion { target, assertion } => {
+                match parser.tree.get(*target) {
+                    Type::Path { path, .. } => {
+                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("F")]));
+                    }
+                    _ => panic!("expected path type for target"),
+                }
+                match parser.tree.get(*assertion) {
+                    Type::Path { path, .. } => {
+                        assert_eq!(
+                            *path,
+                            parser.paths.intern(vec![parser.strings.intern("Numeric")])
+                        );
+                    }
+                    _ => panic!("expected path type for assertion"),
+                }
+            }
+            _ => panic!("expected assertion clause"),
+        }
+
+        // return type
+        let ret = function.return_type.expect("expected return type");
+        match parser.tree.get(ret) {
+            Type::Primitive(PrimitiveType::Int(int_ty)) => {
+                assert_eq!(int_ty.width, 32);
+                assert!(int_ty.is_signed);
+            }
+            _ => panic!("expected int32 return type"),
+        }
+    }
 }
