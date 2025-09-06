@@ -1,44 +1,22 @@
-//! Lexes and parse Destack source code.
-
-use std::fs;
-use std::path::Path;
-
-use crate::console::parse::{CommandApp, CommandArguments};
+use crate::cli::parse::read_parse_input;
+use crate::console::parse::CommandArguments;
 use crate::console::{console, table};
 use destack_language_token::{TokenType, tokenize_semantic};
 
-const DEFAULT_MAX_LEXEME_LEN: usize = 80;
-
-/// Create the parse CLI app.
-pub fn app() -> CommandApp {
-    CommandApp::new("parse")
-        .help("parser tools")
-        .default_command("lex")
-        .command(
-            "lex",
-            lex,
-            Some(format!(
-                "Parse source.
-			--file <path>    Read input from file
-			--string <string>  Read input from provided string
-			--no-color       Disable ANSI colors
-			--no-pager       Print directly instead of use less -R
-			--max-lexeme <n> Truncate lexeme preview to n chars (default {DEFAULT_MAX_LEXEME_LEN})"
-            )),
-        )
-}
+use super::DEFAULT_MAX_LEXEME_LEN;
 
 /// Run the lexer subcommand: tokenize input and show a colored table with locations.
-fn lex(ctx: CommandArguments) -> i32 {
-    // resolve input
-    let input = match resolve_input(&ctx) {
+pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
+    // input
+    let input = match read_parse_input(&ctx) {
         Ok(s) => s,
         Err(e) => {
-            console::error(&format!("input error: {e}"));
+            console::error(&format!("Read input error: {e}"));
             return 1;
         }
     };
 
+    // options
     let use_color = !ctx.flag("no-color");
     let use_pager = !ctx.flag("no-pager");
     let max_tokeneme_len: usize = ctx
@@ -140,23 +118,7 @@ fn lex(ctx: CommandArguments) -> i32 {
     0
 }
 
-/// Resolve the input to lex from the command arguments.
-fn resolve_input(ctx: &CommandArguments) -> Result<String, String> {
-    if let Some(path) = ctx.option("file") {
-        return read_file_to_string(path).map_err(|e| format!("failed to read {path}: {e}"));
-    }
-    if let Some(string) = ctx.option("string") {
-        return Ok(string.to_string());
-    }
-    Err("provide --file <path> or --string <string>".to_string())
-}
 
-/// Read a file to a string.
-fn read_file_to_string(path: &str) -> Result<String, std::io::Error> {
-    let p = Path::new(path);
-    let data = fs::read_to_string(p)?;
-    Ok(data)
-}
 
 /// Format a Token for display.
 fn format_token(kind: TokenType, use_color: bool) -> String {

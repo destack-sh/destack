@@ -13,10 +13,18 @@ use crate::{
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct NodeId<T: Node> {
     pub id: u32,
     _ty: PhantomData<fn() -> T>,
+}
+
+impl<T: Node> Debug for NodeId<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeId")
+            .field("id", &self.id)
+            .finish()
+    }
 }
 
 // manually mark as Copy since PhantomData over T breaks Copy otherwise (?)

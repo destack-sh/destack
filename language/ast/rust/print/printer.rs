@@ -1,4 +1,5 @@
 #[derive(Debug, Clone, PartialEq)]
-pub struct Formatter {}
+pub struct Printer {}
 
-impl Formatter {}
+impl Printer {
+}
