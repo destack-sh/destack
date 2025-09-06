@@ -80,16 +80,16 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // first parse the left-hand side type target
-        let lhs = self.eat_type()?;
+        let left = self.eat_type()?;
 
         // assertion: `T: SomeType`
         if self.peek_colon().is_ok() {
             self.eat_colon()?;
-            let rhs = self.eat_type()?;
+            let right = self.eat_type()?;
             let clause = self.tree.allocate(
                 WithClause::Assertion {
-                    target: lhs,
-                    assertion: rhs,
+                    target: left,
+                    assertion: right,
                 },
                 self.get_span_from(start),
             );
@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
                 None
             };
             let clause = self.tree.allocate(
-                WithClause::Declaration { target: lhs, alias },
+                WithClause::Declaration { target: left, alias },
                 self.get_span_from(start),
             );
             Ok(clause)

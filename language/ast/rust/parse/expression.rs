@@ -104,44 +104,44 @@ impl BinaryOperator {
 
     /// Convert a BinaryOperator to a TokenType (if a direct mapping exists).
     #[inline]
-    pub fn as_token_type(&self) -> Option<TokenType> {
+    pub fn as_token_type(&self) -> TokenType {
         match self {
             // multiplication
-            BinaryOperator::Multiply => Some(TokenType::Multiply),
-            BinaryOperator::WrappingMultiply => Some(TokenType::WrappingMultiply),
-            BinaryOperator::SaturatingMultiply => Some(TokenType::SaturatingMultiply),
-            BinaryOperator::Divide => Some(TokenType::Divide),
-            BinaryOperator::Remainder => Some(TokenType::Remainder),
+            BinaryOperator::Multiply => TokenType::Multiply,
+            BinaryOperator::WrappingMultiply => TokenType::WrappingMultiply,
+            BinaryOperator::SaturatingMultiply => TokenType::SaturatingMultiply,
+            BinaryOperator::Divide => TokenType::Divide,
+            BinaryOperator::Remainder => TokenType::Remainder,
 
             // addition
-            BinaryOperator::Add => Some(TokenType::Add),
-            BinaryOperator::WrappingAdd => Some(TokenType::WrappingAdd),
-            BinaryOperator::SaturatingAdd => Some(TokenType::SaturatingAdd),
-            BinaryOperator::Subtract => Some(TokenType::Subtract),
-            BinaryOperator::WrappingSubtract => Some(TokenType::WrappingSubtract),
-            BinaryOperator::SaturatingSubtract => Some(TokenType::SaturatingSubtract),
+            BinaryOperator::Add => TokenType::Add,
+            BinaryOperator::WrappingAdd => TokenType::WrappingAdd,
+            BinaryOperator::SaturatingAdd => TokenType::SaturatingAdd,
+            BinaryOperator::Subtract => TokenType::Subtract,
+            BinaryOperator::WrappingSubtract => TokenType::WrappingSubtract,
+            BinaryOperator::SaturatingSubtract => TokenType::SaturatingSubtract,
 
             // shift
-            BinaryOperator::ShiftLeft => Some(TokenType::ShiftLeft),
-            BinaryOperator::SaturatingShiftLeft => Some(TokenType::SaturatingShiftLeft),
-            BinaryOperator::ShiftRight => Some(TokenType::ShiftRight),
+            BinaryOperator::ShiftLeft => TokenType::ShiftLeft,
+            BinaryOperator::SaturatingShiftLeft => TokenType::SaturatingShiftLeft,
+            BinaryOperator::ShiftRight => TokenType::ShiftRight,
 
             // bitwise
-            BinaryOperator::BitwiseAnd => Some(TokenType::BitwiseAnd),
-            BinaryOperator::BitwiseXor => Some(TokenType::BitwiseXor),
-            BinaryOperator::BitwiseOr => Some(TokenType::BitwiseOr),
+            BinaryOperator::BitwiseAnd => TokenType::BitwiseAnd,
+            BinaryOperator::BitwiseXor => TokenType::BitwiseXor,
+            BinaryOperator::BitwiseOr => TokenType::BitwiseOr,
 
             // comparison
-            BinaryOperator::Equal => Some(TokenType::Equal),
-            BinaryOperator::NotEqual => Some(TokenType::NotEqual),
-            BinaryOperator::LessThan => Some(TokenType::LessThan),
-            BinaryOperator::LessThanOrEqual => Some(TokenType::LessThanOrEqual),
-            BinaryOperator::GreaterThan => Some(TokenType::GreaterThan),
-            BinaryOperator::GreaterThanOrEqual => Some(TokenType::GreaterThanOrEqual),
+            BinaryOperator::Equal => TokenType::Equal,
+            BinaryOperator::NotEqual => TokenType::NotEqual,
+            BinaryOperator::LessThan => TokenType::LessThan,
+            BinaryOperator::LessThanOrEqual => TokenType::LessThanOrEqual,
+            BinaryOperator::GreaterThan => TokenType::GreaterThan,
+            BinaryOperator::GreaterThanOrEqual => TokenType::GreaterThanOrEqual,
 
             // logical
-            BinaryOperator::LogicalAnd => Some(TokenType::LogicalAnd),
-            BinaryOperator::LogicalOr => Some(TokenType::LogicalOr),
+            BinaryOperator::LogicalAnd => TokenType::LogicalAnd,
+            BinaryOperator::LogicalOr => TokenType::LogicalOr,
         }
     }
 }
@@ -276,38 +276,38 @@ impl AssignOperator {
 
     /// Convert an AssignOperator to a TokenType (if a direct mapping exists).
     #[inline]
-    pub fn as_token_type(&self) -> Option<TokenType> {
+    pub fn as_token_type(&self) -> TokenType {
         match self {
-            AssignOperator::Assign => Some(TokenType::Assign),
+            AssignOperator::Assign => TokenType::Assign,
 
             // addition
-            AssignOperator::AddAssign => Some(TokenType::AddAssign),
-            AssignOperator::WrappingAddAssign => Some(TokenType::WrappingAddAssign),
-            AssignOperator::SaturatingAddAssign => Some(TokenType::SaturatingAddAssign),
-            AssignOperator::SubtractAssign => Some(TokenType::SubtractAssign),
-            AssignOperator::WrappingSubtractAssign => Some(TokenType::WrappingSubtractAssign),
-            AssignOperator::SaturatingSubtractAssign => Some(TokenType::SaturatingSubtractAssign),
+            AssignOperator::AddAssign => TokenType::AddAssign,
+            AssignOperator::WrappingAddAssign => TokenType::WrappingAddAssign,
+            AssignOperator::SaturatingAddAssign => TokenType::SaturatingAddAssign,
+            AssignOperator::SubtractAssign => TokenType::SubtractAssign,
+            AssignOperator::WrappingSubtractAssign => TokenType::WrappingSubtractAssign,
+            AssignOperator::SaturatingSubtractAssign => TokenType::SaturatingSubtractAssign,
 
             // multiplication
-            AssignOperator::MultiplyAssign => Some(TokenType::MultiplyAssign),
-            AssignOperator::WrappingMultiplyAssign => Some(TokenType::WrappingMultiplyAssign),
-            AssignOperator::SaturatingMultiplyAssign => Some(TokenType::SaturatingMultiplyAssign),
-            AssignOperator::DivideAssign => Some(TokenType::DivideAssign),
-            AssignOperator::RemainderAssign => Some(TokenType::RemainderAssign),
+            AssignOperator::MultiplyAssign => TokenType::MultiplyAssign,
+            AssignOperator::WrappingMultiplyAssign => TokenType::WrappingMultiplyAssign,
+            AssignOperator::SaturatingMultiplyAssign => TokenType::SaturatingMultiplyAssign,
+            AssignOperator::DivideAssign => TokenType::DivideAssign,
+            AssignOperator::RemainderAssign => TokenType::RemainderAssign,
 
             // shift
-            AssignOperator::ShiftLeftAssign => Some(TokenType::ShiftLeftAssign),
-            AssignOperator::SaturatingShiftLeftAssign => Some(TokenType::SaturatingShiftLeftAssign),
-            AssignOperator::ShiftRightAssign => Some(TokenType::ShiftRightAssign),
+            AssignOperator::ShiftLeftAssign => TokenType::ShiftLeftAssign,
+            AssignOperator::SaturatingShiftLeftAssign => TokenType::SaturatingShiftLeftAssign,
+            AssignOperator::ShiftRightAssign => TokenType::ShiftRightAssign,
 
             // bitwise
-            AssignOperator::BitwiseAndAssign => Some(TokenType::BitwiseAndAssign),
-            AssignOperator::BitwiseOrAssign => Some(TokenType::BitwiseOrAssign),
-            AssignOperator::BitwiseXorAssign => Some(TokenType::BitwiseXorAssign),
+            AssignOperator::BitwiseAndAssign => TokenType::BitwiseAndAssign,
+            AssignOperator::BitwiseOrAssign => TokenType::BitwiseOrAssign,
+            AssignOperator::BitwiseXorAssign => TokenType::BitwiseXorAssign,
 
             // logical
-            AssignOperator::LogicalAndAssign => Some(TokenType::LogicalAndAssign),
-            AssignOperator::LogicalOrAssign => Some(TokenType::LogicalOrAssign),
+            AssignOperator::LogicalAndAssign => TokenType::LogicalAndAssign,
+            AssignOperator::LogicalOrAssign => TokenType::LogicalOrAssign,
         }
     }
 }
@@ -374,20 +374,20 @@ impl<'a> Parser<'a> {
     #[inline]
     fn make_infix_expression(
         &self,
-        lhs: NodeId<Expression>,
+        left: NodeId<Expression>,
         operator: InfixOperator,
-        rhs: NodeId<Expression>,
+        right: NodeId<Expression>,
     ) -> Expression {
         match operator {
             InfixOperator::Binary(binary_operator) => Expression::Binary {
-                lhs,
+                left,
                 operator: binary_operator,
-                rhs,
+                right,
             },
             InfixOperator::Assign(assign_operator) => Expression::Assign {
-                lhs,
+                left,
                 operator: assign_operator,
-                rhs,
+                right,
             },
         }
     }
@@ -434,10 +434,10 @@ impl<'a> Parser<'a> {
             else if let Ok(unary_operator) = self.peek_unary_operator() {
                 let right_precedence = unary_operator.precedence();
                 self.bump(); // eat unary operator (always because right associative)
-                let rhs = self.eat_expression(Some(right_precedence))?;
+                let right = self.eat_expression(Some(right_precedence))?;
                 let expression = Expression::Unary {
                     operator: unary_operator,
-                    rhs,
+                    right,
                 };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -665,15 +665,15 @@ mod tests {
             parser.tree,
             expr_id,
             // ((a + b) + c)
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::Add);
                 assert_node!(
                     parser.tree,
-                    *lhs,
+                    *left,
                     // (a + b)
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // a
-                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                        assert_path!(parser.tree, *left, a, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -681,7 +681,7 @@ mod tests {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // b
-                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                        assert_path!(parser.tree, *right, b, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -689,7 +689,7 @@ mod tests {
                     }
                 );
                 // c
-                assert_path!(parser.tree, *rhs, c, using |path_id| {
+                assert_path!(parser.tree, *right, c, using |path_id| {
                     let p = parser.paths.get(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
@@ -714,30 +714,30 @@ mod tests {
             parser.tree,
             expr_id,
             // (a + (b * c))
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 // +
                 assert_eq!(*operator, BinaryOperator::Add);
                 // a
-                assert_path!(parser.tree, *lhs, a, using |path_id| {
+                assert_path!(parser.tree, *left, a, using |path_id| {
                     let p = parser.paths.get(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
                 });
                 assert_node!(
                     parser.tree,
-                    *rhs,
+                    *right,
                     // (b * c)
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // *
                         assert_eq!(*operator, BinaryOperator::Multiply);
                         // b
-                        assert_path!(parser.tree, *lhs, b, using |path_id| {
+                        assert_path!(parser.tree, *left, b, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
                         });
                         // c
-                        assert_path!(parser.tree, *rhs, c, using |path_id| {
+                        assert_path!(parser.tree, *right, c, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -765,24 +765,24 @@ mod tests {
             parser.tree,
             expr_id,
             // ((a + b) * c)
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 // *
                 assert_eq!(*operator, BinaryOperator::Multiply);
                 assert_node!(
                     parser.tree,
-                    *lhs,
+                    *left,
                     // (a + b)
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                        assert_path!(parser.tree, *left, a, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
                         });
                         // b
-                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                        assert_path!(parser.tree, *right, b, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -790,7 +790,7 @@ mod tests {
                     }
                 );
                 // c
-                assert_path!(parser.tree, *rhs, c, using |path_id| {
+                assert_path!(parser.tree, *right, c, using |path_id| {
                     let p = parser.paths.get(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
@@ -817,37 +817,37 @@ mod tests {
             parser.tree,
             expr_id,
             // ((a + (b * c)) + d)
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 // +
                 assert_eq!(*operator, BinaryOperator::Add);
                 assert_node!(
                     parser.tree,
-                    *lhs,
+                    *left,
                     // (a + (b * c))
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                        assert_path!(parser.tree, *left, a, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
                         });
                         assert_node!(
                             parser.tree,
-                            *rhs,
+                            *right,
                             // (b * c)
-                            Expression::Binary { lhs, operator, rhs } => {
+                            Expression::Binary { left, operator, right } => {
                                 // *
                                 assert_eq!(*operator, BinaryOperator::Multiply);
                                 // b
-                                assert_path!(parser.tree, *lhs, b, using |path_id| {
+                                assert_path!(parser.tree, *left, b, using |path_id| {
                                     let p = parser.paths.get(path_id);
                                     assert_eq!(p.segments.len(), 1);
                                     p.segments[0]
                                 });
                                 // c
-                                assert_path!(parser.tree, *rhs, c, using |path_id| {
+                                assert_path!(parser.tree, *right, c, using |path_id| {
                                     let p = parser.paths.get(path_id);
                                     assert_eq!(p.segments.len(), 1);
                                     p.segments[0]
@@ -857,7 +857,7 @@ mod tests {
                     }
                 );
                 // d
-                assert_path!(parser.tree, *rhs, d, using |path_id| {
+                assert_path!(parser.tree, *right, d, using |path_id| {
                     let p = parser.paths.get(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
@@ -884,24 +884,24 @@ mod tests {
             parser.tree,
             expr_id,
             // ((a + b) | (c + d))
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 // |
                 assert_eq!(*operator, BinaryOperator::BitwiseOr);
                 assert_node!(
                     parser.tree,
-                    *lhs,
+                    *left,
                     // (a + b)
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                        assert_path!(parser.tree, *left, a, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
                         });
                         // b
-                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                        assert_path!(parser.tree, *right, b, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -910,19 +910,19 @@ mod tests {
                 );
                 assert_node!(
                     parser.tree,
-                    *rhs,
+                    *right,
                     // (c + d)
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // c
-                        assert_path!(parser.tree, *lhs, c, using |path_id| {
+                        assert_path!(parser.tree, *left, c, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
                         });
                         // d
-                        assert_path!(parser.tree, *rhs, d, using |path_id| {
+                        assert_path!(parser.tree, *right, d, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -951,24 +951,24 @@ mod tests {
             parser.tree,
             expr_id,
             // ((a == b) && (c == d))
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 // &&
                 assert_eq!(*operator, BinaryOperator::LogicalAnd);
                 assert_node!(
                     parser.tree,
-                    *lhs,
+                    *left,
                     // (a == b)
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // ==
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // a
-                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                        assert_path!(parser.tree, *left, a, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
                         });
                         // b
-                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                        assert_path!(parser.tree, *right, b, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -977,19 +977,19 @@ mod tests {
                 );
                 assert_node!(
                     parser.tree,
-                    *rhs,
+                    *right,
                     // (c == d)
-                    Expression::Binary { lhs, operator, rhs } => {
+                    Expression::Binary { left, operator, right } => {
                         // ==
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // c
-                        assert_path!(parser.tree, *lhs, c, using |path_id| {
+                        assert_path!(parser.tree, *left, c, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
                         });
                         // d
-                        assert_path!(parser.tree, *rhs, d, using |path_id| {
+                        assert_path!(parser.tree, *right, d, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -1016,16 +1016,16 @@ mod tests {
             parser.tree,
             expr_id,
             // ((-a) * b)
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 // *
                 assert_eq!(*operator, BinaryOperator::Multiply);
                 assert_node!(
                     parser.tree,
-                    *lhs,
+                    *left,
                     // (-a)
-                    Expression::Unary { operator: _, rhs } => {
+                    Expression::Unary { operator: _, right } => {
                         // a
-                        assert_path!(parser.tree, *rhs, a, using |path_id| {
+                        assert_path!(parser.tree, *right, a, using |path_id| {
                             let p = parser.paths.get(path_id);
                             assert_eq!(p.segments.len(), 1);
                             p.segments[0]
@@ -1033,7 +1033,7 @@ mod tests {
                     }
                 );
                 // b
-                assert_path!(parser.tree, *rhs, b, using |path_id| {
+                assert_path!(parser.tree, *right, b, using |path_id| {
                     let p = parser.paths.get(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
@@ -1060,13 +1060,13 @@ mod tests {
             parser.tree,
             expr_id,
             // ((a()) + ((@b()) / b))
-            Expression::Binary { lhs, operator, rhs } => {
+            Expression::Binary { left, operator, right } => {
                 // +
                 assert_eq!(*operator, BinaryOperator::Add);
                 // (a())
                 assert_node!(
                     parser.tree,
-                    *lhs,
+                    *left,
                     // a()
                     Expression::Call(call_id) => {
                         assert_node!(
@@ -1087,14 +1087,14 @@ mod tests {
                 // ((@b()) / c)
                 assert_node!(
                     parser.tree,
-                    *rhs,
-                    Expression::Binary { lhs, operator, rhs } => {
+                    *right,
+                    Expression::Binary { left, operator, right } => {
                         // /
                         assert_eq!(*operator, BinaryOperator::Divide);
                         // (@b())
                         assert_node!(
                             parser.tree,
-                            *lhs,
+                            *left,
                             Expression::Call(call_id) => {
                                 assert_node!(
                                     parser.tree,
@@ -1112,7 +1112,7 @@ mod tests {
                             }
                         );
                         // c
-                        assert_path!(parser.tree, *rhs, c, using |path_id| {
+                        assert_path!(parser.tree, *right, c, using |path_id| {
                             let path = parser.paths.get(path_id);
                             assert_eq!(path.segments.len(), 1);
                             path.segments[0]

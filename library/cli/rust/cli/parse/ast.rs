@@ -1,4 +1,4 @@
-use destack_language_ast::Parser;
+use destack_language_ast::{DumperOptions, Parser};
 use destack_language_token::{SourceFile, SourceId, tokenize_semantic};
 
 use crate::cli::parse::read_parse_input;
@@ -25,15 +25,17 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     // parse
     let tokens = tokenize_semantic(&input);
     let mut parser = Parser::new(file, &tokens);
-
-    match as_node {
+    let dump_options = DumperOptions::default();
+    let node_str = match as_node {
         "module" => {
             let Ok(module_id) = parser.eat_module_body() else {
                 console::error("Parse error");
                 return 1;
             };
             let module = parser.tree.get(module_id);
-            console::info(&format!("Module: {module:?}"));
+            let mut dumper = parser.dumper(dump_options);
+            dumper.dump(module);
+            dumper.finish()
         }
         "expression" => {
             let Ok(expression_id) = parser.eat_expression(None) else {
@@ -41,7 +43,9 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
                 return 1;
             };
             let expression = parser.tree.get(expression_id);
-            console::info(&format!("Expression: {expression:?}"));
+            let mut dumper = parser.dumper(dump_options);
+            dumper.dump(expression);
+            dumper.finish()
         }
         "type" => {
             let Ok(type_id) = parser.eat_type() else {
@@ -49,13 +53,19 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
                 return 1;
             };
             let ty = parser.tree.get(type_id);
-            console::info(&format!("Type: {ty:?}"));
+            let mut dumper = parser.dumper(dump_options);
+            dumper.dump(ty);
+            dumper.finish()
         }
         _ => {
-            console::error(&format!("Bad node type: {as_node}"));
+            console::error(&format!(
+                "Bad node kind: {as_node} (must be 'module', 'expression', or 'type')"
+            ));
             return 1;
         }
     };
+
+    console::info(&node_str);
 
     0
 }

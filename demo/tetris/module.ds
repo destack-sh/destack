@@ -10,20 +10,23 @@ enum Color {
     Brown
 }
 
-@entity
-struct TetrisComponent {}
+struct TetrisComponent {
+    id: int32
+}
 
 @entity
-struct TetrisGame use TetrisComponent {}
+struct TetrisGame {
+    use TetrisComponent
+}
 
 implement Context for TetrisGame {
 
 }
 
 @entity 
-struct TetrisBoard<Width: int32, Height: int32> use TetrisComponent {
+struct TetrisBoard[Width: int32, Height: int32] {
     /// The grid of the board.
-    grid: TetrisPiece[Width][Height]
+    grid: [[TetrisPiece; Width]; Height]
 }
 
 enum TetrisPieceShape {
@@ -60,13 +63,13 @@ implement TetrisPiece {
 }
 
 implement Tick for TetrisGame {
-    function tick(*self) use Time, Random => Result<TetrisPiece, GameError> {
+    function tick(*var self) with Time, Random {
         
     }
 }
 
 implement Draw for TetrisGame {
-    function draw(*self) {
+    function draw(self) {
         // ...
     }
 }

@@ -118,8 +118,6 @@ pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
     0
 }
 
-
-
 /// Format a Token for display.
 fn format_token(kind: TokenType, use_color: bool) -> String {
     let base = format_token_kind(kind);

@@ -1,6 +1,6 @@
 use destack_language_token::{SourceFile, Span, Token, TokenSpan, TokenType};
 
-use crate::{NodeTree, ParseError, ParseResult, PathPool, StringPool};
+use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
 
 const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
     span: Span { start: 0, end: 0 },
@@ -47,6 +47,11 @@ impl<'a> Parser<'a> {
             pos: 0,
             eof_token,
         }
+    }
+
+    /// Create a new Dumper.
+    pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
+        Dumper::new(&self.strings, &self.paths, &self.tree, options)
     }
 
     /// Gets a mark of the current position.

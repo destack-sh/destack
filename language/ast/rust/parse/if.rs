@@ -188,7 +188,7 @@ if x > 0 {
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, If::If { condition, then_block } => {
             // condition is binary expression x > 0
-            assert_node!(parser.tree, *condition, Expression::Binary { lhs: _, operator: _, rhs: _ });
+            assert_node!(parser.tree, *condition, Expression::Binary { left: _, operator: _, right: _ });
             // then block has one statement
             assert_node!(parser.tree, *then_block, Block { statements, label } => {
                 assert!(label.is_none());
