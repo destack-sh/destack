@@ -134,126 +134,98 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Argument, Expression, IntType, Parser, PrimitiveType, ScalarLiteral, Type};
-    use destack_language_token::{SourceFile, tokenize_semantic};
+    use crate::parse::tests::TestParse;
+    use crate::{
+        Argument, Expression, IntType, PrimitiveType, Type, assert_bool, assert_int, assert_node,
+    };
 
     #[test]
-    fn test_parameters() {
-        let input = r###"
-T
-x: int32
-validate: boolean = false
-        "###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
+    fn test_parse_parameter_type_only() {
         // T
+        let test = TestParse::new("T");
+        let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
         assert_eq!(parameter.name, parser.strings.intern("T"));
         assert!(parameter.r#type.is_none());
         assert!(parameter.default.is_none());
-        parser.eat_newline().unwrap();
-
-        // x: int32
-        let parameter_id = parser.eat_parameter().unwrap();
-        let parameter = parser.tree.get(parameter_id);
-        // x
-        assert_eq!(parameter.name, parser.strings.intern("x"));
-        // int32
-        let type_node = parser.tree.get(parameter.r#type.unwrap());
-        match type_node {
-            &Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
-                assert_eq!(width, 32);
-                assert!(is_signed);
-            }
-            _ => panic!("expected int32 type"),
-        }
-        assert!(parameter.default.is_none());
-        parser.eat_newline().unwrap();
-
-        // validate: bool = false
-        let parameter_id = parser.eat_parameter().unwrap();
-        let parameter = parser.tree.get(parameter_id);
-        // validate
-        assert_eq!(parameter.name, parser.strings.intern("validate"));
-        // bool
-        let type_node = parser.tree.get(parameter.r#type.unwrap());
-        match type_node {
-            &Type::Primitive(PrimitiveType::Boolean) => {}
-            _ => panic!("expected boolean type"),
-        }
-        // false
-        assert!(parameter.default.is_some());
-        let default_value = parameter.default.unwrap();
-        let expression = parser.tree.get(default_value);
-        match expression {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
-                let scalar_literal = parser.tree.get(scalar_literal_id);
-                match scalar_literal {
-                    &ScalarLiteral::Boolean(value) => assert!(!value),
-                    _ => panic!("expected boolean literal"),
-                }
-            }
-            _ => panic!("expected scalar literal"),
-        }
-        parser.eat_newline().unwrap();
     }
 
     #[test]
-    fn test_arguments() {
-        let input = r###"
-x: 1
-3
-        "###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
+    fn test_parse_parameter_with_type() {
+        // x: int32
+        let test = TestParse::new("x: int32");
+        let mut parser = test.parser();
+        let parameter_id = parser.eat_parameter().unwrap();
+        let parameter = parser.tree.get(parameter_id);
 
+        // x
+        assert_eq!(parameter.name, parser.strings.intern("x"));
+
+        // int32
+        assert_node!(parser.tree, parameter.r#type.unwrap(),
+            Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
+                assert_eq!(*width, 32);
+                assert!(*is_signed);
+            }
+        );
+        assert!(parameter.default.is_none());
+    }
+
+    #[test]
+    fn test_parse_parameter_with_default() {
+        // validate: boolean = false
+        let test = TestParse::new("validate: boolean = false");
+        let mut parser = test.parser();
+        let parameter_id = parser.eat_parameter().unwrap();
+        let parameter = parser.tree.get(parameter_id);
+
+        // validate
+        assert_eq!(parameter.name, parser.strings.intern("validate"));
+
+        // boolean
+        assert_node!(
+            parser.tree,
+            parameter.r#type.unwrap(),
+            Type::Primitive(PrimitiveType::Boolean)
+        );
+
+        // false
+        assert!(parameter.default.is_some());
+        assert_node!(parser.tree, parameter.default.unwrap(), Expression::ScalarLiteral(literal_id) => {
+            assert_bool!(parser.tree, *literal_id, false);
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_named() {
         // x: 1
+        let test = TestParse::new("x: 1");
+        let mut parser = test.parser();
         let argument_id = parser.eat_argument().unwrap();
-        let argument = parser.tree.get(argument_id);
-        match argument {
-            &Argument::Named { name, value } => {
-                // x
-                assert_eq!(name, parser.strings.intern("x"));
-                // 1
-                let expression = parser.tree.get(value);
-                let literal_id = match expression {
-                    &Expression::ScalarLiteral(id) => id,
-                    _ => panic!("expected scalar literal"),
-                };
-                let scalar_literal = parser.tree.get(literal_id);
-                match scalar_literal {
-                    ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                    _ => panic!("expected integer"),
-                }
-            }
-            _ => panic!("expected named argument"),
-        }
-        parser.eat_newline().unwrap();
 
+        assert_node!(parser.tree, argument_id, Argument::Named { name, value } => {
+            // x
+            assert_eq!(*name, parser.strings.intern("x"));
+            // 1
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(literal_id) => {
+                assert_int!(parser.tree, *literal_id, 1);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_argument_positional() {
         // 3
+        let test = TestParse::new("3");
+        let mut parser = test.parser();
         let argument_id = parser.eat_argument().unwrap();
-        let argument = parser.tree.get(argument_id);
-        match argument {
-            &Argument::Positional { value } => {
-                // 3
-                let expression = parser.tree.get(value);
-                match expression {
-                    Expression::ScalarLiteral(scalar_literal_id) => {
-                        let scalar_literal = parser.tree.get(*scalar_literal_id);
-                        match scalar_literal {
-                            ScalarLiteral::Integer(n, _) => assert_eq!(*n, 3),
-                            _ => panic!("expected integer"),
-                        }
-                    }
-                    _ => panic!("expected scalar literal"),
-                }
-            }
-            _ => panic!("expected positional argument"),
-        }
-        parser.eat_newline().unwrap();
+
+        assert_node!(parser.tree, argument_id, Argument::Positional { value } => {
+            // 3
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(literal_id) => {
+                assert_int!(parser.tree, *literal_id, 3);
+            });
+        });
     }
 }

@@ -52,18 +52,21 @@ impl<'a> Parser<'a> {
     /// Gets a mark of the current position.
     #[inline]
     pub fn mark(&self) -> ParserMark {
+        debug_assert!(self.pos < self.tokens.len());
         ParserMark { pos: self.pos }
     }
 
     /// Rewind the position to the given mark.
     #[inline]
     pub fn rewind(&mut self, mark: ParserMark) {
+        debug_assert!(mark.pos < self.tokens.len());
         self.pos = mark.pos;
     }
 
     /// Get a mark and return the span of the current position.
     #[inline]
     pub fn get_span_from(&self, mark: ParserMark) -> Span {
+        debug_assert!(mark.pos < self.tokens.len());
         let start_token = self.tokens[mark.pos];
         let end_token = if self.pos > 0 {
             self.tokens[self.pos - 1]

@@ -636,82 +636,107 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{BinaryOperator, Call, Expression, Parser, StringId};
-
-    // assert an Expression::Path with a single-segment name id
-    fn assert_path_eq(
-        parser: &crate::Parser<'_>,
-        expr_id: crate::NodeId<Expression>,
-        expected: StringId,
-    ) {
-        match parser.tree.get(expr_id) {
-            &Expression::Path { path } => {
-                let p = parser.paths.get(path);
-                assert_eq!(p.segments.len(), 1);
-                assert_eq!(p.segments[0], expected);
-            }
-            other => panic!("expected path {expected:?}, got {other:?}"),
-        }
-    }
+    use crate::parse::tests::TestParse;
+    use crate::{BinaryOperator, Call, Expression, assert_node, assert_path};
 
     /// Addition is left associative.
     /// a + b + c
     /// => ((a + b) + c)
     #[test]
     fn test_precedence_addition_left_associative() {
-        let input = "a + b + c";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("a + b + c");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // ((a + b) + c)
             Expression::Binary { lhs, operator, rhs } => {
                 assert_eq!(*operator, BinaryOperator::Add);
-                match parser.tree.get(*lhs) {
+                assert_node!(
+                    parser.tree,
+                    *lhs,
+                    // (a + b)
                     Expression::Binary { lhs, operator, rhs } => {
+                        // a
+                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        // +
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_eq(&parser, *lhs, a);
-                        assert_path_eq(&parser, *rhs, b);
+                        // b
+                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected binary add, got {other:?}"),
-                }
-                assert_path_eq(&parser, *rhs, c);
+                );
+                // c
+                assert_path!(parser.tree, *rhs, c, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
             }
-            other => panic!("expected binary add, got {other:?}"),
-        }
+        );
     }
-
     /// Multiplication has higher precedence than addition.
     /// a + b * c
     /// => (a + (b * c))
     #[test]
     fn test_precedence_multiply_before_addition() {
-        let input = "a + b * c";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("a + b * c");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // (a + (b * c))
             Expression::Binary { lhs, operator, rhs } => {
+                // +
                 assert_eq!(*operator, BinaryOperator::Add);
-                assert_path_eq(&parser, *lhs, a);
-                match parser.tree.get(*rhs) {
+                // a
+                assert_path!(parser.tree, *lhs, a, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+                assert_node!(
+                    parser.tree,
+                    *rhs,
+                    // (b * c)
                     Expression::Binary { lhs, operator, rhs } => {
+                        // *
                         assert_eq!(*operator, BinaryOperator::Multiply);
-                        assert_path_eq(&parser, *lhs, b);
-                        assert_path_eq(&parser, *rhs, c);
+                        // b
+                        assert_path!(parser.tree, *lhs, b, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        // c
+                        assert_path!(parser.tree, *rhs, c, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected binary multiply, got {other:?}"),
-                }
+                );
             }
-            other => panic!("expected binary add, got {other:?}"),
-        }
+        );
     }
 
     /// Parentheses override operator precedence.
@@ -719,28 +744,50 @@ mod tests {
     /// => ((a + b) * c)
     #[test]
     fn test_precedence_parentheses_override() {
-        let input = "(a + b) * c";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("(a + b) * c");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // ((a + b) * c)
             Expression::Binary { lhs, operator, rhs } => {
+                // *
                 assert_eq!(*operator, BinaryOperator::Multiply);
-                match parser.tree.get(*lhs) {
+                assert_node!(
+                    parser.tree,
+                    *lhs,
+                    // (a + b)
                     Expression::Binary { lhs, operator, rhs } => {
+                        // +
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_eq(&parser, *lhs, a);
-                        assert_path_eq(&parser, *rhs, b);
+                        // a
+                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        // b
+                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected binary add, got {other:?}"),
-                }
-                assert_path_eq(&parser, *rhs, c);
+                );
+                // c
+                assert_path!(parser.tree, *rhs, c, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
             }
-            other => panic!("expected binary multiply, got {other:?}"),
-        }
+        );
     }
 
     /// Mixed precedence chain with addition and multiplication.
@@ -748,36 +795,66 @@ mod tests {
     /// => ((a + (b * c)) + d)
     #[test]
     fn test_precedence_chain_mixed() {
-        let input = "a + b * c + d";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("a + b * c + d");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
         let d = parser.strings.intern("d");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // ((a + (b * c)) + d)
             Expression::Binary { lhs, operator, rhs } => {
+                // +
                 assert_eq!(*operator, BinaryOperator::Add);
-                match parser.tree.get(*lhs) {
+                assert_node!(
+                    parser.tree,
+                    *lhs,
+                    // (a + (b * c))
                     Expression::Binary { lhs, operator, rhs } => {
+                        // +
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_eq(&parser, *lhs, a);
-                        match parser.tree.get(*rhs) {
+                        // a
+                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        assert_node!(
+                            parser.tree,
+                            *rhs,
+                            // (b * c)
                             Expression::Binary { lhs, operator, rhs } => {
+                                // *
                                 assert_eq!(*operator, BinaryOperator::Multiply);
-                                assert_path_eq(&parser, *lhs, b);
-                                assert_path_eq(&parser, *rhs, c);
+                                // b
+                                assert_path!(parser.tree, *lhs, b, using |path_id| {
+                                    let p = parser.paths.get(path_id);
+                                    assert_eq!(p.segments.len(), 1);
+                                    p.segments[0]
+                                });
+                                // c
+                                assert_path!(parser.tree, *rhs, c, using |path_id| {
+                                    let p = parser.paths.get(path_id);
+                                    assert_eq!(p.segments.len(), 1);
+                                    p.segments[0]
+                                });
                             }
-                            other => panic!("expected binary multiply, got {other:?}"),
-                        }
+                        );
                     }
-                    other => panic!("expected binary add, got {other:?}"),
-                }
-                assert_path_eq(&parser, *rhs, d);
+                );
+                // d
+                assert_path!(parser.tree, *rhs, d, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
             }
-            other => panic!("expected binary add, got {other:?}"),
-        }
+        );
     }
 
     /// Addition has higher precedence than bitwise or.
@@ -785,36 +862,66 @@ mod tests {
     /// => ((a + b) | (c + d))
     #[test]
     fn test_precedence_bitwise_vs_addition() {
-        let input = "a + b | c + d";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("a + b | c + d");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
         let d = parser.strings.intern("d");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // ((a + b) | (c + d))
             Expression::Binary { lhs, operator, rhs } => {
+                // |
                 assert_eq!(*operator, BinaryOperator::BitwiseOr);
-                match parser.tree.get(*lhs) {
+                assert_node!(
+                    parser.tree,
+                    *lhs,
+                    // (a + b)
                     Expression::Binary { lhs, operator, rhs } => {
+                        // +
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_eq(&parser, *lhs, a);
-                        assert_path_eq(&parser, *rhs, b);
+                        // a
+                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        // b
+                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected binary add, got {other:?}"),
-                }
-                match parser.tree.get(*rhs) {
+                );
+                assert_node!(
+                    parser.tree,
+                    *rhs,
+                    // (c + d)
                     Expression::Binary { lhs, operator, rhs } => {
+                        // +
                         assert_eq!(*operator, BinaryOperator::Add);
-                        assert_path_eq(&parser, *lhs, c);
-                        assert_path_eq(&parser, *rhs, d);
+                        // c
+                        assert_path!(parser.tree, *lhs, c, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        // d
+                        assert_path!(parser.tree, *rhs, d, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected binary add, got {other:?}"),
-                }
+                );
             }
-            other => panic!("expected binary bitwise or, got {other:?}"),
-        }
+        );
     }
 
     /// Comparison has higher precedence than logical and.
@@ -822,36 +929,66 @@ mod tests {
     /// => ((a == b) && (c == d))
     #[test]
     fn test_precedence_comparison_vs_logical() {
-        let input = "a == b && c == d";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("a == b && c == d");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
         let c = parser.strings.intern("c");
         let d = parser.strings.intern("d");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // ((a == b) && (c == d))
             Expression::Binary { lhs, operator, rhs } => {
+                // &&
                 assert_eq!(*operator, BinaryOperator::LogicalAnd);
-                match parser.tree.get(*lhs) {
+                assert_node!(
+                    parser.tree,
+                    *lhs,
+                    // (a == b)
                     Expression::Binary { lhs, operator, rhs } => {
+                        // ==
                         assert_eq!(*operator, BinaryOperator::Equal);
-                        assert_path_eq(&parser, *lhs, a);
-                        assert_path_eq(&parser, *rhs, b);
+                        // a
+                        assert_path!(parser.tree, *lhs, a, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        // b
+                        assert_path!(parser.tree, *rhs, b, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected binary equal, got {other:?}"),
-                }
-                match parser.tree.get(*rhs) {
+                );
+                assert_node!(
+                    parser.tree,
+                    *rhs,
+                    // (c == d)
                     Expression::Binary { lhs, operator, rhs } => {
+                        // ==
                         assert_eq!(*operator, BinaryOperator::Equal);
-                        assert_path_eq(&parser, *lhs, c);
-                        assert_path_eq(&parser, *rhs, d);
+                        // c
+                        assert_path!(parser.tree, *lhs, c, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
+                        // d
+                        assert_path!(parser.tree, *rhs, d, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected binary equal, got {other:?}"),
-                }
+                );
             }
-            other => panic!("expected binary logical and, got {other:?}"),
-        }
+        );
     }
 
     /// Unary prefix has higher precedence than multiplication.
@@ -859,25 +996,41 @@ mod tests {
     /// => ((-a) * b)
     #[test]
     fn test_precedence_unary_before_multiply() {
-        let input = "-a * b";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("-a * b");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // ((-a) * b)
             Expression::Binary { lhs, operator, rhs } => {
+                // *
                 assert_eq!(*operator, BinaryOperator::Multiply);
-                match parser.tree.get(*lhs) {
+                assert_node!(
+                    parser.tree,
+                    *lhs,
+                    // (-a)
                     Expression::Unary { operator: _, rhs } => {
-                        assert_path_eq(&parser, *rhs, a);
+                        // a
+                        assert_path!(parser.tree, *rhs, a, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected unary on lhs, got {other:?}"),
-                }
-                assert_path_eq(&parser, *rhs, b);
+                );
+                // b
+                assert_path!(parser.tree, *rhs, b, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
             }
-            other => panic!("expected binary multiply, got {other:?}"),
-        }
+        );
     }
 
     /// Postfix call has higher precedence than addition.
@@ -885,18 +1038,26 @@ mod tests {
     /// => (a() + b)
     #[test]
     fn test_precedence_postfix_call_before_add() {
-        let input = "a() + b";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("a() + b");
+        let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
+
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
-        match parser.tree.get(expr_id) {
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // (a() + b)
             Expression::Binary { lhs, operator, rhs } => {
+                // +
                 assert_eq!(*operator, BinaryOperator::Add);
-                match parser.tree.get(*lhs) {
-                    &Expression::Call(call_id) => {
-                        let call = parser.tree.get(call_id);
+                assert_node!(
+                    parser.tree,
+                    *lhs,
+                    // a()
+                    Expression::Call(call_id) => {
+                        let call = parser.tree.get(*call_id);
                         let Call {
                             receiver,
                             static_arguments,
@@ -905,13 +1066,21 @@ mod tests {
                         } = call;
                         assert!(static_arguments.is_none());
                         assert!(dynamic_arguments.is_empty());
-                        assert_path_eq(&parser, *receiver, a);
+                        // a
+                        assert_path!(parser.tree, *receiver, a, using |path_id| {
+                            let p = parser.paths.get(path_id);
+                            assert_eq!(p.segments.len(), 1);
+                            p.segments[0]
+                        });
                     }
-                    other => panic!("expected call on lhs, got {other:?}"),
-                }
-                assert_path_eq(&parser, *rhs, b);
+                );
+                // b
+                assert_path!(parser.tree, *rhs, b, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
             }
-            other => panic!("expected binary add, got {other:?}"),
-        }
+        );
     }
 }

@@ -132,88 +132,89 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{Expression, Parser, PrimitiveType, ScalarLiteral, Type};
+    use crate::parse::tests::TestParse;
+    use crate::{Enum, Expression, PrimitiveType, Type, UnionField, assert_int, assert_node};
 
     #[test]
     fn test_parse_enum_anonymous_simple() {
-        let input = r###"
+        let test = TestParse::new(
+            r###"
 enum {
     Success
     Failure
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum().unwrap();
-        let r#enum = parser.tree.get(enum_id);
-        assert_eq!(r#enum.name, None);
-        assert!(r#enum.r#type.is_none());
-        assert_eq!(r#enum.fields.len(), 2);
-        let f0 = parser.tree.get(r#enum.fields[0]);
-        assert_eq!(f0.name, parser.strings.intern("Success"));
-        assert!(f0.r#type.is_none());
-        assert!(f0.value.is_none());
-        let f1 = parser.tree.get(r#enum.fields[1]);
-        assert_eq!(f1.name, parser.strings.intern("Failure"));
-        assert!(f1.r#type.is_none());
-        assert!(f1.value.is_none());
+        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields } => {
+            assert!(name.is_none());
+            assert!(r#type.is_none());
+            assert_eq!(fields.len(), 2);
+
+            // Success
+            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("Success"));
+                assert!(r#type.is_none());
+                assert!(value.is_none());
+            });
+
+            // Failure
+            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("Failure"));
+                assert!(r#type.is_none());
+                assert!(value.is_none());
+            });
+        });
     }
 
     #[test]
     fn test_parse_enum_with_type_name_and_values() {
-        let input = r###"
+        let test = TestParse::new(
+            r###"
 enum(uint8) Foo {
 
     Baz = 1
 
     Qux = 2
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        // enum(uint8) Foo
         let enum_id = parser.eat_enum().unwrap();
-        let r#enum = parser.tree.get(enum_id);
-        assert_eq!(r#enum.name, Some(parser.strings.intern("Foo")));
-        let ty = r#enum.r#type.expect("expected explicit type");
-        match parser.tree.get(ty) {
-            Type::Primitive(PrimitiveType::Int(int_ty)) => {
+        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields } => {
+            // enum name
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+
+            // enum type
+            assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
                 assert_eq!(int_ty.width, 8);
                 assert!(!int_ty.is_signed);
-            }
-            _ => panic!("expected path type"),
-        }
-        assert_eq!(r#enum.fields.len(), 2);
+            });
 
-        // Baz = 1
-        let baz = parser.tree.get(r#enum.fields[0]);
-        assert_eq!(baz.name, parser.strings.intern("Baz"));
-        assert!(baz.r#type.is_none());
-        let baz_val = baz.value.expect("expected value");
-        match parser.tree.get(baz_val) {
-            Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                _ => panic!("expected integer"),
-            },
-            _ => panic!("expected scalar literal"),
-        }
+            assert_eq!(fields.len(), 2);
 
-        // Qux = 2
-        let qux = parser.tree.get(r#enum.fields[1]);
-        assert_eq!(qux.name, parser.strings.intern("Qux"));
-        let qux_val = qux.value.expect("expected value");
-        match parser.tree.get(qux_val) {
-            Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                ScalarLiteral::Integer(n, _) => assert_eq!(*n, 2),
-                _ => panic!("expected integer"),
-            },
-            _ => panic!("expected scalar literal"),
-        }
+            // Baz = 1
+            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("Baz"));
+                assert!(r#type.is_none());
+                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
+                    assert_int!(parser.tree, *literal_id, 1);
+                });
+            });
+
+            // Qux = 2
+            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("Qux"));
+                assert!(r#type.is_none());
+                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
+                    assert_int!(parser.tree, *literal_id, 2);
+                });
+            });
+        });
     }
 }

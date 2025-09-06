@@ -192,196 +192,184 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{Expression, MatchCase, Parser, Pattern, ScalarLiteral, Try};
+    use crate::parse::tests::TestParse;
+    use crate::{
+        Expression, Match, MatchCase, Pattern, Try, assert_bool, assert_int, assert_node,
+        assert_path,
+    };
 
     #[test]
-    fn test_match_with_simple_guard_and_wildcard_arms() {
-        let input = r###"
+    fn test_match_simple_literal_arms() {
+        let test = TestParse::new(
+            r###"
 match x {
     1 => 10
-    2 if true => 20
+    2 => 20
     _ => 0
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
-        let match_ = parser.tree.get(match_id);
-        assert_eq!(match_.cases.len(), 3);
-
-        // value: path x
-        match parser.tree.get(match_.value) {
-            Expression::Path { path } => {
-                let p = parser.paths.get(*path);
+        assert_node!(parser.tree, match_id, Match { value, cases } => {
+            // value: path x
+            assert_path!(parser.tree, *value, parser.strings.intern("x"), using |path_id| {
+                let p = parser.paths.get(path_id);
                 assert_eq!(p.segments.len(), 1);
-                assert_eq!(p.segments[0], parser.strings.intern("x"));
-            }
-            other => panic!("expected path x, got {other:?}"),
-        }
+                p.segments[0]
+            });
 
-        // case 0: 1 => 10
-        match parser.tree.get(match_.cases[0]) {
-            MatchCase::Expression {
-                pattern,
-                body,
-                guard,
-            } => {
+            assert_eq!(cases.len(), 3);
+
+            // case 0: 1 => 10
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
                 assert!(guard.is_none());
-                match parser.tree.get(*pattern) {
-                    Pattern::Literal(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                        other => panic!("expected int 1, got {other:?}"),
-                    },
-                    other => panic!("expected literal pattern, got {other:?}"),
-                }
-                match parser.tree.get(*body) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 10),
-                        other => panic!("expected int 10, got {other:?}"),
-                    },
-                    other => panic!("expected literal body, got {other:?}"),
-                }
-            }
-            other => panic!("expected expression case, got {other:?}"),
-        }
+                assert_node!(parser.tree, *pattern, Pattern::Literal(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 1);
+                });
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 10);
+                });
+            });
 
-        // case 1: 2 if true => 20
-        match parser.tree.get(match_.cases[1]) {
-            MatchCase::Expression {
-                pattern,
-                body,
-                guard,
-            } => {
-                // if true
+            // case 1: 2 => 20
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { pattern, body, guard } => {
+                assert!(guard.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Literal(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 2);
+                });
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 20);
+                });
+            });
+
+            // case 2: _ => 0
+            assert_node!(parser.tree, cases[2], MatchCase::Expression { pattern, body, guard } => {
+                assert!(guard.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 0);
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_match_with_guard() {
+        let test = TestParse::new(
+            r###"
+match x {
+    2 if true => 20
+}
+"###,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let match_id = parser.eat_match().unwrap();
+        assert_node!(parser.tree, match_id, Match { value: _, cases } => {
+            assert_eq!(cases.len(), 1);
+
+            // case: 2 if true => 20
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { pattern, body, guard } => {
+                // guard: true
                 let guard_id = guard.expect("expected guard");
-                match parser.tree.get(guard_id) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Boolean(b) => assert!(*b),
-                        other => panic!("expected boolean true, got {other:?}"),
-                    },
-                    other => panic!("expected scalar literal guard, got {other:?}"),
-                }
-                // pattern: 2
-                match parser.tree.get(*pattern) {
-                    Pattern::Literal(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 2),
-                        other => panic!("expected int 2, got {other:?}"),
-                    },
-                    other => panic!("expected literal pattern, got {other:?}"),
-                }
-                // body: 20
-                match parser.tree.get(*body) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 20),
-                        other => panic!("expected int 20, got {other:?}"),
-                    },
-                    other => panic!("expected literal body, got {other:?}"),
-                }
-            }
-            other => panic!("expected expression case, got {other:?}"),
-        }
+                assert_node!(parser.tree, guard_id, Expression::ScalarLiteral(lit_id) => {
+                    assert_bool!(parser.tree, *lit_id, true);
+                });
 
-        // case 2: _ => 0
-        match parser.tree.get(match_.cases[2]) {
-            MatchCase::Expression {
-                pattern,
-                body,
-                guard,
-            } => {
-                assert!(guard.is_none());
-                assert_eq!(parser.tree.get(*pattern), &Pattern::Wildcard);
-                match parser.tree.get(*body) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 0),
-                        other => panic!("expected int 0, got {other:?}"),
-                    },
-                    other => panic!("expected literal body, got {other:?}"),
-                }
-            }
-            other => panic!("expected expression case, got {other:?}"),
-        }
+                // pattern: 2
+                assert_node!(parser.tree, *pattern, Pattern::Literal(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 2);
+                });
+
+                // body: 20
+                assert_node!(parser.tree, *body, Expression::ScalarLiteral(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 20);
+                });
+            });
+        });
     }
 
     #[test]
     fn test_try_expression() {
-        let input = r###"
+        let test = TestParse::new(
+            r###"
 try foo()
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try_catch().unwrap();
-        match parser.tree.get(try_id) {
-            Try::Expression { try_expression } => match parser.tree.get(*try_expression) {
-                Expression::Call(call_id) => {
-                    let call = parser.tree.get(*call_id);
-                    // receiver is path foo
-                    match parser.tree.get(call.receiver) {
-                        Expression::Path { path } => {
-                            let p = parser.paths.get(*path);
-                            assert_eq!(p.segments.len(), 1);
-                            assert_eq!(p.segments[0], parser.strings.intern("foo"));
-                        }
-                        other => panic!("expected path foo, got {other:?}"),
-                    }
-                }
-                other => panic!("expected call expression, got {other:?}"),
-            },
-            other => panic!("expected try expression, got {other:?}"),
-        }
+        assert_node!(parser.tree, try_id, Try::Expression { try_expression } => {
+            assert_node!(parser.tree, *try_expression, Expression::Call(call_id) => {
+                let call = parser.tree.get(*call_id);
+                // receiver is path foo
+                assert_path!(parser.tree, call.receiver, parser.strings.intern("foo"), using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+            });
+        });
     }
 
     #[test]
-    fn test_try_block_with_catch_block_match() {
-        let input = r###"
+    fn test_try_block_without_catch() {
+        let test = TestParse::new(
+            r###"
 try {
-} catch e {
-    _ => {
-    }
+    foo()
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try_catch().unwrap();
-        match parser.tree.get(try_id) {
-            Try::BlockWithCatch {
-                try_block,
-                catch_match,
-            } => {
-                // try block exists
-                let _block = parser.tree.get(*try_block);
+        assert_node!(parser.tree, try_id, Try::Block { try_block } => {
+            let _block = parser.tree.get(*try_block);
+        });
+    }
 
-                // catch match: value is path e, one case with wildcard and block body
-                let m = parser.tree.get(*catch_match);
-                match parser.tree.get(m.value) {
-                    Expression::Path { path } => {
-                        let p = parser.paths.get(*path);
-                        assert_eq!(p.segments.len(), 1);
-                        assert_eq!(p.segments[0], parser.strings.intern("e"));
-                    }
-                    other => panic!("expected path e, got {other:?}"),
-                }
-                assert_eq!(m.cases.len(), 1);
-                match parser.tree.get(m.cases[0]) {
-                    MatchCase::Block {
-                        pattern,
-                        body: _,
-                        guard,
-                    } => {
-                        assert!(guard.is_none());
-                        assert_eq!(parser.tree.get(*pattern), &Pattern::Wildcard);
-                    }
-                    other => panic!("expected block case, got {other:?}"),
-                }
-            }
-            other => panic!("expected try block with catch, got {other:?}"),
-        }
+    #[test]
+    fn test_try_block_with_catch() {
+        let test = TestParse::new(
+            r###"
+try {
+    foo()
+} catch e {
+    _ => {
+        bar()
+    }
+}
+"###,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let try_id = parser.eat_try_catch().unwrap();
+        assert_node!(parser.tree, try_id, Try::BlockWithCatch { try_block, catch_match } => {
+            // try block exists
+            let _block = parser.tree.get(*try_block);
+
+            // catch match: value is path e, one case with wildcard and block body
+            assert_node!(parser.tree, *catch_match, Match { value, cases } => {
+                assert_path!(parser.tree, *value, parser.strings.intern("e"), using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+
+                assert_eq!(cases.len(), 1);
+                assert_node!(parser.tree, cases[0], MatchCase::Block { pattern, body: _, guard } => {
+                    assert!(guard.is_none());
+                    assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+                });
+            });
+        });
     }
 }

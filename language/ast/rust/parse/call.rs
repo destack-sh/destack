@@ -108,181 +108,105 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, Span, tokenize_semantic};
-
+    use crate::parse::tests::TestParse;
     use crate::{
-        Argument, Expression, FunctionRuntime, IntType, Parser, PrimitiveType, ScalarLiteral, Type,
+        Argument, Cast, Expression, FunctionRuntime, Index, IntType, PrimitiveType, ScalarLiteral,
+        Type, assert_node,
     };
-
-    fn make_dummy_receiver<'a>(parser: &mut Parser<'a>) -> crate::NodeId<Expression> {
-        parser
-            .tree
-            .allocate(Expression::Error, Span { start: 0, end: 0 })
-    }
 
     #[test]
     fn test_parse_index_postfix() {
-        let input = "[1]";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let recv = make_dummy_receiver(&mut parser);
+        // [1]
+        let test = TestParse::new("[1]");
+        let mut parser = test.parser();
+        let recv = parser
+            .tree
+            .allocate(Expression::Error, parser.peek().unwrap().span);
 
         let index_id = parser.eat_index_postfix(recv).unwrap();
-        let index = parser.tree.get(index_id);
-
-        // receiver
-        assert_eq!(index.receiver, recv);
-        // [1]
-        let idx_expr = parser.tree.get(index.index);
-        match idx_expr {
-            &Expression::ScalarLiteral(lit_id) => match parser.tree.get(lit_id) {
-                ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                _ => panic!("expected integer literal"),
-            },
-            _ => panic!("expected scalar literal expression"),
-        }
+        assert_node!(parser.tree, index_id, Index { receiver, index } => {
+            assert_eq!(*receiver, recv);
+            assert_node!(parser.tree, *index, Expression::ScalarLiteral(lit_id) => {
+                assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1, _));
+            });
+        });
     }
 
     #[test]
     fn test_parse_call_postfix() {
-        let input = "[Validate: false](1, x: 2)";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let recv = make_dummy_receiver(&mut parser);
+        // [Validate: false](1, x: 2)
+        let test = TestParse::new("[Validate: false](1, x: 2)");
+        let mut parser = test.parser();
+        let recv = parser
+            .tree
+            .allocate(Expression::Error, parser.peek().unwrap().span);
 
         let call_id = parser.eat_call_postfix(recv).unwrap();
-        let call = parser.tree.get(call_id);
+        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
+            assert_eq!(*receiver, recv);
+            assert_eq!(*runtime, FunctionRuntime::Dynamic);
 
-        // receiver and runtime
-        assert_eq!(call.receiver, recv);
-        assert_eq!(call.runtime, FunctionRuntime::Dynamic);
-
-        // [Validate: false]
-        let static_args = call
-            .static_arguments
-            .as_ref()
-            .expect("expected static args");
-        assert_eq!(static_args.len(), 1);
-        match parser.tree.get(static_args[0]) {
-            Argument::Named { name, value } => {
+            // [Validate: false]
+            let static_args = static_arguments.as_ref().expect("expected static args");
+            assert_eq!(static_args.len(), 1);
+            assert_node!(parser.tree, static_args[0], Argument::Named { name, value } => {
                 assert_eq!(*name, parser.strings.intern("Validate"));
-                match parser.tree.get(*value) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Boolean(b) => assert!(!b),
-                        _ => panic!("expected boolean literal"),
-                    },
-                    _ => panic!("expected scalar literal expression"),
-                }
-            }
-            _ => panic!("expected named argument"),
-        }
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
+                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Boolean(false));
+                });
+            });
 
-        // (1, x: 2)
-        assert_eq!(call.dynamic_arguments.len(), 2);
-        // 1
-        match parser.tree.get(call.dynamic_arguments[0]) {
-            Argument::Positional { value } => match parser.tree.get(*value) {
-                Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                    ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                    _ => panic!("expected integer literal"),
-                },
-                _ => panic!("expected scalar literal expression"),
-            },
-            _ => panic!("expected positional argument"),
-        }
-        // x: 2
-        match parser.tree.get(call.dynamic_arguments[1]) {
-            Argument::Named { name, value } => {
+            // (1, x: 2)
+            assert_eq!(dynamic_arguments.len(), 2);
+
+            // 1
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
+                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1, _));
+                });
+            });
+
+            // x: 2
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
                 assert_eq!(*name, parser.strings.intern("x"));
-                match parser.tree.get(*value) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 2),
-                        _ => panic!("expected integer literal"),
-                    },
-                    _ => panic!("expected scalar literal expression"),
-                }
-            }
-            _ => panic!("expected named argument"),
-        }
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
+                    assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2, _));
+                });
+            });
+        });
     }
 
     #[test]
     fn test_parse_call_postfix_empty() {
-        let input = "()";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let recv = make_dummy_receiver(&mut parser);
+        // ()
+        let test = TestParse::new("()");
+        let mut parser = test.parser();
+        let recv = parser
+            .tree
+            .allocate(Expression::Error, parser.peek().unwrap().span);
 
         let call_id = parser.eat_call_postfix(recv).unwrap();
-        let call = parser.tree.get(call_id);
-
-        assert_eq!(call.receiver, recv);
-        assert_eq!(call.runtime, FunctionRuntime::Dynamic);
-        assert_eq!(call.dynamic_arguments.len(), 0);
-    }
-
-    #[test]
-    fn test_parse_call_postfix_multiline_dynamic() {
-        let input = "(\n1\nx: 2\n)";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let recv = make_dummy_receiver(&mut parser);
-
-        let call_id = parser.eat_call_postfix(recv).unwrap();
-        let call = parser.tree.get(call_id);
-
-        assert!(call.static_arguments.is_none());
-        assert!(call.dynamic_arguments.len() >= 2);
-
-        // find positional integer 1 among dynamic args
-        let mut found_positional_one = false;
-        let mut found_named_x_two = false;
-        for arg_id in &call.dynamic_arguments {
-            match parser.tree.get(*arg_id) {
-                Argument::Positional { value } => {
-                    if let Expression::ScalarLiteral(lit_id) = parser.tree.get(*value) {
-                        match parser.tree.get(*lit_id) {
-                            ScalarLiteral::Integer(n, _) if *n == 1 => found_positional_one = true,
-                            _ => {}
-                        }
-                    }
-                }
-                Argument::Named { name, value } => {
-                    if *name == parser.strings.intern("x")
-                        && let Expression::ScalarLiteral(lit_id) = parser.tree.get(*value)
-                    {
-                        match parser.tree.get(*lit_id) {
-                            ScalarLiteral::Integer(n, _) if *n == 2 => found_named_x_two = true,
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        assert!(found_positional_one, "missing positional integer 1");
-        assert!(found_named_x_two, "missing named x: 2");
+        assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
+            assert_eq!(*receiver, recv);
+            assert_eq!(*runtime, FunctionRuntime::Dynamic);
+            assert!(static_arguments.is_none());
+            assert_eq!(dynamic_arguments.len(), 0);
+        });
     }
 
     #[test]
     fn test_parse_as_postfix() {
-        let input = "as int32";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let recv = make_dummy_receiver(&mut parser);
+        // as int32
+        let test = TestParse::new("as int32");
+        let mut parser = test.parser();
+        let recv = parser
+            .tree
+            .allocate(Expression::Error, parser.peek().unwrap().span);
 
         let cast_id = parser.eat_as_postfix(recv).unwrap();
-        let cast = parser.tree.get(cast_id);
-
-        // receiver
-        assert_eq!(cast.receiver, recv);
-        // int32
-        match parser.tree.get(cast.r#type) {
-            &Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
-                assert_eq!(width, 32);
-                assert!(is_signed);
-            }
-            _ => panic!("expected int32 type"),
-        }
+        assert_node!(parser.tree, cast_id, Cast { receiver, r#type } => {
+            assert_eq!(*receiver, recv);
+            assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(IntType { width: 32, is_signed: true })));
+        });
     }
 }

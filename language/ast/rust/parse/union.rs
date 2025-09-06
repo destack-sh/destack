@@ -238,256 +238,241 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
+    use crate::parse::tests::TestParse;
     use crate::{
-        Expression, IntType, Mutability, Parser, PrimitiveType, ScalarLiteral, TupleField, Type,
-        UnionStyle,
+        Expression, Mutability, PrimitiveType, TupleField, Type, Union, UnionField, UnionStyle,
+        assert_int, assert_node,
     };
 
     #[test]
     fn test_parse_explicit_anonymous_union() {
-        let input = r###"
+        let test = TestParse::new(
+            r###"
 union { A, B }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        // union
         let union_id = parser.eat_union().unwrap();
-        let uni = parser.tree.get(union_id);
-        assert_eq!(uni.name, None);
-        assert!(uni.r#type.is_none());
-        assert!(uni.usings.is_empty());
-        assert!(uni.lets.is_empty());
-        assert_eq!(uni.fields.len(), 2);
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, usings, lets } => {
+            assert!(name.is_none());
+            assert!(r#type.is_none());
+            assert_eq!(*style, UnionStyle::Explicit);
+            assert!(usings.is_empty());
+            assert!(lets.is_empty());
+            assert_eq!(fields.len(), 2);
 
-        // A
-        let f0 = parser.tree.get(uni.fields[0]);
-        assert_eq!(f0.name, parser.strings.intern("A"));
-        assert!(f0.r#type.is_none());
-        assert!(f0.value.is_none());
+            // A
+            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("A"));
+                assert!(r#type.is_none());
+                assert!(value.is_none());
+            });
 
-        // B
-        let f1 = parser.tree.get(uni.fields[1]);
-        assert_eq!(f1.name, parser.strings.intern("B"));
-        assert!(f1.r#type.is_none());
-        assert!(f1.value.is_none());
+            // B
+            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("B"));
+                assert!(r#type.is_none());
+                assert!(value.is_none());
+            });
+        });
     }
 
     #[test]
-    fn test_parse_explicit_heterogeneous_union() {
-        let input = r###"
+    fn test_parse_explicit_union_with_type_and_name() {
+        let test = TestParse::new(
+            r###"
 union(uint4) Foo {
     A
-
     use Bar
-
     C(boolean)
-    
     D(boolean, count: int32) = 6
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        // union(uint4) Foo use Bar
         let union_id = parser.eat_union().unwrap();
-        let uni = parser.tree.get(union_id);
-        assert_eq!(uni.name, Some(parser.strings.intern("Foo")));
-        // (uint4)
-        let ty = uni.r#type.expect("expected explicit type");
-        match parser.tree.get(ty) {
-            Type::Primitive(PrimitiveType::Int(int_ty)) => {
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, usings, lets } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(*style, UnionStyle::Explicit);
+
+            // (uint4)
+            assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
                 assert_eq!(int_ty.width, 4);
                 assert!(!int_ty.is_signed);
-            }
-            other => panic!("expected primitive int type, got {other:?}"),
-        }
+            });
 
-        assert_eq!(uni.usings.len(), 1);
-        assert!(uni.lets.is_empty());
-        assert_eq!(uni.fields.len(), 3);
+            assert_eq!(usings.len(), 1);
+            assert!(lets.is_empty());
+            assert_eq!(fields.len(), 3);
 
-        // use Bar
-        let using = parser.tree.get(uni.usings[0]);
-        assert_eq!(using.clauses.len(), 1);
+            // use Bar
+            let using = parser.tree.get(usings[0]);
+            assert_eq!(using.clauses.len(), 1);
 
-        // A
-        let a = parser.tree.get(uni.fields[0]);
-        assert_eq!(a.name, parser.strings.intern("A"));
-        assert!(a.r#type.is_none());
-        assert!(a.value.is_none());
+            // A
+            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("A"));
+                assert!(r#type.is_none());
+                assert!(value.is_none());
+            });
 
-        // C(boolean)
-        let c = parser.tree.get(uni.fields[1]);
-        // (boolean)
-        match c.r#type {
-            Some(ty_id) => match parser.tree.get(ty_id) {
-                Type::Primitive(PrimitiveType::Boolean) => {}
-                _ => panic!("expected boolean"),
-            },
-            None => panic!("expected boolean"),
-        }
+            // C(boolean)
+            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("C"));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Boolean));
+                assert!(value.is_none());
+            });
 
-        // D(boolean, count: int32) = 6
-        let d = parser.tree.get(uni.fields[2]);
-        assert!(d.r#type.is_some());
-        match parser.tree.get(d.r#type.unwrap()) {
-            &Type::Tuple(tuple_id) => {
-                let tuple = parser.tree.get(tuple_id);
-                assert_eq!(tuple.elements.len(), 2);
-                // boolean
-                match parser.tree.get(tuple.elements[0]) {
-                    TupleField::Positional { r#type } => {
-                        assert_eq!(
-                            *parser.tree.get(*r#type),
-                            Type::Primitive(PrimitiveType::Boolean)
-                        )
-                    }
-                    _ => panic!("expected boolean"),
-                }
-                // count: int32
-                match parser.tree.get(tuple.elements[1]) {
-                    TupleField::Named { name, r#type } => {
+            // D(boolean, count: int32) = 6
+            assert_node!(parser.tree, fields[2], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("D"));
+
+                // tuple type
+                assert_node!(parser.tree, r#type.unwrap(), Type::Tuple(tuple_id) => {
+                    let tuple = parser.tree.get(*tuple_id);
+                    assert_eq!(tuple.elements.len(), 2);
+
+                    // boolean
+                    assert_node!(parser.tree, tuple.elements[0], TupleField::Positional { r#type } => {
+                        assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+                    });
+
+                    // count: int32
+                    assert_node!(parser.tree, tuple.elements[1], TupleField::Named { name, r#type } => {
                         assert_eq!(*name, parser.strings.intern("count"));
-                        assert_eq!(
-                            *parser.tree.get(*r#type),
-                            Type::Primitive(PrimitiveType::Int(IntType {
-                                width: 32,
-                                is_signed: true
-                            }))
-                        );
-                    }
-                    _ => panic!("expected named field 'count'"),
-                }
-            }
-            _ => panic!("expected tuple"),
-        }
-        // = 6
-        assert!(d.value.is_some());
-        match parser.tree.get(d.value.unwrap()) {
-            Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                ScalarLiteral::Integer(n, _) => assert_eq!(*n, 6),
-                _ => panic!("expected integer"),
-            },
-            _ => panic!("expected integer"),
-        }
+                        assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
+                            assert_eq!(int_ty.width, 32);
+                            assert!(int_ty.is_signed);
+                        });
+                    });
+                });
+
+                // = 6
+                assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
+                    assert_int!(parser.tree, *literal_id, 6);
+                });
+            });
+        });
     }
 
     #[test]
-    fn test_parse_implicit_union() {
-        let input = r"A | ?B | *C | ?*var D";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+    fn test_parse_implicit_union_simple() {
+        let test = TestParse::new("A | B");
+        let mut parser = test.parser();
 
-        // A | ?B | *C | ?*var D
         let union_id = parser.eat_implicit_union(None).unwrap();
-        let union = parser.tree.get(union_id);
-        assert_eq!(union.name, None);
-        assert_eq!(union.style, UnionStyle::Implicit);
-        assert!(union.r#type.is_none());
-        assert!(union.usings.is_empty());
-        assert!(union.lets.is_empty());
-        assert_eq!(union.fields.len(), 4);
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, usings, lets } => {
+            assert!(name.is_none());
+            assert!(r#type.is_none());
+            assert_eq!(*style, UnionStyle::Implicit);
+            assert!(usings.is_empty());
+            assert!(lets.is_empty());
+            assert_eq!(fields.len(), 2);
 
-        // A
-        let a = parser.tree.get(union.fields[0]);
-        assert_eq!(a.name, parser.strings.intern("A"));
-        match a.r#type {
-            Some(ty_id) => match parser.tree.get(ty_id) {
-                Type::Path {
-                    path: path_id,
-                    static_arguments: _,
-                } => {
-                    let path = parser.paths.get(*path_id);
-                    assert_eq!(path.segments.len(), 1);
-                    assert_eq!(path.segments[0], parser.strings.intern("A"));
-                }
-                _ => panic!("expected path type"),
-            },
-            None => panic!("expected path type"),
-        }
-        assert!(a.value.is_none());
+            // A
+            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("A"));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
+                    let path_data = parser.paths.get(*path);
+                    assert_eq!(path_data.segments.len(), 1);
+                    assert_eq!(path_data.segments[0], parser.strings.intern("A"));
+                });
+                assert!(value.is_none());
+            });
 
-        // ?B
-        let b = parser.tree.get(union.fields[1]);
-        assert_eq!(b.name, parser.strings.intern("B"));
-        match b.r#type {
-            Some(ty_id) => match parser.tree.get(ty_id) {
-                Type::Maybe(inner_ty_id) => match parser.tree.get(*inner_ty_id) {
-                    Type::Path {
-                        path: path_id,
-                        static_arguments: _,
-                    } => {
-                        let path = parser.paths.get(*path_id);
-                        assert_eq!(path.segments.len(), 1);
-                        assert_eq!(path.segments[0], parser.strings.intern("B"));
-                    }
-                    _ => panic!("expected path type"),
-                },
-                _ => panic!("expected optional type"),
-            },
-            None => panic!("expected optional type"),
-        }
-        assert!(b.value.is_none());
+            // B
+            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
+                assert_eq!(*name, parser.strings.intern("B"));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
+                    let path_data = parser.paths.get(*path);
+                    assert_eq!(path_data.segments.len(), 1);
+                    assert_eq!(path_data.segments[0], parser.strings.intern("B"));
+                });
+                assert!(value.is_none());
+            });
+        });
+    }
 
-        // *C
-        let c = parser.tree.get(union.fields[2]);
-        assert_eq!(c.name, parser.strings.intern("C"));
-        match c.r#type {
-            Some(ty_id) => match parser.tree.get(ty_id) {
-                &Type::Pointer {
-                    target: ptr_ty_id,
-                    mutability: _,
-                } => match parser.tree.get(ptr_ty_id) {
-                    &Type::Path {
-                        path: path_id,
-                        static_arguments: _,
-                    } => {
-                        let path = parser.paths.get(path_id);
-                        assert_eq!(path.segments.len(), 1);
-                        assert_eq!(path.segments[0], parser.strings.intern("C"));
-                    }
-                    _ => panic!("expected path type"),
-                },
-                _ => panic!("expected pointer type"),
-            },
-            None => panic!("expected pointer type"),
-        }
-        assert!(c.value.is_none());
+    #[test]
+    fn test_parse_implicit_union_with_optional() {
+        let test = TestParse::new("A | ?B");
+        let mut parser = test.parser();
 
-        // ?*var D
-        let d = parser.tree.get(union.fields[3]);
-        assert_eq!(d.name, parser.strings.intern("D"));
-        match d.r#type {
-            Some(ty_id) => match parser.tree.get(ty_id) {
-                Type::Maybe(inner_ty_id) => match parser.tree.get(*inner_ty_id) {
-                    Type::Pointer {
-                        target: ptr_ty_id,
-                        mutability,
-                    } => {
+        let union_id = parser.eat_implicit_union(None).unwrap();
+        assert_node!(parser.tree, union_id, Union { name: _, r#type: _, style: _, fields, usings: _, lets: _ } => {
+            assert_eq!(fields.len(), 2);
+
+            // A
+            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value: _ } => {
+                assert_eq!(*name, parser.strings.intern("A"));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
+                    let path_data = parser.paths.get(*path);
+                    assert_eq!(path_data.segments[0], parser.strings.intern("A"));
+                });
+            });
+
+            // ?B
+            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value: _ } => {
+                assert_eq!(*name, parser.strings.intern("B"));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Maybe(inner_ty_id) => {
+                    assert_node!(parser.tree, *inner_ty_id, Type::Path { path, static_arguments: _ } => {
+                        let path_data = parser.paths.get(*path);
+                        assert_eq!(path_data.segments[0], parser.strings.intern("B"));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_implicit_union_with_pointer() {
+        let test = TestParse::new("A | *C");
+        let mut parser = test.parser();
+
+        let union_id = parser.eat_implicit_union(None).unwrap();
+        assert_node!(parser.tree, union_id, Union { name: _, r#type: _, style: _, fields, usings: _, lets: _ } => {
+            assert_eq!(fields.len(), 2);
+
+            // *C
+            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value: _ } => {
+                assert_eq!(*name, parser.strings.intern("C"));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Pointer { target, mutability } => {
+                    assert_eq!(*mutability, Mutability::Immutable);
+                    assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
+                        let path_data = parser.paths.get(*path);
+                        assert_eq!(path_data.segments[0], parser.strings.intern("C"));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_implicit_union_complex() {
+        let test = TestParse::new("?*var D");
+        let mut parser = test.parser();
+
+        let union_id = parser.eat_implicit_union(None).unwrap();
+        assert_node!(parser.tree, union_id, Union { name: _, r#type: _, style: _, fields, usings: _, lets: _ } => {
+            assert_eq!(fields.len(), 1);
+
+            // ?*var D
+            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value: _ } => {
+                assert_eq!(*name, parser.strings.intern("D"));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Maybe(inner_ty_id) => {
+                    assert_node!(parser.tree, *inner_ty_id, Type::Pointer { target, mutability } => {
                         assert_eq!(*mutability, Mutability::Mutable);
-                        match parser.tree.get(*ptr_ty_id) {
-                            Type::Path {
-                                path: path_id,
-                                static_arguments: _,
-                            } => {
-                                let path = parser.paths.get(*path_id);
-                                assert_eq!(path.segments.len(), 1);
-                                assert_eq!(path.segments[0], parser.strings.intern("D"));
-                            }
-                            _ => panic!("expected path type"),
-                        }
-                    }
-                    _ => panic!("expected pointer type"),
-                },
-                _ => panic!("expected optional type"),
-            },
-            None => panic!("expected optional pointer type"),
-        }
-        assert!(d.value.is_none());
+                        assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
+                            let path_data = parser.paths.get(*path);
+                            assert_eq!(path_data.segments[0], parser.strings.intern("D"));
+                        });
+                    });
+                });
+            });
+        });
     }
 }

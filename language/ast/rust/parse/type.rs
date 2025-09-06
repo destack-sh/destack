@@ -125,15 +125,12 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-
         // tuple
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.eat_tuple_type()
-
         // array or slice
         } else if self.peek_token(TokenType::OpenBracket).is_ok() {
             self.eat_array_or_slice_type()
-
         // struct
         } else if self.peek_keyword(Keyword::Struct).is_ok() {
             let struct_id = self.eat_struct()?;
@@ -141,7 +138,6 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Struct(struct_id), self.get_span_from(start));
             Ok(ty_id)
-
         // enum
         } else if self.peek_keyword(Keyword::Enum).is_ok() {
             let enum_id = self.eat_enum()?;
@@ -157,7 +153,6 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Union(union_id), self.get_span_from(start));
             Ok(ty_id)
-
         // function
         } else if self.peek_keyword(Keyword::Function).is_ok() {
             let function_id = self.eat_function()?;
@@ -165,7 +160,6 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Function(function_id), self.get_span_from(start));
             Ok(ty_id)
-
         // scalar
         } else {
             Ok(self.eat_scalar_type()?)
@@ -416,173 +410,182 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
+    use crate::parse::tests::TestParse;
     use crate::{
-        Argument, Expression, FloatType, IntType, Mutability, Parser, PrimitiveType, Type,
+        Argument, Expression, FloatType, IntType, Mutability, PrimitiveType, Type, assert_node,
     };
 
     #[test]
-    fn test_primitive_type() {
-        let source = r##"
-void
-boolean
-character
-int32
-uint7
-uint0
-uint999
-int128
-float32
-float64
-"##;
-        let tokens = tokenize_semantic(source);
-        let mut parser = Parser::new(SourceFile::new(0, source, source.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
-        // void
+    fn test_primitive_void() {
+        let test = TestParse::new("void");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(*ty, Type::Primitive(PrimitiveType::Void));
-        parser.eat_newline().unwrap();
 
-        // boolean
-        let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(*ty, Type::Primitive(PrimitiveType::Boolean));
-        parser.eat_newline().unwrap();
+        assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Void));
+    }
 
-        // character
+    #[test]
+    fn test_primitive_boolean() {
+        let test = TestParse::new("boolean");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(*ty, Type::Primitive(PrimitiveType::Character));
-        parser.eat_newline().unwrap();
 
-        // int32
+        assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Boolean));
+    }
+
+    #[test]
+    fn test_primitive_character() {
+        let test = TestParse::new("character");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
+
+        assert_node!(
+            parser.tree,
+            ty_id,
+            Type::Primitive(PrimitiveType::Character)
+        );
+    }
+
+    #[test]
+    fn test_primitive_int32() {
+        let test = TestParse::new("int32");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type().unwrap();
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Primitive(PrimitiveType::Int(IntType {
                 width: 32,
                 is_signed: true,
             }))
         );
-        parser.eat_newline().unwrap();
+    }
 
-        // uint7
+    #[test]
+    fn test_primitive_uint7() {
+        let test = TestParse::new("uint7");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Primitive(PrimitiveType::Int(IntType {
                 width: 7,
                 is_signed: false,
             }))
         );
-        parser.eat_newline().unwrap();
+    }
 
-        // uint0
+    #[test]
+    fn test_primitive_uint0() {
+        let test = TestParse::new("uint0");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Primitive(PrimitiveType::Int(IntType {
                 width: 0,
                 is_signed: false,
             }))
         );
-        parser.eat_newline().unwrap();
+    }
 
-        // uint999
+    #[test]
+    fn test_primitive_uint999() {
+        let test = TestParse::new("uint999");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Primitive(PrimitiveType::Int(IntType {
                 width: 999,
                 is_signed: false,
             }))
         );
-        parser.eat_newline().unwrap();
+    }
 
-        // int128
+    #[test]
+    fn test_primitive_int128() {
+        let test = TestParse::new("int128");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Primitive(PrimitiveType::Int(IntType {
                 width: 128,
                 is_signed: true,
             }))
         );
-        parser.eat_newline().unwrap();
-
-        // float32
-        let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
-            Type::Primitive(PrimitiveType::Float(FloatType::Float32))
-        );
-        parser.eat_newline().unwrap();
-
-        // float64
-        let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
-            Type::Primitive(PrimitiveType::Float(FloatType::Float64))
-        );
-        parser.eat_newline().unwrap();
     }
 
     #[test]
-    fn test_scalar_type() {
-        let source = r##"
-float32
-geom.Vector2 // path
-MyMesh[false, Dims: 3] // path with static arguments
-?float32 // maybe type
-! // never type
-!Time // never type
-*Vector2 // pointer type
-*var T // mutable pointer type
-"##;
-        let tokens = tokenize_semantic(source);
-        let mut parser = Parser::new(SourceFile::new(0, source, source.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
-        // float32
+    fn test_primitive_float32() {
+        let test = TestParse::new("float32");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(
-            *ty,
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Primitive(PrimitiveType::Float(FloatType::Float32))
         );
-        parser.eat_newline().unwrap();
+    }
 
-        // geom.Vector2
+    #[test]
+    fn test_primitive_float64() {
+        let test = TestParse::new("float64");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
+
+        assert_node!(
+            parser.tree,
+            ty_id,
+            Type::Primitive(PrimitiveType::Float(FloatType::Float64))
+        );
+    }
+
+    #[test]
+    fn test_path_simple() {
+        let test = TestParse::new("geom.Vector2");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type().unwrap();
+
         let expected_path = parser.paths.intern(vec![
             parser.strings.intern("geom"),
             parser.strings.intern("Vector2"),
         ]);
-        assert_eq!(
-            *ty,
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Path {
-                path: expected_path,
+                path,
                 static_arguments: None
+            } => {
+                assert_eq!(*path, expected_path);
             }
         );
-        parser.eat_newline().unwrap();
+    }
 
-        // MyMesh[false, Dims: 3]
+    #[test]
+    fn test_path_with_static_arguments() {
+        let test = TestParse::new("MyMesh[false, Dims: 3]");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
+
         let expected_path = parser.paths.intern(vec![parser.strings.intern("MyMesh")]);
-        match ty {
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Path {
                 path,
                 static_arguments,
@@ -590,131 +593,158 @@ MyMesh[false, Dims: 3] // path with static arguments
                 assert_eq!(*path, expected_path);
                 let args = static_arguments.as_ref().expect("expected static args");
                 assert_eq!(args.len(), 2);
+
                 // false
                 let arg0 = parser.tree.get(args[0]);
-                match arg0 {
+                assert_node!(
+                    arg0,
                     Argument::Positional { value } => {
-                        let expr = parser.tree.get(*value);
-                        match expr {
+                        assert_node!(
+                            parser.tree,
+                            *value,
                             Expression::ScalarLiteral(lit_id) => {
                                 let lit = parser.tree.get(*lit_id);
-                                // false
                                 assert_eq!(*lit, crate::ScalarLiteral::Boolean(false));
                             }
-                            _ => panic!("expected scalar literal"),
-                        }
+                        );
                     }
-                    _ => panic!("expected positional argument"),
-                }
+                );
+
                 // Dims: 3
                 let arg1 = parser.tree.get(args[1]);
-                match arg1 {
+                assert_node!(
+                    arg1,
                     Argument::Named { name, value } => {
                         assert_eq!(*name, parser.strings.intern("Dims"));
-                        let expr = parser.tree.get(*value);
-                        match expr {
+                        assert_node!(
+                            parser.tree,
+                            *value,
                             Expression::ScalarLiteral(lit_id) => {
                                 let lit = parser.tree.get(*lit_id);
-                                match lit {
+                                assert_node!(
+                                    lit,
                                     crate::ScalarLiteral::Integer(n, int_ty) => {
                                         assert_eq!(*n, 3);
                                         assert_eq!(*int_ty, IntType::INT32);
                                     }
-                                    _ => panic!("expected integer literal"),
-                                }
+                                );
                             }
-                            _ => panic!("expected scalar literal"),
-                        }
+                        );
                     }
-                    _ => panic!("expected named argument"),
-                }
+                );
             }
-            _ => panic!("expected path type with static arguments"),
-        }
-        parser.eat_newline().unwrap();
+        );
+    }
 
-        // ?float32
+    #[test]
+    fn test_maybe_type() {
+        let test = TestParse::new("?float32");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        match ty {
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Maybe(inner_id) => {
-                let inner = parser.tree.get(*inner_id);
-                assert_eq!(
-                    *inner,
+                assert_node!(
+                    parser.tree,
+                    *inner_id,
                     Type::Primitive(PrimitiveType::Float(FloatType::Float32))
                 );
             }
-            _ => panic!("expected ?float32"),
-        }
-        parser.eat_newline().unwrap();
+        );
+    }
 
-        // !
+    #[test]
+    fn test_never_type() {
+        let test = TestParse::new("!");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        assert_eq!(*ty, Type::Never);
-        parser.eat_newline().unwrap();
 
-        // !Time
+        assert_node!(parser.tree, ty_id, Type::Never);
+    }
+
+    #[test]
+    fn test_not_type() {
+        let test = TestParse::new("!Time");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        match ty {
+
+        let expected_time_path = parser.paths.intern(vec![parser.strings.intern("Time")]);
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Not(inner_id) => {
-                let inner = parser.tree.get(*inner_id);
-                let expected_time_path = parser.paths.intern(vec![parser.strings.intern("Time")]);
-                assert_eq!(
-                    *inner,
+                assert_node!(
+                    parser.tree,
+                    *inner_id,
                     Type::Path {
-                        path: expected_time_path,
+                        path,
                         static_arguments: None
+                    } => {
+                        assert_eq!(*path, expected_time_path);
                     }
                 );
             }
-            _ => panic!("expected !Time"),
-        }
-        parser.eat_newline().unwrap();
+        );
+    }
 
-        // *Vector2
+    #[test]
+    fn test_pointer_immutable() {
+        let test = TestParse::new("*Vector2");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        match ty {
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Pointer {
                 mutability,
                 target: inner_id,
             } => {
-                let inner = parser.tree.get(*inner_id);
-                assert_eq!(
-                    *inner,
-                    Type::Path {
-                        path: parser.paths.intern(vec![parser.strings.intern("Vector2")]),
-                        static_arguments: None
-                    }
-                );
                 assert_eq!(*mutability, Mutability::Immutable);
+                assert_node!(
+                    parser.tree,
+                    *inner_id,
+                    Type::Path {
+                        path,
+                        static_arguments: None
+                    } => {
+                        let expected_path = parser.paths.intern(vec![parser.strings.intern("Vector2")]);
+                        assert_eq!(*path, expected_path);
+                    }
+                );
             }
-            _ => panic!("expected *Vector2"),
-        }
-        parser.eat_newline().unwrap();
+        );
+    }
 
-        // *var T
+    #[test]
+    fn test_pointer_mutable() {
+        let test = TestParse::new("*var T");
+        let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
-        let ty = parser.tree.get(ty_id);
-        match ty {
+
+        assert_node!(
+            parser.tree,
+            ty_id,
             Type::Pointer {
                 mutability,
                 target: inner_id,
             } => {
-                let inner = parser.tree.get(*inner_id);
-                assert_eq!(
-                    *inner,
+                assert_eq!(*mutability, Mutability::Mutable);
+                assert_node!(
+                    parser.tree,
+                    *inner_id,
                     Type::Path {
-                        path: parser.paths.intern(vec![parser.strings.intern("T")]),
+                        path,
                         static_arguments: None
+                    } => {
+                        let expected_path = parser.paths.intern(vec![parser.strings.intern("T")]);
+                        assert_eq!(*path, expected_path);
                     }
                 );
-                assert_eq!(*mutability, Mutability::Mutable);
             }
-            _ => panic!("expected *var T"),
-        }
-        parser.eat_newline().unwrap();
+        );
     }
 }
