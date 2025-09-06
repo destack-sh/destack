@@ -412,11 +412,12 @@ mod tests {
     use crate::parse::tests::TestParse;
     use crate::{
         ArrayLiteral, Expression, ScalarLiteral, TupleLiteral, assert_bool, assert_char,
-        assert_float, assert_int, assert_string,
+        assert_float, assert_int, assert_node, assert_string,
     };
 
     #[test]
     fn test_parse_integer_literals() {
+        // Parse multiple integer literals including hex
         let test = TestParse::new("1 731 0x1234");
         let mut parser = test.parser();
 
@@ -432,6 +433,7 @@ mod tests {
 
     #[test]
     fn test_parse_float_literals() {
+        // Parse scientific notation and decimal floats
         let test = TestParse::new("10e37 1.0");
         let mut parser = test.parser();
 
@@ -444,6 +446,7 @@ mod tests {
 
     #[test]
     fn test_parse_boolean_literals() {
+        // Parse true and false literals
         let test = TestParse::new("true false");
         let mut parser = test.parser();
 
@@ -456,6 +459,7 @@ mod tests {
 
     #[test]
     fn test_parse_character_literals() {
+        // Parse character and byte literals
         let test = TestParse::new("'a' b'a'");
         let mut parser = test.parser();
 
@@ -463,12 +467,12 @@ mod tests {
         assert_char!(parser.tree, literal_id, 'a');
 
         let literal_id = parser.eat_scalar_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        assert_eq!(*literal, ScalarLiteral::Byte(b'a'));
+        assert_node!(parser.tree, literal_id, ScalarLiteral::Byte(b'a'));
     }
 
     #[test]
     fn test_parse_string_literals() {
+        // Parse various string literal formats including raw and byte strings
         let test = TestParse::new(
             r###""Hello, world!" b"abc" r"abc" r##"a#b#c"## br"abc" br##"a#b#c"##"###,
         );
@@ -485,8 +489,10 @@ mod tests {
 
         // b"abc"
         let literal_id = parser.eat_scalar_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        assert_eq!(*literal, ScalarLiteral::ByteString(b"abc".to_vec()));
+        assert_node!(parser.tree, literal_id, ScalarLiteral::ByteString(bytes) => {
+            let str = std::str::from_utf8(bytes).unwrap();
+            assert_eq!(str, "abc");
+        });
 
         // r"abc"
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -508,99 +514,81 @@ mod tests {
 
         // br"abc"
         let literal_id = parser.eat_scalar_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        assert_eq!(*literal, ScalarLiteral::ByteString(b"abc".to_vec()));
+        assert_node!(parser.tree, literal_id, ScalarLiteral::ByteString(bytes) => {
+            let str = std::str::from_utf8(bytes).unwrap();
+            assert_eq!(str, "abc");
+        });
 
         // br##"a#b#c"##
         let literal_id = parser.eat_scalar_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        assert_eq!(*literal, ScalarLiteral::ByteString(b"a#b#c".to_vec()));
+        assert_node!(parser.tree, literal_id, ScalarLiteral::ByteString(bytes) => {
+            let str = std::str::from_utf8(bytes).unwrap();
+            assert_eq!(str, "a#b#c");
+        });
     }
 
     #[test]
     fn test_parse_empty_array_literal() {
+        // []
         let test = TestParse::new("[]");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        match literal {
-            ArrayLiteral::Fixed { elements } => assert_eq!(elements.len(), 0),
-            _ => panic!("expected fixed array"),
-        }
+        assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
+            assert_eq!(elements.len(), 0);
+        });
     }
 
     #[test]
     fn test_parse_single_element_array_literal() {
+        // [1, ]
         let test = TestParse::new("[1, ]");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        match literal {
-            ArrayLiteral::Fixed { elements } => {
-                assert_eq!(elements.len(), 1);
-                let element_0 = parser.tree.get(elements[0]);
-                match element_0 {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_int!(parser.tree, scalar_literal_id, 1);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
-            }
-            _ => panic!("expected fixed array"),
-        }
+        assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_int!(parser.tree, *scalar_literal_id, 1);
+            });
+        });
     }
 
     #[test]
     fn test_parse_multi_element_array_literal() {
+        // [10, false, "Hi"]
         let test = TestParse::new(r###"[10, false, "Hi"]"###);
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        match literal {
-            ArrayLiteral::Fixed { elements } => {
-                assert_eq!(elements.len(), 3);
+        assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
+            assert_eq!(elements.len(), 3);
 
-                // [0] = 10
-                let element_0 = parser.tree.get(elements[0]);
-                match element_0 {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_int!(parser.tree, scalar_literal_id, 10);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
+            // [0] = 10
+            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_int!(parser.tree, *scalar_literal_id, 10);
+            });
 
-                // [1] = false
-                let element_1 = parser.tree.get(elements[1]);
-                match element_1 {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_bool!(parser.tree, scalar_literal_id, false);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
+            // [1] = false
+            assert_node!(parser.tree, elements[1], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_bool!(parser.tree, *scalar_literal_id, false);
+            });
 
-                // [2] = "Hi"
-                let element_2 = parser.tree.get(elements[2]);
-                match element_2 {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_string!(
-                            parser.tree,
-                            scalar_literal_id,
-                            "Hi",
-                            using | id | parser.strings.get(id)
-                        );
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
-            }
-            _ => panic!("expected fixed array"),
-        }
+            // [2] = "Hi"
+            assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_string!(
+                    parser.tree,
+                    *scalar_literal_id,
+                    "Hi",
+                    using | id | parser.strings.get(id)
+                );
+            });
+        });
     }
 
     #[test]
     fn test_parse_multiline_array_literal() {
+        // Multi-line array with implicit comma separation
         let test = TestParse::new(
             r###"[1.0, 
      2.0
@@ -610,138 +598,93 @@ mod tests {
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        match literal {
-            ArrayLiteral::Fixed { elements } => {
-                assert_eq!(elements.len(), 3);
+        assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
+            assert_eq!(elements.len(), 3);
 
-                // [0] = 1.0
-                let element_0 = parser.tree.get(elements[0]);
-                match element_0 {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_float!(parser.tree, scalar_literal_id, 1.0);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
+            // [0] = 1.0
+            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_float!(parser.tree, *scalar_literal_id, 1.0);
+            });
 
-                // [1] = 2.0
-                let element_1 = parser.tree.get(elements[1]);
-                match element_1 {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_float!(parser.tree, scalar_literal_id, 2.0);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
+            // [1] = 2.0
+            assert_node!(parser.tree, elements[1], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_float!(parser.tree, *scalar_literal_id, 2.0);
+            });
 
-                // [2] = 3.0
-                let element_2 = parser.tree.get(elements[2]);
-                match element_2 {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_float!(parser.tree, scalar_literal_id, 3.0);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
-            }
-            _ => panic!("expected fixed array"),
-        }
+            // [2] = 3.0
+            assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_float!(parser.tree, *scalar_literal_id, 3.0);
+            });
+        });
     }
 
     #[test]
     fn test_parse_repeated_array_literal() {
+        // [0; 10]
         let test = TestParse::new("[0; 10]");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        match literal {
-            &ArrayLiteral::Repeated {
-                element: element_id,
-                count: count_id,
-            } => {
-                let element = parser.tree.get(element_id);
-                match element {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_int!(parser.tree, scalar_literal_id, 0);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
-                let count = parser.tree.get(count_id);
-                match count {
-                    &Expression::ScalarLiteral(scalar_literal_id) => {
-                        assert_int!(parser.tree, scalar_literal_id, 10);
-                    }
-                    _ => panic!("expected scalar literal"),
-                };
-            }
-            _ => panic!("expected repeated array"),
-        }
+        assert_node!(parser.tree, literal_id, ArrayLiteral::Repeated { element, count } => {
+            assert_node!(parser.tree, *element, Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_int!(parser.tree, *scalar_literal_id, 0);
+            });
+            assert_node!(parser.tree, *count, Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_int!(parser.tree, *scalar_literal_id, 10);
+            });
+        });
     }
 
     #[test]
     fn test_parse_single_element_tuple_literal() {
+        // (1, )
         let test = TestParse::new("(1, )");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        let TupleLiteral { elements } = literal;
-        assert_eq!(elements.len(), 1);
-
-        // [0] = 1
-        let element_0 = parser.tree.get(elements[0]);
-        match element_0 {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_int!(parser.tree, scalar_literal_id, 1);
-            }
-            _ => panic!("expected scalar literal"),
-        };
+        assert_node!(parser.tree, literal_id, TupleLiteral { elements } => {
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_int!(parser.tree, *scalar_literal_id, 1);
+            });
+        });
     }
 
     #[test]
     fn test_parse_multi_element_tuple_literal() {
+        // (10, false, "Hi")
         let test = TestParse::new(r###"(10, false, "Hi")"###);
         let mut parser = test.parser();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        let TupleLiteral { elements } = literal;
-        assert_eq!(elements.len(), 3);
+        assert_node!(parser.tree, literal_id, TupleLiteral { elements } => {
+            assert_eq!(elements.len(), 3);
 
-        // [0] = 10
-        let element_0 = parser.tree.get(elements[0]);
-        match element_0 {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_int!(parser.tree, scalar_literal_id, 10);
-            }
-            _ => panic!("expected scalar literal"),
-        };
+            // [0] = 10
+            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_int!(parser.tree, *scalar_literal_id, 10);
+            });
 
-        // [1] = false
-        let element_1 = parser.tree.get(elements[1]);
-        match element_1 {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_bool!(parser.tree, scalar_literal_id, false);
-            }
-            _ => panic!("expected scalar literal"),
-        };
+            // [1] = false
+            assert_node!(parser.tree, elements[1], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_bool!(parser.tree, *scalar_literal_id, false);
+            });
 
-        // [2] = "Hi"
-        let element_2 = parser.tree.get(elements[2]);
-        match element_2 {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
+            // [2] = "Hi"
+            assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
                 assert_string!(
                     parser.tree,
-                    scalar_literal_id,
+                    *scalar_literal_id,
                     "Hi",
                     using | id | parser.strings.get(id)
                 );
-            }
-            _ => panic!("expected scalar literal"),
-        };
+            });
+        });
     }
 
     #[test]
     fn test_parse_multiline_tuple_literal() {
+        // Multi-line tuple with implicit comma separation
         let test = TestParse::new(
             r###"(
   1.0
@@ -752,35 +695,23 @@ mod tests {
         let mut parser = test.parser();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
-        let literal = parser.tree.get(literal_id);
-        let TupleLiteral { elements } = literal;
-        assert_eq!(elements.len(), 3);
+        assert_node!(parser.tree, literal_id, TupleLiteral { elements } => {
+            assert_eq!(elements.len(), 3);
 
-        // [0] = 1.0
-        let element_0 = parser.tree.get(elements[0]);
-        match element_0 {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_float!(parser.tree, scalar_literal_id, 1.0);
-            }
-            _ => panic!("expected scalar literal"),
-        };
+            // [0] = 1.0
+            assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_float!(parser.tree, *scalar_literal_id, 1.0);
+            });
 
-        // [1] = 2.0
-        let element_1 = parser.tree.get(elements[1]);
-        match element_1 {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_float!(parser.tree, scalar_literal_id, 2.0);
-            }
-            _ => panic!("expected scalar literal"),
-        };
+            // [1] = 2.0
+            assert_node!(parser.tree, elements[1], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_float!(parser.tree, *scalar_literal_id, 2.0);
+            });
 
-        // [2] = 3.0
-        let element_2 = parser.tree.get(elements[2]);
-        match element_2 {
-            &Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_float!(parser.tree, scalar_literal_id, 3.0);
-            }
-            _ => panic!("expected scalar literal"),
-        };
+            // [2] = 3.0
+            assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
+                assert_float!(parser.tree, *scalar_literal_id, 3.0);
+            });
+        });
     }
 }
