@@ -14,18 +14,18 @@ const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
 #[derive(Debug)]
 pub struct Parser<'a> {
     /// The file we're parsing.
-    pub(crate) file: SourceFile<'a>,
+    pub file: SourceFile<'a>,
     /// The tokens to parse.
-    pub(crate) tokens: &'a [TokenSpan],
+    pub tokens: &'a [TokenSpan],
     /// The EOF token (the actual last token or a fake placeholder one if empty).
-    eof_token: TokenSpan,
+    pub eof_token: TokenSpan,
 
     /// The string pool.
-    pub(crate) strings: StringPool,
+    pub strings: StringPool,
     /// The path pool.
-    pub(crate) paths: PathPool,
+    pub paths: PathPool,
     /// The Node tree.
-    pub(crate) tree: NodeTree,
+    pub tree: NodeTree,
 
     /// The current position in the tokens.
     pos: usize,
