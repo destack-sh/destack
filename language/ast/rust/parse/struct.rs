@@ -129,68 +129,53 @@ impl<'a> Parser<'a> {
         Ok(field_id)
     }
 }
-
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{IntType, Parser, PrimitiveType, StructField, Type};
+    use crate::parse::tests::TestParse;
+    use crate::{IntType, PrimitiveType, Struct, StructField, Type, assert_node};
 
     #[test]
     fn test_parse_struct_anonymous() {
-        let input = r###"
+        let test = TestParse::new(
+            r###"
 struct { x: int32, y: boolean
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
         let struct_id = parser.eat_struct().unwrap();
-        let r#struct = parser.tree.get(struct_id);
-        assert_eq!(r#struct.name, None);
-        assert!(r#struct.usings.is_empty());
-        assert!(r#struct.lets.is_empty());
-        assert_eq!(r#struct.fields.len(), 2);
+        assert_node!(parser.tree, struct_id, Struct { name, fields, usings, lets } => {
+            assert_eq!(*name, None);
+            assert!(usings.is_empty());
+            assert!(lets.is_empty());
+            assert_eq!(fields.len(), 2);
 
-        // x: int32
-        let StructField {
-            name,
-            r#type,
-            default,
-        } = parser.tree.get(r#struct.fields[0]);
-        {
-            assert_eq!(*name, parser.strings.intern("x"));
-            assert!(default.is_none());
-            match parser.tree.get(*r#type) {
-                Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
+            // x: int32
+            assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
+                assert_eq!(*name, parser.strings.intern("x"));
+                assert!(default.is_none());
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
                     assert_eq!(*width, 32);
                     assert!(*is_signed);
-                }
-                _ => panic!("expected primitive int type"),
-            }
-        }
+                });
+            });
 
-        // y: boolean
-        let StructField {
-            name,
-            r#type,
-            default,
-        } = parser.tree.get(r#struct.fields[1]);
-        {
-            assert_eq!(*name, parser.strings.intern("y"));
-            assert!(default.is_none());
-            match parser.tree.get(*r#type) {
-                Type::Primitive(PrimitiveType::Boolean) => {}
-                _ => panic!("expected boolean"),
-            }
-        }
+            // y: boolean
+            assert_node!(parser.tree, fields[1], StructField { name, r#type, default } => {
+                assert_eq!(*name, parser.strings.intern("y"));
+                assert!(default.is_none());
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+            });
+        });
     }
 
     #[test]
     fn test_parse_struct_with_name_and_using_and_default() {
-        let input = r###"
+        let test = TestParse::new(
+            r###"
 struct Foo {
     use Bar, Baz
     
@@ -199,49 +184,34 @@ struct Foo {
     a: boolean
     b: int32 = 4
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct().unwrap();
-        let r#struct = parser.tree.get(struct_id);
-        assert_eq!(r#struct.name, Some(parser.strings.intern("Foo")));
-        assert_eq!(r#struct.usings.len(), 1);
-        assert_eq!(r#struct.lets.len(), 1);
-        assert_eq!(r#struct.fields.len(), 2);
+        assert_node!(parser.tree, struct_id, Struct { name, fields, usings, lets } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(usings.len(), 1);
+            assert_eq!(lets.len(), 1);
+            assert_eq!(fields.len(), 2);
 
-        // a: boolean
-        let StructField {
-            name,
-            r#type,
-            default,
-        } = parser.tree.get(r#struct.fields[0]);
-        {
-            assert_eq!(*name, parser.strings.intern("a"));
-            assert!(default.is_none());
-            match parser.tree.get(*r#type) {
-                Type::Primitive(PrimitiveType::Boolean) => {}
-                _ => panic!("expected boolean"),
-            }
-        }
+            // a: boolean
+            assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
+                assert_eq!(*name, parser.strings.intern("a"));
+                assert!(default.is_none());
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+            });
 
-        // b: int32 = 4
-        let StructField {
-            name,
-            r#type,
-            default,
-        } = parser.tree.get(r#struct.fields[1]);
-        {
-            assert_eq!(*name, parser.strings.intern("b"));
-            match parser.tree.get(*r#type) {
-                Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
+            // b: int32 = 4
+            assert_node!(parser.tree, fields[1], StructField { name, r#type, default } => {
+                assert_eq!(*name, parser.strings.intern("b"));
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
                     assert_eq!(*width, 32);
                     assert!(*is_signed);
-                }
-                _ => panic!("expected primitive int type"),
-            }
-            assert!(default.is_some());
-        }
+                });
+                assert!(default.is_some());
+            });
+        });
     }
 }

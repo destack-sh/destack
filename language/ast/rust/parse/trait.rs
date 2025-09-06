@@ -124,129 +124,139 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{Parser, Type};
+    use crate::parse::tests::TestParse;
+    use crate::{Trait, Type, WithClause, assert_node};
 
     #[test]
-    fn test_parse_trait_anonymous() {
-        let input = r###"trait {
-}
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+    fn test_parse_trait_anonymous_empty() {
+        let test = TestParse::new("trait {}");
+        let mut parser = test.parser();
 
         let trait_id = parser.eat_trait().unwrap();
-        let tr = parser.tree.get(trait_id);
-        assert!(tr.name.is_none());
-        assert!(tr.static_parameters.is_none());
-        assert!(tr.supertraits.is_empty());
-        assert!(tr.withs.is_empty());
-        assert!(tr.usings.is_empty());
-        assert!(tr.lets.is_empty());
-        assert!(tr.functions.is_empty());
+        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, supertraits, withs, usings, lets, functions } => {
+            assert!(name.is_none());
+            assert!(static_parameters.is_none());
+            assert!(supertraits.is_empty());
+            assert!(withs.is_empty());
+            assert!(usings.is_empty());
+            assert!(lets.is_empty());
+            assert!(functions.is_empty());
+        });
     }
 
     #[test]
-    fn test_parse_trait_with_supertraits_and_members() {
-        let input = r###"
-trait Foo: Bar, Boz {
+    fn test_parse_trait_with_name_and_supertraits() {
+        let test = TestParse::new("trait Foo: Bar, Boz {}");
+        let mut parser = test.parser();
+
+        let trait_id = parser.eat_trait().unwrap();
+        assert_node!(parser.tree, trait_id, Trait { name, supertraits, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(supertraits.len(), 2);
+
+            // Bar
+            assert_node!(parser.tree, supertraits[0], Type::Path { path, .. } => {
+                assert_eq!(
+                    *path,
+                    parser.paths.intern(vec![parser.strings.intern("Bar")])
+                );
+            });
+
+            // Boz
+            assert_node!(parser.tree, supertraits[1], Type::Path { path, .. } => {
+                assert_eq!(
+                    *path,
+                    parser.paths.intern(vec![parser.strings.intern("Boz")])
+                );
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_trait_with_members() {
+        let test = TestParse::new(
+            r###"
+trait Foo {
     let x: int32 = 4
 
     use Baz
 
     function foo() => int32
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait().unwrap();
-        let tr = parser.tree.get(trait_id);
-        assert_eq!(tr.name, Some(parser.strings.intern("Foo")));
-        assert_eq!(tr.supertraits.len(), 2);
-        // Bar
-        match parser.tree.get(tr.supertraits[0]) {
-            Type::Path { path, .. } => {
-                assert_eq!(
-                    *path,
-                    parser.paths.intern(vec![parser.strings.intern("Bar")])
-                );
-            }
-            _ => panic!("expected path type"),
-        }
-        // Boz
-        match parser.tree.get(tr.supertraits[1]) {
-            Type::Path { path, .. } => {
-                assert_eq!(
-                    *path,
-                    parser.paths.intern(vec![parser.strings.intern("Boz")])
-                );
-            }
-            _ => panic!("expected path type"),
-        }
-        assert_eq!(tr.usings.len(), 1);
-        assert_eq!(tr.lets.len(), 1);
-        assert_eq!(tr.functions.len(), 1);
+        assert_node!(parser.tree, trait_id, Trait { name, usings, lets, functions, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(usings.len(), 1);
+            assert_eq!(lets.len(), 1);
+            assert_eq!(functions.len(), 1);
+        });
     }
 
     #[test]
-    fn test_parse_trait_with_static_params_and_with() {
-        let input = r###"
+    fn test_parse_trait_with_static_parameters() {
+        let test = TestParse::new("trait Baz[T] {}");
+        let mut parser = test.parser();
+
+        let trait_id = parser.eat_trait().unwrap();
+        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Baz")));
+            let params = static_parameters.as_ref().expect("expected static params");
+            assert_eq!(params.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_parse_trait_with_clause() {
+        let test = TestParse::new(
+            r###"
 trait Baz[T] with T: Copy {
     function baz() => T
 }
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait().unwrap();
-        let tr = parser.tree.get(trait_id);
-        assert_eq!(tr.name, Some(parser.strings.intern("Baz")));
-        let params = tr
-            .static_parameters
-            .as_ref()
-            .expect("expected static params");
-        assert_eq!(params.len(), 1);
-        assert_eq!(tr.withs.len(), 1);
+        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, functions, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Baz")));
 
-        // with T: Copy
-        let with_id = tr.withs[0];
-        let with = parser.tree.get(with_id);
-        assert_eq!(with.clauses.len(), 1);
-        match parser.tree.get(with.clauses[0]) {
-            crate::WithClause::Assertion { target, assertion } => {
-                match parser.tree.get(*target) {
-                    Type::Path { path, .. } => {
-                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
-                    }
-                    _ => panic!("expected path type for target"),
-                }
-                match parser.tree.get(*assertion) {
-                    Type::Path { path, .. } => {
-                        assert_eq!(
-                            *path,
-                            parser.paths.intern(vec![parser.strings.intern("Copy")])
-                        );
-                    }
-                    _ => panic!("expected path type for assertion"),
-                }
-            }
-            _ => panic!("expected assertion clause"),
-        }
-        assert_eq!(tr.functions.len(), 1);
+            let params = static_parameters.as_ref().expect("expected static params");
+            assert_eq!(params.len(), 1);
 
-        // function baz() => T
-        let func_id = tr.functions[0];
-        let func = parser.tree.get(func_id);
-        let ret = func.return_type.expect("expected return type");
-        match parser.tree.get(ret) {
-            Type::Path { path, .. } => {
+            assert_eq!(withs.len(), 1);
+
+            // with T: Copy
+            let with_id = withs[0];
+            let with = parser.tree.get(with_id);
+            assert_eq!(with.clauses.len(), 1);
+
+            assert_node!(parser.tree, with.clauses[0], WithClause::Assertion { target, assertion } => {
+                assert_node!(parser.tree, *target, Type::Path { path, .. } => {
+                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
+                });
+                assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
+                    assert_eq!(
+                        *path,
+                        parser.paths.intern(vec![parser.strings.intern("Copy")])
+                    );
+                });
+            });
+
+            assert_eq!(functions.len(), 1);
+
+            // function baz() => T
+            let func_id = functions[0];
+            let func = parser.tree.get(func_id);
+            let ret = func.return_type.expect("expected return type");
+            assert_node!(parser.tree, ret, Type::Path { path, .. } => {
                 assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
-            }
-            _ => panic!("expected path type"),
-        }
+            });
+        });
     }
 }

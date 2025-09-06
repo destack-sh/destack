@@ -71,143 +71,137 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
+    use crate::parse::tests::TestParse;
     use crate::{
-        Expression, FloatType, LetInitialization, Mutability, Parser, Pattern, PatternField,
-        PrimitiveType, ScalarLiteral, Type,
+        Expression, FloatType, Let, LetInitialization, Mutability, Pattern, PatternField,
+        PrimitiveType, Type, assert_int, assert_node,
     };
 
     #[test]
     fn test_parse_let_scalar() {
-        let input = r###"
+        let test = TestParse::new(
+            r###"
 let x: int32 = 1
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let_or_var().unwrap();
 
-        // x
-        let binding = parser.tree.get(let_id);
-        match *parser.tree.get(binding.pattern) {
-            Pattern::Identifier(name) => assert_eq!(name, parser.strings.intern("x")),
-            _ => panic!("expected identifier pattern"),
-        }
-        assert_eq!(binding.mutability, Mutability::Immutable);
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+            // x
+            assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
+                assert_eq!(*name, parser.strings.intern("x"));
+            });
+            assert_eq!(*mutability, Mutability::Immutable);
 
-        // int32
-        let ty_id = binding.r#type.expect("expected explicit type");
-        match parser.tree.get(ty_id) {
-            Type::Primitive(PrimitiveType::Int(int_ty)) => {
+            // int32
+            let ty_id = r#type.expect("expected explicit type");
+            assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                 assert_eq!(int_ty.width, 32);
                 assert!(int_ty.is_signed);
-            }
-            _ => panic!("expected int32 type"),
-        }
-        assert_eq!(binding.initialization, LetInitialization::Explicit);
+            });
+            assert_eq!(*initialization, LetInitialization::Explicit);
 
-        // 1
-        let value_id = binding.value.expect("expected value");
-        match parser.tree.get(value_id) {
-            Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                _ => panic!("expected integer"),
-            },
-            _ => panic!("expected 1"),
-        }
+            // 1
+            let value_id = value.expect("expected value");
+            assert_node!(parser.tree, value_id, Expression::ScalarLiteral(lit_id) => {
+                assert_int!(parser.tree, *lit_id, 1);
+            });
+        });
     }
 
     #[test]
-    fn test_parse_var_array() {
-        let input = r###"
+    fn test_parse_var_array_uninitialized() {
+        let test = TestParse::new(
+            r###"
 var x: [float64; 3] = --
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let_or_var().unwrap();
-        let binding = parser.tree.get(let_id);
-        // var (mutable)
-        assert_eq!(binding.mutability, Mutability::Mutable);
 
-        // pattern: x
-        match *parser.tree.get(binding.pattern) {
-            Pattern::Identifier(name) => assert_eq!(name, parser.strings.intern("x")),
-            _ => panic!("expected identifier pattern"),
-        }
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+            // var (mutable)
+            assert_eq!(*mutability, Mutability::Mutable);
 
-        // [float64; 3]
-        let ty_id = binding.r#type.expect("expected explicit type");
-        match parser.tree.get(ty_id) {
-            Type::Array {
-                element_type,
-                count,
-            } => {
-                match parser.tree.get(*element_type) {
-                    Type::Primitive(PrimitiveType::Float(FloatType::Float64)) => {}
-                    _ => panic!("expected float64 element type"),
-                }
-                match parser.tree.get(*count) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 3),
-                        _ => panic!("expected integer literal count"),
-                    },
-                    _ => panic!("expected scalar literal count expression"),
-                }
-            }
-            _ => panic!("expected array type"),
-        }
+            // pattern: x
+            assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
+                assert_eq!(*name, parser.strings.intern("x"));
+            });
 
-        // initialization: explicit uninitialized and no value
-        assert_eq!(binding.initialization, LetInitialization::Explicit);
-        assert!(binding.value.is_none());
+            // [float64; 3]
+            let ty_id = r#type.expect("expected explicit type");
+            assert_node!(parser.tree, ty_id, Type::Array { element_type, count } => {
+                assert_node!(parser.tree, *element_type, Type::Primitive(PrimitiveType::Float(FloatType::Float64)));
+                assert_node!(parser.tree, *count, Expression::ScalarLiteral(lit_id) => {
+                    assert_int!(parser.tree, *lit_id, 3);
+                });
+            });
+
+            // initialization: explicit uninitialized and no value
+            assert_eq!(*initialization, LetInitialization::Explicit);
+            assert!(value.is_none());
+        });
     }
 
     #[test]
-    fn test_parse_let_tuple() {
-        let input = r###"
+    fn test_parse_let_tuple_pattern() {
+        let test = TestParse::new(
+            r###"
 let (x, y) = foo()
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let_or_var().unwrap();
-        let binding = parser.tree.get(let_id);
 
-        // (x, y)
-        match parser.tree.get(binding.pattern) {
-            Pattern::Tuple { fields } => {
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+            // (x, y)
+            assert_node!(parser.tree, *pattern, Pattern::Tuple { fields } => {
                 assert_eq!(fields.len(), 2);
                 // x
-                let field_pattern = parser.tree.get(fields[0]);
-                match field_pattern {
-                    &PatternField::Named { name, .. } => {
-                        assert_eq!(name, parser.strings.intern("x"));
-                    }
-                    _ => panic!("expected x, got {field_pattern:?}"),
-                }
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {
+                    assert_eq!(*name, parser.strings.intern("x"));
+                });
                 // y
-                let field_pattern = parser.tree.get(fields[1]);
-                match field_pattern {
-                    &PatternField::Named { name, .. } => {
-                        assert_eq!(name, parser.strings.intern("y"));
-                    }
-                    _ => panic!("expected y, got {field_pattern:?}"),
-                }
-            }
-            _ => panic!("expected tuple pattern, got {binding:?}"),
-        }
+                assert_node!(parser.tree, fields[1], PatternField::Named { name, .. } => {
+                    assert_eq!(*name, parser.strings.intern("y"));
+                });
+            });
 
-        // let (immutable), no explicit type
-        assert_eq!(binding.mutability, Mutability::Immutable);
-        assert!(binding.r#type.is_none());
+            // let (immutable), no explicit type
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert!(r#type.is_none());
 
-        // initialized with a value
-        assert_eq!(binding.initialization, LetInitialization::Explicit);
-        assert!(binding.value.is_some());
+            // foo()
+            assert_eq!(*initialization, LetInitialization::Explicit);
+            assert!(value.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_let_implicit_uninitialized() {
+        let test = TestParse::new("let x: int32");
+        let mut parser = test.parser();
+
+        let let_id = parser.eat_let_or_var().unwrap();
+
+        // let x: int32
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+            // x
+            assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
+                assert_eq!(*name, parser.strings.intern("x"));
+            });
+            assert_eq!(*mutability, Mutability::Immutable);
+            // int32
+            assert!(r#type.is_some());
+            assert!(value.is_none());
+            assert_eq!(*initialization, LetInitialization::Implicit);
+        });
     }
 }

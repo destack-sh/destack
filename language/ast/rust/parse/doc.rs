@@ -90,91 +90,58 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
+    use crate::parse::tests::TestParse;
+    use crate::{Doc, assert_node};
 
-    use crate::Parser;
-
-    /// Parse a single line doc comment and keep exact text (incl. prefix)
     #[test]
     fn test_parse_single_line_doc_comment() {
-        let input = r###"
-/// Simple doc
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
-        // /// Simple doc
+        let test = TestParse::new("/// Simple doc");
+        let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
-        let doc = parser.tree.get(doc_id);
-        assert_eq!(doc.string, parser.strings.intern("/// Simple doc"));
+        assert_node!(parser.tree, doc_id, Doc { string } => {
+            assert_eq!(*string, parser.strings.intern("/// Simple doc"));
+        });
     }
 
-    /// Merge successive line doc comments with a newline between tokens
     #[test]
-    fn test_parse_multiple_line_doc_comments_merge() {
-        let input = r###"
-/// First line
-/// Second line
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
-        // /// First line + /// Second line
+    fn test_parse_multiple_line_doc_comments() {
+        let test = TestParse::new("/// First line\n/// Second line");
+        let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
-        let doc = parser.tree.get(doc_id);
-        assert_eq!(
-            doc.string,
-            parser.strings.intern("/// First line\n/// Second line")
-        );
+        assert_node!(parser.tree, doc_id, Doc { string } => {
+            assert_eq!(*string, parser.strings.intern("/// First line\n/// Second line"));
+        });
     }
 
-    /// Parse a single block doc comment and keep exact text (incl. delimiters)
     #[test]
     fn test_parse_single_block_doc_comment() {
-        let input = r###"
-/** inline block doc */
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
-        // /** inline block doc */
+        let test = TestParse::new("/** inline block doc */");
+        let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
-        let doc = parser.tree.get(doc_id);
-        assert_eq!(doc.string, parser.strings.intern("/** inline block doc */"));
+        assert_node!(parser.tree, doc_id, Doc { string } => {
+            assert_eq!(*string, parser.strings.intern("/** inline block doc */"));
+        });
     }
 
-    /// eat_doc_maybe returns None if no doc comment is present
     #[test]
-    fn test_eat_doc_maybe_none_when_absent() {
-        let input = r###"
-x
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
+    fn test_parse_doc_maybe_returns_some() {
+        let test = TestParse::new("/// doc");
+        let mut parser = test.parser();
         let maybe_doc = parser.eat_doc_maybe().unwrap();
-        assert!(maybe_doc.is_none());
+        assert!(maybe_doc.is_some());
+        let doc_id = maybe_doc.unwrap();
+        assert_node!(parser.tree, doc_id, Doc { string } => {
+            assert_eq!(*string, parser.strings.intern("/// doc"));
+        });
     }
 
-    /// Merge mixed successive doc comments (line + block + line)
     #[test]
     fn test_merge_mixed_doc_comments() {
-        let input = r###"
-/// A
-/** B */
-/// C
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
-
-        // /// A + /** B */ + /// C
+        let test = TestParse::new("/// A\n/** B */\n/// C");
+        let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
-        let doc = parser.tree.get(doc_id);
-        assert_eq!(doc.string, parser.strings.intern("/// A\n/** B */\n/// C"));
+        assert_node!(parser.tree, doc_id, Doc { string } => {
+            assert_eq!(*string, parser.strings.intern("/// A\n/** B */\n/// C"));
+        });
     }
 }

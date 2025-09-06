@@ -75,8 +75,7 @@ impl<'a> Parser<'a> {
             }
             // tuple
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                // eat parens, foward implicit tuple
-                self.eat_token(TokenType::OpenParenthesis)?;
+                self.bump(); // eat open parenthesis
                 let fields = self.eat_pattern_field_body(TokenType::Comma, None)?;
                 let pattern = Pattern::Tuple { fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
@@ -118,6 +117,7 @@ impl<'a> Parser<'a> {
         }
         // union
         else if self.peek_token(TokenType::BitwiseOr).is_ok() && !ignore_implicit {
+            // eat all union "fields" (just unnamed patterns)
             let mut fields: Vec<NodeId<Pattern>> = vec![pattern_id];
             while self.peek_token(TokenType::BitwiseOr).is_ok() {
                 self.bump(); // eat '|'
@@ -196,139 +196,113 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{Mutability, Parser, Pattern, PatternField, ScalarLiteral};
+    use crate::parse::tests::TestParse;
+    use crate::{IntType, Mutability, Pattern, PatternField, ScalarLiteral, assert_node};
 
     #[test]
     fn test_parse_pattern_wildcard() {
-        let input = "_";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        // _
+        let test = TestParse::new("_");
+        let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
-        assert_eq!(parser.tree.get(pattern_id), &Pattern::Wildcard);
+        assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
     }
 
     #[test]
     fn test_parse_pattern_rest() {
-        let input = "..";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        // ..
+        let test = TestParse::new("..");
+        let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
-        assert_eq!(parser.tree.get(pattern_id), &Pattern::Rest);
+        assert_node!(parser.tree, pattern_id, Pattern::Rest);
     }
 
     #[test]
     fn test_parse_pattern_pointer() {
         // *var _
-        let input = "*var _";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("*var _");
+        let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
-        match parser.tree.get(pattern_id) {
+        // *
+        assert_node!(parser.tree, pattern_id,
             Pattern::Pointer { mutability, target } => {
+                // var
                 assert_eq!(*mutability, Mutability::Mutable);
-                assert_eq!(parser.tree.get(*target), &Pattern::Wildcard);
+                // _
+                assert_node!(parser.tree, *target, Pattern::Wildcard)
             }
-            other => panic!("expected pointer, got {other:?}"),
-        }
+        );
 
         // *1
-        let input = "*1";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("*1");
+        let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
-        match parser.tree.get(pattern_id) {
-            Pattern::Pointer { mutability, target } => {
-                assert_eq!(*mutability, Mutability::Immutable);
-                match parser.tree.get(*target) {
-                    Pattern::Literal(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                        _ => panic!("expected integer literal"),
-                    },
-                    _ => panic!("expected literal pattern"),
-                }
-            }
-            other => panic!("expected pointer, got {other:?}"),
-        }
+        // *
+        assert_node!(parser.tree, pattern_id, Pattern::Pointer { mutability, target } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            // 1
+            assert_node!(parser.tree, *target, Pattern::Literal(literal) => {
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }))
+            });
+        })
     }
 
     #[test]
     fn test_parse_pattern_tuple() {
-        let input = "(x: 1, 2, ..)";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        // (x: 1, 2, ..)
+        let test = TestParse::new("(x: 1, 2, ..)");
+        let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
-        match parser.tree.get(pattern_id) {
-            Pattern::Tuple { fields } => {
-                assert_eq!(fields.len(), 3);
 
-                // x: 1
-                match parser.tree.get(fields[0]) {
-                    PatternField::Named {
-                        name,
-                        pattern: Some(pattern),
-                    } => {
-                        assert_eq!(*name, parser.strings.intern("x"));
-                        match parser.tree.get(*pattern) {
-                            Pattern::Literal(lit_id) => match parser.tree.get(*lit_id) {
-                                ScalarLiteral::Integer(n, _) => assert_eq!(*n, 1),
-                                _ => panic!("expected integer literal"),
-                            },
-                            _ => panic!("expected literal pattern"),
-                        }
-                    }
-                    other => panic!("expected named field, got {other:?}"),
-                }
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
+            assert_eq!(fields.len(), 3);
 
-                // 2
-                match parser.tree.get(fields[1]) {
-                    PatternField::Positional { pattern } => match parser.tree.get(*pattern) {
-                        Pattern::Literal(lit_id) => match parser.tree.get(*lit_id) {
-                            ScalarLiteral::Integer(n, _) => assert_eq!(*n, 2),
-                            _ => panic!("expected integer literal"),
-                        },
-                        _ => panic!("expected literal pattern"),
-                    },
-                    other => panic!("expected positional field, got {other:?}"),
-                }
+            // x: 1
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
+                assert_eq!(*name, parser.strings.intern("x"));
+                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
+                });
+            });
 
-                // ..
-                match parser.tree.get(fields[2]) {
-                    PatternField::Positional { pattern } => {
-                        assert_eq!(parser.tree.get(*pattern), &Pattern::Rest)
-                    }
-                    other => panic!("expected positional field, got {other:?}"),
-                }
-            }
-            other => panic!("expected tuple pattern, got {other:?}"),
-        }
+            // 2
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2, IntType { width: 32, is_signed: true }));
+                });
+            });
+
+            // ..
+            assert_node!(parser.tree, fields[2], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Rest);
+            });
+        });
     }
 
     #[test]
     fn test_parse_pattern_union() {
-        let input = "1 | 2 | 3";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        // 1 | 2 | 3
+        let test = TestParse::new("1 | 2 | 3");
+        let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
-        match parser.tree.get(pattern_id) {
-            Pattern::Union { fields } => {
-                assert_eq!(fields.len(), 3);
-                let mut expect = 1;
-                for field_id in fields.iter() {
-                    match parser.tree.get(*field_id) {
-                        Pattern::Literal(lit_id) => match parser.tree.get(*lit_id) {
-                            ScalarLiteral::Integer(n, _) => {
-                                assert_eq!(*n, expect);
-                                expect += 1;
-                            }
-                            _ => panic!("expected integer literal"),
-                        },
-                        other => panic!("expected literal pattern, got {other:?}"),
-                    }
-                }
-            }
-            other => panic!("expected union pattern, got {other:?}"),
-        }
+
+        assert_node!(parser.tree, pattern_id, Pattern::Union { fields } => {
+            assert_eq!(fields.len(), 3);
+
+            // 1
+            assert_node!(parser.tree, fields[0], Pattern::Literal(literal) => {
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
+            });
+
+            // 2
+            assert_node!(parser.tree, fields[1], Pattern::Literal(literal) => {
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2, IntType { width: 32, is_signed: true }));
+            });
+
+            // 3
+            assert_node!(parser.tree, fields[2], Pattern::Literal(literal) => {
+                assert_node!(parser.tree, *literal, ScalarLiteral::Integer(3, IntType { width: 32, is_signed: true }));
+            });
+        });
     }
 }

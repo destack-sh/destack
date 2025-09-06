@@ -65,116 +65,135 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{Expression, If, Parser, ScalarLiteral};
+    use crate::parse::tests::TestParse;
+    use crate::{Block, Expression, If, assert_bool, assert_node};
 
     #[test]
     fn test_parse_if_basic() {
-        let input = "if true {}";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("if true {}");
+        let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
-        match parser.tree.get(if_id) {
-            If::If {
-                condition,
-                then_block,
-            } => {
-                // condition is boolean true
-                match parser.tree.get(*condition) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Boolean(b) => assert!(*b),
-                        other => panic!("expected boolean true, got {other:?}"),
-                    },
-                    other => panic!("expected scalar literal, got {other:?}"),
-                }
-                let block = parser.tree.get(*then_block);
-                assert!(block.statements.is_empty());
-            }
-            _ => panic!("expected simple if variant"),
-        }
+        assert_node!(parser.tree, if_id, If::If { condition, then_block } => {
+            // condition is boolean true
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
+                assert_bool!(parser.tree, *lit_id, true);
+            });
+            // empty then block
+            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+                assert!(label.is_none());
+                assert!(statements.is_empty());
+            });
+        });
     }
 
     #[test]
     fn test_parse_if_else() {
-        let input = "if false {} else {}";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("if false {} else {}");
+        let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
-        match parser.tree.get(if_id) {
-            If::IfElse {
-                condition,
-                then_block,
-                else_block,
-            } => {
-                // condition is boolean false
-                match parser.tree.get(*condition) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Boolean(b) => assert!(!*b),
-                        other => panic!("expected boolean false, got {other:?}"),
-                    },
-                    other => panic!("expected scalar literal, got {other:?}"),
-                }
-                let then_b = parser.tree.get(*then_block);
-                assert!(then_b.statements.is_empty());
-                let else_b = parser.tree.get(*else_block);
-                assert!(else_b.statements.is_empty());
-            }
-            _ => panic!("expected if-else variant"),
-        }
+        assert_node!(parser.tree, if_id, If::IfElse { condition, then_block, else_block } => {
+            // condition is boolean false
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
+                assert_bool!(parser.tree, *lit_id, false);
+            });
+            // empty then block
+            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+                assert!(label.is_none());
+                assert!(statements.is_empty());
+            });
+            // empty else block
+            assert_node!(parser.tree, *else_block, Block { statements, label } => {
+                assert!(label.is_none());
+                assert!(statements.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_else_if() {
+        let test = TestParse::new("if true {} else if false {}");
+        let mut parser = test.parser();
+
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+            // condition is boolean true
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
+                assert_bool!(parser.tree, *lit_id, true);
+            });
+            // empty then block
+            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+                assert!(label.is_none());
+                assert!(statements.is_empty());
+            });
+            // nested else-if should be simple If
+            assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then } => {
+                assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
+                    assert_bool!(parser.tree, *lit_id, false);
+                });
+                assert_node!(parser.tree, *inner_then, Block { statements, label } => {
+                    assert!(label.is_none());
+                    assert!(statements.is_empty());
+                });
+            });
+        });
     }
 
     #[test]
     fn test_parse_if_else_if_else() {
-        let input = "if true {} else if false {} else {}";
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+        let test = TestParse::new("if true {} else if false {} else {}");
+        let mut parser = test.parser();
 
-        let top_if_id = parser.eat_if().unwrap();
-        // top: IfElseIf
-        match parser.tree.get(top_if_id) {
-            If::IfElseIf {
-                condition,
-                then_block,
-                else_if,
-            } => {
-                // top condition is boolean true
-                match parser.tree.get(*condition) {
-                    Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                        ScalarLiteral::Boolean(b) => assert!(*b),
-                        other => panic!("expected boolean true, got {other:?}"),
-                    },
-                    other => panic!("expected scalar literal, got {other:?}"),
-                }
-                let then_b = parser.tree.get(*then_block);
-                assert!(then_b.statements.is_empty());
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+            // condition is boolean true
+            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
+                assert_bool!(parser.tree, *lit_id, true);
+            });
+            // empty then block
+            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+                assert!(label.is_none());
+                assert!(statements.is_empty());
+            });
+            // nested else-if should become IfElse with final else
+            assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else } => {
+                assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
+                    assert_bool!(parser.tree, *lit_id, false);
+                });
+                assert_node!(parser.tree, *inner_then, Block { statements, label } => {
+                    assert!(label.is_none());
+                    assert!(statements.is_empty());
+                });
+                assert_node!(parser.tree, *inner_else, Block { statements, label } => {
+                    assert!(label.is_none());
+                    assert!(statements.is_empty());
+                });
+            });
+        });
+    }
 
-                // nested else-if should become IfElse with final else
-                match parser.tree.get(*else_if) {
-                    If::IfElse {
-                        condition: inner_condition,
-                        then_block: inner_then,
-                        else_block: inner_else,
-                    } => {
-                        // inner condition is boolean false
-                        match parser.tree.get(*inner_condition) {
-                            Expression::ScalarLiteral(lit_id) => match parser.tree.get(*lit_id) {
-                                ScalarLiteral::Boolean(b) => assert!(!*b),
-                                other => panic!("expected boolean false, got {other:?}"),
-                            },
-                            other => panic!("expected scalar literal, got {other:?}"),
-                        }
-                        let inner_then_b = parser.tree.get(*inner_then);
-                        assert!(inner_then_b.statements.is_empty());
-                        let inner_else_b = parser.tree.get(*inner_else);
-                        assert!(inner_else_b.statements.is_empty());
-                    }
-                    other => panic!("expected nested IfElse, got {other:?}"),
-                }
-            }
-            _ => panic!("expected top-level IfElseIf variant"),
-        }
+    #[test]
+    fn test_parse_if_with_expression_condition() {
+        let test = TestParse::new(
+            r###"
+if x > 0 {
+    print("positive")
+}
+"###,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, If::If { condition, then_block } => {
+            // condition is binary expression x > 0
+            assert_node!(parser.tree, *condition, Expression::Binary { lhs: _, operator: _, rhs: _ });
+            // then block has one statement
+            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+                assert!(label.is_none());
+                assert_eq!(statements.len(), 1);
+            });
+        });
     }
 }

@@ -69,120 +69,116 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
-
-    use crate::{Parser, PrimitiveType, TupleField, Type};
+    use crate::parse::tests::TestParse;
+    use crate::{PrimitiveType, Tuple, TupleField, Type, assert_node};
 
     #[test]
-    fn test_tuple_positional_simple() {
-        let input = r#"
-(int32)
-"#;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
+    fn test_parse_tuple_positional_single() {
+        let test = TestParse::new("(int32)");
+        let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
-        let tuple = parser.tree.get(tuple_id);
-        assert_eq!(tuple.elements.len(), 1);
-        match parser.tree.get(tuple.elements[0]) {
-            TupleField::Positional { r#type } => match parser.tree.get(*r#type) {
-                Type::Primitive(PrimitiveType::Int(int_ty)) => {
+
+        assert_node!(parser.tree, tuple_id, Tuple { elements } => {
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], TupleField::Positional { r#type } => {
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                     assert_eq!(int_ty.width, 32);
                     assert!(int_ty.is_signed);
-                }
-                _ => panic!("expected primitive int type"),
-            },
-            _ => panic!("expected positional tuple field"),
-        }
+                });
+            });
+        });
     }
 
     #[test]
-    fn test_tuple_positional_two_elements_comma() {
-        let input = r###"
-(int32, boolean)
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
+    fn test_parse_tuple_positional_two_elements_comma() {
+        let test = TestParse::new("(int32, boolean)");
+        let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
-        let tuple = parser.tree.get(tuple_id);
-        assert_eq!(tuple.elements.len(), 2);
 
-        // int32
-        match parser.tree.get(tuple.elements[0]) {
-            TupleField::Positional { r#type } => match parser.tree.get(*r#type) {
-                Type::Primitive(PrimitiveType::Int(int_ty)) => {
+        assert_node!(parser.tree, tuple_id, Tuple { elements } => {
+            assert_eq!(elements.len(), 2);
+
+            // int32
+            assert_node!(parser.tree, elements[0], TupleField::Positional { r#type } => {
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                     assert_eq!(int_ty.width, 32);
                     assert!(int_ty.is_signed);
-                }
-                _ => panic!("expected primitive int type"),
-            },
-            _ => panic!("expected positional tuple field"),
-        }
+                });
+            });
 
-        // boolean
-        match parser.tree.get(tuple.elements[1]) {
-            TupleField::Positional { r#type } => match parser.tree.get(*r#type) {
-                Type::Primitive(PrimitiveType::Boolean) => {}
-                _ => panic!("expected boolean"),
-            },
-            _ => panic!("expected positional tuple field"),
-        }
+            // boolean
+            assert_node!(parser.tree, elements[1], TupleField::Positional { r#type } => {
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+            });
+        });
     }
 
     #[test]
-    fn test_tuple_positional_newline_separated() {
-        let input = r###"
+    fn test_parse_tuple_positional_newline_separated() {
+        let test = TestParse::new(
+            r###"
 (
   int32
   boolean
 )
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
+"###,
+        );
+        let mut parser = test.parser();
         parser.eat_newline().unwrap();
+
         let tuple_id = parser.eat_tuple().unwrap();
-        let tuple = parser.tree.get(tuple_id);
-        assert_eq!(tuple.elements.len(), 2);
+        assert_node!(parser.tree, tuple_id, Tuple { elements } => {
+            assert_eq!(elements.len(), 2);
+
+            // int32
+            assert_node!(parser.tree, elements[0], TupleField::Positional { r#type } => {
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
+                    assert_eq!(int_ty.width, 32);
+                    assert!(int_ty.is_signed);
+                });
+            });
+
+            // boolean
+            assert_node!(parser.tree, elements[1], TupleField::Positional { r#type } => {
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+            });
+        });
     }
 
     #[test]
-    fn test_tuple_named_elements() {
-        let input = r###"
-(x: int32, y: boolean)
-"###;
-        let tokens = tokenize_semantic(input);
-        let mut parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        parser.eat_newline().unwrap();
+    fn test_parse_tuple_named_elements() {
+        let test = TestParse::new("(x: int32, y: boolean)");
+        let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
-        let tuple = parser.tree.get(tuple_id);
-        assert_eq!(tuple.elements.len(), 2);
 
-        // x: int32
-        match parser.tree.get(tuple.elements[0]) {
-            TupleField::Named { name, r#type } => {
+        assert_node!(parser.tree, tuple_id, Tuple { elements } => {
+            assert_eq!(elements.len(), 2);
+
+            // x: int32
+            assert_node!(parser.tree, elements[0], TupleField::Named { name, r#type } => {
                 assert_eq!(*name, parser.strings.intern("x"));
-                match parser.tree.get(*r#type) {
-                    Type::Primitive(PrimitiveType::Int(int_ty)) => {
-                        assert_eq!(int_ty.width, 32);
-                        assert!(int_ty.is_signed);
-                    }
-                    _ => panic!("expected primitive int type"),
-                }
-            }
-            _ => panic!("expected named tuple field"),
-        }
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
+                    assert_eq!(int_ty.width, 32);
+                    assert!(int_ty.is_signed);
+                });
+            });
 
-        // y: boolean
-        match parser.tree.get(tuple.elements[1]) {
-            TupleField::Named { name, r#type } => {
+            // y: boolean
+            assert_node!(parser.tree, elements[1], TupleField::Named { name, r#type } => {
                 assert_eq!(*name, parser.strings.intern("y"));
-                match parser.tree.get(*r#type) {
-                    Type::Primitive(PrimitiveType::Boolean) => {}
-                    _ => panic!("expected boolean"),
-                }
-            }
-            _ => panic!("expected named tuple field"),
-        }
+                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_tuple_empty() {
+        let test = TestParse::new("()");
+        let mut parser = test.parser();
+        let tuple_id = parser.eat_tuple().unwrap();
+
+        assert_node!(parser.tree, tuple_id, Tuple { elements } => {
+            assert_eq!(elements.len(), 0);
+        });
     }
 }
