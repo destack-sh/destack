@@ -219,9 +219,9 @@ impl Order {
 
         match (a, b) {
             (None, None) => Ok(Order::from_head_and_slice(0, ORDER_KEY_ZERO)),
-            (Some(lhs), None) => {
+            (Some(left), None) => {
                 // pure append → head+1, empty tail
-                Ok(Order::from_head_and_slice(lhs.head().wrapping_add(1), &[]))
+                Ok(Order::from_head_and_slice(left.head().wrapping_add(1), &[]))
             }
             (None, Some(rhs)) => {
                 if rhs.head() > 0 {
@@ -239,8 +239,8 @@ impl Order {
                     Ok(Order::from_head_and_vec(0, t))
                 }
             }
-            (Some(lhs), Some(rhs)) => {
-                let lh = lhs.head();
+            (Some(left), Some(rhs)) => {
+                let lh = left.head();
                 let rh = rhs.head();
                 if lh + 1 < rh {
                     // plenty of integer space → midpoint head, empty tail
@@ -248,9 +248,9 @@ impl Order {
                     Ok(Order::from_head_and_slice(mid, &[]))
                 } else if lh == rh {
                     // same head → tail midpoint
-                    let ltail = lhs.tail();
+                    let ltail = left.tail();
                     let rtail = rhs.tail();
-                    let lt = if lhs.tail_is_empty() {
+                    let lt = if left.tail_is_empty() {
                         None
                     } else {
                         Some(ltail.as_slice())
@@ -263,16 +263,16 @@ impl Order {
                     let t =
                         tail_between_capped(lt, rt, ORDER_TAIL_INLINE_LENGTH).ok_or_else(|| {
                             OrderError::InvalidComparison {
-                                a: lhs.to_hex(),
+                                a: left.to_hex(),
                                 b: rhs.to_hex(),
                             }
                         })?;
                     Ok(Order::from_head_and_vec(lh, t))
                 } else {
                     // consecutive heads (lh + 1 == rh)
-                    // try lhs head side first, if no space due to cap, try rhs side
-                    let ltail = lhs.tail();
-                    let lt = if lhs.tail_is_empty() {
+                    // try left head side first, if no space due to cap, try rhs side
+                    let ltail = left.tail();
+                    let lt = if left.tail_is_empty() {
                         None
                     } else {
                         Some(ltail.as_slice())
@@ -288,7 +288,7 @@ impl Order {
                         };
                         let t = tail_between_capped(None, rt, ORDER_TAIL_INLINE_LENGTH)
                             .ok_or_else(|| OrderError::InvalidComparison {
-                                a: lhs.to_hex(),
+                                a: left.to_hex(),
                                 b: rhs.to_hex(),
                             })?;
                         Ok(Order::from_head_and_vec(rh, t))

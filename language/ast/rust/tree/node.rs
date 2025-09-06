@@ -237,7 +237,7 @@ pub enum Expression {
     /// Unary operation (prefix as Expression).
     Unary {
         operator: UnaryOperator,
-        rhs: NodeId<Expression>,
+        right: NodeId<Expression>,
     },
     /// Index access (postfix as an Expression, see Index).
     Index(NodeId<Index>),
@@ -247,15 +247,15 @@ pub enum Expression {
     Cast(NodeId<Cast>),
     /// Binary operation (infix between Expressions, see BinaryOperator).
     Binary {
-        lhs: NodeId<Expression>,
+        left: NodeId<Expression>,
         operator: BinaryOperator,
-        rhs: NodeId<Expression>,
+        right: NodeId<Expression>,
     },
     /// Assignment operation (infix as an Expression, see AssignOperator).
     Assign {
-        lhs: NodeId<Expression>,
+        left: NodeId<Expression>,
         operator: AssignOperator,
-        rhs: NodeId<Expression>,
+        right: NodeId<Expression>,
     },
 
     /// Error placeholder.
@@ -382,7 +382,7 @@ pub struct Enum {
     /// The type of the union (if explicitly specified).
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
-    pub fields: Vec<NodeId<UnionField>>,
+    pub fields: Vec<NodeId<EnumField>>,
 }
 
 impl Node for Enum {

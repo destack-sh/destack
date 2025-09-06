@@ -2,7 +2,7 @@
 
 use destack_language_token::TokenType;
 
-use crate::{Enum, Keyword, NodeId, ParseResult, Parser, Type, UnionField};
+use crate::{Enum, EnumField, Keyword, NodeId, ParseResult, Parser, Type};
 
 impl<'a> Parser<'a> {
     /// Eat an enum declaration.
@@ -80,8 +80,8 @@ impl<'a> Parser<'a> {
         }
 
         // parse first field
-        let mut fields: Vec<NodeId<UnionField>> = Vec::new();
-        let first_field = self.eat_enum_field_as_union_field()?;
+        let mut fields: Vec<NodeId<EnumField>> = Vec::new();
+        let first_field = self.eat_enum_field()?;
         fields.push(first_field);
 
         // parse more fields while comma/newline separated
@@ -90,7 +90,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
-            let field = self.eat_enum_field_as_union_field()?;
+            let field = self.eat_enum_field()?;
             fields.push(field);
         }
 
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
-    fn eat_enum_field_as_union_field(&mut self) -> ParseResult<NodeId<UnionField>> {
+    fn eat_enum_field(&mut self) -> ParseResult<NodeId<EnumField>> {
         let start = self.mark();
         let name = self.eat_identifier()?;
 
@@ -118,14 +118,9 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let field_id = self.tree.allocate(
-            UnionField {
-                name,
-                r#type: None,
-                value,
-            },
-            self.get_span_from(start),
-        );
+        let field_id = self
+            .tree
+            .allocate(EnumField { name, value }, self.get_span_from(start));
         Ok(field_id)
     }
 }
@@ -133,7 +128,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParse;
-    use crate::{Enum, Expression, PrimitiveType, Type, UnionField, assert_int, assert_node};
+    use crate::{Enum, EnumField, Expression, PrimitiveType, Type, assert_int, assert_node};
 
     #[test]
     fn test_parse_enum_anonymous_simple() {
@@ -155,16 +150,14 @@ enum {
             assert_eq!(fields.len(), 2);
 
             // Success
-            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
+            assert_node!(parser.tree, fields[0], EnumField { name, value } => {
                 assert_eq!(*name, parser.strings.intern("Success"));
-                assert!(r#type.is_none());
                 assert!(value.is_none());
             });
 
             // Failure
-            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
+            assert_node!(parser.tree, fields[1], EnumField { name, value } => {
                 assert_eq!(*name, parser.strings.intern("Failure"));
-                assert!(r#type.is_none());
                 assert!(value.is_none());
             });
         });
@@ -199,18 +192,16 @@ enum(uint8) Foo {
             assert_eq!(fields.len(), 2);
 
             // Baz = 1
-            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
+            assert_node!(parser.tree, fields[0], EnumField { name, value } => {
                 assert_eq!(*name, parser.strings.intern("Baz"));
-                assert!(r#type.is_none());
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                     assert_int!(parser.tree, *literal_id, 1);
                 });
             });
 
             // Qux = 2
-            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
+            assert_node!(parser.tree, fields[1], EnumField { name, value } => {
                 assert_eq!(*name, parser.strings.intern("Qux"));
-                assert!(r#type.is_none());
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                     assert_int!(parser.tree, *literal_id, 2);
                 });

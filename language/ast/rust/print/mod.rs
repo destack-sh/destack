@@ -1,5 +1,5 @@
-mod dump;
+mod dumper;
 mod printer;
 
-pub use dump::*;
+pub use dumper::*;
 pub use printer::*;

@@ -21,9 +21,7 @@ pub struct NodeId<T: Node> {
 
 impl<T: Node> Debug for NodeId<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeId")
-            .field("id", &self.id)
-            .finish()
+        f.debug_struct("NodeId").field("id", &self.id).finish()
     }
 }
 
@@ -243,7 +241,7 @@ impl NodeTree {
     }
 
     /// Get a mutable reference to the node with the given NodeId.
-    pub fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
+    pub(crate) fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
     where
         T: Node,
         Self: NodeTreeStore<T>,
@@ -262,25 +260,11 @@ impl NodeTree {
     }
 
     /// Set the span for a node.
-    pub fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
+    pub(crate) fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
     where
         T: Node,
     {
         self.spans_per_node[node_id.id as usize] = span;
-    }
-
-    /// Set documentation for a node.
-    pub fn set_doc<T>(&mut self, node_id: NodeId<T>, doc: NodeId<Doc>)
-    where
-        T: Node,
-        Self: NodeTreeStore<T>,
-    {
-        let local_id = self.local_id_by_node[node_id.id as usize];
-        debug_assert!(
-            self.docs_per_node[local_id as usize].is_none(),
-            "documentation already set for node"
-        );
-        self.docs_per_node[local_id as usize] = Some(doc);
     }
 }
 
