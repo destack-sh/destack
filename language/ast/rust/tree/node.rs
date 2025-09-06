@@ -194,10 +194,9 @@ pub enum Expression {
     Implement(NodeId<Implement>),
     /// Function definition (used as an Expression, see Function).
     Function(NodeId<Function>),
-
+    
     /// Let or var binding (as an Expression, see Let).
     Let(NodeId<Let>),
-
     /// A Block is a block of statements (used as an Expression, see Block).
     Block(NodeId<Block>),
     /// An If is an if/then/else expression (as an Expression, see If).

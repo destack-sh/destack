@@ -4,11 +4,7 @@ use std::marker::PhantomData;
 use destack_language_token::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Continue, Defer, Doc, Enum, EnumField,
-    Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase,
-    Module, Node, NodeType, Parameter, Pattern, PatternField, Return, ScalarLiteral, Statement,
-    Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
-    UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -91,6 +87,7 @@ pub struct NodeTree {
     arguments: NodeArena<Argument>,
     // literals
     scalar_literals: NodeArena<ScalarLiteral>,
+    range_literals: NodeArena<RangeLiteral>,
     array_literals: NodeArena<ArrayLiteral>,
     tuple_literals: NodeArena<TupleLiteral>,
     struct_literals: NodeArena<StructLiteral>,
@@ -177,6 +174,7 @@ impl NodeTree {
             arguments: NodeArena::new(),
             // literals
             scalar_literals: NodeArena::new(),
+            range_literals: NodeArena::new(),
             array_literals: NodeArena::new(),
             tuple_literals: NodeArena::new(),
             struct_literals: NodeArena::new(),
@@ -415,6 +413,7 @@ impl_node_tree_stores! {
     Argument => arguments,
     // literals
     ScalarLiteral => scalar_literals,
+    RangeLiteral => range_literals,
     ArrayLiteral => array_literals,
     TupleLiteral => tuple_literals,
     StructLiteral => struct_literals,
