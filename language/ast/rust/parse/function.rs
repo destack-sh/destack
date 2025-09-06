@@ -3,7 +3,7 @@
 use destack_language_token::TokenType;
 
 use crate::{
-    Function, FunctionRuntime, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser,
+    Function, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser, Runtime,
     SelfParameter,
 };
 
@@ -69,9 +69,9 @@ impl<'a> Parser<'a> {
         // runtime
         let runtime = if self.peek_token(TokenType::At).is_ok() {
             self.eat_token(TokenType::At)?;
-            FunctionRuntime::Static
+            Runtime::Static
         } else {
-            FunctionRuntime::Dynamic
+            Runtime::Dynamic
         };
 
         // name
@@ -175,7 +175,7 @@ impl<'a> Parser<'a> {
             Function {
                 name,
                 runtime,
-                // todo!: support lambda function style
+                // todo!: support lambda function style (same postfix problem as with struct literals?)
                 style: FunctionStyle::Function,
                 with,
                 static_parameters,

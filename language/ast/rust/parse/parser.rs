@@ -136,8 +136,8 @@ impl<'a> Parser<'a> {
     /// Bump the Token position.
     #[inline]
     pub fn bump(&mut self) {
+        debug_assert!(self.pos < self.tokens.len(), "bump past end of tokens");
         self.pos += 1;
-        debug_assert!(self.pos <= self.tokens.len(), "bump past end of tokens");
     }
 
     /// Peek the next token.

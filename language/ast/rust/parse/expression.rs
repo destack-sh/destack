@@ -4,7 +4,7 @@ use destack_language_token::TokenType;
 
 use crate::{
     AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, OperatorPrecedence,
-    ParseError, ParseResult, Parser, UnaryOperator,
+    ParseError, ParseResult, Parser, Runtime, UnaryOperator,
 };
 
 impl BinaryOperator {
@@ -399,6 +399,15 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
+        // runtime
+        // (not a unary prefix, just gets merged into relevant expression)
+        let runtime: Runtime = if self.peek_token(TokenType::At).is_ok() {
+            self.bump(); // eat @
+            Runtime::Static
+        } else {
+            Runtime::Dynamic
+        };
+
         let mut left_expression_id: NodeId<Expression> = {
             //
             // ------------------------------------------------------------
@@ -560,7 +569,7 @@ impl<'a> Parser<'a> {
                 let tuple_literal = self.eat_tuple_literal()?;
                 let expression = Expression::TupleLiteral(tuple_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
-            // todo!: parse struct literals/patterns (postfix to avoid unbounded lookahead?)
+            // todo!: parse struct literals/patterns (postfix to avoid unbounded lookahead?, see lambdas)
             // scalar
             } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
@@ -594,7 +603,7 @@ impl<'a> Parser<'a> {
             }
             // call
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                let call_id = self.eat_call_postfix(left_expression_id)?;
+                let call_id = self.eat_call_postfix(left_expression_id, runtime)?;
                 let expression = Expression::Call(call_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
@@ -637,7 +646,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParse;
-    use crate::{BinaryOperator, Call, Expression, assert_node, assert_path};
+    use crate::{BinaryOperator, Call, Expression, Runtime, assert_node, assert_path};
 
     /// Addition is left associative.
     /// a + b + c
@@ -1034,52 +1043,82 @@ mod tests {
     }
 
     /// Postfix call has higher precedence than addition.
-    /// a() + b
-    /// => (a() + b)
+    /// Static calls are right associative.
+    /// a() + @b() / c
+    /// => ((a()) + ((@b()) / c))
     #[test]
     fn test_precedence_postfix_call_before_add() {
-        let test = TestParse::new("a() + b");
+        let test = TestParse::new("a() + @b() / c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
+        let c = parser.strings.intern("c");
 
         assert_node!(
             parser.tree,
             expr_id,
-            // (a() + b)
+            // ((a()) + ((@b()) / b))
             Expression::Binary { lhs, operator, rhs } => {
                 // +
                 assert_eq!(*operator, BinaryOperator::Add);
+                // (a())
                 assert_node!(
                     parser.tree,
                     *lhs,
                     // a()
                     Expression::Call(call_id) => {
-                        let call = parser.tree.get(*call_id);
-                        let Call {
-                            receiver,
-                            static_arguments,
-                            dynamic_arguments,
-                            ..
-                        } = call;
-                        assert!(static_arguments.is_none());
-                        assert!(dynamic_arguments.is_empty());
-                        // a
-                        assert_path!(parser.tree, *receiver, a, using |path_id| {
-                            let p = parser.paths.get(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
+                        assert_node!(
+                            parser.tree,
+                            *call_id,
+                            Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                assert_eq!(*runtime, Runtime::Dynamic);
+                                // a
+                                assert_path!(parser.tree, *receiver, a, using |path_id| {
+                                    let path = parser.paths.get(path_id);
+                                    assert_eq!(path.segments.len(), 1);
+                                    path.segments[0]
+                                });
+                            }
+                        );
+                    }
+                );
+                // ((@b()) / c)
+                assert_node!(
+                    parser.tree,
+                    *rhs,
+                    Expression::Binary { lhs, operator, rhs } => {
+                        // /
+                        assert_eq!(*operator, BinaryOperator::Divide);
+                        // (@b())
+                        assert_node!(
+                            parser.tree,
+                            *lhs,
+                            Expression::Call(call_id) => {
+                                assert_node!(
+                                    parser.tree,
+                                    *call_id,
+                                    Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                        assert_eq!(*runtime, Runtime::Static);
+                                        // b
+                                        assert_path!(parser.tree, *receiver, b, using |path_id| {
+                                            let path = parser.paths.get(path_id);
+                                            assert_eq!(path.segments.len(), 1);
+                                            path.segments[0]
+                                        });
+                                    }
+                                );
+                            }
+                        );
+                        // c
+                        assert_path!(parser.tree, *rhs, c, using |path_id| {
+                            let path = parser.paths.get(path_id);
+                            assert_eq!(path.segments.len(), 1);
+                            path.segments[0]
                         });
                     }
                 );
-                // b
-                assert_path!(parser.tree, *rhs, b, using |path_id| {
-                    let p = parser.paths.get(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
             }
         );
     }

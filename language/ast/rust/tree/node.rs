@@ -93,6 +93,15 @@ pub enum Visibility {
     Private,
 }
 
+/// A Runtime is the evaluation context of an expression / function.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Runtime {
+    /// The dynamic runtime (regular runtime).
+    Dynamic,
+    /// The static runtime ("comptime").
+    Static,
+}
+
 /// A Mutability is the mutability of a binding (const or mutable).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Mutability {
@@ -560,17 +569,8 @@ impl Node for Implement {
     const KIND: NodeType = NodeType::Implement;
 }
 
-/// A FunctionRuntime is the runtime of a function.
-#[derive(Debug, Clone, PartialEq)]
-pub enum FunctionRuntime {
-    /// A normal function.
-    Dynamic,
-    /// A static function.
-    Static,
-}
-
 /// A FunctionStyle is the style of a function.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FunctionStyle {
     /// A normal function.
     Function,
@@ -635,7 +635,7 @@ pub struct Function {
     /// The name of the function (excluding the `@` prefix if static).
     pub name: Option<StringId>,
     /// The runtime of the function (static or dynamic).
-    pub runtime: FunctionRuntime,
+    pub runtime: Runtime,
     /// The style of the function (function or lambda).
     pub style: FunctionStyle,
     /// The static parameters to the function.
@@ -1736,7 +1736,7 @@ impl Node for Index {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     /// The runtime of the call (static or dynamic).
-    pub runtime: FunctionRuntime,
+    pub runtime: Runtime,
     /// The receiver of the call.
     pub receiver: NodeId<Expression>,
     /// The static arguments to the call `[Arg1, Arg2, ...]`.

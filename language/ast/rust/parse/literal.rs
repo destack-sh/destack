@@ -253,9 +253,7 @@ impl<'a> Parser<'a> {
             return Ok(array_literal);
         }
 
-        // parse first element
         let first_element = self.eat_expression(None)?;
-
         if self.peek_token(TokenType::Semicolon).is_ok() {
             // repeated array: [value; count]
             self.eat_token(TokenType::Semicolon)?;
@@ -304,6 +302,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_tuple_literal(&mut self) -> ParseResult<NodeId<TupleLiteral>> {
         let start = self.mark();
+
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
@@ -375,6 +374,7 @@ impl<'a> Parser<'a> {
     pub fn eat_struct_literal_body(&mut self) -> ParseResult<Vec<NodeId<FieldLiteral>>> {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
+
         let mut fields: Vec<NodeId<FieldLiteral>> = vec![];
         while self.peek_item_stop().is_ok() {
             self.eat_item_stop()?;
