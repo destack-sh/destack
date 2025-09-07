@@ -1,6 +1,6 @@
 //! Parse unions.
 
-use destack_language_token::{TokenType, clean_identifier};
+use dyst_language_token::{TokenType, clean_identifier};
 
 use crate::{
     Keyword, Let, NodeId, ParseResult, Parser, TupleField, Type, Union, UnionField, UnionStyle, Use,
@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
             }
             // consume any stop
             else if self.peek_any_stop().is_ok() {
-                self.eat_any_stop()?;
+                self.eat_any_stop_with_newlines()?;
             }
             // let
             else if self.peek_keyword(Keyword::Let).is_ok()

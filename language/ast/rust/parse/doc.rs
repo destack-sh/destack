@@ -1,4 +1,4 @@
-use destack_language_token::{TokenSpan, TokenType};
+use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{Doc, NodeId, ParseResult, Parser};
 

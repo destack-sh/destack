@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_dir"
-description = "Destack Language Dyst High-Level IR"
+name = "dyst_language_dir"
+description = "Dyst Language High-Level IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "destack_language_llvm"
+name = "dyst_language_llvm"
 description = "Destack LLVM Code Generator"
 version.workspace = true
 edition.workspace = true

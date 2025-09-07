@@ -1,7 +1,7 @@
 //! Parse identifiers.
 
-use destack_language_arena::StringId;
-use destack_language_token::{TokenSpan, TokenType};
+use dyst_language_arena::StringId;
+use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{ParseError, ParseResult, Parser};
 

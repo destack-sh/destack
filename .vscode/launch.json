@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "destack_language_token",
+      "name": "dyst_language_token",
       "type": "lldb",
       "request": "launch",
       "cargo": {

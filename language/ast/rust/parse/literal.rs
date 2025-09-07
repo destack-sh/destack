@@ -1,4 +1,4 @@
-use destack_language_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
+use dyst_language_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 use std::borrow::Cow;
 
 use crate::{
@@ -271,7 +271,7 @@ impl<'a> Parser<'a> {
             // fixed array: [elem1, elem2, elem3, ...]
             let mut elements = vec![first_element];
             while self.peek_item_stop().is_ok() {
-                self.eat_item_stop()?;
+                self.eat_item_stop_with_newlines()?;
                 if self.peek_token(TokenType::CloseBracket).is_ok() {
                     break;
                 }
@@ -321,7 +321,7 @@ impl<'a> Parser<'a> {
         // parse remaining elements separated by comma or newline, allow trailing comma
         let mut elements: Vec<NodeId<Expression>> = vec![first_element];
         while self.peek_item_stop().is_ok() {
-            self.eat_item_stop()?;
+            self.eat_item_stop_with_newlines()?;
             if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                 break;
             }
@@ -377,7 +377,7 @@ impl<'a> Parser<'a> {
 
         let mut fields: Vec<NodeId<FieldLiteral>> = vec![];
         while self.peek_item_stop().is_ok() {
-            self.eat_item_stop()?;
+            self.eat_item_stop_with_newlines()?;
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }

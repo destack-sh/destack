@@ -1,7 +1,7 @@
 //! SemanticTokens.
 
 use crate::protocol::types as lsp;
-use destack_language_token::{TokenType, tokenize};
+use dyst_language_token::{TokenType, tokenize};
 
 /// Get semantic tokens for the given text.
 pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {

@@ -1,6 +1,6 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{Call, Cast, Expression, Index, Keyword, NodeId, ParseResult, Parser, Runtime};
 

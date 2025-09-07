@@ -1,10 +1,12 @@
 //! Low-level general purpose DS lexer (adapted from rustc).
 
-use crate::{Span, TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
+use crate::{TokenSpan, is_identifier_continue, is_identifier_start, is_whitespace};
 
 use super::token::{NumberBase, RawLiteralType, RawStringError, Token, TokenType};
 use super::tokenizer::{EOF_CHAR, Tokenizer};
+
 use destack_library_unicode::UnicodeEmoji;
+use dyst_language_source::Span;
 
 /// Tokenize the input string into an Iterator of semantic and non-semantic Tokens (no Spans).
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {

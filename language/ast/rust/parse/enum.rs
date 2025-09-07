@@ -1,6 +1,6 @@
 //! Parse enums.
 
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{Enum, EnumField, Keyword, NodeId, ParseResult, Parser, Type};
 
@@ -86,7 +86,7 @@ impl<'a> Parser<'a> {
 
         // parse more fields while comma/newline separated
         while self.peek_any_stop().is_ok() {
-            self.eat_any_stop()?;
+            self.eat_any_stop_with_newlines()?;
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }

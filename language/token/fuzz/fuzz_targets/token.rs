@@ -1,6 +1,6 @@
 #![no_main]
 
-use destack_language_parse::lexer::{render_tokens, tokenize};
+use dyst_language_parse::lexer::{render_tokens, tokenize};
 use libfuzzer_sys::fuzz_target;
 
 /// Tokenize an input string in a roundtrip.

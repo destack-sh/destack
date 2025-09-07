@@ -37,7 +37,7 @@ pub fn app() -> CommandApp {
 			--string <string>  Read input from provided string
 			--no-color         Disable ANSI colors
 			--no-pager         Print directly instead of use less -R
-            --as               Parse as node type: 'module', 'expression', 'type' (default: 'expression')".to_owned()
+            --as               Parse as node type: 'module', 'expression', 'statement', 'type' (default: 'statement')".to_owned()
             ),
         )
 }

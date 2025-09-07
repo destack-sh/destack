@@ -1,4 +1,4 @@
-use destack_language_token::{TokenSpan, TokenType};
+use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{Keyword, ParseError, ParseResult, Parser};
 
@@ -45,7 +45,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_language_token::{SourceFile, tokenize_semantic};
+    use dyst_language_source::SourceFile;
+    use dyst_language_token::tokenize_semantic;
 
     use crate::{Keyword, Parser};
 

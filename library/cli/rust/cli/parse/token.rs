@@ -1,7 +1,7 @@
 use crate::cli::parse::read_parse_input;
 use crate::console::parse::CommandArguments;
 use crate::console::{console, table};
-use destack_language_token::{TokenType, tokenize_semantic};
+use dyst_language_token::{TokenType, tokenize_semantic};
 
 use super::DEFAULT_MAX_LEXEME_LEN;
 

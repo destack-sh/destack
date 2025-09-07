@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_ast"
-description = "Destack Language AST"
+name = "dyst_language_ast"
+description = "Dyst Language AST"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,8 +12,9 @@ path = "rust/lib.rs"
 doctest = false
 
 [dependencies]
-destack_language_token = { workspace = true }
-destack_language_arena = { workspace = true }
+dyst_language_source = { workspace = true }
+dyst_language_token = { workspace = true }
+dyst_language_arena = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }

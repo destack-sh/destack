@@ -6,7 +6,7 @@ impl<'a> Parser<'a> {
     /// Parse a statement (with the `;` or `\n`).
     pub fn eat_statement(&mut self) -> ParseResult<NodeId<Statement>> {
         let statement_id = self.eat_statement_body()?;
-        self.eat_statement_stop()?;
+        self.eat_statement_stop_with_newlines()?;
         Ok(statement_id)
     }
 

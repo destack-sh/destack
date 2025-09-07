@@ -1,6 +1,6 @@
 //! Parse functions and closures.
 
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{
     Function, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser, Runtime,
@@ -135,7 +135,7 @@ impl<'a> Parser<'a> {
         };
         // optional separator after self (comma or newline) before other parameters
         if self_parameter.is_some() && self.peek_item_stop().is_ok() {
-            self.eat_item_stop()?;
+            self.eat_item_stop_with_newlines()?;
         }
 
         // other parameters

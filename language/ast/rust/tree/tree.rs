@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use destack_language_token::Span;
+use dyst_language_source::Span;
 
 use crate::{
     Argument, ArrayLiteral, Block, Break, Call, Cast, Continue, Defer, Doc, Enum, EnumField,

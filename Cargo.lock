@@ -322,100 +322,11 @@ dependencies = [
 name = "destack_extension_lsp"
 version = "2025.9.2-0"
 dependencies = [
- "destack_language_ast",
- "destack_language_token",
+ "dyst_language_ast",
+ "dyst_language_token",
  "ls-types",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "destack_language_air"
-version = "2025.9.2-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_arena"
-version = "2025.9.2-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_ast"
-version = "2025.9.2-0"
-dependencies = [
- "criterion",
- "destack_language_arena",
- "destack_language_token",
- "pprof",
-]
-
-[[package]]
-name = "destack_language_cranelift"
-version = "2025.9.2-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_dir"
-version = "2025.9.2-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_llvm"
-version = "2025.9.2-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_mir"
-version = "2025.9.2-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_rust"
-version = "2025.9.2-0"
-dependencies = [
- "destack_language_ast",
- "destack_language_token",
- "destack_library_prelude",
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_token"
-version = "2025.9.2-0"
-dependencies = [
- "criterion",
- "destack_library_file",
- "destack_library_unicode",
- "pprof",
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
-name = "destack_language_vm"
-version = "2025.9.2-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
 ]
 
 [[package]]
@@ -447,9 +358,10 @@ name = "destack_library_cli"
 version = "2025.9.2-0"
 dependencies = [
  "destack_extension_lsp",
- "destack_language_ast",
- "destack_language_token",
  "destack_library_tokei",
+ "dyst_language_ast",
+ "dyst_language_source",
+ "dyst_language_token",
  "tokio",
 ]
 
@@ -672,6 +584,120 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dyst_language_air"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_arena"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_ast"
+version = "2025.9.2-0"
+dependencies = [
+ "criterion",
+ "dyst_language_arena",
+ "dyst_language_source",
+ "dyst_language_token",
+ "pprof",
+]
+
+[[package]]
+name = "dyst_language_cranelift"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_diagnostic"
+version = "2025.9.2-0"
+dependencies = [
+ "dyst_language_source",
+]
+
+[[package]]
+name = "dyst_language_dir"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_format"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_llvm"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_mir"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_rust"
+version = "2025.9.2-0"
+dependencies = [
+ "destack_library_prelude",
+ "dyst_language_ast",
+ "dyst_language_token",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_source"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_token"
+version = "2025.9.2-0"
+dependencies = [
+ "criterion",
+ "destack_library_file",
+ "destack_library_unicode",
+ "dyst_language_source",
+ "pprof",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_vm"
+version = "2025.9.2-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
 ]
 
 [[package]]

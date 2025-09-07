@@ -1,6 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use destack_language_token::tokenize_semantic;
 use destack_library_file::glob;
+use dyst_language_token::tokenize_semantic;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
@@ -43,7 +43,7 @@ fn bench_tokenize(c: &mut Criterion) {
     }
 
     // single benchmark over the whole workspace content
-    let mut group = c.benchmark_group("destack_language_token");
+    let mut group = c.benchmark_group("dyst_language_token");
     let line_count = ds_str.lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("tokenize", "all"), &ds_str, |b, input| {

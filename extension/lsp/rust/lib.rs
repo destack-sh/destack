@@ -1,4 +1,4 @@
-//! Destack Language Server library.
+//! Dyst Language Server library.
 //!
 //! Provides a synchronous stdio LSP server entrypoint and internal modules for
 //! document storage and semantic token computation.

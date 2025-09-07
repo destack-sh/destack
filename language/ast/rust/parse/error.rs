@@ -1,4 +1,4 @@
-use destack_language_token::Span;
+use dyst_language_source::Span;
 
 /// An error that can occur during parsing.
 #[derive(Debug, Clone, PartialEq)]

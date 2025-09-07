@@ -4,7 +4,7 @@ mod path_pool;
 mod session;
 mod tree;
 
-pub use destack_language_arena::{StringId, StringPool};
+pub use dyst_language_arena::{StringId, StringPool};
 pub use keyword::*;
 pub use node::*;
 pub use path_pool::*;

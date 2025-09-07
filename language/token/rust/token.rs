@@ -38,9 +38,9 @@ impl Token {
 /// Enum representing common lexeme types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenType {
-    /// A newline character.
+    /// Newline character.
     Newline,
-    /// Any non-newline whitespace character sequence.
+    /// Non-newline whitespace character sequence.
     Whitespace,
     /// Unknown/Unexpected (e.g., '№')
     Unknown,
@@ -48,21 +48,21 @@ pub enum TokenType {
     End,
 
     // comments
-    /// A line comment, e.g. `// comment` `//// comment` `//////// comment`.
+    /// Line comment, e.g. `// comment` `//// comment` `//////// comment`.
     LineComment,
-    /// A block comment, e.g. `/* comment */`
+    /// Block comment, e.g. `/* comment */`
     BlockComment,
-    /// A doc line comment with exactly three slashes, e.g. `/// doc comment` or just `///`
+    /// Doc line comment with exactly three slashes, e.g. `/// doc comment` or just `///`
     DocLineComment,
-    /// A doc block comment, e.g. `/** doc comment *//`
+    /// Doc block comment, e.g. `/** doc comment *//`
     DocBlockComment,
 
     // identifiers / literals
-    /// An identifier or keyword, e.g. `identifier` or `continue`.
+    /// Identifier or keyword, e.g. `identifier` or `continue`.
     Identifier,
-    /// An identifier that is invalid (e.g. because it contains emoji).
+    /// Identifier that is invalid (e.g. because it contains emoji).
     InvalidIdentifier,
-    /// An unknown literal prefix, like `foo#`, `foo'`, `foo"`.
+    /// Unknown literal prefix, like `foo#`, `foo'`, `foo"`.
     UnknownLiteralPrefix,
     /// "Raw" Literals, e.g. `12`, `1.0e-40`, `b"123"`.
     Literal,

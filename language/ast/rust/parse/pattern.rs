@@ -1,6 +1,6 @@
 //! Parse patterns.
 
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{Keyword, Mutability, NodeId, ParseError, ParseResult, Parser, Pattern, PatternField};
 

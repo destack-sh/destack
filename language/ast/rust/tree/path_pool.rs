@@ -5,7 +5,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::num::NonZeroU32;
 
-use destack_language_arena::StringId;
+use dyst_language_arena::StringId;
 
 /// Stable handle for an interned path.
 #[repr(transparent)]

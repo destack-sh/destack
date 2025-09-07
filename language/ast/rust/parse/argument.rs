@@ -1,5 +1,5 @@
 use crate::{Argument, NodeId, Parameter, ParseResult, Parser};
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat a parameter
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // default value
+        // = value
         let parameter = if self.peek_token(TokenType::Assign).is_ok() {
             // has default value
             self.eat_token(TokenType::Assign)?;
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
             let parameter = self.eat_parameter()?;
             parameters.push(parameter);
             if self.peek_item_stop().is_ok() {
-                self.eat_item_stop()?;
+                self.eat_item_stop_with_newlines()?;
             } else {
                 break;
             }
@@ -123,7 +123,7 @@ impl<'a> Parser<'a> {
             let argument_id = self.eat_argument()?;
             arguments.push(argument_id);
             if self.peek_item_stop().is_ok() {
-                self.eat_item_stop()?;
+                self.eat_item_stop_with_newlines()?;
             } else {
                 break;
             }

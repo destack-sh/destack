@@ -1,6 +1,6 @@
 use crate::{ParseResult, Parser, PathId};
-use destack_language_arena::StringId;
-use destack_language_token::TokenType;
+use dyst_language_arena::StringId;
+use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat a Path.
@@ -76,7 +76,7 @@ mod tests {
         );
         // ensure next token is the `.` for the group
         let next = parser.peek().unwrap();
-        assert_eq!(next.token.r#type, destack_language_token::TokenType::Dot);
+        assert_eq!(next.token.r#type, dyst_language_token::TokenType::Dot);
     }
 
     #[test]
@@ -93,9 +93,6 @@ mod tests {
         );
         // ensure next token is the `<` for the generic arguments
         let next = parser.peek().unwrap();
-        assert_eq!(
-            next.token.r#type,
-            destack_language_token::TokenType::LessThan
-        );
+        assert_eq!(next.token.r#type, dyst_language_token::TokenType::LessThan);
     }
 }
