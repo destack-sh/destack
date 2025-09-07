@@ -108,7 +108,10 @@ impl<'a> Parser<'a> {
                 None
             };
             let clause = self.tree.allocate(
-                WithClause::Declaration { target: left, alias },
+                WithClause::Declaration {
+                    target: left,
+                    alias,
+                },
                 self.get_span_from(start),
             );
             Ok(clause)

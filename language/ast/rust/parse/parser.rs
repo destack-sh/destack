@@ -27,6 +27,7 @@ pub struct Parser<'a> {
     /// The Node tree.
     pub tree: NodeTree,
 
+    // todo!: Parser Session & :Errors (with some recovery)
     /// The current position in the tokens.
     pos: usize,
 }

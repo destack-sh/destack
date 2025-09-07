@@ -176,14 +176,14 @@ impl UnaryOperator {
 
     /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
     #[inline]
-    pub fn as_token_type(&self) -> Option<TokenType> {
+    pub fn as_token_type(&self) -> TokenType {
         match self {
-            UnaryOperator::LogicalNot => Some(TokenType::Bang),
-            UnaryOperator::Negate => Some(TokenType::Subtract),
-            UnaryOperator::WrappingNegate => Some(TokenType::WrappingSubtract),
-            UnaryOperator::Dereference => Some(TokenType::Multiply),
-            UnaryOperator::Reference => Some(TokenType::BitwiseAnd),
-            UnaryOperator::BitwiseNot => Some(TokenType::BitwiseNot),
+            UnaryOperator::LogicalNot => TokenType::Bang,
+            UnaryOperator::Negate => TokenType::Subtract,
+            UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
+            UnaryOperator::Dereference => TokenType::Multiply,
+            UnaryOperator::Reference => TokenType::BitwiseAnd,
+            UnaryOperator::BitwiseNot => TokenType::BitwiseNot,
         }
     }
 }
