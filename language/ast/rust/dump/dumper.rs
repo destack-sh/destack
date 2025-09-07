@@ -23,11 +23,11 @@
 use crate::{
     Argument, ArrayLiteral, AssignOperator, BinaryOperator, Block, Break, Call, Cast, Continue,
     Defer, Doc, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, If, Implement,
-    Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree,
-    NodeTreeStore, Parameter, PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral,
-    Return, Runtime, ScalarLiteral, Statement, StringPool, Struct, StructField, StructLiteral,
-    Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use,
-    UseClause, UseItem, While, With, WithClause,
+    Index, IntType, Let, LetInitialization, Loop, Match, MatchCase, Module, Mutability, Node,
+    NodeId, NodeTree, NodeTreeStore, Parameter, PathId, PathPool, Pattern, PatternField,
+    PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, Statement, StringPool, Struct,
+    StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator,
+    Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 use dyst_language_arena::StringId;
 
@@ -458,22 +458,14 @@ impl Dump for AssignOperator {
 /// Dump a Runtime as a string.
 impl Dump for Runtime {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let runtime_str = match self {
-            Runtime::Static => "static",
-            Runtime::Dynamic => "dynamic",
-        };
-        dumper.write_str(runtime_str, Some(Color::Yellow));
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
 /// Dump a Mutability as a string.
 impl Dump for Mutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        let mutability_str = match self {
-            Mutability::Mutable => "mutable",
-            Mutability::Immutable => "immutable",
-        };
-        dumper.write_str(mutability_str, Some(Color::Yellow));
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
@@ -1200,12 +1192,27 @@ impl Dump for Try {
 // Bindings
 // ----------------------------------------------------------------------------
 
+impl Dump for LetInitialization {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::White));
+    }
+}
+
 impl Dump for Let {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Let").finish();
+        dumper
+            .node("Let")
+            .field("mutability", &self.mutability)
+            .field("initialization", &self.initialization)
+            .finish();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.pattern, Some("pattern"));
-            dumper.dump(&self.value, Some("value"));
+            dumper.dump(&self.pattern, None);
+            if let Some(r#type) = self.r#type {
+                dumper.dump(&r#type, None);
+            }
+            if let Some(value) = self.value {
+                dumper.dump(&value, None);
+            }
         });
     }
 }
