@@ -556,7 +556,7 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Literals / aliases
+            // Bindings / Literals / Aliases
             // ------------------------------------------------------------
             //
             // array
@@ -574,6 +574,13 @@ impl<'a> Parser<'a> {
             } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
                 let expression = Expression::ScalarLiteral(scalar_literal);
+                self.tree.allocate(expression, self.get_span_from(start))
+            // let
+            } else if self.peek_keyword(Keyword::Let).is_ok()
+                || self.peek_keyword(Keyword::Var).is_ok()
+            {
+                let let_id = self.eat_let_or_var()?;
+                let expression = Expression::Let(let_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             // alias / path
             } else if self.peek_identifier().is_ok() {
