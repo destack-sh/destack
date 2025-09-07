@@ -124,12 +124,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{Trait, Type, WithClause, assert_node};
 
     #[test]
     fn test_parse_trait_anonymous_empty() {
-        let test = TestParse::new("trait {}");
+        let test = TestParser::new("trait {}");
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait().unwrap();
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_parse_trait_with_name_and_supertraits() {
-        let test = TestParse::new("trait Foo: Bar, Boz {}");
+        let test = TestParser::new("trait Foo: Bar, Boz {}");
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait().unwrap();
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_parse_trait_with_members() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 trait Foo {
     let x: int32 = 4
@@ -199,7 +199,7 @@ trait Foo {
 
     #[test]
     fn test_parse_trait_with_static_parameters() {
-        let test = TestParse::new("trait Baz[T] {}");
+        let test = TestParser::new("trait Baz[T] {}");
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait().unwrap();
@@ -212,7 +212,7 @@ trait Foo {
 
     #[test]
     fn test_parse_trait_with_clause() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 trait Baz[T] with T: Copy {
     function baz() => T

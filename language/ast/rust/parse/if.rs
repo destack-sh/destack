@@ -65,12 +65,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{Block, Expression, If, assert_bool, assert_node};
 
     #[test]
     fn test_parse_if_basic() {
-        let test = TestParse::new("if true {}");
+        let test = TestParser::new("if true {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_parse_if_else() {
-        let test = TestParse::new("if false {} else {}");
+        let test = TestParser::new("if false {} else {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -113,7 +113,7 @@ mod tests {
 
     #[test]
     fn test_parse_if_else_if() {
-        let test = TestParse::new("if true {} else if false {}");
+        let test = TestParser::new("if true {} else if false {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn test_parse_if_else_if_else() {
-        let test = TestParse::new("if true {} else if false {} else {}");
+        let test = TestParser::new("if true {} else if false {} else {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_parse_if_with_expression_condition() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 if x > 0 {
     print("positive")

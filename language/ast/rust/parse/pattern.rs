@@ -196,13 +196,13 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{IntType, Mutability, Pattern, PatternField, ScalarLiteral, assert_node};
 
     #[test]
     fn test_parse_pattern_wildcard() {
         // _
-        let test = TestParse::new("_");
+        let test = TestParser::new("_");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_rest() {
         // ..
-        let test = TestParse::new("..");
+        let test = TestParser::new("..");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Rest);
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_pointer() {
         // *var _
-        let test = TestParse::new("*var _");
+        let test = TestParser::new("*var _");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
         // *
@@ -234,7 +234,7 @@ mod tests {
         );
 
         // *1
-        let test = TestParse::new("*1");
+        let test = TestParser::new("*1");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
         // *
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_tuple() {
         // (x: 1, 2, ..)
-        let test = TestParse::new("(x: 1, 2, ..)");
+        let test = TestParser::new("(x: 1, 2, ..)");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
 
@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_union() {
         // 1 | 2 | 3
-        let test = TestParse::new("1 | 2 | 3");
+        let test = TestParser::new("1 | 2 | 3");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(None).unwrap();
 

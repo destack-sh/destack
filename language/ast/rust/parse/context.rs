@@ -280,14 +280,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{
         Expression, PrimitiveType, Type, Use, UseClause, UseItem, With, WithClause, assert_node,
     };
 
     #[test]
     fn test_parse_with_type_assertion() {
-        let test = TestParse::new("with T: int32");
+        let test = TestParser::new("with T: int32");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
         // with T: int32
@@ -307,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_simple_declaration() {
-        let test = TestParse::new("with Foo");
+        let test = TestParser::new("with Foo");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
         // with Foo
@@ -324,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_aliased_declaration() {
-        let test = TestParse::new("with Foo as Bar");
+        let test = TestParser::new("with Foo as Bar");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
         // with Foo as Bar
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_path_declaration() {
-        let test = TestParse::new("with Foo.Bar");
+        let test = TestParser::new("with Foo.Bar");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
         // with Foo.Bar
@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_negated_declaration() {
-        let test = TestParse::new("with !Bar");
+        let test = TestParser::new("with !Bar");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
         // with !Bar
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn test_parse_with_multiple_clauses() {
         let input = "with !Bar, Time[float32], F: Numeric";
-        let test = TestParse::new(input);
+        let test = TestParser::new(input);
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
 
@@ -425,7 +425,7 @@ mod tests {
   Time[float32],
   F: Numeric
 )"##;
-        let test = TestParse::new(input);
+        let test = TestParser::new(input);
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
 
@@ -465,7 +465,7 @@ mod tests {
     #[test]
     fn test_parse_use_simple() {
         // use dyst
-        let test = TestParse::new("use dyst");
+        let test = TestParser::new("use dyst");
         let mut parser = test.parser();
         let use_id = parser.eat_use().unwrap();
 
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_parse_use_path() {
-        let test = TestParse::new("use dyst.geometry");
+        let test = TestParser::new("use dyst.geometry");
         let mut parser = test.parser();
         let use_id = parser.eat_use().unwrap();
         // use dyst.geometry
@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_parse_use_with_alias() {
-        let test = TestParse::new("use dyst as ds");
+        let test = TestParser::new("use dyst as ds");
         let mut parser = test.parser();
         let use_id = parser.eat_use().unwrap();
         // use dyst as ds
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_parse_use_with_items() {
-        let test = TestParse::new("use ds.geometry.{Vector2, Vector3 as V3}");
+        let test = TestParser::new("use ds.geometry.{Vector2, Vector3 as V3}");
         let mut parser = test.parser();
         let use_id = parser.eat_use().unwrap();
         // use ds.geometry.{Vector2, Vector3 as V3}
@@ -561,7 +561,7 @@ mod tests {
 
     #[test]
     fn test_parse_use_multiple_clauses() {
-        let test = TestParse::new("use dyst, dyst");
+        let test = TestParser::new("use dyst, dyst");
         let mut parser = test.parser();
         let use_id = parser.eat_use().unwrap();
         // use dyst, dyst

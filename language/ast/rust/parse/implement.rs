@@ -67,7 +67,7 @@ impl<'a> Parser<'a> {
                 } else if self.peek_token(TokenType::CloseBrace).is_ok() {
                     break;
                 } else {
-                    self.bump(); // :Error
+                    self.bump(); // :Diagnostic
                     continue;
                 }
             }

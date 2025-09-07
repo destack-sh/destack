@@ -192,12 +192,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{Function, IntType, Mutability, PrimitiveType, Type, WithClause, assert_node};
 
     #[test]
     fn test_parse_function_with_clause() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 function foo() with (
   !Bar,
@@ -268,7 +268,7 @@ function foo() with (
 
     #[test]
     fn test_parse_function_self_parameter_simple() {
-        let test = TestParse::new("function a(self) {}");
+        let test = TestParser::new("function a(self) {}");
         let mut parser = test.parser();
 
         let function_id = parser.eat_function().unwrap();
@@ -285,7 +285,7 @@ function foo() with (
 
     #[test]
     fn test_parse_function_self_parameter_pointer() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 function b(
   *self
@@ -318,7 +318,7 @@ function b(
 
     #[test]
     fn test_parse_function_self_parameter_mutable_pointer() {
-        let test = TestParse::new("function c(*var self) {}");
+        let test = TestParser::new("function c(*var self) {}");
         let mut parser = test.parser();
 
         let function_id = parser.eat_function().unwrap();

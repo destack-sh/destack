@@ -1,6 +1,5 @@
 use dyst_language_ast::{DumperOptions, Parser};
 use dyst_language_source::{SourceFile, SourceId};
-use dyst_language_token::tokenize_semantic;
 
 use crate::cli::parse::read_parse_input;
 use crate::console::console;
@@ -16,7 +15,8 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             return 1;
         }
     };
-    let file = SourceFile::new(0 as SourceId, &input, input.len() as u32);
+    let file_id = SourceId::new(0);
+    let file = SourceFile::new(file_id, input);
 
     // options
     // let use_color = !ctx.flag("no-color");
@@ -24,8 +24,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     let as_node = ctx.option("as").unwrap_or("statement");
 
     // parse
-    let tokens = tokenize_semantic(&input);
-    let mut parser = Parser::new(file, &tokens);
+    let mut parser = Parser::from_file(&file, file_id);
     let dump_options = DumperOptions::default();
     let node_str = match as_node {
         "module" => {

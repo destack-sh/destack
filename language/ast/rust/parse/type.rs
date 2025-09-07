@@ -410,14 +410,14 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{
         Argument, Expression, FloatType, IntType, Mutability, PrimitiveType, Type, assert_node,
     };
 
     #[test]
     fn test_primitive_void() {
-        let test = TestParse::new("void");
+        let test = TestParser::new("void");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_primitive_boolean() {
-        let test = TestParse::new("boolean");
+        let test = TestParser::new("boolean");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -435,7 +435,7 @@ mod tests {
 
     #[test]
     fn test_primitive_character() {
-        let test = TestParse::new("character");
+        let test = TestParser::new("character");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_primitive_int32() {
-        let test = TestParse::new("int32");
+        let test = TestParser::new("int32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_primitive_uint7() {
-        let test = TestParse::new("uint7");
+        let test = TestParser::new("uint7");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -480,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_primitive_uint0() {
-        let test = TestParse::new("uint0");
+        let test = TestParser::new("uint0");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn test_primitive_uint999() {
-        let test = TestParse::new("uint999");
+        let test = TestParser::new("uint999");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -512,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_primitive_int128() {
-        let test = TestParse::new("int128");
+        let test = TestParser::new("int128");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -528,7 +528,7 @@ mod tests {
 
     #[test]
     fn test_primitive_float32() {
-        let test = TestParse::new("float32");
+        let test = TestParser::new("float32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_primitive_float64() {
-        let test = TestParse::new("float64");
+        let test = TestParser::new("float64");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -554,7 +554,7 @@ mod tests {
 
     #[test]
     fn test_path_simple() {
-        let test = TestParse::new("geom.Vector2");
+        let test = TestParser::new("geom.Vector2");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -577,7 +577,7 @@ mod tests {
 
     #[test]
     fn test_path_with_static_arguments() {
-        let test = TestParse::new("MyMesh[false, Dims: 3]");
+        let test = TestParser::new("MyMesh[false, Dims: 3]");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_maybe_type() {
-        let test = TestParse::new("?float32");
+        let test = TestParser::new("?float32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -657,7 +657,7 @@ mod tests {
 
     #[test]
     fn test_never_type() {
-        let test = TestParse::new("!");
+        let test = TestParser::new("!");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -666,7 +666,7 @@ mod tests {
 
     #[test]
     fn test_not_type() {
-        let test = TestParse::new("!Time");
+        let test = TestParser::new("!Time");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn test_pointer_immutable() {
-        let test = TestParse::new("*Vector2");
+        let test = TestParser::new("*Vector2");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -721,7 +721,7 @@ mod tests {
 
     #[test]
     fn test_pointer_mutable() {
-        let test = TestParse::new("*var T");
+        let test = TestParser::new("*var T");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 

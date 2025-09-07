@@ -409,7 +409,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{
         ArrayLiteral, Expression, ScalarLiteral, TupleLiteral, assert_bool, assert_char,
         assert_float, assert_int, assert_node, assert_string,
@@ -418,7 +418,7 @@ mod tests {
     #[test]
     fn test_parse_integer_literals() {
         // Parse multiple integer literals including hex
-        let test = TestParse::new("1 731 0x1234");
+        let test = TestParser::new("1 731 0x1234");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     fn test_parse_float_literals() {
         // Parse scientific notation and decimal floats
-        let test = TestParse::new("10e37 1.0");
+        let test = TestParser::new("10e37 1.0");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -447,7 +447,7 @@ mod tests {
     #[test]
     fn test_parse_boolean_literals() {
         // Parse true and false literals
-        let test = TestParse::new("true false");
+        let test = TestParser::new("true false");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -460,7 +460,7 @@ mod tests {
     #[test]
     fn test_parse_character_literals() {
         // Parse character and byte literals
-        let test = TestParse::new("'a' b'a'");
+        let test = TestParser::new("'a' b'a'");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -473,7 +473,7 @@ mod tests {
     #[test]
     fn test_parse_string_literals() {
         // Parse various string literal formats including raw and byte strings
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###""Hello, world!" b"abc" r"abc" r##"a#b#c"## br"abc" br##"a#b#c"##"###,
         );
         let mut parser = test.parser();
@@ -530,7 +530,7 @@ mod tests {
     #[test]
     fn test_parse_empty_array_literal() {
         // []
-        let test = TestParse::new("[]");
+        let test = TestParser::new("[]");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
@@ -542,7 +542,7 @@ mod tests {
     #[test]
     fn test_parse_single_element_array_literal() {
         // [1, ]
-        let test = TestParse::new("[1, ]");
+        let test = TestParser::new("[1, ]");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
@@ -557,7 +557,7 @@ mod tests {
     #[test]
     fn test_parse_multi_element_array_literal() {
         // [10, false, "Hi"]
-        let test = TestParse::new(r###"[10, false, "Hi"]"###);
+        let test = TestParser::new(r###"[10, false, "Hi"]"###);
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
@@ -589,7 +589,7 @@ mod tests {
     #[test]
     fn test_parse_multiline_array_literal() {
         // Multi-line array with implicit comma separation
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"[1.0, 
      2.0
      3.0
@@ -621,7 +621,7 @@ mod tests {
     #[test]
     fn test_parse_repeated_array_literal() {
         // [0; 10]
-        let test = TestParse::new("[0; 10]");
+        let test = TestParser::new("[0; 10]");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_array_literal().unwrap();
@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn test_parse_single_element_tuple_literal() {
         // (1, )
-        let test = TestParse::new("(1, )");
+        let test = TestParser::new("(1, )");
         let mut parser = test.parser();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
@@ -653,7 +653,7 @@ mod tests {
     #[test]
     fn test_parse_multi_element_tuple_literal() {
         // (10, false, "Hi")
-        let test = TestParse::new(r###"(10, false, "Hi")"###);
+        let test = TestParser::new(r###"(10, false, "Hi")"###);
         let mut parser = test.parser();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
@@ -685,7 +685,7 @@ mod tests {
     #[test]
     fn test_parse_multiline_tuple_literal() {
         // Multi-line tuple with implicit comma separation
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"(
   1.0
   2.0

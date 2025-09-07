@@ -608,6 +608,8 @@ version = "2025.9.2-0"
 dependencies = [
  "criterion",
  "dyst_language_arena",
+ "dyst_language_diagnostic",
+ "dyst_language_session",
  "dyst_language_source",
  "dyst_language_token",
  "pprof",
@@ -667,6 +669,16 @@ dependencies = [
  "destack_library_prelude",
  "dyst_language_ast",
  "dyst_language_token",
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "dyst_language_session"
+version = "2025.9.2-0"
+dependencies = [
+ "dyst_language_diagnostic",
+ "dyst_language_source",
  "quickcheck",
  "quickcheck_macros",
 ]

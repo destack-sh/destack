@@ -1,25 +1,23 @@
-use dyst_language_source::SourceFile;
-use dyst_language_token::{TokenSpan, tokenize_semantic};
+use dyst_language_source::{SourceFile, SourceId};
 
 use crate::Parser;
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
-pub(crate) struct TestParse<'a> {
-    pub tokens: Vec<TokenSpan>,
-    pub source: SourceFile<'a>,
+pub(crate) struct TestParser {
+    pub source: SourceFile,
 }
 
-impl<'a> TestParse<'a> {
-    pub(crate) fn new(input: &'a str) -> Self {
-        let tokens = tokenize_semantic(input);
-        let source = SourceFile::new(0, input, input.len() as u32);
-        Self { tokens, source }
+impl TestParser {
+    pub(crate) fn new(input: &str) -> Self {
+        let source_id = SourceId::new(0);
+        let source = SourceFile::new(source_id, input.to_string());
+        Self { source }
     }
 
     /// Get a Parser for this test.
     pub(crate) fn parser(&self) -> Parser<'_> {
-        Parser::new(self.source.clone(), &self.tokens)
+        Parser::from_file(&self.source, self.source.path)
     }
 }
 

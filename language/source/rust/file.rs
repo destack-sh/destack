@@ -1,18 +1,27 @@
-pub type SourceId = u32;
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceId(u32);
+
+impl SourceId {
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
 
 /// A file inside the `SourceMap`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceFile<'a> {
+pub struct SourceFile {
     /// The path of the SourceFile.
     pub path: SourceId,
     /// The content of the source file.
-    pub content: &'a str,
+    pub content: String,
     /// The length of the SourceFile in bytes.
     pub len: u32,
 }
 
-impl<'a> SourceFile<'a> {
-    pub fn new(path: SourceId, content: &'a str, len: u32) -> Self {
+impl SourceFile {
+    pub fn new(path: SourceId, content: String) -> Self {
+        let len = content.len() as u32;
         Self { path, content, len }
     }
 }

@@ -6,7 +6,7 @@ use super::token::{NumberBase, RawLiteralType, RawStringError, Token, TokenType}
 use super::tokenizer::{EOF_CHAR, Tokenizer};
 
 use destack_library_unicode::UnicodeEmoji;
-use dyst_language_source::Span;
+use dyst_language_source::{SourceId, Span};
 
 /// Tokenize the input string into an Iterator of semantic and non-semantic Tokens (no Spans).
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
@@ -24,7 +24,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
 /// Tokenize the input string into an Iterator of semantic Tokens and Spans.
 /// Ignore non-semantic Tokens (Whitespace, LineComments).
 /// NOTE: DocLineComments and DocBlockComments are considered semantic.
-pub fn tokenize_semantic(input: &str) -> Vec<TokenSpan> {
+pub fn tokenize_semantic(source_id: SourceId, input: &str) -> Vec<TokenSpan> {
     let mut cursor = Tokenizer::new(input);
     let mut tokens: Vec<TokenSpan> = Vec::new();
     let mut pos = 0;
@@ -38,7 +38,11 @@ pub fn tokenize_semantic(input: &str) -> Vec<TokenSpan> {
             let end = pos + token.len;
             tokens.push(TokenSpan {
                 token,
-                span: Span { start: pos, end },
+                span: Span {
+                    file: source_id,
+                    start: pos,
+                    end,
+                },
             });
         }
         pos = pos.saturating_add(token.len);

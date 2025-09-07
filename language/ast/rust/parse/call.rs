@@ -108,7 +108,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{
         Argument, Cast, Expression, Index, IntType, PrimitiveType, Runtime, ScalarLiteral, Type,
         assert_node,
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn test_parse_index_postfix() {
         // [1]
-        let test = TestParse::new("[1]");
+        let test = TestParser::new("[1]");
         let mut parser = test.parser();
         let recv = parser
             .tree
@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_parse_call_postfix() {
         // [Validate: false](1, x: 2)
-        let test = TestParse::new("[Validate: false](1, x: 2)");
+        let test = TestParser::new("[Validate: false](1, x: 2)");
         let mut parser = test.parser();
         let recv = parser
             .tree
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn test_parse_call_postfix_empty() {
         // ()
-        let test = TestParse::new("()");
+        let test = TestParser::new("()");
         let mut parser = test.parser();
         let recv = parser
             .tree
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn test_parse_as_postfix() {
         // as int32
-        let test = TestParse::new("as int32");
+        let test = TestParser::new("as int32");
         let mut parser = test.parser();
         let recv = parser
             .tree

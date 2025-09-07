@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{
         Expression, Mutability, PrimitiveType, TupleField, Type, Union, UnionField, UnionStyle,
         assert_int, assert_node,
@@ -246,7 +246,7 @@ mod tests {
 
     #[test]
     fn test_parse_explicit_anonymous_union() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 union { A, B }
 "###,
@@ -281,7 +281,7 @@ union { A, B }
 
     #[test]
     fn test_parse_explicit_union_with_type_and_name() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 union(uint4) Foo {
     A
@@ -361,7 +361,7 @@ union(uint4) Foo {
 
     #[test]
     fn test_parse_implicit_union_simple() {
-        let test = TestParse::new("A | B");
+        let test = TestParser::new("A | B");
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
@@ -399,7 +399,7 @@ union(uint4) Foo {
 
     #[test]
     fn test_parse_implicit_union_with_optional() {
-        let test = TestParse::new("A | ?B");
+        let test = TestParser::new("A | ?B");
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
@@ -430,7 +430,7 @@ union(uint4) Foo {
 
     #[test]
     fn test_parse_implicit_union_with_pointer() {
-        let test = TestParse::new("A | *C");
+        let test = TestParser::new("A | *C");
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
@@ -453,7 +453,7 @@ union(uint4) Foo {
 
     #[test]
     fn test_parse_implicit_union_complex() {
-        let test = TestParse::new("?*var D");
+        let test = TestParser::new("?*var D");
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
