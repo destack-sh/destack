@@ -1,5 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use destack_library_file::glob;
+use dyst_language_source::SourceId;
 use dyst_language_token::tokenize_semantic;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
@@ -48,7 +49,7 @@ fn bench_tokenize(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("tokenize", "all"), &ds_str, |b, input| {
         b.iter(|| {
-            let tokens = tokenize_semantic(input);
+            let tokens = tokenize_semantic(SourceId::new(0), input);
             black_box(tokens);
         });
     });

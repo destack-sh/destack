@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{
         Argument, Expression, IntType, PrimitiveType, Type, assert_bool, assert_int, assert_node,
     };
@@ -142,7 +142,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_type_only() {
         // T
-        let test = TestParse::new("T");
+        let test = TestParser::new("T");
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_with_type() {
         // x: int32
-        let test = TestParse::new("x: int32");
+        let test = TestParser::new("x: int32");
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn test_parse_parameter_with_default() {
         // validate: boolean = false
-        let test = TestParse::new("validate: boolean = false");
+        let test = TestParser::new("validate: boolean = false");
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn test_parse_argument_named() {
         // x: 1
-        let test = TestParse::new("x: 1");
+        let test = TestParser::new("x: 1");
         let mut parser = test.parser();
         let argument_id = parser.eat_argument().unwrap();
 
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_parse_argument_positional() {
         // 3
-        let test = TestParse::new("3");
+        let test = TestParser::new("3");
         let mut parser = test.parser();
         let argument_id = parser.eat_argument().unwrap();
 

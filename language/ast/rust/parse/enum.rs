@@ -127,12 +127,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{Enum, EnumField, Expression, PrimitiveType, Type, assert_int, assert_node};
 
     #[test]
     fn test_parse_enum_anonymous_simple() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 enum {
     Success
@@ -165,7 +165,7 @@ enum {
 
     #[test]
     fn test_parse_enum_with_type_name_and_values() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 enum(uint8) Foo {
 

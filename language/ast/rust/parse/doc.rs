@@ -90,12 +90,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{Doc, assert_node};
 
     #[test]
     fn test_parse_single_line_doc_comment() {
-        let test = TestParse::new("/// Simple doc");
+        let test = TestParser::new("/// Simple doc");
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_parse_multiple_line_doc_comments() {
-        let test = TestParse::new("/// First line\n/// Second line");
+        let test = TestParser::new("/// First line\n/// Second line");
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_parse_single_block_doc_comment() {
-        let test = TestParse::new("/** inline block doc */");
+        let test = TestParser::new("/** inline block doc */");
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_parse_doc_maybe_returns_some() {
-        let test = TestParse::new("/// doc");
+        let test = TestParser::new("/// doc");
         let mut parser = test.parser();
         let maybe_doc = parser.eat_doc_maybe().unwrap();
         assert!(maybe_doc.is_some());
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_merge_mixed_doc_comments() {
-        let test = TestParse::new("/// A\n/** B */\n/// C");
+        let test = TestParser::new("/// A\n/** B */\n/// C");
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {

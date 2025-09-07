@@ -131,12 +131,12 @@ impl<'a> Parser<'a> {
 }
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{IntType, PrimitiveType, Struct, StructField, Type, assert_node};
 
     #[test]
     fn test_parse_struct_anonymous() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 struct { x: int32, y: boolean
 }
@@ -174,7 +174,7 @@ struct { x: int32, y: boolean
 
     #[test]
     fn test_parse_struct_with_name_and_using_and_default() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 struct Foo {
     use Bar, Baz

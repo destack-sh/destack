@@ -1,6 +1,7 @@
 use crate::cli::parse::read_parse_input;
 use crate::console::parse::CommandArguments;
 use crate::console::{console, table};
+use dyst_language_source::SourceId;
 use dyst_language_token::{TokenType, tokenize_semantic};
 
 use super::DEFAULT_MAX_LEXEME_LEN;
@@ -34,7 +35,7 @@ pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
         "Length".to_string(),
     ];
     let mut rows: Vec<Vec<String>> = Vec::new();
-    let tokens = tokenize_semantic(&input);
+    let tokens = tokenize_semantic(SourceId::new(0), &input);
 
     for (index, tok) in tokens.iter().enumerate() {
         let start_offset = tok.span.start as usize;

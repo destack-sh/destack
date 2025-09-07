@@ -652,7 +652,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{BinaryOperator, Call, Expression, Runtime, assert_node, assert_path};
 
     /// Addition is left associative.
@@ -660,7 +660,7 @@ mod tests {
     /// => ((a + b) + c)
     #[test]
     fn test_precedence_addition_left_associative() {
-        let test = TestParse::new("a + b + c");
+        let test = TestParser::new("a + b + c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
@@ -709,7 +709,7 @@ mod tests {
     /// => (a + (b * c))
     #[test]
     fn test_precedence_multiply_before_addition() {
-        let test = TestParse::new("a + b * c");
+        let test = TestParser::new("a + b * c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
@@ -760,7 +760,7 @@ mod tests {
     /// => ((a + b) * c)
     #[test]
     fn test_precedence_parentheses_override() {
-        let test = TestParse::new("(a + b) * c");
+        let test = TestParser::new("(a + b) * c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
@@ -811,7 +811,7 @@ mod tests {
     /// => ((a + (b * c)) + d)
     #[test]
     fn test_precedence_chain_mixed() {
-        let test = TestParse::new("a + b * c + d");
+        let test = TestParser::new("a + b * c + d");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
@@ -878,7 +878,7 @@ mod tests {
     /// => ((a + b) | (c + d))
     #[test]
     fn test_precedence_bitwise_vs_addition() {
-        let test = TestParse::new("a + b | c + d");
+        let test = TestParser::new("a + b | c + d");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
@@ -945,7 +945,7 @@ mod tests {
     /// => ((a == b) && (c == d))
     #[test]
     fn test_precedence_comparison_vs_logical() {
-        let test = TestParse::new("a == b && c == d");
+        let test = TestParser::new("a == b && c == d");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
@@ -1012,7 +1012,7 @@ mod tests {
     /// => ((-a) * b)
     #[test]
     fn test_precedence_unary_before_multiply() {
-        let test = TestParse::new("-a * b");
+        let test = TestParser::new("-a * b");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 
@@ -1055,7 +1055,7 @@ mod tests {
     /// => ((a()) + ((@b()) / c))
     #[test]
     fn test_precedence_postfix_call_before_add() {
-        let test = TestParse::new("a() + @b() / c");
+        let test = TestParser::new("a() + @b() / c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
 

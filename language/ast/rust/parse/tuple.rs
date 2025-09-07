@@ -69,12 +69,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{PrimitiveType, Tuple, TupleField, Type, assert_node};
 
     #[test]
     fn test_parse_tuple_positional_single() {
-        let test = TestParse::new("(int32)");
+        let test = TestParser::new("(int32)");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_positional_two_elements_comma() {
-        let test = TestParse::new("(int32, boolean)");
+        let test = TestParser::new("(int32, boolean)");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_positional_newline_separated() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 (
   int32
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_named_elements() {
-        let test = TestParse::new("(x: int32, y: boolean)");
+        let test = TestParser::new("(x: int32, y: boolean)");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_empty() {
-        let test = TestParse::new("()");
+        let test = TestParser::new("()");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 

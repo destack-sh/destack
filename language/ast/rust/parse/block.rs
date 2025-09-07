@@ -205,12 +205,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{Break, Continue, Defer, Expression, Return, assert_int, assert_node};
 
     #[test]
     fn test_parse_empty_block() {
-        let test = TestParse::new("{}");
+        let test = TestParser::new("{}");
         let mut parser = test.parser();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_parse_labeled_empty_block() {
-        let test = TestParse::new("label: {}");
+        let test = TestParser::new("label: {}");
         let mut parser = test.parser();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_break_no_label_no_value() {
-        let test = TestParse::new("break");
+        let test = TestParser::new("break");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_break_with_label() {
-        let test = TestParse::new("break :label");
+        let test = TestParser::new("break :label");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_break_with_label_and_value() {
-        let test = TestParse::new("break :label 17");
+        let test = TestParser::new("break :label 17");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_break_with_value() {
-        let test = TestParse::new("break 15");
+        let test = TestParser::new("break 15");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_continue_no_label() {
-        let test = TestParse::new("continue");
+        let test = TestParser::new("continue");
         let mut parser = test.parser();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Continue { label } => {
@@ -290,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_continue_with_label() {
-        let test = TestParse::new("continue :label");
+        let test = TestParser::new("continue :label");
         let mut parser = test.parser();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Continue { label } => {
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_return_no_value() {
-        let test = TestParse::new("return");
+        let test = TestParser::new("return");
         let mut parser = test.parser();
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Return { value } => {
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn test_return_with_value() {
-        let test = TestParse::new("return 42");
+        let test = TestParser::new("return 42");
         let mut parser = test.parser();
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Return { value } => {
@@ -323,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_defer_expression() {
-        let test = TestParse::new("defer someFunction()");
+        let test = TestParser::new("defer someFunction()");
         let mut parser = test.parser();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Defer::Expression(expr_id) => {
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_defer_block() {
-        let test = TestParse::new("defer {}");
+        let test = TestParser::new("defer {}");
         let mut parser = test.parser();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Defer::Block(block_id) => {

@@ -1,23 +1,23 @@
-use dyst_language_source::{SourceFile, Span};
-use dyst_language_token::{Token, TokenSpan, TokenType};
+use core::fmt;
+use std::fmt::Debug;
+
+use dyst_language_diagnostic::Diagnostic;
+use dyst_language_source::{SourceFile, SourceId, Span};
+use dyst_language_token::{Token, TokenSpan, TokenType, tokenize_semantic};
 
 use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
 
-const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
-    span: Span { start: 0, end: 0 },
-    token: Token::eof(),
-};
-
-/// A parser for Dyst.
+/// A parser for a Dyst file.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
-#[derive(Debug)]
 pub struct Parser<'a> {
     /// The file we're parsing.
-    pub file: SourceFile<'a>,
+    pub file: &'a SourceFile,
+    /// The file ID.
+    pub file_id: SourceId,
     /// The tokens to parse.
-    pub tokens: &'a [TokenSpan],
+    pub tokens: Vec<TokenSpan>,
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     pub eof_token: TokenSpan,
 
@@ -28,24 +28,44 @@ pub struct Parser<'a> {
     /// The Node tree.
     pub tree: NodeTree,
 
-    // todo!: Parser Session & :Errors (with some recovery)
+    // todo!: Parser Session & :Diagnostics (with some recovery)
+    /// Diagnostics emitted in this session.
+    pub diagnostics: Vec<Diagnostic>,
+
     /// The current position in the tokens.
     pos: usize,
 }
 
+impl Debug for Parser<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Parser")
+    }
+}
+
 impl<'a> Parser<'a> {
     /// Create a new parser.
-    pub fn new(file: SourceFile<'a>, tokens: &'a [TokenSpan]) -> Self {
-        let eof_token = *tokens.last().unwrap_or(&DEFAULT_EOF_TOKEN_SPAN);
+    pub fn from_file(file: &'a SourceFile, file_id: SourceId) -> Self {
+        let tokens = tokenize_semantic(file_id, &file.content);
+        let eof_token = *tokens.last().unwrap_or(&TokenSpan {
+            span: Span {
+                file: file_id,
+                start: 0,
+                end: 0,
+            },
+            token: Token::eof(),
+        });
         let strings = StringPool::new();
         let paths = PathPool::new();
         let tree = NodeTree::new();
+        let diagnostics = Vec::new();
         Self {
             file,
+            file_id,
             tokens,
             strings,
             paths,
             tree,
+            diagnostics,
             pos: 0,
             eof_token,
         }
@@ -81,6 +101,7 @@ impl<'a> Parser<'a> {
             self.tokens[0]
         };
         Span {
+            file: self.file_id,
             start: start_token.span.start,
             end: end_token.span.end,
         }

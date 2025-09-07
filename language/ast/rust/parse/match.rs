@@ -192,7 +192,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
     use crate::{
         Expression, Match, MatchCase, Pattern, Try, assert_bool, assert_int, assert_node,
         assert_path,
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_match_simple_literal_arms() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 match x {
     1 => 10
@@ -258,7 +258,7 @@ match x {
 
     #[test]
     fn test_match_with_guard() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 match x {
     2 if true => 20
@@ -295,7 +295,7 @@ match x {
 
     #[test]
     fn test_try_expression() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 try foo()
 "###,
@@ -319,7 +319,7 @@ try foo()
 
     #[test]
     fn test_try_block_without_catch() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 try {
     foo()
@@ -337,7 +337,7 @@ try {
 
     #[test]
     fn test_try_block_with_catch() {
-        let test = TestParse::new(
+        let test = TestParser::new(
             r###"
 try {
     foo()

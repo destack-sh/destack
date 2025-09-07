@@ -34,11 +34,11 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParse;
+    use crate::parse::tests::TestParser;
 
     #[test]
     fn test_parse_simple_path_single_segment() {
-        let test = TestParse::new("destack");
+        let test = TestParser::new("destack");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
         assert_eq!(
@@ -49,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_parse_simple_path_multiple_segments() {
-        let test = TestParse::new("destack.geometry.math");
+        let test = TestParser::new("destack.geometry.math");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
         assert_eq!(
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_parse_path_stops_before_group_brace() {
-        let test = TestParse::new("ds.geometry.{Vector2}");
+        let test = TestParser::new("ds.geometry.{Vector2}");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
         assert_eq!(
@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_parse_path_stops_before_angle_bracket() {
-        let test = TestParse::new("geom.Vector<Dims: 2, float32>");
+        let test = TestParser::new("geom.Vector<Dims: 2, float32>");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
         assert_eq!(

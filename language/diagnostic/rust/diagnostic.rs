@@ -1,4 +1,4 @@
-use dyst_language_source::Span;
+use crate::{LabeledSpan, Suggestion};
 
 /// The kind of a diagnostic.
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +13,7 @@ pub enum DiagnosticKind {
 
 /// The level of a diagnostic.
 #[derive(Debug, Clone, PartialEq)]
-pub enum DiagnosticLevel {
+pub enum Severity {
     /// Error (critical issue).
     Error,
     /// Warning (non-critical issue).
@@ -25,19 +25,23 @@ pub enum DiagnosticLevel {
 }
 
 /// A Diagnostic.
-pub trait Diagnostic {
-    /// Get the unique ID of the diagnostic.
-    fn id(&self) -> i32;
+#[derive(Debug, Clone)]
+pub struct Diagnostic {
+    /// The unique ID of the diagnostic.
+    pub id: i32,
 
-    /// Get the level of the diagnostic.
-    fn level(&self) -> DiagnosticLevel;
+    /// The severity of the diagnostic.
+    pub severity: Severity,
 
-    /// Get the message of the diagnostic.
-    fn message(&self) -> String;
+    /// The message of the diagnostic.
+    pub message: String,
 
-    /// Get the primary span of the diagnostic.
-    fn primary_span(&self) -> Option<Span>;
+    /// The primary span of the diagnostic.
+    pub primary_span: Option<LabeledSpan>,
 
-    /// Get the secondary spans of the diagnostic.
-    fn secondary_spans(&self) -> Option<&[Span]>;
+    /// The secondary spans of the diagnostic.
+    pub secondary_spans: Option<Vec<LabeledSpan>>,
+
+    /// The suggestions for the diagnostic.
+    pub suggestions: Option<Vec<Suggestion>>,
 }

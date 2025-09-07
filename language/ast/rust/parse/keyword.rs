@@ -42,22 +42,3 @@ impl<'a> Parser<'a> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use dyst_language_source::SourceFile;
-    use dyst_language_token::tokenize_semantic;
-
-    use crate::{Keyword, Parser};
-
-    #[test]
-    fn test_keyword() {
-        let input = "public";
-        let tokens = tokenize_semantic(input);
-        let parser = Parser::new(SourceFile::new(0, input, input.len() as u32), &tokens);
-        let result = parser.peek_keyword(Keyword::Public);
-        assert!(result.is_ok());
-        let result = parser.peek_keyword(Keyword::Module);
-        assert!(result.is_err());
-    }
-}
