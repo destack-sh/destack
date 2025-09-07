@@ -690,8 +690,8 @@ impl Dump for Expression {
                 node_dumper.field("operator", operator);
                 node_dumper.finish();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(left, Some("lhs"));
-                    dumper.dump(right, Some("rhs"));
+                    dumper.dump(left, Some("left"));
+                    dumper.dump(right, Some("right"));
                 });
             }
             Expression::Assign {
@@ -703,8 +703,8 @@ impl Dump for Expression {
                 node_dumper.field("operator", operator);
                 node_dumper.finish();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(left, Some("lhs"));
-                    dumper.dump(right, Some("rhs"));
+                    dumper.dump(left, Some("left"));
+                    dumper.dump(right, Some("right"));
                 });
             }
 
@@ -1366,18 +1366,33 @@ impl Dump for FieldLiteral {
 impl Dump for Index {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Index").finish();
+        dumper.with_depth(|dumper| {
+            dumper.dump(&self.receiver, Some("receiver"));
+            dumper.dump(&self.index, Some("index"));
+        });
     }
 }
 
 impl Dump for Call {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Call").finish();
+        dumper.with_depth(|dumper| {
+            dumper.dump(&self.receiver, Some("receiver"));
+            if let Some(static_arguments) = &self.static_arguments {
+                dumper.dump_many(static_arguments, Some("static"));
+            }
+            dumper.dump_many(&self.dynamic_arguments, Some("dynamic"));
+        });
     }
 }
 
 impl Dump for Cast {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Cast").finish();
+        dumper.with_depth(|dumper| {
+            dumper.dump(&self.receiver, Some("receiver"));
+            dumper.dump(&self.r#type, Some("type"));
+        });
     }
 }
 
@@ -1388,24 +1403,130 @@ impl Dump for Cast {
 impl Dump for Match {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Match").finish();
+        dumper.with_depth(|dumper| {
+            dumper.dump(&self.value, Some("value"));
+            dumper.dump_many(&self.cases, None);
+        });
     }
 }
 
 impl Dump for MatchCase {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("MatchCase").finish();
+        dumper.with_depth(|dumper| match self {
+            MatchCase::Expression {
+                pattern,
+                body,
+                guard,
+            } => {
+                dumper.dump(pattern, Some("pattern"));
+                dumper.dump(body, Some("body"));
+                dumper.dump(guard, Some("guard"));
+            }
+            MatchCase::Block {
+                pattern,
+                body,
+                guard,
+            } => {
+                dumper.dump(pattern, Some("pattern"));
+                dumper.dump(body, Some("body"));
+                dumper.dump(guard, Some("guard"));
+            }
+        });
     }
 }
 
 impl Dump for Pattern {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Pattern").finish();
+        match self {
+            Pattern::Wildcard => {
+                dumper.node("Pattern::Wildcard").finish();
+            }
+            Pattern::Rest => {
+                dumper.node("Pattern::Rest").finish();
+            }
+            Pattern::Pointer { target, mutability } => {
+                let mut node_dumper = dumper.node("Pattern::Pointer");
+                node_dumper.field("mutability", mutability);
+                node_dumper.finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump(target, Some("target"));
+                });
+            }
+            Pattern::Literal(node) => {
+                dumper.node_wrapper("Pattern::Literal", *node);
+            }
+            Pattern::Identifier(string_id) => {
+                let mut node_dumper = dumper.node("Pattern::Identifier");
+                node_dumper.field("identifier", string_id);
+                node_dumper.finish();
+            }
+            Pattern::Range {
+                start,
+                end,
+                is_inclusive,
+            } => {
+                let mut node_dumper = dumper.node("Pattern::Range");
+                node_dumper.field("is_inclusive", is_inclusive);
+                node_dumper.finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump(start, Some("start"));
+                    dumper.dump(end, Some("end"));
+                });
+            }
+            Pattern::Tuple { fields } => {
+                dumper.node("Pattern::Tuple").finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_many(fields, None);
+                });
+            }
+            Pattern::Slice { fields } => {
+                dumper.node("Pattern::Slice").finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_many(fields, None);
+                });
+            }
+            Pattern::Struct { r#type, fields } => {
+                dumper.node("Pattern::Struct").finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump(r#type, None);
+                    dumper.dump_many(fields, None);
+                });
+            }
+            Pattern::Union { fields } => {
+                dumper.node("Pattern::Union").finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_many(fields, None);
+                });
+            }
+        }
     }
 }
 
 impl Dump for PatternField {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("PatternField").finish();
+        match self {
+            PatternField::Named { name, pattern } => {
+                let mut node_dumper = dumper.node("PatternField::Named");
+                node_dumper.field("name", name);
+                node_dumper.finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump(pattern, None);
+                });
+            }
+            PatternField::NamedAlias { name, alias } => {
+                let mut node_dumper = dumper.node("PatternField::NamedAlias");
+                node_dumper.field("name", name);
+                node_dumper.field("alias", alias);
+                node_dumper.finish();
+            }
+            PatternField::Positional { pattern } => {
+                dumper.node("PatternField::Positional").finish();
+                dumper.with_depth(|dumper| {
+                    dumper.dump(pattern, None);
+                });
+            }
+        }
     }
 }
 
@@ -1415,6 +1536,6 @@ impl Dump for PatternField {
 
 impl Dump for Doc {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Doc").finish();
+        dumper.node("Doc").field("string", &self.string).finish();
     }
 }
