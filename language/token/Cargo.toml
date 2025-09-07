@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_token"
-description = "Destack Language Token"
+name = "dyst_language_token"
+description = "Dyst Language Tokens"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,6 +11,7 @@ rust-version.workspace = true
 path = "rust/lib.rs"
 
 [dependencies]
+dyst_language_source = { workspace = true }
 destack_library_unicode = { workspace = true }
 
 [dev-dependencies]
@@ -22,7 +23,7 @@ criterion = { workspace = true }
 pprof = { workspace = true }
 
 [[bench]]
-name = "destack_language_token"
+name = "dyst_language_token"
 harness = false
 
 [lints]

@@ -3,13 +3,16 @@ resolver = "2"
 members = [
 	# language
 	"language/air",
-	"language/ast",
 	"language/arena",
+	"language/ast",
 	"language/cranelift",
+	"language/diagnostic",
 	"language/dir",
+	"language/format",
 	"language/llvm",
 	"language/mir",
 	"language/rust",
+	"language/source",
 	"language/token",
 	"language/vm",
 	# library
@@ -63,16 +66,20 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # language
-destack_language_air = { path = "language/air" }
-destack_language_ast = { path = "language/ast" }
-destack_language_arena = { path = "language/arena" }
-destack_language_cranelift = { path = "language/cranelift" }
-destack_language_dir = { path = "language/dir" }
-destack_language_llvm = { path = "language/llvm" }
-destack_language_mir = { path = "language/mir" }
-destack_language_rust = { path = "language/rust" }
-destack_language_token = { path = "language/token" }
-destack_language_vm = { path = "language/vm" }
+dyst_language_air = { path = "language/air" }
+dyst_language_ast = { path = "language/ast" }
+dyst_language_arena = { path = "language/arena" }
+dyst_language_cranelift = { path = "language/cranelift" }
+dyst_language_diagnostic = { path = "language/diagnostic" }
+dyst_language_dir = { path = "language/dir" }
+dyst_language_format = { path = "language/format" }
+dyst_language_llvm = { path = "language/llvm" }
+dyst_language_mir = { path = "language/mir" }
+dyst_language_rust = { path = "language/rust" }
+dyst_language_session = { path = "language/session" }
+dyst_language_source = { path = "language/source" }
+dyst_language_token = { path = "language/token" }
+dyst_language_vm = { path = "language/vm" }
 # library
 destack_library_access = { path = "library/access" }
 destack_library_animation = { path = "library/animation" }
@@ -102,10 +109,10 @@ destack_library_universe = { path = "library/universe" }
 destack_library_uuid = { path = "library/uuid" }
 destack_library_video = { path = "library/video" }
 destack_library_view = { path = "library/view" }
-destack_library_web = { path = "platform/web" }
 # extension
 destack_extension_lsp = { path = "extension/lsp" }
 # platform
+destack_platform_web = { path = "platform/web" }
 # ...
 # demo
 destack_demo_breakout = { path = "demo/breakout" }

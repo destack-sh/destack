@@ -1,6 +1,6 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{
     AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, OperatorPrecedence,

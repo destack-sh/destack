@@ -2,7 +2,7 @@ use crate::{
     Block, Break, Continue, Defer, Keyword, NodeId, ParseError, ParseResult, Parser, Return,
     Statement,
 };
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Peek a block (test with and without label).
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
             }
             // consume any statement stops (semicolon or newline)
             else if self.peek_statement_stop().is_ok() {
-                self.eat_statement_stop()?;
+                self.eat_statement_stop_with_newlines()?;
             }
             // keep eating statements
             else {

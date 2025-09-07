@@ -1,4 +1,4 @@
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{Function, Keyword, Let, NodeId, ParseResult, Parser, Trait, Type, Use, With};
 
@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
                 }
                 // consume any stop
                 else if self.peek_any_stop().is_ok() {
-                    self.eat_any_stop()?;
+                    self.eat_any_stop_with_newlines()?;
                 }
                 // let
                 else if self.peek_keyword(Keyword::Let).is_ok()

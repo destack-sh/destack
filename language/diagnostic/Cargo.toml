@@ -1,0 +1,19 @@
+[package]
+name = "dyst_language_diagnostic"
+description = "Dyst Language Diagnostic"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+
+[dependencies]
+dyst_language_source = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true

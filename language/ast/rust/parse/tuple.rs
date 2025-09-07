@@ -1,6 +1,6 @@
 //! Parse tuples.
 
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{NodeId, ParseResult, Parser, Tuple, TupleField};
 
@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
             let element = self.eat_tuple_field()?;
             elements.push(element);
             if self.peek_item_stop().is_ok() {
-                self.eat_item_stop()?;
+                self.eat_item_stop_with_newlines()?;
             } else {
                 break;
             }

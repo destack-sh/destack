@@ -1,5 +1,5 @@
 use crate::{Function, Implement, Keyword, Let, NodeId, ParseResult, Parser};
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
             }
             self.eat_token(TokenType::CloseBrace)?;
         } else {
-            self.eat_any_stop()?;
+            self.eat_any_stop_with_newlines()?;
         }
 
         // implement

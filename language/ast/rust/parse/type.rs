@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{
     FloatType, IntType, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser,

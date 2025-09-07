@@ -1,5 +1,6 @@
-use destack_language_ast::{DumperOptions, Parser};
-use destack_language_token::{SourceFile, SourceId, tokenize_semantic};
+use dyst_language_ast::{DumperOptions, Parser};
+use dyst_language_source::{SourceFile, SourceId};
+use dyst_language_token::tokenize_semantic;
 
 use crate::cli::parse::read_parse_input;
 use crate::console::console;
@@ -20,7 +21,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     // options
     // let use_color = !ctx.flag("no-color");
     // let use_pager = !ctx.flag("no-pager");
-    let as_node = ctx.option("as").unwrap_or("expression");
+    let as_node = ctx.option("as").unwrap_or("statement");
 
     // parse
     let tokens = tokenize_semantic(&input);
@@ -35,6 +36,16 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             let module = parser.tree.get(module_id);
             let mut dumper = parser.dumper(dump_options);
             dumper.dump(module, None);
+            dumper.finish()
+        }
+        "statement" => {
+            let Ok(statement_id) = parser.eat_statement_body() else {
+                console::error("Parse error");
+                return 1;
+            };
+            let statement = parser.tree.get(statement_id);
+            let mut dumper = parser.dumper(dump_options);
+            dumper.dump(statement, None);
             dumper.finish()
         }
         "expression" => {
@@ -59,7 +70,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
         }
         _ => {
             console::error(&format!(
-                "Bad node kind: {as_node} (must be 'module', 'expression', or 'type')"
+                "Bad node kind: {as_node} (must be 'module', 'expression', 'statement', or 'type')"
             ));
             return 1;
         }

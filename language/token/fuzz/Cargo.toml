@@ -1,5 +1,5 @@
 [package]
-name = "destack_language_token_fuzz"
+name = "dyst_language_token_fuzz"
 description = "Destack Lexer Fuzz"
 edition.workspace = true
 authors.workspace = true
@@ -10,13 +10,13 @@ rust-version.workspace = true
 cargo-fuzz = true
 
 [dependencies]
-destack_language_ast = { path = ".." }
+dyst_language_ast = { path = ".." }
 
 arbitrary = { workspace = true }
 libfuzzer-sys = { workspace = true }
 
 [[bin]]
-name = "destack_language_token_fuzz"
+name = "dyst_language_token_fuzz"
 path = "fuzz_targets/token.rs"
 test = false
 doc = false

@@ -1,4 +1,5 @@
-use destack_language_token::{SourceFile, Span, Token, TokenSpan, TokenType};
+use dyst_language_source::{SourceFile, Span};
+use dyst_language_token::{Token, TokenSpan, TokenType};
 
 use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
 
@@ -7,10 +8,10 @@ const DEFAULT_EOF_TOKEN_SPAN: TokenSpan = TokenSpan {
     token: Token::eof(),
 };
 
-/// A parser for the Destack Language.
+/// A parser for Dyst.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
-/// Whitespace and regular line comments are completely ignored.
+/// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
 #[derive(Debug)]
 pub struct Parser<'a> {
     /// The file we're parsing.
@@ -264,7 +265,7 @@ impl<'a> Parser<'a> {
     /// Eat an item stop (comma or newline).
     /// Eats all following newlines.
     #[inline]
-    pub fn eat_item_stop(&mut self) -> ParseResult<()> {
+    pub fn eat_item_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline || token.token.r#type == TokenType::Comma)
         {
@@ -296,7 +297,7 @@ impl<'a> Parser<'a> {
     /// Eat a statement stop (semicolon or newline).
     /// Eats all following newlines.
     #[inline]
-    pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
+    pub fn eat_statement_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline
                 || token.token.r#type == TokenType::Semicolon)
@@ -330,7 +331,7 @@ impl<'a> Parser<'a> {
     /// Eat any stop (comma, semicolon, or newline).
     /// Eats all following newlines.
     #[inline]
-    pub fn eat_any_stop(&mut self) -> ParseResult<()> {
+    pub fn eat_any_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline
                 || token.token.r#type == TokenType::Semicolon

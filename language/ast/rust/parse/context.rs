@@ -1,5 +1,5 @@
 //! Parse use and with declarations.
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{
     Expression, Keyword, NodeId, ParseResult, Parser, Use, UseClause, UseItem, With, WithClause,
@@ -421,9 +421,9 @@ mod tests {
     #[test]
     fn test_parse_with_parenthesized_multiline() {
         let input = r##"with (
-  !Bar,
+  !Bar
   Time[float32],
-  F: Numeric,
+  F: Numeric
 )"##;
         let test = TestParse::new(input);
         let mut parser = test.parser();

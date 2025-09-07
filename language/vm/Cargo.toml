@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_vm"
-description = "Destack Language Virtual Machine"
+name = "dyst_language_vm"
+description = "Dyst Language Virtual Machine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

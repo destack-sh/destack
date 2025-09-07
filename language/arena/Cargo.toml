@@ -1,6 +1,6 @@
 [package]
-name = "destack_language_arena"
-description = "Destack Language Arena"
+name = "dyst_language_arena"
+description = "Dyst Language Arena"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

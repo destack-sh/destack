@@ -15,8 +15,8 @@ name = "destack_extension_lsp"
 path = "rust/main.rs"
 
 [dependencies]
-destack_language_token = { workspace = true }
-destack_language_ast = { workspace = true }
+dyst_language_token = { workspace = true }
+dyst_language_ast = { workspace = true }
 
 # NOTE: vendor LSP types & serde (once Dyst is more mature)
 serde = { version = "1.0", features = ["derive"] }

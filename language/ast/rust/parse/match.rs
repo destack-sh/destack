@@ -1,4 +1,4 @@
-use destack_language_token::TokenType;
+use dyst_language_token::TokenType;
 
 use crate::{Keyword, Match, MatchCase, NodeId, ParseResult, Parser, Try};
 
@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
             }
             // allow statement separators between cases (newline/semicolon)
             else if self.peek_statement_stop().is_ok() {
-                self.eat_statement_stop()?;
+                self.eat_statement_stop_with_newlines()?;
             }
             // case
             else {
