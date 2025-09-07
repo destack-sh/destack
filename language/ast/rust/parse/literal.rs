@@ -342,7 +342,7 @@ impl<'a> Parser<'a> {
     /// Vector2 { x: 1.0, y: 2.0, z }
     ///
     /// destack.geometry.Mesh2 {
-    ///     vertices: [Vector3 { x: 1.0, y: 2.0, z: .0 }] // optional comma
+    ///     vertices: [Vector3 { x: 1.0, y: 2.0, z: 0.0 }] // optional comma
     ///     indices: [0, 1, 2] // optional comma
     /// }
     ///
@@ -375,9 +375,16 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
 
+        // empty struct
+        if self.peek_token(TokenType::CloseBrace).is_ok() {
+            self.eat_token(TokenType::CloseBrace)?;
+            return Ok(vec![]);
+        }
+
+        // parse fields separated by item stops, allow trailing comma
         let mut fields: Vec<NodeId<FieldLiteral>> = vec![];
-        while self.peek_item_stop().is_ok() {
-            self.eat_item_stop_with_newlines()?;
+        loop {
+            // stop at closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
@@ -401,6 +408,10 @@ impl<'a> Parser<'a> {
                 );
                 fields.push(field_literal);
             }
+            // item stop
+            if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
+            }
         }
         self.eat_token(TokenType::CloseBrace)?;
         Ok(fields)
@@ -411,8 +422,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        ArrayLiteral, Expression, ScalarLiteral, TupleLiteral, assert_bool, assert_char,
-        assert_float, assert_int, assert_node, assert_string,
+        ArrayLiteral, Expression, FieldLiteral, ScalarLiteral, StructLiteral, TupleLiteral,
+        assert_bool, assert_char, assert_float, assert_int, assert_node, assert_string,
     };
 
     #[test]
@@ -711,6 +722,43 @@ mod tests {
             // [2] = 3.0
             assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
                 assert_float!(parser.tree, *scalar_literal_id, 3.0);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_struct_literal() {
+        let test = TestParser::new(
+            r##"
+destack.geometry.Mesh[2, int32] {
+    vertices: [1,] // optional comma
+    indices: 2, // optional comma
+}
+            "##,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let struct_id = parser.eat_struct_literal().unwrap();
+        assert_node!(parser.tree, struct_id, StructLiteral { r#type: _, fields } => {
+            assert_eq!(fields.len(), 2);
+
+            // vertices: []
+            assert_node!(parser.tree, fields[0], FieldLiteral::Named { name, value } => {
+                assert_eq!(parser.strings.get(*name), "vertices");
+                assert_node!(parser.tree, *value, Expression::ArrayLiteral(array_literal_id) => {
+                    assert_node!(parser.tree, *array_literal_id, ArrayLiteral::Fixed { elements } => {
+                        assert_eq!(elements.len(), 1);
+                    });
+                });
+            });
+
+            // indices: 2
+            assert_node!(parser.tree, fields[1], FieldLiteral::Named { name, value } => {
+                assert_eq!(parser.strings.get(*name), "indices");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
+                    assert_int!(parser.tree, *scalar_literal_id, 2);
+                });
             });
         });
     }

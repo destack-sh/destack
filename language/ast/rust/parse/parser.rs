@@ -2,21 +2,21 @@ use core::fmt;
 use std::fmt::Debug;
 
 use dyst_language_diagnostic::Diagnostic;
-use dyst_language_source::{SourceFile, SourceId, Span};
+use dyst_language_source::{Source, SourceId, Span};
 use dyst_language_token::{Token, TokenSpan, TokenType, tokenize_semantic};
 
 use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
 
-/// A parser for a Dyst file.
+/// A parser for Dyst source code.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
 pub struct Parser<'a> {
-    /// The file we're parsing.
-    pub file: &'a SourceFile,
-    /// The file ID.
-    pub file_id: SourceId,
-    /// The tokens to parse.
+    /// The source we're parsing.
+    pub source: &'a Source,
+    /// The source ID.
+    pub source_id: SourceId,
+    /// The tokens parsed from the source.
     pub tokens: Vec<TokenSpan>,
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     pub eof_token: TokenSpan,
@@ -44,11 +44,11 @@ impl Debug for Parser<'_> {
 
 impl<'a> Parser<'a> {
     /// Create a new parser.
-    pub fn from_file(file: &'a SourceFile, file_id: SourceId) -> Self {
-        let tokens = tokenize_semantic(file_id, &file.content);
+    pub fn from_source(source: &'a Source, source_id: SourceId) -> Self {
+        let tokens = tokenize_semantic(source_id, &source.content);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {
             span: Span {
-                file: file_id,
+                source: source_id,
                 start: 0,
                 end: 0,
             },
@@ -59,8 +59,8 @@ impl<'a> Parser<'a> {
         let tree = NodeTree::new();
         let diagnostics = Vec::new();
         Self {
-            file,
-            file_id,
+            source,
+            source_id,
             tokens,
             strings,
             paths,
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
             self.tokens[0]
         };
         Span {
-            file: self.file_id,
+            source: self.source_id,
             start: start_token.span.start,
             end: end_token.span.end,
         }
@@ -110,13 +110,13 @@ impl<'a> Parser<'a> {
     /// Gets the str source backing a Span.
     #[inline]
     pub fn get_span_str(&self, span: Span) -> &'a str {
-        &self.file.content[span.start as usize..span.end as usize]
+        &self.source.content[span.start as usize..span.end as usize]
     }
 
     /// Gets the str source backing a TokenSpan.
     #[inline]
     pub fn get_token_str(&self, token: TokenSpan) -> &'a str {
-        &self.file.content[token.span.start as usize..token.span.end as usize]
+        &self.source.content[token.span.start as usize..token.span.end as usize]
     }
 
     /// Get the current Token.

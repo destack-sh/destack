@@ -45,3 +45,12 @@ pub struct Diagnostic {
     /// The suggestions for the diagnostic.
     pub suggestions: Option<Vec<Suggestion>>,
 }
+
+impl Diagnostic {
+    // nocheckin: render diagnostics
+    pub fn render(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&format!("{:?}: {}", self.severity, self.message));
+        out
+    }
+}

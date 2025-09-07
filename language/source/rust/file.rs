@@ -8,9 +8,9 @@ impl SourceId {
     }
 }
 
-/// A file inside the `SourceMap`.
+/// A "source" inside the `SourceMap` (Like a file).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceFile {
+pub struct Source {
     /// The path of the SourceFile.
     pub path: SourceId,
     /// The content of the source file.
@@ -19,7 +19,7 @@ pub struct SourceFile {
     pub len: u32,
 }
 
-impl SourceFile {
+impl Source {
     pub fn new(path: SourceId, content: String) -> Self {
         let len = content.len() as u32;
         Self { path, content, len }

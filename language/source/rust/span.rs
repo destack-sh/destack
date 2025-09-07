@@ -6,7 +6,7 @@ use crate::SourceId;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
     /// The file that the Span belongs to.
-    pub file: SourceId,
+    pub source: SourceId,
     /// The start position of the Span in bytes (absolute, inclusive).
     pub start: u32,
     /// The end position of the Span in bytes (absolute, exclusive).
@@ -15,14 +15,14 @@ pub struct Span {
 
 impl Span {
     /// Create a new Span.
-    pub fn new(file: SourceId, start: u32, end: u32) -> Self {
-        Self { file, start, end }
+    pub fn new(source: SourceId, start: u32, end: u32) -> Self {
+        Self { source, start, end }
     }
 
     /// Create an empty Span.
-    pub fn empty(file: SourceId) -> Self {
+    pub fn empty(source: SourceId) -> Self {
         Self {
-            file,
+            source,
             start: 0,
             end: 0,
         }
@@ -32,11 +32,11 @@ impl Span {
     /// The resulting Span will be the smallest Span that contains both.
     pub fn merge(self, other: Self) -> Self {
         debug_assert_eq!(
-            self.file, other.file,
-            "span {self:?} and {other:?} are in different files"
+            self.source, other.source,
+            "span {self:?} and {other:?} are from different sources"
         );
         Self {
-            file: self.file,
+            source: self.source,
             start: self.start.min(other.start),
             end: self.end.max(other.end),
         }

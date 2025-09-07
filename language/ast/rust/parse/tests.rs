@@ -1,23 +1,23 @@
-use dyst_language_source::{SourceFile, SourceId};
+use dyst_language_source::{Source, SourceId};
 
 use crate::Parser;
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
 pub(crate) struct TestParser {
-    pub source: SourceFile,
+    pub source: Source,
 }
 
 impl TestParser {
     pub(crate) fn new(input: &str) -> Self {
         let source_id = SourceId::new(0);
-        let source = SourceFile::new(source_id, input.to_string());
+        let source = Source::new(source_id, input.to_string());
         Self { source }
     }
 
     /// Get a Parser for this test.
     pub(crate) fn parser(&self) -> Parser<'_> {
-        Parser::from_file(&self.source, self.source.path)
+        Parser::from_source(&self.source, self.source.path)
     }
 }
 

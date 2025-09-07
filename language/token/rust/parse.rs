@@ -39,7 +39,7 @@ pub fn tokenize_semantic(source_id: SourceId, input: &str) -> Vec<TokenSpan> {
             tokens.push(TokenSpan {
                 token,
                 span: Span {
-                    file: source_id,
+                    source: source_id,
                     start: pos,
                     end,
                 },
