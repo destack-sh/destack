@@ -137,7 +137,6 @@ fn byte_to_line_and_start(byte_index: usize, line_starts: &[usize]) -> (usize, u
 }
 
 /// Map a token to its semantic type index and character length.
-/// TODO: replace Semantic token keywords with proper AST parsing
 fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
     use TokenType as K;
 

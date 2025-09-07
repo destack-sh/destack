@@ -6,23 +6,28 @@
 //! If there is more than one group of children, we prefix a label for the group name (like `left`).
 //! The target output is something like:
 //! ```
-//! Module: { name: 'module' }
-//!  |- Block: { label: 'module' }
-//!  |  |- Statement
-//!  |  |  |- Expression::Binary { operator: Add }
-//!  |  |  |  |- left: Literal::Scalar { value: 14 }
-//!  |  |  |  |- right: Literal::Scalar { value: 2 }
+//!  Expression::Binary { operator: Add }
+//!  ├─ [left] Expression::Path { path: a }
+//!  ├─ [right] Expression::Binary { operator: Divide }
+//!  |  ├─ [left] Expression::Binary { operator: Multiply }
+//!  |  │  ├─ [left] Expression::Path { path: b }
+//!  |  │  ├─ [right] Expression::ScalarLiteral
+//!  |  │  |  ├─ ScalarLiteral::Integer { value: 2 }
+//!  |  ├─ [right] Expression::Unary { operator: Negate }
+//!  |  |  ├─ Expression::ScalarLiteral
+//!  |  |  |  ├─ ScalarLiteral::Integer { value: 4 }
 //! ```
 
 #![allow(clippy::match_like_matches_macro)]
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Continue, Defer, Doc, Enum, EnumField,
-    Expression, FieldLiteral, FloatType, For, Function, If, Implement, Index, IntType, Let, Loop,
-    Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, Parameter, PathId,
-    PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral,
-    Statement, StringPool, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField,
-    TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Argument, ArrayLiteral, AssignOperator, BinaryOperator, Block, Break, Call, Cast, Continue,
+    Defer, Doc, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, If, Implement,
+    Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree,
+    NodeTreeStore, Parameter, PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral,
+    Return, Runtime, ScalarLiteral, Statement, StringPool, Struct, StructField, StructLiteral,
+    Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use,
+    UseClause, UseItem, While, With, WithClause,
 };
 use destack_language_arena::StringId;
 
@@ -152,8 +157,11 @@ impl<'a> Dumper<'a> {
     /// Write the prefix for the current depth.
     #[inline]
     fn write_prefix(&mut self) {
-        for _ in 0..self.depth {
-            self.write_str("| ", Some(Color::Cyan));
+        if self.depth > 0 {
+            for _ in 0..self.depth - 1 {
+                self.write_str("|  ", Some(Color::Cyan));
+            }
+            self.write_str("├─ ", Some(Color::Cyan));
         }
     }
 
@@ -256,7 +264,7 @@ impl<'a> Dumper<'a> {
             self.write_prefix();
             if let Some(label) = label {
                 self.write_str("[", Some(Color::White));
-								self.write_str(label.as_ref(), Some(Color::White));
+                self.write_str(label.as_ref(), Some(Color::White));
                 self.write_str("] ", Some(Color::White));
             }
             thing.dump(self);
@@ -423,6 +431,27 @@ impl Dump for StringId {
 impl Dump for PathId {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.write_path_id(*self);
+    }
+}
+
+/// Dump a UnaryOperator as a string.
+impl Dump for UnaryOperator {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump a BinaryOperator as a string.
+impl Dump for BinaryOperator {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
+/// Dump an AssignOperator as a string.
+impl Dump for AssignOperator {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
     }
 }
 
@@ -637,8 +666,7 @@ impl Dump for Expression {
 
             Expression::Unary { operator, right } => {
                 let mut node_dumper = dumper.node("Expression::Unary");
-                let operator_str = format!("{:?}", operator.as_token_type());
-                node_dumper.field("operator", &operator_str.as_str());
+                node_dumper.field("operator", operator);
                 node_dumper.finish();
                 dumper.with_depth(|dumper| {
                     dumper.dump(right, None);
@@ -659,8 +687,7 @@ impl Dump for Expression {
                 right,
             } => {
                 let mut node_dumper = dumper.node("Expression::Binary");
-                let operator_str = format!("{:?}", operator.as_token_type());
-                node_dumper.field("operator", &operator_str.as_str());
+                node_dumper.field("operator", operator);
                 node_dumper.finish();
                 dumper.with_depth(|dumper| {
                     dumper.dump(left, Some("left"));
@@ -673,8 +700,7 @@ impl Dump for Expression {
                 right,
             } => {
                 let mut node_dumper = dumper.node("Expression::Assign");
-                let operator_str = format!("{:?}", operator.as_token_type());
-                node_dumper.field("operator", &operator_str.as_str());
+                node_dumper.field("operator", operator);
                 node_dumper.finish();
                 dumper.with_depth(|dumper| {
                     dumper.dump(left, Some("left"));
