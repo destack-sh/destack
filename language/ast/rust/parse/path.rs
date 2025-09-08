@@ -6,7 +6,7 @@ use dyst_language_token::TokenType;
 impl<'a> Parser<'a> {
     /// Peek a Path.
     pub fn peek_path(&self) -> ParseResult<Span> {
-        todo!()
+        todo!("peek path?")
     }
 
     /// Eat a Path.

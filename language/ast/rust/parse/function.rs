@@ -149,7 +149,7 @@ impl<'a> Parser<'a> {
 
         // with
         let with = if self.peek_keyword(Keyword::With).is_ok() {
-            self.eat_keyword(Keyword::With)?;
+            self.bump(); // eat with
             let with = self.eat_with_body()?;
             Some(with)
         } else {
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
 
         // return type
         let return_type = if self.peek_token(TokenType::Arrow).is_ok() {
-            self.eat_token(TokenType::Arrow)?;
+            self.bump(); // eat arrow
             Some(self.eat_type()?)
         } else {
             None
@@ -202,7 +202,7 @@ mod tests {
             r###"
 function foo() with (
   !Bar,
-  Time[float32],
+  Time<float32>,
   F: Numeric,
 ) => int32 {
 }
