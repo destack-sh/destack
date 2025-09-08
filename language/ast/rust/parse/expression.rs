@@ -332,6 +332,28 @@ impl InfixOperator {
     }
 }
 
+static IN_STATIC_TYPE_BINARY_OPERATORS: [BinaryOperator; 15] = [
+    // multiplication
+    BinaryOperator::Multiply,
+    BinaryOperator::WrappingMultiply,
+    BinaryOperator::SaturatingMultiply,
+    BinaryOperator::Divide,
+    BinaryOperator::Remainder,
+    // addition
+    BinaryOperator::Add,
+    BinaryOperator::WrappingAdd,
+    BinaryOperator::SaturatingAdd,
+    BinaryOperator::Subtract,
+    BinaryOperator::WrappingSubtract,
+    BinaryOperator::SaturatingSubtract,
+    // logical
+    BinaryOperator::LogicalAnd,
+    BinaryOperator::LogicalOr,
+    // comparison
+    BinaryOperator::Equal,
+    BinaryOperator::NotEqual,
+];
+
 impl<'a> Parser<'a> {
     /// Peek a unary operator.
     #[inline]
@@ -344,6 +366,12 @@ impl<'a> Parser<'a> {
     /// Peek a binary operator.
     #[inline]
     pub fn peek_binary_operator(&self) -> ParseResult<BinaryOperator> {
+        if self.options.in_static_type
+            && !IN_STATIC_TYPE_BINARY_OPERATORS
+                .contains(&BinaryOperator::from_token_type(self.peek()?.token.r#type).unwrap())
+        {
+            return Err(ParseError::UnexpectedToken(self.peek()?.span));
+        }
         let token = self.peek()?;
         BinaryOperator::from_token_type(token.token.r#type)
             .ok_or(ParseError::UnexpectedToken(token.span))
@@ -352,6 +380,9 @@ impl<'a> Parser<'a> {
     /// Peek an assign operator.
     #[inline]
     pub fn peek_assign_operator(&self) -> ParseResult<AssignOperator> {
+        if self.options.in_static_type {
+            return Err(ParseError::UnexpectedToken(self.peek()?.span));
+        }
         let token = self.peek()?;
         AssignOperator::from_token_type(token.token.r#type)
             .ok_or(ParseError::UnexpectedToken(token.span))
@@ -361,9 +392,14 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_infix_operator(&self) -> ParseResult<InfixOperator> {
         let token = self.peek()?;
-        if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type) {
+        if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
+            && (!self.options.in_static_type
+                || IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator))
+        {
             Ok(InfixOperator::Binary(binary_operator))
-        } else if let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type) {
+        } else if !self.options.in_static_type
+            && let Some(assign_operator) = AssignOperator::from_token_type(token.token.r#type)
+        {
             Ok(InfixOperator::Assign(assign_operator))
         } else {
             Err(ParseError::UnexpectedToken(token.span))
@@ -582,12 +618,12 @@ impl<'a> Parser<'a> {
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // struct
-            else if token.token.r#type == TokenType::OpenBrace {
+            else if self.peek_struct_literal().is_ok() {
                 let struct_literal = self.eat_struct_literal()?;
                 let expression = Expression::StructLiteral(struct_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
             // scalar
-            } else if token.token.r#type == TokenType::Literal {
+            } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
                 let expression = Expression::ScalarLiteral(scalar_literal);
                 self.tree.allocate(expression, self.get_span_from(start))

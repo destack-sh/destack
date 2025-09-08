@@ -4,6 +4,7 @@ use std::str::FromStr;
 
 use dyst_language_token::TokenType;
 
+use crate::parse::ParserOptions;
 use crate::{
     FloatType, IntType, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser,
     PrimitiveType, Type,
@@ -336,7 +337,13 @@ impl<'a> Parser<'a> {
             // eat static arguments if present
             let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
                 self.bump(); // eat less than
-                let static_arguments = self.eat_arguments_body()?;
+                let static_arguments = self.with_options(
+                    ParserOptions {
+                        in_static_type: true,
+                        ..self.options
+                    },
+                    |p| p.eat_arguments_body(),
+                )?;
                 self.eat_token(TokenType::GreaterThan)?;
                 Some(static_arguments)
             } else {

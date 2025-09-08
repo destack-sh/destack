@@ -152,18 +152,18 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Literal => "35",              // magenta
 
         // symbols
-        TokenType::Wildcard => "37",    // white
-        TokenType::Colon => "37",       // white
-        TokenType::Semicolon => "37",   // white
-        TokenType::Comma => "37",       // white
-        TokenType::Dot => "37",         // white
-        TokenType::Range => "37",       // white
-        TokenType::RangeWide => "37",   // white
-        TokenType::Pound => "95",       // bright magenta
-        TokenType::Empty => "95",       // bright magenta
-        TokenType::EmptyWide => "95",   // bright magenta
-        TokenType::Arrow => "95",       // bright magenta
-        TokenType::BadArrow => "95",    // bright magenta
+        TokenType::Wildcard => "37",  // white
+        TokenType::Colon => "37",     // white
+        TokenType::Semicolon => "37", // white
+        TokenType::Comma => "37",     // white
+        TokenType::Dot => "37",       // white
+        TokenType::Range => "37",     // white
+        TokenType::RangeWide => "37", // white
+        TokenType::Pound => "95",     // bright magenta
+        TokenType::Empty => "95",     // bright magenta
+        TokenType::EmptyWide => "95", // bright magenta
+        TokenType::Arrow => "95",     // bright magenta
+        TokenType::BadArrow => "95",  // bright magenta
 
         // parentheses
         TokenType::OpenParenthesis => "33",  // yellow

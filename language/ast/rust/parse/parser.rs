@@ -7,6 +7,15 @@ use dyst_language_token::{Token, TokenSpan, TokenType, tokenize_semantic};
 
 use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
 
+/// Configure parsing behavior.
+/// Useful for enabling/disabling features in some AST subtrees.
+#[derive(Debug, Copy, Clone, Default)]
+pub(crate) struct ParserOptions {
+    /// Whether we're parsing a static type (parameters or arguments).
+    /// We disallow certain infix operations in static types to avoid ambiguity with <>.
+    pub in_static_type: bool = false,
+}
+
 /// A parser for Dyst source code.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
@@ -21,6 +30,9 @@ pub struct Parser<'a> {
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     pub eof_token: TokenSpan,
 
+    // todo!: Parser Session & :Diagnostics (with some recovery)
+    /// Diagnostics emitted in this session.
+    pub diagnostics: Vec<Diagnostic>,
     /// The string pool.
     pub strings: StringPool,
     /// The path pool.
@@ -28,12 +40,10 @@ pub struct Parser<'a> {
     /// The Node tree.
     pub tree: NodeTree,
 
-    // todo!: Parser Session & :Diagnostics (with some recovery)
-    /// Diagnostics emitted in this session.
-    pub diagnostics: Vec<Diagnostic>,
-
     /// The current position in the tokens.
-    pos: usize,
+    pub(crate) pos: usize,
+    /// The parser options.
+    pub(crate) options: ParserOptions,
 }
 
 impl Debug for Parser<'_> {
@@ -68,12 +78,28 @@ impl<'a> Parser<'a> {
             diagnostics,
             pos: 0,
             eof_token,
+            options: ParserOptions::default(),
         }
     }
 
     /// Create a new Dumper.
     pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
         Dumper::new(&self.strings, &self.paths, &self.tree, options)
+    }
+
+    /// Execute a function with a new parser options.
+    /// The old options are restored after the function returns.
+    #[inline]
+    pub(crate) fn with_options<T>(
+        &mut self,
+        options: ParserOptions,
+        func: impl FnOnce(&mut Self) -> ParseResult<T>,
+    ) -> ParseResult<T> {
+        let old_options = self.options;
+        self.options = options;
+        let result = func(self);
+        self.options = old_options;
+        result
     }
 
     /// Gets a mark of the current position.
