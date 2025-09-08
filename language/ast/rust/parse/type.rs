@@ -179,11 +179,11 @@ impl<'a> Parser<'a> {
     /// uint7
     /// float32
     /// ```
-    pub fn peek_primitive_type(&mut self) -> ParseResult<NodeId<Type>> {
-        let start = self.mark();
+    pub fn peek_primitive_type(&mut self) -> ParseResult<PrimitiveType> {
         let next = self.peek()?;
+        // NOTE: void and null are parsed as literals, but it's fine since we match on the raw span string
         let next_str = self.get_span_str(next.span);
-        let primitive_type = match next_str {
+        match next_str {
             // void
             "void" => Ok(PrimitiveType::Void),
             // null
@@ -213,11 +213,7 @@ impl<'a> Parser<'a> {
             // float64
             "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
             _ => Err(ParseError::UnexpectedToken(next.span)),
-        };
-        let ty_id = self
-            .tree
-            .allocate(Type::Primitive(primitive_type?), self.get_span_from(start));
-        Ok(ty_id)
+        }
     }
 
     /// Eat a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
@@ -233,8 +229,12 @@ impl<'a> Parser<'a> {
     /// float32
     /// ```
     pub fn eat_primitive_type(&mut self) -> ParseResult<NodeId<Type>> {
-        let ty_id = self.peek_primitive_type()?;
-        self.eat_identifier()?;
+        let start = self.mark();
+        let primitive_type = self.peek_primitive_type()?;
+        self.bump();
+        let ty_id = self
+            .tree
+            .allocate(Type::Primitive(primitive_type), self.get_span_from(start));
         Ok(ty_id)
     }
 
@@ -267,7 +267,6 @@ impl<'a> Parser<'a> {
                 .allocate(Type::Maybe(inner_type), self.get_span_from(start));
             Ok(ty_id)
         }
-
         // not or never
         else if next.token.r#type == TokenType::Bang {
             self.bump();
@@ -306,45 +305,37 @@ impl<'a> Parser<'a> {
         // primitive
         } else if let Ok(primitive_type) = self.peek_primitive_type() {
             self.bump();
-            Ok(primitive_type)
+            let ty_id = self
+                .tree
+                .allocate(Type::Primitive(primitive_type), self.get_span_from(start));
+            Ok(ty_id)
 
-        // identifier (infer or path)
+        // infer
+        } else if next.token.r#type == TokenType::Wildcard {
+            self.bump();
+            let ty_id = self.tree.allocate(Type::Infer, self.get_span_from(start));
+            Ok(ty_id)
+
+        // identifier
         } else if next.token.r#type == TokenType::Identifier {
-            let identifier = self.get_span_str(next.span);
-
-            // infer
-            if identifier == "_" {
-                self.bump();
-                let ty_id = self.tree.allocate(Type::Infer, self.get_span_from(start));
-                Ok(ty_id)
-            }
-            // path
-            else {
-                let path = self.eat_path()?;
-                // eat static arguments if present
-                if self.peek_token(TokenType::LessThan).is_ok() {
-                    self.eat_token(TokenType::LessThan)?;
-                    let static_arguments = self.eat_arguments_body()?;
-                    self.eat_token(TokenType::GreaterThan)?;
-                    let ty_id = self.tree.allocate(
-                        Type::Path {
-                            path,
-                            static_arguments: Some(static_arguments),
-                        },
-                        self.get_span_from(start),
-                    );
-                    Ok(ty_id)
-                } else {
-                    let ty_id = self.tree.allocate(
-                        Type::Path {
-                            path,
-                            static_arguments: None,
-                        },
-                        self.get_span_from(start),
-                    );
-                    Ok(ty_id)
-                }
-            }
+            let path = self.eat_path()?;
+            // eat static arguments if present
+            let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+                self.eat_token(TokenType::LessThan)?;
+                let static_arguments = self.eat_arguments_body()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                Some(static_arguments)
+            } else {
+                None
+            };
+            let ty_id = self.tree.allocate(
+                Type::Path {
+                    path,
+                    static_arguments,
+                },
+                self.get_span_from(start),
+            );
+            Ok(ty_id)
         }
         // error
         else {
@@ -423,7 +414,7 @@ mod tests {
     };
 
     #[test]
-    fn test_primitive_void() {
+    fn test_parse_type_void() {
         let test = TestParser::new("void");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -432,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_null() {
+    fn test_parse_type_null() {
         let test = TestParser::new("null");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -441,7 +432,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_boolean() {
+    fn test_parse_type_boolean() {
         let test = TestParser::new("boolean");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -450,7 +441,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_character() {
+    fn test_parse_type_character() {
         let test = TestParser::new("character");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -463,7 +454,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_int32() {
+    fn test_parse_type_int32() {
         let test = TestParser::new("int32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -479,7 +470,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_uint7() {
+    fn test_parse_type_uint7() {
         let test = TestParser::new("uint7");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -495,7 +486,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_uint0() {
+    fn test_parse_type_uint0() {
         let test = TestParser::new("uint0");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -511,7 +502,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_uint999() {
+    fn test_parse_type_uint999() {
         let test = TestParser::new("uint999");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -527,7 +518,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_int128() {
+    fn test_parse_type_int128() {
         let test = TestParser::new("int128");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -543,7 +534,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_float32() {
+    fn test_parse_type_float32() {
         let test = TestParser::new("float32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -556,7 +547,7 @@ mod tests {
     }
 
     #[test]
-    fn test_primitive_float64() {
+    fn test_parse_type_float64() {
         let test = TestParser::new("float64");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -569,7 +560,16 @@ mod tests {
     }
 
     #[test]
-    fn test_path_simple() {
+    fn test_parse_type_infer() {
+        let test = TestParser::new("_");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type().unwrap();
+
+        assert_node!(parser.tree, ty_id, Type::Infer);
+    }
+
+    #[test]
+    fn test_parse_type_path_simple() {
         let test = TestParser::new("geom.Vector2");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -592,7 +592,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_with_static_arguments() {
+    fn test_parse_type_path_with_static_arguments() {
         let test = TestParser::new("MyMesh<false, Dims: 3>");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -653,7 +653,7 @@ mod tests {
     }
 
     #[test]
-    fn test_maybe_type() {
+    fn test_parse_type_maybe() {
         let test = TestParser::new("?float32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -672,7 +672,7 @@ mod tests {
     }
 
     #[test]
-    fn test_never_type() {
+    fn test_parse_type_never() {
         let test = TestParser::new("!");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -681,7 +681,7 @@ mod tests {
     }
 
     #[test]
-    fn test_not_type() {
+    fn test_parse_type_not() {
         let test = TestParser::new("!Time");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -707,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pointer_immutable() {
+    fn test_parse_type_pointer_immutable() {
         let test = TestParser::new("*Vector2");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
@@ -736,7 +736,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pointer_mutable() {
+    fn test_parse_type_pointer_mutable() {
         let test = TestParser::new("*var T");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();

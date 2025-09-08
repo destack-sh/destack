@@ -78,6 +78,7 @@ impl<'a> Parser<'a> {
     /// x: 1
     /// y
     /// 2
+    /// z: foo() > 7
     /// ```
     #[inline]
     pub fn eat_argument(&mut self) -> ParseResult<NodeId<Argument>> {

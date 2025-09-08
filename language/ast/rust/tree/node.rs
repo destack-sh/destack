@@ -332,7 +332,7 @@ impl Node for Module {
 /// struct Foo {
 ///     myField: int32
 ///     myOtherField: boolean
-/// 
+///
 ///     let x: int32 = 7 // constant
 ///
 ///     use Bar // Foo has a Bar
@@ -1307,6 +1307,7 @@ impl Node for Parameter {
 /// y: 2
 /// y
 /// false
+/// z: foo() > 7
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Argument {

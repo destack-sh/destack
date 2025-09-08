@@ -3,7 +3,7 @@ use std::str::Chars;
 
 use super::memchr::find_byte;
 
-/// Peekable iterator over a char sequence.
+/// Tokenizer over a source string.
 pub struct Tokenizer<'a> {
     /// The string to tokenize.
     pub str: &'a str,
