@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         let next = *self.peek()?;
 
-        // maybe
+        // maybe with `?`
         if next.token.r#type == TokenType::Question {
             self.bump();
             let inner_type = self.eat_type()?;
@@ -271,9 +271,9 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Maybe(inner_type), self.get_span_from(start));
             Ok(ty_id)
-        }
-        // not or never
-        else if next.token.r#type == TokenType::Bang {
+
+        // not or never with `!`
+        } else if next.token.r#type == TokenType::Bang {
             self.bump();
             if self.peek_token(TokenType::Identifier).is_ok() {
                 let inner_type = self.eat_type()?;
@@ -286,13 +286,13 @@ impl<'a> Parser<'a> {
                 Ok(ty_id)
             }
 
-        // pointer
+        // pointer with `*`
         } else if next.token.r#type == TokenType::Multiply {
             self.bump();
             let mutability = if let Ok(identifier) = self.peek_token(TokenType::Identifier)
                 && self.get_token_str(*identifier) == "var"
             {
-                self.eat_token(TokenType::Identifier)?;
+                self.bump(); // eat var
                 Mutability::Mutable
             } else {
                 Mutability::Immutable
@@ -307,6 +307,21 @@ impl<'a> Parser<'a> {
             );
             Ok(ty_id)
 
+        // variadic with `..`
+        } else if next.token.r#type == TokenType::Range {
+            self.bump(); // eat range
+            let inner_type = self.eat_type()?;
+            let ty_id = self
+                .tree
+                .allocate(Type::Variadic(inner_type), self.get_span_from(start));
+            Ok(ty_id)
+
+        // infer with `_`
+        } else if next.token.r#type == TokenType::Wildcard {
+            self.bump();
+            let ty_id = self.tree.allocate(Type::Infer, self.get_span_from(start));
+            Ok(ty_id)
+
         // primitive
         } else if let Ok(primitive_type) = self.peek_primitive_type() {
             self.bump();
@@ -315,18 +330,12 @@ impl<'a> Parser<'a> {
                 .allocate(Type::Primitive(primitive_type), self.get_span_from(start));
             Ok(ty_id)
 
-        // infer
-        } else if next.token.r#type == TokenType::Wildcard {
-            self.bump();
-            let ty_id = self.tree.allocate(Type::Infer, self.get_span_from(start));
-            Ok(ty_id)
-
         // identifier
         } else if next.token.r#type == TokenType::Identifier {
             let path = self.eat_path()?;
             // eat static arguments if present
             let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-                self.eat_token(TokenType::LessThan)?;
+                self.bump(); // eat less than
                 let static_arguments = self.eat_arguments_body()?;
                 self.eat_token(TokenType::GreaterThan)?;
                 Some(static_arguments)
@@ -767,5 +776,22 @@ mod tests {
                 );
             }
         );
+    }
+
+    #[test]
+    fn test_parse_type_variadic() {
+        let test = TestParser::new("..T");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type().unwrap();
+
+        assert_node!(parser.tree, ty_id, Type::Variadic(inner_id) => {
+            assert_node!(parser.tree, *inner_id, Type::Path {
+                path,
+                static_arguments: None
+            } => {
+                let expected_path = parser.paths.intern(vec![parser.strings.intern("T")]);
+                assert_eq!(*path, expected_path);
+            });
+        });
     }
 }
