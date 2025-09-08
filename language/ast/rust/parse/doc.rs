@@ -3,6 +3,8 @@ use dyst_language_token::{TokenSpan, TokenType};
 use crate::{Doc, NodeId, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
+    // todo!: parse docs in statements/expressions and associate with items
+
     /// Peek a doc comment (incl. `///` or `/**`).
     #[inline]
     pub fn peek_doc(&self) -> ParseResult<&TokenSpan> {

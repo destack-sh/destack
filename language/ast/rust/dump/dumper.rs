@@ -673,6 +673,9 @@ impl Dump for Expression {
             Expression::Cast(node) => {
                 dumper.node_wrapper("Expression::Cast", *node);
             }
+            Expression::Unwrap(node) => {
+                dumper.node_wrapper("Expression::Unwrap", *node);
+            }
             Expression::Binary {
                 left,
                 operator,

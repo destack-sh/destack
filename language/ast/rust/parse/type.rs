@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
     /// [float64; 3]
     /// (int32, int32)
     /// *T // pointer to T
-    /// *?T // pointer to Maybe<T>
+    /// *?T // pointer to Maybe[T]
     /// ?*T // Maybe pointer to T
     /// T[int32]
     /// T[Validate: false]
@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
     /// struct MyResponse { x: int32, y: int32 }
     /// enum { Good, Bad }
     /// union { A(int), B(float) } // explicit anonymous union
-    /// boolean | *int32 // implicit anonymous union
+    /// boolean | int32 // implicit anonymous union
     /// function (int32) => int32
     /// function () => Result[int32, struct Error { message: string }]
     /// ```
