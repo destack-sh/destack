@@ -329,9 +329,9 @@ impl Node for Module {
 ///     myOtherField: boolean
 /// }
 ///
-/// struct Foo {
+/// struct Foo<T> {
 ///     myField: int32
-///     myOtherField: boolean
+///     myOtherField: T
 ///
 ///     let x: int32 = 7 // constant
 ///
@@ -345,6 +345,8 @@ impl Node for Module {
 pub struct Struct {
     /// The name of the struct.
     pub name: Option<StringId>,
+    /// The static parameters of the struct.
+    pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The fields of the struct.
     pub fields: Vec<NodeId<StructField>>,
     /// The body of the type.
