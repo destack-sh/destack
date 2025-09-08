@@ -233,6 +233,8 @@ pub enum TokenType {
 /// "Raw" Literal Token for literal, scalar values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RawLiteralType {
+    /// Null
+    Null,
     /// Boolean
     Boolean { value: bool },
     /// 12, 0o100, 0x (is_empty), 0b120, 1.0

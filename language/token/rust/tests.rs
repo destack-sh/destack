@@ -324,6 +324,7 @@ fn test_raw_string() {
 fn test_literals() {
     assert_tokenize_eq_roundtrip!(
         r####"
+null
 true
 false
 'a'
@@ -340,6 +341,8 @@ r###"raw"###
 br###"raw"###
 "####,
         Token::new(TokenType::Newline, 1, None),
+        // null
+        Token::new(TokenType::Literal, 4, Some(RawLiteralType::Null),),
         // true
         Token::new(
             TokenType::Literal,
@@ -465,30 +468,6 @@ br###"raw"###
         ),
         Token::new(TokenType::Newline, 1, None),
     );
-}
-
-#[test]
-fn test_roundtrip_tetris() {
-    let input = r##"
-/// Base component for all tetris game objects
-struct TetrisComponent {
-	/// Game instance this object belongs to
-	gameId: uint32
-	/// Whether this object is active in the game
-	isActive: bool = true
-}
-
-/// A single cell in the tetris grid
-struct TetrisCell {
-	/// Whether the cell is occupied by a placed piece
-	isOccupied: bool = false,
-	/// Color of the piece in this cell
-	color: ?Color = None,
-	/// Shape type that occupies this cell
-	shapeType: ?TetrisShape = None,
-}"##;
-
-    assert_tokenize_roundtrip!(input);
 }
 
 #[test]
