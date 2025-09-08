@@ -72,8 +72,6 @@ pub enum TokenType {
     Wildcard,
     /// `:`
     Colon,
-    /// `::`
-    DoubleColon,
     /// `;`
     Semicolon,
     /// `,`
@@ -82,10 +80,14 @@ pub enum TokenType {
     Dot,
     /// `..`
     Range,
+    /// `...`
+    RangeWide,
     /// `#`
     Pound,
     /// '--',
     Empty,
+    /// `---`,
+    EmptyWide,
     /// `=>`
     Arrow,
     /// `->`

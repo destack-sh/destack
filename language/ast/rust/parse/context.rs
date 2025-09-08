@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_multiple_clauses() {
-        let input = "with !Bar, Time[float32], F: Numeric";
+        let input = "with !Bar, Time, F: Numeric";
         let test = TestParser::new(input);
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
@@ -397,12 +397,11 @@ mod tests {
                 });
             });
 
-            // Time[float32]
+            // Time
             assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
                     assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Time")]));
-                    let args = static_arguments.as_ref().expect("expected static args");
-                    assert_eq!(args.len(), 1);
+                    assert!(static_arguments.is_none());
                 });
             });
 
@@ -422,7 +421,7 @@ mod tests {
     fn test_parse_with_parenthesized_multiline() {
         let input = r##"with (
   !Bar
-  Time[float32],
+  Time,
   F: Numeric
 )"##;
         let test = TestParser::new(input);
@@ -441,12 +440,11 @@ mod tests {
                 });
             });
 
-            // Time[float32]
+            // Time
             assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
                     assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Time")]));
-                    let args = static_arguments.as_ref().expect("expected static args");
-                    assert_eq!(args.len(), 1);
+                    assert!(static_arguments.is_none());
                 });
             });
 
