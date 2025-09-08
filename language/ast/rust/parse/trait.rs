@@ -1,6 +1,6 @@
 use dyst_language_token::TokenType;
 
-use crate::{Function, Keyword, Let, NodeId, ParseResult, Parser, Trait, Type, Use, With};
+use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, With};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.
@@ -14,6 +14,9 @@ impl<'a> Parser<'a> {
     /// trait Foo: Bar, Boz { // Foo is a subtype of Bar and Boz
     ///     let x: int32 // constant
     ///     function foo() => int32
+    ///
+    ///     function myFunc() { // nested declaration
+    ///     }
     /// }
     ///
     /// trait Baz[T] with T: Copy {
@@ -67,44 +70,10 @@ impl<'a> Parser<'a> {
         }
 
         // body
-        let mut usings: Vec<NodeId<Use>> = Vec::new();
-        let mut lets: Vec<NodeId<Let>> = Vec::new();
-        let mut functions: Vec<NodeId<Function>> = Vec::new();
-        if self.peek_token(TokenType::OpenBrace).is_ok() {
-            self.eat_token(TokenType::OpenBrace)?;
-            self.eat_newlines_maybe()?;
-            loop {
-                // stop on closing brace
-                if self.peek_token(TokenType::CloseBrace).is_ok() {
-                    break;
-                }
-                // consume any stop
-                else if self.peek_any_stop().is_ok() {
-                    self.eat_any_stop_with_newlines()?;
-                }
-                // let
-                else if self.peek_keyword(Keyword::Let).is_ok()
-                    || self.peek_keyword(Keyword::Var).is_ok()
-                {
-                    let let_declaration = self.eat_let_or_var()?;
-                    lets.push(let_declaration);
-                }
-                // use
-                else if self.peek_keyword(Keyword::Use).is_ok() {
-                    let using = self.eat_use()?;
-                    usings.push(using);
-                }
-                // function
-                else if self.peek_keyword(Keyword::Function).is_ok() {
-                    let function = self.eat_function()?;
-                    functions.push(function);
-                } else {
-                    // skip unexpected tokens conservatively
-                    self.bump();
-                }
-            }
-            self.eat_token(TokenType::CloseBrace)?;
-        }
+        self.eat_token(TokenType::OpenBrace)?;
+        self.eat_newlines_maybe()?;
+        let statements = self.eat_block_body(BlockFormat::Explicit)?;
+        self.eat_token(TokenType::CloseBrace)?;
 
         let trait_id = self.tree.allocate(
             Trait {
@@ -112,9 +81,7 @@ impl<'a> Parser<'a> {
                 static_parameters,
                 supertraits,
                 withs,
-                usings,
-                lets,
-                functions,
+                statements,
             },
             self.get_span_from(start),
         );
@@ -125,7 +92,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Trait, Type, WithClause, assert_node};
+    use crate::{Function, Statement, Trait, Type, WithClause, assert_node};
 
     #[test]
     fn test_parse_trait_anonymous_empty() {
@@ -133,14 +100,12 @@ mod tests {
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait().unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, supertraits, withs, usings, lets, functions } => {
+        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, supertraits, withs, statements } => {
             assert!(name.is_none());
             assert!(static_parameters.is_none());
             assert!(supertraits.is_empty());
             assert!(withs.is_empty());
-            assert!(usings.is_empty());
-            assert!(lets.is_empty());
-            assert!(functions.is_empty());
+            assert!(statements.is_empty());
         });
     }
 
@@ -189,11 +154,9 @@ trait Foo {
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait().unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, usings, lets, functions, .. } => {
+        assert_node!(parser.tree, trait_id, Trait { name, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
-            assert_eq!(usings.len(), 1);
-            assert_eq!(lets.len(), 1);
-            assert_eq!(functions.len(), 1);
+            assert_eq!(statements.len(), 3);
         });
     }
 
@@ -223,7 +186,7 @@ trait Baz[T] with T: Copy {
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait().unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, functions, .. } => {
+        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Baz")));
 
             let params = static_parameters.as_ref().expect("expected static params");
@@ -248,15 +211,18 @@ trait Baz[T] with T: Copy {
                 });
             });
 
-            assert_eq!(functions.len(), 1);
+            assert_eq!(statements.len(), 1);
 
             // function baz() => T
-            let func_id = functions[0];
-            let func = parser.tree.get(func_id);
-            let ret = func.return_type.expect("expected return type");
-            assert_node!(parser.tree, ret, Type::Path { path, .. } => {
-                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
-            });
+            let statement_id = statements[0];
+            assert_node!(parser.tree, statement_id, Statement::Function(func_id) => {
+                assert_node!(parser.tree, *func_id, Function { return_type, .. } => {
+                    let ret = return_type.expect("expected return type");
+                    assert_node!(parser.tree, ret, Type::Path { path, .. } => {
+                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
+                    });
+                })
+            })
         });
     }
 }

@@ -48,6 +48,14 @@ impl<'a> Parser<'a> {
         let literal_str = self.get_span_str(literal_span.span);
 
         match literal {
+            // void literal
+            RawLiteralType::Void => {
+                let scalar_literal = self
+                    .tree
+                    .allocate(ScalarLiteral::Void, self.get_span_from(start));
+                Ok(scalar_literal)
+            }
+
             // null literal
             RawLiteralType::Null => {
                 let scalar_literal = self
@@ -745,7 +753,7 @@ mod tests {
     fn test_parse_struct_literal() {
         let test = TestParser::new(
             r##"
-destack.geometry.Mesh[2, int32] {
+destack.geometry.Mesh<2, int32> {
     vertices: [1,] // optional comma
     indices: 2, // optional comma
 }

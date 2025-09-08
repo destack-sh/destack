@@ -20,6 +20,7 @@ mod parser;
 mod path;
 mod pattern;
 mod statement;
+mod stop;
 mod r#struct;
 mod r#trait;
 mod r#tuple;

@@ -105,14 +105,15 @@ impl<'a> Parser<'a> {
     /// ```
     /// int32
     /// boolean
+    /// boolean | *int32
     /// [float32]
     /// [float64; 3]
     /// (int32, int32)
     /// *T // pointer to T
-    /// *?T // pointer to Maybe[T]
+    /// *?T // pointer to Maybe<T>
     /// ?*T // Maybe pointer to T
-    /// T[int32]
-    /// T[Validate: false]
+    /// T<int32>
+    /// T<Validate: false>
     /// MyEnum
     /// simulation.geometry.Vector2
     ///
@@ -121,7 +122,7 @@ impl<'a> Parser<'a> {
     /// union { A(int), B(float) } // explicit anonymous union
     /// boolean | int32 // implicit anonymous union
     /// function (int32) => int32
-    /// function () => Result[int32, struct Error { message: string }]
+    /// function () => Result<int32, struct Error { message: string }>
     /// ```
     pub fn eat_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
@@ -171,6 +172,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// void
+    /// null
     /// boolean
     /// character
     /// int32
@@ -184,6 +186,8 @@ impl<'a> Parser<'a> {
         let primitive_type = match next_str {
             // void
             "void" => Ok(PrimitiveType::Void),
+            // null
+            "null" => Ok(PrimitiveType::Null),
             // boolean
             "boolean" => Ok(PrimitiveType::Boolean),
             // character
@@ -221,6 +225,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// void
+    /// null
     /// boolean
     /// character
     /// int32
@@ -238,6 +243,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// void
+    /// null
     /// uint8
     /// int17
     /// float32
@@ -246,7 +252,7 @@ impl<'a> Parser<'a> {
     /// _
     /// !
     /// !Time
-    /// geom.Vector[Dims: 2, float32]
+    /// geom.Vector<Dims: 2, float32>
     /// ```
     pub fn eat_scalar_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
@@ -261,6 +267,7 @@ impl<'a> Parser<'a> {
                 .allocate(Type::Maybe(inner_type), self.get_span_from(start));
             Ok(ty_id)
         }
+
         // not or never
         else if next.token.r#type == TokenType::Bang {
             self.bump();
@@ -315,10 +322,10 @@ impl<'a> Parser<'a> {
             else {
                 let path = self.eat_path()?;
                 // eat static arguments if present
-                if self.peek_token(TokenType::OpenBracket).is_ok() {
-                    self.eat_token(TokenType::OpenBracket)?;
+                if self.peek_token(TokenType::LessThan).is_ok() {
+                    self.eat_token(TokenType::LessThan)?;
                     let static_arguments = self.eat_arguments_body()?;
-                    self.eat_token(TokenType::CloseBracket)?;
+                    self.eat_token(TokenType::GreaterThan)?;
                     let ty_id = self.tree.allocate(
                         Type::Path {
                             path,
@@ -422,6 +429,15 @@ mod tests {
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Void));
+    }
+
+    #[test]
+    fn test_primitive_null() {
+        let test = TestParser::new("null");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type().unwrap();
+
+        assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Null));
     }
 
     #[test]
@@ -577,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_path_with_static_arguments() {
-        let test = TestParser::new("MyMesh[false, Dims: 3]");
+        let test = TestParser::new("MyMesh<false, Dims: 3>");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 

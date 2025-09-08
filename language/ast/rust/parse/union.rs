@@ -3,7 +3,8 @@
 use dyst_language_token::{TokenType, clean_identifier};
 
 use crate::{
-    Keyword, Let, NodeId, ParseResult, Parser, TupleField, Type, Union, UnionField, UnionStyle, Use,
+    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, TupleField, Type, Union,
+    UnionField, UnionStyle,
 };
 
 impl<'a> Parser<'a> {
@@ -27,6 +28,9 @@ impl<'a> Parser<'a> {
     /// union(TetrisShapeType) TetrisShape {
     ///     use GameObject
     ///     ...
+    ///    
+    ///     function myFunc() { // nested declaration
+    ///     }
     /// }
     /// ```
     pub fn eat_union(&mut self) -> ParseResult<NodeId<Union>> {
@@ -72,8 +76,7 @@ impl<'a> Parser<'a> {
 
         // eat everything
         let mut fields: Vec<NodeId<UnionField>> = Vec::new();
-        let mut usings: Vec<NodeId<Use>> = Vec::new();
-        let mut lets: Vec<NodeId<Let>> = Vec::new();
+        let mut statements: Vec<NodeId<Statement>> = Vec::new();
         loop {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -83,22 +86,15 @@ impl<'a> Parser<'a> {
             else if self.peek_any_stop().is_ok() {
                 self.eat_any_stop_with_newlines()?;
             }
-            // let
-            else if self.peek_keyword(Keyword::Let).is_ok()
-                || self.peek_keyword(Keyword::Var).is_ok()
-            {
-                let let_declaration = self.eat_let_or_var()?;
-                lets.push(let_declaration);
-            }
-            // use
-            else if self.peek_keyword(Keyword::Use).is_ok() {
-                let using = self.eat_use()?;
-                usings.push(using);
-            }
-            // field
-            else {
+            // union field
+            else if self.peek_union_field().is_ok() {
                 let field = self.eat_union_field()?;
                 fields.push(field);
+            }
+            // any other statement
+            else {
+                let statement = self.eat_statement()?;
+                statements.push(statement);
             }
         }
 
@@ -108,12 +104,28 @@ impl<'a> Parser<'a> {
                 style: UnionStyle::Explicit,
                 r#type: None,
                 fields,
-                usings,
-                lets,
+                statements,
             },
             self.get_span_from(start),
         );
         Ok(union_id)
+    }
+
+    /// Peek a union field.
+    fn peek_union_field(&mut self) -> ParseResult<()> {
+        if self.peek_identifier().is_ok()
+            && (self.peek_next_token(TokenType::OpenParenthesis).is_ok()
+                || self.peek_next_token(TokenType::OpenBrace).is_ok()
+                || self.peek_next_token(TokenType::Assign).is_ok()
+                || self.peek_next_token(TokenType::Newline).is_ok()
+                || self.peek_next_token(TokenType::Comma).is_ok()
+                || self.peek_next_token(TokenType::Semicolon).is_ok()
+                || self.peek_next_token(TokenType::CloseBrace).is_ok())
+        {
+            Ok(())
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek()?.span))
+        }
     }
 
     /// Eat a single union field.
@@ -227,8 +239,7 @@ impl<'a> Parser<'a> {
                 style: UnionStyle::Implicit,
                 r#type: None,
                 fields,
-                usings: Vec::new(),
-                lets: Vec::new(),
+                statements: Vec::new(),
             },
             self.get_span_from(start),
         );
@@ -240,8 +251,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Mutability, PrimitiveType, TupleField, Type, Union, UnionField, UnionStyle,
-        assert_int, assert_node,
+        Expression, Mutability, PrimitiveType, Statement, TupleField, Type, Union, UnionField,
+        UnionStyle, Use, assert_int, assert_node,
     };
 
     #[test]
@@ -255,12 +266,11 @@ union { A, B }
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union().unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, usings, lets } => {
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
             assert_eq!(*style, UnionStyle::Explicit);
-            assert!(usings.is_empty());
-            assert!(lets.is_empty());
+            assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);
 
             // A
@@ -288,6 +298,9 @@ union(uint4) Foo {
     use Bar
     C(boolean)
     D(boolean, count: int32) = 6
+
+    function myFunc() { // nested declaration
+    }
 }
 "###,
         );
@@ -295,7 +308,7 @@ union(uint4) Foo {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union().unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, usings, lets } => {
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(*style, UnionStyle::Explicit);
 
@@ -305,13 +318,15 @@ union(uint4) Foo {
                 assert!(!int_ty.is_signed);
             });
 
-            assert_eq!(usings.len(), 1);
-            assert!(lets.is_empty());
+            assert_eq!(statements.len(), 2);
             assert_eq!(fields.len(), 3);
 
             // use Bar
-            let using = parser.tree.get(usings[0]);
-            assert_eq!(using.clauses.len(), 1);
+            assert_node!(parser.tree, statements[0], Statement::Use(use_id) => {
+                assert_node!(parser.tree, *use_id, Use { clauses, .. } => {
+                    assert_eq!(clauses.len(), 1);
+                });
+            });
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
@@ -365,12 +380,11 @@ union(uint4) Foo {
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, usings, lets } => {
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
             assert_eq!(*style, UnionStyle::Implicit);
-            assert!(usings.is_empty());
-            assert!(lets.is_empty());
+            assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);
 
             // A
@@ -403,7 +417,7 @@ union(uint4) Foo {
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name: _, r#type: _, style: _, fields, usings: _, lets: _ } => {
+        assert_node!(parser.tree, union_id, Union { fields, .. } => {
             assert_eq!(fields.len(), 2);
 
             // A
@@ -434,7 +448,7 @@ union(uint4) Foo {
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name: _, r#type: _, style: _, fields, usings: _, lets: _ } => {
+        assert_node!(parser.tree, union_id, Union { fields, .. } => {
             assert_eq!(fields.len(), 2);
 
             // *C
@@ -457,7 +471,7 @@ union(uint4) Foo {
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name: _, r#type: _, style: _, fields, usings: _, lets: _ } => {
+        assert_node!(parser.tree, union_id, Union { fields, .. } => {
             assert_eq!(fields.len(), 1);
 
             // ?*var D

@@ -743,7 +743,7 @@ mod tests {
     }
 
     /// Struct literals with static parameters are disambiguated.
-    /// geom.Mesh[Dims: 2, DType: float32] {
+    /// geom.Mesh<Dims: 2, DType: float32> {
     ///
     ///     vertices: [1,]
     ///     y  
@@ -753,7 +753,7 @@ mod tests {
     fn test_parse_struct_literal_path_with_static_parameters() {
         let test = TestParser::new(
             r##"
-geom.Mesh[Dims: 2, DType: float32] { 
+geom.Mesh<Dims: 2, DType: float32> { 
     vertices: [1,]
     y
 }"##,

@@ -42,19 +42,29 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+        
         // body
         self.eat_token(TokenType::OpenBrace)?;
-        let block_id = self.eat_block_body(BlockFormat::Explicit)?;
+        let statements = self.eat_block_body(BlockFormat::Explicit)?;
+        self.eat_token(TokenType::CloseBrace)?;
+
+        // block
+        let block_id = self.tree.allocate(
+            Block {
+                format: BlockFormat::Explicit,
+                label: None,
+                statements,
+            },
+            self.get_span_from(start),
+        );
         let block = self.tree.get_mut(block_id);
         block.label = label;
-        self.eat_token(TokenType::CloseBrace)?;
         self.tree.set_span(block_id, self.get_span_from(start));
         Ok(block_id)
     }
 
     /// Eat a block of statements (without the label, `{`, and `}`)
-    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<NodeId<Block>> {
-        let start = self.mark();
+    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<Vec<NodeId<Statement>>> {
         let mut statements: Vec<NodeId<Statement>> = Vec::new();
 
         loop {
@@ -75,13 +85,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let block = Block {
-            format,
-            label: None,
-            statements,
-        };
-        let block_id = self.tree.allocate(block, self.get_span_from(start));
-        Ok(block_id)
+        Ok(statements)
     }
 
     /// Eat a break statement.

@@ -222,8 +222,8 @@ impl<'a> Dumper<'a> {
 
     /// Helper for dumping a single node.
     #[inline]
-    pub fn node<'d>(&'d mut self, name: &str) -> NodeDumper<'d, 'a> {
-        NodeDumper::begin(self, name)
+    pub fn node<'d>(&'d mut self, name: &str) -> StructDumper<'d, 'a> {
+        StructDumper::begin(self, name)
     }
 
     /// Helper for dumping a single node that just wraps another node.
@@ -273,14 +273,15 @@ impl<'a> Dumper<'a> {
     }
 }
 
-/// Helper for dumping a single node.
+/// Helper for dumping a single struct-like type.
 #[derive(Debug)]
-pub struct NodeDumper<'d, 'p> {
+pub struct StructDumper<'d, 'p> {
     dumper: &'d mut Dumper<'p>,
     has_fields: bool,
 }
 
-impl<'d, 'p> NodeDumper<'d, 'p> {
+impl<'d, 'p> StructDumper<'d, 'p> {
+    /// Begin a new struct-like dumper with some name.
     pub fn begin(dumper: &'d mut Dumper<'p>, name: &str) -> Self {
         dumper.write_str(name, Some(Color::BrightBlue));
         Self {
@@ -508,6 +509,9 @@ impl Dump for PrimitiveType {
             PrimitiveType::Void => {
                 dumper.node("PrimitiveType::Void").end();
             }
+            PrimitiveType::Null => {
+                dumper.node("PrimitiveType::Null").end();
+            }
             PrimitiveType::Boolean => {
                 dumper.node("PrimitiveType::Boolean").end();
             }
@@ -707,6 +711,10 @@ impl Dump for Expression {
                 });
             }
 
+            Expression::Doc(node) => {
+                dumper.node_wrapper("Expression::Doc", *node);
+            }
+
             Expression::Error => {
                 dumper.node("Expression::Error").end();
             }
@@ -722,7 +730,7 @@ impl Dump for Module {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Module").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
-            dumper.dump_line(&self.body, None);
+            dumper.dump_lines(&self.statements, None);
         });
     }
 }
@@ -732,8 +740,7 @@ impl Dump for Struct {
         dumper.node("Struct").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.fields, None);
-            dumper.dump_lines(&self.usings, None);
-            dumper.dump_lines(&self.lets, None);
+            dumper.dump_lines(&self.statements, None);
         });
     }
 }
@@ -791,9 +798,7 @@ impl Dump for Trait {
         dumper.node("Trait").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.withs, None);
-            dumper.dump_lines(&self.usings, None);
-            dumper.dump_lines(&self.lets, None);
-            dumper.dump_lines(&self.functions, None);
+            dumper.dump_lines(&self.statements, None);
         });
     }
 }
@@ -1256,6 +1261,10 @@ impl Dump for Argument {
 impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
+            ScalarLiteral::Void => {
+                let mut node_dumper = dumper.node("ScalarLiteral::Void");
+                node_dumper.end();
+            }
             ScalarLiteral::Null => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Null");
                 node_dumper.end();

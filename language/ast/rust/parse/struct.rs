@@ -2,7 +2,7 @@
 
 use dyst_language_token::TokenType;
 
-use crate::{Keyword, Let, NodeId, ParseResult, Parser, Struct, StructField, Use};
+use crate::{Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -22,12 +22,15 @@ impl<'a> Parser<'a> {
     /// }
     ///
     /// struct Foo {
+    ///     myField: int32
+    ///     myOtherField: boolean
+    ///
     ///     let x: int32 = 7 // constant
     ///
     ///     use Bar // Foo has a Bar
     ///
-    ///     myField: int32
-    ///     myOtherField: boolean
+    ///     function myFunc() { // nested declaration
+    ///     }
     /// }
     /// ```
     pub fn eat_struct(&mut self) -> ParseResult<NodeId<Struct>> {
@@ -61,8 +64,7 @@ impl<'a> Parser<'a> {
 
         // eat everything
         let mut fields: Vec<NodeId<StructField>> = Vec::new();
-        let mut usings: Vec<NodeId<Use>> = Vec::new();
-        let mut lets: Vec<NodeId<Let>> = Vec::new();
+        let mut statements: Vec<NodeId<Statement>> = Vec::new();
         loop {
             // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -72,22 +74,15 @@ impl<'a> Parser<'a> {
             else if self.peek_any_stop().is_ok() {
                 self.eat_any_stop_with_newlines()?;
             }
-            // let
-            else if self.peek_keyword(Keyword::Let).is_ok()
-                || self.peek_keyword(Keyword::Var).is_ok()
-            {
-                let let_declaration = self.eat_let_or_var()?;
-                lets.push(let_declaration);
-            }
-            // use
-            else if self.peek_keyword(Keyword::Use).is_ok() {
-                let using = self.eat_use()?;
-                usings.push(using);
-            }
-            // field
-            else {
+            // struct field
+            else if self.peek_struct_field().is_ok() {
                 let field = self.eat_struct_field()?;
                 fields.push(field);
+            }
+            // any other statement
+            else {
+                let statement = self.eat_statement()?;
+                statements.push(statement);
             }
         }
 
@@ -95,12 +90,27 @@ impl<'a> Parser<'a> {
             Struct {
                 name: None,
                 fields,
-                usings,
-                lets,
+                statements,
             },
             self.get_span_from(start),
         );
         Ok(struct_id)
+    }
+
+    /// Peek a struct field: `name: Type` with optional default `= <expr>`.
+    fn peek_struct_field(&mut self) -> ParseResult<()> {
+        if self.peek_identifier().is_ok()
+            && (self.peek_next_token(TokenType::Colon).is_ok()
+                || self.peek_next_token(TokenType::Assign).is_ok()
+                || self.peek_next_token(TokenType::Newline).is_ok()
+                || self.peek_next_token(TokenType::Comma).is_ok()
+                || self.peek_next_token(TokenType::Semicolon).is_ok()
+                || self.peek_next_token(TokenType::CloseBrace).is_ok())
+        {
+            Ok(())
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek()?.span))
+        }
     }
 
     /// Eat a single struct field: `name: Type` with optional default `= <expr>`.
@@ -147,10 +157,9 @@ struct { x: int32, y: boolean
 
         // struct { x: int32, y: boolean }
         let struct_id = parser.eat_struct().unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, fields, usings, lets } => {
+        assert_node!(parser.tree, struct_id, Struct { name, fields, statements } => {
             assert_eq!(*name, None);
-            assert!(usings.is_empty());
-            assert!(lets.is_empty());
+            assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);
 
             // x: int32
@@ -183,6 +192,9 @@ struct Foo {
 
     a: boolean
     b: int32 = 4
+
+    function myFunc() { // nested declaration
+    }
 }
 "###,
         );
@@ -190,10 +202,9 @@ struct Foo {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct().unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, fields, usings, lets } => {
+        assert_node!(parser.tree, struct_id, Struct { name, fields, statements } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
-            assert_eq!(usings.len(), 1);
-            assert_eq!(lets.len(), 1);
+            assert_eq!(statements.len(), 1);
             assert_eq!(fields.len(), 2);
 
             // a: boolean

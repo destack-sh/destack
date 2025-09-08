@@ -2,7 +2,7 @@
 
 use dyst_language_token::TokenType;
 
-use crate::{Enum, EnumField, Keyword, NodeId, ParseResult, Parser, Type};
+use crate::{Enum, EnumField, Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Type};
 
 impl<'a> Parser<'a> {
     /// Eat an enum declaration.
@@ -16,6 +16,9 @@ impl<'a> Parser<'a> {
     ///     A // semicolon optional
     ///     B
     ///     C
+    ///
+    ///     function myFunc() { // nested declaration
+    ///     }
     /// }
     ///
     /// enum(u8) Foo {
@@ -66,32 +69,28 @@ impl<'a> Parser<'a> {
     pub fn eat_enum_body(&mut self) -> ParseResult<NodeId<Enum>> {
         let start = self.mark();
 
-        // bail on empty body
-        if self.peek_token(TokenType::CloseBrace).is_ok() {
-            let enum_id = self.tree.allocate(
-                Enum {
-                    name: None,
-                    r#type: None,
-                    fields: Vec::new(),
-                },
-                self.get_span_from(start),
-            );
-            return Ok(enum_id);
-        }
-
-        // parse first field
+        // eat everything
         let mut fields: Vec<NodeId<EnumField>> = Vec::new();
-        let first_field = self.eat_enum_field()?;
-        fields.push(first_field);
-
-        // parse more fields while comma/newline separated
-        while self.peek_any_stop().is_ok() {
-            self.eat_any_stop_with_newlines()?;
+        let mut statements: Vec<NodeId<Statement>> = Vec::new();
+        loop {
+            // stop on closing brace
             if self.peek_token(TokenType::CloseBrace).is_ok() {
                 break;
             }
-            let field = self.eat_enum_field()?;
-            fields.push(field);
+            // consume any stop
+            else if self.peek_any_stop().is_ok() {
+                self.eat_any_stop_with_newlines()?;
+            }
+            // enum field
+            else if self.peek_enum_field().is_ok() {
+                let field = self.eat_enum_field()?;
+                fields.push(field);
+            }
+            // any other statement
+            else {
+                let statement = self.eat_statement()?;
+                statements.push(statement);
+            }
         }
 
         let enum_id = self.tree.allocate(
@@ -99,10 +98,26 @@ impl<'a> Parser<'a> {
                 name: None,
                 r#type: None,
                 fields,
+                statements,
             },
             self.get_span_from(start),
         );
         Ok(enum_id)
+    }
+
+    /// Peek an enum field.
+    fn peek_enum_field(&mut self) -> ParseResult<()> {
+        if self.peek_identifier().is_ok()
+            && (self.peek_next_token(TokenType::Assign).is_ok()
+                || self.peek_next_token(TokenType::Newline).is_ok()
+                || self.peek_next_token(TokenType::Comma).is_ok()
+                || self.peek_next_token(TokenType::Semicolon).is_ok()
+                || self.peek_next_token(TokenType::CloseBrace).is_ok())
+        {
+            Ok(())
+        } else {
+            Err(ParseError::UnexpectedToken(self.peek()?.span))
+        }
     }
 
     /// Eat a single enum field and return it as a UnionField node id.
@@ -144,9 +159,10 @@ enum {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum().unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields } => {
+        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, statements } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
+            assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);
 
             // Success
@@ -172,6 +188,9 @@ enum(uint8) Foo {
     Baz = 1
 
     Qux = 2
+
+    function myFunc() { // nested declaration
+    }
 }
 "###,
         );
@@ -179,7 +198,7 @@ enum(uint8) Foo {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum().unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields } => {
+        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, statements: _ } => {
             // enum name
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
 

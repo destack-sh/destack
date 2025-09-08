@@ -10,11 +10,11 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let block = self.eat_block()?;
+        let statements = self.eat_block_body(BlockFormat::Explicit)?;
         let module = Module {
             format: BlockFormat::Explicit,
             name,
-            body: block,
+            statements,
         };
         let module_id = self.tree.allocate(module, self.get_span_from(start));
         Ok(module_id)
@@ -23,11 +23,11 @@ impl<'a> Parser<'a> {
     // Eat a module body (aka a module file, without `module` keyword or braces).
     pub fn eat_module_body(&mut self, format: BlockFormat) -> ParseResult<NodeId<Module>> {
         let start = self.mark();
-        let block = self.eat_block_body(BlockFormat::Implicit)?;
+        let statements = self.eat_block_body(BlockFormat::Implicit)?;
         let module = Module {
             format,
             name: None,
-            body: block,
+            statements,
         };
         let module_id = self.tree.allocate(module, self.get_span_from(start));
         Ok(module_id)
