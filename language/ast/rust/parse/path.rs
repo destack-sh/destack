@@ -1,14 +1,8 @@
 use crate::{ParseResult, Parser, PathId};
 use dyst_language_arena::StringId;
-use dyst_language_source::Span;
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
-    /// Peek a Path.
-    pub fn peek_path(&self) -> ParseResult<Span> {
-        todo!("peek path?")
-    }
-
     /// Eat a Path.
     pub fn eat_path(&mut self) -> ParseResult<PathId> {
         let mut segments: Vec<StringId> = Vec::new();

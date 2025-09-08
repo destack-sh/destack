@@ -1826,6 +1826,7 @@ impl Node for Cast {
 /// Examples:
 /// ```
 /// _
+/// ..
 /// x
 /// 1
 /// *MyEnum.A

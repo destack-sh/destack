@@ -5,5 +5,5 @@ mod parse;
 mod tree;
 
 pub use dump::*;
-pub use parse::{ParseError, ParseResult, Parser, ParserMark};
+pub use parse::{ExpressionParserOptions, ParseError, ParseResult, Parser, ParserMark};
 pub use tree::*;

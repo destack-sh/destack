@@ -1,3 +1,4 @@
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Block, BlockFormat, Break, Continue, Defer, Keyword, NodeId, ParseError, ParseResult, Parser,
     Return, Statement,
@@ -78,7 +79,7 @@ impl<'a> Parser<'a> {
             else if self.peek_statement_stop().is_ok() {
                 self.eat_statement_stop_with_newlines()?;
             }
-            // keep eating statements
+            // eat statements
             else {
                 let statement_id = self.eat_statement()?;
                 statements.push(statement_id);
@@ -109,7 +110,7 @@ impl<'a> Parser<'a> {
         };
         // value (if not at a statement stop)
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression(None)?;
+            let value_id = self.eat_expression(ExpressionParserOptions::default())?;
             Some(value_id)
         } else {
             None
@@ -161,7 +162,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Return)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression(None)?;
+            let value_id = self.eat_expression(ExpressionParserOptions::default())?;
             Some(value_id)
         } else {
             None
@@ -201,7 +202,7 @@ impl<'a> Parser<'a> {
         }
         // statement
         else {
-            let expression_id = self.eat_expression(None)?;
+            let expression_id = self.eat_expression(ExpressionParserOptions::default())?;
             let defer_id = self
                 .tree
                 .allocate(Defer::Expression(expression_id), self.get_span_from(start));

@@ -2,6 +2,7 @@
 
 use dyst_language_token::TokenType;
 
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{Call, Cast, Expression, Index, Keyword, NodeId, ParseResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
@@ -20,7 +21,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Index>> {
         let start = self.mark();
         self.eat_token(TokenType::OpenBracket)?;
-        let index = self.eat_expression(None)?;
+        let index = self.eat_expression(ExpressionParserOptions::default())?;
         self.eat_token(TokenType::CloseBracket)?;
         let index_id = self.tree.allocate(
             Index {

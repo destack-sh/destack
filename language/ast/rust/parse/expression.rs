@@ -4,7 +4,7 @@ use dyst_language_token::TokenType;
 
 use crate::{
     AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, OperatorPrecedence,
-    ParseError, ParseResult, Parser, Runtime, UnaryOperator,
+    ParseError, ParseResult, Parser, Runtime, TupleLiteral, UnaryOperator,
 };
 
 impl BinaryOperator {
@@ -354,6 +354,20 @@ static IN_STATIC_TYPE_BINARY_OPERATORS: [BinaryOperator; 15] = [
     BinaryOperator::NotEqual,
 ];
 
+/// Options for parsing an expression.
+#[derive(Debug, Copy, Clone, Default)]
+pub struct ExpressionParserOptions {
+    /// Whether we're in parenthesized expression (directly).
+    /// These expressions might be tuple literals if followed by a comma.
+    pub is_parenthesized: bool = false,
+    /// Whether we're parsing an expression followed by a block (like in if, match).
+    /// We disallow struct literals at the root level in these cases to avoid ambiguity with expr {}.
+    pub is_before_block: bool = false,
+    /// The left precedence preceding (i.e. before) the expression. 
+    /// Determines AST structure.
+    pub left_precedence: Option<u8> = None,
+}
+
 impl<'a> Parser<'a> {
     /// Peek a unary operator.
     #[inline]
@@ -431,7 +445,7 @@ impl<'a> Parser<'a> {
     /// Eat an expression.
     pub fn eat_expression(
         &mut self,
-        left_precedence: Option<u8>,
+        options: ExpressionParserOptions,
     ) -> ParseResult<NodeId<Expression>> {
         let start = self.mark();
 
@@ -457,8 +471,11 @@ impl<'a> Parser<'a> {
             // parenthesis
             if token.token.r#type == TokenType::OpenParenthesis {
                 self.bump(); // eat open paranthesis
-                // parse inner expressions with reset precedence (new precedence "scope")
-                let expression_id = self.eat_expression(None)?;
+                // parse inner expressions in their own context
+                let expression_id = self.eat_expression(ExpressionParserOptions {
+                    is_parenthesized: true,
+                    ..ExpressionParserOptions::default()
+                })?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.set_span(expression_id, self.get_span_from(start));
                 expression_id
@@ -473,7 +490,10 @@ impl<'a> Parser<'a> {
             else if let Ok(unary_operator) = self.peek_unary_operator() {
                 let right_precedence = unary_operator.precedence();
                 self.bump(); // eat unary operator (always because right associative)
-                let right = self.eat_expression(Some(right_precedence))?;
+                let right = self.eat_expression(ExpressionParserOptions {
+                    left_precedence: Some(right_precedence),
+                    ..options
+                })?;
                 let expression = Expression::Unary {
                     operator: unary_operator,
                     right,
@@ -604,36 +624,32 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Let(let_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
-            // tuple
-            // todo! tuple postfix
-            // else if token.token.r#type == TokenType::OpenParenthesis {
-            //     let tuple_literal = self.eat_tuple_literal()?;
-            //     let expression = Expression::TupleLiteral(tuple_literal);
-            //     self.tree.allocate(expression, self.get_span_from(start))
-            // }
             // array
             else if token.token.r#type == TokenType::OpenBracket {
                 let array_literal = self.eat_array_literal()?;
                 let expression = Expression::ArrayLiteral(array_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
-            // struct
-            else if self.peek_struct_literal().is_ok() {
-                let struct_literal = self.eat_struct_literal()?;
-                let expression = Expression::StructLiteral(struct_literal);
-                self.tree.allocate(expression, self.get_span_from(start))
             // scalar
-            } else if self.peek_scalar_literal().is_ok() {
+            else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
                 let expression = Expression::ScalarLiteral(scalar_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // struct
+            else if !options.is_before_block && self.peek_struct_literal().is_ok() {
+                let struct_literal = self.eat_struct_literal()?;
+                let expression = Expression::StructLiteral(struct_literal);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
             // alias / path
-            } else if token.token.r#type == TokenType::Identifier {
+            else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path()?;
                 let expression = Expression::Path { path: path_id };
                 self.tree.allocate(expression, self.get_span_from(start))
-            // _
-            } else {
+            }
+            // error
+            else {
                 let expression = Expression::Error;
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -671,6 +687,20 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Unwrap(left_expression_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
+            // tuple (maybe)
+            else if options.is_parenthesized && self.peek_token(TokenType::Comma).is_ok() {
+                self.bump(); // eat comma
+                self.eat_newlines_maybe()?;
+                let tuple_elements = self.eat_tuple_literal_body(left_expression_id)?;
+                let tuple_literal_id = self.tree.allocate(
+                    TupleLiteral {
+                        elements: tuple_elements,
+                    },
+                    self.get_span_from(start),
+                );
+                let expression = Expression::TupleLiteral(tuple_literal_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
             // done
             else {
                 break;
@@ -685,10 +715,14 @@ impl<'a> Parser<'a> {
 
         // eating infix while left precedence is weaker than right precedence
         while let Ok(right_operator) = self.peek_infix_operator()
-            && (left_precedence.is_none() || left_precedence.unwrap() < right_operator.precedence())
+            && (options.left_precedence.is_none()
+                || options.left_precedence.unwrap() < right_operator.precedence())
         {
             self.bump(); // eat infix operator
-            let right_expression_id = self.eat_expression(Some(right_operator.precedence()))?;
+            let right_expression_id = self.eat_expression(ExpressionParserOptions {
+                left_precedence: Some(right_operator.precedence()),
+                ..options
+            })?;
             let left_expression =
                 self.make_infix_expression(left_expression_id, right_operator, right_expression_id);
             left_expression_id = self
@@ -702,21 +736,64 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::parse::expression::ExpressionParserOptions;
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Call, Expression, FieldLiteral, Runtime, ScalarLiteral, StructLiteral,
-        Type, assert_node, assert_path,
+        TupleLiteral, Type, assert_int, assert_node, assert_path,
     };
+
+    /// Tuple literals are disambiguated.
+    /// (1, 2)
+    #[test]
+    fn test_parse_tuple_literal() {
+        let test = TestParser::new("(1, 2)");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+        // (1, 2)
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::TupleLiteral(tuple_literal_id) => {
+                assert_node!(
+                    parser.tree,
+                    *tuple_literal_id,
+                    TupleLiteral { elements } => {
+                        assert_eq!(elements.len(), 2);
+                        // 1
+                        assert_node!(
+                            parser.tree,
+                            elements[0],
+                            Expression::ScalarLiteral(scalar_literal_id) => {
+                                assert_int!(parser.tree, *scalar_literal_id, 1);
+                            }
+                        );
+                        // 2
+                        assert_node!(
+                            parser.tree,
+                            elements[1],
+                            Expression::ScalarLiteral(scalar_literal_id) => {
+                                assert_int!(parser.tree, *scalar_literal_id, 2);
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    }
 
     /// Struct literals are disambiguated.
     /// geom.Vector2 { x: 1, y }
     #[test]
-    #[ignore]
     fn test_parse_struct_literal_path() {
         let test = TestParser::new("geom.Vector2 { x: 1, y }");
         let mut parser = test.parser();
 
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
         let geom = parser.strings.intern("geom");
         let vector2 = parser.strings.intern("Vector2");
         let x = parser.strings.intern("x");
@@ -769,7 +846,7 @@ mod tests {
                         assert_node!(
                             parser.tree,
                             fields[1],
-                            FieldLiteral::Named { name, value: _ } => {
+                            FieldLiteral::NamedShorthand { name } => {
                                 // y
                                 assert_eq!(*name, y);
                             }
@@ -781,26 +858,74 @@ mod tests {
     }
 
     /// Struct literals with static parameters are disambiguated.
-    /// geom.Mesh<Dims: 2, DType: float32> {
-    ///
-    ///     vertices: [1,]
+    /// geom.Mesh<2, Dims: 4> {
+    ///     vertices: [1, 2]
     ///     y  
     /// }
     #[test]
-    #[ignore]
     fn test_parse_struct_literal_path_with_static_parameters() {
         let test = TestParser::new(
             r##"
-geom.Mesh<Dims: 2, DType: float32> { 
-    vertices: [1,]
+geom.Mesh<2, Dims: 4> { 
+    vertices: [1, 2]
     y
 }"##,
         );
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let _expr_id = parser.eat_expression(None).unwrap();
-        // NOTE :Incomplete: struct literals with generics
+        let geom = parser.strings.intern("geom");
+        let mesh = parser.strings.intern("Mesh");
+        let vertices = parser.strings.intern("vertices");
+        let y = parser.strings.intern("y");
+
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::StructLiteral(struct_literal_id) => {
+                let struct_literal = parser.tree.get(*struct_literal_id);
+                // geom.Mesh<2, Dims: 4>
+                assert_node!(
+                    parser.tree,
+                    struct_literal.r#type,
+                    Type::Path { path, static_arguments } => {
+                        // geom.Mesh
+                        assert_eq!(*path, parser.paths.intern(vec![geom, mesh]));
+                        // <2, Dims: 4>
+                        assert!(static_arguments.is_some());
+                        let params = static_arguments.as_ref().unwrap();
+                        assert_eq!(params.len(), 2);
+                    }
+                );
+                let fields = &struct_literal.fields;
+                assert_eq!(fields.len(), 2);
+                // vertices: [1, 2]
+                assert_node!(
+                    parser.tree,
+                    fields[0],
+                    FieldLiteral::Named { name, value } => {
+                        assert_eq!(*name, vertices);
+                        assert_node!(
+                            parser.tree,
+                            *value,
+                            Expression::ArrayLiteral(_)
+                        );
+                    }
+                );
+                // y
+                assert_node!(
+                    parser.tree,
+                    fields[1],
+                    FieldLiteral::NamedShorthand { name } => {
+                        assert_eq!(*name, y);
+                    }
+                );
+            }
+        );
     }
 
     /// Addition is left associative.
@@ -810,7 +935,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_addition_left_associative() {
         let test = TestParser::new("a + b + c");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
@@ -859,7 +986,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_multiply_before_addition() {
         let test = TestParser::new("a + b * c");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
@@ -910,7 +1039,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_parentheses_override() {
         let test = TestParser::new("(a + b) * c");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
@@ -961,7 +1092,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_chain_mixed() {
         let test = TestParser::new("a + b * c + d");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
@@ -1028,7 +1161,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_bitwise_vs_addition() {
         let test = TestParser::new("a + b | c + d");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
@@ -1095,7 +1230,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_comparison_vs_logical() {
         let test = TestParser::new("a == b && c == d");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
@@ -1162,7 +1299,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_unary_before_multiply() {
         let test = TestParser::new("-a * b");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");
@@ -1205,7 +1344,9 @@ geom.Mesh<Dims: 2, DType: float32> {
     fn test_parse_precedence_postfix_call_before_add() {
         let test = TestParser::new("a() + @b() / c");
         let mut parser = test.parser();
-        let expr_id = parser.eat_expression(None).unwrap();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
 
         let a = parser.strings.intern("a");
         let b = parser.strings.intern("b");

@@ -2,6 +2,7 @@
 
 use dyst_language_token::{TokenType, clean_identifier};
 
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Keyword, NodeId, ParseError, ParseResult, Parser, Statement, TupleField, Type, Union,
     UnionField, UnionStyle,
@@ -91,7 +92,7 @@ impl<'a> Parser<'a> {
                 let field = self.eat_union_field()?;
                 fields.push(field);
             }
-            // any other statement
+            // eat statements
             else {
                 let statement = self.eat_statement()?;
                 statements.push(statement);
@@ -170,7 +171,7 @@ impl<'a> Parser<'a> {
         // optional default value: `= <expr>`
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
-            Some(self.eat_expression(None)?)
+            Some(self.eat_expression(ExpressionParserOptions::default())?)
         } else {
             None
         };

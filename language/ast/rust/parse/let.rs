@@ -1,5 +1,6 @@
 use dyst_language_token::TokenType;
 
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{Keyword, Let, LetInitialization, Mutability, NodeId, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
@@ -28,7 +29,7 @@ impl<'a> Parser<'a> {
             Mutability::Immutable
         };
         // pattern
-        let pattern = self.eat_pattern(None)?;
+        let pattern = self.eat_pattern()?;
         // type
         let r#type = if self.peek_colon().is_ok() {
             self.eat_colon()?;
@@ -46,7 +47,7 @@ impl<'a> Parser<'a> {
             // explicitly initialized
             else {
                 (
-                    Some(self.eat_expression(None)?),
+                    Some(self.eat_expression(ExpressionParserOptions::default())?),
                     LetInitialization::Explicit,
                 )
             }

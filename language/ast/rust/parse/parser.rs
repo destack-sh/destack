@@ -14,6 +14,8 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing a static type (parameters or arguments).
     /// We disallow certain infix operations in static types to avoid ambiguity with <>.
     pub in_static_type: bool = false,
+    /// Whether we're parsing an implicit union pattern.
+    pub in_implicit_union: bool = false,
 }
 
 /// A parser for Dyst source code.
@@ -41,7 +43,7 @@ pub struct Parser<'a> {
     pub tree: NodeTree,
 
     /// The current position in the tokens.
-    pub(crate) pos: usize,
+    pos: usize,
     /// The parser options.
     pub(crate) options: ParserOptions,
 }
@@ -85,6 +87,12 @@ impl<'a> Parser<'a> {
     /// Create a new Dumper.
     pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
         Dumper::new(&self.strings, &self.paths, &self.tree, options)
+    }
+
+    /// Get the current position.
+    #[inline]
+    pub fn pos(&self) -> usize {
+        self.pos
     }
 
     /// Execute a function with a new parser options.
@@ -179,8 +187,8 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_next(&mut self) -> ParseResult<&TokenSpan> {
         if self.pos < self.tokens.len() {
-            let next = &self.tokens[self.pos];
-            self.pos += 1;
+            self.bump();
+            let next = &self.tokens[self.pos - 1];
             Ok(next)
         } else {
             Err(ParseError::SyntaxError(self.eof_token.span))

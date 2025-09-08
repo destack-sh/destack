@@ -2,12 +2,8 @@
 
 use dyst_language_token::TokenType;
 
+use crate::parse::ParserOptions;
 use crate::{Keyword, Mutability, NodeId, ParseError, ParseResult, Parser, Pattern, PatternField};
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PatternParseMode {
-    IgnoreImplicit,
-}
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.
@@ -15,13 +11,14 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// _
+    /// ..
     /// 1
     /// 2 | 3
     /// 4..6
     /// (x, 0, ..)
     /// Vector2 { x: 0, y, z: zed }
     /// ```
-    pub fn eat_pattern(&mut self, mode: Option<PatternParseMode>) -> ParseResult<NodeId<Pattern>> {
+    pub fn eat_pattern(&mut self) -> ParseResult<NodeId<Pattern>> {
         let start = self.mark();
 
         // ------------------------------------------------------------
@@ -48,7 +45,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Mutability::Immutable
                 };
-                let target_id = self.eat_pattern(None)?;
+                let target_id = self.eat_pattern()?;
                 self.tree.allocate(
                     Pattern::Pointer {
                         mutability,
@@ -76,7 +73,9 @@ impl<'a> Parser<'a> {
             // tuple
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
-                let fields = self.eat_pattern_field_body(TokenType::Comma, None)?;
+                self.eat_newlines_maybe()?;
+                let fields =
+                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
                 let pattern = Pattern::Tuple { fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.allocate(pattern, self.get_span_from(start))
@@ -84,10 +83,27 @@ impl<'a> Parser<'a> {
             // array or slice
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 self.bump(); // eat open bracket
-                let fields = self.eat_pattern_field_body(TokenType::Comma, None)?;
+                self.eat_newlines_maybe()?;
+                let fields =
+                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)?;
+                self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
                 self.tree
                     .allocate(Pattern::Slice { fields }, self.get_span_from(start))
+            }
+            // struct
+            else if self.peek_struct_literal().is_ok() {
+                let r#type = self.eat_type()?;
+                self.eat_token(TokenType::OpenBrace)?;
+                self.eat_newlines_maybe()?;
+                let fields =
+                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)?;
+                self.eat_newlines_maybe()?;
+                self.eat_token(TokenType::CloseBrace)?;
+                self.tree.allocate(
+                    Pattern::Struct { r#type, fields },
+                    self.get_span_from(start),
+                )
             }
             // error
             else {
@@ -99,14 +115,10 @@ impl<'a> Parser<'a> {
         // Postfix->Infix patterns
         // ------------------------------------------------------------
 
-        let ignore_implicit: bool = match mode {
-            Some(PatternParseMode::IgnoreImplicit) => true,
-            None => false,
-        };
         // range
         if self.peek_token(TokenType::Range).is_ok() {
             self.bump(); // eat range
-            let end_id = self.eat_pattern(Some(PatternParseMode::IgnoreImplicit))?;
+            let end_id = self.eat_pattern()?;
             let pattern = Pattern::Range {
                 start: Some(pattern_id),
                 end: Some(end_id),
@@ -116,12 +128,18 @@ impl<'a> Parser<'a> {
             Ok(pattern_id)
         }
         // union
-        else if self.peek_token(TokenType::BitwiseOr).is_ok() && !ignore_implicit {
+        else if self.peek_token(TokenType::BitwiseOr).is_ok() && !self.options.in_implicit_union {
             // eat all union "fields" (just unnamed patterns)
             let mut fields: Vec<NodeId<Pattern>> = vec![pattern_id];
             while self.peek_token(TokenType::BitwiseOr).is_ok() {
                 self.bump(); // eat '|'
-                let field_pattern_id = self.eat_pattern(Some(PatternParseMode::IgnoreImplicit))?;
+                let field_pattern_id = self.with_options(
+                    ParserOptions {
+                        in_implicit_union: true,
+                        ..self.options
+                    },
+                    |p| p.eat_pattern(),
+                )?;
                 fields.push(field_pattern_id);
             }
             let pattern = Pattern::Union { fields };
@@ -135,13 +153,16 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a pattern field list (like `x, y, z` or `1 | 2`).
-    fn eat_pattern_field_body(
+    fn eat_pattern_field_list(
         &mut self,
         seperator: TokenType,
-        mode: Option<PatternParseMode>,
+        terminator: TokenType,
     ) -> ParseResult<Vec<NodeId<PatternField>>> {
         let mut fields: Vec<NodeId<PatternField>> = Vec::new();
         loop {
+            if self.peek_token(terminator).is_ok() {
+                break;
+            }
             // field
             let field_start = self.mark();
             let pattern_field = {
@@ -149,7 +170,7 @@ impl<'a> Parser<'a> {
                 if self.peek_identifier().is_ok() {
                     let name = self.eat_identifier()?;
                     if self.peek_colon().is_ok() {
-                        self.eat_colon()?;
+                        self.bump(); // eat colon
                         // named alias
                         if self.peek_identifier().is_ok() {
                             let alias = self.eat_identifier()?;
@@ -157,7 +178,7 @@ impl<'a> Parser<'a> {
                         }
                         // named with pattern
                         else {
-                            let pattern = self.eat_pattern(mode)?;
+                            let pattern = self.eat_pattern()?;
                             PatternField::Named {
                                 name,
                                 pattern: Some(pattern),
@@ -174,7 +195,7 @@ impl<'a> Parser<'a> {
                 }
                 // positional
                 else {
-                    let pattern = self.eat_pattern(mode)?;
+                    let pattern = self.eat_pattern()?;
                     PatternField::Positional { pattern }
                 }
             };
@@ -183,9 +204,10 @@ impl<'a> Parser<'a> {
                 .allocate(pattern_field, self.get_span_from(field_start));
             fields.push(pattern_field_id);
 
-            // separator
-            if self.peek_token(seperator).is_ok() {
-                self.eat_token(seperator)?;
+            // separator or newline
+            if self.peek_token(seperator).is_ok() || self.peek_token(TokenType::Newline).is_ok() {
+                self.bump(); // eat separator
+                self.eat_newlines_maybe()?;
             } else {
                 break;
             }
@@ -204,7 +226,7 @@ mod tests {
         // _
         let test = TestParser::new("_");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern(None).unwrap();
+        let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
     }
 
@@ -213,7 +235,7 @@ mod tests {
         // ..
         let test = TestParser::new("..");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern(None).unwrap();
+        let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Rest);
     }
 
@@ -222,7 +244,7 @@ mod tests {
         // *var _
         let test = TestParser::new("*var _");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern(None).unwrap();
+        let pattern_id = parser.eat_pattern().unwrap();
         // *
         assert_node!(parser.tree, pattern_id,
             Pattern::Pointer { mutability, target } => {
@@ -236,7 +258,7 @@ mod tests {
         // *1
         let test = TestParser::new("*1");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern(None).unwrap();
+        let pattern_id = parser.eat_pattern().unwrap();
         // *
         assert_node!(parser.tree, pattern_id, Pattern::Pointer { mutability, target } => {
             assert_eq!(*mutability, Mutability::Immutable);
@@ -249,11 +271,51 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_tuple() {
-        // (x: 1, 2, ..)
         let test = TestParser::new("(x: 1, 2, ..)");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern(None).unwrap();
+        let pattern_id = parser.eat_pattern().unwrap();
 
+        // (x: 1, 2, ..)
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
+            assert_eq!(fields.len(), 3);
+
+            // x: 1
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
+                assert_eq!(*name, parser.strings.intern("x"));
+                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
+                });
+            });
+
+            // 2
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
+                    assert_node!(parser.tree, *literal, ScalarLiteral::Integer(2, IntType { width: 32, is_signed: true }));
+                });
+            });
+
+            // ..
+            assert_node!(parser.tree, fields[2], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Rest);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_tuple_newline_separated() {
+        let test = TestParser::new(
+            "
+(
+    x: 1
+    2, 
+    ..
+)",
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        // (x: 1, 2, ..)
         assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
             assert_eq!(fields.len(), 3);
 
@@ -284,7 +346,7 @@ mod tests {
         // 1 | 2 | 3
         let test = TestParser::new("1 | 2 | 3");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern(None).unwrap();
+        let pattern_id = parser.eat_pattern().unwrap();
 
         assert_node!(parser.tree, pattern_id, Pattern::Union { fields } => {
             assert_eq!(fields.len(), 3);
