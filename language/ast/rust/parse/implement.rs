@@ -1,3 +1,4 @@
+use crate::parse::ParserOptions;
 use crate::{Function, Implement, Keyword, Let, NodeId, ParseResult, Parser};
 use dyst_language_token::TokenType;
 
@@ -32,7 +33,13 @@ impl<'a> Parser<'a> {
         // static arguments
         let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
             self.eat_token(TokenType::LessThan)?;
-            let static_arguments = self.eat_arguments_body()?;
+            let static_arguments = self.with_options(
+                ParserOptions {
+                    in_static_type: true,
+                    ..self.options
+                },
+                |p| p.eat_arguments_body(),
+            )?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(static_arguments)
         } else {

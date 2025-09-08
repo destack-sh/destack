@@ -755,7 +755,7 @@ mod tests {
         let test = TestParser::new(
             r##"
 destack.geometry.Mesh<2, int32> {
-    vertices: [1,] // optional comma
+    vertices: [1.0, 2.0] // optional comma
     indices: 2, // optional comma
 }
             "##,
@@ -772,7 +772,13 @@ destack.geometry.Mesh<2, int32> {
                 assert_eq!(parser.strings.get(*name), "vertices");
                 assert_node!(parser.tree, *value, Expression::ArrayLiteral(array_literal_id) => {
                     assert_node!(parser.tree, *array_literal_id, ArrayLiteral::Fixed { elements } => {
-                        assert_eq!(elements.len(), 1);
+                        assert_eq!(elements.len(), 2);
+                        assert_node!(parser.tree, elements[0], Expression::ScalarLiteral(scalar_literal_id) => {
+                            assert_float!(parser.tree, *scalar_literal_id, 1.0);
+                        });
+                        assert_node!(parser.tree, elements[1], Expression::ScalarLiteral(scalar_literal_id) => {
+                            assert_float!(parser.tree, *scalar_literal_id, 2.0);
+                        });
                     });
                 });
             });

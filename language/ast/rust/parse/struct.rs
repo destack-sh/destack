@@ -2,6 +2,7 @@
 
 use dyst_language_token::TokenType;
 
+use crate::parse::ParserOptions;
 use crate::{Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField};
 
 impl<'a> Parser<'a> {
@@ -47,7 +48,13 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
-            let params = self.eat_parameters_body()?;
+            let params = self.with_options(
+                ParserOptions {
+                    in_static_type: true,
+                    ..self.options
+                },
+                |p| p.eat_parameters_body(),
+            )?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(params)
         } else {

@@ -528,7 +528,7 @@ impl Node for UnionField {
 ///     let x: int32 // constant
 ///     function foo() => int32
 ///
-///     function myFunc() { // nested declaration
+///     function myFunc() { // nested declaration, default implementation
 ///     }
 /// }
 ///
