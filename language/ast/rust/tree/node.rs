@@ -1477,7 +1477,7 @@ pub enum PrimitiveType {
 /// Precedence:
 /// ```
 /// !x -x -%x ~x &x *x       // prefix
-/// x() x[] x{} x as y       // postfix
+/// x() x[] x{} x as y x?    // postfix
 /// * / % ** *% *|           // multiplication
 /// + - +% -% +| -|          // addition
 /// << >> <<|                // shift
@@ -1497,7 +1497,7 @@ pub enum OperatorPrecedence {
     /// `!x -x -%x ~x &x *x`
     Prefix = 240,
     /// Unary postfix operators.
-    /// `x() x[] x{} x as y`
+    /// `x() x[] x{} x as y x?`
     Postfix = 230,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`

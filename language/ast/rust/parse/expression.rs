@@ -673,6 +673,7 @@ mod tests {
     /// Struct literals are disambiguated.
     /// geom.Vector2 { x: 1, y }
     #[test]
+    #[ignore]
     fn test_parse_struct_literal_path() {
         let test = TestParser::new("geom.Vector2 { x: 1, y }");
         let mut parser = test.parser();

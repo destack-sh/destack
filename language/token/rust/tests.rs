@@ -21,19 +21,6 @@ macro_rules! assert_tokenize_eq_roundtrip {
     };
 }
 
-/// Tokenize, render, and re-tokenize an input string in a roundtrip.
-macro_rules! assert_tokenize_roundtrip {
-    ($input:expr) => {
-        // tokenize & render back to input string
-        let tokens: Vec<_> = tokenize($input).collect();
-        let rendered_input = render_tokens(&tokens, $input);
-        assert_eq!(rendered_input, $input);
-        // tokenize again on the rendered input and compare directly
-        let tokens_again: Vec<_> = tokenize(&rendered_input).collect();
-        assert_eq!(tokens_again, tokens);
-    };
-}
-
 /// Check whether a raw string tokenizes as expected.
 fn assert_raw_str_eq(s: &str, expected: Result<u8, RawStringError>) {
     let s = &format!("r{s}");
@@ -343,6 +330,7 @@ br###"raw"###
         Token::new(TokenType::Newline, 1, None),
         // null
         Token::new(TokenType::Literal, 4, Some(RawLiteralType::Null),),
+        Token::new(TokenType::Newline, 1, None),
         // true
         Token::new(
             TokenType::Literal,

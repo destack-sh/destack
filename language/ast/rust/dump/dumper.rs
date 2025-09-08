@@ -223,7 +223,7 @@ impl<'a> Dumper<'a> {
     /// Helper for dumping a single node.
     #[inline]
     pub fn node<'d>(&'d mut self, name: &str) -> NodeDumper<'d, 'a> {
-        NodeDumper::new(self, name)
+        NodeDumper::begin(self, name)
     }
 
     /// Helper for dumping a single node that just wraps another node.
@@ -237,15 +237,15 @@ impl<'a> Dumper<'a> {
         NodeTree: NodeTreeStore<T>,
     {
         let mut node_dumper = self.node(name);
-        node_dumper.finish();
+        node_dumper.end();
         self.with_depth(|dumper| {
-            dumper.dump(&wrapped_id, None);
+            dumper.dump_line(&wrapped_id, None);
         });
         self
     }
 
     /// Dump something as a new line.
-    pub fn dump<T: Dump>(&mut self, thing: &T, label: Option<&str>) -> &mut Self {
+    pub fn dump_line<T: Dump>(&mut self, thing: &T, label: Option<&str>) -> &mut Self {
         self.write_newline();
         self.write_prefix();
         if let Some(label) = label {
@@ -258,7 +258,7 @@ impl<'a> Dumper<'a> {
     }
 
     /// Dump many somethings as a new line (each).
-    pub fn dump_many<T: Dump>(&mut self, things: &[T], label: Option<&str>) -> &mut Self {
+    pub fn dump_lines<T: Dump>(&mut self, things: &[T], label: Option<&str>) -> &mut Self {
         for thing in things {
             self.write_newline();
             self.write_prefix();
@@ -281,7 +281,7 @@ pub struct NodeDumper<'d, 'p> {
 }
 
 impl<'d, 'p> NodeDumper<'d, 'p> {
-    pub fn new(dumper: &'d mut Dumper<'p>, name: &str) -> Self {
+    pub fn begin(dumper: &'d mut Dumper<'p>, name: &str) -> Self {
         dumper.write_str(name, Some(Color::BrightBlue));
         Self {
             dumper,
@@ -300,8 +300,17 @@ impl<'d, 'p> NodeDumper<'d, 'p> {
         self
     }
 
+    /// Add a new field to the generated struct output.
+    pub fn value<T: Dump>(&mut self, value: &T) -> &mut Self {
+        let prefix = if self.has_fields { ", " } else { " { " };
+        self.dumper.write_str(prefix, Some(Color::White));
+        value.dump(self.dumper);
+        self.has_fields = true;
+        self
+    }
+
     /// Finish node and mark the struct as non-exhaustive (with a ..)
-    pub fn finish_non_exhaustive(&mut self) -> &mut Self {
+    pub fn end_non_exhaustive(&mut self) -> &mut Self {
         if self.has_fields {
             self.dumper.write_str(", .. }", Some(Color::White));
         } else {
@@ -311,7 +320,7 @@ impl<'d, 'p> NodeDumper<'d, 'p> {
     }
 
     /// Finish node and close the struct as exhaustive.
-    pub fn finish(&mut self) -> &mut Self {
+    pub fn end(&mut self) -> &mut Self {
         if self.has_fields {
             self.dumper.write_str(" }", Some(Color::White));
         }
@@ -320,6 +329,7 @@ impl<'d, 'p> NodeDumper<'d, 'p> {
 }
 
 pub trait Dump {
+    /// Dump self to the Dumper in some form.
     fn dump<'a>(&self, dumper: &mut Dumper<'a>);
 }
 
@@ -476,7 +486,7 @@ impl Dump for IntType {
             .node("IntType")
             .field("width", &self.width)
             .field("is_signed", &self.is_signed)
-            .finish();
+            .end();
     }
 }
 
@@ -496,25 +506,25 @@ impl Dump for PrimitiveType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             PrimitiveType::Void => {
-                dumper.node("PrimitiveType::Void").finish();
+                dumper.node("PrimitiveType::Void").end();
             }
             PrimitiveType::Boolean => {
-                dumper.node("PrimitiveType::Boolean").finish();
+                dumper.node("PrimitiveType::Boolean").end();
             }
             PrimitiveType::Character => {
-                dumper.node("PrimitiveType::Character").finish();
+                dumper.node("PrimitiveType::Character").end();
             }
             PrimitiveType::Int(int_type) => {
-                dumper.node("PrimitiveType::Int").finish();
-                dumper.with_depth(|dumper| {
-                    dumper.dump(int_type, None);
-                });
+                dumper
+                    .node("PrimitiveType::Int")
+                    .value(int_type)
+                    .end();
             }
             PrimitiveType::Float(float_type) => {
-                dumper.node("PrimitiveType::Float").finish();
-                dumper.with_depth(|dumper| {
-                    dumper.dump(float_type, None);
-                });
+                dumper
+                    .node("PrimitiveType::Float")
+                    .value(float_type)
+                    .end();
             }
         }
     }
@@ -526,9 +536,9 @@ impl Dump for PrimitiveType {
 
 impl Dump for Block {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Block").finish();
+        dumper.node("Block").end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.statements, None);
+            dumper.dump_lines(&self.statements, None);
         });
     }
 }
@@ -638,7 +648,7 @@ impl Dump for Expression {
             Expression::Path { path } => {
                 let mut node_dumper = dumper.node("Expression::Path");
                 node_dumper.field("path", path);
-                node_dumper.finish();
+                node_dumper.end();
             }
             Expression::ScalarLiteral(node) => {
                 dumper.node_wrapper("Expression::ScalarLiteral", *node);
@@ -659,9 +669,9 @@ impl Dump for Expression {
             Expression::Unary { operator, right } => {
                 let mut node_dumper = dumper.node("Expression::Unary");
                 node_dumper.field("operator", operator);
-                node_dumper.finish();
+                node_dumper.end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(right, None);
+                    dumper.dump_line(right, None);
                 });
             }
             Expression::Index(node) => {
@@ -683,10 +693,10 @@ impl Dump for Expression {
             } => {
                 let mut node_dumper = dumper.node("Expression::Binary");
                 node_dumper.field("operator", operator);
-                node_dumper.finish();
+                node_dumper.end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(left, Some("left"));
-                    dumper.dump(right, Some("right"));
+                    dumper.dump_line(left, Some("left"));
+                    dumper.dump_line(right, Some("right"));
                 });
             }
             Expression::Assign {
@@ -696,15 +706,15 @@ impl Dump for Expression {
             } => {
                 let mut node_dumper = dumper.node("Expression::Assign");
                 node_dumper.field("operator", operator);
-                node_dumper.finish();
+                node_dumper.end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(left, Some("left"));
-                    dumper.dump(right, Some("right"));
+                    dumper.dump_line(left, Some("left"));
+                    dumper.dump_line(right, Some("right"));
                 });
             }
 
             Expression::Error => {
-                dumper.node("Expression::Error").finish();
+                dumper.node("Expression::Error").end();
             }
         }
     }
@@ -716,34 +726,31 @@ impl Dump for Expression {
 
 impl Dump for Module {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Module").field("name", &self.name).finish();
+        dumper.node("Module").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.body, None);
+            dumper.dump_line(&self.body, None);
         });
     }
 }
 
 impl Dump for Struct {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Struct").field("name", &self.name).finish();
+        dumper.node("Struct").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.fields, None);
-            dumper.dump_many(&self.usings, None);
-            dumper.dump_many(&self.lets, None);
+            dumper.dump_lines(&self.fields, None);
+            dumper.dump_lines(&self.usings, None);
+            dumper.dump_lines(&self.lets, None);
         });
     }
 }
 
 impl Dump for StructField {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .node("StructField")
-            .field("name", &self.name)
-            .finish();
+        dumper.node("StructField").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.r#type, None);
+            dumper.dump_line(&self.r#type, None);
             if let Some(default) = self.default {
-                dumper.dump(&default, None);
+                dumper.dump_line(&default, None);
             }
         });
     }
@@ -751,35 +758,35 @@ impl Dump for StructField {
 
 impl Dump for Enum {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Enum").field("name", &self.name).finish();
+        dumper.node("Enum").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.fields, None);
+            dumper.dump_lines(&self.fields, None);
         });
     }
 }
 
 impl Dump for EnumField {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("EnumField").finish();
+        dumper.node("EnumField").end();
     }
 }
 
 impl Dump for Union {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Union").field("name", &self.name).finish();
+        dumper.node("Union").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.fields, None);
+            dumper.dump_lines(&self.fields, None);
         });
     }
 }
 
 impl Dump for UnionField {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("UnionField").finish();
+        dumper.node("UnionField").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.r#type, None);
+            dumper.dump_line(&self.r#type, None);
             if let Some(value) = self.value {
-                dumper.dump(&value, None);
+                dumper.dump_line(&value, None);
             }
         });
     }
@@ -787,28 +794,28 @@ impl Dump for UnionField {
 
 impl Dump for Trait {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Trait").field("name", &self.name).finish();
+        dumper.node("Trait").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.withs, None);
-            dumper.dump_many(&self.usings, None);
-            dumper.dump_many(&self.lets, None);
-            dumper.dump_many(&self.functions, None);
+            dumper.dump_lines(&self.withs, None);
+            dumper.dump_lines(&self.usings, None);
+            dumper.dump_lines(&self.lets, None);
+            dumper.dump_lines(&self.functions, None);
         });
     }
 }
 impl Dump for Implement {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Implement").finish();
+        dumper.node("Implement").end();
         dumper.with_depth(|dumper| {
             if let Some(static_arguments) = &self.static_arguments {
-                dumper.dump_many(static_arguments, Some("static"));
+                dumper.dump_lines(static_arguments, Some("static"));
             }
-            dumper.dump(&self.receiver, Some("receiver"));
+            dumper.dump_line(&self.receiver, Some("receiver"));
             if let Some(for_trait) = &self.for_trait {
-                dumper.dump(for_trait, None);
+                dumper.dump_line(for_trait, None);
             }
-            dumper.dump_many(&self.lets, None);
-            dumper.dump_many(&self.functions, None);
+            dumper.dump_lines(&self.lets, None);
+            dumper.dump_lines(&self.functions, None);
         });
     }
 }
@@ -817,40 +824,40 @@ impl Dump for Type {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             Type::Infer => {
-                dumper.node("Type::Infer").finish();
+                dumper.node("Type::Infer").end();
             }
             Type::Maybe(inner) => {
-                dumper.node("Type::Maybe").finish();
+                dumper.node("Type::Maybe").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(inner, None);
+                    dumper.dump_line(inner, None);
                 });
             }
             Type::Not(inner) => {
-                dumper.node("Type::Not").finish();
+                dumper.node("Type::Not").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(inner, None);
+                    dumper.dump_line(inner, None);
                 });
             }
             Type::Never => {
-                dumper.node("Type::Never").finish();
+                dumper.node("Type::Never").end();
             }
             Type::Self_ => {
-                dumper.node("Type::Self_").finish();
+                dumper.node("Type::Self_").end();
             }
             Type::Primitive(primitive) => {
                 dumper
                     .node("Type::Primitive")
-                    .field("primitive", primitive)
-                    .finish();
+                    .value(primitive)
+                    .end();
             }
             Type::Path {
                 path,
                 static_arguments,
             } => {
-                dumper.node("Type::Path").field("path", path).finish();
+                dumper.node("Type::Path").value(path).end();
                 dumper.with_depth(|dumper| {
                     if let Some(static_arguments) = static_arguments {
-                        dumper.dump_many(static_arguments, Some("static"));
+                        dumper.dump_lines(static_arguments, Some("static"));
                     }
                 });
             }
@@ -858,61 +865,61 @@ impl Dump for Type {
                 dumper
                     .node("Type::Pointer")
                     .field("mutability", mutability)
-                    .finish();
+                    .end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(target, None);
+                    dumper.dump_line(target, None);
                 });
             }
             Type::Array {
                 element_type,
                 count,
             } => {
-                dumper.node("Type::Array").finish();
+                dumper.node("Type::Array").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(element_type, None);
-                    dumper.dump(count, Some("count"));
+                    dumper.dump_line(element_type, None);
+                    dumper.dump_line(count, Some("count"));
                 });
             }
             Type::Slice { element } => {
-                dumper.node("Type::Slice").finish();
+                dumper.node("Type::Slice").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(element, None);
+                    dumper.dump_line(element, None);
                 });
             }
             Type::Tuple(tuple) => {
-                dumper.node("Type::Tuple").finish();
+                dumper.node("Type::Tuple").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(tuple, None);
+                    dumper.dump_line(tuple, None);
                 });
             }
             Type::Struct(struct_node) => {
-                dumper.node("Type::Struct").finish();
+                dumper.node("Type::Struct").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(struct_node, None);
+                    dumper.dump_line(struct_node, None);
                 });
             }
             Type::Enum(enum_node) => {
-                dumper.node("Type::Enum").finish();
+                dumper.node("Type::Enum").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(enum_node, None);
+                    dumper.dump_line(enum_node, None);
                 });
             }
             Type::Intersection(types) => {
-                dumper.node("Type::Intersection").finish();
+                dumper.node("Type::Intersection").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump_many(types, None);
+                    dumper.dump_lines(types, None);
                 });
             }
             Type::Union(union_node) => {
-                dumper.node("Type::Union").finish();
+                dumper.node("Type::Union").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(union_node, None);
+                    dumper.dump_line(union_node, None);
                 });
             }
             Type::Function(function) => {
-                dumper.node("Type::Function").finish();
+                dumper.node("Type::Function").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(function, None);
+                    dumper.dump_line(function, None);
                 });
             }
         }
@@ -921,9 +928,9 @@ impl Dump for Type {
 
 impl Dump for Tuple {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Tuple").finish();
+        dumper.node("Tuple").end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.elements, None);
+            dumper.dump_lines(&self.elements, None);
         });
     }
 }
@@ -932,18 +939,15 @@ impl Dump for TupleField {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             TupleField::Named { name, r#type } => {
-                dumper
-                    .node("TupleField::Named")
-                    .field("name", name)
-                    .finish();
+                dumper.node("TupleField::Named").field("name", name).end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(r#type, None);
+                    dumper.dump_line(r#type, None);
                 });
             }
             TupleField::Positional { r#type } => {
-                dumper.node("TupleField::Positional").finish();
+                dumper.node("TupleField::Positional").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(r#type, None);
+                    dumper.dump_line(r#type, None);
                 });
             }
         }
@@ -952,20 +956,20 @@ impl Dump for TupleField {
 
 impl Dump for Function {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Function").field("name", &self.name).finish();
+        dumper.node("Function").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
             if let Some(static_parameters) = &self.static_parameters {
-                dumper.dump_many(static_parameters, Some("static"));
+                dumper.dump_lines(static_parameters, Some("static"));
             }
-            dumper.dump_many(&self.dynamic_parameters, Some("dynamic"));
+            dumper.dump_lines(&self.dynamic_parameters, Some("dynamic"));
             if let Some(return_type) = &self.return_type {
-                dumper.dump(return_type, Some("return"));
+                dumper.dump_line(return_type, Some("return"));
             }
             if let Some(with) = &self.with {
-                dumper.dump(with, None);
+                dumper.dump_line(with, None);
             }
             if let Some(body) = &self.body {
-                dumper.dump(body, None);
+                dumper.dump_line(body, None);
             }
         });
     }
@@ -976,9 +980,9 @@ impl Dump for Function {
 // ----------------------------------------------------------------------------
 impl Dump for With {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("With").finish();
+        dumper.node("With").end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.clauses, None);
+            dumper.dump_lines(&self.clauses, None);
         });
     }
 }
@@ -990,16 +994,16 @@ impl Dump for WithClause {
                 dumper
                     .node("WithClause::Declaration")
                     .field("alias", alias)
-                    .finish();
+                    .end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(target, None);
+                    dumper.dump_line(target, None);
                 });
             }
             WithClause::Assertion { target, assertion } => {
-                dumper.node("WithClause::Assertion").finish();
+                dumper.node("WithClause::Assertion").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(target, None);
-                    dumper.dump(assertion, None);
+                    dumper.dump_line(target, None);
+                    dumper.dump_line(assertion, None);
                 });
             }
         }
@@ -1008,11 +1012,11 @@ impl Dump for WithClause {
 
 impl Dump for Use {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Use").finish();
+        dumper.node("Use").end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.clauses, None);
+            dumper.dump_lines(&self.clauses, None);
             if let Some(body) = &self.body {
-                dumper.dump(body, None);
+                dumper.dump_line(body, None);
             }
         });
     }
@@ -1020,14 +1024,11 @@ impl Dump for Use {
 
 impl Dump for UseClause {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper
-            .node("UseClause")
-            .field("alias", &self.alias)
-            .finish();
+        dumper.node("UseClause").field("alias", &self.alias).end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.target, None);
+            dumper.dump_line(&self.target, None);
             if let Some(items) = &self.items {
-                dumper.dump_many(items, None);
+                dumper.dump_lines(items, None);
             }
         });
     }
@@ -1039,7 +1040,7 @@ impl Dump for UseItem {
             .node("UseItem")
             .field("name", &self.name)
             .field("alias", &self.alias)
-            .finish();
+            .end();
     }
 }
 
@@ -1049,15 +1050,15 @@ impl Dump for UseItem {
 
 impl Dump for If {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("If").finish();
+        dumper.node("If").end();
         match self {
             If::If {
                 condition,
                 then_block,
             } => {
                 dumper.with_depth(|dumper| {
-                    dumper.dump(condition, Some("condition"));
-                    dumper.dump(then_block, Some("then"));
+                    dumper.dump_line(condition, Some("condition"));
+                    dumper.dump_line(then_block, Some("then"));
                 });
             }
             If::IfElse {
@@ -1066,9 +1067,9 @@ impl Dump for If {
                 else_block,
             } => {
                 dumper.with_depth(|dumper| {
-                    dumper.dump(condition, Some("condition"));
-                    dumper.dump(then_block, Some("then"));
-                    dumper.dump(else_block, Some("else"));
+                    dumper.dump_line(condition, Some("condition"));
+                    dumper.dump_line(then_block, Some("then"));
+                    dumper.dump_line(else_block, Some("else"));
                 });
             }
             If::IfElseIf {
@@ -1077,9 +1078,9 @@ impl Dump for If {
                 else_if,
             } => {
                 dumper.with_depth(|dumper| {
-                    dumper.dump(condition, Some("condition"));
-                    dumper.dump(then_block, Some("then"));
-                    dumper.dump(else_if, Some("else_if"));
+                    dumper.dump_line(condition, Some("condition"));
+                    dumper.dump_line(then_block, Some("then"));
+                    dumper.dump_line(else_if, Some("else_if"));
                 });
             }
         }
@@ -1088,48 +1089,48 @@ impl Dump for If {
 
 impl Dump for While {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("While").finish();
+        dumper.node("While").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.condition, Some("condition"));
-            dumper.dump(&self.body, Some("body"));
+            dumper.dump_line(&self.condition, Some("condition"));
+            dumper.dump_line(&self.body, Some("body"));
         });
     }
 }
 
 impl Dump for For {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("For").finish();
+        dumper.node("For").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.pattern, Some("pattern"));
-            dumper.dump(&self.iterator, Some("iterator"));
-            dumper.dump(&self.body, Some("body"));
+            dumper.dump_line(&self.pattern, Some("pattern"));
+            dumper.dump_line(&self.iterator, Some("iterator"));
+            dumper.dump_line(&self.body, Some("body"));
         });
     }
 }
 
 impl Dump for Loop {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Loop").finish();
+        dumper.node("Loop").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.body, Some("body"));
+            dumper.dump_line(&self.body, Some("body"));
         });
     }
 }
 
 impl Dump for Break {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Break").finish();
+        dumper.node("Break").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.label, Some("label"));
+            dumper.dump_line(&self.label, Some("label"));
         });
     }
 }
 
 impl Dump for Continue {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Continue").finish();
+        dumper.node("Continue").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.label, Some("label"));
+            dumper.dump_line(&self.label, Some("label"));
         });
     }
 }
@@ -1138,15 +1139,15 @@ impl Dump for Defer {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             Defer::Expression(expression) => {
-                dumper.node("Defer::Expression").finish();
+                dumper.node("Defer::Expression").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(expression, Some("expression"));
+                    dumper.dump_line(expression, Some("expression"));
                 });
             }
             Defer::Block(block) => {
-                dumper.node("Defer::Block").finish();
+                dumper.node("Defer::Block").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(block, Some("block"));
+                    dumper.dump_line(block, Some("block"));
                 });
             }
         }
@@ -1155,10 +1156,10 @@ impl Dump for Defer {
 
 impl Dump for Return {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Return").finish();
+        dumper.node("Return").end();
         dumper.with_depth(|dumper| {
             if let Some(value) = self.value {
-                dumper.dump(&value, Some("value"));
+                dumper.dump_line(&value, Some("value"));
             }
         });
     }
@@ -1166,16 +1167,16 @@ impl Dump for Return {
 
 impl Dump for Try {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Try").finish();
+        dumper.node("Try").end();
         match self {
             Try::Expression { try_expression } => {
                 dumper.with_depth(|dumper| {
-                    dumper.dump(try_expression, Some("expression"));
+                    dumper.dump_line(try_expression, Some("expression"));
                 });
             }
             Try::Block { try_block } => {
                 dumper.with_depth(|dumper| {
-                    dumper.dump(try_block, Some("block"));
+                    dumper.dump_line(try_block, Some("block"));
                 });
             }
             Try::BlockWithCatch {
@@ -1183,8 +1184,8 @@ impl Dump for Try {
                 catch_match,
             } => {
                 dumper.with_depth(|dumper| {
-                    dumper.dump(try_block, Some("block"));
-                    dumper.dump(catch_match, Some("catch"));
+                    dumper.dump_line(try_block, Some("block"));
+                    dumper.dump_line(catch_match, Some("catch"));
                 });
             }
         }
@@ -1207,14 +1208,14 @@ impl Dump for Let {
             .node("Let")
             .field("mutability", &self.mutability)
             .field("initialization", &self.initialization)
-            .finish();
+            .end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.pattern, None);
+            dumper.dump_line(&self.pattern, None);
             if let Some(r#type) = self.r#type {
-                dumper.dump(&r#type, None);
+                dumper.dump_line(&r#type, None);
             }
             if let Some(value) = self.value {
-                dumper.dump(&value, None);
+                dumper.dump_line(&value, None);
             }
         });
     }
@@ -1223,12 +1224,12 @@ impl Dump for Let {
 impl Dump for Parameter {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.with_depth(|dumper| {
-            dumper.node("Parameter").field("name", &self.name).finish();
+            dumper.node("Parameter").field("name", &self.name).end();
             if let Some(r#type) = self.r#type {
-                dumper.dump(&r#type, Some("type"));
+                dumper.dump_line(&r#type, Some("type"));
             }
             if let Some(default) = self.default {
-                dumper.dump(&default, Some("default"));
+                dumper.dump_line(&default, Some("default"));
             }
         });
     }
@@ -1240,18 +1241,18 @@ impl Dump for Argument {
             Argument::Named { name, value } => {
                 let mut node_dumper = dumper.node("Argument::Named");
                 node_dumper.field("name", name);
-                node_dumper.finish();
-                dumper.dump(value, Some("value"));
+                node_dumper.end();
+                dumper.dump_line(value, Some("value"));
             }
             Argument::NamedShorthand { name } => {
                 dumper
                     .node("Argument::NamedShorthand")
                     .field("name", name)
-                    .finish();
+                    .end();
             }
             Argument::Positional { value } => {
-                dumper.node("Argument::Positional").finish();
-                dumper.dump(value, Some("value"));
+                dumper.node("Argument::Positional").end();
+                dumper.dump_line(value, Some("value"));
             }
         });
     }
@@ -1266,42 +1267,42 @@ impl Dump for ScalarLiteral {
         match self {
             ScalarLiteral::Null => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Null");
-                node_dumper.finish();
+                node_dumper.end();
             }
             ScalarLiteral::Boolean(value) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Boolean");
                 node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.finish();
+                node_dumper.end();
             }
             ScalarLiteral::Byte(value) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Byte");
                 node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.finish();
+                node_dumper.end();
             }
             ScalarLiteral::Integer(value, _) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Integer");
                 node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.finish();
+                node_dumper.end();
             }
             ScalarLiteral::Float(value, _) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Float");
                 node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.finish();
+                node_dumper.end();
             }
             ScalarLiteral::Character(value) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Character");
                 node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.finish();
+                node_dumper.end();
             }
             ScalarLiteral::String(value) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::String");
                 node_dumper.field("value", value);
-                node_dumper.finish();
+                node_dumper.end();
             }
             ScalarLiteral::ByteString(value) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::ByteString");
                 node_dumper.field("value", value);
-                node_dumper.finish();
+                node_dumper.end();
             }
         }
     }
@@ -1309,10 +1310,10 @@ impl Dump for ScalarLiteral {
 
 impl Dump for RangeLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("RangeLiteral").finish();
+        dumper.node("RangeLiteral").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.start, Some("start"));
-            dumper.dump(&self.end, Some("end"));
+            dumper.dump_line(&self.start, Some("start"));
+            dumper.dump_line(&self.end, Some("end"));
         });
     }
 }
@@ -1321,16 +1322,16 @@ impl Dump for ArrayLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             ArrayLiteral::Fixed { elements } => {
-                dumper.node("ArrayLiteral::Fixed").finish();
+                dumper.node("ArrayLiteral::Fixed").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump_many(elements, Some("element"));
+                    dumper.dump_lines(elements, Some("element"));
                 });
             }
             ArrayLiteral::Repeated { element, count } => {
-                dumper.node("ArrayLiteral::Repeated").finish();
+                dumper.node("ArrayLiteral::Repeated").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(element, Some("element"));
-                    dumper.dump(count, Some("count"));
+                    dumper.dump_line(element, Some("element"));
+                    dumper.dump_line(count, Some("count"));
                 });
             }
         }
@@ -1339,19 +1340,19 @@ impl Dump for ArrayLiteral {
 
 impl Dump for TupleLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("TupleLiteral").finish();
+        dumper.node("TupleLiteral").end();
         dumper.with_depth(|dumper| {
-            dumper.dump_many(&self.elements, Some("element"));
+            dumper.dump_lines(&self.elements, Some("element"));
         });
     }
 }
 
 impl Dump for StructLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("StructLiteral").finish();
+        dumper.node("StructLiteral").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.r#type, Some("type"));
-            dumper.dump_many(&self.fields, Some("field"));
+            dumper.dump_line(&self.r#type, Some("type"));
+            dumper.dump_lines(&self.fields, Some("field"));
         });
     }
 }
@@ -1360,14 +1361,14 @@ impl Dump for FieldLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             FieldLiteral::Named { name, value } => {
-                dumper.node("FieldLiteral::Named").finish();
-                dumper.dump(name, Some("name"));
+                dumper.node("FieldLiteral::Named").end();
+                dumper.dump_line(name, Some("name"));
                 dumper.with_depth(|dumper| {
-                    dumper.dump(value, Some("value"));
+                    dumper.dump_line(value, Some("value"));
                 });
             }
             FieldLiteral::NamedShorthand { name } => {
-                dumper.dump(name, Some("name"));
+                dumper.dump_line(name, Some("name"));
             }
         }
     }
@@ -1379,33 +1380,33 @@ impl Dump for FieldLiteral {
 
 impl Dump for Index {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Index").finish();
+        dumper.node("Index").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.receiver, Some("receiver"));
-            dumper.dump(&self.index, Some("index"));
+            dumper.dump_line(&self.receiver, Some("receiver"));
+            dumper.dump_line(&self.index, Some("index"));
         });
     }
 }
 
 impl Dump for Call {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Call").finish();
+        dumper.node("Call").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.receiver, Some("receiver"));
+            dumper.dump_line(&self.receiver, Some("receiver"));
             if let Some(static_arguments) = &self.static_arguments {
-                dumper.dump_many(static_arguments, Some("static"));
+                dumper.dump_lines(static_arguments, Some("static"));
             }
-            dumper.dump_many(&self.dynamic_arguments, Some("dynamic"));
+            dumper.dump_lines(&self.dynamic_arguments, Some("dynamic"));
         });
     }
 }
 
 impl Dump for Cast {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Cast").finish();
+        dumper.node("Cast").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.receiver, Some("receiver"));
-            dumper.dump(&self.r#type, Some("type"));
+            dumper.dump_line(&self.receiver, Some("receiver"));
+            dumper.dump_line(&self.r#type, Some("type"));
         });
     }
 }
@@ -1416,35 +1417,35 @@ impl Dump for Cast {
 
 impl Dump for Match {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Match").finish();
+        dumper.node("Match").end();
         dumper.with_depth(|dumper| {
-            dumper.dump(&self.value, Some("value"));
-            dumper.dump_many(&self.cases, None);
+            dumper.dump_line(&self.value, Some("value"));
+            dumper.dump_lines(&self.cases, None);
         });
     }
 }
 
 impl Dump for MatchCase {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("MatchCase").finish();
+        dumper.node("MatchCase").end();
         dumper.with_depth(|dumper| match self {
             MatchCase::Expression {
                 pattern,
                 body,
                 guard,
             } => {
-                dumper.dump(pattern, Some("pattern"));
-                dumper.dump(body, Some("body"));
-                dumper.dump(guard, Some("guard"));
+                dumper.dump_line(pattern, Some("pattern"));
+                dumper.dump_line(body, Some("body"));
+                dumper.dump_line(guard, Some("guard"));
             }
             MatchCase::Block {
                 pattern,
                 body,
                 guard,
             } => {
-                dumper.dump(pattern, Some("pattern"));
-                dumper.dump(body, Some("body"));
-                dumper.dump(guard, Some("guard"));
+                dumper.dump_line(pattern, Some("pattern"));
+                dumper.dump_line(body, Some("body"));
+                dumper.dump_line(guard, Some("guard"));
             }
         });
     }
@@ -1454,17 +1455,17 @@ impl Dump for Pattern {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             Pattern::Wildcard => {
-                dumper.node("Pattern::Wildcard").finish();
+                dumper.node("Pattern::Wildcard").end();
             }
             Pattern::Rest => {
-                dumper.node("Pattern::Rest").finish();
+                dumper.node("Pattern::Rest").end();
             }
             Pattern::Pointer { target, mutability } => {
                 let mut node_dumper = dumper.node("Pattern::Pointer");
                 node_dumper.field("mutability", mutability);
-                node_dumper.finish();
+                node_dumper.end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(target, Some("target"));
+                    dumper.dump_line(target, Some("target"));
                 });
             }
             Pattern::Literal(node) => {
@@ -1473,7 +1474,7 @@ impl Dump for Pattern {
             Pattern::Identifier(string_id) => {
                 let mut node_dumper = dumper.node("Pattern::Identifier");
                 node_dumper.field("identifier", string_id);
-                node_dumper.finish();
+                node_dumper.end();
             }
             Pattern::Range {
                 start,
@@ -1482,35 +1483,35 @@ impl Dump for Pattern {
             } => {
                 let mut node_dumper = dumper.node("Pattern::Range");
                 node_dumper.field("is_inclusive", is_inclusive);
-                node_dumper.finish();
+                node_dumper.end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(start, Some("start"));
-                    dumper.dump(end, Some("end"));
+                    dumper.dump_line(start, Some("start"));
+                    dumper.dump_line(end, Some("end"));
                 });
             }
             Pattern::Tuple { fields } => {
-                dumper.node("Pattern::Tuple").finish();
+                dumper.node("Pattern::Tuple").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump_many(fields, None);
+                    dumper.dump_lines(fields, None);
                 });
             }
             Pattern::Slice { fields } => {
-                dumper.node("Pattern::Slice").finish();
+                dumper.node("Pattern::Slice").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump_many(fields, None);
+                    dumper.dump_lines(fields, None);
                 });
             }
             Pattern::Struct { r#type, fields } => {
-                dumper.node("Pattern::Struct").finish();
+                dumper.node("Pattern::Struct").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(r#type, None);
-                    dumper.dump_many(fields, None);
+                    dumper.dump_line(r#type, None);
+                    dumper.dump_lines(fields, None);
                 });
             }
             Pattern::Union { fields } => {
-                dumper.node("Pattern::Union").finish();
+                dumper.node("Pattern::Union").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump_many(fields, None);
+                    dumper.dump_lines(fields, None);
                 });
             }
         }
@@ -1523,21 +1524,21 @@ impl Dump for PatternField {
             PatternField::Named { name, pattern } => {
                 let mut node_dumper = dumper.node("PatternField::Named");
                 node_dumper.field("name", name);
-                node_dumper.finish();
+                node_dumper.end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(pattern, None);
+                    dumper.dump_line(pattern, None);
                 });
             }
             PatternField::NamedAlias { name, alias } => {
                 let mut node_dumper = dumper.node("PatternField::NamedAlias");
                 node_dumper.field("name", name);
                 node_dumper.field("alias", alias);
-                node_dumper.finish();
+                node_dumper.end();
             }
             PatternField::Positional { pattern } => {
-                dumper.node("PatternField::Positional").finish();
+                dumper.node("PatternField::Positional").end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump(pattern, None);
+                    dumper.dump_line(pattern, None);
                 });
             }
         }
@@ -1550,6 +1551,6 @@ impl Dump for PatternField {
 
 impl Dump for Doc {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Doc").field("string", &self.string).finish();
+        dumper.node("Doc").field("string", &self.string).end();
     }
 }
