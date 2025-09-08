@@ -370,7 +370,7 @@ impl<'a> Parser<'a> {
     ///     indices: [0, 1, 2] // optional comma
     /// }
     ///
-    /// Mesh2[float64] { something: [] }
+    /// Mesh2<float64> { something: [] }
     /// ```
     pub fn eat_struct_literal(&mut self) -> ParseResult<NodeId<StructLiteral>> {
         let start = self.mark();

@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     ///
-    /// trait Baz[T] with T: Copy {
+    /// trait Baz<T> with T: Copy {
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
@@ -37,10 +37,10 @@ impl<'a> Parser<'a> {
         };
 
         // optional static parameters: [ ... ]
-        let static_parameters = if self.peek_token(TokenType::OpenBracket).is_ok() {
-            self.eat_token(TokenType::OpenBracket)?;
+        let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
+            self.bump(); // eat less than
             let params = self.eat_parameters_body()?;
-            self.eat_token(TokenType::CloseBracket)?;
+            self.eat_token(TokenType::GreaterThan)?;
             Some(params)
         } else {
             None
@@ -49,13 +49,13 @@ impl<'a> Parser<'a> {
         // optional supertraits after ':'
         let mut supertraits: Vec<NodeId<Type>> = Vec::new();
         if self.peek_colon().is_ok() {
-            self.eat_colon()?;
+            self.bump(); // eat colon
             // first supertrait
             let ty = self.eat_type()?;
             supertraits.push(ty);
             // more, comma-separated
             while self.peek_token(TokenType::Comma).is_ok() {
-                self.eat_comma()?;
+                self.bump(); // eat comma
                 let ty = self.eat_type()?;
                 supertraits.push(ty);
             }
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
         // optional with declarations in header
         let mut withs: Vec<NodeId<With>> = Vec::new();
         if self.peek_keyword(Keyword::With).is_ok() {
-            self.eat_keyword(Keyword::With)?;
+            self.bump(); // eat with
             let with = self.eat_with_body()?;
             withs.push(with);
         }
@@ -162,7 +162,7 @@ trait Foo {
 
     #[test]
     fn test_parse_trait_with_static_parameters() {
-        let test = TestParser::new("trait Baz[T] {}");
+        let test = TestParser::new("trait Baz<T> {}");
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait().unwrap();
@@ -177,7 +177,7 @@ trait Foo {
     fn test_parse_trait_with_clause() {
         let test = TestParser::new(
             r###"
-trait Baz[T] with T: Copy {
+trait Baz<T> with T: Copy {
     function baz() => T
 }
 "###,

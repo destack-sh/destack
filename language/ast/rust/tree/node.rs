@@ -530,7 +530,7 @@ impl Node for UnionField {
 ///     }
 /// }
 ///
-/// trait Baz[T] with T: Copy {
+/// trait Baz<T> with T: Copy {
 ///     function baz() => T // semicolon optional
 /// }
 /// ```
@@ -562,18 +562,18 @@ impl Node for Trait {
 ///     ...
 /// }
 ///
-/// implement Foo[int32] {
+/// implement Foo<int32> {
 ///     ...
 /// }
 ///
 /// implement Marker for Bar; // optional semicolon
 /// implement OtherMarker for Bar
 ///
-/// implement Bar[int32] for Baz {
+/// implement Bar<int32> for Baz {
 ///     ...
 /// }
 ///
-/// implement[T] Bar[T] for Baz {
+/// implement<T> Bar<T> for Baz {
 ///     ...
 /// }
 /// ```
