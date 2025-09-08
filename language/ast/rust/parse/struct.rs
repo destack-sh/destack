@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct Foo {
+    /// struct Foo<T> {
     ///     myField: int32
     ///     myOtherField: boolean
     ///
@@ -44,6 +44,16 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // optional static parameters: < ... >
+        let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
+            self.bump(); // eat less than
+            let params = self.eat_parameters_body()?;
+            self.eat_token(TokenType::GreaterThan)?;
+            Some(params)
+        } else {
+            None
+        };
+
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
@@ -53,6 +63,7 @@ impl<'a> Parser<'a> {
         // fill in header data
         let struct_ = self.tree.get_mut(struct_id);
         struct_.name = name;
+        struct_.static_parameters = static_parameters;
         self.tree.set_span(struct_id, self.get_span_from(start));
 
         Ok(struct_id)
@@ -89,6 +100,7 @@ impl<'a> Parser<'a> {
         let struct_id = self.tree.allocate(
             Struct {
                 name: None,
+                static_parameters: None,
                 fields,
                 statements,
             },
@@ -139,10 +151,11 @@ impl<'a> Parser<'a> {
         Ok(field_id)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{IntType, PrimitiveType, Struct, StructField, Type, assert_node};
+    use crate::{IntType, Parameter, PrimitiveType, Struct, StructField, Type, assert_node};
 
     #[test]
     fn test_parse_struct_anonymous() {
@@ -157,8 +170,9 @@ struct { x: int32, y: boolean
 
         // struct { x: int32, y: boolean }
         let struct_id = parser.eat_struct().unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, fields, statements } => {
+        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements } => {
             assert_eq!(*name, None);
+            assert_eq!(*static_parameters, None);
             assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);
 
@@ -185,12 +199,12 @@ struct { x: int32, y: boolean
     fn test_parse_struct_with_name_and_using_and_default() {
         let test = TestParser::new(
             r###"
-struct Foo {
+struct Foo<T: Numeric> {
     use Bar, Baz
     
     let x: int32 = 4
 
-    a: boolean
+    a: T
     b: int32 = 4
 
     function myFunc() { // nested declaration
@@ -202,16 +216,32 @@ struct Foo {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct().unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, fields, statements } => {
+        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
-            assert_eq!(statements.len(), 1);
+            assert_eq!(statements.len(), 3);
             assert_eq!(fields.len(), 2);
+
+            // T: Numeric
+            assert!(static_parameters.is_some());
+            let static_parameters = static_parameters.as_ref().unwrap();
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter { name, r#type, .. } => {
+                // T
+                assert_eq!(*name, parser.strings.intern("T"));
+                // Numeric
+                assert!(r#type.is_some());
+                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, .. } => {
+                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Numeric")]));
+                });
+            });
 
             // a: boolean
             assert_node!(parser.tree, fields[0], StructField { name, r#type, default } => {
                 assert_eq!(*name, parser.strings.intern("a"));
                 assert!(default.is_none());
-                assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+                assert_node!(parser.tree, *r#type, Type::Path { path, .. } => {
+                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
+                });
             });
 
             // b: int32 = 4

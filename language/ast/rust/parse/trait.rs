@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // optional static parameters: [ ... ]
+        // optional static parameters: < ... >
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
             let params = self.eat_parameters_body()?;
