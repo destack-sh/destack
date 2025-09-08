@@ -2,18 +2,21 @@
 
 use dyst_language_token::TokenType;
 
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{Keyword, NodeId, ParseResult, Parser, Statement};
 
 impl<'a> Parser<'a> {
-    /// Parse a statement (with the `;` or `\n`).
-    pub fn eat_statement(&mut self) -> ParseResult<NodeId<Statement>> {
-        let statement_id = self.eat_statement_body()?;
-        self.eat_statement_stop_with_newlines()?;
+    /// Eat a statement (with the `;` or `\n`).
+    #[inline]
+    pub fn eat_statement_with_stop(&mut self) -> ParseResult<NodeId<Statement>> {
+        let statement_id = self.eat_statement()?;
+        self.eat_statement_stop()?;
         Ok(statement_id)
     }
 
-    /// Parse a statement body (without the `;` or `\n`).
-    pub fn eat_statement_body(&mut self) -> ParseResult<NodeId<Statement>> {
+    /// Eat a statement body (without the `;` or `\n`).
+    #[inline]
+    pub fn eat_statement(&mut self) -> ParseResult<NodeId<Statement>> {
         let start = self.mark();
         let statement = {
             let token = self.peek()?;
@@ -93,7 +96,7 @@ impl<'a> Parser<'a> {
             //
             // expression (fallback)
             else {
-                let expression_id = self.eat_expression(None)?;
+                let expression_id = self.eat_expression(ExpressionParserOptions::default())?;
                 Statement::Expression(expression_id)
             }
         };

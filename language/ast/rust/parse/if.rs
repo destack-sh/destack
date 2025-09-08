@@ -1,3 +1,4 @@
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{If, Keyword, NodeId, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
@@ -29,10 +30,13 @@ impl<'a> Parser<'a> {
     pub fn eat_if(&mut self) -> ParseResult<NodeId<If>> {
         let start = self.mark();
         self.eat_keyword(Keyword::If)?;
-        let condition_id = self.eat_expression(None)?;
+        let condition_id = self.eat_expression(ExpressionParserOptions {
+            is_before_block: true,
+            ..ExpressionParserOptions::default()
+        })?;
         let then_block_id = self.eat_block()?;
         let if_node = if self.peek_keyword(Keyword::Else).is_ok() {
-            self.eat_keyword(Keyword::Else)?;
+            self.bump(); // eat else
             if self.peek_keyword(Keyword::If).is_ok() {
                 // if ... else if ...
                 let else_if_id = self.eat_if()?;
@@ -66,7 +70,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Block, Expression, If, assert_bool, assert_node};
+    use crate::{BinaryOperator, Block, Expression, If, assert_bool, assert_node, assert_path};
 
     #[test]
     fn test_parse_if_basic() {
@@ -135,6 +139,75 @@ mod tests {
                 assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
                     assert!(label.is_none());
                     assert!(statements.is_empty());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_else_if_ambiguous() {
+        // ambiguous because y and z could be interpreted as struct literals
+        //  (this is disambiguated in a condition / guard clause, see ExpressionParserOptions)
+        let test = TestParser::new(
+            r"
+if x > y {
+    y
+} else if y == z { 
+    x 
+}",
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let x = parser.strings.intern("x");
+        let y = parser.strings.intern("y");
+        let z = parser.strings.intern("z");
+
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+            // if x > y
+            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::GreaterThan);
+                // x
+                assert_path!(parser.tree, *left, x, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+                // y
+                assert_path!(parser.tree, *right, y, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+            });
+            // { y }
+            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+                assert!(label.is_none());
+                assert_eq!(statements.len(), 1);
+            });
+            // else if y == z
+            assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then } => {
+                // y == z
+                assert_node!(parser.tree, *inner_condition, Expression::Binary { left, operator, right } => {
+                    assert_eq!(*operator, BinaryOperator::Equal);
+                    // y
+                    assert_path!(parser.tree, *left, y, using |path_id| {
+                        let p = parser.paths.get(path_id);
+                        assert_eq!(p.segments.len(), 1);
+                        p.segments[0]
+                    });
+                    // z
+                    assert_path!(parser.tree, *right, z, using |path_id| {
+                        let p = parser.paths.get(path_id);
+                        assert_eq!(p.segments.len(), 1);
+                        p.segments[0]
+                    });
+                });
+                // { x }
+                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
+                    assert!(label.is_none());
+                    assert_eq!(statements.len(), 1);
                 });
             });
         });

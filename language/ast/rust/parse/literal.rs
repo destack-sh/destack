@@ -1,6 +1,7 @@
 use dyst_language_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 use std::borrow::Cow;
 
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     ArrayLiteral, Expression, FieldLiteral, FloatType, IntType, NodeId, ParseError, ParseResult,
     Parser, ScalarLiteral, StructLiteral, TupleLiteral,
@@ -271,11 +272,11 @@ impl<'a> Parser<'a> {
             return Ok(array_literal);
         }
 
-        let first_element = self.eat_expression(None)?;
+        let first_element = self.eat_expression(ExpressionParserOptions::default())?;
         if self.peek_token(TokenType::Semicolon).is_ok() {
             // repeated array: [value; count]
             self.eat_token(TokenType::Semicolon)?;
-            let count = self.eat_expression(None)?;
+            let count = self.eat_expression(ExpressionParserOptions::default())?;
             self.eat_token(TokenType::CloseBracket)?;
             let array_literal = self.tree.allocate(
                 ArrayLiteral::Repeated {
@@ -293,7 +294,7 @@ impl<'a> Parser<'a> {
                 if self.peek_token(TokenType::CloseBracket).is_ok() {
                     break;
                 }
-                let element = self.eat_expression(None)?;
+                let element = self.eat_expression(ExpressionParserOptions::default())?;
                 elements.push(element);
             }
             self.eat_token(TokenType::CloseBracket)?;
@@ -334,18 +335,10 @@ impl<'a> Parser<'a> {
         }
 
         // parse first element
-        let first_element = self.eat_expression(None)?;
+        let first_element = self.eat_expression(ExpressionParserOptions::default())?;
 
         // parse remaining elements separated by comma or newline, allow trailing comma
-        let mut elements: Vec<NodeId<Expression>> = vec![first_element];
-        while self.peek_item_stop().is_ok() {
-            self.eat_item_stop_with_newlines()?;
-            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
-                break;
-            }
-            let element = self.eat_expression(None)?;
-            elements.push(element);
-        }
+        let elements = self.eat_tuple_literal_body(first_element)?;
         self.eat_token(TokenType::CloseParenthesis)?;
         let tuple_literal = self
             .tree
@@ -353,9 +346,89 @@ impl<'a> Parser<'a> {
         Ok(tuple_literal)
     }
 
+    /// Eat the body of a tuple literal (excluding the parenthesis).
+    pub fn eat_tuple_literal_body(
+        &mut self,
+        first_element: NodeId<Expression>,
+    ) -> ParseResult<Vec<NodeId<Expression>>> {
+        let mut elements: Vec<NodeId<Expression>> = vec![first_element];
+        loop {
+            // stop at closing parenthesis
+            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                break;
+            }
+            // consume any stop
+            else if self.peek_item_stop().is_ok() {
+                self.eat_item_stop_with_newlines()?;
+            }
+            // keep eating elements
+            else {
+                let element = self.eat_expression(ExpressionParserOptions::default())?;
+                elements.push(element);
+            }
+        }
+        Ok(elements)
+    }
+
     /// Peek a struct literal.
+    /// NOTE :Performance: peek_struct_literal uses large lookahead.
+    #[inline]
     pub fn peek_struct_literal(&self) -> ParseResult<()> {
-        // todo!: struct literals (incl. in patterns)
+        // first name can't be a keyword
+        if self.peek_any_keyword().is_ok() {
+            return Err(ParseError::UnexpectedToken(self.peek()?.span));
+        }
+
+        let start = self.pos();
+        let end = start + 20; // max lookahead
+        let mut pos = self.pos();
+
+        // identifier .identifier*
+        // like `geom.Mesh`
+        while pos < end {
+            if let Some(token) = self.tokens.get(pos)
+                && token.token.r#type == TokenType::Identifier
+            {
+                pos += 1;
+                // keep going if there's a dot
+                if let Some(token) = self.tokens.get(pos)
+                    && token.token.r#type == TokenType::Dot
+                {
+                    pos += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // {
+        // like in `geom.Mesh { ... }`
+        if let Some(token) = self.tokens.get(pos)
+            && token.token.r#type == TokenType::OpenBrace
+        {
+            return Ok(());
+        }
+        // generics
+        else if let Some(token) = self.tokens.get(pos)
+            && token.token.r#type == TokenType::LessThan
+        {
+            // scan until '>'
+            while pos < end {
+                if let Some(token) = self.tokens.get(pos)
+                    && token.token.r#type == TokenType::GreaterThan
+                {
+                    // if next token is '{', we have a struct literal
+                    if let Some(token) = self.tokens.get(pos + 1)
+                        && token.token.r#type == TokenType::OpenBrace
+                    {
+                        return Ok(());
+                    }
+                    break;
+                }
+                pos += 1;
+            }
+        }
+
         Err(ParseError::UnexpectedToken(self.peek()?.span))
     }
 
@@ -417,7 +490,7 @@ impl<'a> Parser<'a> {
             // named field
             if self.peek_token(TokenType::Colon).is_ok() {
                 self.eat_token(TokenType::Colon)?;
-                let value = self.eat_expression(None)?;
+                let value = self.eat_expression(ExpressionParserOptions::default())?;
                 let field_literal = self.tree.allocate(
                     FieldLiteral::Named { name, value },
                     self.get_span_from(field_start),

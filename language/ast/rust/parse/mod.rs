@@ -28,6 +28,7 @@ mod r#type;
 mod union;
 
 pub use error::*;
+pub use expression::ExpressionParserOptions;
 pub use parser::*;
 
 #[cfg(test)]

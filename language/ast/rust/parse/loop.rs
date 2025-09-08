@@ -1,5 +1,6 @@
 //! Parse loops, for, while, etc.
 
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{For, Keyword, Loop, NodeId, ParseResult, Parser, While};
 
 impl<'a> Parser<'a> {
@@ -43,9 +44,9 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // header
         self.eat_keyword(Keyword::For)?;
-        let pattern_id = self.eat_pattern(None)?;
+        let pattern_id = self.eat_pattern()?;
         self.eat_keyword(Keyword::In)?;
-        let iterator_id = self.eat_expression(None)?;
+        let iterator_id = self.eat_expression(ExpressionParserOptions::default())?;
         // body
         let block_id = self.eat_block()?;
         // for
@@ -77,7 +78,7 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // header
         self.eat_keyword(Keyword::While)?;
-        let condition_id = self.eat_expression(None)?;
+        let condition_id = self.eat_expression(ExpressionParserOptions::default())?;
         // body
         let block_id = self.eat_block()?;
         // while

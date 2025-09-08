@@ -50,6 +50,22 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a statement stop (semicolon or newline).
+    #[inline]
+    pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
+        if let Ok(token) = self.peek()
+            && (token.token.r#type == TokenType::Newline
+                || token.token.r#type == TokenType::Semicolon)
+        {
+            self.bump(); // eat semicolon or newline
+        } else {
+            return Err(ParseError::SyntaxError(
+                self.peek().unwrap_or(&self.eof_token).span,
+            ));
+        }
+        Ok(())
+    }
+
+    /// Eat a statement stop (semicolon or newline).
     /// Eats all following newlines.
     #[inline]
     pub fn eat_statement_stop_with_newlines(&mut self) -> ParseResult<()> {
@@ -57,7 +73,7 @@ impl<'a> Parser<'a> {
             && (token.token.r#type == TokenType::Newline
                 || token.token.r#type == TokenType::Semicolon)
         {
-            self.bump();
+            self.bump(); // eat semicolon or newline
         } else {
             return Err(ParseError::SyntaxError(
                 self.peek().unwrap_or(&self.eof_token).span,

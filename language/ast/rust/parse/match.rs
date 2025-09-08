@@ -1,5 +1,6 @@
 use dyst_language_token::TokenType;
 
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{Keyword, Match, MatchCase, NodeId, ParseResult, Parser, Try};
 
 impl<'a> Parser<'a> {
@@ -20,7 +21,10 @@ impl<'a> Parser<'a> {
     pub fn eat_match(&mut self) -> ParseResult<NodeId<Match>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Match)?;
-        let value_id = self.eat_expression(None)?;
+        let value_id = self.eat_expression(ExpressionParserOptions {
+            is_before_block: true,
+            ..ExpressionParserOptions::default()
+        })?;
         let cases_id = self.eat_match_body()?;
         let match_id = self.tree.allocate(
             Match {
@@ -76,11 +80,11 @@ impl<'a> Parser<'a> {
     pub fn eat_match_case(&mut self) -> ParseResult<NodeId<MatchCase>> {
         let start = self.mark();
         // pattern
-        let pattern_id = self.eat_pattern(None)?;
+        let pattern_id = self.eat_pattern()?;
         // guard
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
             self.eat_keyword(Keyword::If)?;
-            let guard = self.eat_expression(None)?;
+            let guard = self.eat_expression(ExpressionParserOptions::default())?;
             Some(guard)
         } else {
             None
@@ -102,7 +106,7 @@ impl<'a> Parser<'a> {
         }
         // statement
         else {
-            let expression_id = self.eat_expression(None)?;
+            let expression_id = self.eat_expression(ExpressionParserOptions::default())?;
             let match_case_id = self.tree.allocate(
                 MatchCase::Expression {
                     pattern: pattern_id,
@@ -146,8 +150,11 @@ impl<'a> Parser<'a> {
             // try block with catch
             if self.peek_keyword(Keyword::Catch).is_ok() {
                 // catch match
-                self.eat_keyword(Keyword::Catch)?;
-                let catch_expression_id = self.eat_expression(None)?;
+                self.bump(); // eat catch 
+                let catch_expression_id = self.eat_expression(ExpressionParserOptions {
+                    is_before_block: true,
+                    ..ExpressionParserOptions::default()
+                })?;
                 let catch_match_cases_id = self.eat_match_body()?;
                 let catch_match_id = self.tree.allocate(
                     Match {
@@ -178,7 +185,7 @@ impl<'a> Parser<'a> {
         }
         // try expression
         else {
-            let expression_id = self.eat_expression(None)?;
+            let expression_id = self.eat_expression(ExpressionParserOptions::default())?;
             let try_id = self.tree.allocate(
                 Try::Expression {
                     try_expression: expression_id,

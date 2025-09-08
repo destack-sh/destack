@@ -1,4 +1,4 @@
-use dyst_language_ast::{BlockFormat, DumperOptions, Parser};
+use dyst_language_ast::{BlockFormat, DumperOptions, ExpressionParserOptions, Parser};
 use dyst_language_source::{Source, SourceId};
 
 use crate::cli::parse::read_parse_input;
@@ -38,7 +38,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             dumper.finish()
         }
         "statement" => {
-            let Ok(statement_id) = parser.eat_statement_body() else {
+            let Ok(statement_id) = parser.eat_statement() else {
                 console::error("Parse error");
                 return 1;
             };
@@ -48,7 +48,8 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             dumper.finish()
         }
         "expression" => {
-            let Ok(expression_id) = parser.eat_expression(None) else {
+            let Ok(expression_id) = parser.eat_expression(ExpressionParserOptions::default())
+            else {
                 console::error("Parse error");
                 return 1;
             };

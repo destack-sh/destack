@@ -5,6 +5,7 @@ use std::str::FromStr;
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
+use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     FloatType, IntType, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser,
     PrimitiveType, Type,
@@ -406,7 +407,7 @@ impl<'a> Parser<'a> {
         let element_type = self.eat_type()?;
         if self.peek_semicolon().is_ok() {
             self.eat_semicolon()?;
-            let count = self.eat_expression(None)?;
+            let count = self.eat_expression(ExpressionParserOptions::default())?;
             let ty_id = self.tree.allocate(
                 Type::Array {
                     element_type,
