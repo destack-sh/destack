@@ -30,6 +30,7 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// void
     /// null
     /// true
     /// false

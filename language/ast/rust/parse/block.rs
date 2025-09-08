@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        
+
         // body
         self.eat_token(TokenType::OpenBrace)?;
         let statements = self.eat_block_body(BlockFormat::Explicit)?;
