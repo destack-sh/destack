@@ -34,7 +34,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             };
             let module = parser.tree.get(module_id);
             let mut dumper = parser.dumper(dump_options);
-            dumper.dump(module, None);
+            dumper.dump_line(module, None);
             dumper.finish()
         }
         "statement" => {
@@ -44,7 +44,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             };
             let statement = parser.tree.get(statement_id);
             let mut dumper = parser.dumper(dump_options);
-            dumper.dump(statement, None);
+            dumper.dump_line(statement, None);
             dumper.finish()
         }
         "expression" => {
@@ -54,7 +54,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             };
             let expression = parser.tree.get(expression_id);
             let mut dumper = parser.dumper(dump_options);
-            dumper.dump(expression, None);
+            dumper.dump_line(expression, None);
             dumper.finish()
         }
         "type" => {
@@ -64,7 +64,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             };
             let ty = parser.tree.get(type_id);
             let mut dumper = parser.dumper(dump_options);
-            dumper.dump(ty, None);
+            dumper.dump_line(ty, None);
             dumper.finish()
         }
         _ => {
