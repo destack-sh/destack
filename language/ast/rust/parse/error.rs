@@ -11,7 +11,7 @@ pub enum ParseError {
 /// A result of a parse operation.
 pub type ParseResult<T> = Result<T, ParseError>;
 
-// nocheckin: Diagnostics
+// todo!: Diagnostics
 impl From<ParseError> for Diagnostic {
     fn from(error: ParseError) -> Self {
         Diagnostic {

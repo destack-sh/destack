@@ -515,16 +515,10 @@ impl Dump for PrimitiveType {
                 dumper.node("PrimitiveType::Character").end();
             }
             PrimitiveType::Int(int_type) => {
-                dumper
-                    .node("PrimitiveType::Int")
-                    .value(int_type)
-                    .end();
+                dumper.node("PrimitiveType::Int").value(int_type).end();
             }
             PrimitiveType::Float(float_type) => {
-                dumper
-                    .node("PrimitiveType::Float")
-                    .value(float_type)
-                    .end();
+                dumper.node("PrimitiveType::Float").value(float_type).end();
             }
         }
     }
@@ -845,10 +839,7 @@ impl Dump for Type {
                 dumper.node("Type::Self_").end();
             }
             Type::Primitive(primitive) => {
-                dumper
-                    .node("Type::Primitive")
-                    .value(primitive)
-                    .end();
+                dumper.node("Type::Primitive").value(primitive).end();
             }
             Type::Path {
                 path,
