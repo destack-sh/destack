@@ -1264,6 +1264,10 @@ impl Dump for Argument {
 impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
+            ScalarLiteral::Null => {
+                let mut node_dumper = dumper.node("ScalarLiteral::Null");
+                node_dumper.finish();
+            }
             ScalarLiteral::Boolean(value) => {
                 let mut node_dumper = dumper.node("ScalarLiteral::Boolean");
                 node_dumper.field("value", &value.to_string().as_str());

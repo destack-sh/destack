@@ -579,8 +579,10 @@ impl Tokenizer<'_> {
             }
             _ => {}
         }
-        // special case: literal `true` or `false`
-        if first_char == 't' && self.str[start_pos - 1..self.pos].eq("true") {
+        // special case: `null`, `true`, `false`
+        if first_char == 'n' && self.str[start_pos - 1..self.pos].eq("null") {
+            (TokenType::Literal, Some(RawLiteralType::Null))
+        } else if first_char == 't' && self.str[start_pos - 1..self.pos].eq("true") {
             (
                 TokenType::Literal,
                 Some(RawLiteralType::Boolean { value: true }),

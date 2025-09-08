@@ -1,4 +1,3 @@
-use dyst_language_source::Span;
 use dyst_language_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 use std::borrow::Cow;
 
@@ -31,6 +30,9 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
+    /// null
+    /// true
+    /// false
     /// 1
     /// 1.0
     /// 7
@@ -39,8 +41,6 @@ impl<'a> Parser<'a> {
     /// b'a'
     /// b"abc"
     /// 0x1234
-    /// true
-    /// false
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParseResult<NodeId<ScalarLiteral>> {
         let start = self.mark();
@@ -48,6 +48,14 @@ impl<'a> Parser<'a> {
         let literal_str = self.get_span_str(literal_span.span);
 
         match literal {
+            // null literal
+            RawLiteralType::Null => {
+                let scalar_literal = self
+                    .tree
+                    .allocate(ScalarLiteral::Null, self.get_span_from(start));
+                Ok(scalar_literal)
+            }
+
             // boolean literal
             RawLiteralType::Boolean { value } => {
                 let scalar_literal = self

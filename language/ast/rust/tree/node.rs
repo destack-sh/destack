@@ -1306,6 +1306,9 @@ impl Node for Argument {
 ///
 /// Examples:
 /// ```
+/// null
+/// true
+/// false
 /// 1
 /// 0x21
 /// 1.0
@@ -1314,11 +1317,10 @@ impl Node for Argument {
 /// b'a'
 /// b"abc"
 /// 0x1234
-/// true
-/// false
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
+    Null,
     Boolean(bool),
     Byte(u8),
     Integer(i64, IntType),
