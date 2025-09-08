@@ -103,7 +103,7 @@ pub enum Runtime {
 }
 
 /// A Mutability is the mutability of a binding (const or mutable).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Mutability {
     Immutable,
     Mutable,
@@ -112,6 +112,15 @@ pub enum Mutability {
 // ----------------------------------------------------------------------------
 // Groupings
 // ----------------------------------------------------------------------------
+
+/// How a block is defined.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum BlockFormat {
+    /// Explicit blocks with { ... }
+    Explicit,
+    /// Implicit blocks like in file modules.
+    Implicit 
+}
 
 /// A Block is a block AST node of statements.
 ///
@@ -128,6 +137,7 @@ pub enum Mutability {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
+    pub format: BlockFormat,
     pub label: Option<StringId>,
     pub statements: Vec<NodeId<Statement>>,
 }
@@ -282,6 +292,8 @@ impl Node for Expression {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
+    /// The module format.
+    pub format: BlockFormat,
     /// The name of the module.
     pub name: Option<StringId>,
     /// The body of the module.

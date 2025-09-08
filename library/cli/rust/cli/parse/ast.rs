@@ -1,4 +1,4 @@
-use dyst_language_ast::{DumperOptions, Parser};
+use dyst_language_ast::{BlockFormat, DumperOptions, Parser};
 use dyst_language_source::{Source, SourceId};
 
 use crate::cli::parse::read_parse_input;
@@ -28,7 +28,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     let dump_options = DumperOptions::default();
     let node_str = match as_node {
         "module" => {
-            let Ok(module_id) = parser.eat_module_body() else {
+            let Ok(module_id) = parser.eat_module_body(BlockFormat::Implicit) else {
                 console::error("Parse error");
                 return 1;
             };

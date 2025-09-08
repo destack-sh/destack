@@ -1,6 +1,6 @@
 use crate::{
-    Block, Break, Continue, Defer, Keyword, NodeId, ParseError, ParseResult, Parser, Return,
-    Statement,
+    Block, BlockFormat, Break, Continue, Defer, Keyword, NodeId, ParseError, ParseResult, Parser,
+    Return, Statement,
 };
 use dyst_language_token::TokenType;
 
@@ -44,7 +44,7 @@ impl<'a> Parser<'a> {
         };
         // body
         self.eat_token(TokenType::OpenBrace)?;
-        let block_id = self.eat_block_body()?;
+        let block_id = self.eat_block_body(BlockFormat::Explicit)?;
         let block = self.tree.get_mut(block_id);
         block.label = label;
         self.eat_token(TokenType::CloseBrace)?;
@@ -53,13 +53,15 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a block of statements (without the label, `{`, and `}`)
-    pub fn eat_block_body(&mut self) -> ParseResult<NodeId<Block>> {
+    pub fn eat_block_body(&mut self, format: BlockFormat) -> ParseResult<NodeId<Block>> {
         let start = self.mark();
         let mut statements: Vec<NodeId<Statement>> = Vec::new();
 
         loop {
             // break if we're at the end of the block
-            if self.peek_token(TokenType::CloseBrace).is_ok() {
+            if self.peek().is_err()
+                || format == BlockFormat::Explicit && self.peek_token(TokenType::CloseBrace).is_ok()
+            {
                 break;
             }
             // consume any statement stops (semicolon or newline)
@@ -74,6 +76,7 @@ impl<'a> Parser<'a> {
         }
 
         let block = Block {
+            format,
             label: None,
             statements,
         };

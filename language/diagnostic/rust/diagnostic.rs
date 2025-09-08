@@ -47,7 +47,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
-    // nocheckin: render diagnostics
+    // todo!: render diagnostics
     pub fn render(&self) -> String {
         let mut out = String::new();
         out.push_str(&format!("{:?}: {}", self.severity, self.message));

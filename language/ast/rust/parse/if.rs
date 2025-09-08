@@ -80,7 +80,7 @@ mod tests {
                 assert_bool!(parser.tree, *lit_id, true);
             });
             // empty then block
-            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+            assert_node!(parser.tree, *then_block, Block {  format: _, statements, label } => {
                 assert!(label.is_none());
                 assert!(statements.is_empty());
             });
@@ -99,12 +99,12 @@ mod tests {
                 assert_bool!(parser.tree, *lit_id, false);
             });
             // empty then block
-            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
                 assert!(label.is_none());
                 assert!(statements.is_empty());
             });
             // empty else block
-            assert_node!(parser.tree, *else_block, Block { statements, label } => {
+            assert_node!(parser.tree, *else_block, Block { format: _, statements, label } => {
                 assert!(label.is_none());
                 assert!(statements.is_empty());
             });
@@ -123,7 +123,7 @@ mod tests {
                 assert_bool!(parser.tree, *lit_id, true);
             });
             // empty then block
-            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
                 assert!(label.is_none());
                 assert!(statements.is_empty());
             });
@@ -132,7 +132,7 @@ mod tests {
                 assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
                     assert_bool!(parser.tree, *lit_id, false);
                 });
-                assert_node!(parser.tree, *inner_then, Block { statements, label } => {
+                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
                     assert!(label.is_none());
                     assert!(statements.is_empty());
                 });
@@ -152,7 +152,7 @@ mod tests {
                 assert_bool!(parser.tree, *lit_id, true);
             });
             // empty then block
-            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
                 assert!(label.is_none());
                 assert!(statements.is_empty());
             });
@@ -161,11 +161,11 @@ mod tests {
                 assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
                     assert_bool!(parser.tree, *lit_id, false);
                 });
-                assert_node!(parser.tree, *inner_then, Block { statements, label } => {
+                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
                     assert!(label.is_none());
                     assert!(statements.is_empty());
                 });
-                assert_node!(parser.tree, *inner_else, Block { statements, label } => {
+                assert_node!(parser.tree, *inner_else, Block { format: _, statements, label } => {
                     assert!(label.is_none());
                     assert!(statements.is_empty());
                 });
@@ -190,7 +190,7 @@ if x > 0 {
             // condition is binary expression x > 0
             assert_node!(parser.tree, *condition, Expression::Binary { left: _, operator: _, right: _ });
             // then block has one statement
-            assert_node!(parser.tree, *then_block, Block { statements, label } => {
+            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
                 assert!(label.is_none());
                 assert_eq!(statements.len(), 1);
             });
