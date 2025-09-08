@@ -1,5 +1,7 @@
 //! Parse statements.
 
+use dyst_language_token::TokenType;
+
 use crate::{Keyword, NodeId, ParseResult, Parser, Statement};
 
 impl<'a> Parser<'a> {
@@ -14,43 +16,46 @@ impl<'a> Parser<'a> {
     pub fn eat_statement_body(&mut self) -> ParseResult<NodeId<Statement>> {
         let start = self.mark();
         let statement = {
+            let token = self.peek()?;
+            let keyword = self.peek_any_keyword().ok();
+
             //
             // ------------------------------------------------------------
             // Declarations
             // ------------------------------------------------------------
             //
             // module
-            if self.peek_keyword(Keyword::Module).is_ok() {
+            if keyword == Some(Keyword::Module) {
                 let module_id = self.eat_module()?;
                 Statement::Module(module_id)
             }
             // struct
-            else if self.peek_keyword(Keyword::Struct).is_ok() {
+            else if keyword == Some(Keyword::Struct) {
                 let struct_id = self.eat_struct()?;
                 Statement::Struct(struct_id)
             }
             // enum
-            else if self.peek_keyword(Keyword::Enum).is_ok() {
+            else if keyword == Some(Keyword::Enum) {
                 let enum_id = self.eat_enum()?;
                 Statement::Enum(enum_id)
             }
             // union
-            else if self.peek_keyword(Keyword::Union).is_ok() {
+            else if keyword == Some(Keyword::Union) {
                 let union_id = self.eat_union()?;
                 Statement::Union(union_id)
             }
             // trait
-            else if self.peek_keyword(Keyword::Trait).is_ok() {
+            else if keyword == Some(Keyword::Trait) {
                 let trait_id = self.eat_trait()?;
                 Statement::Trait(trait_id)
             }
             // implement
-            else if self.peek_keyword(Keyword::Implement).is_ok() {
+            else if keyword == Some(Keyword::Implement) {
                 let implement_id = self.eat_implement()?;
                 Statement::Implement(implement_id)
             }
             // function
-            else if self.peek_keyword(Keyword::Function).is_ok() {
+            else if keyword == Some(Keyword::Function) {
                 let function_id = self.eat_function()?;
                 Statement::Function(function_id)
             }
@@ -60,12 +65,12 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // with
-            else if self.peek_keyword(Keyword::With).is_ok() {
+            else if keyword == Some(Keyword::With) {
                 let with_id = self.eat_with()?;
                 Statement::With(with_id)
             }
             // use
-            else if self.peek_keyword(Keyword::Use).is_ok() {
+            else if keyword == Some(Keyword::Use) {
                 let use_id = self.eat_use()?;
                 Statement::Use(use_id)
             }
@@ -75,7 +80,9 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // doc
-            else if self.peek_doc().is_ok() {
+            else if token.token.r#type == TokenType::DocLineComment
+                || token.token.r#type == TokenType::DocBlockComment
+            {
                 let doc_id = self.eat_doc()?;
                 Statement::Doc(doc_id)
             }

@@ -126,21 +126,26 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
+        let token = self.peek()?;
+        let keyword = self.peek_any_keyword().ok();
+
         // tuple
-        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        if token.token.r#type == TokenType::OpenParenthesis {
             self.eat_tuple_type()
+        }
         // array or slice
-        } else if self.peek_token(TokenType::OpenBracket).is_ok() {
+        else if token.token.r#type == TokenType::OpenBracket {
             self.eat_array_or_slice_type()
+        }
         // struct
-        } else if self.peek_keyword(Keyword::Struct).is_ok() {
+        else if keyword == Some(Keyword::Struct) {
             let struct_id = self.eat_struct()?;
             let ty_id = self
                 .tree
                 .allocate(Type::Struct(struct_id), self.get_span_from(start));
             Ok(ty_id)
         // enum
-        } else if self.peek_keyword(Keyword::Enum).is_ok() {
+        } else if keyword == Some(Keyword::Enum) {
             let enum_id = self.eat_enum()?;
             let ty_id = self
                 .tree
@@ -148,14 +153,14 @@ impl<'a> Parser<'a> {
             Ok(ty_id)
         }
         // union
-        else if self.peek_keyword(Keyword::Union).is_ok() {
+        else if keyword == Some(Keyword::Union) {
             let union_id = self.eat_union()?;
             let ty_id = self
                 .tree
                 .allocate(Type::Union(union_id), self.get_span_from(start));
             Ok(ty_id)
         // function
-        } else if self.peek_keyword(Keyword::Function).is_ok() {
+        } else if keyword == Some(Keyword::Function) {
             let function_id = self.eat_function()?;
             let ty_id = self
                 .tree

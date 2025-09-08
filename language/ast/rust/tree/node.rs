@@ -615,7 +615,7 @@ pub enum FunctionStyle {
 ///
 /// function foo() // just declaration, no body, no opening `{`
 ///
-/// function foo[T, U](x: T) => (int32, boolean) with (
+/// function foo<T, U>(x: T) => (int32, boolean) with (
 ///    T: Copy
 ///    U: Numeric
 /// ) {
@@ -634,7 +634,7 @@ pub enum FunctionStyle {
 /// }
 ///
 /// // optional , if newline-delimited
-/// function longBar[Validate: boolean](
+/// function longBar<Validate: boolean>(
 ///   /// doc comment for `a`
 ///   a: int32
 ///   /// doc comment for `b`
