@@ -559,28 +559,35 @@ impl<'a> Parser<'a> {
             // Bindings / Literals / Aliases
             // ------------------------------------------------------------
             //
+            // let
+            else if self.peek_keyword(Keyword::Let).is_ok()
+                || self.peek_keyword(Keyword::Var).is_ok()
+            {
+                let let_id = self.eat_let_or_var()?;
+                let expression = Expression::Let(let_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // tuple
+            else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                let tuple_literal = self.eat_tuple_literal()?;
+                let expression = Expression::TupleLiteral(tuple_literal);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
             // array
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 let array_literal = self.eat_array_literal()?;
                 let expression = Expression::ArrayLiteral(array_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
-            // tuple
-            } else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                let tuple_literal = self.eat_tuple_literal()?;
-                let expression = Expression::TupleLiteral(tuple_literal);
+            }
+            // struct
+            else if self.peek_struct_literal().is_ok() {
+                let struct_literal = self.eat_struct_literal()?;
+                let expression = Expression::StructLiteral(struct_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
-            // todo!: parse struct literals/patterns (postfix to avoid unbounded lookahead?, see lambdas)
             // scalar
             } else if self.peek_scalar_literal().is_ok() {
                 let scalar_literal = self.eat_scalar_literal()?;
                 let expression = Expression::ScalarLiteral(scalar_literal);
-                self.tree.allocate(expression, self.get_span_from(start))
-            // let
-            } else if self.peek_keyword(Keyword::Let).is_ok()
-                || self.peek_keyword(Keyword::Var).is_ok()
-            {
-                let let_id = self.eat_let_or_var()?;
-                let expression = Expression::Let(let_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             // alias / path
             } else if self.peek_identifier().is_ok() {
@@ -614,10 +621,16 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Call(call_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // as
+            // cast
             else if self.peek_keyword(Keyword::As).is_ok() {
                 let cast_id = self.eat_as_postfix(left_expression_id)?;
                 let expression = Expression::Cast(cast_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // unwrap
+            else if self.peek_token(TokenType::Question).is_ok() {
+                self.bump(); // eat question
+                let expression = Expression::Unwrap(left_expression_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // done
@@ -628,12 +641,11 @@ impl<'a> Parser<'a> {
 
         //
         // ------------------------------------------------------------
-        // Binary and assignment operations (infix, left associative)
+        // Infix operations (binary and assign, left associative)
         // ------------------------------------------------------------
         //
 
-        // infix binary operations
-        // keep eating while left precedence is weaker than right precedence
+        // eating infix while left precedence is weaker than right precedence
         while let Ok(right_operator) = self.peek_infix_operator()
             && (left_precedence.is_none() || left_precedence.unwrap() < right_operator.precedence())
         {
@@ -653,13 +665,110 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{BinaryOperator, Call, Expression, Runtime, assert_node, assert_path};
+    use crate::{
+        BinaryOperator, Call, Expression, FieldLiteral, Runtime, ScalarLiteral, StructLiteral,
+        Type, assert_node, assert_path,
+    };
+
+    /// Struct literals are disambiguated.
+    /// geom.Vector2 { x: 1, y }
+    #[test]
+    fn test_parse_struct_literal_path() {
+        let test = TestParser::new("geom.Vector2 { x: 1, y }");
+        let mut parser = test.parser();
+
+        let expr_id = parser.eat_expression(None).unwrap();
+        let geom = parser.strings.intern("geom");
+        let vector2 = parser.strings.intern("Vector2");
+        let x = parser.strings.intern("x");
+        let y = parser.strings.intern("y");
+
+        // geom.Vector2 { x: 1, y }
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::StructLiteral(struct_literal_id) => {
+                assert_node!(
+                    parser.tree,
+                    *struct_literal_id,
+                    StructLiteral { r#type, fields } => {
+                        // geom.Vector2
+                        assert_node!(
+                            parser.tree,
+                            *r#type,
+                            Type::Path { path, static_arguments: _ } => {
+                                let p = parser.paths.get(*path);
+                                assert_eq!(p.segments.len(), 2);
+                                assert_eq!(p.segments[0], geom);
+                                assert_eq!(p.segments[1], vector2);
+                            }
+                        );
+                        // fields
+                        assert_eq!(fields.len(), 2);
+                        // x: 1
+                        assert_node!(
+                            parser.tree,
+                            fields[0],
+                            FieldLiteral::Named { name, value } => {
+                                // x
+                                assert_eq!(*name, x);
+                                // 1
+                                assert_node!(
+                                    parser.tree,
+                                    *value,
+                                    Expression::ScalarLiteral(scalar_id) => {
+                                        assert_node!(
+                                            parser.tree,
+                                            *scalar_id,
+                                            ScalarLiteral::Integer(1, _)
+                                        );
+                                    }
+                                );
+                            }
+                        );
+                        // y
+                        assert_node!(
+                            parser.tree,
+                            fields[1],
+                            FieldLiteral::Named { name, value: _ } => {
+                                // y
+                                assert_eq!(*name, y);
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    }
+
+    /// Struct literals with static parameters are disambiguated.
+    /// geom.Mesh[Dims: 2, DType: float32] {
+    ///
+    ///     vertices: [1,]
+    ///     y  
+    /// }
+    #[test]
+    #[ignore]
+    fn test_parse_struct_literal_path_with_static_parameters() {
+        let test = TestParser::new(
+            r##"
+geom.Mesh[Dims: 2, DType: float32] { 
+    vertices: [1,]
+    y
+}"##,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let _expr_id = parser.eat_expression(None).unwrap();
+        // NOTE :Incomplete: struct literals with generics
+    }
 
     /// Addition is left associative.
     /// a + b + c
     /// => ((a + b) + c)
     #[test]
-    fn test_precedence_addition_left_associative() {
+    fn test_parse_precedence_addition_left_associative() {
         let test = TestParser::new("a + b + c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
@@ -708,7 +817,7 @@ mod tests {
     /// a + b * c
     /// => (a + (b * c))
     #[test]
-    fn test_precedence_multiply_before_addition() {
+    fn test_parse_precedence_multiply_before_addition() {
         let test = TestParser::new("a + b * c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
@@ -759,7 +868,7 @@ mod tests {
     /// (a + b) * c
     /// => ((a + b) * c)
     #[test]
-    fn test_precedence_parentheses_override() {
+    fn test_parse_precedence_parentheses_override() {
         let test = TestParser::new("(a + b) * c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
@@ -810,7 +919,7 @@ mod tests {
     /// a + b * c + d
     /// => ((a + (b * c)) + d)
     #[test]
-    fn test_precedence_chain_mixed() {
+    fn test_parse_precedence_chain_mixed() {
         let test = TestParser::new("a + b * c + d");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
@@ -877,7 +986,7 @@ mod tests {
     /// a + b | c + d
     /// => ((a + b) | (c + d))
     #[test]
-    fn test_precedence_bitwise_vs_addition() {
+    fn test_parse_precedence_bitwise_vs_addition() {
         let test = TestParser::new("a + b | c + d");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
@@ -944,7 +1053,7 @@ mod tests {
     /// a == b && c == d
     /// => ((a == b) && (c == d))
     #[test]
-    fn test_precedence_comparison_vs_logical() {
+    fn test_parse_precedence_comparison_vs_logical() {
         let test = TestParser::new("a == b && c == d");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
@@ -1011,7 +1120,7 @@ mod tests {
     /// -a * b
     /// => ((-a) * b)
     #[test]
-    fn test_precedence_unary_before_multiply() {
+    fn test_parse_precedence_unary_before_multiply() {
         let test = TestParser::new("-a * b");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();
@@ -1054,7 +1163,7 @@ mod tests {
     /// a() + @b() / c
     /// => ((a()) + ((@b()) / c))
     #[test]
-    fn test_precedence_postfix_call_before_add() {
+    fn test_parse_precedence_postfix_call_before_add() {
         let test = TestParser::new("a() + @b() / c");
         let mut parser = test.parser();
         let expr_id = parser.eat_expression(None).unwrap();

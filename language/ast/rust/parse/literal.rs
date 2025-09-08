@@ -1,3 +1,4 @@
+use dyst_language_source::Span;
 use dyst_language_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 use std::borrow::Cow;
 
@@ -333,6 +334,12 @@ impl<'a> Parser<'a> {
             .tree
             .allocate(TupleLiteral { elements }, self.get_span_from(start));
         Ok(tuple_literal)
+    }
+
+    /// Peek a struct literal.
+    pub fn peek_struct_literal(&self) -> ParseResult<()> {
+        // todo!: struct literals (incl. in patterns)
+        Err(ParseError::UnexpectedToken(self.peek()?.span))
     }
 
     /// Eat a struct literal (including the type prefix).

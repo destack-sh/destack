@@ -244,6 +244,8 @@ pub enum Expression {
     Call(NodeId<Call>),
     /// As casting (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
+    /// Unwrap an expression with `?` (postfix as an Expression).
+    Unwrap(NodeId<Expression>),
     /// Binary operation (infix between Expressions, see BinaryOperator).
     Binary {
         left: NodeId<Expression>,
@@ -760,7 +762,7 @@ impl Node for TupleField {
 /// [float64; 3]
 /// (int32, int32)
 /// *T // pointer to T
-/// *?T // pointer to Maybe<T>
+/// *?T // pointer to Maybe[T]
 /// ?*T // Maybe pointer to T
 /// T[int32]
 /// T[Validate: false]
@@ -770,7 +772,7 @@ impl Node for TupleField {
 /// struct MyResponse { x: int32, y: int32 }
 /// enum { Good, Bad }
 /// union { A(int), B(float) } // explicit anonymous union
-/// boolean | *int32 // implicit anonymous union
+/// boolean | int32 // implicit anonymous union
 /// function (int32) => int32
 /// function () => Result[int32, struct Error { message: string }]
 /// ```
@@ -778,7 +780,7 @@ impl Node for TupleField {
 pub enum Type {
     /// Infer placeholder `_`.
     Infer,
-    /// Maybe '?T'. Desugars to `Maybe<T>`.
+    /// Maybe '?T'. Desugars to `Maybe[T]`.
     Maybe(NodeId<Type>),
     /// Not `!T`.
     Not(NodeId<Type>),

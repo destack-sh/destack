@@ -175,7 +175,8 @@ impl<'a> Parser<'a> {
             Function {
                 name,
                 runtime,
-                // todo!: support lambda function style (same postfix problem as with struct literals?)
+                // NOTE :Incomplete: support lambda function style
+                //  (same postfix problem as with struct literals?)
                 style: FunctionStyle::Function,
                 with,
                 static_parameters,
