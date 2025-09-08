@@ -57,13 +57,14 @@ impl Token {
             // symbols
             TokenType::Wildcard => "_".to_string(),
             TokenType::Colon => ":".to_string(),
-            TokenType::DoubleColon => "::".to_string(),
             TokenType::Semicolon => ";".to_string(),
             TokenType::Comma => ",".to_string(),
             TokenType::Dot => ".".to_string(),
             TokenType::Range => "..".to_string(),
+            TokenType::RangeWide => "...".to_string(),
             TokenType::Pound => "#".to_string(),
             TokenType::Empty => "--".to_string(),
+            TokenType::EmptyWide => "---".to_string(),
             TokenType::Arrow => "=>".to_string(),
             TokenType::BadArrow => "->".to_string(),
 

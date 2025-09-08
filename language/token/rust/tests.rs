@@ -95,7 +95,7 @@ fn test_invalid_start() {
 #[test]
 fn test_random_symbols() {
     assert_tokenize_eq_roundtrip!(
-        "a..b => c->d :: x _ : ? $ ! @ ~",
+        "a..b => c->d x _ : ? $ ! @ ~",
         // a
         Token::new(TokenType::Identifier, 1, None),
         // ..
@@ -114,10 +114,6 @@ fn test_random_symbols() {
         Token::new(TokenType::BadArrow, 2, None),
         // d
         Token::new(TokenType::Identifier, 1, None),
-        // (space)
-        Token::new(TokenType::Whitespace, 1, None),
-        // ::
-        Token::new(TokenType::DoubleColon, 2, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // x

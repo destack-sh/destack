@@ -189,24 +189,23 @@ impl Tokenizer<'_> {
             }
 
             // symbols
-            ':' => {
-                // ::
-                if self.peek() == ':' {
-                    self.bump();
-                    (TokenType::DoubleColon, None)
-                }
-                // :
-                else {
-                    (TokenType::Colon, None)
-                }
-            }
+            ':' => (TokenType::Colon, None),
             ';' => (TokenType::Semicolon, None),
             ',' => (TokenType::Comma, None),
             '.' => {
                 // ..
                 if self.peek() == '.' {
-                    self.bump();
-                    (TokenType::Range, None)
+                    // ...
+                    if self.peek_next() == '.' {
+                        self.bump();
+                        self.bump();
+                        (TokenType::RangeWide, None)
+                    }
+                    // ..
+                    else {
+                        self.bump();
+                        (TokenType::Range, None)
+                    }
                 }
                 // .
                 else {
@@ -249,9 +248,18 @@ impl Tokenizer<'_> {
                 }
                 // --
                 else if self.peek() == '-' {
-                    self.bump();
-                    self.bump();
-                    (TokenType::Empty, None)
+                    // ---
+                    if self.peek_next() == '-' {
+                        self.bump();
+                        self.bump();
+                        (TokenType::EmptyWide, None)
+                    }
+                    // --
+                    else {
+                        self.bump();
+                        self.bump();
+                        (TokenType::Empty, None)
+                    }
                 }
                 // -%
                 else if self.peek() == '%' {

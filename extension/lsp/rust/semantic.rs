@@ -159,11 +159,11 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
 
         // punctuation
         K::Colon
-        | K::DoubleColon
         | K::Semicolon
         | K::Comma
         | K::Dot
         | K::Range
+        | K::RangeWide
         | K::OpenParenthesis
         | K::CloseParenthesis
         | K::OpenBrace
@@ -173,12 +173,13 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::At
         | K::Pound
         | K::BitwiseNot
+        | K::Empty
+        | K::EmptyWide
         | K::Question
         | K::Dollar => 5,
 
         // operators
         K::Bang
-        | K::Empty
         | K::LessThan
         | K::LessThanOrEqual
         | K::GreaterThan
