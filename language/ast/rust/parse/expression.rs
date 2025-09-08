@@ -409,6 +409,9 @@ impl<'a> Parser<'a> {
         };
 
         let mut left_expression_id: NodeId<Expression> = {
+            let token = self.peek()?;
+            let keyword = self.peek_any_keyword().ok();
+
             //
             // ------------------------------------------------------------
             // Grouping
@@ -416,7 +419,7 @@ impl<'a> Parser<'a> {
             //
 
             // parenthesis
-            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            if token.token.r#type == TokenType::OpenParenthesis {
                 self.bump(); // eat open paranthesis
                 // parse inner expressions with reset precedence (new precedence "scope")
                 let expression_id = self.eat_expression(None)?;
@@ -448,43 +451,43 @@ impl<'a> Parser<'a> {
             //
 
             // module
-            else if self.peek_keyword(Keyword::Module).is_ok() {
+            else if keyword == Some(Keyword::Module) {
                 let module_id = self.eat_module()?;
                 let expression = Expression::Module(module_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // struct
-            else if self.peek_keyword(Keyword::Struct).is_ok() {
+            else if keyword == Some(Keyword::Struct) {
                 let struct_id = self.eat_struct()?;
                 let expression = Expression::Struct(struct_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // enum
-            else if self.peek_keyword(Keyword::Enum).is_ok() {
+            else if keyword == Some(Keyword::Enum) {
                 let enum_id = self.eat_enum()?;
                 let expression = Expression::Enum(enum_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // union
-            else if self.peek_keyword(Keyword::Union).is_ok() {
+            else if keyword == Some(Keyword::Union) {
                 let union_id = self.eat_union()?;
                 let expression = Expression::Union(union_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // trait
-            else if self.peek_keyword(Keyword::Trait).is_ok() {
+            else if keyword == Some(Keyword::Trait) {
                 let trait_id = self.eat_trait()?;
                 let expression = Expression::Trait(trait_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // implement
-            else if self.peek_keyword(Keyword::Implement).is_ok() {
+            else if keyword == Some(Keyword::Implement) {
                 let implement_id = self.eat_implement()?;
                 let expression = Expression::Implement(implement_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // function
-            else if self.peek_keyword(Keyword::Function).is_ok() {
+            else if keyword == Some(Keyword::Function) {
                 let function_id = self.eat_function()?;
                 let expression = Expression::Function(function_id);
                 self.tree.allocate(expression, self.get_span_from(start))
@@ -495,61 +498,61 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // if
-            else if self.peek_keyword(Keyword::If).is_ok() {
+            else if keyword == Some(Keyword::If) {
                 let if_id = self.eat_if()?;
                 let expression = Expression::If(if_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // while
-            else if self.peek_keyword(Keyword::While).is_ok() {
+            else if keyword == Some(Keyword::While) {
                 let while_id = self.eat_while()?;
                 let expression = Expression::While(while_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // for
-            else if self.peek_keyword(Keyword::For).is_ok() {
+            else if keyword == Some(Keyword::For) {
                 let for_id = self.eat_for()?;
                 let expression = Expression::For(for_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // loop
-            else if self.peek_keyword(Keyword::Loop).is_ok() {
+            else if keyword == Some(Keyword::Loop) {
                 let loop_id = self.eat_loop()?;
                 let expression = Expression::Loop(loop_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // break
-            else if self.peek_keyword(Keyword::Break).is_ok() {
+            else if keyword == Some(Keyword::Break) {
                 let break_id = self.eat_break()?;
                 let expression = Expression::Break(break_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // continue
-            else if self.peek_keyword(Keyword::Continue).is_ok() {
+            else if keyword == Some(Keyword::Continue) {
                 let continue_id = self.eat_continue()?;
                 let expression = Expression::Continue(continue_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // defer
-            else if self.peek_keyword(Keyword::Defer).is_ok() {
+            else if keyword == Some(Keyword::Defer) {
                 let defer_id = self.eat_defer()?;
                 let expression = Expression::Defer(defer_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // return
-            else if self.peek_keyword(Keyword::Return).is_ok() {
+            else if keyword == Some(Keyword::Return) {
                 let return_id = self.eat_return()?;
                 let expression = Expression::Return(return_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // try
-            else if self.peek_keyword(Keyword::Try).is_ok() {
+            else if keyword == Some(Keyword::Try) {
                 let try_id = self.eat_try_catch()?;
                 let expression = Expression::Try(try_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // match
-            else if self.peek_keyword(Keyword::Match).is_ok() {
+            else if keyword == Some(Keyword::Match) {
                 let match_id = self.eat_match()?;
                 let expression = Expression::Match(match_id);
                 self.tree.allocate(expression, self.get_span_from(start))
@@ -560,37 +563,36 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // let
-            else if self.peek_keyword(Keyword::Let).is_ok()
-                || self.peek_keyword(Keyword::Var).is_ok()
-            {
+            else if keyword == Some(Keyword::Let) || keyword == Some(Keyword::Var) {
                 let let_id = self.eat_let_or_var()?;
                 let expression = Expression::Let(let_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // tuple
-            else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                let tuple_literal = self.eat_tuple_literal()?;
-                let expression = Expression::TupleLiteral(tuple_literal);
-                self.tree.allocate(expression, self.get_span_from(start))
-            }
+            // todo! tuple postfix
+            // else if token.token.r#type == TokenType::OpenParenthesis {
+            //     let tuple_literal = self.eat_tuple_literal()?;
+            //     let expression = Expression::TupleLiteral(tuple_literal);
+            //     self.tree.allocate(expression, self.get_span_from(start))
+            // }
             // array
-            else if self.peek_token(TokenType::OpenBracket).is_ok() {
+            else if token.token.r#type == TokenType::OpenBracket {
                 let array_literal = self.eat_array_literal()?;
                 let expression = Expression::ArrayLiteral(array_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // struct
-            else if self.peek_struct_literal().is_ok() {
+            else if token.token.r#type == TokenType::OpenBrace {
                 let struct_literal = self.eat_struct_literal()?;
                 let expression = Expression::StructLiteral(struct_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
             // scalar
-            } else if self.peek_scalar_literal().is_ok() {
+            } else if token.token.r#type == TokenType::Literal {
                 let scalar_literal = self.eat_scalar_literal()?;
                 let expression = Expression::ScalarLiteral(scalar_literal);
                 self.tree.allocate(expression, self.get_span_from(start))
             // alias / path
-            } else if self.peek_identifier().is_ok() {
+            } else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path()?;
                 let expression = Expression::Path { path: path_id };
                 self.tree.allocate(expression, self.get_span_from(start))

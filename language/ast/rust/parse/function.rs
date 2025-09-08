@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
     ///
     /// function foo() // just declaration, no body, no opening `{`
     ///
-    /// function foo[T, U](x: T) => (int32, boolean) with (
+    /// function foo<T, U>(x: T) => (int32, boolean) with (
     ///    T: Copy
     ///    U: Numeric
     /// ) {
@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
     /// }
     ///
     /// // optional , if newline-delimited
-    /// function longBar[Validate: boolean](
+    /// function longBar<Validate: boolean>(
     ///   /// doc comment for `a`
     ///   a: int32
     ///   /// doc comment for `b`
@@ -82,10 +82,10 @@ impl<'a> Parser<'a> {
         };
 
         // static parameters
-        let static_parameters = if self.peek_token(TokenType::OpenBracket).is_ok() {
-            self.eat_token(TokenType::OpenBracket)?;
+        let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
+            self.bump(); // eat less than
             let static_parameters = self.eat_parameters_body()?;
-            self.eat_token(TokenType::CloseBracket)?;
+            self.eat_token(TokenType::GreaterThan)?;
             Some(static_parameters)
         } else {
             None
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
         // self, *self, *var self parameter
         let self_parameter: Option<SelfParameter> = {
             // self
-            if self.peek_keyword(Keyword::Self_).is_ok() {
+            if self.peek_keyword(Keyword::SelfT).is_ok() {
                 self.bump(); // eat self
                 Some(SelfParameter {
                     mutability: Mutability::Immutable,
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
             }
             // *self
             else if self.peek_token(TokenType::Multiply).is_ok()
-                && self.peek_next_keyword(Keyword::Self_).is_ok()
+                && self.peek_next_keyword(Keyword::SelfT).is_ok()
             {
                 self.bump(); // eat *
                 self.bump(); // eat self
@@ -118,7 +118,7 @@ impl<'a> Parser<'a> {
             // *var self
             else if self.peek_token(TokenType::Multiply).is_ok()
                 && self.peek_next_keyword(Keyword::Var).is_ok()
-                && self.peek_next_next_keyword(Keyword::Self_).is_ok()
+                && self.peek_next_next_keyword(Keyword::SelfT).is_ok()
             {
                 self.bump(); // eat *
                 self.bump(); // eat var

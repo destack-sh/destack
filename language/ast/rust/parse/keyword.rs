@@ -1,14 +1,10 @@
+use std::str::FromStr;
+
 use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{Keyword, ParseError, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
-    /// Eat a keyword.
-    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
-        self.peek_keyword(keyword)?;
-        self.eat_token(TokenType::Identifier)
-    }
-
     /// Peek a keyword.
     #[inline]
     pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
@@ -17,6 +13,17 @@ impl<'a> Parser<'a> {
             Err(ParseError::UnexpectedToken(current.span))
         } else {
             Ok(current)
+        }
+    }
+
+    /// Peek any keyword.
+    #[inline]
+    pub fn peek_any_keyword(&self) -> ParseResult<Keyword> {
+        let current = self.peek_token(TokenType::Identifier)?;
+        if let Ok(keyword) = Keyword::from_str(self.get_span_str(current.span)) {
+            Ok(keyword)
+        } else {
+            Err(ParseError::UnexpectedToken(current.span))
         }
     }
 
@@ -40,5 +47,11 @@ impl<'a> Parser<'a> {
         } else {
             Ok(current)
         }
+    }
+
+    /// Eat a keyword.
+    pub fn eat_keyword(&mut self, keyword: Keyword) -> ParseResult<&TokenSpan> {
+        self.peek_keyword(keyword)?;
+        self.eat_token(TokenType::Identifier)
     }
 }

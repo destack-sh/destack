@@ -56,12 +56,11 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::OpenBrace).is_ok() {
             self.eat_token(TokenType::OpenBrace)?;
             loop {
-                if self.peek_keyword(Keyword::Let).is_ok()
-                    || self.peek_keyword(Keyword::Var).is_ok()
-                {
+                let keyword = self.peek_any_keyword().ok();
+                if keyword == Some(Keyword::Let) || keyword == Some(Keyword::Var) {
                     let let_id = self.eat_let_or_var()?;
                     lets.push(let_id);
-                } else if self.peek_keyword(Keyword::Function).is_ok() {
+                } else if keyword == Some(Keyword::Function) {
                     let function_id = self.eat_function()?;
                     functions.push(function_id);
                 } else if self.peek_token(TokenType::CloseBrace).is_ok() {

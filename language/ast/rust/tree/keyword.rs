@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 /// A contextual keyword.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     /// Mark the following item as public (with optional qualifier)
     Public,
     /// Refer to the own type.
-    Self_,
+    SelfT,
     /// Define a Module (inline).
     Module,
     /// Define a Struct.
@@ -62,7 +64,7 @@ impl Keyword {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Keyword::Public => "public",
-            Keyword::Self_ => "self",
+            Keyword::SelfT => "self",
             Keyword::Module => "module",
             Keyword::Struct => "struct",
             Keyword::Enum => "enum",
@@ -88,6 +90,43 @@ impl Keyword {
             Keyword::Match => "match",
             Keyword::Try => "try",
             Keyword::Catch => "catch",
+        }
+    }
+}
+
+impl FromStr for Keyword {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "public" => Ok(Keyword::Public),
+            "self" => Ok(Keyword::SelfT),
+            "module" => Ok(Keyword::Module),
+            "struct" => Ok(Keyword::Struct),
+            "enum" => Ok(Keyword::Enum),
+            "union" => Ok(Keyword::Union),
+            "trait" => Ok(Keyword::Trait),
+            "function" => Ok(Keyword::Function),
+            "implement" => Ok(Keyword::Implement),
+            "use" => Ok(Keyword::Use),
+            "with" => Ok(Keyword::With),
+            "as" => Ok(Keyword::As),
+            "let" => Ok(Keyword::Let),
+            "var" => Ok(Keyword::Var),
+            "if" => Ok(Keyword::If),
+            "else" => Ok(Keyword::Else),
+            "while" => Ok(Keyword::While),
+            "for" => Ok(Keyword::For),
+            "in" => Ok(Keyword::In),
+            "loop" => Ok(Keyword::Loop),
+            "break" => Ok(Keyword::Break),
+            "continue" => Ok(Keyword::Continue),
+            "defer" => Ok(Keyword::Defer),
+            "return" => Ok(Keyword::Return),
+            "match" => Ok(Keyword::Match),
+            "try" => Ok(Keyword::Try),
+            "catch" => Ok(Keyword::Catch),
+            _ => Err(()),
         }
     }
 }
