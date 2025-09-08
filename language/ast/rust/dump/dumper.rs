@@ -840,8 +840,14 @@ impl Dump for Type {
             Type::Never => {
                 dumper.node("Type::Never").end();
             }
-            Type::Self_ => {
-                dumper.node("Type::Self_").end();
+            Type::SelfT => {
+                dumper.node("Type::Self").end();
+            }
+            Type::Variadic(inner) => {
+                dumper.node("Type::Variadic").end();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_line(inner, None);
+                });
             }
             Type::Primitive(primitive) => {
                 dumper.node("Type::Primitive").value(primitive).end();

@@ -814,7 +814,7 @@ pub enum Type {
     /// Never `!`.
     Never,
     /// Self type (only inside associated scopes for types).
-    Self_,
+    SelfT,
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
@@ -827,6 +827,8 @@ pub enum Type {
         mutability: Mutability,
         target: NodeId<Type>,
     },
+    /// Variadic type `..T`.
+    Variadic(NodeId<Type>),
     /// Inline Array type `[T; N]`. Must be fixed length.
     Array {
         element_type: NodeId<Type>,
