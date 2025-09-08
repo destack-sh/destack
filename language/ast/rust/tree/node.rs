@@ -89,7 +89,9 @@ pub struct Path {
 /// A Visibility is the visibility of an item.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Visibility {
+    /// Public to everything.
     Public,
+    /// Private to the closest module scope.
     Private,
 }
 
@@ -105,7 +107,9 @@ pub enum Runtime {
 /// A Mutability is the mutability of a binding (const or mutable).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Mutability {
+    /// Cannot be modified (incl. inner even if they are mutable).
     Immutable,
+    /// May be modified (incl. inner if they are also mutable).
     Mutable,
 }
 
@@ -119,7 +123,7 @@ pub enum BlockFormat {
     /// Explicit blocks with { ... }
     Explicit,
     /// Implicit blocks like in file modules.
-    Implicit 
+    Implicit,
 }
 
 /// A Block is a block AST node of statements.
@@ -269,6 +273,9 @@ pub enum Expression {
         right: NodeId<Expression>,
     },
 
+    /// Doc comment (free floating, otherwise this is attached inside the declaration).
+    Doc(NodeId<Doc>),
+
     /// Error placeholder.
     Error,
 }
@@ -297,7 +304,7 @@ pub struct Module {
     /// The name of the module.
     pub name: Option<StringId>,
     /// The body of the module.
-    pub body: NodeId<Block>,
+    pub statements: Vec<NodeId<Statement>>,
 }
 
 impl Node for Module {
@@ -323,12 +330,15 @@ impl Node for Module {
 /// }
 ///
 /// struct Foo {
+///     myField: int32
+///     myOtherField: boolean
+/// 
 ///     let x: int32 = 7 // constant
 ///
 ///     use Bar // Foo has a Bar
 ///
-///     myField: int32
-///     myOtherField: boolean
+///     function myFunc() { // nested declaration
+///     }
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -337,10 +347,8 @@ pub struct Struct {
     pub name: Option<StringId>,
     /// The fields of the struct.
     pub fields: Vec<NodeId<StructField>>,
-    /// The use declarations for the struct.
-    pub usings: Vec<NodeId<Use>>,
-    /// The let bindings of the struct.
-    pub lets: Vec<NodeId<Let>>,
+    /// The body of the type.
+    pub statements: Vec<NodeId<Statement>>,
 }
 
 impl Node for Struct {
@@ -381,6 +389,9 @@ impl Node for StructField {
 ///     A // colon optional
 ///     B
 ///     C
+///
+///     function myFunc() { // nested declaration
+///     }
 /// }
 ///
 /// enum(u8) Foo {
@@ -396,6 +407,8 @@ pub struct Enum {
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<EnumField>>,
+    /// The body of the enum.
+    pub statements: Vec<NodeId<Statement>>,
 }
 
 impl Node for Enum {
@@ -451,6 +464,9 @@ pub enum UnionStyle {
 /// union(TetrisShapeType) TetrisShape {
 ///     use GameObject
 ///     ...
+///
+///     function myFunc() { // nested declaration
+///     }
 /// }
 ///
 /// // implicit anonymous union
@@ -468,10 +484,8 @@ pub struct Union {
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
-    /// The use declarations for the union.
-    pub usings: Vec<NodeId<Use>>,
-    /// The let bindings of the union.
-    pub lets: Vec<NodeId<Let>>,
+    /// The body of the union.
+    pub statements: Vec<NodeId<Statement>>,
 }
 
 impl Node for Union {
@@ -511,6 +525,9 @@ impl Node for UnionField {
 /// trait Foo: Bar, Boz { // Foo *is* a subtype of Bar and Boz
 ///     let x: int32 // constant
 ///     function foo() => int32
+///
+///     function myFunc() { // nested declaration
+///     }
 /// }
 ///
 /// trait Baz[T] with T: Copy {
@@ -527,12 +544,8 @@ pub struct Trait {
     pub supertraits: Vec<NodeId<Type>>,
     /// The with declarations of the trait.
     pub withs: Vec<NodeId<With>>,
-    /// The use declarations of the trait.  
-    pub usings: Vec<NodeId<Use>>,
-    /// The let bindings of the trait.
-    pub lets: Vec<NodeId<Let>>,
-    /// The functions of the trait.
-    pub functions: Vec<NodeId<Function>>,
+    /// The body of the trait.
+    pub statements: Vec<NodeId<Statement>>,
 }
 
 impl Node for Trait {
@@ -767,6 +780,8 @@ impl Node for TupleField {
 ///
 /// Examples:
 /// ```
+/// void
+/// null
 /// int32
 /// boolean
 /// boolean | *int32
@@ -774,10 +789,10 @@ impl Node for TupleField {
 /// [float64; 3]
 /// (int32, int32)
 /// *T // pointer to T
-/// *?T // pointer to Maybe[T]
+/// *?T // pointer to Maybe<T>
 /// ?*T // Maybe pointer to T
-/// T[int32]
-/// T[Validate: false]
+/// T<int32>
+/// T<Validate: false>
 /// MyEnum
 /// simulation.geometry.Vector2
 ///
@@ -786,13 +801,13 @@ impl Node for TupleField {
 /// union { A(int), B(float) } // explicit anonymous union
 /// boolean | int32 // implicit anonymous union
 /// function (int32) => int32
-/// function () => Result[int32, struct Error { message: string }]
+/// function () => Result<int32, struct Error { message: string }>
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     /// Infer placeholder `_`.
     Infer,
-    /// Maybe '?T'. Desugars to `Maybe[T]`.
+    /// Maybe '?T'. Desugars to `Maybe<T>`.
     Maybe(NodeId<Type>),
     /// Not `!T`.
     Not(NodeId<Type>),
@@ -802,7 +817,7 @@ pub enum Type {
     Self_,
     /// Primitive type.
     Primitive(PrimitiveType),
-    /// Path to a type like `MyModule.MyType` or `MyModule.MyType[T1, T2, ...]`.
+    /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
     Path {
         path: PathId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
@@ -879,7 +894,7 @@ impl Node for With {
 /// Foo.Bar as Baz
 /// // assertion
 /// T: int32
-/// Self: geom.Mesh[T]
+/// Self: geom.Mesh<T>
 /// T.Item: Copy
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -1318,6 +1333,7 @@ impl Node for Argument {
 ///
 /// Examples:
 /// ```
+/// void
 /// null
 /// true
 /// false
@@ -1332,13 +1348,23 @@ impl Node for Argument {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScalarLiteral {
+    /// Void / empty / unit type.
+    Void,
+    /// Null value for optionals.
     Null,
+    /// Boolean value.
     Boolean(bool),
+    /// Byte value.
     Byte(u8),
+    /// Integer value.
     Integer(i64, IntType),
+    /// Float value.
     Float(f64, FloatType),
+    /// Character value.
     Character(char),
+    /// String value.
     String(StringId),
+    /// Byte string value.
     ByteString(Vec<u8>),
 }
 
@@ -1472,8 +1498,10 @@ pub enum FloatType {
 /// A PrimitiveType represents primitive types.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveType {
-    /// Void / empty type.
+    /// Void / empty / unit type.
     Void,
+    /// Null type.
+    Null,
     /// Boolean type.
     Boolean,
     /// Character type.
@@ -1770,7 +1798,7 @@ impl Node for Call {
 /// ```
 /// x as int32
 /// x as Vector2
-/// y() as Mesh[Dims: 2]
+/// y() as Mesh<Dims: 2>
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq)]
@@ -1800,7 +1828,7 @@ impl Node for Cast {
 /// 4..6
 /// (x, 0, ..)
 /// Vector2 { x: 0, y, z: zed }
-/// geom.Mesh[2, float32] { vertices: [2, ..] }
+/// geom.Mesh<2, float32> { vertices: [2, ..] }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {

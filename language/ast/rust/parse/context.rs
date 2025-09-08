@@ -75,7 +75,7 @@ impl<'a> Parser<'a> {
     /// Eat a single with clause.
     ///
     /// A clause can be a declaration (`Foo`, `Foo as Bar`, `Foo.Bar as Baz`)
-    /// or an assertion (`T: int32`, `Self: geom.Mesh[T]`, `T.Item: Copy`).
+    /// or an assertion (`T: int32`, `Self: geom.Mesh<T>`, `T.Item: Copy`).
     pub fn eat_with_clause(&mut self) -> ParseResult<NodeId<WithClause>> {
         let start = self.mark();
 
