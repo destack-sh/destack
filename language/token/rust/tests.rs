@@ -129,7 +129,7 @@ fn test_random_symbols() {
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // ?
-        Token::new(TokenType::Question, 1, None),
+        Token::new(TokenType::Maybe, 1, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // $

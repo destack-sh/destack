@@ -7,8 +7,10 @@ pub enum Keyword {
     Public,
     /// Mark the following item as private (with optional qualifier)
     Private,
-    /// Refer to the own type.
-    SelfT,
+    /// Refer to the own instance.
+    Self_,
+    /// Refer to the own instance.
+    This,
     /// Define a Module (inline).
     Module,
     /// Define a Struct.
@@ -67,7 +69,8 @@ impl Keyword {
         match self {
             Keyword::Public => "public",
             Keyword::Private => "private",
-            Keyword::SelfT => "self",
+            Keyword::Self_ => "self",
+            Keyword::This => "this",
             Keyword::Module => "module",
             Keyword::Struct => "struct",
             Keyword::Enum => "enum",
@@ -104,7 +107,8 @@ impl FromStr for Keyword {
         match s {
             "public" => Ok(Keyword::Public),
             "private" => Ok(Keyword::Private),
-            "self" => Ok(Keyword::SelfT),
+            "self" => Ok(Keyword::Self_),
+            "this" => Ok(Keyword::This),
             "module" => Ok(Keyword::Module),
             "struct" => Ok(Keyword::Struct),
             "enum" => Ok(Keyword::Enum),

@@ -713,8 +713,14 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Cast(cast_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
+            // coalesce
+            else if self.peek_token(TokenType::Coalesce).is_ok() {
+                let coalesce_id = self.eat_coalesce_postfix(left_expression_id)?;
+                let expression = Expression::Coalesce(coalesce_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
             // unwrap
-            else if self.peek_token(TokenType::Question).is_ok() {
+            else if self.peek_token(TokenType::Maybe).is_ok() {
                 self.bump(); // eat question
                 let expression = Expression::Unwrap(left_expression_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));

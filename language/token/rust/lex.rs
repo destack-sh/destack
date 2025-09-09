@@ -215,7 +215,18 @@ impl Tokenizer<'_> {
             '@' => (TokenType::At, None),
             '#' => (TokenType::Pound, None),
             '~' => (TokenType::BitwiseNot, None),
-            '?' => (TokenType::Question, None),
+            '?' => {
+                // ??
+                if self.peek() == '?' {
+                    self.bump();
+                    self.bump();
+                    (TokenType::Coalesce, None)
+                }
+                // ?
+                else {
+                    (TokenType::Maybe, None)
+                }
+            }
             '$' => (TokenType::Dollar, None),
 
             // brackets

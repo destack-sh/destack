@@ -58,6 +58,7 @@ pub enum NodeType {
     Index,
     Call,
     Cast,
+    Coalesce,
     // Matching
     Match,
     MatchCase,
@@ -258,6 +259,8 @@ pub enum Expression {
     Call(NodeId<Call>),
     /// As casting (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
+    /// Coalesce an expression with `??` (postfix as an Expression).
+    Coalesce(NodeId<Coalesce>),
     /// Unwrap an expression with `?` (postfix as an Expression).
     Unwrap(NodeId<Expression>),
     /// Binary operation (infix between Expressions, see BinaryOperator).
@@ -831,7 +834,7 @@ pub enum Type {
     /// Never `!`.
     Never,
     /// Self type (only inside associated scopes for types).
-    SelfT,
+    Self_,
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
@@ -1538,20 +1541,20 @@ pub enum PrimitiveType {
 ///
 /// Precedence:
 /// ```
-/// !x -x -%x ~x &x *x       // prefix
-/// x() x[] x{} x as y x?    // postfix
-/// * / % ** *% *|           // multiplication
-/// + - +% -% +| -|          // addition
-/// << >> <<|                // shift
-/// & ^ |                    // bitwise
-/// == != < > <= >=          // comparison
-/// && ||                    // logical
-/// =                        // assignment
-/// *= /= %= **= *%= *|=     // assignment multiplication
-/// += -= +%= -%= +|= -|=    // assignment addition
-/// <<= >>= <<|=             // assignment shift
-/// &= ^= |=                 // assignment bitwise
-/// &&= ||=                  // assignment logical
+/// !x -x -%x ~x &x *x            // prefix
+/// x() x[] x{} x as y x? x ?? y  // postfix
+/// * / % ** *% *|                // multiplication
+/// + - +% -% +| -|               // addition
+/// << >> <<|                     // shift
+/// & ^ |                         // bitwise
+/// == != < > <= >=               // comparison
+/// && ||                         // logical
+/// =                             // assignment
+/// *= /= %= **= *%= *|=          // assignment multiplication
+/// += -= +%= -%= +|= -|=         // assignment addition
+/// <<= >>= <<|=                  // assignment shift
+/// &= ^= |=                      // assignment bitwise
+/// &&= ||=                       // assignment logical
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OperatorPrecedence {
@@ -1559,7 +1562,7 @@ pub enum OperatorPrecedence {
     /// `!x -x -%x ~x &x *x`
     Prefix = 240,
     /// Unary postfix operators.
-    /// `x() x[] x{} x as y x?`
+    /// `x() x[] x{} x as y x? x ?? y``
     Postfix = 230,
     /// Multiplication-related binary operators.
     /// `* / % ** *% *|`
@@ -1831,6 +1834,25 @@ pub struct Cast {
 
 impl Node for Cast {
     const KIND: NodeType = NodeType::Cast;
+}
+
+/// A Coalesce is an `??` coalesce operation.
+///
+/// Examples:
+/// ```
+/// x ?? 0
+/// x ?? false
+/// y() ?? 0
+/// ```
+///
+#[derive(Debug, Clone, PartialEq)]
+pub struct Coalesce {
+    pub receiver: NodeId<Expression>,
+    pub default: NodeId<Expression>,
+}
+
+impl Node for Coalesce {
+    const KIND: NodeType = NodeType::Coalesce;
 }
 
 // ----------------------------------------------------------------------------

@@ -175,7 +175,7 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::BitwiseNot
         | K::Empty
         | K::EmptyWide
-        | K::Question
+        | K::Maybe
         | K::Dollar => 5,
 
         // operators

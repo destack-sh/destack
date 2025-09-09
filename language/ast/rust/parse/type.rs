@@ -266,7 +266,7 @@ impl<'a> Parser<'a> {
         let next = *self.peek()?;
 
         // maybe with `?`
-        if next.token.r#type == TokenType::Question {
+        if next.token.r#type == TokenType::Maybe {
             self.bump();
             let inner_type = self.eat_type()?;
             let ty_id = self
