@@ -2,13 +2,15 @@ use dyst
 
 /// A Gauge Metric.
 @entity
-struct GaugeMetric use Metric {}
+struct GaugeMetric { 
+ use Metric 
+ }
 
 /// A Gauge Measurement.
 @event
-struct GaugeMeasurementEvent use MeasurementEvent {
+struct GaugeMeasurementEvent { 
+    use MeasurementEvent 
+
     /// The Gauge metric definition.
     definition: EntityReference<GaugeMetric>,
 }
-
-

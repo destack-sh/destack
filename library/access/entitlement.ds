@@ -17,19 +17,27 @@ struct EntitlementEvent {
 
 /// Entitlement was requested.
 @event
-struct EntitlementRequestedEvent use EntitlementEvent {}
+struct EntitlementRequestedEvent { 
+ use EntitlementEvent 
+ }
 
 /// Entitlement was granted.
 @event
-struct EntitlementGrantedEvent use EntitlementEvent {}
+struct EntitlementGrantedEvent { 
+ use EntitlementEvent 
+ }
 
 /// Entitlement was revoked.
 @event
-struct EntitlementRevokedEvent use EntitlementEvent {}
+struct EntitlementRevokedEvent { 
+ use EntitlementEvent 
+ }
 
 /// Entitlement has expired.
 @event
-struct EntitlementExpiredEvent use EntitlementEvent {}
+struct EntitlementExpiredEvent { 
+ use EntitlementEvent 
+ }
 
 /// An Entitlement to some Entity.
 @entity

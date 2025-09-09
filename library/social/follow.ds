@@ -13,8 +13,12 @@ struct FollowEvent {
 
 /// Follow added.
 @event
-struct FollowAddedEvent use FollowEvent {}
+struct FollowAddedEvent { 
+ use FollowEvent 
+ }
 
 /// Follow removed.
 @event
-struct FollowRemovedEvent use FollowEvent {}
+struct FollowRemovedEvent { 
+ use FollowEvent 
+ }

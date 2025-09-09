@@ -132,7 +132,12 @@ impl<'a> Parser<'a> {
     /// Get a mark and return the span of the current position.
     #[inline]
     pub fn get_span_from(&self, mark: ParserMark) -> Span {
-        debug_assert!(mark.pos < self.tokens.len());
+        // if we're beyond the end we just point to the EOF token
+        if mark.pos >= self.tokens.len() {
+            return self.eof_token.span;
+        }
+
+        // otherwise, get the span from the token
         let start_token = self.tokens[mark.pos];
         let end_token = if self.pos > 0 {
             self.tokens[self.pos - 1]

@@ -6,7 +6,9 @@ struct  CounterMetric use Metric {}
 
 /// A Counter Measurement.
 @event
-struct CounterMeasurementEvent use MeasurementEvent {
+struct CounterMeasurementEvent { 
+    use MeasurementEvent 
+
     /// The Counter metric definition.
     definition: EntityReference<CounterMetric>,
 }

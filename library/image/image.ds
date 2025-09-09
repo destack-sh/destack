@@ -2,7 +2,9 @@ use dyst
 
 /// An Image File
 @entity
-struct Image use File {
+struct Image { 
+    use File 
+
     width: uint32,
     height: uint32,
 }

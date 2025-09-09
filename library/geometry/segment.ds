@@ -1,21 +1,29 @@
 use dyst
 
 /// A Segment is a line between two points.
-struct Segment2D use Form2D {
+struct Segment2D { 
+    use Form2D 
+
     startOffset: Vector2,
     endOffset: Vector2,
 }
 
 /// A SegmentShape is a shape that represents a line between two points.
 @entity
-struct SegmentShape2D use Shape2D, Segment2D {}
+struct SegmentShape2D { 
+    use Shape2D, Segment2D 
+}
 
 /// A Segment3D is a line between two points in 3D space.
-struct Segment3D use Form3D {
+struct Segment3D { 
+    use Form3D 
+
     startOffset: Vector3,
     endOffset: Vector3,
 }
 
 /// A SegmentShape3D is a shape that represents a line between two points in 3D.
 @entity
-struct SegmentShape3D use Shape3D, Segment3D {}
+struct SegmentShape3D { 
+    use Shape3D, Segment3D 
+}

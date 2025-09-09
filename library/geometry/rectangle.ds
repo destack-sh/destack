@@ -1,17 +1,23 @@
 use dyst
 
 /// A Rectangle is a rectangle.
-struct Rectangle2D use Form2D {
+struct Rectangle2D { 
+    use Form2D 
+
     width: float32,
     height: float32,
 }
 
 /// A RectangleShape is a shape that represents a rectangle.
 @entity
-struct RectangleShape2D use Shape2D, Rectangle2D {}
+struct RectangleShape2D {
+    use Shape2D, Rectangle2D
+}
 
 /// A Box is an axis-aligned box defined by width, height and depth.
-struct Box3D use Form3D {
+struct Box3D { 
+    use Form3D 
+
     width: float32,
     height: float32,
     depth: float32,
@@ -19,4 +25,6 @@ struct Box3D use Form3D {
 
 /// A BoxShape3D is a shape that represents an axis-aligned box.
 @entity
-struct BoxShape3D use Shape3D, Box3D {}
+struct BoxShape3D {
+     use Shape3D, Box3D
+}
