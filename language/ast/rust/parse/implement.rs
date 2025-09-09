@@ -1,5 +1,5 @@
 use crate::parse::ParserOptions;
-use crate::{Implement, Keyword, NodeId, ParseResult, Parser, Statement};
+use crate::{BlockFormat, Implement, Keyword, NodeId, ParseResult, Parser};
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -14,9 +14,6 @@ impl<'a> Parser<'a> {
     /// implement Foo<int32> {
     ///     ...
     /// }
-    ///
-    /// implement Marker for Bar; // optional semicolon
-    /// implement OtherMarker for Bar
     ///
     /// implement Bar<int32> for Baz {
     ///     ...
@@ -57,28 +54,11 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // body (if any)
-        let mut statements: Vec<NodeId<Statement>> = vec![];
-        if self.peek_token(TokenType::OpenBrace).is_ok() {
-            self.bump(); // eat open brace
-            loop {
-                // stop on closing brace
-                if self.peek_token(TokenType::CloseBrace).is_ok() {
-                    break;
-                }
-                // consume any stop
-                else if self.peek_any_stop().is_ok() {
-                    self.eat_any_stop_with_newlines()?;
-                }
-                // eat statements
-                else if let Some(statement_id) = self.try_eat_statement()? {
-                    statements.push(statement_id);
-                }
-            }
-            self.eat_token(TokenType::CloseBrace)?;
-        } else {
-            self.eat_any_stop_with_newlines()?;
-        }
+        // body
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
+        self.eat_newlines_maybe()?;
+        let statements = self.eat_block_body(BlockFormat::Explicit)?;
+        self.eat_token(TokenType::CloseBrace)?;
 
         // implement
         let implement_id = self.tree.allocate(

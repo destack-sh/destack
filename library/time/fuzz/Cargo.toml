@@ -1,10 +1,13 @@
+[workspace]
+# fuzzer is in its own workspace
+
 [package]
-name = "destack_time_fuzz"
-description = "Destack Time Fuzz"
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-rust-version.workspace = true
+name = "destack_library_time_fuzz"
+description = "Destack Library Time Fuzz"
+edition = "2024"
+authors = ["Symbol Industries"]
+license = "proprietary"
+rust-version = "1.88.0"
 
 [package.metadata]
 cargo-fuzz = true
@@ -12,35 +15,35 @@ cargo-fuzz = true
 [dependencies]
 destack_time = { path = ".." }
 
-arbitrary = { workspace = true }
-libfuzzer-sys = { workspace = true }
+arbitrary = { version = "1.4.2", features = ["derive"] }
+libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "destack_time_time"
+name = "destack_library_time_fuzz"
 path = "fuzz_targets/time.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_time_date"
+name = "destack_library_date_fuzz"
 path = "fuzz_targets/date.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_time_datetime"
+name = "destack_library_datetime_fuzz"
 path = "fuzz_targets/datetime.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_time_duration"
+name = "destack_library_duration_fuzz"
 path = "fuzz_targets/duration.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_time_timestamp"
+name = "destack_library_timestamp_fuzz"
 path = "fuzz_targets/timestamp.rs"
 test = false
 doc = false
