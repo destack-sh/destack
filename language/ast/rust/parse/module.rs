@@ -2,7 +2,7 @@ use crate::{BlockFormat, Keyword, Module, NodeId, ParseResult, Parser, Visibilit
 
 impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
-    pub fn eat_module(&mut self, visibility: Visibility) -> ParseResult<NodeId<Module>> {
+    pub fn eat_module(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Module>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Module)?;
         let name = if self.peek_identifier().is_ok() {
@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     // Eat a module body (aka a module file, without `module` keyword or braces).
     pub fn eat_module_body(
         &mut self,
-        visibility: Visibility,
+        visibility: Option<Visibility>,
         format: BlockFormat,
     ) -> ParseResult<NodeId<Module>> {
         let start = self.mark();

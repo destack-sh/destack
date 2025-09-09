@@ -521,36 +521,31 @@ impl<'a> Parser<'a> {
 
             // module
             else if keyword == Some(Keyword::Module) {
-                let module_id =
-                    self.eat_module(visibility.unwrap_or(self.options.default_visibility))?;
+                let module_id = self.eat_module(visibility)?;
                 let expression = Expression::Module(module_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // struct
             else if keyword == Some(Keyword::Struct) {
-                let struct_id =
-                    self.eat_struct(visibility.unwrap_or(self.options.default_visibility))?;
+                let struct_id = self.eat_struct(visibility)?;
                 let expression = Expression::Struct(struct_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
-                let enum_id =
-                    self.eat_enum(visibility.unwrap_or(self.options.default_visibility))?;
+                let enum_id = self.eat_enum(visibility)?;
                 let expression = Expression::Enum(enum_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // union
             else if keyword == Some(Keyword::Union) {
-                let union_id =
-                    self.eat_union(visibility.unwrap_or(self.options.default_visibility))?;
+                let union_id = self.eat_union(visibility)?;
                 let expression = Expression::Union(union_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // trait
             else if keyword == Some(Keyword::Trait) {
-                let trait_id =
-                    self.eat_trait(visibility.unwrap_or(self.options.default_visibility))?;
+                let trait_id = self.eat_trait(visibility)?;
                 let expression = Expression::Trait(trait_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -562,8 +557,7 @@ impl<'a> Parser<'a> {
             }
             // function
             else if keyword == Some(Keyword::Function) {
-                let function_id =
-                    self.eat_function(visibility.unwrap_or(self.options.default_visibility))?;
+                let function_id = self.eat_function(visibility)?;
                 let expression = Expression::Function(function_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -639,8 +633,7 @@ impl<'a> Parser<'a> {
             //
             // let
             else if keyword == Some(Keyword::Let) || keyword == Some(Keyword::Var) {
-                let let_id =
-                    self.eat_let_or_var(visibility.unwrap_or(self.options.default_visibility))?;
+                let let_id = self.eat_let_or_var(visibility)?;
                 let expression = Expression::Let(let_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }

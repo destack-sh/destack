@@ -8,7 +8,7 @@ use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     FloatType, IntType, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser,
-    PrimitiveType, Type, Visibility,
+    PrimitiveType, Type,
 };
 
 impl IntType {
@@ -141,14 +141,14 @@ impl<'a> Parser<'a> {
         }
         // struct
         else if keyword == Some(Keyword::Struct) {
-            let struct_id = self.eat_struct(Visibility::Public)?;
+            let struct_id = self.eat_struct(None)?;
             let ty_id = self
                 .tree
                 .allocate(Type::Struct(struct_id), self.get_span_from(start));
             Ok(ty_id)
         // enum
         } else if keyword == Some(Keyword::Enum) {
-            let enum_id = self.eat_enum(Visibility::Public)?;
+            let enum_id = self.eat_enum(None)?;
             let ty_id = self
                 .tree
                 .allocate(Type::Enum(enum_id), self.get_span_from(start));
@@ -156,14 +156,14 @@ impl<'a> Parser<'a> {
         }
         // union
         else if keyword == Some(Keyword::Union) {
-            let union_id = self.eat_union(Visibility::Public)?;
+            let union_id = self.eat_union(None)?;
             let ty_id = self
                 .tree
                 .allocate(Type::Union(union_id), self.get_span_from(start));
             Ok(ty_id)
         // function
         } else if keyword == Some(Keyword::Function) {
-            let function_id = self.eat_function(Visibility::Public)?;
+            let function_id = self.eat_function(None)?;
             let ty_id = self
                 .tree
                 .allocate(Type::Function(function_id), self.get_span_from(start));
