@@ -1,22 +1,27 @@
+[workspace]
+# fuzzer is in its own workspace
+
 [package]
-name = "dyst_language_parse_fuzz"
-description = "Destack Parser Fuzz (lexer)"
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-rust-version.workspace = true
+name = "dyst_language_ast_fuzz"
+description = "Dyst Language AST Fuzz"
+edition = "2024"
+authors = ["Symbol Industries"]
+license = "proprietary"
+rust-version = "1.88.0"
 
 [package.metadata]
 cargo-fuzz = true
 
 [dependencies]
 dyst_language_ast = { path = ".." }
+dyst_language_source = { path = "../../source" }
+dyst_language_token = { path = "../../token" }
 
-arbitrary = { workspace = true }
-libfuzzer-sys = { workspace = true }
+arbitrary = { version = "1.4.2", features = ["derive"] }
+libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "dyst_language_parse_tokener_parse"
+name = "dyst_language_ast_fuzz"
 path = "fuzz_targets/ast.rs"
 test = false
 doc = false

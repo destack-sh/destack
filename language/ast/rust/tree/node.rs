@@ -578,9 +578,6 @@ impl Node for Trait {
 ///     ...
 /// }
 ///
-/// implement Marker for Bar; // optional semicolon
-/// implement OtherMarker for Bar
-///
 /// implement Bar<int32> for Baz {
 ///     ...
 /// }

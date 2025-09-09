@@ -6,7 +6,7 @@ use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
 
-fn bench_tokenize(c: &mut Criterion) {
+fn bench_parse(c: &mut Criterion) {
     // find workspace root by walking up until we find a known repo marker
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
@@ -47,7 +47,7 @@ fn bench_tokenize(c: &mut Criterion) {
     let mut group = c.benchmark_group("dyst_language_token");
     let line_count = ds_str.lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
-    group.bench_with_input(BenchmarkId::new("tokenize", "all"), &ds_str, |b, input| {
+    group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
         b.iter(|| {
             let tokens = tokenize_semantic(SourceId::new(0), input);
             black_box(tokens);
@@ -64,6 +64,6 @@ fn profiler() -> Criterion {
 criterion_group! {
     name = benches;
     config = profiler();
-    targets = bench_tokenize
+    targets = bench_parse
 }
 criterion_main!(benches);

@@ -18,6 +18,8 @@ dyst_language_arena = { workspace = true }
 dyst_language_diagnostic = { workspace = true }
 dyst_language_session = { workspace = true }
 
+destack_library_file = { workspace = true }
+
 [dev-dependencies]
 criterion = { workspace = true }
 pprof = { workspace = true }

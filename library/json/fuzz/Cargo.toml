@@ -1,10 +1,10 @@
 [package]
-name = "destack_library_json-fuzz"
-description = "Destack JSON Fuzz"
-edition.workspace = true
-authors.workspace = true
-license.workspace = true
-rust-version.workspace = true
+name = "destack_library_json_fuzz"
+description = "Destack Library JSON Fuzz"
+edition = "2024"
+authors = ["Symbol Industries"]
+license = "proprietary"
+rust-version = "1.88.0"
 
 [package.metadata]
 cargo-fuzz = true
@@ -12,11 +12,11 @@ cargo-fuzz = true
 [dependencies]
 destack_json = { path = ".." }
 
-arbitrary = { workspace = true }
-libfuzzer-sys = { workspace = true }
+arbitrary = { version = "1.4.2", features = ["derive"] }
+libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "destack_library_json_json"
+name = "destack_library_json_fuzz"
 path = "fuzz_targets/json.rs"
 test = false
 doc = false
