@@ -4,7 +4,9 @@ use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField};
+use crate::{
+    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField, Visibility,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a struct declaration.
@@ -35,7 +37,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(&mut self) -> ParseResult<NodeId<Struct>> {
+    pub fn eat_struct(&mut self, visibility: Visibility) -> ParseResult<NodeId<Struct>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Struct)?;
 
@@ -65,7 +67,7 @@ impl<'a> Parser<'a> {
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
-        let struct_id = self.eat_struct_body()?;
+        let struct_id = self.eat_struct_body(visibility)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // fill in header data
@@ -78,7 +80,7 @@ impl<'a> Parser<'a> {
     }
 
     // Eat a struct body (without the header or `{` and `}`)
-    pub fn eat_struct_body(&mut self) -> ParseResult<NodeId<Struct>> {
+    pub fn eat_struct_body(&mut self, visibility: Visibility) -> ParseResult<NodeId<Struct>> {
         let start = self.mark();
 
         // eat everything
@@ -108,6 +110,7 @@ impl<'a> Parser<'a> {
         let struct_id = self.tree.allocate(
             Struct {
                 name: None,
+                visibility,
                 static_parameters: None,
                 fields,
                 statements,
@@ -163,7 +166,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{IntType, Parameter, PrimitiveType, Struct, StructField, Type, assert_node};
+    use crate::{
+        IntType, Parameter, PrimitiveType, Struct, StructField, Type, Visibility, assert_node,
+    };
 
     #[test]
     fn test_parse_struct_anonymous() {
@@ -177,8 +182,8 @@ struct { x: int32, y: boolean
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
-        let struct_id = parser.eat_struct().unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements } => {
+        let struct_id = parser.eat_struct(Visibility::Public).unwrap();
+        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, .. } => {
             assert_eq!(*name, None);
             assert_eq!(*static_parameters, None);
             assert!(statements.is_empty());
@@ -223,8 +228,8 @@ struct Foo<T: Numeric> {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct().unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements } => {
+        let struct_id = parser.eat_struct(Visibility::Public).unwrap();
+        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(statements.len(), 3);
             assert_eq!(fields.len(), 2);

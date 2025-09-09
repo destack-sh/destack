@@ -27,7 +27,7 @@ use crate::{
     NodeId, NodeTree, NodeTreeStore, Parameter, PathId, PathPool, Pattern, PatternField,
     PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, Statement, StringPool, Struct,
     StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator,
-    Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause,
 };
 use dyst_language_arena::StringId;
 
@@ -480,6 +480,13 @@ impl Dump for Mutability {
     }
 }
 
+/// Dump a Visibility as a string.
+impl Dump for Visibility {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump an IntType as a structured representation.
 impl Dump for IntType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -728,7 +735,11 @@ impl Dump for Expression {
 
 impl Dump for Module {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Module").field("name", &self.name).end();
+        dumper
+            .node("Module")
+            .field("name", &self.name)
+            .field("visibility", &self.visibility)
+            .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.statements, None);
         });
@@ -737,7 +748,11 @@ impl Dump for Module {
 
 impl Dump for Struct {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Struct").field("name", &self.name).end();
+        dumper
+            .node("Struct")
+            .field("name", &self.name)
+            .field("visibility", &self.visibility)
+            .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.fields, None);
             dumper.dump_lines(&self.statements, None);
@@ -759,7 +774,11 @@ impl Dump for StructField {
 
 impl Dump for Enum {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Enum").field("name", &self.name).end();
+        dumper
+            .node("Enum")
+            .field("name", &self.name)
+            .field("visibility", &self.visibility)
+            .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.fields, None);
         });
@@ -774,7 +793,11 @@ impl Dump for EnumField {
 
 impl Dump for Union {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Union").field("name", &self.name).end();
+        dumper
+            .node("Union")
+            .field("name", &self.name)
+            .field("visibility", &self.visibility)
+            .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.fields, None);
         });
@@ -795,7 +818,11 @@ impl Dump for UnionField {
 
 impl Dump for Trait {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Trait").field("name", &self.name).end();
+        dumper
+            .node("Trait")
+            .field("name", &self.name)
+            .field("visibility", &self.visibility)
+            .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.withs, None);
             dumper.dump_lines(&self.statements, None);
@@ -813,8 +840,7 @@ impl Dump for Implement {
             if let Some(for_trait) = &self.for_trait {
                 dumper.dump_line(for_trait, None);
             }
-            dumper.dump_lines(&self.lets, None);
-            dumper.dump_lines(&self.functions, None);
+            dumper.dump_lines(&self.statements, None);
         });
     }
 }
@@ -958,7 +984,11 @@ impl Dump for TupleField {
 
 impl Dump for Function {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Function").field("name", &self.name).end();
+        dumper
+            .node("Function")
+            .field("name", &self.name)
+            .field("visibility", &self.visibility)
+            .end();
         dumper.with_depth(|dumper| {
             if let Some(static_parameters) = &self.static_parameters {
                 dumper.dump_lines(static_parameters, Some("static"));
@@ -1014,7 +1044,10 @@ impl Dump for WithClause {
 
 impl Dump for Use {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Use").end();
+        dumper
+            .node("Use")
+            .field("visibility", &self.visibility)
+            .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.clauses, None);
             if let Some(body) = &self.body {
@@ -1209,6 +1242,7 @@ impl Dump for Let {
         dumper
             .node("Let")
             .field("mutability", &self.mutability)
+            .field("visibility", &self.visibility)
             .field("initialization", &self.initialization)
             .end();
         dumper.with_depth(|dumper| {

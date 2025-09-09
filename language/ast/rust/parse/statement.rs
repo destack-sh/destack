@@ -18,6 +18,13 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_statement(&mut self) -> ParseResult<NodeId<Statement>> {
         let start = self.mark();
+
+        // visibility
+        let visibility = self.peek_visibility()?;
+        if visibility.is_some() {
+            self.bump(); // eat visibility
+        }
+
         let statement = {
             let token = self.peek()?;
             let keyword = self.peek_any_keyword().ok();
@@ -29,27 +36,32 @@ impl<'a> Parser<'a> {
             //
             // module
             if keyword == Some(Keyword::Module) {
-                let module_id = self.eat_module()?;
+                let module_id =
+                    self.eat_module(visibility.unwrap_or(self.options.default_visibility))?;
                 Statement::Module(module_id)
             }
             // struct
             else if keyword == Some(Keyword::Struct) {
-                let struct_id = self.eat_struct()?;
+                let struct_id =
+                    self.eat_struct(visibility.unwrap_or(self.options.default_visibility))?;
                 Statement::Struct(struct_id)
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
-                let enum_id = self.eat_enum()?;
+                let enum_id =
+                    self.eat_enum(visibility.unwrap_or(self.options.default_visibility))?;
                 Statement::Enum(enum_id)
             }
             // union
             else if keyword == Some(Keyword::Union) {
-                let union_id = self.eat_union()?;
+                let union_id =
+                    self.eat_union(visibility.unwrap_or(self.options.default_visibility))?;
                 Statement::Union(union_id)
             }
             // trait
             else if keyword == Some(Keyword::Trait) {
-                let trait_id = self.eat_trait()?;
+                let trait_id =
+                    self.eat_trait(visibility.unwrap_or(self.options.default_visibility))?;
                 Statement::Trait(trait_id)
             }
             // implement
@@ -59,7 +71,8 @@ impl<'a> Parser<'a> {
             }
             // function
             else if keyword == Some(Keyword::Function) {
-                let function_id = self.eat_function()?;
+                let function_id =
+                    self.eat_function(visibility.unwrap_or(self.options.default_visibility))?;
                 Statement::Function(function_id)
             }
             //
@@ -74,7 +87,7 @@ impl<'a> Parser<'a> {
             }
             // use
             else if keyword == Some(Keyword::Use) {
-                let use_id = self.eat_use()?;
+                let use_id = self.eat_use(visibility.unwrap_or(self.options.default_visibility))?;
                 Statement::Use(use_id)
             }
             //
@@ -96,7 +109,10 @@ impl<'a> Parser<'a> {
             //
             // expression (fallback)
             else {
-                let expression_id = self.eat_expression(ExpressionParserOptions::default())?;
+                let expression_id = self.eat_expression(ExpressionParserOptions {
+                    visibility,
+                    ..ExpressionParserOptions::default()
+                })?;
                 Statement::Expression(expression_id)
             }
         };

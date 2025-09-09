@@ -3,7 +3,7 @@ use dyst_language_token::{TokenSpan, TokenType};
 use crate::{Doc, NodeId, ParseResult, Parser};
 
 impl<'a> Parser<'a> {
-    // todo!: parse visibility & docs in statements/expressions and associate with items
+    // todo!: docs in statements/expressions and associate with items
 
     /// Peek a doc comment (incl. `///` or `/**`).
     #[inline]

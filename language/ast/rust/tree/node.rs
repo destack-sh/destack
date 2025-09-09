@@ -87,7 +87,7 @@ pub struct Path {
 }
 
 /// A Visibility is the visibility of an item.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Visibility {
     /// Public to everything.
     Public,
@@ -303,6 +303,8 @@ pub struct Module {
     pub format: BlockFormat,
     /// The name of the module.
     pub name: Option<StringId>,
+    /// The visibility of the module.
+    pub visibility: Visibility,
     /// The body of the module.
     pub statements: Vec<NodeId<Statement>>,
 }
@@ -345,6 +347,8 @@ impl Node for Module {
 pub struct Struct {
     /// The name of the struct.
     pub name: Option<StringId>,
+    /// The visibility of the struct.
+    pub visibility: Visibility,
     /// The static parameters of the struct.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The fields of the struct.
@@ -403,11 +407,13 @@ impl Node for StructField {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Enum {
-    /// The name of the union.
+    /// The name of the enum.
     pub name: Option<StringId>,
-    /// The type of the union (if explicitly specified).
+    /// The visibility of the enum.
+    pub visibility: Visibility,
+    /// The type of the enum (if explicitly specified).
     pub r#type: Option<NodeId<Type>>,
-    /// The fields of the union.
+    /// The fields of the enum.
     pub fields: Vec<NodeId<EnumField>>,
     /// The body of the enum.
     pub statements: Vec<NodeId<Statement>>,
@@ -426,7 +432,7 @@ impl Node for Enum {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumField {
-    /// The name of the union field.
+    /// The name of the enum field.
     pub name: StringId,
     /// The default value of the enum field.
     pub value: Option<NodeId<Expression>>,
@@ -480,6 +486,8 @@ pub enum UnionStyle {
 pub struct Union {
     /// The name of the union.
     pub name: Option<StringId>,
+    /// The visibility of the union.
+    pub visibility: Visibility,
     /// The style of union (explicit or implicit).
     pub style: UnionStyle,
     /// The type of the union (if explicitly specified).
@@ -540,6 +548,8 @@ impl Node for UnionField {
 pub struct Trait {
     /// The name of the trait.
     pub name: Option<StringId>,
+    /// The visibility of the trait.
+    pub visibility: Visibility,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The supertraits of the trait.
@@ -587,10 +597,8 @@ pub struct Implement {
     pub receiver: NodeId<Type>,
     /// The type to implement the trait for.
     pub for_trait: Option<NodeId<Type>>,
-    /// The let bindings of the implement.
-    pub lets: Vec<NodeId<Let>>,
-    /// The functions of the implement.
-    pub functions: Vec<NodeId<Function>>,
+    /// The statements of the implement.
+    pub statements: Vec<NodeId<Statement>>,
 }
 
 impl Node for Implement {
@@ -662,6 +670,8 @@ pub enum FunctionStyle {
 pub struct Function {
     /// The name of the function (excluding the `@` prefix if static).
     pub name: Option<StringId>,
+    /// The visibility of the union.
+    pub visibility: Visibility,
     /// The runtime of the function (static or dynamic).
     pub runtime: Runtime,
     /// The style of the function (function or lambda).
@@ -724,10 +734,17 @@ pub enum LetInitialization {
 /// }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
+    /// Whether the binding is mutable.
     pub mutability: Mutability,
+    /// The visibility of the binding.
+    pub visibility: Visibility,
+    /// The pattern of the binding.
     pub pattern: NodeId<Pattern>,
+    /// The type of the binding.
     pub r#type: Option<NodeId<Type>>,
+    /// The value of the binding.
     pub value: Option<NodeId<Expression>>,
+    /// The initialization of the binding.
     pub initialization: LetInitialization,
 }
 
@@ -750,6 +767,7 @@ impl Node for Let {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tuple {
+    /// The elements of the tuple.
     pub elements: Vec<NodeId<TupleField>>,
 }
 
@@ -948,6 +966,8 @@ impl Node for WithClause {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Use {
+    /// The visibility of the use declaration.
+    pub visibility: Visibility,
     /// The clauses in this use declaration.
     pub clauses: Vec<NodeId<UseClause>>,
     /// The body of the use declaration.

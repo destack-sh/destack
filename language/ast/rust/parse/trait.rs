@@ -1,7 +1,7 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
-use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, With};
+use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, Visibility, With};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.
@@ -24,7 +24,7 @@ impl<'a> Parser<'a> {
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
-    pub fn eat_trait(&mut self) -> ParseResult<NodeId<Trait>> {
+    pub fn eat_trait(&mut self, visibility: Visibility) -> ParseResult<NodeId<Trait>> {
         let start = self.mark();
 
         // keyword
@@ -85,6 +85,7 @@ impl<'a> Parser<'a> {
         let trait_id = self.tree.allocate(
             Trait {
                 name,
+                visibility,
                 static_parameters,
                 supertraits,
                 withs,
@@ -99,15 +100,15 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Function, Statement, Trait, Type, WithClause, assert_node};
+    use crate::{Function, Statement, Trait, Type, Visibility, WithClause, assert_node};
 
     #[test]
     fn test_parse_trait_anonymous_empty() {
         let test = TestParser::new("trait {}");
         let mut parser = test.parser();
 
-        let trait_id = parser.eat_trait().unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, supertraits, withs, statements } => {
+        let trait_id = parser.eat_trait(Visibility::Public).unwrap();
+        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, supertraits, withs, statements, .. } => {
             assert!(name.is_none());
             assert!(static_parameters.is_none());
             assert!(supertraits.is_empty());
@@ -121,7 +122,7 @@ mod tests {
         let test = TestParser::new("trait Foo: Bar, Boz {}");
         let mut parser = test.parser();
 
-        let trait_id = parser.eat_trait().unwrap();
+        let trait_id = parser.eat_trait(Visibility::Public).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, supertraits, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(supertraits.len(), 2);
@@ -160,7 +161,7 @@ trait Foo {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let trait_id = parser.eat_trait().unwrap();
+        let trait_id = parser.eat_trait(Visibility::Public).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(statements.len(), 3);
@@ -172,7 +173,7 @@ trait Foo {
         let test = TestParser::new("trait Baz<T> {}");
         let mut parser = test.parser();
 
-        let trait_id = parser.eat_trait().unwrap();
+        let trait_id = parser.eat_trait(Visibility::Public).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Baz")));
             let params = static_parameters.as_ref().expect("expected static params");
@@ -192,7 +193,7 @@ trait Baz<T> with T: Copy {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let trait_id = parser.eat_trait().unwrap();
+        let trait_id = parser.eat_trait(Visibility::Public).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Baz")));
 

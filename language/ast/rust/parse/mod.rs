@@ -26,6 +26,7 @@ mod r#trait;
 mod r#tuple;
 mod r#type;
 mod union;
+mod visibility;
 
 pub use error::*;
 pub use expression::ExpressionParserOptions;

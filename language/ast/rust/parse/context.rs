@@ -2,7 +2,8 @@
 use dyst_language_token::TokenType;
 
 use crate::{
-    Expression, Keyword, NodeId, ParseResult, Parser, Use, UseClause, UseItem, With, WithClause,
+    Expression, Keyword, NodeId, ParseResult, Parser, Use, UseClause, UseItem, Visibility, With,
+    WithClause,
 };
 
 impl<'a> Parser<'a> {
@@ -129,9 +130,9 @@ impl<'a> Parser<'a> {
     /// use foo.{} // valid but linted
     /// use foo as baz
     /// ```
-    pub fn eat_use(&mut self) -> ParseResult<NodeId<Use>> {
+    pub fn eat_use(&mut self, visibility: Visibility) -> ParseResult<NodeId<Use>> {
         self.eat_keyword(Keyword::Use)?;
-        let using = self.eat_use_header()?;
+        let using = self.eat_use_header(visibility)?;
         Ok(using)
     }
 
@@ -146,7 +147,7 @@ impl<'a> Parser<'a> {
     /// foo.{} // valid but linted
     /// foo as baz
     /// ```
-    pub fn eat_use_header(&mut self) -> ParseResult<NodeId<Use>> {
+    fn eat_use_header(&mut self, visibility: Visibility) -> ParseResult<NodeId<Use>> {
         let start = self.mark();
 
         // parse one or more clauses separated by commas
@@ -171,6 +172,7 @@ impl<'a> Parser<'a> {
             Use {
                 clauses,
                 body: None,
+                visibility,
             },
             self.get_span_from(start),
         );
@@ -282,7 +284,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, PrimitiveType, Type, Use, UseClause, UseItem, With, WithClause, assert_node,
+        Expression, PrimitiveType, Type, Use, UseClause, UseItem, Visibility, With, WithClause,
+        assert_node,
     };
 
     #[test]
@@ -465,11 +468,12 @@ mod tests {
         // use dyst
         let test = TestParser::new("use dyst");
         let mut parser = test.parser();
-        let use_id = parser.eat_use().unwrap();
+        let use_id = parser.eat_use(Visibility::Public).unwrap();
 
         // use
-        assert_node!(parser.tree, use_id, Use { body, clauses } => {
+        assert_node!(parser.tree, use_id, Use { body, visibility, clauses } => {
             assert_eq!(*body, None);
+            assert_eq!(*visibility, Visibility::Public);
             assert_eq!(clauses.len(), 1);
             // use dyst
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
@@ -486,7 +490,7 @@ mod tests {
     fn test_parse_use_path() {
         let test = TestParser::new("use dyst.geometry");
         let mut parser = test.parser();
-        let use_id = parser.eat_use().unwrap();
+        let use_id = parser.eat_use(Visibility::Public).unwrap();
         // use dyst.geometry
         assert_node!(parser.tree, use_id, Use { clauses, .. } => {
             assert_eq!(clauses.len(), 1);
@@ -508,7 +512,7 @@ mod tests {
     fn test_parse_use_with_alias() {
         let test = TestParser::new("use dyst as ds");
         let mut parser = test.parser();
-        let use_id = parser.eat_use().unwrap();
+        let use_id = parser.eat_use(Visibility::Public).unwrap();
         // use dyst as ds
         assert_node!(parser.tree, use_id, Use { clauses, .. } => {
             assert_eq!(clauses.len(), 1);
@@ -527,7 +531,7 @@ mod tests {
     fn test_parse_use_with_items() {
         let test = TestParser::new("use ds.geometry.{Vector2, Vector3 as V3}");
         let mut parser = test.parser();
-        let use_id = parser.eat_use().unwrap();
+        let use_id = parser.eat_use(Visibility::Public).unwrap();
         // use ds.geometry.{Vector2, Vector3 as V3}
         assert_node!(parser.tree, use_id, Use { clauses, .. } => {
             assert_eq!(clauses.len(), 1);
@@ -561,9 +565,9 @@ mod tests {
     fn test_parse_use_multiple_clauses() {
         let test = TestParser::new("use dyst, dyst");
         let mut parser = test.parser();
-        let use_id = parser.eat_use().unwrap();
+        let use_id = parser.eat_use(Visibility::Public).unwrap();
         // use dyst, dyst
-        assert_node!(parser.tree, use_id, Use { body, clauses } => {
+        assert_node!(parser.tree, use_id, Use { body, clauses, .. } => {
             assert_eq!(*body, None);
             assert_eq!(clauses.len(), 2);
             // use dyst
