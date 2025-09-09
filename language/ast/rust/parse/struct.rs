@@ -37,7 +37,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_struct(&mut self, visibility: Visibility) -> ParseResult<NodeId<Struct>> {
+    pub fn eat_struct(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Struct>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Struct)?;
 
@@ -80,7 +80,10 @@ impl<'a> Parser<'a> {
     }
 
     // Eat a struct body (without the header or `{` and `}`)
-    pub fn eat_struct_body(&mut self, visibility: Visibility) -> ParseResult<NodeId<Struct>> {
+    pub fn eat_struct_body(
+        &mut self,
+        visibility: Option<Visibility>,
+    ) -> ParseResult<NodeId<Struct>> {
         let start = self.mark();
 
         // eat everything
@@ -166,9 +169,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{
-        IntType, Parameter, PrimitiveType, Struct, StructField, Type, Visibility, assert_node,
-    };
+    use crate::{IntType, Parameter, PrimitiveType, Struct, StructField, Type, assert_node};
 
     #[test]
     fn test_parse_struct_anonymous() {
@@ -182,7 +183,7 @@ struct { x: int32, y: boolean
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
-        let struct_id = parser.eat_struct(Visibility::Public).unwrap();
+        let struct_id = parser.eat_struct(None).unwrap();
         assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, .. } => {
             assert_eq!(*name, None);
             assert_eq!(*static_parameters, None);
@@ -228,7 +229,7 @@ struct Foo<T: Numeric> {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let struct_id = parser.eat_struct(Visibility::Public).unwrap();
+        let struct_id = parser.eat_struct(None).unwrap();
         assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(statements.len(), 3);

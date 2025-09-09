@@ -304,7 +304,7 @@ pub struct Module {
     /// The name of the module.
     pub name: Option<StringId>,
     /// The visibility of the module.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The body of the module.
     pub statements: Vec<NodeId<Statement>>,
 }
@@ -348,7 +348,7 @@ pub struct Struct {
     /// The name of the struct.
     pub name: Option<StringId>,
     /// The visibility of the struct.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The static parameters of the struct.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The fields of the struct.
@@ -410,7 +410,7 @@ pub struct Enum {
     /// The name of the enum.
     pub name: Option<StringId>,
     /// The visibility of the enum.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The type of the enum (if explicitly specified).
     pub r#type: Option<NodeId<Type>>,
     /// The fields of the enum.
@@ -487,7 +487,7 @@ pub struct Union {
     /// The name of the union.
     pub name: Option<StringId>,
     /// The visibility of the union.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The style of union (explicit or implicit).
     pub style: UnionStyle,
     /// The type of the union (if explicitly specified).
@@ -549,7 +549,7 @@ pub struct Trait {
     /// The name of the trait.
     pub name: Option<StringId>,
     /// The visibility of the trait.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The supertraits of the trait.
@@ -671,7 +671,7 @@ pub struct Function {
     /// The name of the function (excluding the `@` prefix if static).
     pub name: Option<StringId>,
     /// The visibility of the union.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The runtime of the function (static or dynamic).
     pub runtime: Runtime,
     /// The style of the function (function or lambda).
@@ -737,7 +737,7 @@ pub struct Let {
     /// Whether the binding is mutable.
     pub mutability: Mutability,
     /// The visibility of the binding.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The pattern of the binding.
     pub pattern: NodeId<Pattern>,
     /// The type of the binding.
@@ -967,7 +967,7 @@ impl Node for WithClause {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Use {
     /// The visibility of the use declaration.
-    pub visibility: Visibility,
+    pub visibility: Option<Visibility>,
     /// The clauses in this use declaration.
     pub clauses: Vec<NodeId<UseClause>>,
     /// The body of the use declaration.

@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
     ///     Qux = 2
     /// }
     /// ```
-    pub fn eat_enum(&mut self, visibility: Visibility) -> ParseResult<NodeId<Enum>> {
+    pub fn eat_enum(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Enum>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Enum)?;
 
@@ -69,7 +69,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat an enum body (without the header or `{` and `}`)
-    fn eat_enum_body(&mut self, visibility: Visibility) -> ParseResult<NodeId<Enum>> {
+    fn eat_enum_body(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Enum>> {
         let start = self.mark();
 
         // eat everything
@@ -147,9 +147,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{
-        Enum, EnumField, Expression, PrimitiveType, Type, Visibility, assert_int, assert_node,
-    };
+    use crate::{Enum, EnumField, Expression, PrimitiveType, Type, assert_int, assert_node};
 
     #[test]
     fn test_parse_enum_anonymous_simple() {
@@ -164,7 +162,7 @@ enum {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(Visibility::Public).unwrap();
+        let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, statements, .. } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
@@ -203,7 +201,7 @@ enum(uint8) Foo {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let enum_id = parser.eat_enum(Visibility::Public).unwrap();
+        let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, .. } => {
             // enum name
             assert_eq!(*name, Some(parser.strings.intern("Foo")));

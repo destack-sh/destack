@@ -5,16 +5,12 @@ use dyst_language_diagnostic::Diagnostic;
 use dyst_language_source::{Source, SourceId, Span};
 use dyst_language_token::{Token, TokenSpan, TokenType, tokenize_semantic};
 
-use crate::{
-    Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool, Visibility,
-};
+use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
 
 /// Configure parsing behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
 #[derive(Debug, Copy, Clone, Default)]
 pub(crate) struct ParserOptions {
-    /// The default visibility.
-    pub default_visibility: Visibility = Visibility::Private,
     /// Whether we're parsing a static type (parameters or arguments).
     /// We disallow certain infix operations in static types to avoid ambiguity with <>.
     pub in_static_type: bool = false,

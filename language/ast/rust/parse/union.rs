@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_union(&mut self, visibility: Visibility) -> ParseResult<NodeId<Union>> {
+    pub fn eat_union(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Union>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
 
@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a union body (without the header or `{` and `}`)
-    fn eat_union_body(&mut self, visibility: Visibility) -> ParseResult<NodeId<Union>> {
+    fn eat_union_body(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Union>> {
         let start = self.mark();
 
         // eat everything
@@ -238,7 +238,7 @@ impl<'a> Parser<'a> {
         let union_id = self.tree.allocate(
             Union {
                 name: None,
-                visibility: Visibility::Public,
+                visibility: None,
                 style: UnionStyle::Implicit,
                 r#type: None,
                 fields,
@@ -255,7 +255,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, Mutability, PrimitiveType, Statement, TupleField, Type, Union, UnionField,
-        UnionStyle, Use, Visibility, assert_int, assert_node,
+        UnionStyle, Use, assert_int, assert_node,
     };
 
     #[test]
@@ -268,7 +268,7 @@ union { A, B }
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(Visibility::Public).unwrap();
+        let union_id = parser.eat_union(None).unwrap();
         assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
@@ -310,7 +310,7 @@ union(uint4) Foo {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union(Visibility::Public).unwrap();
+        let union_id = parser.eat_union(None).unwrap();
         assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(*style, UnionStyle::Explicit);
