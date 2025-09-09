@@ -14,28 +14,44 @@ struct RunEvent {
 
 /// A Run was started.
 @event
-struct RunStartedEvent use RunEvent {}
+struct RunStartedEvent { 
+ use RunEvent 
+ }
 /// A Run pause was requested.
 @event
-struct RunPauseRequestedEvent use RunEvent {}
+struct RunPauseRequestedEvent { 
+ use RunEvent 
+ }
 /// A Run was paused.
 @event
-struct RunPausedEvent use RunEvent {}
+struct RunPausedEvent { 
+ use RunEvent 
+ }
 /// A Run resume was requested.
 @event
-struct RunResumeRequestedEvent use RunEvent {}
+struct RunResumeRequestedEvent { 
+ use RunEvent 
+ }
 /// A Run was resumed.
 @event
-struct RunResumedEvent use RunEvent {}
+struct RunResumedEvent { 
+ use RunEvent 
+ }
 /// A Run stop was requested.
 @event
-struct RunStopRequestedEvent use RunEvent {}
+struct RunStopRequestedEvent { 
+ use RunEvent 
+ }
 /// A Run failed.
 @event
-struct RunFailedEvent use RunEvent {}
+struct RunFailedEvent { 
+ use RunEvent 
+ }
 /// A Run completed.
 @event
-struct RunCompletedEvent use RunEvent {}
+struct RunCompletedEvent { 
+ use RunEvent 
+ }
 
 /// Run of an Action.
 @entity

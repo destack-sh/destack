@@ -2,32 +2,46 @@ use dyst
 
 /// Base drag event
 @event
-struct DragEvent use InputEvent {
+struct DragEvent { 
+    use InputEvent 
+
     position: Vector2,
 }
 
 /// Drag starts
 @event
-struct DragStartEvent use DragEvent {}
+struct DragStartEvent { 
+ use DragEvent 
+ }
 
 /// Drag ends
 @event
-struct DragEndEvent use DragEvent {}
+struct DragEndEvent { 
+ use DragEvent 
+ }
 
 /// Drag over an element
 @event
-struct DragOverEvent use DragEvent {}
+struct DragOverEvent { 
+ use DragEvent 
+ }
 
 /// Drag enters an element
 @event
-struct DragEnterEvent use DragEvent {}
+struct DragEnterEvent { 
+ use DragEvent 
+ }
 
 /// Drag leaves an element
 @event
-struct DragLeaveEvent use DragEvent {}
+struct DragLeaveEvent { 
+ use DragEvent 
+ }
 
 /// Drag dropped on an element
 @event
-struct DropEvent use DragEvent {}
+struct DropEvent { 
+ use DragEvent 
+ }
 
 

@@ -2,14 +2,20 @@ use dyst
 
 /// Base focus event
 @event
-struct FocusEvent use InputEvent {}
+struct FocusEvent { 
+ use InputEvent 
+ }
 
 /// Focus gained
 @event
-struct FocusInEvent use FocusEvent {}
+struct FocusInEvent { 
+ use FocusEvent 
+ }
 
 /// Focus lost
 @event
-struct FocusOutEvent use FocusEvent {}
+struct FocusOutEvent { 
+ use FocusEvent 
+ }
 
 

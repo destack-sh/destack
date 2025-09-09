@@ -9,7 +9,9 @@ use dyst
 
 /// Keyboard base event
 @event
-struct KeyEvent use InputEvent {
+struct KeyEvent { 
+    use InputEvent 
+
     /// The character pressed (e.g. 'a', 'B', '1', 'Enter')
     key: String,
     /// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
@@ -24,14 +26,20 @@ struct KeyEvent use InputEvent {
 
 /// Key pressed down
 @event
-struct KeyDownEvent use KeyEvent {}
+struct KeyDownEvent { 
+ use KeyEvent 
+ }
 
 /// Key released
 @event
-struct KeyUpEvent use KeyEvent {}
+struct KeyUpEvent { 
+ use KeyEvent 
+ }
 
 /// Key pressed
 @event
-struct KeyPressEvent use KeyEvent {}
+struct KeyPressEvent { 
+ use KeyEvent 
+ }
 
 

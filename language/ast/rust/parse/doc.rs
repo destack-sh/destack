@@ -49,6 +49,7 @@ impl<'a> Parser<'a> {
         }
 
         // merge docs as one normalized string
+        // - strip doc markers (///, /**, */)
         // - preserve internal newlines
         // - remove leading whitespace per line
         // - ensure exactly one newline between successive tokens
@@ -57,13 +58,42 @@ impl<'a> Parser<'a> {
             let raw = self.get_span_str(token.span);
             // drop trailing newlines so we can control separation
             let without_trailing_newlines = raw.trim_end_matches(['\r', '\n']);
-            // clean leading whitespace on each line, preserve internal newlines
-            let cleaned = without_trailing_newlines
-                .lines()
-                .map(|line| line.trim_start())
-                .collect::<Vec<&str>>()
-                .join("\n");
-            parts.push(cleaned);
+            let cleaned_str = match token.token.r#type {
+                TokenType::DocLineComment => {
+                    // remove leading '///' and an optional single space following it
+                    let after_prefix = without_trailing_newlines
+                        .strip_prefix("///")
+                        .unwrap_or(without_trailing_newlines);
+                    let after_space = after_prefix.strip_prefix(' ').unwrap_or(after_prefix);
+                    after_space
+                        .lines()
+                        .map(|line| line.trim_start())
+                        .collect::<Vec<&str>>()
+                        .join("\n")
+                }
+                TokenType::DocBlockComment => {
+                    // remove leading '/**' and trailing '*/', then trim outer spaces
+                    let after_open = without_trailing_newlines
+                        .strip_prefix("/**")
+                        .unwrap_or(without_trailing_newlines);
+                    let before_close = after_open.strip_suffix("*/").unwrap_or(after_open);
+                    let trimmed_outer = before_close.trim();
+                    trimmed_outer
+                        .lines()
+                        .map(|line| line.trim_start())
+                        .collect::<Vec<&str>>()
+                        .join("\n")
+                }
+                _ => {
+                    // fallback: keep behavior consistent with previous implementation
+                    without_trailing_newlines
+                        .lines()
+                        .map(|line| line.trim_start())
+                        .collect::<Vec<&str>>()
+                        .join("\n")
+                }
+            };
+            parts.push(cleaned_str);
         }
         let doc_string_id = self.strings.intern(parts.join("\n"));
 
@@ -101,7 +131,7 @@ mod tests {
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
-            assert_eq!(*string, parser.strings.intern("/// Simple doc"));
+            assert_eq!(*string, parser.strings.intern("Simple doc"));
         });
     }
 
@@ -111,7 +141,7 @@ mod tests {
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
-            assert_eq!(*string, parser.strings.intern("/// First line\n/// Second line"));
+            assert_eq!(*string, parser.strings.intern("First line\nSecond line"));
         });
     }
 
@@ -121,7 +151,7 @@ mod tests {
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
-            assert_eq!(*string, parser.strings.intern("/** inline block doc */"));
+            assert_eq!(*string, parser.strings.intern("inline block doc"));
         });
     }
 
@@ -133,7 +163,7 @@ mod tests {
         assert!(maybe_doc.is_some());
         let doc_id = maybe_doc.unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
-            assert_eq!(*string, parser.strings.intern("/// doc"));
+            assert_eq!(*string, parser.strings.intern("doc"));
         });
     }
 
@@ -143,7 +173,7 @@ mod tests {
         let mut parser = test.parser();
         let doc_id = parser.eat_doc().unwrap();
         assert_node!(parser.tree, doc_id, Doc { string } => {
-            assert_eq!(*string, parser.strings.intern("/// A\n/** B */\n/// C"));
+            assert_eq!(*string, parser.strings.intern("A\nB\nC"));
         });
     }
 }

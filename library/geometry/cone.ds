@@ -1,14 +1,18 @@
 use dyst
 
 /// A Cone is aligned with the local z axis with a base radius and height.
-struct Cone3D use Form3D {
+struct Cone3D { 
+    use Form3D 
+
     radius: float32,
     height: float32,
 }
 
 /// A ConeShape3D is a 3D shape that represents a cone.
 @entity
-struct ConeShape3D use Shape3D, Cone3D {
+struct ConeShape3D { 
+    use Shape3D, Cone3D 
+
     radius: float32,
     height: float32,
 }

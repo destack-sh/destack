@@ -18,10 +18,14 @@ struct ReactionEvent {
 
 /// Reaction added.
 @event
-struct ReactionAddedEvent use ReactionEvent {}
+struct ReactionAddedEvent { 
+ use ReactionEvent 
+ }
 
 /// Reaction removed.
 @event
-struct ReactionRemovedEvent use ReactionEvent {}
+struct ReactionRemovedEvent { 
+ use ReactionEvent 
+ }
 
 

@@ -2,7 +2,9 @@ use dyst
 
 /// A Pointer is a user input device that can be used to interact with the UI
 @entity
-struct Pointer2D use Body2D {}
+struct Pointer2D { 
+ use Body2D 
+ }
 
 /// Base pointer event with position, pressure and modifiers
 @event(InputEvent)
