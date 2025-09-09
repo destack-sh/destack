@@ -10,7 +10,10 @@ impl<'a> Parser<'a> {
     pub fn peek_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
         let current = self.peek_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(ParseError::UnexpectedToken(current.span))
+            Err(ParseError::expected_token(
+                current.span,
+                TokenType::Identifier,
+            ))
         } else {
             Ok(current)
         }
@@ -23,7 +26,10 @@ impl<'a> Parser<'a> {
         if let Ok(keyword) = Keyword::from_str(self.get_span_str(current.span)) {
             Ok(keyword)
         } else {
-            Err(ParseError::UnexpectedToken(current.span))
+            Err(ParseError::expected_token(
+                current.span,
+                TokenType::Identifier,
+            ))
         }
     }
 
@@ -32,7 +38,10 @@ impl<'a> Parser<'a> {
     pub fn peek_next_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
         let current = self.peek_next_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(ParseError::UnexpectedToken(current.span))
+            Err(ParseError::expected_token(
+                current.span,
+                TokenType::Identifier,
+            ))
         } else {
             Ok(current)
         }
@@ -43,7 +52,10 @@ impl<'a> Parser<'a> {
     pub fn peek_next_next_keyword(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
         let current = self.peek_next_next_token(TokenType::Identifier)?;
         if self.get_span_str(current.span) != keyword.as_str() {
-            Err(ParseError::UnexpectedToken(current.span))
+            Err(ParseError::expected_token(
+                current.span,
+                TokenType::Identifier,
+            ))
         } else {
             Ok(current)
         }

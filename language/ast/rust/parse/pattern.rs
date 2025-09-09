@@ -107,7 +107,7 @@ impl<'a> Parser<'a> {
             }
             // error
             else {
-                return Err(ParseError::UnexpectedToken(self.peek()?.span));
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
         };
 

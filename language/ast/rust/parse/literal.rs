@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Literal).is_ok() {
             Ok(self.peek()?)
         } else {
-            Err(ParseError::UnexpectedToken(self.peek()?.span))
+            Err(ParseError::unexpected(self.peek()?.span))
         }
     }
 
@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
         if let Some(literal) = literal_span.token.body {
             Ok((literal_span, literal))
         } else {
-            Err(ParseError::UnexpectedToken(literal_span.span))
+            Err(ParseError::unexpected(literal_span.span))
         }
     }
 
@@ -77,7 +77,10 @@ impl<'a> Parser<'a> {
             // int literal
             RawLiteralType::Int { base, is_empty } => {
                 if is_empty {
-                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                    return Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ));
                 }
                 // strip underscores for parsing
                 let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
@@ -110,7 +113,10 @@ impl<'a> Parser<'a> {
                         );
                         Ok(scalar_literal)
                     }
-                    Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
+                    Err(_) => Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    )),
                 }
             }
 
@@ -120,7 +126,10 @@ impl<'a> Parser<'a> {
                 is_empty_exponent,
             } => {
                 if is_empty_exponent {
-                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                    return Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ));
                 }
                 let cleaned_str: Cow<'_, str> = if literal_str.contains('_') {
                     Cow::Owned(literal_str.replace('_', ""))
@@ -136,14 +145,20 @@ impl<'a> Parser<'a> {
                         );
                         Ok(scalar_literal)
                     }
-                    Err(_) => Err(ParseError::UnexpectedToken(literal_span.span)),
+                    Err(_) => Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    )),
                 }
             }
 
             // character literal (ignore quotes)
             RawLiteralType::Character { is_terminated } => {
                 if !is_terminated {
-                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                    return Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ));
                 }
                 let content = literal_str.trim_start_matches('\'').trim_end_matches('\'');
                 if let Some(literal_char) = content.chars().next() {
@@ -153,14 +168,20 @@ impl<'a> Parser<'a> {
                     );
                     Ok(scalar_literal)
                 } else {
-                    Err(ParseError::UnexpectedToken(literal_span.span))
+                    Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ))
                 }
             }
 
             // byte character literal (ignore quotes)
             RawLiteralType::Byte { is_terminated } => {
                 if !is_terminated {
-                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                    return Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ));
                 }
                 let content = literal_str.trim_start_matches("b'").trim_end_matches('\'');
                 if let Some(literal_char) = content.chars().next() {
@@ -170,14 +191,20 @@ impl<'a> Parser<'a> {
                     );
                     Ok(scalar_literal)
                 } else {
-                    Err(ParseError::UnexpectedToken(literal_span.span))
+                    Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ))
                 }
             }
 
             // string literal (ignore quotes)
             RawLiteralType::String { is_terminated } => {
                 if !is_terminated {
-                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                    return Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ));
                 }
                 let content = literal_str.trim_start_matches('"').trim_end_matches('"');
                 let string_id = self.strings.intern(content);
@@ -190,7 +217,10 @@ impl<'a> Parser<'a> {
             // byte string literal (ignore quotes)
             RawLiteralType::ByteString { is_terminated } => {
                 if !is_terminated {
-                    return Err(ParseError::UnexpectedToken(literal_span.span));
+                    return Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ));
                 }
                 let content = literal_str.trim_start_matches("b\"").trim_end_matches('"');
                 let bytes = content.as_bytes().to_vec();
@@ -207,7 +237,10 @@ impl<'a> Parser<'a> {
                     let prefix_len = 1 /* r */ + num_hashes + 1 /* opening " */;
                     let suffix_len = 1 /* closing " */ + num_hashes;
                     if literal_str.len() < prefix_len + suffix_len {
-                        return Err(ParseError::UnexpectedToken(literal_span.span));
+                        return Err(ParseError::expected_token(
+                            literal_span.span,
+                            TokenType::Literal,
+                        ));
                     }
                     let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                     let string_id = self.strings.intern(content);
@@ -216,7 +249,10 @@ impl<'a> Parser<'a> {
                         .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
                     Ok(scalar_literal)
                 } else {
-                    Err(ParseError::UnexpectedToken(literal_span.span))
+                    Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ))
                 }
             }
 
@@ -227,7 +263,10 @@ impl<'a> Parser<'a> {
                     let prefix_len = 2 /* br */ + num_hashes + 1 /* opening " */;
                     let suffix_len = 1 /* closing " */ + num_hashes;
                     if literal_str.len() < prefix_len + suffix_len {
-                        return Err(ParseError::UnexpectedToken(literal_span.span));
+                        return Err(ParseError::expected_token(
+                            literal_span.span,
+                            TokenType::Literal,
+                        ));
                     }
                     let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
                     let bytes = content.as_bytes().to_vec();
@@ -236,7 +275,10 @@ impl<'a> Parser<'a> {
                         .allocate(ScalarLiteral::ByteString(bytes), self.get_span_from(start));
                     Ok(scalar_literal)
                 } else {
-                    Err(ParseError::UnexpectedToken(literal_span.span))
+                    Err(ParseError::expected_token(
+                        literal_span.span,
+                        TokenType::Literal,
+                    ))
                 }
             }
         }
@@ -376,7 +418,7 @@ impl<'a> Parser<'a> {
     pub fn peek_struct_literal(&self) -> ParseResult<()> {
         // first name can't be a keyword
         if self.peek_any_keyword().is_ok() {
-            return Err(ParseError::UnexpectedToken(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
 
         let start = self.pos();
@@ -429,7 +471,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Err(ParseError::UnexpectedToken(self.peek()?.span))
+        Err(ParseError::unexpected(self.peek()?.span))
     }
 
     /// Eat a struct literal (including the type prefix).

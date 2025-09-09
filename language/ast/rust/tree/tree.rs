@@ -200,7 +200,7 @@ impl NodeTree {
     /// Allocate a new node in the tree.
     ///
     /// Returns a stable NodeId that can be used to retrieve the node later.
-    pub fn allocate<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    pub(crate) fn allocate<T>(&mut self, node: T, span: Span) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeStore<T>,
@@ -218,11 +218,11 @@ impl NodeTree {
         }
     }
 
-    /// Free an existing node in the tree.
+    /// "Free" an existing node in the tree.
     /// Will be freed later.
     ///
     /// Returns whether the node was already freed.
-    pub fn free<T: Node>(&mut self, node_id: NodeId<T>) {
+    pub(crate) fn free<T: Node>(&mut self, node_id: NodeId<T>) {
         let node_id_raw = node_id.get() as u32;
         debug_assert!(
             !self.tombstones.contains(&node_id_raw),

@@ -113,14 +113,12 @@ impl<'a> Parser<'a> {
     /// Gets a mark of the current position.
     #[inline]
     pub fn mark(&self) -> ParserMark {
-        debug_assert!(self.pos < self.tokens.len());
         ParserMark { pos: self.pos }
     }
 
     /// Rewind the position to the given mark.
     #[inline]
     pub fn rewind(&mut self, mark: ParserMark) {
-        debug_assert!(mark.pos < self.tokens.len());
         self.pos = mark.pos;
     }
 
@@ -164,7 +162,7 @@ impl<'a> Parser<'a> {
     pub fn peek(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos)
-            .ok_or(ParseError::SyntaxError(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
@@ -172,7 +170,7 @@ impl<'a> Parser<'a> {
     pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 1)
-            .ok_or(ParseError::SyntaxError(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
@@ -180,7 +178,7 @@ impl<'a> Parser<'a> {
     pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
         self.tokens
             .get(self.pos + 2)
-            .ok_or(ParseError::SyntaxError(self.eof_token.span))
+            .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Eat the next Token or error.
@@ -191,7 +189,7 @@ impl<'a> Parser<'a> {
             let next = &self.tokens[self.pos - 1];
             Ok(next)
         } else {
-            Err(ParseError::SyntaxError(self.eof_token.span))
+            Err(ParseError::unexpected(self.eof_token.span))
         }
     }
 
@@ -209,7 +207,7 @@ impl<'a> Parser<'a> {
         if next.token.r#type == token_type {
             Ok(next)
         } else {
-            Err(ParseError::SyntaxError(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
@@ -220,7 +218,7 @@ impl<'a> Parser<'a> {
         if next.token.r#type == token_type {
             Ok(next)
         } else {
-            Err(ParseError::SyntaxError(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
@@ -231,7 +229,7 @@ impl<'a> Parser<'a> {
         if next.token.r#type == token_type {
             Ok(next)
         } else {
-            Err(ParseError::SyntaxError(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
@@ -242,7 +240,7 @@ impl<'a> Parser<'a> {
         if current.token.r#type == token_type {
             Ok(current)
         } else {
-            Err(ParseError::SyntaxError(current.span))
+            Err(ParseError::unexpected(current.span))
         }
     }
 
