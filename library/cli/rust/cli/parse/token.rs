@@ -174,7 +174,8 @@ fn get_token_color(kind: TokenType) -> &'static str {
 
         TokenType::At => "95",         // bright magenta
         TokenType::BitwiseNot => "96", // bright cyan
-        TokenType::Question => "95",   // bright magenta
+        TokenType::Maybe => "95",      // bright magenta
+        TokenType::Coalesce => "95",   // bright magenta
         TokenType::Dollar => "95",     // bright magenta
         TokenType::Bang => "95",       // bright magenta
 

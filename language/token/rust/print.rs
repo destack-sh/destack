@@ -78,7 +78,8 @@ impl Token {
 
             TokenType::At => "@".to_string(),
             TokenType::BitwiseNot => "~".to_string(),
-            TokenType::Question => "?".to_string(),
+            TokenType::Maybe => "?".to_string(),
+            TokenType::Coalesce => "??".to_string(),
             TokenType::Dollar => "$".to_string(),
             TokenType::Bang => "!".to_string(),
 

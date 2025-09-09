@@ -21,10 +21,10 @@
 #![allow(clippy::match_like_matches_macro)]
 
 use crate::{
-    Argument, ArrayLiteral, AssignOperator, BinaryOperator, Block, Break, Call, Cast, Continue,
-    Defer, Doc, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, If, Implement,
-    Index, IntType, Let, LetInitialization, Loop, Match, MatchCase, Module, Mutability, Node,
-    NodeId, NodeTree, NodeTreeStore, Parameter, PathId, PathPool, Pattern, PatternField,
+    Argument, ArrayLiteral, AssignOperator, BinaryOperator, Block, Break, Call, Cast, Coalesce,
+    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, If,
+    Implement, Index, IntType, Let, LetInitialization, Loop, Match, MatchCase, Module, Mutability,
+    Node, NodeId, NodeTree, NodeTreeStore, Parameter, PathId, PathPool, Pattern, PatternField,
     PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, Statement, StringPool, Struct,
     StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator,
     Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause,
@@ -657,7 +657,6 @@ impl Dump for Expression {
             Expression::Match(node) => {
                 dumper.node_wrapper("Expression::Match", *node);
             }
-
             Expression::Path { path } => {
                 let mut node_dumper = dumper.node("Expression::Path");
                 node_dumper.field("path", path);
@@ -695,6 +694,9 @@ impl Dump for Expression {
             }
             Expression::Cast(node) => {
                 dumper.node_wrapper("Expression::Cast", *node);
+            }
+            Expression::Coalesce(node) => {
+                dumper.node_wrapper("Expression::Coalesce", *node);
             }
             Expression::Unwrap(node) => {
                 dumper.node_wrapper("Expression::Unwrap", *node);
@@ -874,7 +876,7 @@ impl Dump for Type {
             Type::Never => {
                 dumper.node("Type::Never").end();
             }
-            Type::SelfT => {
+            Type::Self_ => {
                 dumper.node("Type::Self").end();
             }
             Type::Variadic(inner) => {
@@ -1461,6 +1463,16 @@ impl Dump for Cast {
         dumper.with_depth(|dumper| {
             dumper.dump_line(&self.receiver, Some("receiver"));
             dumper.dump_line(&self.r#type, Some("type"));
+        });
+    }
+}
+
+impl Dump for Coalesce {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.node("Coalesce").end();
+        dumper.with_depth(|dumper| {
+            dumper.dump_line(&self.receiver, Some("receiver"));
+            dumper.dump_line(&self.default, Some("default"));
         });
     }
 }

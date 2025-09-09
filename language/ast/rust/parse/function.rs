@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
         // self, *self, *var self parameter
         let self_parameter: Option<SelfParameter> = {
             // self
-            if self.peek_keyword(Keyword::SelfT).is_ok() {
+            if self.peek_keyword(Keyword::Self_).is_ok() {
                 self.bump(); // eat self
                 Some(SelfParameter {
                     mutability: Mutability::Immutable,
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
             }
             // *self
             else if self.peek_token(TokenType::Multiply).is_ok()
-                && self.peek_next_keyword(Keyword::SelfT).is_ok()
+                && self.peek_next_keyword(Keyword::Self_).is_ok()
             {
                 self.bump(); // eat *
                 self.bump(); // eat self
@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
             // *var self
             else if self.peek_token(TokenType::Multiply).is_ok()
                 && self.peek_next_keyword(Keyword::Var).is_ok()
-                && self.peek_next_next_keyword(Keyword::SelfT).is_ok()
+                && self.peek_next_next_keyword(Keyword::Self_).is_ok()
             {
                 self.bump(); // eat *
                 self.bump(); // eat var

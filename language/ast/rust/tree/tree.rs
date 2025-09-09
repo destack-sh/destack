@@ -4,11 +4,11 @@ use std::marker::PhantomData;
 use dyst_language_source::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Continue, Defer, Doc, Enum, EnumField,
-    Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase,
-    Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
-    Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral,
-    Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Continue, Defer, Doc, Enum,
+    EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match,
+    MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return,
+    ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField,
+    TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -100,6 +100,7 @@ pub struct NodeTree {
     indexes: NodeArena<Index>,
     calls: NodeArena<Call>,
     casts: NodeArena<Cast>,
+    coalesce: NodeArena<Coalesce>,
     // matching
     matches: NodeArena<Match>,
     patterns: NodeArena<Pattern>,
@@ -187,6 +188,7 @@ impl NodeTree {
             indexes: NodeArena::new(),
             calls: NodeArena::new(),
             casts: NodeArena::new(),
+            coalesce: NodeArena::new(),
             // matching
             matches: NodeArena::new(),
             patterns: NodeArena::new(),
@@ -430,6 +432,7 @@ impl_node_tree_stores! {
     Index => indexes,
     Call => calls,
     Cast => casts,
+    Coalesce => coalesce,
     // matching
     Match => matches,
     Pattern => patterns,

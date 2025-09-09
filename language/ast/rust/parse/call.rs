@@ -3,7 +3,9 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{Call, Cast, Expression, Index, Keyword, NodeId, ParseResult, Parser, Runtime};
+use crate::{
+    Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, ParseResult, Parser, Runtime,
+};
 
 impl<'a> Parser<'a> {
     /// Eat an index (postfix, excluding the receiver).
@@ -104,6 +106,29 @@ impl<'a> Parser<'a> {
             self.get_span_from(start),
         );
         Ok(cast_id)
+    }
+
+    /// Eat a coalesce (postfix, excluding the receiver).
+    ///
+    /// Examples:
+    /// ```
+    /// ?? 0
+    /// ```
+    pub fn eat_coalesce_postfix(
+        &mut self,
+        receiver_id: NodeId<Expression>,
+    ) -> ParseResult<NodeId<Coalesce>> {
+        let start = self.mark();
+        self.eat_token(TokenType::Coalesce)?;
+        let default = self.eat_expression(ExpressionParserOptions::default())?;
+        let coalesce_id = self.tree.allocate(
+            Coalesce {
+                receiver: receiver_id,
+                default,
+            },
+            self.get_span_from(start),
+        );
+        Ok(coalesce_id)
     }
 }
 
