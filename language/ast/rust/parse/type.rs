@@ -186,7 +186,7 @@ impl<'a> Parser<'a> {
     /// uint7
     /// float32
     /// ```
-    pub fn peek_primitive_type(&mut self) -> ParseResult<PrimitiveType> {
+    pub fn peek_primitive_type(&self) -> ParseResult<PrimitiveType> {
         let next = self.peek()?;
         // NOTE: void and null are parsed as literals, but it's fine since we match on the raw span string
         let next_str = self.get_span_str(next.span);

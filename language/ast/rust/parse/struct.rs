@@ -124,7 +124,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a struct field: `name: Type` with optional default `= <expr>`.
-    fn peek_struct_field(&mut self) -> ParseResult<()> {
+    fn peek_struct_field(&self) -> ParseResult<()> {
         if self.peek_identifier().is_ok()
             && (self.peek_next_token(TokenType::Colon).is_ok()
                 || self.peek_next_token(TokenType::Assign).is_ok()
