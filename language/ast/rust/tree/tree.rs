@@ -232,6 +232,7 @@ impl NodeTree {
     }
 
     /// Get an immutable reference to the node with the given NodeId.
+    #[inline]
     pub fn get<T>(&self, id: NodeId<T>) -> &T
     where
         T: Node,
@@ -243,6 +244,7 @@ impl NodeTree {
     }
 
     /// Get a mutable reference to the node with the given NodeId.
+    #[inline]
     pub(crate) fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
     where
         T: Node,
@@ -254,6 +256,7 @@ impl NodeTree {
     }
 
     /// Get the span for a node.
+    #[inline]
     pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
     where
         T: Node,
@@ -262,6 +265,7 @@ impl NodeTree {
     }
 
     /// Set the span for a node.
+    #[inline]
     pub(crate) fn set_span<T>(&mut self, node_id: NodeId<T>, span: Span)
     where
         T: Node,

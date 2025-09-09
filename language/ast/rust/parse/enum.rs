@@ -110,7 +110,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek an enum field.
-    fn peek_enum_field(&mut self) -> ParseResult<()> {
+    fn peek_enum_field(&self) -> ParseResult<()> {
         if self.peek_identifier().is_ok()
             && (self.peek_next_token(TokenType::Assign).is_ok()
                 || self.peek_next_token(TokenType::Newline).is_ok()
