@@ -1,7 +1,7 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{Keyword, Let, LetInitialization, Mutability, NodeId, ParseResult, Parser};
+use crate::{Keyword, Let, LetInitialization, Mutability, NodeId, ParseResult, Parser, Visibility};
 
 impl<'a> Parser<'a> {
     /// Eat a let or var binding (incl. `let` or `var` keyword).
@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
     /// let Some(x) = someFunction()
     /// var Point { x, .. } = someFunction()
     /// ```
-    pub fn eat_let_or_var(&mut self) -> ParseResult<NodeId<Let>> {
+    pub fn eat_let_or_var(&mut self, visibility: Visibility) -> ParseResult<NodeId<Let>> {
         let start = self.mark();
         // mutability
         let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
@@ -60,6 +60,7 @@ impl<'a> Parser<'a> {
             Let {
                 pattern,
                 mutability,
+                visibility,
                 r#type,
                 value,
                 initialization,
@@ -75,7 +76,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, FloatType, Let, LetInitialization, Mutability, Pattern, PatternField,
-        PrimitiveType, Type, assert_int, assert_node,
+        PrimitiveType, Type, Visibility, assert_int, assert_node,
     };
 
     #[test]
@@ -88,9 +89,9 @@ let x: int32 = 1
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let_or_var().unwrap();
+        let let_id = parser.eat_let_or_var(Visibility::Public).unwrap();
 
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
                 assert_eq!(*name, parser.strings.intern("x"));
@@ -123,9 +124,9 @@ var x: [float64; 3] = --
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let_or_var().unwrap();
+        let let_id = parser.eat_let_or_var(Visibility::Public).unwrap();
 
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // var (mutable)
             assert_eq!(*mutability, Mutability::Mutable);
 
@@ -159,9 +160,9 @@ let (x, y) = foo()
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let let_id = parser.eat_let_or_var().unwrap();
+        let let_id = parser.eat_let_or_var(Visibility::Public).unwrap();
 
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // (x, y)
             assert_node!(parser.tree, *pattern, Pattern::Tuple { fields } => {
                 assert_eq!(fields.len(), 2);
@@ -190,10 +191,10 @@ let (x, y) = foo()
         let test = TestParser::new("let x: int32");
         let mut parser = test.parser();
 
-        let let_id = parser.eat_let_or_var().unwrap();
+        let let_id = parser.eat_let_or_var(Visibility::Public).unwrap();
 
         // let x: int32
-        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization } => {
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
                 assert_eq!(*name, parser.strings.intern("x"));

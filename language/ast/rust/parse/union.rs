@@ -5,7 +5,7 @@ use dyst_language_token::{TokenType, clean_identifier};
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Keyword, NodeId, ParseError, ParseResult, Parser, Statement, TupleField, Type, Union,
-    UnionField, UnionStyle,
+    UnionField, UnionStyle, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -34,7 +34,7 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     /// ```
-    pub fn eat_union(&mut self) -> ParseResult<NodeId<Union>> {
+    pub fn eat_union(&mut self, visibility: Visibility) -> ParseResult<NodeId<Union>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
 
@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
-        let union_id = self.eat_union_body()?;
+        let union_id = self.eat_union_body(visibility)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // fill in header data
@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Eat a union body (without the header or `{` and `}`)
-    pub fn eat_union_body(&mut self) -> ParseResult<NodeId<Union>> {
+    fn eat_union_body(&mut self, visibility: Visibility) -> ParseResult<NodeId<Union>> {
         let start = self.mark();
 
         // eat everything
@@ -102,6 +102,7 @@ impl<'a> Parser<'a> {
         let union_id = self.tree.allocate(
             Union {
                 name: None,
+                visibility,
                 style: UnionStyle::Explicit,
                 r#type: None,
                 fields,
@@ -237,6 +238,7 @@ impl<'a> Parser<'a> {
         let union_id = self.tree.allocate(
             Union {
                 name: None,
+                visibility: Visibility::Public,
                 style: UnionStyle::Implicit,
                 r#type: None,
                 fields,
@@ -253,7 +255,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, Mutability, PrimitiveType, Statement, TupleField, Type, Union, UnionField,
-        UnionStyle, Use, assert_int, assert_node,
+        UnionStyle, Use, Visibility, assert_int, assert_node,
     };
 
     #[test]
@@ -266,8 +268,8 @@ union { A, B }
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union().unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements } => {
+        let union_id = parser.eat_union(Visibility::Public).unwrap();
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
             assert_eq!(*style, UnionStyle::Explicit);
@@ -308,8 +310,8 @@ union(uint4) Foo {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let union_id = parser.eat_union().unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements } => {
+        let union_id = parser.eat_union(Visibility::Public).unwrap();
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(*style, UnionStyle::Explicit);
 
@@ -381,7 +383,7 @@ union(uint4) Foo {
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements } => {
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
             assert!(name.is_none());
             assert!(r#type.is_none());
             assert_eq!(*style, UnionStyle::Implicit);

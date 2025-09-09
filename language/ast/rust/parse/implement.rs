@@ -1,5 +1,5 @@
 use crate::parse::ParserOptions;
-use crate::{Function, Implement, Keyword, Let, NodeId, ParseResult, Parser};
+use crate::{Implement, Keyword, NodeId, ParseResult, Parser, Statement};
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -58,23 +58,22 @@ impl<'a> Parser<'a> {
         };
 
         // body (if any)
-        let mut lets: Vec<NodeId<Let>> = vec![];
-        let mut functions: Vec<NodeId<Function>> = vec![];
+        let mut statements: Vec<NodeId<Statement>> = vec![];
         if self.peek_token(TokenType::OpenBrace).is_ok() {
             self.eat_token(TokenType::OpenBrace)?;
             loop {
-                let keyword = self.peek_any_keyword().ok();
-                if keyword == Some(Keyword::Let) || keyword == Some(Keyword::Var) {
-                    let let_id = self.eat_let_or_var()?;
-                    lets.push(let_id);
-                } else if keyword == Some(Keyword::Function) {
-                    let function_id = self.eat_function()?;
-                    functions.push(function_id);
-                } else if self.peek_token(TokenType::CloseBrace).is_ok() {
+                // stop on closing brace
+                if self.peek_token(TokenType::CloseBrace).is_ok() {
                     break;
-                } else {
-                    self.bump(); // :Diagnostic
-                    continue;
+                }
+                // consume any stop
+                else if self.peek_any_stop().is_ok() {
+                    self.eat_any_stop_with_newlines()?;
+                }
+                // eat statements
+                else {
+                    let statement_id = self.eat_statement()?;
+                    statements.push(statement_id);
                 }
             }
             self.eat_token(TokenType::CloseBrace)?;
@@ -88,8 +87,7 @@ impl<'a> Parser<'a> {
                 static_arguments,
                 receiver,
                 for_trait,
-                lets,
-                functions,
+                statements,
             },
             self.get_span_from(start),
         );

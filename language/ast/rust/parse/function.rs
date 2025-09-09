@@ -4,7 +4,7 @@ use dyst_language_token::TokenType;
 
 use crate::{
     Function, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser, Runtime,
-    SelfParameter,
+    SelfParameter, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
     /// (x) => x + 1
     /// (x: int32) => x + 1
     /// ```
-    pub fn eat_function(&mut self) -> ParseResult<NodeId<Function>> {
+    pub fn eat_function(&mut self, visibility: Visibility) -> ParseResult<NodeId<Function>> {
         let start = self.mark();
 
         // function
@@ -174,6 +174,7 @@ impl<'a> Parser<'a> {
         let function_id = self.tree.allocate(
             Function {
                 name,
+                visibility,
                 runtime,
                 // NOTE :Incomplete: support lambda function style
                 //  (same postfix problem as with struct literals?)
@@ -194,7 +195,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Function, IntType, Mutability, PrimitiveType, Type, WithClause, assert_node};
+    use crate::{
+        Function, IntType, Mutability, PrimitiveType, Type, Visibility, WithClause, assert_node,
+    };
 
     #[test]
     fn test_parse_function_with_clause() {
@@ -211,7 +214,7 @@ function foo() with (
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let function_id = parser.eat_function().unwrap();
+        let function_id = parser.eat_function(Visibility::Public).unwrap();
         assert_node!(parser.tree, function_id, Function { name, with, return_type, .. } => {
             // function name
             assert_eq!(*name, Some(parser.strings.intern("foo")));
@@ -271,7 +274,7 @@ function foo() with (
         let test = TestParser::new("function a(self) {}");
         let mut parser = test.parser();
 
-        let function_id = parser.eat_function().unwrap();
+        let function_id = parser.eat_function(Visibility::Public).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("a")));
 
@@ -296,7 +299,7 @@ function b(
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let function_id = parser.eat_function().unwrap();
+        let function_id = parser.eat_function(Visibility::Public).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("b")));
 
@@ -321,7 +324,7 @@ function b(
         let test = TestParser::new("function c(*var self) {}");
         let mut parser = test.parser();
 
-        let function_id = parser.eat_function().unwrap();
+        let function_id = parser.eat_function(Visibility::Public).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("c")));
 

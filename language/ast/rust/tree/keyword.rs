@@ -5,6 +5,8 @@ use std::str::FromStr;
 pub enum Keyword {
     /// Mark the following item as public (with optional qualifier)
     Public,
+    /// Mark the following item as private (with optional qualifier)
+    Private,
     /// Refer to the own type.
     SelfT,
     /// Define a Module (inline).
@@ -64,6 +66,7 @@ impl Keyword {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Keyword::Public => "public",
+            Keyword::Private => "private",
             Keyword::SelfT => "self",
             Keyword::Module => "module",
             Keyword::Struct => "struct",
@@ -100,6 +103,7 @@ impl FromStr for Keyword {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "public" => Ok(Keyword::Public),
+            "private" => Ok(Keyword::Private),
             "self" => Ok(Keyword::SelfT),
             "module" => Ok(Keyword::Module),
             "struct" => Ok(Keyword::Struct),
