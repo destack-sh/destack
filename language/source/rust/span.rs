@@ -46,6 +46,42 @@ impl Span {
     pub fn is_empty(self) -> bool {
         self.start == self.end
     }
+
+    /// Compute the length of the Span in bytes.
+    pub fn len(self) -> u32 {
+        self.end.saturating_sub(self.start)
+    }
+
+    /// Check whether the Span contains the given absolute byte position.
+    pub fn contains(self, position: u32) -> bool {
+        position >= self.start && position < self.end
+    }
+
+    /// Check whether the two spans overlap (on the same source).
+    pub fn intersects(self, other: Self) -> bool {
+        if self.source != other.source {
+            return false;
+        }
+        self.start < other.end && other.start < self.end
+    }
+
+    /// Compute the intersection of two spans (on the same source).
+    pub fn intersection(self, other: Self) -> Option<Self> {
+        if self.source != other.source {
+            return None;
+        }
+        let start = self.start.max(other.start);
+        let end = self.end.min(other.end);
+        if start < end {
+            Some(Self {
+                source: self.source,
+                start,
+                end,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 /// A MultiSpan is a collection of Spans.
@@ -60,4 +96,13 @@ impl MultiSpan {
     pub fn new(spans: Vec<Span>) -> Self {
         Self { spans }
     }
+}
+
+/// A Span with a message.
+#[derive(Debug, Clone)]
+pub struct LabeledSpan {
+    /// The span of the labeled span.
+    pub span: Span,
+    /// The message of the labeled span.
+    pub label: String,
 }

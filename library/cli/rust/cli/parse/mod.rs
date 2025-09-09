@@ -3,6 +3,8 @@
 use std::fs;
 use std::path::Path;
 
+use dyst_language_source::{Source, SourceId};
+
 use crate::console::CommandArguments;
 use crate::console::parse::CommandApp;
 
@@ -25,7 +27,8 @@ pub fn app() -> CommandApp {
 			--string <string>  Read input from provided string
 			--no-color         Disable ANSI colors
 			--no-pager         Print directly instead of use less -R
-			--max-lexeme <n>   Truncate lexeme preview to n chars".to_owned()
+			--max-lexeme <n>   Truncate lexeme preview to n chars"
+                    .to_owned(),
             ),
         )
         .command(
@@ -35,20 +38,25 @@ pub fn app() -> CommandApp {
                 "Parse source into Tokens (with Spans).
 			--file <path>      Read input from file
 			--string <string>  Read input from provided string
-			--no-color         Disable ANSI colors
-			--no-pager         Print directly instead of use less -R
-            --as               Parse as node type: 'module', 'expression', 'statement', 'type' (default: 'statement')".to_owned()
+            )"
+                .to_owned(),
             ),
         )
 }
 
 /// Resolve the input to lex from the command arguments (file or string).
-pub(crate) fn read_parse_input(ctx: &CommandArguments) -> Result<String, String> {
+pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {
     if let Some(path) = ctx.option("file") {
         let p = Path::new(path);
-        fs::read_to_string(p).map_err(|e| format!("failed to read {path}: {e}"))
+        fs::read_to_string(p)
+            .map_err(|e| format!("failed to read {path}: {e}"))
+            .map(|s| Source::new(SourceId::new(0), path.to_string(), s))
     } else if let Some(string) = ctx.option("string") {
-        Ok(string.to_string())
+        Ok(Source::new(
+            SourceId::new(0),
+            "<input>".to_string(),
+            string.to_string(),
+        ))
     } else {
         Err("provide --file <path> or --string <string>".to_string())
     }

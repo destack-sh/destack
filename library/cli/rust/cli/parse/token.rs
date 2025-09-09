@@ -1,7 +1,6 @@
-use crate::cli::parse::read_parse_input;
+use crate::cli::parse::read_source;
 use crate::console::parse::CommandArguments;
 use crate::console::{console, table};
-use dyst_language_source::SourceId;
 use dyst_language_token::{TokenType, tokenize_semantic};
 
 use super::DEFAULT_MAX_LEXEME_LEN;
@@ -9,7 +8,7 @@ use super::DEFAULT_MAX_LEXEME_LEN;
 /// Run the lexer subcommand: tokenize input and show a colored table with locations.
 pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
     // input
-    let input = match read_parse_input(&ctx) {
+    let source = match read_source(&ctx) {
         Ok(s) => s,
         Err(e) => {
             console::error(&format!("Read input error: {e}"));
@@ -35,7 +34,7 @@ pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
         "Length".to_string(),
     ];
     let mut rows: Vec<Vec<String>> = Vec::new();
-    let tokens = tokenize_semantic(SourceId::new(0), &input);
+    let tokens = tokenize_semantic(source.id, &source.content);
 
     for (index, tok) in tokens.iter().enumerate() {
         let start_offset = tok.span.start as usize;
@@ -45,7 +44,7 @@ pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
         // compute line and column by scanning from start of input to token start
         let mut line = 1;
         let mut col = 1;
-        for ch in input[..start_offset].chars() {
+        for ch in source.content[..start_offset].chars() {
             if ch == '\n' {
                 line += 1;
                 col = 1;
@@ -55,7 +54,7 @@ pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
         }
 
         // extract token slice
-        let slice = &input[start_offset..end_offset.min(input.len())];
+        let slice = &source.content[start_offset..end_offset.min(source.len as usize)];
 
         // prepare pretty fields
         let kind_str = format_token(tok.token.r#type, use_color);

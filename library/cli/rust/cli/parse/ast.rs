@@ -1,82 +1,48 @@
-use dyst_language_ast::{BlockFormat, DumperOptions, ExpressionParserOptions, Parser};
-use dyst_language_source::{Source, SourceId};
+use dyst_language_ast::{BlockFormat, DumperOptions, Parser};
+use dyst_language_source::{AnnotateOptions, annotate_source};
 
-use crate::cli::parse::read_parse_input;
+use crate::cli::parse::read_source;
 use crate::console::console;
 use crate::console::parse::CommandArguments;
 
-/// Parse source into AST (stub).
+/// Parse source into AST.
 pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
-    // input
-    let input = match read_parse_input(&ctx) {
+    // read input
+    let source = match read_source(&ctx) {
         Ok(s) => s,
         Err(e) => {
             console::error(&format!("Read input error: {e}"));
             return 1;
         }
     };
-    let file_id = SourceId::new(0);
-    let file = Source::new(file_id, input);
 
-    // options
-    // let use_color = !ctx.flag("no-color");
-    // let use_pager = !ctx.flag("no-pager");
-    let as_node = ctx.option("as").unwrap_or("statement");
-
-    // parse
-    let mut parser = Parser::from_source(&file, file_id);
+    // parse as block
+    let mut parser = Parser::from_source(&source);
     let dump_options = DumperOptions::default();
-    let node_str = match as_node {
-        "module" => {
-            let Ok(module_id) = parser.eat_module_body(None, BlockFormat::Implicit) else {
-                console::error("Parse error");
-                return 1;
-            };
-            let module = parser.tree.get(module_id);
+    match parser.eat_block_body(BlockFormat::Implicit) {
+        Ok(statements) => {
             let mut dumper = parser.dumper(dump_options);
-            dumper.dump_line(module, None);
-            dumper.finish()
+            dumper.dump_lines(&statements, None);
+            console::info(&dumper.finish());
         }
-        "statement" => {
-            let Ok(statement_id) = parser.eat_statement() else {
-                console::error("Parse error");
-                return 1;
-            };
-            let statement = parser.tree.get(statement_id);
-            let mut dumper = parser.dumper(dump_options);
-            dumper.dump_line(statement, None);
-            dumper.finish()
-        }
-        "expression" => {
-            let Ok(expression_id) = parser.eat_expression(ExpressionParserOptions::default())
-            else {
-                console::error("Parse error");
-                return 1;
-            };
-            let expression = parser.tree.get(expression_id);
-            let mut dumper = parser.dumper(dump_options);
-            dumper.dump_line(expression, None);
-            dumper.finish()
-        }
-        "type" => {
-            let Ok(type_id) = parser.eat_type() else {
-                console::error("Parse error");
-                return 1;
-            };
-            let ty = parser.tree.get(type_id);
-            let mut dumper = parser.dumper(dump_options);
-            dumper.dump_line(ty, None);
-            dumper.finish()
-        }
-        _ => {
-            console::error(&format!(
-                "Bad node kind: {as_node} (must be 'module', 'expression', 'statement', or 'type')"
-            ));
+        Err(e) => {
+            let diagnostic = e.to_diagnostic();
+            let annotated = annotate_source(
+                &source,
+                &diagnostic.primary_span.unwrap(),
+                AnnotateOptions {
+                    max_line_length: 100,
+                    prefix_lines: 1,
+                    suffix_lines: 1,
+                    use_color: true,
+                },
+            );
+            let diagnostic_header = format!("{}: {}", diagnostic.id, diagnostic.message);
+            console::error(&diagnostic_header);
+            console::info(&annotated);
             return 1;
         }
-    };
-
-    console::info(&node_str);
+    }
 
     0
 }

@@ -19,7 +19,7 @@ impl<'a> Parser<'a> {
 
     /// Eat a raw literal token.
     pub fn eat_raw_literal(&mut self) -> ParseResult<(TokenSpan, RawLiteralType)> {
-        let literal_span = *self.eat_next()?;
+        let literal_span = *self.eat()?;
         if let Some(literal) = literal_span.token.body {
             Ok((literal_span, literal))
         } else {

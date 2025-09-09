@@ -1,0 +1,494 @@
+#![allow(clippy::too_many_arguments)]
+
+use crate::{Color, LabeledSpan, Source};
+
+const HEADER_PREFIX: &str = "==>";
+const BODY_PREFIX: &str = " | ";
+const HIGHLIGHT: char = '^';
+const ELIDE: &str = "..";
+
+/// Options controlling how annotation is rendered.
+#[derive(Debug, Clone, Copy)]
+pub struct AnnotateOptions {
+    /// Maximum number of characters to show from a source line. 0 disables clipping.
+    pub max_line_length: usize,
+    /// Number of context lines to show before the start line.
+    pub prefix_lines: u8,
+    /// Number of context lines to show after the end line.
+    pub suffix_lines: u8,
+    /// Whether to emit ANSI color escape sequences.
+    pub use_color: bool,
+}
+
+impl Default for AnnotateOptions {
+    fn default() -> Self {
+        Self {
+            max_line_length: 100,
+            prefix_lines: 1,
+            suffix_lines: 1,
+            use_color: false,
+        }
+    }
+}
+
+/// Annotate source lines around a labeled span.
+///
+/// The `span` must come from the same `source`. The output includes a header
+/// with file name and 1-based line and column, a body with the requested
+/// surrounding lines, the original code, and a highlight caret line with the
+/// label attached on the first highlighted line:
+///
+/// ```text
+/// ==> file.ds:2:5
+///  |
+///  | 1 | fn main() {
+///  | 2 |     let variable = 42;
+///  |   |         ^^^^^^^^ label: explanation
+///  | 3 | }
+///  |
+/// ```
+///
+/// Prefix and suffix line counts control how many lines are shown before and
+/// after the highlighted region.
+/// Lines longer than `max_line_length` are clipped to keep the highlight visible.
+pub fn annotate_source(source: &Source, span: &LabeledSpan, options: AnnotateOptions) -> String {
+    debug_assert_eq!(source.id, span.span.source);
+
+    // compute span bounds
+    let (span_start_line, start_col) = match source.get_position(span.span.start) {
+        Some(pos) => pos,
+        None => return String::new(),
+    };
+    let span_end_line = source
+        .get_position(span.span.end)
+        .map(|(line, _)| line)
+        .unwrap_or(span_start_line);
+
+    // compute source window
+    let (window_start_line, window_end_line) = get_source_window(
+        source,
+        span_start_line,
+        span_end_line,
+        options.prefix_lines,
+        options.suffix_lines,
+    );
+    let width = (window_end_line + 1).to_string().len();
+
+    // build string
+    let mut buffer = String::new();
+    write_header(
+        &mut buffer,
+        source,
+        span_start_line,
+        start_col,
+        options.use_color,
+    );
+    write_body_separator(&mut buffer, options.use_color);
+    for line in window_start_line..=window_end_line {
+        let (line_str, bounds, truncate_left, truncate_right) = get_visible_source_slice(
+            source,
+            line,
+            span,
+            span_start_line,
+            span_end_line,
+            options.max_line_length,
+        );
+        let is_in_span = line >= span_start_line && line <= span_end_line;
+        write_source_line(
+            &mut buffer,
+            line,
+            width,
+            line_str,
+            is_in_span,
+            truncate_left,
+            truncate_right,
+            options.use_color,
+        );
+        if is_in_span {
+            let (offset_spaces, highlight_count, left_trunc, right_trunc) =
+                get_highlight_offset(bounds, span, line, span_start_line, span_end_line);
+            write_highlight_line(
+                &mut buffer,
+                width,
+                offset_spaces,
+                highlight_count,
+                line == span_start_line,
+                &span.label,
+                left_trunc,
+                right_trunc,
+                options.use_color,
+            );
+        }
+    }
+    write_body_separator(&mut buffer, options.use_color);
+
+    buffer
+}
+
+/// Write the header line: `==> name:line:col`.
+#[inline]
+fn write_header(buffer: &mut String, source: &Source, line: u32, col: u32, use_color: bool) {
+    if use_color {
+        // prefix
+        buffer.push_str(&Color::White.apply(HEADER_PREFIX));
+        buffer.push_str(&Color::White.apply(" "));
+        // name
+        buffer.push_str(&Color::BrightWhite.apply(&source.name));
+        buffer.push_str(&Color::White.apply(":"));
+        // line
+        buffer.push_str(&Color::BrightMagenta.apply(&line.saturating_add(1).to_string()));
+        buffer.push_str(&Color::White.apply(":"));
+        // column
+        buffer.push_str(&Color::BrightMagenta.apply(&col.saturating_add(1).to_string()));
+    } else {
+        // prefix
+        buffer.push_str(HEADER_PREFIX);
+        buffer.push(' ');
+        // name
+        buffer.push_str(&source.name);
+        buffer.push(':');
+        // line
+        buffer.push_str(&line.saturating_add(1).to_string());
+        buffer.push(':');
+        // column
+        buffer.push_str(&col.saturating_add(1).to_string());
+    }
+    buffer.push('\n');
+}
+
+/// Write a blank body separator line: ` | `.
+#[inline]
+fn write_body_separator(buffer: &mut String, use_color: bool) {
+    if use_color {
+        buffer.push_str(&Color::BrightMagenta.apply(BODY_PREFIX));
+    } else {
+        buffer.push_str(BODY_PREFIX);
+    }
+    buffer.push('\n');
+}
+
+/// Write a line with source code, including the line number column.
+#[inline]
+fn write_source_line(
+    buffer: &mut String,
+    line: u32,
+    width: usize,
+    line_str: &str,
+    is_in_span: bool,
+    truncate_left: bool,
+    truncate_right: bool,
+    use_color: bool,
+) {
+    // prefix
+    if use_color {
+        buffer.push_str(&Color::BrightMagenta.apply(BODY_PREFIX));
+    } else {
+        buffer.push_str(BODY_PREFIX);
+    }
+    let line = line.saturating_add(1).to_string();
+    for _ in 0..(width - line.len()) {
+        buffer.push(' ');
+    }
+    // line number
+    if use_color {
+        if is_in_span {
+            buffer.push_str(&Color::BrightMagenta.apply(&line));
+        } else {
+            buffer.push_str(&Color::White.apply(&line));
+        }
+        buffer.push_str(&Color::BrightMagenta.apply(" | "));
+    } else {
+        buffer.push_str(&line);
+        buffer.push_str(" | ");
+    }
+    // content with elision markers
+    let mut content = String::new();
+    if truncate_left {
+        content.push_str(ELIDE);
+    }
+    content.push_str(line_str);
+    if truncate_right {
+        content.push_str(ELIDE);
+    }
+    if use_color {
+        if is_in_span {
+            buffer.push_str(&Color::BrightWhite.apply(&content));
+        } else {
+            buffer.push_str(&Color::White.apply(&content));
+        }
+    } else {
+        buffer.push_str(&content);
+    }
+    buffer.push('\n');
+}
+
+/// Write the highlight line containing carets and the optional label.
+fn write_highlight_line(
+    buffer: &mut String,
+    width: usize,
+    offset_spaces: usize,
+    highlight_count: usize,
+    is_first: bool,
+    label: &str,
+    truncate_left: bool,
+    truncate_right: bool,
+    use_color: bool,
+) {
+    // prefix
+    if use_color {
+        buffer.push_str(&Color::BrightMagenta.apply(BODY_PREFIX));
+    } else {
+        buffer.push_str(BODY_PREFIX);
+    }
+    for _ in 0..width {
+        buffer.push(' ');
+    }
+    if use_color {
+        buffer.push_str(&Color::BrightMagenta.apply(" | "));
+    } else {
+        buffer.push_str(" | ");
+    }
+    for _ in 0..offset_spaces {
+        buffer.push(' ');
+    }
+    // highlight (with elision markers if truncated)
+    let show_elide = truncate_left || truncate_right;
+    let mut caret_text = String::new();
+    if show_elide {
+        caret_text.push_str(ELIDE);
+    }
+    for _ in 0..highlight_count {
+        caret_text.push(HIGHLIGHT);
+    }
+    if show_elide {
+        caret_text.push_str(ELIDE);
+    }
+    if use_color {
+        buffer.push_str(&Color::BrightYellow.apply_bold(&caret_text));
+    } else {
+        buffer.push_str(&caret_text);
+    }
+    // label
+    if is_first && !label.is_empty() {
+        buffer.push(' ');
+        if use_color {
+            buffer.push_str(&Color::BrightYellow.apply_bold(label));
+        } else {
+            buffer.push_str(label);
+        }
+    }
+
+    buffer.push('\n');
+}
+
+/// Get the first and last line indices to display (inclusive).
+#[inline]
+fn get_source_window(
+    source: &Source,
+    start_line: u32,
+    end_line: u32,
+    prefix_lines: u8,
+    suffix_lines: u8,
+) -> (u32, u32) {
+    let first = start_line.saturating_sub(prefix_lines as u32);
+    let last_needed = end_line.saturating_add(suffix_lines as u32);
+    let last_available = source.line_count().saturating_sub(1);
+    (first, last_needed.min(last_available))
+}
+
+/// Compute the visible source code slice for a line and return it with absolute bounds.
+///
+/// Bounds are (absolute_visible_start, absolute_visible_end, line_start, line_end).
+fn get_visible_source_slice<'a>(
+    source: &'a Source,
+    current_line: u32,
+    span: &LabeledSpan,
+    start_line: u32,
+    end_line: u32,
+    max_line_length: usize,
+) -> (&'a str, (usize, usize, usize, usize), bool, bool) {
+    let line_text = source.get_line(current_line).unwrap_or_default();
+    let (line_start_byte, line_end_byte) = source.get_line_bounds(current_line).unwrap_or((0, 0));
+    let line_len_bytes = line_end_byte.saturating_sub(line_start_byte);
+
+    // determine slice bounds within the line
+    let mut slice_start_in_line: usize = 0;
+    let mut slice_end_in_line: usize = line_len_bytes;
+
+    // truncate long lines to fit within max_line_length
+    if max_line_length > 0 && line_len_bytes > max_line_length {
+        // calculate where the highlight appears within this line
+        let highlight_start_in_line = if current_line == start_line {
+            (span.span.start as usize).saturating_sub(line_start_byte)
+        } else {
+            0
+        };
+        let highlight_end_in_line = if current_line == end_line {
+            (span.span.end as usize).saturating_sub(line_start_byte)
+        } else if current_line >= start_line && current_line <= end_line {
+            line_len_bytes
+        } else {
+            highlight_start_in_line
+        };
+
+        // position the slice to show the highlight
+        let needed_end = highlight_end_in_line.min(line_len_bytes);
+        if needed_end <= max_line_length {
+            slice_start_in_line = 0;
+            slice_end_in_line = max_line_length;
+        } else {
+            slice_end_in_line = needed_end;
+            slice_start_in_line = slice_end_in_line.saturating_sub(max_line_length);
+        }
+
+        // adjust slice bounds to respect UTF-8 character boundaries
+        let abs_slice_start = line_start_byte + slice_start_in_line;
+        let abs_slice_end = line_start_byte + slice_end_in_line;
+        let mut start_b = abs_slice_start;
+        while start_b > line_start_byte && !source.content.is_char_boundary(start_b) {
+            start_b -= 1;
+        }
+        let mut end_b = abs_slice_end;
+        while end_b < line_end_byte && !source.content.is_char_boundary(end_b) {
+            end_b += 1;
+        }
+        slice_start_in_line = start_b - line_start_byte;
+        slice_end_in_line = (end_b - line_start_byte).min(line_len_bytes);
+    }
+
+    // extract the visible portion and compute absolute bounds
+    let visible = line_text
+        .get(slice_start_in_line..slice_end_in_line)
+        .unwrap_or(line_text);
+    let absolute_visible_start = line_start_byte + slice_start_in_line;
+    let absolute_visible_end = line_start_byte + slice_end_in_line;
+    let truncate_left = slice_start_in_line > 0;
+    let truncate_right = slice_end_in_line < line_len_bytes;
+    (
+        visible,
+        (
+            absolute_visible_start,
+            absolute_visible_end,
+            line_start_byte,
+            line_end_byte,
+        ),
+        truncate_left,
+        truncate_right,
+    )
+}
+
+/// Get the offset and length of the highlight within the visible slice.
+fn get_highlight_offset(
+    bounds: (usize, usize, usize, usize),
+    span: &LabeledSpan,
+    current_line: u32,
+    start_line: u32,
+    end_line: u32,
+) -> (usize, usize, bool, bool) {
+    let (absolute_visible_start, absolute_visible_end, line_start_byte, line_end_byte) = bounds;
+
+    // determine the absolute span of the highlight on this line
+    let segment_start_abs = if current_line == start_line {
+        span.span.start as usize
+    } else {
+        line_start_byte
+    };
+    let segment_end_abs = if current_line == end_line {
+        span.span.end as usize
+    } else {
+        line_end_byte
+    };
+
+    // clip the highlight to the visible portion
+    let hl_start = segment_start_abs
+        .max(absolute_visible_start)
+        .min(absolute_visible_end);
+    let hl_end = segment_end_abs
+        .max(absolute_visible_start)
+        .min(absolute_visible_end);
+
+    // ensure zero-width spans show at least one character
+    let mut highlight_count = hl_end.saturating_sub(hl_start);
+    if highlight_count == 0 && current_line == start_line {
+        highlight_count = 1;
+    }
+
+    let offset_spaces = hl_start.saturating_sub(absolute_visible_start);
+    let truncate_left = segment_start_abs < absolute_visible_start;
+    let truncate_right = segment_end_abs > absolute_visible_end;
+    (
+        offset_spaces,
+        highlight_count,
+        truncate_left,
+        truncate_right,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{SourceId, Span};
+
+    #[test]
+    fn test_annotate_single_line() {
+        let id = SourceId::new(0);
+        let content = r#"fn main() {
+    let variable = 42;
+}"#
+        .to_string();
+        let source = Source::new(id, "<test>".to_string(), content.clone());
+        let start = source.content.find("variable").unwrap();
+        let end = start + "variable".len();
+        let span = LabeledSpan {
+            span: Span::new(id, start as u32, end as u32),
+            label: "variable name".to_string(),
+        };
+        let options = AnnotateOptions {
+            max_line_length: 80,
+            prefix_lines: 1,
+            suffix_lines: 1,
+            use_color: false,
+        };
+        let annotated = annotate_source(&source, &span, options);
+
+        let expected = r#"==> <test>:2:9
+ | 
+ | 1 | fn main() {
+ | 2 |     let variable = 42;
+ |   |         ^^^^^^^^ variable name
+ | 3 | }
+ | 
+"#;
+
+        assert_eq!(annotated, expected);
+    }
+
+    #[test]
+    fn test_annotate_wrapped_line() {
+        let content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
+        let id = SourceId::new(0);
+        let source = Source::new(id, "<test>".to_string(), content.to_string());
+        let start = 150usize;
+        let end = 155usize;
+        let span = LabeledSpan {
+            span: Span::new(id, start as u32, end as u32),
+            label: "tail".to_string(),
+        };
+        let options = AnnotateOptions {
+            max_line_length: 60,
+            prefix_lines: 0,
+            suffix_lines: 0,
+            use_color: false,
+        };
+        let annotated = annotate_source(&source, &span, options);
+
+        let expected = r#"==> <test>:1:151
+ | 
+ | 1 | ..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..
+ |   |                                                        ^^^^^ tail
+ | 
+"#;
+
+        assert_eq!(annotated, expected);
+    }
+}

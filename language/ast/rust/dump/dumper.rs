@@ -31,7 +31,7 @@ use crate::{
 };
 use dyst_language_arena::StringId;
 
-// The console colors.
+/// The console colors.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
 enum Color {
