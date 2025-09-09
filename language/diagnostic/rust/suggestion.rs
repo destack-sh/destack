@@ -1,4 +1,4 @@
-use crate::LabeledSpan;
+use dyst_language_source::LabeledSpan;
 
 #[derive(Debug, Clone)]
 pub enum SuggestionStyle {

@@ -32,9 +32,9 @@ impl CommandArguments {
             if a == "--" {
                 positionals.extend(args[i + 1..].to_vec());
                 break;
-            }
+
             // parse long flags --key[=value]
-            else if let Some(body) = a.strip_prefix("--") {
+            } else if let Some(body) = a.strip_prefix("--") {
                 if let Some(eq) = body.find('=') {
                     let k = body[..eq].to_string();
                     let v = body[eq + 1..].to_string();
@@ -55,9 +55,9 @@ impl CommandArguments {
                 } else {
                     flags.insert(k, None);
                 }
-            }
+
             // parse positional arguments
-            else {
+            } else {
                 positionals.push(a.clone());
             }
 

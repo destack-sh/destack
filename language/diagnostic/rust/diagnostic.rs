@@ -1,4 +1,5 @@
-use crate::{LabeledSpan, Suggestion};
+use crate::Suggestion;
+use dyst_language_source::LabeledSpan;
 
 /// The kind of a diagnostic.
 #[derive(Debug, Clone, PartialEq)]
@@ -26,19 +27,16 @@ pub enum Severity {
 pub struct Diagnostic {
     /// The diagnostic ID of the diagnostic (like `E001` or `W017`).
     pub id: String,
-
+    /// The kind of the diagnostic.
+    pub kind: DiagnosticKind,
     /// The severity of the diagnostic.
     pub severity: Severity,
-
     /// The message of the diagnostic.
     pub message: String,
-
     /// The primary span of the diagnostic.
     pub primary_span: Option<LabeledSpan>,
-
     /// The secondary spans of the diagnostic.
     pub secondary_spans: Option<Vec<LabeledSpan>>,
-
     /// The suggestions for the diagnostic.
     pub suggestions: Option<Vec<Suggestion>>,
 }

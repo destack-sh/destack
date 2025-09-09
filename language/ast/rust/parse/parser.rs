@@ -56,11 +56,11 @@ impl Debug for Parser<'_> {
 
 impl<'a> Parser<'a> {
     /// Create a new parser.
-    pub fn from_source(source: &'a Source, source_id: SourceId) -> Self {
-        let tokens = tokenize_semantic(source_id, &source.content);
+    pub fn from_source(source: &'a Source) -> Self {
+        let tokens = tokenize_semantic(source.id, &source.content);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {
             span: Span {
-                source: source_id,
+                source: source.id,
                 start: 0,
                 end: 0,
             },
@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
         let diagnostics = Vec::new();
         Self {
             source,
-            source_id,
+            source_id: source.id,
             tokens,
             strings,
             paths,
@@ -96,7 +96,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Execute a function with a new parser options.
-    /// The old options are restored after the function returns.
+    /// The previous options are restored after the function returns.
     #[inline]
     pub(crate) fn with_options<T>(
         &mut self,
@@ -183,7 +183,7 @@ impl<'a> Parser<'a> {
 
     /// Eat the next Token or error.
     #[inline]
-    pub fn eat_next(&mut self) -> ParseResult<&TokenSpan> {
+    pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
         if self.pos < self.tokens.len() {
             self.bump();
             let next = &self.tokens[self.pos - 1];
@@ -236,7 +236,7 @@ impl<'a> Parser<'a> {
     /// Eat a token.
     #[inline]
     pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        let current = self.eat_next()?;
+        let current = self.eat()?;
         if current.token.r#type == token_type {
             Ok(current)
         } else {

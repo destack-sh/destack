@@ -11,13 +11,13 @@ pub(crate) struct TestParser {
 impl TestParser {
     pub(crate) fn new(input: &str) -> Self {
         let source_id = SourceId::new(0);
-        let source = Source::new(source_id, input.to_string());
+        let source = Source::new(source_id, "<test>".to_string(), input.to_string());
         Self { source }
     }
 
     /// Get a Parser for this test.
     pub(crate) fn parser(&self) -> Parser<'_> {
-        Parser::from_source(&self.source, self.source.path)
+        Parser::from_source(&self.source)
     }
 }
 
