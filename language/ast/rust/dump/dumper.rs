@@ -301,6 +301,14 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         self
     }
 
+    /// Add a field optional if it is Some.
+    pub fn field_optional<T: Dump>(&mut self, name: &str, value: &Option<T>) -> &mut Self {
+        if let Some(value) = value {
+            self.field(name, value);
+        }
+        self
+    }
+
     /// Add a new field to the generated struct output.
     pub fn value<T: Dump>(&mut self, value: &T) -> &mut Self {
         let prefix = if self.has_fields { ", " } else { " { " };
@@ -737,8 +745,8 @@ impl Dump for Module {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Module")
-            .field("name", &self.name)
-            .field("visibility", &self.visibility)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.statements, None);
@@ -750,8 +758,8 @@ impl Dump for Struct {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Struct")
-            .field("name", &self.name)
-            .field("visibility", &self.visibility)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.fields, None);
@@ -776,8 +784,8 @@ impl Dump for Enum {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Enum")
-            .field("name", &self.name)
-            .field("visibility", &self.visibility)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.fields, None);
@@ -795,8 +803,8 @@ impl Dump for Union {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Union")
-            .field("name", &self.name)
-            .field("visibility", &self.visibility)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.fields, None);
@@ -820,8 +828,8 @@ impl Dump for Trait {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Trait")
-            .field("name", &self.name)
-            .field("visibility", &self.visibility)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.withs, None);
@@ -986,8 +994,8 @@ impl Dump for Function {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Function")
-            .field("name", &self.name)
-            .field("visibility", &self.visibility)
+            .field_optional("name", &self.name)
+            .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
             if let Some(static_parameters) = &self.static_parameters {
@@ -1025,7 +1033,7 @@ impl Dump for WithClause {
             WithClause::Declaration { target, alias } => {
                 dumper
                     .node("WithClause::Declaration")
-                    .field("alias", alias)
+                    .field_optional("alias", alias)
                     .end();
                 dumper.with_depth(|dumper| {
                     dumper.dump_line(target, None);
@@ -1046,7 +1054,7 @@ impl Dump for Use {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Use")
-            .field("visibility", &self.visibility)
+            .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
             dumper.dump_lines(&self.clauses, None);
@@ -1059,7 +1067,10 @@ impl Dump for Use {
 
 impl Dump for UseClause {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("UseClause").field("alias", &self.alias).end();
+        dumper
+            .node("UseClause")
+            .field_optional("alias", &self.alias)
+            .end();
         dumper.with_depth(|dumper| {
             dumper.dump_line(&self.target, None);
             if let Some(items) = &self.items {
@@ -1074,7 +1085,7 @@ impl Dump for UseItem {
         dumper
             .node("UseItem")
             .field("name", &self.name)
-            .field("alias", &self.alias)
+            .field_optional("alias", &self.alias)
             .end();
     }
 }
@@ -1242,7 +1253,7 @@ impl Dump for Let {
         dumper
             .node("Let")
             .field("mutability", &self.mutability)
-            .field("visibility", &self.visibility)
+            .field_optional("visibility", &self.visibility)
             .field("initialization", &self.initialization)
             .end();
         dumper.with_depth(|dumper| {
@@ -1275,9 +1286,7 @@ impl Dump for Argument {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.with_depth(|dumper| match self {
             Argument::Named { name, value } => {
-                let mut node_dumper = dumper.node("Argument::Named");
-                node_dumper.field("name", name);
-                node_dumper.end();
+                dumper.node("Argument::Named").field("name", name).end();
                 dumper.dump_line(value, Some("value"));
             }
             Argument::NamedShorthand { name } => {
@@ -1302,47 +1311,52 @@ impl Dump for ScalarLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             ScalarLiteral::Void => {
-                let mut node_dumper = dumper.node("ScalarLiteral::Void");
-                node_dumper.end();
+                dumper.node("ScalarLiteral::Void").end();
             }
             ScalarLiteral::Null => {
-                let mut node_dumper = dumper.node("ScalarLiteral::Null");
-                node_dumper.end();
+                dumper.node("ScalarLiteral::Null").end();
             }
             ScalarLiteral::Boolean(value) => {
-                let mut node_dumper = dumper.node("ScalarLiteral::Boolean");
-                node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.end();
+                dumper
+                    .node("ScalarLiteral::Boolean")
+                    .field("value", &value.to_string().as_str())
+                    .end();
             }
             ScalarLiteral::Byte(value) => {
-                let mut node_dumper = dumper.node("ScalarLiteral::Byte");
-                node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.end();
+                dumper
+                    .node("ScalarLiteral::Byte")
+                    .field("value", &value.to_string().as_str())
+                    .end();
             }
             ScalarLiteral::Integer(value, _) => {
-                let mut node_dumper = dumper.node("ScalarLiteral::Integer");
-                node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.end();
+                dumper
+                    .node("ScalarLiteral::Integer")
+                    .field("value", &value.to_string().as_str())
+                    .end();
             }
             ScalarLiteral::Float(value, _) => {
-                let mut node_dumper = dumper.node("ScalarLiteral::Float");
-                node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.end();
+                dumper
+                    .node("ScalarLiteral::Float")
+                    .field("value", &value.to_string().as_str())
+                    .end();
             }
             ScalarLiteral::Character(value) => {
-                let mut node_dumper = dumper.node("ScalarLiteral::Character");
-                node_dumper.field("value", &value.to_string().as_str());
-                node_dumper.end();
+                dumper
+                    .node("ScalarLiteral::Character")
+                    .field("value", &value.to_string().as_str())
+                    .end();
             }
             ScalarLiteral::String(value) => {
-                let mut node_dumper = dumper.node("ScalarLiteral::String");
-                node_dumper.field("value", value);
-                node_dumper.end();
+                dumper
+                    .node("ScalarLiteral::String")
+                    .field("value", value)
+                    .end();
             }
             ScalarLiteral::ByteString(value) => {
-                let mut node_dumper = dumper.node("ScalarLiteral::ByteString");
-                node_dumper.field("value", value);
-                node_dumper.end();
+                dumper
+                    .node("ScalarLiteral::ByteString")
+                    .field("value", value)
+                    .end();
             }
         }
     }

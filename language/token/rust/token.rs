@@ -5,7 +5,7 @@ pub use destack_library_unicode::UNICODE_VERSION;
 /// A parsed Token.
 /// It doesn't contain information about data that has been parsed,
 /// only the type of the token and its size.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     /// The Token tag.
     pub r#type: TokenType,
@@ -36,7 +36,7 @@ impl Token {
 }
 
 /// Enum representing common lexeme types.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TokenType {
     /// Newline character.
     Newline,
@@ -233,7 +233,7 @@ pub enum TokenType {
 }
 
 /// "Raw" Literal Token for literal, scalar values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RawLiteralType {
     /// Void
     Void,
@@ -263,7 +263,7 @@ pub enum RawLiteralType {
 }
 
 /// An error from parsing a raw string.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RawStringError {
     /// Non `#` characters exist between `r` and `"`, e.g. `r##~"abcde"##`
     InvalidStarter { bad_char: char },
@@ -280,7 +280,7 @@ pub enum RawStringError {
 }
 
 /// Numeric literal base (according to its prefix).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NumberBase {
     /// Number starting with `0b`.
     Binary = 2,

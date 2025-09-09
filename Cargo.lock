@@ -360,6 +360,7 @@ dependencies = [
  "destack_extension_lsp",
  "destack_library_tokei",
  "dyst_language_ast",
+ "dyst_language_diagnostic",
  "dyst_language_source",
  "dyst_language_token",
  "tokio",

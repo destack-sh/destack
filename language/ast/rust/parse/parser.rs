@@ -110,10 +110,17 @@ impl<'a> Parser<'a> {
         result
     }
 
+    /// Called when an error is encountered.
+    /// Errors are collected and added to the diagnostics.
+    #[inline]
+    pub(crate) fn on_error(&mut self, e: ParseError) {
+        self.diagnostics.push(e.into());
+    }
+
     /// Gets a mark of the current position.
     #[inline]
     pub fn mark(&self) -> ParserMark {
-        ParserMark { pos: self.pos }
+        ParserMark::new(self.pos)
     }
 
     /// Rewind the position to the given mark.
@@ -300,10 +307,90 @@ impl<'a> Parser<'a> {
         }
         Ok(())
     }
+
+    /// Attempt a function with recovery.
+    pub fn with_recovery<T>(
+        &mut self,
+        start: ParserMark,
+        func: impl FnOnce(&mut Self) -> ParseResult<T>,
+        default: T,
+        bail: TokenType,
+    ) -> T {
+        match func(self) {
+            Ok(result) => result,
+            Err(_) => {
+                let _ = self.try_recover(start, bail);
+                default
+            }
+        }
+    }
+
+    /// Recover until the expected token.
+    /// Everything from start to then is an error.
+    pub fn try_recover(&mut self, start: ParserMark, recover: TokenType) -> ParseResult<()> {
+        while let Ok(token) = self.peek() {
+            // recover from here (but report error)
+            if token.token.r#type == recover {
+                let error = ParseError::unexpected(self.get_span_from(start));
+                self.on_error(error);
+                return Ok(());
+            } else {
+                // keep going
+                self.bump();
+            }
+        }
+        // error if we didn't hit the expected token
+        let error = ParseError::unexpected(self.get_span_from(start));
+        self.on_error(error);
+        Err(error)
+    }
+
+    /// Eat the expected token.
+    /// If we don't get the token, it's an error, but:
+    ///  1) If we do hit the expected token later, we recover from there.
+    ///  2) Otherwise, we try to recover forward until the bail token.
+    pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParseResult<()> {
+        // we're good if it's the expected token
+        if self.peek_token(expected).is_ok() {
+            self.bump();
+            return Ok(());
+        }
+
+        // try to recover
+        let start = self.mark();
+        while let Ok(token) = self.peek()
+            && token.token.r#type != bail
+        {
+            // ok with error if we finally hit the expected token
+            if token.token.r#type == expected {
+                let error = ParseError::unexpected(self.get_span_from(start));
+                self.bump();
+                self.on_error(error);
+                return Ok(());
+            }
+            // keep going
+            else {
+                self.bump();
+            }
+        }
+
+        // error if we didn't hit the expected token, we're either at recovery or EOF
+        let error = ParseError::unexpected(self.get_span_from(start));
+        self.on_error(error);
+        Err(error)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ParserMark {
     /// The token position.
     pos: usize,
+}
+
+impl ParserMark {
+    /// Create a new ParserMark.
+    #[inline]
+    pub(crate) fn new(pos: usize) -> Self {
+        Self { pos }
+    }
 }

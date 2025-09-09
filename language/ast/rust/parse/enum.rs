@@ -90,9 +90,8 @@ impl<'a> Parser<'a> {
                 fields.push(field);
             }
             // eat statements
-            else {
-                let statement = self.eat_statement()?;
-                statements.push(statement);
+            else if let Some(statement_id) = self.try_eat_statement()? {
+                statements.push(statement_id);
             }
         }
 

@@ -3,15 +3,19 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{Keyword, NodeId, ParseResult, Parser, Statement};
+use crate::{Keyword, NodeId, ParseResult, Parser, ParserMark, Statement};
 
 impl<'a> Parser<'a> {
-    /// Eat a statement (with the `;` or `\n`).
+    /// Eat a statement with recovery (return None if error and recovery is possible).
     #[inline]
-    pub fn eat_statement_with_stop(&mut self) -> ParseResult<NodeId<Statement>> {
-        let statement_id = self.eat_statement()?;
-        self.eat_statement_stop()?;
-        Ok(statement_id)
+    pub fn try_eat_statement(&mut self) -> ParseResult<Option<NodeId<Statement>>> {
+        match self.eat_statement() {
+            Ok(statement_id) => Ok(Some(statement_id)),
+            Err(err) => {
+                self.try_recover(ParserMark::new(err.span.start as usize), TokenType::Newline)?;
+                Ok(None)
+            }
+        }
     }
 
     /// Eat a statement body (without the `;` or `\n`).

@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
                     in_static_type: true,
                     ..self.options
                 },
-                |p| p.eat_parameters_body(),
+                |parser| parser.eat_parameters_body(),
             )?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(params)

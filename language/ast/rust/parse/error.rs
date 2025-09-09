@@ -3,10 +3,11 @@ use dyst_language_source::{LabeledSpan, Span};
 use dyst_language_token::TokenType;
 
 /// Error when parsing the AST.
-#[derive(Debug, Clone, PartialEq)]
+#[must_use]
+#[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct ParseError {
-    span: Span,
-    expected_token: Option<TokenType>,
+    pub span: Span,
+    pub expected_token: Option<TokenType>,
 }
 
 impl ParseError {
@@ -30,17 +31,17 @@ impl ParseError {
 /// The result of a parse operation.
 pub type ParseResult<T> = Result<T, ParseError>;
 
-impl ParseError {
+impl From<ParseError> for Diagnostic {
     /// Convert to a Diagnostic.
-    pub fn to_diagnostic(&self) -> Diagnostic {
+    fn from(error: ParseError) -> Self {
         Diagnostic {
             id: "E001".to_string(),
             kind: DiagnosticKind::Parse,
             severity: Severity::Error,
             message: "parse error".to_string(),
             primary_span: Some(LabeledSpan {
-                span: self.span,
-                label: match self.expected_token {
+                span: error.span,
+                label: match error.expected_token {
                     Some(token_type) => format!("expected {token_type:?}"),
                     None => "unexpected".to_string(),
                 },

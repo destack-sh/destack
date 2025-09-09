@@ -138,7 +138,7 @@ impl<'a> Parser<'a> {
                         in_implicit_union: true,
                         ..self.options
                     },
-                    |p| p.eat_pattern(),
+                    |parser| parser.eat_pattern(),
                 )?;
                 fields.push(field_pattern_id);
             }

@@ -343,7 +343,7 @@ impl<'a> Parser<'a> {
                         in_static_type: true,
                         ..self.options
                     },
-                    |p| p.eat_arguments_body(),
+                    |parser| parser.eat_arguments_body(),
                 )?;
                 self.eat_token(TokenType::GreaterThan)?;
                 Some(static_arguments)
