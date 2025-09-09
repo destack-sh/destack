@@ -56,7 +56,7 @@ impl<'a> Parser<'a> {
                     in_static_type: true,
                     ..self.options
                 },
-                |p| p.eat_parameters_body(),
+                |parser| parser.eat_parameters_body(),
             )?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(params)
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
         };
 
         // body
-        self.eat_token(TokenType::OpenBrace)?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
         let struct_id = self.eat_struct_body(visibility)?;
         self.eat_token(TokenType::CloseBrace)?;
@@ -104,9 +104,8 @@ impl<'a> Parser<'a> {
                 fields.push(field);
             }
             // eat statements
-            else {
-                let statement = self.eat_statement()?;
-                statements.push(statement);
+            else if let Some(statement_id) = self.try_eat_statement()? {
+                statements.push(statement_id);
             }
         }
 

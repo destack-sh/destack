@@ -83,8 +83,7 @@ impl<'a> Parser<'a> {
                 self.eat_statement_stop_with_newlines()?;
             }
             // eat statements
-            else {
-                let statement_id = self.eat_statement()?;
+            else if let Some(statement_id) = self.try_eat_statement()? {
                 statements.push(statement_id);
             }
         }

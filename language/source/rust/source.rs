@@ -1,5 +1,5 @@
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SourceId(u32);
 
 impl SourceId {

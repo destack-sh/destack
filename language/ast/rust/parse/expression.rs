@@ -663,7 +663,23 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Path { path: path_id };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
-            // error
+            //
+            // ------------------------------------------------------------
+            // Documentation
+            // ------------------------------------------------------------
+            //
+            // doc
+            else if token.token.r#type == TokenType::DocLineComment
+                || token.token.r#type == TokenType::DocBlockComment
+            {
+                let doc_id = self.eat_doc()?;
+                let expression = Expression::Doc(doc_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            //
+            // ------------------------------------------------------------
+            // Error
+            // ------------------------------------------------------------
             else {
                 let expression = Expression::Error;
                 self.tree.allocate(expression, self.get_span_from(start))

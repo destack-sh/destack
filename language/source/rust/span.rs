@@ -3,7 +3,7 @@
 use crate::SourceId;
 
 /// A source range in bytes (in some SourceFile).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Span {
     /// The file that the Span belongs to.
     pub source: SourceId,

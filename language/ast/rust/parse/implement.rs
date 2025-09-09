@@ -38,7 +38,7 @@ impl<'a> Parser<'a> {
                     in_static_type: true,
                     ..self.options
                 },
-                |p| p.eat_arguments_body(),
+                |parser| parser.eat_arguments_body(),
             )?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(static_arguments)
@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
         // body (if any)
         let mut statements: Vec<NodeId<Statement>> = vec![];
         if self.peek_token(TokenType::OpenBrace).is_ok() {
-            self.eat_token(TokenType::OpenBrace)?;
+            self.bump(); // eat open brace
             loop {
                 // stop on closing brace
                 if self.peek_token(TokenType::CloseBrace).is_ok() {
@@ -71,8 +71,7 @@ impl<'a> Parser<'a> {
                     self.eat_any_stop_with_newlines()?;
                 }
                 // eat statements
-                else {
-                    let statement_id = self.eat_statement()?;
+                else if let Some(statement_id) = self.try_eat_statement()? {
                     statements.push(statement_id);
                 }
             }
