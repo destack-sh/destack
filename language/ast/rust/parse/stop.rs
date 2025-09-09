@@ -11,8 +11,9 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParseError::SyntaxError(
+            Err(ParseError::expected_token(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Comma,
             ))
         }
     }
@@ -26,8 +27,9 @@ impl<'a> Parser<'a> {
         {
             self.bump();
         } else {
-            return Err(ParseError::SyntaxError(
+            return Err(ParseError::expected_token(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Comma,
             ));
         }
         self.eat_newlines_maybe()?;
@@ -43,8 +45,9 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParseError::SyntaxError(
+            Err(ParseError::expected_token(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Newline,
             ))
         }
     }
@@ -58,8 +61,9 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParseError::SyntaxError(
+            return Err(ParseError::expected_token(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Newline,
             ));
         }
         Ok(())
@@ -75,8 +79,9 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParseError::SyntaxError(
+            return Err(ParseError::expected_token(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Newline,
             ));
         }
         self.eat_newlines_maybe()?;
@@ -93,8 +98,9 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParseError::SyntaxError(
+            Err(ParseError::expected_token(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Newline,
             ))
         }
     }
@@ -110,8 +116,9 @@ impl<'a> Parser<'a> {
         {
             self.bump();
         } else {
-            return Err(ParseError::SyntaxError(
+            return Err(ParseError::expected_token(
                 self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Newline,
             ));
         }
         self.eat_newlines_maybe()?;

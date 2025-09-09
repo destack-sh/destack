@@ -376,8 +376,10 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_token_type(token.token.r#type)
-            .ok_or(ParseError::UnexpectedToken(token.span))
+        UnaryOperator::from_token_type(token.token.r#type).ok_or(ParseError::expected_token(
+            token.span,
+            TokenType::Identifier,
+        ))
     }
 
     /// Peek a binary operator.
@@ -387,22 +389,22 @@ impl<'a> Parser<'a> {
             && !IN_STATIC_TYPE_BINARY_OPERATORS
                 .contains(&BinaryOperator::from_token_type(self.peek()?.token.r#type).unwrap())
         {
-            return Err(ParseError::UnexpectedToken(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
         let token = self.peek()?;
         BinaryOperator::from_token_type(token.token.r#type)
-            .ok_or(ParseError::UnexpectedToken(token.span))
+            .ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek an assign operator.
     #[inline]
     pub fn peek_assign_operator(&self) -> ParseResult<AssignOperator> {
         if self.options.in_static_type {
-            return Err(ParseError::UnexpectedToken(self.peek()?.span));
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
         let token = self.peek()?;
         AssignOperator::from_token_type(token.token.r#type)
-            .ok_or(ParseError::UnexpectedToken(token.span))
+            .ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek an infix operator.
@@ -419,7 +421,7 @@ impl<'a> Parser<'a> {
         {
             Ok(InfixOperator::Assign(assign_operator))
         } else {
-            Err(ParseError::UnexpectedToken(token.span))
+            Err(ParseError::unexpected(token.span))
         }
     }
 
@@ -727,7 +729,7 @@ impl<'a> Parser<'a> {
         // ------------------------------------------------------------
         //
 
-        // eating infix while left precedence is weaker than right precedence
+        // eat infix expressions while left precedence is weaker than right precedence
         while let Ok(right_operator) = self.peek_infix_operator()
             && (options.left_precedence.is_none()
                 || options.left_precedence.unwrap() < right_operator.precedence())

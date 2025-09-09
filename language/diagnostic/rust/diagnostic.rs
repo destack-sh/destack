@@ -5,10 +5,7 @@ use crate::{LabeledSpan, Suggestion};
 pub enum DiagnosticKind {
     /// Parse error (invalid syntax).
     Parse,
-    /// Type error (invalid type).
-    Type,
-    /// Static error (static evaluation error).
-    Static,
+    // type, static, ..
 }
 
 /// The level of a diagnostic.
@@ -27,8 +24,8 @@ pub enum Severity {
 /// A Diagnostic.
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
-    /// The unique ID of the diagnostic.
-    pub id: i32,
+    /// The diagnostic ID of the diagnostic (like `E001` or `W017`).
+    pub id: String,
 
     /// The severity of the diagnostic.
     pub severity: Severity,
@@ -44,13 +41,4 @@ pub struct Diagnostic {
 
     /// The suggestions for the diagnostic.
     pub suggestions: Option<Vec<Suggestion>>,
-}
-
-impl Diagnostic {
-    // todo!: render diagnostics
-    pub fn render(&self) -> String {
-        let mut out = String::new();
-        out.push_str(&format!("{:?}: {}", self.severity, self.message));
-        out
-    }
 }

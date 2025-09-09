@@ -120,7 +120,10 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParseError::UnexpectedToken(self.peek()?.span))
+            Err(ParseError::expected_token(
+                self.peek().unwrap_or(&self.eof_token).span,
+                TokenType::Identifier,
+            ))
         }
     }
 

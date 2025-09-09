@@ -219,7 +219,7 @@ impl<'a> Parser<'a> {
             "float32" => Ok(PrimitiveType::Float(FloatType::Float32)),
             // float64
             "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
-            _ => Err(ParseError::UnexpectedToken(next.span)),
+            _ => Err(ParseError::expected_token(next.span, TokenType::Identifier)),
         }
     }
 
@@ -361,7 +361,7 @@ impl<'a> Parser<'a> {
         }
         // error
         else {
-            Err(ParseError::UnexpectedToken(next.span))
+            Err(ParseError::unexpected(next.span))
         }
     }
 
