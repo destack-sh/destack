@@ -1,7 +1,7 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
-use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, Visibility, With};
+use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Visibility, With};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.
@@ -12,7 +12,9 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     ///
-    /// trait Foo: Bar, Boz { // Foo is a subtype of Bar and Boz
+    /// trait Foo {
+    ///     use Bar, Boz // Foo *uses* Bar and Boz
+    ///     
     ///     let x: int32 // constant
     ///     function foo() => int32
     ///
@@ -20,7 +22,9 @@ impl<'a> Parser<'a> {
     ///     }
     /// }
     ///
-    /// trait Baz<T> with T: Copy {
+    /// trait Baz<T> {
+    ///     use Bar
+    ///
     ///     function baz() => T // semicolon optional
     /// }
     /// ```
@@ -53,21 +57,6 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // optional supertraits after ':'
-        let mut supertraits: Vec<NodeId<Type>> = Vec::new();
-        if self.peek_colon().is_ok() {
-            self.bump(); // eat colon
-            // first supertrait
-            let ty = self.eat_type()?;
-            supertraits.push(ty);
-            // more, comma-separated
-            while self.peek_token(TokenType::Comma).is_ok() {
-                self.bump(); // eat comma
-                let ty = self.eat_type()?;
-                supertraits.push(ty);
-            }
-        }
-
         // optional with declarations in header
         let mut withs: Vec<NodeId<With>> = Vec::new();
         if self.peek_keyword(Keyword::With).is_ok() {
@@ -87,7 +76,6 @@ impl<'a> Parser<'a> {
                 name,
                 visibility,
                 static_parameters,
-                supertraits,
                 withs,
                 statements,
             },
@@ -108,40 +96,11 @@ mod tests {
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, supertraits, withs, statements, .. } => {
+        assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, statements, .. } => {
             assert!(name.is_none());
             assert!(static_parameters.is_none());
-            assert!(supertraits.is_empty());
             assert!(withs.is_empty());
             assert!(statements.is_empty());
-        });
-    }
-
-    #[test]
-    fn test_parse_trait_with_name_and_supertraits() {
-        let test = TestParser::new("trait Foo: Bar, Boz {}");
-        let mut parser = test.parser();
-
-        let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, supertraits, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Foo")));
-            assert_eq!(supertraits.len(), 2);
-
-            // Bar
-            assert_node!(parser.tree, supertraits[0], Type::Path { path, .. } => {
-                assert_eq!(
-                    *path,
-                    parser.paths.intern(vec![parser.strings.intern("Bar")])
-                );
-            });
-
-            // Boz
-            assert_node!(parser.tree, supertraits[1], Type::Path { path, .. } => {
-                assert_eq!(
-                    *path,
-                    parser.paths.intern(vec![parser.strings.intern("Boz")])
-                );
-            });
         });
     }
 

@@ -398,7 +398,9 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::CloseBracket)?;
             let element_type = self.eat_type()?;
             let ty_id = self.tree.allocate(
-                Type::Slice { element: element_type },
+                Type::Slice {
+                    element: element_type,
+                },
                 self.get_span_from(start),
             );
             return Ok(ty_id);

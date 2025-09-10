@@ -533,7 +533,7 @@ impl Node for UnionField {
 }
 
 /// A Trait is trait definition node in the AST defining behavior and constants.
-/// Traits can be subtypes of other traits (with A: B), but cannot `use` structs.
+/// Traits can `use` other traits to include them (just like structs / unions).
 ///
 /// Examples:
 /// ```
@@ -541,7 +541,9 @@ impl Node for UnionField {
 ///     ...
 /// }
 ///
-/// trait Foo: Bar, Boz { // Foo *is* a subtype of Bar and Boz
+/// trait Foo {
+///     use Bar, Boz // Foo *uses* Bar and Boz
+///     
 ///     let x: int32 // constant
 ///     function foo() => int32
 ///
@@ -549,7 +551,9 @@ impl Node for UnionField {
 ///     }
 /// }
 ///
-/// trait Baz<T> with T: Copy {
+/// trait Baz<T> {
+///     use Bar
+///
 ///     function baz() => T // semicolon optional
 /// }
 /// ```
@@ -561,8 +565,6 @@ pub struct Trait {
     pub visibility: Option<Visibility>,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
-    /// The supertraits of the trait.
-    pub supertraits: Vec<NodeId<Type>>,
     /// The with declarations of the trait.
     pub withs: Vec<NodeId<With>>,
     /// The body of the trait.
