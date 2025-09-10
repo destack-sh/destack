@@ -4,6 +4,11 @@ use dyst.simulation
 struct Vector2 {
     x: float32
     y: float32
+
+    /// Construct a Vector2 from x and y components.
+    function new(x: float32, y: float32) => Vector2 {
+        Vector2 { x, y }
+    }
 }
 @assert(@sizeOf(Vector2) == 8)
 
@@ -20,11 +25,6 @@ implement Vector2 {
     let NegUnitX: Vector2 = Vector2 { x: -1.0, y: 0.0 }
     /// The negative unit y Vector2 (0, -1).
     let NegUnitY: Vector2 = Vector2 { x: 0.0, y: -1.0 }
-
-    /// Construct a Vector2 from x and y components.
-    function new(x: float32, y: float32) => Vector2 {
-        Vector2 { x, y }
-    }
 
     /// Construct a Vector2 with both components set to the same value.
     function splat(v: float32) => Vector2 {

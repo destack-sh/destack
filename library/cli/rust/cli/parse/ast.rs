@@ -1,6 +1,6 @@
 use dyst_language_ast::{BlockFormat, DumperOptions, Parser};
 use dyst_language_diagnostic::Severity;
-use dyst_language_source::{AnnotateOptions, annotate_source};
+use dyst_language_source::{AnnotateOptions, Color, annotate_source};
 use dyst_language_token::TokenType;
 
 use crate::cli::parse::read_source;
@@ -45,7 +45,8 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
                 use_color: true,
             },
         );
-        let diagnostic_header = format!("{}: {}", diagnostic.id, diagnostic.message);
+        let diagnostic_header =
+            Color::Red.apply_bold(&format!("{}: {}", diagnostic.id, diagnostic.message));
         console::error(&diagnostic_header);
         console::info(&annotated);
     }

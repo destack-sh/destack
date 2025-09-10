@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "destack_demo_breakout"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -312,7 +312,7 @@ dependencies = [
 
 [[package]]
 name = "destack_demo_tetris"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -320,7 +320,7 @@ dependencies = [
 
 [[package]]
 name = "destack_extension_lsp"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "dyst_language_ast",
  "dyst_language_token",
@@ -331,7 +331,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_access"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_animation"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_audio"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -355,7 +355,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_cli"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "destack_extension_lsp",
  "destack_library_tokei",
@@ -368,7 +368,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_cloud"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_core"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -384,11 +384,11 @@ dependencies = [
 
 [[package]]
 name = "destack_library_file"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 
 [[package]]
 name = "destack_library_geometry"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_image"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_json"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -412,7 +412,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_locale"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_network"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -428,11 +428,11 @@ dependencies = [
 
 [[package]]
 name = "destack_library_order"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 
 [[package]]
 name = "destack_library_perception"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_physics"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_prelude"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -456,7 +456,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_scene"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -464,7 +464,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_script"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -472,7 +472,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_social"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_style"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -488,7 +488,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_telemetry"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -496,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_time"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -504,18 +504,18 @@ dependencies = [
 
 [[package]]
 name = "destack_library_tokei"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "destack_library_file",
 ]
 
 [[package]]
 name = "destack_library_unicode"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 
 [[package]]
 name = "destack_library_universe"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_uuid"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -531,7 +531,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_video"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -539,7 +539,7 @@ dependencies = [
 
 [[package]]
 name = "destack_library_view"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -547,7 +547,7 @@ dependencies = [
 
 [[package]]
 name = "destack_platform_web"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -555,7 +555,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test_demo"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -563,7 +563,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test_simulation"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "destack_zed_extension"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "zed_extension_api",
 ]
@@ -589,7 +589,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_air"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -597,7 +597,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_arena"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_ast"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "criterion",
  "destack_library_file",
@@ -619,7 +619,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_cranelift"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -627,14 +627,14 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_diagnostic"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "dyst_language_source",
 ]
 
 [[package]]
 name = "dyst_language_dir"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_format"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -650,7 +650,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_llvm"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -658,7 +658,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_mir"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -666,7 +666,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_rust"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "destack_library_prelude",
  "dyst_language_ast",
@@ -677,7 +677,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_session"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "dyst_language_diagnostic",
  "dyst_language_source",
@@ -687,7 +687,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_source"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
@@ -695,7 +695,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_token"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "criterion",
  "destack_library_file",
@@ -708,7 +708,7 @@ dependencies = [
 
 [[package]]
 name = "dyst_language_vm"
-version = "2025.9.2-0"
+version = "2025.9.10-0"
 dependencies = [
  "quickcheck",
  "quickcheck_macros",
