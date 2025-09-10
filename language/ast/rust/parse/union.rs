@@ -27,8 +27,8 @@ impl<'a> Parser<'a> {
     /// }
     ///
     /// // unions can be tagged with enums and include other types with use (like structs)
-    /// union(TetrisShapeType) TetrisShape {
-    ///     use GameObject
+    /// union(TetrisShapeType) TetrisShape: Entity { // TetrisShape has Entity as super
+    ///     use TetrisGameObject
     ///     ...
     ///    
     ///     function myFunc() { // nested declaration
@@ -73,6 +73,30 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // optional super types: : ...
+        let super_types = if self.peek_token(TokenType::Colon).is_ok() {
+            self.bump(); // eat colon
+            let mut super_types: Vec<NodeId<Type>> = Vec::new();
+            loop {
+                // eat until open parenthesis
+                if self.peek_token(TokenType::OpenBrace).is_ok() {
+                    break;
+                }
+                // consume any stop
+                else if self.peek_any_stop().is_ok() {
+                    self.eat_any_stop_with_newlines()?;
+                }
+                // keep eating super types
+                else {
+                    let super_type = self.eat_type()?;
+                    super_types.push(super_type);
+                }
+            }
+            Some(super_types)
+        } else {
+            None
+        };
+
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
@@ -84,6 +108,7 @@ impl<'a> Parser<'a> {
         union.name = name;
         union.static_parameters = static_parameters;
         union.r#type = explicit_type;
+        union.super_types = super_types;
         self.tree.set_span(union_id, self.get_span_from(start));
 
         Ok(union_id)
@@ -121,6 +146,7 @@ impl<'a> Parser<'a> {
                 name: None,
                 visibility,
                 static_parameters: None,
+                super_types: None,
                 style: UnionStyle::Explicit,
                 r#type: None,
                 fields,
@@ -276,6 +302,7 @@ impl<'a> Parser<'a> {
             Union {
                 name: None,
                 visibility: None,
+                super_types: None,
                 style: UnionStyle::Implicit,
                 r#type: None,
                 static_parameters: None,
@@ -331,10 +358,34 @@ union { A, B }
     }
 
     #[test]
+    fn test_parse_explicit_union_with_super_types() {
+        let test = TestParser::new(
+            r###"
+union Foo: Bar {}
+"###,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let union_id = parser.eat_union(None).unwrap();
+        assert_node!(parser.tree, union_id, Union { name, super_types, fields, statements, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert!(statements.is_empty());
+            assert!(fields.is_empty());
+
+            let supers = super_types.as_ref().expect("expected super types");
+            assert_eq!(supers.len(), 1);
+            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_explicit_union_with_type_and_name() {
         let test = TestParser::new(
             r###"
-union(uint4) Foo<T> {
+union(uint4) Foo<T>: Boz {
     A
     use Bar
     C(boolean)
@@ -350,7 +401,7 @@ union(uint4) Foo<T> {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, static_parameters, fields, statements, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, static_parameters, fields, statements, super_types, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(*style, UnionStyle::Explicit);
 
@@ -367,6 +418,13 @@ union(uint4) Foo<T> {
             assert_node!(parser.tree, static_parameters[0], Parameter { name, r#type, .. } => {
                 assert_eq!(*name, parser.strings.intern("T"));
                 assert!(r#type.is_none());
+            });
+
+            // : Boz
+            let supers = super_types.as_ref().expect("expected super types");
+            assert_eq!(supers.len(), 1);
+            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Boz")]));
             });
 
             assert_eq!(statements.len(), 2);

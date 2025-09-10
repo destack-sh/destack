@@ -17,7 +17,6 @@ enum EventStatus {
 }
 
 /// An immutable datum of something happening to an Entity.
-@event
 struct Event {
     /// The universally unique identifier of self Node.
     id: Uuid,

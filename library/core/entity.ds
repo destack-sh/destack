@@ -47,9 +47,12 @@ function @entity(structDecl: StructDefinition) => StructDefinition {
 }
 
 trait Entity {
-    let name: string
+    /// The name of the Entity type.
+    let Name: String
 
-    function identity() => EntityReference;
+    function identity() => EntityIdentity;
+
+    function reference() => EntityReference;
 }
 
 struct EntityIdentity {

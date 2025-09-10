@@ -321,8 +321,9 @@ impl Node for Module {
 }
 
 /// A Struct is struct definition node in the AST.
-/// May be named or anonymous.
 /// The ',' separator is optional if newline-delimited.
+/// Structs may `use` other structs to include them (just like traits).
+/// Structs may also have super structs as semantic sugar for `use`-ing other structs.
 ///
 /// Examples:
 /// ```
@@ -338,7 +339,7 @@ impl Node for Module {
 ///     myOtherField: boolean
 /// }
 ///
-/// struct Foo<T> {
+/// struct Foo<T>: Baz { // Foo has a Baz
 ///     myField: int32
 ///     myOtherField: T
 ///
@@ -356,6 +357,8 @@ pub struct Struct {
     pub name: Option<StringId>,
     /// The visibility of the struct.
     pub visibility: Option<Visibility>,
+    /// The super types of the struct.
+    pub super_types: Option<Vec<NodeId<Type>>>,
     /// The static parameters of the struct.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The fields of the struct.
@@ -392,6 +395,8 @@ impl Node for StructField {
 
 /// An Enum is an enumeration definition node in the AST.
 /// Like with structs, the ',' separator is optional if newline-delimited.
+/// Like other types, enums can have super types - since "super" types are just
+///  sugar for `use`-ing other types and not implicit subtypes, this is fine and useful.
 ///
 /// Examples:
 /// ```
@@ -411,6 +416,10 @@ impl Node for StructField {
 ///     Baz = 1
 ///     Qux = 2
 /// }
+/// 
+/// enum ExtendedDay: Day { // ExtendedDay has Day as super
+///     Surfday = 8
+/// }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Enum {
@@ -420,6 +429,8 @@ pub struct Enum {
     pub visibility: Option<Visibility>,
     /// The type of the enum (if explicitly specified).
     pub r#type: Option<NodeId<Type>>,
+    /// The super types of the enum.
+    pub super_types: Option<Vec<NodeId<Type>>>,
     /// The fields of the enum.
     pub fields: Vec<NodeId<EnumField>>,
     /// The body of the enum.
@@ -476,8 +487,8 @@ pub enum UnionStyle {
 /// }
 ///
 /// // unions can be tagged with enums and include other types with use (like structs)
-/// union(TetrisShapeType) TetrisShape {
-///     use GameObject
+/// union(TetrisShapeType) TetrisShape: Entity { // TetrisShape has Entity as super
+///     use TetrisGameObject
 ///     ...
 ///
 ///     function myFunc() { // nested declaration
@@ -501,6 +512,8 @@ pub struct Union {
     pub r#type: Option<NodeId<Type>>,
     /// The static parameters of the union.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
+    /// The super types of the union.
+    pub super_types: Option<Vec<NodeId<Type>>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
     /// The body of the union.
@@ -534,6 +547,7 @@ impl Node for UnionField {
 
 /// A Trait is trait definition node in the AST defining behavior and constants.
 /// Traits can `use` other traits to include them (just like structs / unions).
+/// Traits can also have super traits as semantic sugar for `use`-ing other traits.
 ///
 /// Examples:
 /// ```
@@ -541,7 +555,7 @@ impl Node for UnionField {
 ///     ...
 /// }
 ///
-/// trait Foo {
+/// trait Foo: Baz { // Foo is a super
 ///     use Bar, Boz // Foo *uses* Bar and Boz
 ///     
 ///     let x: int32 // constant
@@ -563,6 +577,8 @@ pub struct Trait {
     pub name: Option<StringId>,
     /// The visibility of the trait.
     pub visibility: Option<Visibility>,
+    /// The super types of the trait.
+    pub super_types: Option<Vec<NodeId<Type>>>,
     /// The static parameters to the trait.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The with declarations of the trait.
@@ -877,8 +893,6 @@ pub enum Type {
     Struct(NodeId<Struct>),
     /// Inline Enum type `enum MyEnum { ... }`.
     Enum(NodeId<Enum>),
-    /// Inline anonymous intersection type `T1 & T2 & ...` (for type bounds and assertions).
-    Intersection(Vec<NodeId<Type>>),
     /// Inline Union type `union MyUnion { ... }` or implicit `A | B | C`.
     Union(NodeId<Union>),
     /// Inline Function type `(T1, T2, ...) => T`.
