@@ -1,3 +1,2 @@
 
-trait DebugDrawable {
-}
+trait DebugDrawable {}

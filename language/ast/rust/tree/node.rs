@@ -416,7 +416,7 @@ impl Node for StructField {
 ///     Baz = 1
 ///     Qux = 2
 /// }
-/// 
+///
 /// enum ExtendedDay: Day { // ExtendedDay has Day as super
 ///     Surfday = 8
 /// }

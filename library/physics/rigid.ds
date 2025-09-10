@@ -34,7 +34,9 @@ struct Mass2D {
 /// A solid simulated Body in 2D space
 @entity
 struct RigidBody2D { 
-    use Body2D, Kinematic2D, Mass2D 
+    use Body2D
+    use Kinematic2D
+    use Mass2D 
 
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic,
@@ -67,7 +69,9 @@ struct Mass3D {
 /// A solid simulated Body in 3D space
 @entity
 struct RigidBody3D { 
-    use Body3D, Kinematic3D, Mass3D 
+    use Body3D
+    use Kinematic3D
+    use Mass3D 
 
     /// The motion mode of the Body
     mode: RigidMotionMode = RigidMotionMode.Dynamic,

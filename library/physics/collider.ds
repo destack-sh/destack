@@ -6,8 +6,7 @@ struct ColliderEvent {}
 
 /// Collision contact between two colliders
 @event
-struct ColliderContactEvent { 
-    use ColliderEvent 
+struct ColliderContactEvent: ColliderEvent { 
 
     /// First collider
     colliderA: EntityReference<Collider2D>,
