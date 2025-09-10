@@ -172,12 +172,12 @@ macro_rules! assert_string {
     }};
 }
 
-/// Assert an `Expression::Path { path }`.
+/// Assert an `Expression::Path(path)`.
 #[macro_export]
 macro_rules! assert_path {
     // Resolve PathId to string and compare to expected.
     ($tree:expr, $expr_id:expr, $expected:expr, using $resolve:expr) => {{
-        $crate::assert_node!($tree, $expr_id, $crate::Expression::Path { path } => {
+        $crate::assert_node!($tree, $expr_id, $crate::Expression::Path(path) => {
             let got = ($resolve)(*path);
             assert_eq!(got, $expected, "expected path");
         });

@@ -32,7 +32,7 @@ pub struct Parser<'a> {
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     pub eof_token: TokenSpan,
 
-    // todo!: Parser Session & :Diagnostics (with some recovery)
+    /// NOTE :Architecture: move Parser.diagnostics into Session?
     /// Diagnostics emitted in this session.
     pub diagnostics: Vec<Diagnostic>,
     /// The string pool.
