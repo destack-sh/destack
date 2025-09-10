@@ -235,8 +235,8 @@ pub enum Expression {
     /// A Match is match expression (as an Expression, see Match).
     Match(NodeId<Match>),
 
-    /// Alias reference to some path (might me a member, constant, ...).
-    Path { path: PathId },
+    /// Alias reference to some path (as an Expression, we don't know what it is yet).
+    Path(PathId),
     /// Literal scalar value (as an Expression, see ScalarLiteral).
     ScalarLiteral(NodeId<ScalarLiteral>),
     /// Range literal (as an Expression, see RangeLiteral).
@@ -252,6 +252,11 @@ pub enum Expression {
     Unary {
         operator: UnaryOperator,
         right: NodeId<Expression>,
+    },
+    /// Member access (postfix as an Expression, see Member).
+    Member {
+        receiver: NodeId<Expression>,
+        path: PathId,
     },
     /// Index access (postfix as an Expression, see Index).
     Index(NodeId<Index>),
@@ -1805,7 +1810,7 @@ impl Node for Index {
 pub struct Call {
     /// The runtime of the call (static or dynamic).
     pub runtime: Runtime,
-    /// The receiver of the call.
+    /// The receiver of the call (including function name).
     pub receiver: NodeId<Expression>,
     /// The static arguments to the call `[Arg1, Arg2, ...]`.
     pub static_arguments: Option<Vec<NodeId<Argument>>>,
@@ -1828,7 +1833,9 @@ impl Node for Call {
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cast {
+    /// The receiver of the cast (including expression to cast).
     pub receiver: NodeId<Expression>,
+    /// The type to cast to.
     pub r#type: NodeId<Type>,
 }
 
@@ -1847,7 +1854,9 @@ impl Node for Cast {
 ///
 #[derive(Debug, Clone, PartialEq)]
 pub struct Coalesce {
+    /// The receiver of the coalesce (including expression to coalesce).
     pub receiver: NodeId<Expression>,
+    /// The default value to return if the expression is `null`.
     pub default: NodeId<Expression>,
 }
 

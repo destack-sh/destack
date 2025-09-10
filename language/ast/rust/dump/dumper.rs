@@ -657,7 +657,8 @@ impl Dump for Expression {
             Expression::Match(node) => {
                 dumper.node_wrapper("Expression::Match", *node);
             }
-            Expression::Path { path } => {
+
+            Expression::Path(path) => {
                 let mut node_dumper = dumper.node("Expression::Path");
                 node_dumper.field("path", path);
                 node_dumper.end();
@@ -684,6 +685,14 @@ impl Dump for Expression {
                 node_dumper.end();
                 dumper.with_depth(|dumper| {
                     dumper.dump_line(right, None);
+                });
+            }
+            Expression::Member { receiver, path } => {
+                let mut node_dumper = dumper.node("Expression::Member");
+                node_dumper.field("path", path);
+                node_dumper.end();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_line(receiver, None);
                 });
             }
             Expression::Index(node) => {
@@ -1446,7 +1455,7 @@ impl Dump for Index {
 
 impl Dump for Call {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("Call").end();
+        dumper.node("Call").field("runtime", &self.runtime).end();
         dumper.with_depth(|dumper| {
             dumper.dump_line(&self.receiver, Some("receiver"));
             if let Some(static_arguments) = &self.static_arguments {

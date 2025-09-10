@@ -239,7 +239,7 @@ impl<'a> Parser<'a> {
 
         // allocate the path expression for the target
         let span = self.get_span_from(start);
-        let target = self.tree.allocate(Expression::Path { path }, span);
+        let target = self.tree.allocate(Expression::Path(path), span);
 
         let clause = self.tree.allocate(
             UseClause {
@@ -478,7 +478,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path } => {
+                assert_node!(parser.tree, *target, Expression::Path(path) => {
                     assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
                 });
             });
@@ -497,7 +497,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
                 assert!(alias.is_none());
                 assert!(items.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path } => {
+                assert_node!(parser.tree, *target, Expression::Path(path) => {
                     assert_eq!(*path, parser.paths.intern(vec![
                         parser.strings.intern("dyst"),
                         parser.strings.intern("geometry")
@@ -519,7 +519,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
                 assert_eq!(*alias, Some(parser.strings.intern("ds")));
                 assert!(items.is_none());
-                assert_node!(parser.tree, *target, Expression::Path { path } => {
+                assert_node!(parser.tree, *target, Expression::Path(path) => {
                     assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
                 });
             });
@@ -550,7 +550,7 @@ mod tests {
                     assert_eq!(*alias, Some(parser.strings.intern("V3")));
                 });
                 // ds.geometry
-                assert_node!(parser.tree, *target, Expression::Path { path } => {
+                assert_node!(parser.tree, *target, Expression::Path(path) => {
                     assert_eq!(*path, parser.paths.intern(vec![
                         parser.strings.intern("ds"),
                         parser.strings.intern("geometry")
@@ -571,13 +571,13 @@ mod tests {
             assert_eq!(clauses.len(), 2);
             // use dyst
             assert_node!(parser.tree, clauses[0], UseClause { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path } => {
+                assert_node!(parser.tree, *target, Expression::Path(path) => {
                     assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
                 });
             });
             // use dyst
             assert_node!(parser.tree, clauses[1], UseClause { target, .. } => {
-                assert_node!(parser.tree, *target, Expression::Path { path } => {
+                assert_node!(parser.tree, *target, Expression::Path(path) => {
                     assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
                 });
             });

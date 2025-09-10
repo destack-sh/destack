@@ -660,7 +660,7 @@ impl<'a> Parser<'a> {
             // alias / path
             else if token.token.r#type == TokenType::Identifier {
                 let path_id = self.eat_path()?;
-                let expression = Expression::Path { path: path_id };
+                let expression = Expression::Path(path_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             //
@@ -694,8 +694,18 @@ impl<'a> Parser<'a> {
 
         // eat all postfix operations
         loop {
+            // member
+            if self.peek_token(TokenType::Dot).is_ok() {
+                self.bump(); // eat dot
+                let path_id = self.eat_path()?;
+                let expression = Expression::Member {
+                    receiver: left_expression_id,
+                    path: path_id,
+                };
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
             // index
-            if self.peek_token(TokenType::OpenBracket).is_ok() {
+            else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 let index_id = self.eat_index_postfix(left_expression_id)?;
                 let expression = Expression::Index(index_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
@@ -777,8 +787,8 @@ mod tests {
     use crate::parse::expression::ExpressionParserOptions;
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Call, Expression, FieldLiteral, Runtime, ScalarLiteral, StructLiteral,
-        TupleLiteral, Type, assert_int, assert_node, assert_path,
+        BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Runtime, ScalarLiteral,
+        StructLiteral, TupleLiteral, Type, assert_int, assert_node, assert_path,
     };
 
     /// Tuple literals are disambiguated.
@@ -1017,6 +1027,7 @@ geom.Mesh<2, Dims: 4> {
             }
         );
     }
+
     /// Multiplication has higher precedence than addition.
     /// a + b * c
     /// => (a + (b * c))
@@ -1451,6 +1462,75 @@ geom.Mesh<2, Dims: 4> {
                             assert_eq!(path.segments.len(), 1);
                             path.segments[0]
                         });
+                    }
+                );
+            }
+        );
+    }
+
+    /// Combine postfix member access and call with coalesce.
+    /// (y * y).sqrt() ?? 0
+    /// => (((y * y).sqrt()) ?? 0)
+    #[test]
+    fn test_parse_precedence_postfix_call_before_coalesce() {
+        let test = TestParser::new("(y * y).sqrt() ?? 0");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        let y = parser.strings.intern("y");
+        let sqrt = parser.strings.intern("sqrt");
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // (((y * y).sqrt()) ?? 0)
+            Expression::Coalesce(coalesce_id) => {
+                assert_node!(
+                    parser.tree,
+                    *coalesce_id,
+                    Coalesce { receiver, default } => {
+                        // ((y * y).sqrt())
+                        assert_node!(parser.tree, *receiver, Expression::Call(call_id) => {
+                            assert_node!(parser.tree, *call_id, Call { receiver, .. } => {
+                                // ((y * y).sqrt())
+                                assert_node!(parser.tree, *receiver, Expression::Member { receiver, path } => {
+                                    // sqrt
+                                    assert_eq!(*path, parser.paths.intern(vec![sqrt]));
+                                    // (y * y)
+                                    assert_node!(parser.tree, *receiver, Expression::Binary { left, operator, right } => {
+                                        // *
+                                        assert_eq!(*operator, BinaryOperator::Multiply);
+                                        // y
+                                        assert_path!(parser.tree, *left, y, using |path_id| {
+                                            let path = parser.paths.get(path_id);
+                                            assert_eq!(path.segments.len(), 1);
+                                            path.segments[0]
+                                        });
+                                        // y
+                                        assert_path!(parser.tree, *right, y, using |path_id| {
+                                            let path = parser.paths.get(path_id);
+                                            assert_eq!(path.segments.len(), 1);
+                                            path.segments[0]
+                                        });
+                                    });
+                                });
+                            });
+                        });
+
+                        // 0
+                        assert_node!(
+                            parser.tree,
+                            *default,
+                            Expression::ScalarLiteral(scalar_id) => {
+                                assert_node!(
+                                    parser.tree,
+                                    *scalar_id,
+                                    ScalarLiteral::Integer(0, _)
+                                );
+                            }
+                        );
                     }
                 );
             }
