@@ -284,7 +284,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Eat an array literal (fixed or repeated).
+    /// Eat an array literal (fixed).
     /// The individual elements are full expressions, not just literals.
     ///
     /// Examples:
@@ -297,54 +297,35 @@ impl<'a> Parser<'a> {
     ///   2 // comma is optional here too
     /// ]
     /// [10, false, "Hi"] // hetereogenous array is invalid but okay in AST
-    /// [0; 10] // repeated array
     pub fn eat_array_literal(&mut self) -> ParseResult<NodeId<ArrayLiteral>> {
         let start = self.mark();
 
         self.eat_token(TokenType::OpenBracket)?;
         self.eat_newlines_maybe()?;
 
-        // empty array
-        if self.peek_token(TokenType::CloseBracket).is_ok() {
-            self.eat_token(TokenType::CloseBracket)?;
-            let array_literal = self.tree.allocate(
-                ArrayLiteral::Fixed { elements: vec![] },
-                self.get_span_from(start),
-            );
-            return Ok(array_literal);
-        }
-
-        let first_element = self.eat_expression(ExpressionParserOptions::default())?;
-        if self.peek_token(TokenType::Semicolon).is_ok() {
-            // repeated array: [value; count]
-            self.eat_token(TokenType::Semicolon)?;
-            let count = self.eat_expression(ExpressionParserOptions::default())?;
-            self.eat_token(TokenType::CloseBracket)?;
-            let array_literal = self.tree.allocate(
-                ArrayLiteral::Repeated {
-                    element: first_element,
-                    count,
-                },
-                self.get_span_from(start),
-            );
-            Ok(array_literal)
-        } else {
-            // fixed array: [elem1, elem2, elem3, ...]
-            let mut elements = vec![first_element];
-            while self.peek_item_stop().is_ok() {
+        // eat everything
+        let mut elements = vec![];
+        loop {
+            // stop on closing bracket
+            if self.peek_token(TokenType::CloseBracket).is_ok() {
+                break;
+            }
+            // consume any stop
+            else if self.peek_item_stop().is_ok() {
                 self.eat_item_stop_with_newlines()?;
-                if self.peek_token(TokenType::CloseBracket).is_ok() {
-                    break;
-                }
+            }
+            // keep eating elements
+            else {
                 let element = self.eat_expression(ExpressionParserOptions::default())?;
                 elements.push(element);
             }
-            self.eat_token(TokenType::CloseBracket)?;
-            let array_literal = self
-                .tree
-                .allocate(ArrayLiteral::Fixed { elements }, self.get_span_from(start));
-            Ok(array_literal)
         }
+
+        self.eat_token(TokenType::CloseBracket)?;
+        let array_literal = self
+            .tree
+            .allocate(ArrayLiteral::Fixed { elements }, self.get_span_from(start));
+        Ok(array_literal)
     }
 
     /// Eat a tuple literal.
@@ -742,23 +723,6 @@ mod tests {
             // [2] = 3.0
             assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
                 assert_float!(parser.tree, *scalar_literal_id, 3.0);
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_repeated_array_literal() {
-        // [0; 10]
-        let test = TestParser::new("[0; 10]");
-        let mut parser = test.parser();
-
-        let literal_id = parser.eat_array_literal().unwrap();
-        assert_node!(parser.tree, literal_id, ArrayLiteral::Repeated { element, count } => {
-            assert_node!(parser.tree, *element, Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_int!(parser.tree, *scalar_literal_id, 0);
-            });
-            assert_node!(parser.tree, *count, Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_int!(parser.tree, *scalar_literal_id, 10);
             });
         });
     }

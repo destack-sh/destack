@@ -108,8 +108,8 @@ impl<'a> Parser<'a> {
     /// int32
     /// boolean
     /// boolean | *int32
-    /// [float32]
-    /// [float64; 3]
+    /// []float32
+    /// [3]float64
     /// (int32, int32)
     /// *T // pointer to T
     /// *?T // pointer to Maybe<T>
@@ -382,50 +382,40 @@ impl<'a> Parser<'a> {
         Ok(ty_id)
     }
 
-    /// Eat an array or slice type (including the `[` and `]`).
+    /// Eat an array or slice type (including the `[` and `]` prefix).
     ///
     /// Examples:
     /// ```
-    /// [int32] // slice
-    /// [int32; 5] // array (fixed size)
+    /// []int32 // slice
+    /// [5]int32 // array (fixed size)
     /// ```
     pub fn eat_array_or_slice_type(&mut self) -> ParseResult<NodeId<Type>> {
-        self.eat_token(TokenType::OpenBracket)?;
-        let body = self.eat_array_or_slice_type_body()?;
-        self.eat_token(TokenType::CloseBracket)?;
-        Ok(body)
-    }
-
-    /// Eat an array or slice type body (excluding the `[` and `]`).
-    ///
-    /// Examples:
-    /// ```
-    /// int32
-    /// int32; 5
-    /// ```
-    pub fn eat_array_or_slice_type_body(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-        let element_type = self.eat_type()?;
-        if self.peek_semicolon().is_ok() {
-            self.eat_semicolon()?;
-            let count = self.eat_expression(ExpressionParserOptions::default())?;
+        self.eat_token(TokenType::OpenBracket)?;
+
+        // slice: []T
+        if self.peek_token(TokenType::CloseBracket).is_ok() {
+            self.eat_token(TokenType::CloseBracket)?;
+            let element_type = self.eat_type()?;
             let ty_id = self.tree.allocate(
-                Type::Array {
-                    element_type,
-                    count,
-                },
+                Type::Slice { element: element_type },
                 self.get_span_from(start),
             );
-            Ok(ty_id)
-        } else {
-            let ty_id = self.tree.allocate(
-                Type::Slice {
-                    element: element_type,
-                },
-                self.get_span_from(start),
-            );
-            Ok(ty_id)
+            return Ok(ty_id);
         }
+
+        // array: [N]T
+        let count = self.eat_expression(ExpressionParserOptions::default())?;
+        self.eat_token(TokenType::CloseBracket)?;
+        let element_type = self.eat_type()?;
+        let ty_id = self.tree.allocate(
+            Type::Array {
+                element: element_type,
+                count,
+            },
+            self.get_span_from(start),
+        );
+        Ok(ty_id)
     }
 }
 

@@ -814,8 +814,8 @@ impl Node for TupleField {
 /// int32
 /// boolean
 /// boolean | *int32
-/// [float32]
-/// [float64; 3]
+/// []float32
+/// [3]float64
 /// (int32, int32)
 /// *T // pointer to T
 /// *?T // pointer to Maybe<T>
@@ -859,13 +859,12 @@ pub enum Type {
     },
     /// Variadic type `..T`.
     Variadic(NodeId<Type>),
-    // todo!: change slice/array syntax (to []T and [N]T?)
-    /// Inline Array type `[T; N]`. Must be fixed length.
+    /// Inline Array type `[N]T`. Must be fixed length.
     Array {
-        element_type: NodeId<Type>,
+        element: NodeId<Type>,
         count: NodeId<Expression>,
     },
-    /// Inline Slice type `[T]`. Unknown length (dynamic).
+    /// Inline Slice type `[]T`. Unknown length (dynamically sized).
     Slice { element: NodeId<Type> },
     /// Inline anonymous tuple type `(T1, T2, ...)` (no tuple keyword).
     Tuple(NodeId<Tuple>),
@@ -1438,17 +1437,11 @@ impl Node for RangeLiteral {
 ///   2 // comma is optional here too
 /// ]
 /// [10, false, "Hi"] // hetereogenous array is invalid but legal in AST
-/// [0; 10] // repeated array
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArrayLiteral {
     /// A fixed-size array.
     Fixed { elements: Vec<NodeId<Expression>> },
-    /// A repeated array.
-    Repeated {
-        element: NodeId<Expression>,
-        count: NodeId<Expression>,
-    },
 }
 
 impl Node for ArrayLiteral {

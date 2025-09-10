@@ -925,7 +925,7 @@ impl Dump for Type {
                 });
             }
             Type::Array {
-                element_type,
+                element: element_type,
                 count,
             } => {
                 dumper.node("Type::Array").end();
@@ -1409,13 +1409,6 @@ impl Dump for ArrayLiteral {
                 dumper.node("ArrayLiteral::Fixed").end();
                 dumper.with_depth(|dumper| {
                     dumper.dump_lines(elements, Some("element"));
-                });
-            }
-            ArrayLiteral::Repeated { element, count } => {
-                dumper.node("ArrayLiteral::Repeated").end();
-                dumper.with_depth(|dumper| {
-                    dumper.dump_line(element, Some("element"));
-                    dumper.dump_line(count, Some("count"));
                 });
             }
         }

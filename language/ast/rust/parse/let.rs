@@ -13,7 +13,7 @@ impl<'a> Parser<'a> {
     /// var x = 1
     /// var x: int32 = 1
     /// var x: int32 // implicitly uninitialized, must be set before use
-    /// var x: [float64; 3] = -- // explicitly uninitialized, can do whatever
+    /// var x: [3]float64 = -- // explicitly uninitialized, can do whatever
     ///
     /// let Some(x) = someFunction()
     /// var Point { x, .. } = someFunction()
@@ -118,7 +118,7 @@ let x: int32 = 1
     fn test_parse_var_array_uninitialized() {
         let test = TestParser::new(
             r###"
-var x: [float64; 3] = --
+var x: [3]float64 = --
 "###,
         );
         let mut parser = test.parser();
@@ -135,10 +135,10 @@ var x: [float64; 3] = --
                 assert_eq!(*name, parser.strings.intern("x"));
             });
 
-            // [float64; 3]
+            // [3]float64
             let ty_id = r#type.expect("expected explicit type");
-            assert_node!(parser.tree, ty_id, Type::Array { element_type, count } => {
-                assert_node!(parser.tree, *element_type, Type::Primitive(PrimitiveType::Float(FloatType::Float64)));
+            assert_node!(parser.tree, ty_id, Type::Array { element, count } => {
+                assert_node!(parser.tree, *element, Type::Primitive(PrimitiveType::Float(FloatType::Float64)));
                 assert_node!(parser.tree, *count, Expression::ScalarLiteral(lit_id) => {
                     assert_int!(parser.tree, *lit_id, 3);
                 });
