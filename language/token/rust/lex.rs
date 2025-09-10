@@ -227,7 +227,7 @@ impl Tokenizer<'_> {
                     (TokenType::Maybe, None)
                 }
             }
-            '$' => (TokenType::Dollar, None),
+            '$' => (TokenType::Virtual, None),
 
             // brackets
             '(' => (TokenType::OpenParenthesis, None),
@@ -246,7 +246,7 @@ impl Tokenizer<'_> {
                 }
                 // !
                 else {
-                    (TokenType::Bang, None)
+                    (TokenType::Not, None)
                 }
             }
 

@@ -80,8 +80,8 @@ impl Token {
             TokenType::BitwiseNot => "~".to_string(),
             TokenType::Maybe => "?".to_string(),
             TokenType::Coalesce => "??".to_string(),
-            TokenType::Dollar => "$".to_string(),
-            TokenType::Bang => "!".to_string(),
+            TokenType::Virtual => "$".to_string(),
+            TokenType::Not => "!".to_string(),
 
             // multiplication
             TokenType::Multiply => "*".to_string(),

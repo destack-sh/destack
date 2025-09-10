@@ -823,6 +823,7 @@ impl Node for TupleField {
 /// *?T // pointer to Maybe<T>
 /// ?*T // Maybe pointer to T
 /// ?*?T // Maybe pointer to Maybe<T>
+/// $T // virtual type T
 /// T<int32>
 /// T<Validate: false>
 /// MyEnum
@@ -859,9 +860,11 @@ pub enum Type {
         mutability: Mutability,
         target: NodeId<Type>,
     },
+    /// Virtual type `$T`.
+    Virtual(NodeId<Type>),
     /// Variadic type `..T`.
     Variadic(NodeId<Type>),
-    /// Inline Array type `[N]T`. Must be fixed length.
+    /// Inline Array type `[N]T`. Must have static length.
     Array {
         element: NodeId<Type>,
         count: NodeId<Expression>,

@@ -115,6 +115,7 @@ impl<'a> Parser<'a> {
     /// *?T // pointer to Maybe<T>
     /// ?*T // Maybe pointer to T
     /// ?*?T // Maybe pointer to Maybe<T>
+    /// $T // virtual type T
     /// T<int32>
     /// T<Validate: false>
     /// MyEnum
@@ -276,7 +277,7 @@ impl<'a> Parser<'a> {
             Ok(ty_id)
 
         // not or never with `!`
-        } else if next.token.r#type == TokenType::Bang {
+        } else if next.token.r#type == TokenType::Not {
             self.bump();
             if self.peek_token(TokenType::Identifier).is_ok() {
                 let inner_type = self.eat_type()?;
@@ -308,6 +309,15 @@ impl<'a> Parser<'a> {
                 },
                 self.get_span_from(start),
             );
+            Ok(ty_id)
+
+        // virtual with `$`
+        } else if next.token.r#type == TokenType::Virtual {
+            self.bump();
+            let inner_type = self.eat_type()?;
+            let ty_id = self
+                .tree
+                .allocate(Type::Virtual(inner_type), self.get_span_from(start));
             Ok(ty_id)
 
         // variadic with `..`
@@ -779,6 +789,23 @@ mod tests {
                 );
             }
         );
+    }
+
+    #[test]
+    fn test_parse_type_virtual() {
+        let test = TestParser::new("$T");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type().unwrap();
+
+        assert_node!(parser.tree, ty_id, Type::Virtual(inner_id) => {
+            assert_node!(parser.tree, *inner_id, Type::Path {
+                path,
+                static_arguments: None
+            } => {
+                let expected_path = parser.paths.intern(vec![parser.strings.intern("T")]);
+                assert_eq!(*path, expected_path);
+            });
+        });
     }
 
     #[test]
