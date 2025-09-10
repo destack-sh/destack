@@ -9,7 +9,7 @@ enum SanctionType {
 /// Base event regarding a Sanction.
 @event
 struct SanctionEvent {
-    /// The Sanction this event pertains to.
+    /// The Sanction self event pertains to.
     sanction: Sanction,
     /// The sanctioned target Entity.
     target: Entity,

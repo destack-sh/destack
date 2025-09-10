@@ -22,12 +22,13 @@
 
 use crate::{
     Argument, ArrayLiteral, AssignOperator, BinaryOperator, Block, Break, Call, Cast, Coalesce,
-    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, If,
-    Implement, Index, IntType, Let, LetInitialization, Loop, Match, MatchCase, Module, Mutability,
-    Node, NodeId, NodeTree, NodeTreeStore, Parameter, PathId, PathPool, Pattern, PatternField,
-    PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, Statement, StringPool, Struct,
-    StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator,
-    Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause,
+    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function,
+    FunctionStyle, If, Implement, Index, IntType, Let, LetInitialization, Loop, Match, MatchCase,
+    Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, Parameter, PathId, PathPool,
+    Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral,
+    SelfParameter, Statement, StringPool, Struct, StructField, StructLiteral, Trait, Try, Tuple,
+    TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem,
+    Visibility, While, With, WithClause,
 };
 use dyst_language_arena::StringId;
 
@@ -481,6 +482,13 @@ impl Dump for Runtime {
     }
 }
 
+/// Dump a FunctionStyle as a string.
+impl Dump for FunctionStyle {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump a Mutability as a string.
 impl Dump for Mutability {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -740,10 +748,6 @@ impl Dump for Expression {
             Expression::Doc(node) => {
                 dumper.node_wrapper("Expression::Doc", *node);
             }
-
-            Expression::Error => {
-                dumper.node("Expression::Error").end();
-            }
         }
     }
 }
@@ -1001,12 +1005,24 @@ impl Dump for TupleField {
     }
 }
 
+impl Dump for SelfParameter {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper
+            .node("SelfParameter")
+            .field("mutability", &self.mutability)
+            .field("is_pointer", &self.is_pointer)
+            .end();
+    }
+}
+
 impl Dump for Function {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper
             .node("Function")
             .field_optional("name", &self.name)
             .field_optional("visibility", &self.visibility)
+            .field_optional("self", &self.self_parameter)
+            .field("runtime", &self.runtime)
             .end();
         dumper.with_depth(|dumper| {
             if let Some(static_parameters) = &self.static_parameters {
@@ -1416,8 +1432,8 @@ impl Dump for StructLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("StructLiteral").end();
         dumper.with_depth(|dumper| {
-            dumper.dump_line(&self.r#type, Some("type"));
-            dumper.dump_lines(&self.fields, Some("field"));
+            dumper.dump_line(&self.r#type, None);
+            dumper.dump_lines(&self.fields, None);
         });
     }
 }
@@ -1426,14 +1442,16 @@ impl Dump for FieldLiteral {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         match self {
             FieldLiteral::Named { name, value } => {
-                dumper.node("FieldLiteral::Named").end();
-                dumper.dump_line(name, Some("name"));
+                dumper.node("FieldLiteral::Named").field("name", name).end();
                 dumper.with_depth(|dumper| {
-                    dumper.dump_line(value, Some("value"));
+                    dumper.dump_line(value, None);
                 });
             }
             FieldLiteral::NamedShorthand { name } => {
-                dumper.dump_line(name, Some("name"));
+                dumper
+                    .node("FieldLiteral::NamedShorthand")
+                    .field("name", name)
+                    .end();
             }
         }
     }
@@ -1564,8 +1582,11 @@ impl Dump for Pattern {
                     dumper.dump_line(end, Some("end"));
                 });
             }
-            Pattern::Tuple { fields } => {
-                dumper.node("Pattern::Tuple").end();
+            Pattern::Tuple { path, fields } => {
+                dumper
+                    .node("Pattern::Tuple")
+                    .field_optional("path", path)
+                    .end();
                 dumper.with_depth(|dumper| {
                     dumper.dump_lines(fields, None);
                 });

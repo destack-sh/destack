@@ -1,8 +1,42 @@
-use crate::{ParseResult, Parser, PathId};
+use crate::{ParseError, ParseResult, Parser, PathId};
 use dyst_language_arena::StringId;
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
+    /// Peek a path.
+    /// NOTE :Performance: peek_path uses :UnboundedLookahead
+    #[inline]
+    pub fn peek_path(&self) -> ParseResult<(usize, usize)> {
+        // first name can't be a keyword
+        if self.peek_any_keyword().is_ok() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        let mut pos = self.pos();
+        let start = pos;
+
+        // identifier .identifier*
+        // like `geom.Mesh`
+        while let Some(token) = self.tokens.get(pos)
+            && token.token.r#type == TokenType::Identifier
+        {
+            pos += 1;
+            // keep going if there's a dot
+            if let Some(token) = self.tokens.get(pos)
+                && token.token.r#type == TokenType::Dot
+            {
+                pos += 1;
+                continue;
+            }
+        }
+
+        if pos > start {
+            Ok((start, pos))
+        } else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
     /// Eat a Path.
     pub fn eat_path(&mut self) -> ParseResult<PathId> {
         let mut segments: Vec<StringId> = Vec::new();

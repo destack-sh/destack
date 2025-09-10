@@ -10,7 +10,7 @@ struct Reaction {
 /// Base Reaction event.
 @event
 struct ReactionEvent {
-    /// The Reaction this event pertains to.
+    /// The Reaction self event pertains to.
     reaction: EntityReference<Reaction>,
     /// The reaction content.
     content: String,

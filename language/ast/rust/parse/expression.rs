@@ -680,9 +680,9 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             // Error
             // ------------------------------------------------------------
+            //
             else {
-                let expression = Expression::Error;
-                self.tree.allocate(expression, self.get_span_from(start))
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
         };
 

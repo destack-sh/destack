@@ -6,7 +6,7 @@ enum TriggerType { Event = 1 }
 /// Base Trigger event.
 @event
 struct TriggerEvent {
-    /// The Trigger this event pertains to.
+    /// The Trigger self event pertains to.
     trigger: Trigger,
 }
 

@@ -1,5 +1,7 @@
 /// Marker trait for contexts.
-trait Context
+trait Context {
+    
+}
 
 /// Default context.
 struct DefaultContext {
@@ -8,5 +10,3 @@ struct DefaultContext {
     // logger, tracer, stack trace, ...
     // time, location, ... (maybe put that into library)
 }
-
-implement Context for DefaultContext

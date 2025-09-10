@@ -3,7 +3,7 @@ use dyst
 /// Base event regarding a Membership.
 @event
 struct MembershipEvent {
-    /// The Membership this event pertains to.
+    /// The Membership self event pertains to.
     membership: EntityReference<Membership>,
     /// The Joinable Entity of the Membership.
     joinable: EntityReference<Joinable>,

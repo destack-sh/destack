@@ -85,7 +85,7 @@ impl Span {
 }
 
 /// A MultiSpan is a collection of Spans.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MultiSpan {
     /// The Spans.
     pub spans: Vec<Span>,
@@ -99,7 +99,7 @@ impl MultiSpan {
 }
 
 /// A Span with a message.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct LabeledSpan {
     /// The span of the labeled span.
     pub span: Span,

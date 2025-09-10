@@ -3,7 +3,7 @@ use dyst
 /// Base event regarding a Role.
 @event
 struct RoleEvent {
-    /// The Role this event pertains to.
+    /// The Role self event pertains to.
     role: EntityReference<Role>,
     /// The actor Entity affected by the Role.
     actor: EntityReference<Actor>,

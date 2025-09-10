@@ -1,8 +1,0 @@
-
-trait Allocation<AllocatorType: Allocator> is Context {
-    allocator() => Any<AllocatorType>
-}
-
-trait Allocator {
-    allocate(size: usize)
-}

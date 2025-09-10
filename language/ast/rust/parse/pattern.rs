@@ -16,7 +16,9 @@ impl<'a> Parser<'a> {
     /// 2 | 3
     /// 4..6
     /// (x, 0, ..)
+    /// Success(_)
     /// Vector2 { x: 0, y, z: zed }
+    /// geom.Mesh<2, float32> { vertices: [2, ..] }
     /// ```
     pub fn eat_pattern(&mut self) -> ParseResult<NodeId<Pattern>> {
         let start = self.mark();
@@ -62,13 +64,19 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // identifier
-            else if self.peek_identifier().is_ok() {
-                let identifier_id = self.eat_identifier()?;
-                self.tree.allocate(
-                    Pattern::Identifier(identifier_id),
-                    self.get_span_from(start),
-                )
+            // tuple with path
+            else if let Ok((_, pos)) = self.peek_path()
+                && let Some(token) = self.tokens.get(pos)
+                && token.token.r#type == TokenType::OpenParenthesis
+            {
+                let path = self.eat_path()?;
+                self.bump(); // eat open parenthesis
+                self.eat_newlines_maybe()?;
+                let fields =
+                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
+                let pattern = Pattern::Tuple { path: Some(path), fields };
+                self.eat_token(TokenType::CloseParenthesis)?;
+                self.tree.allocate(pattern, self.get_span_from(start))
             }
             // tuple
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
@@ -76,7 +84,7 @@ impl<'a> Parser<'a> {
                 self.eat_newlines_maybe()?;
                 let fields =
                     self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
-                let pattern = Pattern::Tuple { fields };
+                let pattern = Pattern::Tuple { path: None, fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.allocate(pattern, self.get_span_from(start))
             }
@@ -102,6 +110,14 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::CloseBrace)?;
                 self.tree.allocate(
                     Pattern::Struct { r#type, fields },
+                    self.get_span_from(start),
+                )
+            }
+            // identifier
+            else if self.peek_identifier().is_ok() {
+                let identifier_id = self.eat_identifier()?;
+                self.tree.allocate(
+                    Pattern::Identifier(identifier_id),
                     self.get_span_from(start),
                 )
             }
@@ -276,7 +292,7 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
 
         // (x: 1, 2, ..)
-        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
             assert_eq!(fields.len(), 3);
 
             // x: 1
@@ -302,6 +318,30 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_pattern_tuple_with_path() {
+        let test = TestParser::new("Result.Success(_, ..)");
+        let mut parser = test.parser();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        // Result.Success(_, ..)
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { path, fields } => {
+            // Result.Success
+            assert!(path.is_some());
+            assert_eq!(fields.len(), 2);
+
+            // _
+            assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Wildcard);
+            });
+
+            // ..
+            assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
+                assert_node!(parser.tree, *pattern, Pattern::Rest);
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_pattern_tuple_newline_separated() {
         let test = TestParser::new(
             "
@@ -316,7 +356,7 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
 
         // (x: 1, 2, ..)
-        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
+        assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
             assert_eq!(fields.len(), 3);
 
             // x: 1

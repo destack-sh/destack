@@ -6,7 +6,7 @@ enum TimerType { Once = 1, Recurring = 2 }
 /// Base Timer event.
 @event
 struct TimerEvent {
-    /// The Timer this event pertains to.
+    /// The Timer self event pertains to.
     timer: Timer,
 }
 

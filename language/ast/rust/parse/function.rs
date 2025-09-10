@@ -97,19 +97,33 @@ impl<'a> Parser<'a> {
         // dynamic parameters
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
-        // self, *self, *var self parameter
+        // self, *self, *var self parameter (also accept `this`)
         let self_parameter: Option<SelfParameter> = {
             // self
-            if self.peek_keyword(Keyword::Self_).is_ok() {
+            if self.peek_keyword(Keyword::Self_).is_ok() || self.peek_keyword(Keyword::This).is_ok()
+            {
                 self.bump(); // eat self
                 Some(SelfParameter {
                     mutability: Mutability::Immutable,
                     is_pointer: false,
                 })
             }
+            // var self
+            else if self.peek_keyword(Keyword::Var).is_ok()
+                && (self.peek_next_keyword(Keyword::Self_).is_ok()
+                    || self.peek_next_keyword(Keyword::This).is_ok())
+            {
+                self.bump(); // eat var
+                self.bump(); // eat self
+                Some(SelfParameter {
+                    mutability: Mutability::Mutable,
+                    is_pointer: false,
+                })
+            }
             // *self
             else if self.peek_token(TokenType::Multiply).is_ok()
-                && self.peek_next_keyword(Keyword::Self_).is_ok()
+                && (self.peek_next_keyword(Keyword::Self_).is_ok()
+                    || self.peek_next_keyword(Keyword::This).is_ok())
             {
                 self.bump(); // eat *
                 self.bump(); // eat self
@@ -121,7 +135,8 @@ impl<'a> Parser<'a> {
             // *var self
             else if self.peek_token(TokenType::Multiply).is_ok()
                 && self.peek_next_keyword(Keyword::Var).is_ok()
-                && self.peek_next_next_keyword(Keyword::Self_).is_ok()
+                && (self.peek_next_next_keyword(Keyword::Self_).is_ok()
+                    || self.peek_next_next_keyword(Keyword::This).is_ok())
             {
                 self.bump(); // eat *
                 self.bump(); // eat var

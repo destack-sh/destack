@@ -283,9 +283,6 @@ pub enum Expression {
 
     /// Doc comment (free floating, otherwise this is attached inside the declaration).
     Doc(NodeId<Doc>),
-
-    /// Error placeholder.
-    Error,
 }
 
 impl Node for Expression {
@@ -469,9 +466,9 @@ pub enum UnionStyle {
 ///     myOtherField: boolean
 /// }
 ///
-/// union(uint4) Foo {
+/// union(uint4) Foo<T> {
 ///     A
-///     B { x: int32, y: int32 } = 4
+///     B { x: int32, y: T } = 4
 ///     C(boolean)
 ///     D(boolean, int32) = 6
 /// }
@@ -500,6 +497,8 @@ pub struct Union {
     pub style: UnionStyle,
     /// The type of the union (if explicitly specified).
     pub r#type: Option<NodeId<Type>>,
+    /// The static parameters of the union.
+    pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,
     /// The body of the union.
@@ -699,17 +698,20 @@ impl Node for Function {
     const KIND: NodeType = NodeType::Function;
 }
 
-/// A FunctionSelfParameter the a self parameter for a function.
+/// The "self" parameter for a function (also accepts `this`).
 ///
 /// Examples:
 /// ```
 /// self
+/// var self
 /// *self
 /// *var self
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
+    /// Whether the self parameter is mutable.
     pub mutability: Mutability,
+    /// Whether the self parameter is a pointer.
     pub is_pointer: bool,
 }
 
@@ -1881,6 +1883,7 @@ impl Node for Coalesce {
 /// 2 | 3
 /// 4..6
 /// (x, 0, ..)
+/// Success(_)
 /// Vector2 { x: 0, y, z: zed }
 /// geom.Mesh<2, float32> { vertices: [2, ..] }
 /// ```
@@ -1905,8 +1908,11 @@ pub enum Pattern {
         end: Option<NodeId<Pattern>>,
         is_inclusive: bool,
     },
-    /// Tuple pattern (like `(x, 0)`).
-    Tuple { fields: Vec<NodeId<PatternField>> },
+    /// Tuple pattern (like `(x, 0)` or `Result.Success(_)`).
+    Tuple {
+        path: Option<PathId>,
+        fields: Vec<NodeId<PatternField>>,
+    },
     /// Array or slice pattern (like `[1, 2, x]` or `[1, y, ..]`).
     Slice { fields: Vec<NodeId<PatternField>> },
     /// Struct pattern (like `Vector2 { x: 0, y, z: zedso  }`).
