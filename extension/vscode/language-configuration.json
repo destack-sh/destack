@@ -1,5 +1,9 @@
 {
   "brackets": [["{", "}"], ["[", "]"], ["(", ")"]],
+  "comments": {
+    "lineComment": "//",
+    "blockComment": ["/*", "*/"]
+  },
   "autoClosingPairs": [
     { "open": "{", "close": "}" },
     { "open": "[", "close": "]" },

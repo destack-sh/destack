@@ -52,9 +52,7 @@ trait Entity {
     function identity() => EntityReference;
 }
 
-/// A named, versioned, mutable object in the system.
-@entity
-struct Entity {
+struct EntityIdentity {
     /// The universally unique identifier of self Entity.
     id: Uuid
     /// The Space self Entity is in.
@@ -69,7 +67,13 @@ struct Entity {
     definition: ?EntityReference<Entity>
     /// The (root) Entity that is being instantiated.
     instance: ?EntityReference<Entity>
+}
 
+/// A named, versioned, mutable object in the system.
+@entity
+struct Entity {
+    use EntityIdentity
+    
     /// The logical time self Entity was created.
     createdEpoch: Epoch
     /// The logical time self Entity was last updated.
@@ -87,8 +91,6 @@ struct Entity {
     name: String
     /// The key of self Entity (for reconciliation and querying).
     key: ?String
-    /// The relative order of self Entity (in its parent).
-    order: ?Order
 
     /// The extension flags of self Entity.
     extensionFlags: ExtensionFlag

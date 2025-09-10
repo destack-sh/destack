@@ -895,12 +895,6 @@ impl Dump for Type {
             Type::Self_ => {
                 dumper.node("Type::Self").end();
             }
-            Type::Variadic(inner) => {
-                dumper.node("Type::Variadic").end();
-                dumper.with_depth(|dumper| {
-                    dumper.dump_line(inner, None);
-                });
-            }
             Type::Primitive(primitive) => {
                 dumper.node("Type::Primitive").value(primitive).end();
             }
@@ -922,6 +916,18 @@ impl Dump for Type {
                     .end();
                 dumper.with_depth(|dumper| {
                     dumper.dump_line(target, None);
+                });
+            }
+            Type::Virtual(inner) => {
+                dumper.node("Type::Virtual").end();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_line(inner, None);
+                });
+            }
+            Type::Variadic(inner) => {
+                dumper.node("Type::Variadic").end();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_line(inner, None);
                 });
             }
             Type::Array {

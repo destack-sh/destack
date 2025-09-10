@@ -133,11 +133,11 @@ fn test_random_symbols() {
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // $
-        Token::new(TokenType::Dollar, 1, None),
+        Token::new(TokenType::Virtual, 1, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // !
-        Token::new(TokenType::Bang, 1, None),
+        Token::new(TokenType::Not, 1, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // @
@@ -226,7 +226,7 @@ fn test_smoke() {
         Token::new(TokenType::OpenBrace, 1, None),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::Identifier, 7, None),
-        Token::new(TokenType::Bang, 1, None),
+        Token::new(TokenType::Not, 1, None),
         Token::new(TokenType::OpenParenthesis, 1, None),
         Token::new(
             TokenType::Literal,

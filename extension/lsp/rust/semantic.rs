@@ -176,10 +176,10 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         | K::Empty
         | K::EmptyWide
         | K::Maybe
-        | K::Dollar => 5,
+        | K::Virtual => 5,
 
         // operators
-        K::Bang
+        K::Not
         | K::LessThan
         | K::LessThanOrEqual
         | K::GreaterThan

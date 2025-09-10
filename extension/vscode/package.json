@@ -2,7 +2,7 @@
   "name": "destack-vscode",
   "displayName": "Destack",
   "description": "Destack & Dyst VSCode integration (.ds, .dsb, .dst, .dsx)",
-  "version": "2025.9.10-0",
+  "version": "2025.9.10-2",
   "license": "proprietary",
   "engines": {
     "vscode": "^1.90.0"

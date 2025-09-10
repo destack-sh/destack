@@ -164,7 +164,7 @@ impl UnaryOperator {
     #[inline]
     pub fn from_token_type(token_type: TokenType) -> Option<UnaryOperator> {
         match token_type {
-            TokenType::Bang => Some(UnaryOperator::LogicalNot),
+            TokenType::Not => Some(UnaryOperator::LogicalNot),
             TokenType::Subtract => Some(UnaryOperator::Negate),
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
@@ -178,7 +178,7 @@ impl UnaryOperator {
     #[inline]
     pub fn as_token_type(&self) -> TokenType {
         match self {
-            UnaryOperator::LogicalNot => TokenType::Bang,
+            UnaryOperator::LogicalNot => TokenType::Not,
             UnaryOperator::Negate => TokenType::Subtract,
             UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
             UnaryOperator::Dereference => TokenType::Multiply,

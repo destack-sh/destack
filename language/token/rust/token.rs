@@ -101,9 +101,9 @@ pub enum TokenType {
     /// `??`
     Coalesce,
     /// `$`
-    Dollar,
+    Virtual,
     /// `!`
-    Bang,
+    Not,
 
     // parentheses
     /// `(`
