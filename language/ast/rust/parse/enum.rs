@@ -51,6 +51,30 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // optional super types: : ...
+        let super_types = if self.peek_token(TokenType::Colon).is_ok() {
+            self.bump(); // eat colon
+            let mut super_types: Vec<NodeId<Type>> = Vec::new();
+            loop {
+                // eat until open parenthesis
+                if self.peek_token(TokenType::OpenBrace).is_ok() {
+                    break;
+                }
+                // consume any stop
+                else if self.peek_any_stop().is_ok() {
+                    self.eat_any_stop_with_newlines()?;
+                }
+                // keep eating super types
+                else {
+                    let super_type = self.eat_type()?;
+                    super_types.push(super_type);
+                }
+            }
+            Some(super_types)
+        } else {
+            None
+        };
+
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
@@ -61,6 +85,7 @@ impl<'a> Parser<'a> {
         let r#enum = self.tree.get_mut(enum_id);
         r#enum.name = name;
         r#enum.r#type = explicit_type;
+        r#enum.super_types = super_types;
 
         // extend span to include header and braces (best-effort)
         let _ = start; // NOTE @Cleanup: spans not updated post-allocation
@@ -100,6 +125,7 @@ impl<'a> Parser<'a> {
                 name: None,
                 visibility,
                 r#type: None,
+                super_types: None,
                 fields,
                 statements,
             },
@@ -152,6 +178,30 @@ mod tests {
     use crate::{Enum, EnumField, Expression, PrimitiveType, Type, assert_int, assert_node};
 
     #[test]
+    fn test_parse_enum_with_super_types() {
+        let test = TestParser::new(
+            r###"
+enum Foo: Day {}
+"###,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let enum_id = parser.eat_enum(None).unwrap();
+        assert_node!(parser.tree, enum_id, Enum { name, super_types, fields, statements, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert!(statements.is_empty());
+            assert!(fields.is_empty());
+
+            let supers = super_types.as_ref().expect("expected super types");
+            assert_eq!(supers.len(), 1);
+            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Day")]));
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_enum_anonymous_simple() {
         let test = TestParser::new(
             r###"
@@ -189,7 +239,7 @@ enum {
     fn test_parse_enum_with_type_name_and_values() {
         let test = TestParser::new(
             r###"
-enum(uint8) Foo {
+enum(uint8) Foo: Day {
 
     Baz = 1
 
@@ -204,7 +254,7 @@ enum(uint8) Foo {
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
-        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, .. } => {
+        assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, super_types, .. } => {
             // enum name
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
 
@@ -212,6 +262,13 @@ enum(uint8) Foo {
             assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
                 assert_eq!(int_ty.width, 8);
                 assert!(!int_ty.is_signed);
+            });
+
+            // super: Day
+            let supers = super_types.as_ref().expect("expected super types");
+            assert_eq!(supers.len(), 1);
+            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Day")]));
             });
 
             assert_eq!(fields.len(), 2);

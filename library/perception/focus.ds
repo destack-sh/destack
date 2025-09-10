@@ -19,3 +19,9 @@ struct FocusOutEvent {
  }
 
 
+// union FocusEvent: Event {
+//     @event
+//     FocusInEvent
+//     @event
+//     FocusOutEvent
+// }

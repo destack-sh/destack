@@ -5,7 +5,8 @@ use dyst_language_token::TokenType;
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField, Visibility,
+    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField, Type,
+    Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -25,7 +26,7 @@ impl<'a> Parser<'a> {
     ///     myOtherField: boolean
     /// }
     ///
-    /// struct Foo<T> {
+    /// struct Foo<T>: Baz { // Foo has a Baz
     ///     myField: int32
     ///     myOtherField: boolean
     ///
@@ -51,7 +52,7 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
-            let params = self.with_options(
+            let static_parameters = self.with_options(
                 ParserOptions {
                     in_static_type: true,
                     ..self.options
@@ -59,7 +60,31 @@ impl<'a> Parser<'a> {
                 |parser| parser.eat_parameters_body(),
             )?;
             self.eat_token(TokenType::GreaterThan)?;
-            Some(params)
+            Some(static_parameters)
+        } else {
+            None
+        };
+
+        // optional super types: : ...
+        let super_types = if self.peek_token(TokenType::Colon).is_ok() {
+            self.bump(); // eat colon
+            let mut super_types: Vec<NodeId<Type>> = Vec::new();
+            loop {
+                // eat until open parenthesis
+                if self.peek_token(TokenType::OpenBrace).is_ok() {
+                    break;
+                }
+                // consume any stop
+                else if self.peek_any_stop().is_ok() {
+                    self.eat_any_stop_with_newlines()?;
+                }
+                // keep eating super types
+                else {
+                    let super_type = self.eat_type()?;
+                    super_types.push(super_type);
+                }
+            }
+            Some(super_types)
         } else {
             None
         };
@@ -74,6 +99,7 @@ impl<'a> Parser<'a> {
         let struct_ = self.tree.get_mut(struct_id);
         struct_.name = name;
         struct_.static_parameters = static_parameters;
+        struct_.super_types = super_types;
         self.tree.set_span(struct_id, self.get_span_from(start));
 
         Ok(struct_id)
@@ -114,6 +140,7 @@ impl<'a> Parser<'a> {
                 name: None,
                 visibility,
                 static_parameters: None,
+                super_types: None,
                 fields,
                 statements,
             },
@@ -212,10 +239,34 @@ struct { x: int32, y: boolean
     }
 
     #[test]
+    fn test_parse_struct_with_super_types() {
+        let test = TestParser::new(
+            r###"
+struct Foo: Bar {}
+"###,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let struct_id = parser.eat_struct(None).unwrap();
+        assert_node!(parser.tree, struct_id, Struct { name, super_types, fields, statements, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert!(statements.is_empty());
+            assert!(fields.is_empty());
+
+            let supers = super_types.as_ref().expect("expected super types");
+            assert_eq!(supers.len(), 1);
+            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_struct_with_name_and_using_and_default() {
         let test = TestParser::new(
             r###"
-struct Foo<T: Numeric> {
+struct Foo<T: Numeric>: Boz {
     use Bar, Baz
     
     let x: int32 = 4
@@ -232,7 +283,7 @@ struct Foo<T: Numeric> {
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
-        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, .. } => {
+        assert_node!(parser.tree, struct_id, Struct { name, static_parameters, fields, statements, super_types, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(statements.len(), 3);
             assert_eq!(fields.len(), 2);
@@ -249,6 +300,14 @@ struct Foo<T: Numeric> {
                 assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, .. } => {
                     assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Numeric")]));
                 });
+            });
+
+            // Boz
+            assert!(super_types.is_some());
+            let super_types = super_types.as_ref().unwrap();
+            assert_eq!(super_types.len(), 1);
+            assert_node!(parser.tree, super_types[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Boz")]));
             });
 
             // a: boolean

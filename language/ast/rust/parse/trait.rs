@@ -1,7 +1,7 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
-use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Visibility, With};
+use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, Visibility, With};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.
@@ -57,6 +57,30 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // optional super types: : ...
+        let super_types = if self.peek_token(TokenType::Colon).is_ok() {
+            self.bump(); // eat colon
+            let mut super_types: Vec<NodeId<Type>> = Vec::new();
+            loop {
+                // eat until open parenthesis
+                if self.peek_token(TokenType::OpenBrace).is_ok() {
+                    break;
+                }
+                // consume any stop
+                else if self.peek_any_stop().is_ok() {
+                    self.eat_any_stop_with_newlines()?;
+                }
+                // keep eating super types
+                else {
+                    let super_type = self.eat_type()?;
+                    super_types.push(super_type);
+                }
+            }
+            Some(super_types)
+        } else {
+            None
+        };
+
         // optional with declarations in header
         let mut withs: Vec<NodeId<With>> = Vec::new();
         if self.peek_keyword(Keyword::With).is_ok() {
@@ -76,6 +100,7 @@ impl<'a> Parser<'a> {
                 name,
                 visibility,
                 static_parameters,
+                super_types,
                 withs,
                 statements,
             },
@@ -105,10 +130,28 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_trait_with_super_types() {
+        let test = TestParser::new("trait Foo: Bar {}");
+        let mut parser = test.parser();
+
+        let trait_id = parser.eat_trait(None).unwrap();
+        assert_node!(parser.tree, trait_id, Trait { name, super_types, statements, .. } => {
+            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert!(statements.is_empty());
+
+            let supers = super_types.as_ref().expect("expected super types");
+            assert_eq!(supers.len(), 1);
+            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_trait_with_members() {
         let test = TestParser::new(
             r###"
-trait Foo {
+trait Foo: Baz {
     let x: int32 = 4
 
     use Baz
@@ -121,9 +164,16 @@ trait Foo {
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait(None).unwrap();
-        assert_node!(parser.tree, trait_id, Trait { name, statements, .. } => {
+        assert_node!(parser.tree, trait_id, Trait { name, statements, super_types, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(statements.len(), 3);
+
+            // : Baz
+            let supers = super_types.as_ref().expect("expected super types");
+            assert_eq!(supers.len(), 1);
+            assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
+                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Baz")]));
+            });
         });
     }
 

@@ -30,7 +30,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
 
     // print statements
     let mut dumper = parser.dumper(dump_options);
-    dumper.dump_lines(&statements, None);
+    dumper.dump_nodes(&statements, None);
     console::info(&dumper.finish());
 
     // print errors

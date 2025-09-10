@@ -846,6 +846,9 @@ impl Dump for Struct {
             .end();
         dumper.with_depth(|dumper| {
             let has_more_after_fields = !self.statements.is_empty();
+            if let Some(super_types) = &self.super_types {
+                dumper.dump_nodes_tail(super_types, Some("super"), has_more_after_fields);
+            }
             dumper.dump_nodes_tail(&self.fields, None, has_more_after_fields);
             dumper.dump_nodes(&self.statements, None);
         });
@@ -873,6 +876,9 @@ impl Dump for Enum {
             .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
+            if let Some(super_types) = &self.super_types {
+                dumper.dump_nodes_tail(super_types, Some("super"), true);
+            }
             dumper.dump_nodes(&self.fields, None);
         });
     }
@@ -892,6 +898,9 @@ impl Dump for Union {
             .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
+            if let Some(super_types) = &self.super_types {
+                dumper.dump_nodes_tail(super_types, Some("super"), true);
+            }
             dumper.dump_nodes(&self.fields, None);
         });
     }
@@ -917,6 +926,9 @@ impl Dump for Trait {
             .field_optional("visibility", &self.visibility)
             .end();
         dumper.with_depth(|dumper| {
+            if let Some(super_types) = &self.super_types {
+                dumper.dump_nodes_tail(super_types, Some("super"), true);
+            }
             dumper.dump_nodes(&self.withs, None);
             dumper.dump_nodes(&self.statements, None);
         });
@@ -1032,12 +1044,6 @@ impl Dump for Type {
                 dumper.node("Type::Enum").end();
                 dumper.with_depth(|dumper| {
                     dumper.dump_node(enum_node, None);
-                });
-            }
-            Type::Intersection(types) => {
-                dumper.node("Type::Intersection").end();
-                dumper.with_depth(|dumper| {
-                    dumper.dump_nodes(types, None);
                 });
             }
             Type::Union(union_node) => {
