@@ -1,14 +1,12 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::iter::Map;
 use std::marker::PhantomData;
 
 use dyst_language_source::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Continue, Defer, Doc, Enum,
-    EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match,
-    MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return,
-    ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField,
-    TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -45,8 +43,10 @@ pub struct NodeTree {
     pub(crate) kind_by_node: Vec<NodeType>,
     /// The spans of all nodes in the AST. Index is the global node id.
     pub(crate) spans_per_node: Vec<Span>,
-    /// The documentation of all nodes in the AST. Index is the global node id.
-    pub(crate) docs_per_node: Vec<Option<NodeId<Doc>>>,
+    /// The documentation of nodes in the AST (merged).
+    pub(crate) docs_per_node: HashMap<u32, NodeId<Doc>>,
+    /// The comments of nodes in the AST (merged).
+    pub(crate) comments_per_node: HashMap<u32, NodeId<Comment>>,
     /// The tombstones (compacted after parsing).
     pub(crate) tombstones: Vec<u32>,
 
@@ -106,8 +106,9 @@ pub struct NodeTree {
     patterns: NodeArena<Pattern>,
     pattern_fields: NodeArena<PatternField>,
     match_cases: NodeArena<MatchCase>,
-    // documentation
+    // comments
     docs: NodeArena<Doc>,
+    comments: NodeArena<Comment>,
 }
 
 impl Debug for NodeTree {
@@ -137,7 +138,8 @@ impl NodeTree {
             local_id_by_node: Vec::with_capacity(capacity),
             kind_by_node: Vec::with_capacity(capacity),
             spans_per_node: Vec::with_capacity(capacity),
-            docs_per_node: Vec::with_capacity(capacity),
+            docs_per_node: HashMap::new(),
+            comments_per_node: HashMap::new(),
             tombstones: Vec::new(),
             // groupings
             blocks: NodeArena::new(),
@@ -194,7 +196,8 @@ impl NodeTree {
             patterns: NodeArena::new(),
             pattern_fields: NodeArena::new(),
             match_cases: NodeArena::new(),
-            // documentation
+            // comments
+            comments: NodeArena::new(),
             docs: NodeArena::new(),
         }
     }
@@ -438,6 +441,7 @@ impl_node_tree_stores! {
     Pattern => patterns,
     PatternField => pattern_fields,
     MatchCase => match_cases,
-    // documentation
+    // comments
+    Comment => comments,
     Doc => docs,
 }

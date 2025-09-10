@@ -2,9 +2,10 @@ use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{Doc, NodeId, ParseResult, Parser};
 
-impl<'a> Parser<'a> {
-    // todo!: docs in statements/expressions and associate with items
+// todo!: docs in statements/expressions and associate with items
+//  (also keep regular comments for pretty printing? some side-table AST?)
 
+impl<'a> Parser<'a> {
     /// Peek a doc comment (incl. `///` or `/**`).
     #[inline]
     pub fn peek_doc(&self) -> ParseResult<&TokenSpan> {

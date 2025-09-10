@@ -1,6 +1,11 @@
 use dyst
 
-// struct Epoch(uint64) // todo! type alias or tuple struct or some transparent type 
+/// An Entity Epoch.
+struct Epoch {
+    value: uint64
+
+    let Zero = Epoch { value: 0 }
+} 
 
 /// The materialization level of an Entity.
 enum(uint2) Materialization {
@@ -42,7 +47,6 @@ enum(uint8) ExtensionFlag {
 
 /// Declare a struct as an Entity. Auto-includes Entity.
 function @entity(structDecl: StructDefinition) => StructDefinition {
-    // structDeclr.uses.append(UseDeclaration { structDeclr: Entity, isGlob: true } )
     structDeclr
 }
 

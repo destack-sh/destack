@@ -64,8 +64,9 @@ pub enum NodeType {
     MatchCase,
     Pattern,
     PatternField,
-    // Documentation
+    // Comments
     Doc,
+    Comment,
 }
 
 /// A Node in the AST.
@@ -2009,6 +2010,7 @@ impl Node for MatchCase {
 
 /// A Doc is a full documentation comment string AST node.
 /// Successive documentation comments are concatenated.
+/// Like comments, Docs are attached in a side tree outside of the main parse / tree.
 ///
 /// Because almost every Node can have documentation, we store it separately
 ///  in `NodeTree.documentation_by_node` (just like we have `spans_per_node`).
@@ -2021,4 +2023,22 @@ pub struct Doc {
 
 impl Node for Doc {
     const KIND: NodeType = NodeType::Doc;
+}
+
+/// A Comment is a free-floating comment AST node.
+/// Comments are not associated with any item, but they are still part of the AST.
+/// Like documentation, Comments are attached in a side tree outside of the main parse / tree.
+///
+/// Examples:
+/// ```
+/// // comment
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct Comment {
+    /// The full, merged comment string.
+    pub string: StringId,
+}
+
+impl Node for Comment {
+    const KIND: NodeType = NodeType::Comment;
 }
