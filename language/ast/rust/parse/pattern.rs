@@ -64,21 +64,7 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // tuple with path
-            else if let Ok((_, pos)) = self.peek_path()
-                && let Some(token) = self.tokens.get(pos)
-                && token.token.r#type == TokenType::OpenParenthesis
-            {
-                let path = self.eat_path()?;
-                self.bump(); // eat open parenthesis
-                self.eat_newlines_maybe()?;
-                let fields =
-                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
-                let pattern = Pattern::Tuple { path: Some(path), fields };
-                self.eat_token(TokenType::CloseParenthesis)?;
-                self.tree.allocate(pattern, self.get_span_from(start))
-            }
-            // tuple
+            // tuple (without path)
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
@@ -113,13 +99,38 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // identifier
-            else if self.peek_identifier().is_ok() {
-                let identifier_id = self.eat_identifier()?;
-                self.tree.allocate(
-                    Pattern::Identifier(identifier_id),
-                    self.get_span_from(start),
-                )
+            // path or identifier
+            else if let Ok((_, pos, len)) = self.peek_path() {
+                // tuple with path
+                if let Some(token) = self.tokens.get(pos)
+                    && token.token.r#type == TokenType::OpenParenthesis
+                {
+                    let path = self.eat_path()?;
+                    self.bump(); // eat open parenthesis
+                    self.eat_newlines_maybe()?;
+                    let fields =
+                        self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
+                    let pattern = Pattern::Tuple {
+                        path: Some(path),
+                        fields,
+                    };
+                    self.eat_token(TokenType::CloseParenthesis)?;
+                    self.tree.allocate(pattern, self.get_span_from(start))
+                }
+                // path
+                else if len > 1 {
+                    let path = self.eat_path()?;
+                    self.tree
+                        .allocate(Pattern::Path(path), self.get_span_from(start))
+                }
+                // identifier
+                else {
+                    let identifier_id = self.eat_identifier()?;
+                    self.tree.allocate(
+                        Pattern::Identifier(identifier_id),
+                        self.get_span_from(start),
+                    )
+                }
             }
             // error
             else {
@@ -283,6 +294,16 @@ mod tests {
                 assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }))
             });
         })
+    }
+
+    #[test]
+    fn test_parse_pattern_path() {
+        let test = TestParser::new("MyEnum.A");
+        let mut parser = test.parser();
+        let pattern_id = parser.eat_pattern().unwrap();
+        assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
+            assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("MyEnum"), parser.strings.intern("A")]));
+        });
     }
 
     #[test]

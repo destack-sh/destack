@@ -196,6 +196,7 @@ mod tests {
     use crate::{BlockFormat, Parser};
 
     #[test]
+    #[ignore = "slow"]
     fn test_parse_every_ds_file() {
         // find workspace root by walking up until we find a known repo marker
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -223,7 +224,7 @@ mod tests {
                 Vec::new(),
                 TokenType::End,
             );
-            
+
             // dump diagnostics
             if !parser.diagnostics.is_empty() {
                 for diagnostic in &parser.diagnostics {

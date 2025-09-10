@@ -6,7 +6,7 @@ impl<'a> Parser<'a> {
     /// Peek a path.
     /// NOTE :Performance: peek_path uses :UnboundedLookahead
     #[inline]
-    pub fn peek_path(&self) -> ParseResult<(usize, usize)> {
+    pub fn peek_path(&self) -> ParseResult<(usize, usize, usize)> {
         // first name can't be a keyword
         if self.peek_any_keyword().is_ok() {
             return Err(ParseError::unexpected(self.peek()?.span));
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
         }
 
         if pos > start {
-            Ok((start, pos))
+            Ok((start, pos, pos - start))
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
         }

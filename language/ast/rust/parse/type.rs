@@ -114,6 +114,7 @@ impl<'a> Parser<'a> {
     /// *T // pointer to T
     /// *?T // pointer to Maybe<T>
     /// ?*T // Maybe pointer to T
+    /// ?*?T // Maybe pointer to Maybe<T>
     /// T<int32>
     /// T<Validate: false>
     /// MyEnum
@@ -428,7 +429,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-// todo! :Broken: unglue << and >> for static type arguments (everywhere) 
+// todo! :Broken: unglue << and >> for static type arguments (everywhere)
 
 #[cfg(test)]
 mod tests {

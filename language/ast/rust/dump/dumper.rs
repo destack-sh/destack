@@ -748,6 +748,9 @@ impl Dump for Expression {
             Expression::Doc(node) => {
                 dumper.node_wrapper("Expression::Doc", *node);
             }
+            Expression::Error(_) => {
+                dumper.node("Expression::Error").end();
+            }
         }
     }
 }
@@ -810,7 +813,7 @@ impl Dump for Enum {
 
 impl Dump for EnumField {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("EnumField").end();
+        dumper.node("EnumField").field("name", &self.name).end();
     }
 }
 
@@ -829,7 +832,7 @@ impl Dump for Union {
 
 impl Dump for UnionField {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
-        dumper.node("UnionField").end();
+        dumper.node("UnionField").field("name", &self.name).end();
         dumper.with_depth(|dumper| {
             dumper.dump_line(&self.r#type, None);
             if let Some(value) = self.value {
@@ -861,7 +864,7 @@ impl Dump for Implement {
             }
             dumper.dump_line(&self.receiver, Some("receiver"));
             if let Some(for_trait) = &self.for_trait {
-                dumper.dump_line(for_trait, None);
+                dumper.dump_line(for_trait, Some("for"));
             }
             dumper.dump_lines(&self.statements, None);
         });
@@ -1512,7 +1515,7 @@ impl Dump for Match {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Match").end();
         dumper.with_depth(|dumper| {
-            dumper.dump_line(&self.value, Some("value"));
+            dumper.dump_line(&self.value, None);
             dumper.dump_lines(&self.cases, None);
         });
     }
@@ -1527,18 +1530,22 @@ impl Dump for MatchCase {
                 body,
                 guard,
             } => {
-                dumper.dump_line(pattern, Some("pattern"));
-                dumper.dump_line(body, Some("body"));
-                dumper.dump_line(guard, Some("guard"));
+                dumper.dump_line(pattern, None);
+                dumper.dump_line(body, None);
+                if let Some(guard) = guard {
+                    dumper.dump_line(guard, None);
+                }
             }
             MatchCase::Block {
                 pattern,
                 body,
                 guard,
             } => {
-                dumper.dump_line(pattern, Some("pattern"));
-                dumper.dump_line(body, Some("body"));
-                dumper.dump_line(guard, Some("guard"));
+                dumper.dump_line(pattern, None);
+                dumper.dump_line(body, None);
+                if let Some(guard) = guard {
+                    dumper.dump_line(guard, None);
+                }
             }
         });
     }
@@ -1567,6 +1574,11 @@ impl Dump for Pattern {
             Pattern::Identifier(string_id) => {
                 let mut node_dumper = dumper.node("Pattern::Identifier");
                 node_dumper.field("identifier", string_id);
+                node_dumper.end();
+            }
+            Pattern::Path(path) => {
+                let mut node_dumper = dumper.node("Pattern::Path");
+                node_dumper.field("path", path);
                 node_dumper.end();
             }
             Pattern::Range {

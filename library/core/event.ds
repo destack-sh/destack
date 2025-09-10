@@ -43,5 +43,5 @@ struct Event {
     /// The status of the Event (system).
     status: EventStatus = EventStatus.Pending,
     /// The Event that caused self Event (if any).
-    causedBy: Optional<EntityReference<Event>>,
+    causedBy: ?EntityReference<Event>,
 }
