@@ -40,7 +40,7 @@ implement Vector2 {
     function lengthSquared(self) => float32 {
         self.x * self.x + self.y * self.y
     }
-
+ 
     /// Returns the dot product of the two Vectors.
     function dot(self, other: Vector2) => float32 {
         self.x * other.x + self.y * other.y
@@ -100,8 +100,8 @@ implement Vector2 {
         }
         Vector2 {
             x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-        }
+            y: clampScalar(self.y, min.y, max.y), 
+        } 
     }
 
     /// Create a copy with a different x component.
