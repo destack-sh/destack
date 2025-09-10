@@ -4,7 +4,7 @@ use dyst_language_token::TokenType;
 
 use crate::{
     AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, OperatorPrecedence,
-    ParseError, ParseResult, Parser, Runtime, TupleLiteral, UnaryOperator, Visibility,
+    ParseError, ParseResult, Parser, ParserMark, Runtime, TupleLiteral, UnaryOperator, Visibility,
 };
 
 impl BinaryOperator {
@@ -444,6 +444,26 @@ impl<'a> Parser<'a> {
                 operator: assign_operator,
                 right,
             },
+        }
+    }
+
+    /// Try to eat an expression (return Expression::Error if error and recovery is possible).
+    #[inline]
+    pub fn try_eat_expression(
+        &mut self,
+        options: ExpressionParserOptions,
+        recover: TokenType,
+    ) -> ParseResult<NodeId<Expression>> {
+        match self.eat_expression(options) {
+            Ok(expression_id) => Ok(expression_id),
+            Err(err) => {
+                let start = ParserMark::new(err.span.start as usize);
+                self.try_recover(start, recover)?;
+                let error_id = self
+                    .tree
+                    .allocate(Expression::Error(err), self.get_span_from(start));
+                Ok(error_id)
+            }
         }
     }
 

@@ -52,24 +52,24 @@ struct Schedule {
     /// The optional week start day.
     weekStart: ?DayOfWeek,
     /// Positions to include in the set.
-    bySetPos: Optional<List<uint32>>,
+    bySetPos: ?List<uint32>,
     /// Months to include.
-    byMonth: Optional<List<Month>>,
+    byMonth: ?List<Month>,
     /// Month days to include.
-    byMonthDay: Optional<List<uint8>>,
+    byMonthDay: ?List<uint8>,
     /// Year days to include.
-    byYearDay: Optional<List<u16>>,
+    byYearDay: ?List<u16>,
     /// Easter offsets to include.
-    byEaster: Optional<List<uint8>>,
+    byEaster: ?List<uint8>,
     /// Week numbers to include.
-    byWeekNo: Optional<List<uint8>>,
+    byWeekNo: ?List<uint8>,
     /// Week days to include.
-    byWeekDay: Optional<List<DayOfWeek>>,
+    byWeekDay: ?List<DayOfWeek>,
     /// Hours to include.
-    byHour: Optional<List<uint8>>,
+    byHour: ?List<uint8>,
     /// Minutes to include.
-    byMinute: Optional<List<uint8>>,
+    byMinute: ?List<uint8>,
     /// Seconds to include.
-    bySecond: Optional<List<uint8>>,
+    bySecond: ?List<uint8>,
 }
 

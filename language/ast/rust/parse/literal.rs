@@ -416,7 +416,9 @@ impl<'a> Parser<'a> {
     /// NOTE :Performance: peek_struct_literal uses :UnboundedLookahead (also see peek_path)
     #[inline]
     pub fn peek_struct_literal(&self) -> ParseResult<()> {
-        let (_, mut pos) = self.peek_path()?;
+        let (_, mut pos, _) = self.peek_path()?;
+
+        let len = self.tokens.len();
 
         // {
         // like in `geom.Mesh { ... }`
@@ -429,8 +431,9 @@ impl<'a> Parser<'a> {
         else if let Some(token) = self.tokens.get(pos)
             && token.token.r#type == TokenType::LessThan
         {
+            pos += 1;
             // scan until '>'
-            loop {
+            while pos < len {
                 if let Some(token) = self.tokens.get(pos)
                     && token.token.r#type == TokenType::GreaterThan
                 {

@@ -1,6 +1,5 @@
 use dyst
 
-@flag 
 enum KeyModifier {
     Shift
     Alt

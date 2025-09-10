@@ -4,7 +4,7 @@
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
 //!  and in many cases we can suggest automatic fixes (like `->` to `=>`, or drop ``).
 
-use crate::{NodeId, PathId, StringId};
+use crate::{NodeId, ParseError, PathId, StringId};
 
 /// The type of a node in the AST.
 #[derive(Debug, Clone, PartialEq)]
@@ -264,10 +264,10 @@ pub enum Expression {
     Call(NodeId<Call>),
     /// As casting (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
-    /// Coalesce an expression with `??` (postfix as an Expression).
-    Coalesce(NodeId<Coalesce>),
     /// Unwrap an expression with `?` (postfix as an Expression).
     Unwrap(NodeId<Expression>),
+    /// Coalesce an expression with `??` (postfix as an Expression).
+    Coalesce(NodeId<Coalesce>),
     /// Binary operation (infix between Expressions, see BinaryOperator).
     Binary {
         left: NodeId<Expression>,
@@ -283,6 +283,8 @@ pub enum Expression {
 
     /// Doc comment (free floating, otherwise this is attached inside the declaration).
     Doc(NodeId<Doc>),
+    /// Error placeholder.
+    Error(ParseError),
 }
 
 impl Node for Expression {
@@ -818,6 +820,7 @@ impl Node for TupleField {
 /// *T // pointer to T
 /// *?T // pointer to Maybe<T>
 /// ?*T // Maybe pointer to T
+/// ?*?T // Maybe pointer to Maybe<T>
 /// T<int32>
 /// T<Validate: false>
 /// MyEnum
@@ -856,6 +859,7 @@ pub enum Type {
     },
     /// Variadic type `..T`.
     Variadic(NodeId<Type>),
+    // todo!: change slice/array syntax (to []T and [N]T?)
     /// Inline Array type `[T; N]`. Must be fixed length.
     Array {
         element_type: NodeId<Type>,
@@ -1902,6 +1906,8 @@ pub enum Pattern {
     Literal(NodeId<ScalarLiteral>),
     /// Identifier pattern (like `x`).
     Identifier(StringId),
+    /// Path pattern (like `MyEnum.A`).
+    Path(PathId),
     /// Range pattern (like `1..3`).
     Range {
         start: Option<NodeId<Pattern>>,

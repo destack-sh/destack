@@ -35,8 +35,10 @@ impl<'a> Parser<'a> {
             ..ExpressionParserOptions::default()
         })?;
         let then_block_id = self.eat_block()?;
+        self.eat_newlines_maybe()?;
         let if_node = if self.peek_keyword(Keyword::Else).is_ok() {
             self.bump(); // eat else
+            self.eat_newlines_maybe()?;
             if self.peek_keyword(Keyword::If).is_ok() {
                 // if ... else if ...
                 let else_if_id = self.eat_if()?;
@@ -220,27 +222,101 @@ if x > y {
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
-            // condition is boolean true
+            // if true
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
                 assert_bool!(parser.tree, *lit_id, true);
             });
-            // empty then block
+            // { }
             assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
                 assert!(label.is_none());
                 assert!(statements.is_empty());
             });
-            // nested else-if should become IfElse with final else
+            // else if false { } else { }
             assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else } => {
+                // else if false
                 assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
                     assert_bool!(parser.tree, *lit_id, false);
                 });
+                // { }
                 assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
                     assert!(label.is_none());
                     assert!(statements.is_empty());
                 });
+                // else { }
                 assert_node!(parser.tree, *inner_else, Block { format: _, statements, label } => {
                     assert!(label.is_none());
                     assert!(statements.is_empty());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_else_if_else_multiline() {
+        let test = TestParser::new(
+            r"
+if v < lo { lo } 
+else if v > hi { hi }
+else { v }
+",
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let v = parser.strings.intern("v");
+        let lo = parser.strings.intern("lo");
+        let hi = parser.strings.intern("hi");
+
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+            // if v < lo
+            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::LessThan);
+                // v
+                assert_path!(parser.tree, *left, v, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+                // lo
+                assert_path!(parser.tree, *right, lo, using |path_id| {
+                    let p = parser.paths.get(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+            });
+            // { lo }
+            assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
+                assert!(label.is_none());
+                assert_eq!(statements.len(), 1);
+            });
+            // else if v > hi { hi } else { v }
+            assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else } => {
+                // else if v > hi
+                assert_node!(parser.tree, *inner_condition, Expression::Binary { left, operator, right } => {
+                    assert_eq!(*operator, BinaryOperator::GreaterThan);
+                    // v
+                    assert_path!(parser.tree, *left, v, using |path_id| {
+                        let p = parser.paths.get(path_id);
+                        assert_eq!(p.segments.len(), 1);
+                        p.segments[0]
+                    });
+                    // hi
+                    assert_path!(parser.tree, *right, hi, using |path_id| {
+                        let p = parser.paths.get(path_id);
+                        assert_eq!(p.segments.len(), 1);
+                        p.segments[0]
+                    });
+                });
+                // { hi }
+                assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
+                    assert!(label.is_none());
+                    assert_eq!(statements.len(), 1);
+                });
+                // else { v }
+                assert_node!(parser.tree, *inner_else, Block { format: _, statements, label } => {
+                    assert!(label.is_none());
+                    assert_eq!(statements.len(), 1);
                 });
             });
         });
