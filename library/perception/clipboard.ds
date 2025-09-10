@@ -2,26 +2,18 @@ use dyst
 
 /// Clipboard base event
 @event
-struct ClipboardEvent { 
- use InputEvent 
- }
+struct ClipboardEvent: InputEvent {}
 
 /// Copy event
 @event
-struct CopyEvent { 
- use ClipboardEvent 
- }
+struct CopyEvent: ClipboardEvent {}
 
 /// Cut event
 @event
-struct CutEvent { 
- use ClipboardEvent 
- }
+struct CutEvent: ClipboardEvent {}
 
 /// Paste event
 @event
-struct PasteEvent { 
- use ClipboardEvent 
- }
+struct PasteEvent: ClipboardEvent {}
 
 

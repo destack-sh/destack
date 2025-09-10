@@ -6,7 +6,7 @@ struct Metric {}
 
 /// An Event that represents a Measurement.
 @event
-struct MeasurementEvent {
+struct MeasurementEvent: Event {
     /// The metric definition self measurement is for.
     definition: EntityReference<Metric>,
 }

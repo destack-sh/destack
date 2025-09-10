@@ -9,7 +9,7 @@ struct Reaction {
 
 /// Base Reaction event.
 @event
-struct ReactionEvent {
+struct ReactionEvent: Event {
     /// The Reaction self event pertains to.
     reaction: EntityReference<Reaction>,
     /// The reaction content.
@@ -18,14 +18,10 @@ struct ReactionEvent {
 
 /// Reaction added.
 @event
-struct ReactionAddedEvent { 
- use ReactionEvent 
- }
+struct ReactionAddedEvent: ReactionEvent {}
 
 /// Reaction removed.
 @event
-struct ReactionRemovedEvent { 
- use ReactionEvent 
- }
+struct ReactionRemovedEvent: ReactionEvent {}
 
 

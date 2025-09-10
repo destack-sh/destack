@@ -45,5 +45,7 @@ struct Style2D {
 /// A View2D is a 2D interface element.
 @entity
 struct View2D: RigidBody2D { 
-    use Position2D, Sizing2D, Style2D 
+    use Position2D
+    use Sizing2D
+    use Style2D
 }

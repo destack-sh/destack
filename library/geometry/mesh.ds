@@ -14,12 +14,12 @@ struct Mesh3D {
 
 /// A MeshShape2D represents a triangle mesh.
 @entity
-struct MeshShape2D { 
-    use Shape2D, Mesh2D 
+struct MeshShape2D: Shape2D { 
+    use Mesh2D 
 }
 
 /// A MeshShape3D represents a triangle mesh.
 @entity
-struct MeshShape3D { 
-    use Shape3D, Mesh3D 
+struct MeshShape3D: Shape3D { 
+    use Mesh3D 
 }

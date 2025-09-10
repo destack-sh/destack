@@ -2,7 +2,7 @@ use dyst
 
 /// Base input View
 @entity
-struct InputView2D: View2D { }
+struct InputView2D: View2D {}
 
 /// A 2D number input View
 @entity

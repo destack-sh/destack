@@ -10,6 +10,6 @@ struct Cylinder3D {
 
 /// A CylinderShape3D is a shape that represents a cylinder.
 @entity
-struct CylinderShape3D { 
-    use Shape3D, Cylinder3D 
+struct CylinderShape3D: Shape3D { 
+    use Cylinder3D 
 }

@@ -2,9 +2,7 @@ use dyst
 
 /// A Counter Metric.
 @entity
-struct  CounterMetric {
-    use Metric
-}
+struct  CounterMetric: Metric {}
 
 /// A Counter Measurement.
 @event

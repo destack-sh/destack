@@ -9,8 +9,8 @@ struct Point2D {
 
 /// A PointShape represents a zero-area shape with an optional local offset.
 @entity
-struct PointShape2D { 
-    use Shape2D, Point2D 
+struct PointShape2D: Shape2D { 
+    use Point2D 
 
 }
 
@@ -23,7 +23,7 @@ struct Point3D {
 
 /// A PointShape3D represents a zero-volume shape with an optional local offset.
 @entity
-struct PointShape3D { 
-    use Shape3D, Point3D 
+struct PointShape3D: Shape3D { 
+    use Point3D 
 
 }

@@ -6,19 +6,15 @@ struct Follow {}
 
 /// Base Follow event.
 @event
-struct FollowEvent {
+struct FollowEvent: Event {
     /// The Follow self event pertains to.
     follow: EntityReference<Follow>,
 }
 
 /// Follow added.
 @event
-struct FollowAddedEvent { 
- use FollowEvent 
- }
+struct FollowAddedEvent: FollowEvent {}
 
 /// Follow removed.
 @event
-struct FollowRemovedEvent { 
- use FollowEvent 
- }
+struct FollowRemovedEvent: FollowEvent {}
