@@ -21,7 +21,7 @@
   "destack.server.cwd": "/Users/florian/symbol/destack",
   "destack.server.args": ["lsp"],
   "editor.semanticHighlighting.enabled": true,
-  "[destack]": {
+  "[dyst]": {
     "editor.tabSize": 4,
     "editor.insertSpaces": true,
     "editor.detectIndentation": false

@@ -1,20 +1,24 @@
 {
-  "name": "destack-vscode",
-  "displayName": "Destack",
-  "description": "Destack & Dyst VSCode integration (.ds, .dsb, .dst, .dsx)",
-  "version": "2025.9.10-2",
+  "name": "destack-extension-vscode",
+  "displayName": "Destack & Dyst",
+  "description": "Destack & Dyst for VSCode (.ds, .dsb, .dst, .dsx)",
+  "version": "2025.9.10-5",
   "license": "proprietary",
   "engines": {
     "vscode": "^1.90.0"
   },
+  "publisher": "symbol-industries",
   "categories": [
     "Programming Languages"
   ],
-  "main": "./out/extension.js",
   "repository": {
     "type": "web",
-    "url": "https://destack.app"
+    "url": "https://destack.dev"
   },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
   "files": [
     "out/extension.js",
     "language-configuration.json",
@@ -54,32 +58,42 @@
     ],
     "languages": [
       {
-        "id": "destack",
+        "id": "dyst",
         "aliases": [
-          "Destack",
           "Dyst",
           "ds"
         ],
-        "extension": [
+        "extensions": [
           ".ds"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "destack",
+        "aliases": [
+          "Destack"
+        ],
+        "extensions": [
+          ".dsb",
+          ".dst",
+          ".dsx"
+        ]
       }
     ]
   },
   "scripts": {
-    "vscode:prepublish": "bun run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "bundle": "bun build src/extension.ts --outfile=out/extension.js --target=node --format=cjs --minify --sourcemap=inline --external:vscode --external:vscode-languageclient",
+    "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
+    "vscode:prepublish": "bun run bundle",
     "package": "bunx --bun @vscode/vsce@latest package --no-dependencies"
   },
   "dependencies": {},
   "devDependencies": {
-    "@types/vscode": "^1.90.0",
     "@types/node": "^20.11.25",
+    "@types/vscode": "^1.90.0",
+    "esbuild": "^0.25.9",
     "typescript": "~5.5.4",
     "vsce": "^2.15.0",
+    "vscode": "^1.1.37",
     "vscode-languageclient": "^9.0.1"
   }
 }
