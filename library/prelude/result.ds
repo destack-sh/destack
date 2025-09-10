@@ -6,18 +6,18 @@ union Result<T, E> {
 
 implement Result {
     /// Check if the Result is a Success.
-    function isSuccess(self) => bool {
+    function isSuccess(self) => boolean {
         match self {
-            Success(_) => true,
-            Error(_) => false,
+            Success(_) => true
+            Error(_) => false
         }
     }
 
     /// Check if the Result is an Error.
-    function isError(self) => bool {
+    function isError(self) => boolean {
         match self {
-            Success(_) => false,
-            Error(_) => true,
+            Success(_) => false
+            Error(_) => true
         }
     }
 }

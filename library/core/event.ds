@@ -19,29 +19,29 @@ enum EventStatus {
 /// An immutable datum of something happening to an Entity.
 @event
 struct Event {
-    /// The universally unique identifier of this Node.
+    /// The universally unique identifier of self Node.
     id: Uuid,
-    /// The Space this Node is in.
+    /// The Space self Node is in.
     space: EntityReference<Space>,
-    /// The Branch this Node is part of (in its Space).
+    /// The Branch self Node is part of (in its Space).
     branch: EntityReference<Branch>,
-    /// The Snapshot this Node is part of (in its Space and Branch).
+    /// The Snapshot self Node is part of (in its Space and Branch).
     snapshot: EntityReference<Snapshot>,
 
-    /// The logical time this Event was created (system).
+    /// The logical time self Event was created (system).
     createdEpoch: uint64,
-    /// The exclusive owner of this Entity (the root on access).
+    /// The exclusive owner of self Entity (the root on access).
     owner: EntityReference<Entity>,
-    /// The Client that created this Event (client, but verified).
+    /// The Client that created self Event (client, but verified).
     client: EntityReference<Client>,
-    /// The nonce of the Client that created this Event (client).
+    /// The nonce of the Client that created self Event (client).
     clientNonce: uint8,
-    /// The logical time last seen from the system in the Client for this space (client).
+    /// The logical time last seen from the system in the Client for self space (client).
     clientRemoteEpoch: uint64,
-    /// The logical time in the Client when it created this Event (client).
+    /// The logical time in the Client when it created self Event (client).
     clientLocalEpoch: uint64,
     /// The status of the Event (system).
     status: EventStatus = EventStatus.Pending,
-    /// The Event that caused this Event (if any).
+    /// The Event that caused self Event (if any).
     causedBy: Optional<EntityReference<Event>>,
 }

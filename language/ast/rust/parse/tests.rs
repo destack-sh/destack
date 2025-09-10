@@ -183,3 +183,66 @@ macro_rules! assert_path {
         });
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+
+    use destack_library_file::glob;
+    use dyst_language_source::{Source, SourceId};
+    use dyst_language_token::TokenType;
+
+    use crate::{BlockFormat, Parser};
+
+    #[test]
+    fn test_parse_every_ds_file() {
+        // find workspace root by walking up until we find a known repo marker
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root_path = manifest_dir
+            .ancestors()
+            .find(|p| p.join("version.txt").exists())
+            .unwrap_or(&manifest_dir)
+            .to_path_buf();
+        let workspace_root = workspace_root_path.to_string_lossy().into_owned();
+
+        // glob all .ds files under the workspace root
+        let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
+
+        // parse every ds file
+        for (i, ds_file) in ds_files.iter().enumerate() {
+            let source = Source::new(
+                SourceId::new(i as u32),
+                ds_file.to_string_lossy().into_owned(),
+                fs::read_to_string(ds_file).unwrap(),
+            );
+            let mut parser = Parser::from_source(&source);
+            let _ = parser.with_recovery(
+                parser.mark(),
+                |parser| parser.eat_block_body(BlockFormat::Implicit),
+                Vec::new(),
+                TokenType::End,
+            );
+            
+            // dump diagnostics
+            if !parser.diagnostics.is_empty() {
+                for diagnostic in &parser.diagnostics {
+                    let annotated = dyst_language_source::annotate_source(
+                        &source,
+                        diagnostic.primary_span.as_ref().unwrap(),
+                        dyst_language_source::AnnotateOptions {
+                            max_line_length: 100,
+                            prefix_lines: 1,
+                            suffix_lines: 1,
+                            use_color: false,
+                        },
+                    );
+                    let diagnostic_header = format!("{}: {}", diagnostic.id, diagnostic.message);
+                    eprintln!("{diagnostic_header}");
+                    eprintln!("{annotated}");
+                }
+                panic!("errors in {ds_file:?}");
+            }
+        }
+    }
+}

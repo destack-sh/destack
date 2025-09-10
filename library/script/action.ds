@@ -8,7 +8,7 @@ struct ActionDefinition {
     inputMessageType: ?StructType,
     /// The output Message type.
     outputMessageType: ?StructType,
-    /// The Event types this Action may emit.
+    /// The Event types self Action may emit.
     emitsEventTypes: Optional<List<NodeType>>,
 }
 

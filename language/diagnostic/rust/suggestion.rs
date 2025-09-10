@@ -1,6 +1,6 @@
 use dyst_language_source::LabeledSpan;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SuggestionStyle {
     Normal,
     Short,
@@ -8,7 +8,7 @@ pub enum SuggestionStyle {
     Verbose,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Applicability {
     /// The suggestion is machine-applicable.
     Automatic,
@@ -16,7 +16,7 @@ pub enum Applicability {
     Dangerous,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Suggestion {
     /// The spans involved in the replacement.
     pub spans: Vec<LabeledSpan>,

@@ -78,7 +78,7 @@ enum LengthType {
 
 /// An absolute or relative length value
 struct Length { 
-    /// The unit type for this length
+    /// The unit type for self length
     unit: LengthType, 
     /// The numeric value in the specified unit
     value: int16 

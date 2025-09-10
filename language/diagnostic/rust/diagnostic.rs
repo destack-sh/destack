@@ -2,7 +2,7 @@ use crate::Suggestion;
 use dyst_language_source::LabeledSpan;
 
 /// The kind of a diagnostic.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub enum DiagnosticKind {
     /// Parse error (invalid syntax).
     Parse,
@@ -10,7 +10,7 @@ pub enum DiagnosticKind {
 }
 
 /// The level of a diagnostic.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub enum Severity {
     /// Error (critical issue).
     Error,
@@ -23,7 +23,7 @@ pub enum Severity {
 }
 
 /// A Diagnostic.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Diagnostic {
     /// The diagnostic ID of the diagnostic (like `E001` or `W017`).
     pub id: String,

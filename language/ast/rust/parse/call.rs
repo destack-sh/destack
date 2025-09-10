@@ -145,9 +145,10 @@ mod tests {
         // [1]
         let test = TestParser::new("[1]");
         let mut parser = test.parser();
-        let recv = parser
-            .tree
-            .allocate(Expression::Error, parser.peek().unwrap().span);
+        let recv = parser.tree.allocate(
+            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            parser.peek().unwrap().span,
+        );
 
         let index_id = parser.eat_index_postfix(recv).unwrap();
         assert_node!(parser.tree, index_id, Index { receiver, index } => {
@@ -163,9 +164,10 @@ mod tests {
         // [Validate: false](1, x: 2)
         let test = TestParser::new("[Validate: false](1, x: 2)");
         let mut parser = test.parser();
-        let recv = parser
-            .tree
-            .allocate(Expression::Error, parser.peek().unwrap().span);
+        let recv = parser.tree.allocate(
+            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            parser.peek().unwrap().span,
+        );
 
         let call_id = parser.eat_call_postfix(recv, Runtime::Dynamic).unwrap();
         assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
@@ -207,9 +209,10 @@ mod tests {
         // ()
         let test = TestParser::new("()");
         let mut parser = test.parser();
-        let recv = parser
-            .tree
-            .allocate(Expression::Error, parser.peek().unwrap().span);
+        let recv = parser.tree.allocate(
+            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            parser.peek().unwrap().span,
+        );
 
         let call_id = parser.eat_call_postfix(recv, Runtime::Dynamic).unwrap();
         assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
@@ -225,9 +228,10 @@ mod tests {
         // as int32
         let test = TestParser::new("as int32");
         let mut parser = test.parser();
-        let recv = parser
-            .tree
-            .allocate(Expression::Error, parser.peek().unwrap().span);
+        let recv = parser.tree.allocate(
+            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            parser.peek().unwrap().span,
+        );
 
         let cast_id = parser.eat_as_postfix(recv).unwrap();
         assert_node!(parser.tree, cast_id, Cast { receiver, r#type } => {

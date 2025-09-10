@@ -6,7 +6,7 @@ enum RunStatus { Scheduled = 2, Running = 10, Paused = 21, Yielded = 23, Cancell
 /// Base event regarding a Run.
 @event
 struct RunEvent {
-    /// The Run this event pertains to.
+    /// The Run self event pertains to.
     run: Run,
     /// The target Entity of the Run, if any.
     target: ?Entity,

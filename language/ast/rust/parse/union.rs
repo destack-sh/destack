@@ -2,6 +2,7 @@
 
 use dyst_language_token::{TokenType, clean_identifier};
 
+use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Keyword, NodeId, ParseError, ParseResult, Parser, Statement, TupleField, Type, Union,
@@ -18,9 +19,9 @@ impl<'a> Parser<'a> {
     ///     myOtherField: boolean
     /// }
     ///
-    /// union(uint4) Foo {
+    /// union(uint4) Foo<T> {
     ///     A
-    ///     B { x: int32, y: int32 } = 4
+    ///     B { x: int32, y: T } = 4
     ///     C(boolean)
     ///     D(boolean, int32) = 6
     /// }
@@ -56,6 +57,22 @@ impl<'a> Parser<'a> {
             None
         };
 
+        // optional static parameters: < ... >
+        let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
+            self.bump(); // eat less than
+            let params = self.with_options(
+                ParserOptions {
+                    in_static_type: true,
+                    ..self.options
+                },
+                |parser| parser.eat_parameters_body(),
+            )?;
+            self.eat_token(TokenType::GreaterThan)?;
+            Some(params)
+        } else {
+            None
+        };
+
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
@@ -65,6 +82,7 @@ impl<'a> Parser<'a> {
         // fill in header data
         let union = self.tree.get_mut(union_id);
         union.name = name;
+        union.static_parameters = static_parameters;
         union.r#type = explicit_type;
         self.tree.set_span(union_id, self.get_span_from(start));
 
@@ -102,6 +120,7 @@ impl<'a> Parser<'a> {
             Union {
                 name: None,
                 visibility,
+                static_parameters: None,
                 style: UnionStyle::Explicit,
                 r#type: None,
                 fields,
@@ -259,6 +278,7 @@ impl<'a> Parser<'a> {
                 visibility: None,
                 style: UnionStyle::Implicit,
                 r#type: None,
+                static_parameters: None,
                 fields,
                 statements: Vec::new(),
             },
@@ -272,8 +292,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Mutability, PrimitiveType, Statement, StructField, TupleField, Type, Union,
-        UnionField, UnionStyle, Use, assert_int, assert_node,
+        Expression, Mutability, Parameter, PrimitiveType, Statement, StructField, TupleField, Type,
+        Union, UnionField, UnionStyle, Use, assert_int, assert_node,
     };
 
     #[test]
@@ -314,12 +334,12 @@ union { A, B }
     fn test_parse_explicit_union_with_type_and_name() {
         let test = TestParser::new(
             r###"
-union(uint4) Foo {
+union(uint4) Foo<T> {
     A
     use Bar
     C(boolean)
     D(boolean, count: int32) = 6
-    E { x: int32, y: int32 }
+    E { x: int32, y: T }
 
     function myFunc() { // nested declaration
     }
@@ -330,7 +350,7 @@ union(uint4) Foo {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, r#type, style, static_parameters, fields, statements, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(*style, UnionStyle::Explicit);
 
@@ -338,6 +358,15 @@ union(uint4) Foo {
             assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
                 assert_eq!(int_ty.width, 4);
                 assert!(!int_ty.is_signed);
+            });
+
+            // <T>
+            assert!(static_parameters.is_some());
+            let static_parameters = static_parameters.as_ref().unwrap();
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter { name, r#type, .. } => {
+                assert_eq!(*name, parser.strings.intern("T"));
+                assert!(r#type.is_none());
             });
 
             assert_eq!(statements.len(), 2);
@@ -394,7 +423,7 @@ union(uint4) Foo {
                 });
             });
 
-            // E { x: int32, y: int32 }
+            // E { x: int32, y: T }
             assert_node!(parser.tree, fields[3], UnionField { name, r#type, .. } => {
                 assert_eq!(*name, parser.strings.intern("E"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
@@ -412,14 +441,13 @@ union(uint4) Foo {
                         });
                     });
 
-                    // y: int32
+                    // y: T
                     assert_node!(parser.tree, struct_.fields[1], StructField { name, r#type, .. } => {
                         // y
                         assert_eq!(*name, parser.strings.intern("y"));
-                        // int32
-                        assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
-                            assert_eq!(int_ty.width, 32);
-                            assert!(int_ty.is_signed);
+                        // T
+                        assert_node!(parser.tree, *r#type, Type::Path { path, static_arguments: _ } => {
+                            assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
                         });
                     });
                 });

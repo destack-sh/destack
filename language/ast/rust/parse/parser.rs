@@ -111,10 +111,13 @@ impl<'a> Parser<'a> {
     }
 
     /// Called when an error is encountered.
-    /// Errors are collected and added to the diagnostics.
+    /// Errors are deduplicated, collected and added to the diagnostics.
     #[inline]
-    pub(crate) fn on_error(&mut self, e: ParseError) {
-        self.diagnostics.push(e.into());
+    pub(crate) fn handle_error(&mut self, e: ParseError) {
+        let diagnostic = e.into();
+        if !self.diagnostics.contains(&diagnostic) {
+            self.diagnostics.push(diagnostic);
+        }
     }
 
     /// Gets a mark of the current position.
@@ -337,7 +340,7 @@ impl<'a> Parser<'a> {
             // recover from here (but report error)
             if token.token.r#type == recover {
                 let error = ParseError::unexpected(self.get_span_from(start));
-                self.on_error(error);
+                self.handle_error(error);
                 return Ok(());
             } else {
                 // keep going
@@ -346,7 +349,7 @@ impl<'a> Parser<'a> {
         }
         // error if we didn't hit the expected token
         let error = ParseError::unexpected(self.get_span_from(start));
-        self.on_error(error);
+        self.handle_error(error);
         Err(error)
     }
 
@@ -370,7 +373,7 @@ impl<'a> Parser<'a> {
             if token.token.r#type == expected {
                 let error = ParseError::unexpected(self.get_span_from(start));
                 self.bump();
-                self.on_error(error);
+                self.handle_error(error);
                 return Ok(());
             }
             // keep going
@@ -381,7 +384,7 @@ impl<'a> Parser<'a> {
 
         // error if we didn't hit the expected token, we're either at recovery or EOF
         let error = ParseError::unexpected(self.get_span_from(start));
-        self.on_error(error);
+        self.handle_error(error);
         Err(error)
     }
 }

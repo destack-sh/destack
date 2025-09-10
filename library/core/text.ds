@@ -40,7 +40,7 @@ struct TextSpan {
     node: Optional<EntityReference<Entity>>,
     /// Optional hyperlink URL.
     url: ?String,
-    /// Styling flags for this span.
+    /// Styling flags for self span.
     styleFlags: TextStyleFlag = TextStyleFlag.Default,
 }
 

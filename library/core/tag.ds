@@ -8,14 +8,14 @@ struct TagDefinition {
     name: String,
     /// The Tag description.
     description: ?String,
-    /// Whether this Tag is internal.
+    /// Whether self Tag is internal.
     isInternal: boolean,
 }
 
 /// A Tag to tag an Entity with.
 @entity
 struct Tag {
-    /// The designated Type for Values associated with this Tag. Any if unset.
+    /// The designated Type for Values associated with self Tag. Any if unset.
     type: ?Type,
 }
 

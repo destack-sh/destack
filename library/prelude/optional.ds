@@ -1,6 +1,0 @@
-
-/// An Optional value which may hold Some(T) or None.
-union ?T {
-    Some(T),
-    None,
-}

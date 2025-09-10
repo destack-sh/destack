@@ -11,7 +11,5 @@ struct SceneEvent {
 @entity
 struct Scene {
     /// The root View of the Scene.
-    rootView: Optional<EntityReference<LayoutView2D>>,
+    rootView: ?EntityReference<LayoutView2D>,
 }
-
-

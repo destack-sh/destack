@@ -413,35 +413,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Peek a struct literal.
-    /// NOTE :Performance: peek_struct_literal uses large lookahead.
+    /// NOTE :Performance: peek_struct_literal uses :UnboundedLookahead (also see peek_path)
     #[inline]
     pub fn peek_struct_literal(&self) -> ParseResult<()> {
-        // first name can't be a keyword
-        if self.peek_any_keyword().is_ok() {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        let start = self.pos();
-        let end = start + 20; // max lookahead
-        let mut pos = self.pos();
-
-        // identifier .identifier*
-        // like `geom.Mesh`
-        while pos < end {
-            if let Some(token) = self.tokens.get(pos)
-                && token.token.r#type == TokenType::Identifier
-            {
-                pos += 1;
-                // keep going if there's a dot
-                if let Some(token) = self.tokens.get(pos)
-                    && token.token.r#type == TokenType::Dot
-                {
-                    pos += 1;
-                    continue;
-                }
-            }
-            break;
-        }
+        let (_, mut pos) = self.peek_path()?;
 
         // {
         // like in `geom.Mesh { ... }`
@@ -455,7 +430,7 @@ impl<'a> Parser<'a> {
             && token.token.r#type == TokenType::LessThan
         {
             // scan until '>'
-            while pos < end {
+            loop {
                 if let Some(token) = self.tokens.get(pos)
                     && token.token.r#type == TokenType::GreaterThan
                 {

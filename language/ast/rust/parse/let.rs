@@ -164,7 +164,7 @@ let (x, y) = foo()
 
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // (x, y)
-            assert_node!(parser.tree, *pattern, Pattern::Tuple { fields } => {
+            assert_node!(parser.tree, *pattern, Pattern::Tuple { fields, .. } => {
                 assert_eq!(fields.len(), 2);
                 // x
                 assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {

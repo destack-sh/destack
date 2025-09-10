@@ -3,7 +3,7 @@ use dyst
 /// Base event regarding an Invite.
 @event
 struct InviteEvent {
-    /// The Invite this event pertains to.
+    /// The Invite self event pertains to.
     invite: EntityReference<Invite>,
     /// The Joinable Entity the Invite is for.
     joinable: EntityReference<Joinable>,

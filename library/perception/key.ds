@@ -1,10 +1,11 @@
 use dyst
 
-@flag enum KeyModifier {
-    Shift,
-    Alt,
-    Ctrl,
-    Meta,
+@flag 
+enum KeyModifier {
+    Shift
+    Alt
+    Ctrl
+    Meta
 }
 
 /// Keyboard base event

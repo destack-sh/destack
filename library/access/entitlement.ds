@@ -9,7 +9,7 @@ enum EntitlementType {
 /// Base event regarding an Entitlement.
 @event
 struct EntitlementEvent {
-    /// The Entitlement this event pertains to.
+    /// The Entitlement self event pertains to.
     entitlement: Entitlement,
     /// The Entitled target Entity.
     target: Entity,
