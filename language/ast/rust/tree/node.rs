@@ -321,6 +321,15 @@ impl Node for Module {
     const KIND: NodeType = NodeType::Module;
 }
 
+/// The style of a struct.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum StructStyle {
+    /// A tuple struct with explicit representation.
+    Tuple,
+    /// A struct with explicit representation.
+    Struct,
+}
+
 /// A Struct is struct definition node in the AST.
 /// The ',' separator is optional if newline-delimited.
 /// Structs may `use` other structs to include them (just like traits).
@@ -328,6 +337,18 @@ impl Node for Module {
 ///
 /// Examples:
 /// ```
+/// struct {} // empty anonymous struct
+///
+/// struct _ {} // explicit anonymous struct (for disambiguation)
+///
+/// struct A() // unit struct (no fields)
+///
+/// struct Number(int32) // tuple struct (1 field)
+///
+/// struct Number(int32, isAwesome: boolean) { // tuple struct (2 fields)
+///     ...
+/// }
+///
 /// struct { a: int32, b: boolean }
 ///
 /// struct { // anonymous struct (for use as a value)
@@ -335,7 +356,7 @@ impl Node for Module {
 ///     myOtherField: boolean
 /// }
 ///
-/// struct Bar {
+/// struct(uint64) Bar { // 64-bit representation
 ///     myField: int32
 ///     myOtherField: boolean
 /// }
@@ -358,8 +379,12 @@ pub struct Struct {
     pub name: Option<StringId>,
     /// The visibility of the struct.
     pub visibility: Option<Visibility>,
+    /// The style of the struct.
+    pub style: StructStyle,
     /// The super types of the struct.
     pub super_types: Option<Vec<NodeId<Type>>>,
+    /// The representation type of the union (if explicitly specified).
+    pub representation_type: Option<NodeId<Type>>,
     /// The static parameters of the struct.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The fields of the struct.
@@ -383,7 +408,7 @@ impl Node for Struct {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructField {
     /// The name of the field.
-    pub name: StringId,
+    pub name: Option<StringId>,
     /// The type of the field.
     pub r#type: NodeId<Type>,
     /// The default value of the field.
@@ -403,6 +428,8 @@ impl Node for StructField {
 /// ```
 /// // anonymous enum (for use as a value)
 /// enum { Success, Failure }
+/// 
+/// enum _ {} // explicit anonymous enum (for disambiguation)
 ///
 /// enum Foo {
 ///     A // colon optional
@@ -470,7 +497,7 @@ pub enum UnionStyle {
     Implicit,
 }
 
-/// A Union is a tagged sum type definition node in the AST.
+/// A Union is a tagged sum type of structs.
 /// Like with structs, the ',' separator is optional if newline-delimited.
 ///
 /// Examples:
@@ -479,12 +506,14 @@ pub enum UnionStyle {
 ///     myField: int32
 ///     myOtherField: boolean
 /// }
+/// 
+/// union _ {} // explicit anonymous union (for disambiguation)
 ///
-/// union(uint4) Foo<T> {
+/// union(uint4, uint60) Foo<T> { // 4-bit tag with 60-bit content
 ///     A
 ///     B { x: int32, y: T } = 4
 ///     C(boolean)
-///     D(boolean, int32) = 6
+///     D(boolean, count: int32) = 6
 /// }
 ///
 /// // unions can be tagged with enums and include other types with use (like structs)
@@ -509,8 +538,10 @@ pub struct Union {
     pub visibility: Option<Visibility>,
     /// The style of union (explicit or implicit).
     pub style: UnionStyle,
-    /// The type of the union (if explicitly specified).
-    pub r#type: Option<NodeId<Type>>,
+    /// The tag type of the union (if explicitly specified).
+    pub tag_type: Option<NodeId<Type>>,
+    /// The representation type of the union (if explicitly specified).
+    pub representation_type: Option<NodeId<Type>>,
     /// The static parameters of the union.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
     /// The super types of the union.
@@ -546,7 +577,7 @@ impl Node for UnionField {
     const KIND: NodeType = NodeType::UnionField;
 }
 
-/// A Trait is trait definition node in the AST defining behavior and constants.
+/// A Trait is trait definition node defining behavior and constants.
 /// Traits can `use` other traits to include them (just like structs / unions).
 /// Traits can also have super traits as semantic sugar for `use`-ing other traits.
 ///
@@ -555,6 +586,8 @@ impl Node for UnionField {
 /// trait { // anonymous trait
 ///     ...
 /// }
+/// 
+/// trait _ {} // explicit anonymous trait (for disambiguation)
 ///
 /// trait Foo: Baz { // Foo is a super
 ///     use Bar, Boz // Foo *uses* Bar and Boz

@@ -5,7 +5,7 @@ use dyst_language_token::{TokenType, clean_identifier};
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, TupleField, Type, Union,
+    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructStyle, Type, Union,
     UnionField, UnionStyle, Visibility,
 };
 
@@ -19,43 +19,55 @@ impl<'a> Parser<'a> {
     ///     myOtherField: boolean
     /// }
     ///
-    /// union(uint4) Foo<T> {
+    /// union _ {} // explicit anonymous union (for disambiguation)
+    ///
+    /// union(uint4, uint60) Foo<T> { // 4-bit tag with 60-bit content
     ///     A
     ///     B { x: int32, y: T } = 4
     ///     C(boolean)
-    ///     D(boolean, int32) = 6
+    ///     D(boolean, count: int32) = 6
     /// }
     ///
     /// // unions can be tagged with enums and include other types with use (like structs)
     /// union(TetrisShapeType) TetrisShape: Entity { // TetrisShape has Entity as super
     ///     use TetrisGameObject
     ///     ...
-    ///    
+    ///
     ///     function myFunc() { // nested declaration
     ///     }
     /// }
+    ///
+    /// // implicit anonymous union
+    /// boolean | *int32
+    /// // desugars to
+    /// union { boolean(boolean) = boolean, int32(*int32) = *int32 }
     /// ```
     pub fn eat_union(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Union>> {
         let start = self.mark();
         self.eat_keyword(Keyword::Union)?;
 
-        // optional explicit tag type in `(Type)`
-        let explicit_type: Option<NodeId<Type>> =
+        // optional explicit tag / representation type in `(Type)`
+        let (explicit_type, representation_type) =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.eat_token(TokenType::OpenParenthesis)?;
+                // tag type
                 let ty = self.eat_type()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                Some(ty)
+                if self.peek_token(TokenType::Comma).is_ok() {
+                    self.bump(); // eat comma
+                    // representation type
+                    let representation_type = self.eat_type()?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
+                    (Some(ty), Some(representation_type))
+                } else {
+                    self.eat_token(TokenType::CloseParenthesis)?;
+                    (Some(ty), None)
+                }
             } else {
-                None
+                (None, None)
             };
 
         // optional name
-        let name = if self.peek_token(TokenType::Identifier).is_ok() {
-            Some(self.eat_identifier()?)
-        } else {
-            None
-        };
+        let name = self.eat_identifier_or_wildcard_maybe()?;
 
         // optional static parameters: < ... >
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
@@ -107,7 +119,8 @@ impl<'a> Parser<'a> {
         let union = self.tree.get_mut(union_id);
         union.name = name;
         union.static_parameters = static_parameters;
-        union.r#type = explicit_type;
+        union.tag_type = explicit_type;
+        union.representation_type = representation_type;
         union.super_types = super_types;
         self.tree.set_span(union_id, self.get_span_from(start));
 
@@ -148,7 +161,8 @@ impl<'a> Parser<'a> {
                 static_parameters: None,
                 super_types: None,
                 style: UnionStyle::Explicit,
-                r#type: None,
+                tag_type: None,
+                representation_type: None,
                 fields,
                 statements,
             },
@@ -182,55 +196,60 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// A
-    /// B(int32)
-    /// C(boolean, vec: Vector2)
-    /// D { x: int32, y: int32 } = 4
+    /// B(int32) // tuple struct
+    /// C(boolean, vec: Vector2) // struct struct
+    /// D { x: int32, y: int32 } = 4 // struct struct with tag value
     /// ```
     fn eat_union_field(&mut self) -> ParseResult<NodeId<UnionField>> {
         let start = self.mark();
         let name = self.eat_identifier()?;
 
         // optional payload type
-        let payload_type: Option<NodeId<Type>> =
-            // single or tuple type
-            if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                let tuple_id = self.eat_tuple()?;
-                let tuple = self.tree.get(tuple_id);
-                // empty tuple
-                if tuple.elements.is_empty() {
-                    self.tree.free(tuple_id);
+        let payload_type: Option<NodeId<Type>> = {
+            let fields = {
+                // struct tuple type
+                if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                    self.bump(); // eat open parenthesis
+                    let tuple_fields = self.eat_struct_tuple_body()?;
+                    self.eat_token(TokenType::CloseParenthesis)?;
+                    Some((StructStyle::Tuple, tuple_fields))
+                }
+                // struct struct type
+                else if self.peek_token(TokenType::OpenBrace).is_ok() {
+                    self.bump(); // eat open brace
+                    let (fields, _) = self.eat_struct_body(StructStyle::Struct)?;
+                    self.eat_token(TokenType::CloseBrace)?;
+                    Some((StructStyle::Struct, fields))
+                }
+                // no payload type
+                else {
                     None
                 }
-                // single positional tuple (unwrap inner)
-                else if tuple.elements.len() == 1
-                    && let &TupleField::Positional {
-                        r#type: inner_type_id,
-                    } = self.tree.get(tuple.elements[0])
-                {
-                    self.tree.free(tuple_id);
-                    Some(inner_type_id)
-                }
-                // normal tuple (keep outer)
-                else {
-                    let type_id = self
-                        .tree
-                        .allocate(Type::Tuple(tuple_id), self.get_span_from(start));
-                    Some(type_id)
-                }
-            }
-            // struct type
-            else if self.peek_token(TokenType::OpenBrace).is_ok() {
-                self.bump(); // eat open brace
-                let struct_id = self.eat_struct_body(None)?;
-                self.eat_token(TokenType::CloseBrace)?;
-                self.tree.set_span(struct_id, self.get_span_from(start));
-                let type_id = self.tree.allocate(Type::Struct(struct_id), self.get_span_from(start));
-                Some(type_id)
-            }
-            // no payload type
-            else {
-                None
             };
+
+            // map to struct type
+            if let Some((style, fields)) = fields {
+                let struct_id = self.tree.allocate(
+                    Struct {
+                        name: None,
+                        visibility: None,
+                        style,
+                        super_types: None,
+                        representation_type: None,
+                        static_parameters: None,
+                        fields,
+                        statements: Vec::new(),
+                    },
+                    self.get_span_from(start),
+                );
+                Some(
+                    self.tree
+                        .allocate(Type::Struct(struct_id), self.get_span_from(start)),
+                )
+            } else {
+                None
+            }
+        };
 
         // optional default value: `= <expr>`
         let value = if self.peek_token(TokenType::Assign).is_ok() {
@@ -304,7 +323,8 @@ impl<'a> Parser<'a> {
                 visibility: None,
                 super_types: None,
                 style: UnionStyle::Implicit,
-                r#type: None,
+                tag_type: None,
+                representation_type: None,
                 static_parameters: None,
                 fields,
                 statements: Vec::new(),
@@ -319,8 +339,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Mutability, Parameter, PrimitiveType, Statement, StructField, TupleField, Type,
-        Union, UnionField, UnionStyle, Use, assert_int, assert_node,
+        Expression, Mutability, Parameter, PrimitiveType, Statement, StructField, StructStyle,
+        Type, Union, UnionField, UnionStyle, Use, assert_int, assert_node,
     };
 
     #[test]
@@ -334,9 +354,9 @@ union { A, B }
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, tag_type, style, fields, statements, .. } => {
             assert!(name.is_none());
-            assert!(r#type.is_none());
+            assert!(tag_type.is_none());
             assert_eq!(*style, UnionStyle::Explicit);
             assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);
@@ -385,7 +405,7 @@ union Foo: Bar {}
     fn test_parse_explicit_union_with_type_and_name() {
         let test = TestParser::new(
             r###"
-union(uint4) Foo<T>: Boz {
+union(uint4, uint60) Foo<T>: Boz {
     A
     use Bar
     C(boolean)
@@ -401,13 +421,17 @@ union(uint4) Foo<T>: Boz {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, static_parameters, fields, statements, super_types, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, tag_type, representation_type, style, static_parameters, fields, statements, super_types, .. } => {
             assert_eq!(*name, Some(parser.strings.intern("Foo")));
             assert_eq!(*style, UnionStyle::Explicit);
 
-            // (uint4)
-            assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
+            // (uint4, uint60)
+            assert_node!(parser.tree, tag_type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
                 assert_eq!(int_ty.width, 4);
+                assert!(!int_ty.is_signed);
+            });
+            assert_node!(parser.tree, representation_type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
+                assert_eq!(int_ty.width, 60);
                 assert!(!int_ty.is_signed);
             });
 
@@ -447,7 +471,17 @@ union(uint4) Foo<T>: Boz {
             // C(boolean)
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
                 assert_eq!(*name, parser.strings.intern("C"));
-                assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Boolean));
+                assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
+                    let struct_ = parser.tree.get(*struct_id);
+                    assert_eq!(struct_.style, StructStyle::Tuple);
+                    assert_eq!(struct_.fields.len(), 1);
+
+                    // boolean
+                    assert_node!(parser.tree, struct_.fields[0], StructField { name, r#type, .. } => {
+                        assert!(name.is_none());
+                        assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
+                    });
+                });
                 assert!(value.is_none());
             });
 
@@ -456,18 +490,20 @@ union(uint4) Foo<T>: Boz {
                 assert_eq!(*name, parser.strings.intern("D"));
 
                 // (boolean, count: int32)
-                assert_node!(parser.tree, r#type.unwrap(), Type::Tuple(tuple_id) => {
-                    let tuple = parser.tree.get(*tuple_id);
-                    assert_eq!(tuple.elements.len(), 2);
+                assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
+                    let struct_ = parser.tree.get(*struct_id);
+                    assert_eq!(struct_.style, StructStyle::Tuple);
+                    assert_eq!(struct_.fields.len(), 2);
 
                     // boolean
-                    assert_node!(parser.tree, tuple.elements[0], TupleField::Positional { r#type } => {
+                    assert_node!(parser.tree, struct_.fields[0], StructField { name, r#type, .. } => {
+                        assert!(name.is_none());
                         assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
                     });
 
                     // count: int32
-                    assert_node!(parser.tree, tuple.elements[1], TupleField::Named { name, r#type } => {
-                        assert_eq!(*name, parser.strings.intern("count"));
+                    assert_node!(parser.tree, struct_.fields[1], StructField { name, r#type, .. } => {
+                        assert_eq!(name.unwrap(), parser.strings.intern("count"));
                         assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                             assert_eq!(int_ty.width, 32);
                             assert!(int_ty.is_signed);
@@ -491,7 +527,7 @@ union(uint4) Foo<T>: Boz {
                     // x: int32
                     assert_node!(parser.tree, struct_.fields[0], StructField { name, r#type, .. } => {
                         // x
-                        assert_eq!(*name, parser.strings.intern("x"));
+                        assert_eq!(name.unwrap(), parser.strings.intern("x"));
                         // int32
                         assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                             assert_eq!(int_ty.width, 32);
@@ -502,7 +538,7 @@ union(uint4) Foo<T>: Boz {
                     // y: T
                     assert_node!(parser.tree, struct_.fields[1], StructField { name, r#type, .. } => {
                         // y
-                        assert_eq!(*name, parser.strings.intern("y"));
+                        assert_eq!(name.unwrap(), parser.strings.intern("y"));
                         // T
                         assert_node!(parser.tree, *r#type, Type::Path { path, static_arguments: _ } => {
                             assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
@@ -519,9 +555,9 @@ union(uint4) Foo<T>: Boz {
         let mut parser = test.parser();
 
         let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, r#type, style, fields, statements, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, tag_type, style, fields, statements, .. } => {
             assert!(name.is_none());
-            assert!(r#type.is_none());
+            assert!(tag_type.is_none());
             assert_eq!(*style, UnionStyle::Implicit);
             assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);

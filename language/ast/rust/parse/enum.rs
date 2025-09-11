@@ -14,6 +14,8 @@ impl<'a> Parser<'a> {
     /// ```
     /// // anonymous enum (for use as a value)
     /// enum { Success, Failure }
+    /// 
+    /// enum _ {} // explicit anonymous enum (for disambiguation)
     ///
     /// enum Foo {
     ///     A // semicolon optional
@@ -45,11 +47,7 @@ impl<'a> Parser<'a> {
             };
 
         // optional name
-        let name = if self.peek_token(TokenType::Identifier).is_ok() {
-            Some(self.eat_identifier()?)
-        } else {
-            None
-        };
+        let name = self.eat_identifier_or_wildcard_maybe()?;
 
         // optional super types: : ...
         let super_types = if self.peek_token(TokenType::Colon).is_ok() {

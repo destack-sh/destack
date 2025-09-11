@@ -11,6 +11,8 @@ impl<'a> Parser<'a> {
     /// trait { // anonymous trait
     ///     ...
     /// }
+    /// 
+    /// trait _ {} // explicit anonymous trait (for disambiguation)
     ///
     /// trait Foo {
     ///     use Bar, Boz // Foo *uses* Bar and Boz
@@ -35,11 +37,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Trait)?;
 
         // optional name
-        let name = if self.peek_identifier().is_ok() {
-            Some(self.eat_identifier()?)
-        } else {
-            None
-        };
+        let name = self.eat_identifier_or_wildcard_maybe()?;
 
         // optional static parameters: < ... >
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {

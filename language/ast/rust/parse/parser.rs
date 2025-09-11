@@ -221,7 +221,10 @@ impl<'a> Parser<'a> {
     /// Peek the next token.
     #[inline]
     pub fn peek_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        debug_assert!(is_semantic(token_type), "peek_token requires semantic token type");
+        debug_assert!(
+            is_semantic(token_type),
+            "peek_token requires semantic token type"
+        );
         let next = self.peek()?;
         if next.token.r#type == token_type {
             Ok(next)
@@ -233,7 +236,10 @@ impl<'a> Parser<'a> {
     /// Peek the next next token.
     #[inline]
     pub fn peek_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        debug_assert!(is_semantic(token_type), "peek_next_token requires semantic token type");
+        debug_assert!(
+            is_semantic(token_type),
+            "peek_next_token requires semantic token type"
+        );
         let next = self.peek_next()?;
         if next.token.r#type == token_type {
             Ok(next)
@@ -245,7 +251,10 @@ impl<'a> Parser<'a> {
     /// Peek the next next next token.
     #[inline]
     pub fn peek_next_next_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        debug_assert!(is_semantic(token_type), "peek_next_next_token requires semantic token type");
+        debug_assert!(
+            is_semantic(token_type),
+            "peek_next_next_token requires semantic token type"
+        );
         let next = self.peek_next_next()?;
         if next.token.r#type == token_type {
             Ok(next)
@@ -257,7 +266,10 @@ impl<'a> Parser<'a> {
     /// Eat a token.
     #[inline]
     pub fn eat_token(&mut self, token_type: TokenType) -> ParseResult<&TokenSpan> {
-        debug_assert!(is_semantic(token_type), "eat_token requires semantic token type");
+        debug_assert!(
+            is_semantic(token_type),
+            "eat_token requires semantic token type"
+        );
         let current = self.eat()?;
         if current.token.r#type == token_type {
             Ok(current)
