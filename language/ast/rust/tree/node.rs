@@ -2005,20 +2005,33 @@ impl Node for MatchCase {
 }
 
 // ----------------------------------------------------------------------------
-// Documentation
+// Comments
 // ----------------------------------------------------------------------------
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum CommentStyle {
+    Line,
+    Block,
+}
+
 /// A Doc is a full documentation comment string AST node.
-/// Successive documentation comments are concatenated.
 /// Like comments, Docs are attached in a side tree outside of the main parse / tree.
 ///
-/// Because almost every Node can have documentation, we store it separately
-///  in `NodeTree.documentation_by_node` (just like we have `spans_per_node`).
+/// Examples:
+/// ```
+/// /// Documentation comment.
+/// /// Other documentation comment.
+/// /**
+///  * Documentation comment.
+///  */
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Doc {
-    /// The full, merged documentation comment string.
+    /// The clean documentation comment string.
     /// Newlines preserved, leading/trailing whitespace stripped.
     pub string: StringId,
+    /// The style of the documentation comment.
+    pub style: CommentStyle,
 }
 
 impl Node for Doc {
@@ -2026,17 +2039,19 @@ impl Node for Doc {
 }
 
 /// A Comment is a free-floating comment AST node.
-/// Comments are not associated with any item, but they are still part of the AST.
 /// Like documentation, Comments are attached in a side tree outside of the main parse / tree.
 ///
 /// Examples:
 /// ```
 /// // comment
+/// /* comment */
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Comment {
-    /// The full, merged comment string.
+    /// The clean comment string.
     pub string: StringId,
+    /// The style of the comment.
+    pub style: CommentStyle,
 }
 
 impl Node for Comment {

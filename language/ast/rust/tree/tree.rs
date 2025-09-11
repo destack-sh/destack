@@ -1,12 +1,16 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::iter::Map;
 use std::marker::PhantomData;
 
 use dyst_language_source::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
+    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
+    Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral,
+    Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple,
+    TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With,
+    WithClause,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -43,10 +47,10 @@ pub struct NodeTree {
     pub(crate) kind_by_node: Vec<NodeType>,
     /// The spans of all nodes in the AST. Index is the global node id.
     pub(crate) spans_per_node: Vec<Span>,
-    /// The documentation of nodes in the AST (merged).
-    pub(crate) docs_per_node: HashMap<u32, NodeId<Doc>>,
-    /// The comments of nodes in the AST (merged).
-    pub(crate) comments_per_node: HashMap<u32, NodeId<Comment>>,
+    /// The documentation attached nodes in the AST.
+    pub(crate) docs_per_node: HashMap<u32, Vec<NodeId<Doc>>>,
+    /// The comments attached to nodes in the AST .
+    pub(crate) comments_per_node: HashMap<u32, Vec<NodeId<Comment>>>,
     /// The tombstones (compacted after parsing).
     pub(crate) tombstones: Vec<u32>,
 
@@ -216,7 +220,6 @@ impl NodeTree {
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
         self.spans_per_node.push(span);
-        self.docs_per_node.push(None);
         NodeId {
             id: global_id,
             _ty: PhantomData,
@@ -276,6 +279,27 @@ impl NodeTree {
         T: Node,
     {
         self.spans_per_node[node_id.id as usize] = span;
+    }
+
+    /// Append a doc to a node.
+    #[inline]
+    pub fn append_doc<T>(&mut self, node_id: NodeId<T>, doc: NodeId<Doc>)
+    where
+        T: Node,
+    {
+        self.docs_per_node.entry(node_id.id).or_default().push(doc);
+    }
+
+    /// Append a comment to a node.
+    #[inline]
+    pub fn append_comment<T>(&mut self, node_id: NodeId<T>, comment: NodeId<Comment>)
+    where
+        T: Node,
+    {
+        self.comments_per_node
+            .entry(node_id.id)
+            .or_default()
+            .push(comment);
     }
 }
 

@@ -940,7 +940,7 @@ impl Dump for Implement {
         dumper.with_depth(|dumper| {
             if let Some(static_arguments) = &self.static_arguments {
                 // there will always be at least the receiver after static args
-                dumper.dump_nodes_tail(static_arguments, Some("static"), true);
+                dumper.dump_nodes_tail(static_arguments, None, true);
             }
             let has_after_receiver = self.for_trait.is_some() || !self.statements.is_empty();
             dumper.dump_node_branch(&self.receiver, Some("receiver"), has_after_receiver);
@@ -987,7 +987,7 @@ impl Dump for Type {
                 dumper.node("Type::Path").value(path).end();
                 dumper.with_depth(|dumper| {
                     if let Some(static_arguments) = static_arguments {
-                        dumper.dump_nodes(static_arguments, Some("static"));
+                        dumper.dump_nodes(static_arguments, None);
                     }
                 });
             }
@@ -1115,7 +1115,7 @@ impl Dump for Function {
                     || self.return_type.is_some()
                     || self.with.is_some()
                     || self.body.is_some();
-                dumper.dump_nodes_tail(static_parameters, Some("static"), tail_after);
+                dumper.dump_nodes_tail(static_parameters, None, tail_after);
             }
             let tail_after_dynamic =
                 self.return_type.is_some() || self.with.is_some() || self.body.is_some();
@@ -1413,7 +1413,7 @@ impl Dump for Argument {
         dumper.with_depth(|dumper| match self {
             Argument::Named { name, value } => {
                 dumper.node("Argument::Named").field("name", name).end();
-                dumper.dump_node(value, Some("value"));
+                dumper.dump_node(value, None);
             }
             Argument::NamedShorthand { name } => {
                 dumper
@@ -1423,7 +1423,7 @@ impl Dump for Argument {
             }
             Argument::Positional { value } => {
                 dumper.node("Argument::Positional").end();
-                dumper.dump_node(value, Some("value"));
+                dumper.dump_node(value, None);
             }
         });
     }
@@ -1753,7 +1753,7 @@ impl Dump for PatternField {
 }
 
 // ----------------------------------------------------------------------------
-// Documentation
+// Comments
 // ----------------------------------------------------------------------------
 
 impl Dump for Doc {

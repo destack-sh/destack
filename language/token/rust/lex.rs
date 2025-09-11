@@ -8,6 +8,20 @@ use super::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_library_unicode::UnicodeEmoji;
 use dyst_language_source::{SourceId, Span};
 
+pub const TRIVIA_TOKEN_TYPES: [TokenType; 6] = [
+    TokenType::Whitespace,
+    TokenType::LineComment,
+    TokenType::BlockComment,
+    TokenType::DocLineComment,
+    TokenType::DocBlockComment,
+    TokenType::End,
+];
+
+#[inline]
+pub fn is_semantic(token_type: TokenType) -> bool {
+    !TRIVIA_TOKEN_TYPES.contains(&token_type)
+}
+
 /// Tokenize the input string into an Iterator of semantic and non-semantic Tokens (no Spans).
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     let mut cursor = Tokenizer::new(input);
@@ -21,34 +35,35 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     })
 }
 
-/// Tokenize the input string into an Iterator of semantic Tokens and Spans.
-/// Ignore non-semantic Tokens (Whitespace).
-/// NOTE: DocLineComments and DocBlockComments are considered semantic.
-pub fn tokenize_semantic(source_id: SourceId, input: &str) -> Vec<TokenSpan> {
+/// Tokenize the input string into an Iterator of Tokens and Spans.
+/// Returns both semantic and trivia tokens.
+pub fn tokenize_semantic(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
     let mut cursor = Tokenizer::new(input);
-    let mut tokens: Vec<TokenSpan> = Vec::new();
+    let mut semantic_tokens: Vec<TokenSpan> = Vec::new();
+    let mut trivia_tokens: Vec<TokenSpan> = Vec::new();
     let mut pos = 0;
     while !cursor.is_eof() {
         let token = cursor.advance();
-        if token.r#type != TokenType::End
-            && token.r#type != TokenType::Whitespace
-            && token.r#type != TokenType::LineComment
-            && token.r#type != TokenType::BlockComment
-        {
-            let end = pos + token.len;
-            tokens.push(TokenSpan {
-                token,
-                span: Span {
-                    source: source_id,
-                    start: pos,
-                    end,
-                },
-            });
+        if token.r#type == TokenType::End {
+            break;
+        }
+        let token_span = TokenSpan {
+            token,
+            span: Span {
+                source: source_id,
+                start: pos,
+                end: pos + token.len,
+            },
+        };
+        if is_semantic(token.r#type) {
+            semantic_tokens.push(token_span);
+        } else {
+            trivia_tokens.push(token_span);
         }
         pos = pos.saturating_add(token.len);
     }
     assert_eq!(pos, input.len() as u32);
-    tokens
+    (semantic_tokens, trivia_tokens)
 }
 
 impl Tokenizer<'_> {
