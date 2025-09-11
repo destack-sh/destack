@@ -153,7 +153,7 @@ impl LanguageServer for DestackLanguageServer {
 
     fn hover(&self, _params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
         // get parsed document
-        // nocheckin todo: parse all docs in workspace
+        // nocheckin todo!: parse all docs in workspace
         let text = self
             .docs
             .get(&_params.text_document_position_params.text_document.uri)
@@ -168,7 +168,7 @@ impl LanguageServer for DestackLanguageServer {
         );
         parser.process_annotations();
 
-        // nocheckin: generalize NodeMap / mapping stuff (for LSP or maybe overall)
+        // nocheckin todo!: generalize NodeMap / mapping stuff (for LSP or maybe overall)
         // compute line starts for mapping
         let mut line_starts: Vec<usize> = vec![0];
         for (i, ch) in text.char_indices() {
