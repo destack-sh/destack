@@ -2,7 +2,14 @@
 
 use dyst_language_token::{TokenSpan, TokenType};
 
-use crate::Parser;
+use crate::{AnnotationPosition, AnnotationStyle, Comment, Doc, Parser};
+
+const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
+    TokenType::LineComment,
+    TokenType::DocLineComment,
+    TokenType::BlockComment,
+    TokenType::DocBlockComment,
+];
 
 impl<'a> Parser<'a> {
     /// Attach annotations to respective AST nodes.
@@ -15,68 +22,166 @@ impl<'a> Parser<'a> {
     /// Annotations without corresponding following nodes are "free floating"
     ///  (we allocate them but don't append them to any nodes).
     pub fn process_annotations(&mut self) {
-        let mut combined_tokens = Vec::with_capacity(self.tokens.len());
-        combined_tokens.extend(self.tokens.clone());
-        combined_tokens.extend(
+        let mut tokens = Vec::with_capacity(self.tokens.len());
+        tokens.extend(self.tokens.clone());
+        tokens.extend(
             self.trivia_tokens
                 .iter()
                 .filter(|token| token.token.r#type != TokenType::Whitespace),
         );
-        combined_tokens.sort_by_key(|token| token.span.start);
+        tokens.sort_by_key(|token| token.span.start);
+        if tokens.is_empty() {
+            return;
+        }
 
-        // nocheckin todo!: Parser.process_annotations
-        let mut current_group_start: Option<u32> = None;
-        let mut current_group_type: Option<TokenType> = None;
-        for (i, token) in combined_tokens.iter().enumerate() {
-            let prev_token = combined_tokens.get(i - 1);
-            let next_token = combined_tokens.get(i + 1);
+        // flush group
+        let mut flush_group = |start: u32, end: u32, group_type: TokenType| {
+            // check if it's an annotation
+            let separator = match group_type {
+                // line annotations with newlines
+                TokenType::LineComment => "\n",
+                TokenType::DocLineComment => "\n",
+                // block annotations with spaces
+                TokenType::BlockComment => " ",
+                TokenType::DocBlockComment => " ",
+                _ => return, // not a comment, bail
+            };
 
-            if current_group_start.is_none() {
-                current_group_start = Some(i as u32);
-                current_group_type = Some(token.token.r#type);
+            // get the next token to attach to
+            let next_token = {
+                // next token is valid target
+                if let Some(next_token) = tokens.get(end as usize)
+                    && next_token.token.r#type != TokenType::Newline
+                    && !ANNOTATION_TOKEN_TYPES.contains(&next_token.token.r#type)
+                {
+                    next_token
+                }
+                // next next token is valid target with newline
+                else if let Some(next_token) = tokens.get((end) as usize)
+                    && next_token.token.r#type == TokenType::Newline
+                    && let Some(next_next_token) = tokens.get((end + 1) as usize)
+                    && next_next_token.token.r#type != TokenType::Newline
+                    && !ANNOTATION_TOKEN_TYPES.contains(&next_next_token.token.r#type)
+                {
+                    next_token
+                }
+                // no valid target token, bail
+                else {
+                    return;
+                }
+            };
+
+            // get the node to attach to
+            let Some((next_node_id, _)) = self.tree.map.get_enclosing_span(next_token.span.start)
+            else {
+                return; // no valid target node, bail
+            };
+
+            // merge content
+            let merged_content = tokens[start as usize..end as usize]
+                .iter()
+                .map(|token| self.clean_annotation(*token))
+                .collect::<Vec<_>>()
+                .join(separator);
+            let string_id = self.strings.intern(merged_content);
+
+            // append annotation node
+            match group_type {
+                TokenType::LineComment => {
+                    let annotation_node_id = self.tree.allocate(
+                        Comment {
+                            string: string_id,
+                            style: AnnotationStyle::Line,
+                            position: AnnotationPosition::Prefix,
+                        },
+                        next_token.span,
+                    );
+                    self.tree.append_comment(next_node_id, annotation_node_id);
+                }
+                TokenType::DocLineComment => {
+                    let annotation_node_id = self.tree.allocate(
+                        Doc {
+                            string: string_id,
+                            style: AnnotationStyle::Line,
+                            position: AnnotationPosition::Prefix,
+                        },
+                        next_token.span,
+                    );
+                    self.tree.append_doc(next_node_id, annotation_node_id);
+                }
+                TokenType::BlockComment => {
+                    let annotation_node_id = self.tree.allocate(
+                        Comment {
+                            string: string_id,
+                            style: AnnotationStyle::Block,
+                            position: AnnotationPosition::Prefix,
+                        },
+                        next_token.span,
+                    );
+                    self.tree.append_comment(next_node_id, annotation_node_id);
+                }
+                TokenType::DocBlockComment => {
+                    let annotation_node_id = self.tree.allocate(
+                        Doc {
+                            string: string_id,
+                            style: AnnotationStyle::Block,
+                            position: AnnotationPosition::Prefix,
+                        },
+                        next_token.span,
+                    );
+                    self.tree.append_doc(next_node_id, annotation_node_id);
+                }
+                _ => panic!("unexpected token type: {group_type:?}"),
             }
+        };
 
-            if token.token.r#type == TokenType::LineComment
-                || token.token.r#type == TokenType::BlockComment
-                || token.token.r#type == TokenType::DocLineComment
-                || token.token.r#type == TokenType::DocBlockComment
-            {
-
-                // ...
-            } else {
-                // ...
+        // process tokens in groups
+        let mut current_start: u32 = 0;
+        let mut current_type: TokenType = tokens[0].token.r#type;
+        for (i, token) in tokens.iter().enumerate() {
+            if current_type != token.token.r#type {
+                flush_group(current_start, i as u32, current_type);
+                current_start = i as u32;
+                current_type = token.token.r#type;
             }
+        }
+        if current_start != tokens.len() as u32 {
+            flush_group(current_start, tokens.len() as u32, current_type);
         }
     }
 
     /// Clean an annotation token into its inner string (newlines are preserved).
+    /// Panics if the token is not an annotation (!).
+    #[inline]
     fn clean_annotation(&self, token: TokenSpan) -> &str {
         match token.token.r#type {
             TokenType::LineComment => {
                 // strip leading `//`
                 let string = self.source.get_span_str(token.span);
-                let string = string.strip_prefix("//").unwrap_or(string);
-                string
+                string.strip_prefix("//").unwrap_or(string)
             }
             TokenType::BlockComment => {
                 // strip leading `/*` and trailing `*/`
                 let string = self.source.get_span_str(token.span);
-                let string = string.strip_prefix("/*").unwrap_or(string);
-                let string = string.strip_suffix("*/").unwrap_or(string);
                 string
+                    .strip_prefix("/*")
+                    .unwrap_or(string)
+                    .strip_suffix("*/")
+                    .unwrap_or(string)
             }
             TokenType::DocLineComment => {
                 // strip leading `///`
                 let string = self.source.get_span_str(token.span);
-                let string = string.strip_prefix("///").unwrap_or(string);
-                string
+                string.strip_prefix("///").unwrap_or(string)
             }
             TokenType::DocBlockComment => {
                 // strip leading `/**` and trailing `*/`
                 let string = self.source.get_span_str(token.span);
-                let string = string.strip_prefix("/**").unwrap_or(string);
-                let string = string.strip_suffix("*/").unwrap_or(string);
                 string
+                    .strip_prefix("/**")
+                    .unwrap_or(string)
+                    .strip_suffix("*/")
+                    .unwrap_or(string)
             }
             _ => panic!("unexpected token type: {:?}", token.token.r#type),
         }
