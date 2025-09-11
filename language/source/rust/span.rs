@@ -110,3 +110,10 @@ pub struct LabeledSpan {
     /// The message of the labeled span.
     pub label: String,
 }
+
+impl LabeledSpan {
+    /// Create a new LabeledSpan.
+    pub fn new(span: Span, label: String) -> Self {
+        Self { span, label }
+    }
+}

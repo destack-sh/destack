@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use dyst_language_diagnostic::Diagnostic;
 use dyst_language_source::{Source, SourceId, Span};
-use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_semantic};
+use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
 use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
 
@@ -34,6 +34,9 @@ pub struct Parser<'a> {
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     pub eof_token: TokenSpan,
 
+    /// The Node tree.
+    pub tree: NodeTree,
+
     /// NOTE :Architecture: move Parser.diagnostics into Session?
     /// Diagnostics emitted in this session.
     pub diagnostics: Vec<Diagnostic>,
@@ -41,8 +44,6 @@ pub struct Parser<'a> {
     pub strings: StringPool,
     /// The path pool.
     pub paths: PathPool,
-    /// The Node tree.
-    pub tree: NodeTree,
 
     /// The current position in the tokens.
     pos: usize,
@@ -59,7 +60,7 @@ impl Debug for Parser<'_> {
 impl<'a> Parser<'a> {
     /// Create a new parser from source.
     pub fn from_source(source: &'a Source) -> Self {
-        let (tokens, trivia_tokens) = tokenize_semantic(source.id, &source.content);
+        let (tokens, trivia_tokens) = tokenize_with_spans(source.id, &source.content);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {
             span: Span {
                 source: source.id,
@@ -68,19 +69,19 @@ impl<'a> Parser<'a> {
             },
             token: Token::eof(),
         });
-        let strings = StringPool::new();
-        let paths = PathPool::new();
         let tree = NodeTree::new();
         let diagnostics = Vec::new();
+        let strings = StringPool::new();
+        let paths = PathPool::new();
         Self {
             source,
             source_id: source.id,
             tokens,
             trivia_tokens,
-            strings,
-            paths,
             tree,
             diagnostics,
+            strings,
+            paths,
             pos: 0,
             eof_token,
             options: ParserOptions::default(),

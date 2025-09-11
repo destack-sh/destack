@@ -19,7 +19,7 @@ let serverProc: ChildProcessWithoutNullStreams | undefined;
 export async function activate(ctx: vscode.ExtensionContext) {
   // create output channels for logging
   const clientLog = vscode.window.createOutputChannel("Destack Client", { log: true });
-  const serverLog = vscode.window.createOutputChannel("Destack LSP", { log: true });
+  const serverLog = vscode.window.createOutputChannel("Destack Server", { log: true });
 
   const cfg = vscode.workspace.getConfiguration("destack");
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -34,7 +34,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
       throw new Error("destack.server.command is required");
     }
 
-    serverLog.info(`Using Destack LSP: ${serverCommand}`);
+    serverLog.info(`Using Destack Server: ${serverCommand}`);
 
     return await new Promise<StreamInfo>((resolve, reject) => {
       serverProc = spawn(serverCommand, args, {

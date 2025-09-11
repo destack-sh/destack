@@ -1,41 +1,16 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 
 use dyst_language_source::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
-    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
-    Match, MatchCase, Module, Node, NodeMap, NodeType, Parameter, Pattern, PatternField,
-    RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try,
-    Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With,
-    WithClause,
+    AnyNodeId, Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue,
+    Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index,
+    Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeMap, NodeType, Parameter, Pattern,
+    PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
+    StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
+    UseClause, UseItem, While, With, WithClause,
 };
-
-/// Unique identifier for nodes in an arena, parameterized by node type.
-#[repr(transparent)]
-#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct NodeId<T: Node> {
-    pub id: u32,
-    _ty: PhantomData<fn() -> T>,
-}
-
-impl<T: Node> Debug for NodeId<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeId").field("id", &self.id).finish()
-    }
-}
-
-// manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
-impl<T: Clone + Node> Copy for NodeId<T> {}
-
-impl<T: Node> NodeId<T> {
-    #[inline]
-    pub fn get(&self) -> usize {
-        self.id as usize
-    }
-}
 
 /// The Node tree.
 pub struct NodeTree {
@@ -43,8 +18,8 @@ pub struct NodeTree {
     pub(crate) next_id: u32,
     /// The local ids of all nodes in the AST. Index is the global node id.
     pub(crate) local_id_by_node: Vec<u32>,
-    /// The kinds of all nodes in the AST. Index is the global node id.
-    pub(crate) kind_by_node: Vec<NodeType>,
+    /// The types of all nodes in the AST. Index is the global node id.
+    pub(crate) type_by_node: Vec<NodeType>,
     /// The documentation attached nodes in the AST.
     pub(crate) docs_per_node: HashMap<u32, Vec<NodeId<Doc>>>,
     /// The comments attached to nodes in the AST .
@@ -137,7 +112,7 @@ impl NodeTree {
         Self {
             next_id: 0,
             local_id_by_node: Vec::with_capacity(capacity),
-            kind_by_node: Vec::with_capacity(capacity),
+            type_by_node: Vec::with_capacity(capacity),
             docs_per_node: HashMap::new(),
             comments_per_node: HashMap::new(),
             map: NodeMap::new(),
@@ -212,14 +187,11 @@ impl NodeTree {
     {
         let global_id = self.next_id;
         self.next_id = global_id + 1;
-        self.kind_by_node.push(T::KIND);
+        self.type_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
         self.map.append_span(span);
-        NodeId {
-            id: global_id,
-            _ty: PhantomData,
-        }
+        NodeId::new(global_id)
     }
 
     /// Get an immutable reference to the node with the given NodeId.
@@ -242,6 +214,73 @@ impl NodeTree {
     {
         let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get_mut(self, local_id)
+    }
+
+    /// Get an any node from the given NodeId.
+    #[inline]
+    pub fn get_any_id(&self, id: u32) -> AnyNodeId {
+        let ty = self.type_by_node[id as usize];
+        let local_id = self.local_id_by_node[id as usize];
+        match ty {
+            // groupings
+            NodeType::Block => AnyNodeId::Block(NodeId::new(local_id)),
+            NodeType::Statement => AnyNodeId::Statement(NodeId::new(local_id)),
+            NodeType::Expression => AnyNodeId::Expression(NodeId::new(local_id)),
+            // declarations
+            NodeType::Module => AnyNodeId::Module(NodeId::new(local_id)),
+            NodeType::Struct => AnyNodeId::Struct(NodeId::new(local_id)),
+            NodeType::StructField => AnyNodeId::StructField(NodeId::new(local_id)),
+            NodeType::Enum => AnyNodeId::Enum(NodeId::new(local_id)),
+            NodeType::EnumField => AnyNodeId::EnumField(NodeId::new(local_id)),
+            NodeType::Union => AnyNodeId::Union(NodeId::new(local_id)),
+            NodeType::UnionField => AnyNodeId::UnionField(NodeId::new(local_id)),
+            NodeType::Trait => AnyNodeId::Trait(NodeId::new(local_id)),
+            NodeType::Implement => AnyNodeId::Implement(NodeId::new(local_id)),
+            NodeType::Type => AnyNodeId::Type(NodeId::new(local_id)),
+            NodeType::Tuple => AnyNodeId::Tuple(NodeId::new(local_id)),
+            NodeType::TupleField => AnyNodeId::TupleField(NodeId::new(local_id)),
+            NodeType::Function => AnyNodeId::Function(NodeId::new(local_id)),
+            // context
+            NodeType::With => AnyNodeId::With(NodeId::new(local_id)),
+            NodeType::WithClause => AnyNodeId::WithClause(NodeId::new(local_id)),
+            NodeType::Use => AnyNodeId::Use(NodeId::new(local_id)),
+            NodeType::UseClause => AnyNodeId::UseClause(NodeId::new(local_id)),
+            NodeType::UseItem => AnyNodeId::UseItem(NodeId::new(local_id)),
+            // control
+            NodeType::If => AnyNodeId::If(NodeId::new(local_id)),
+            NodeType::While => AnyNodeId::While(NodeId::new(local_id)),
+            NodeType::For => AnyNodeId::For(NodeId::new(local_id)),
+            NodeType::Loop => AnyNodeId::Loop(NodeId::new(local_id)),
+            NodeType::Break => AnyNodeId::Break(NodeId::new(local_id)),
+            NodeType::Continue => AnyNodeId::Continue(NodeId::new(local_id)),
+            NodeType::Defer => AnyNodeId::Defer(NodeId::new(local_id)),
+            NodeType::Return => AnyNodeId::Return(NodeId::new(local_id)),
+            NodeType::Try => AnyNodeId::Try(NodeId::new(local_id)),
+            // bindings
+            NodeType::Let => AnyNodeId::Let(NodeId::new(local_id)),
+            NodeType::Parameter => AnyNodeId::Parameter(NodeId::new(local_id)),
+            NodeType::Argument => AnyNodeId::Argument(NodeId::new(local_id)),
+            // literals
+            NodeType::ScalarLiteral => AnyNodeId::ScalarLiteral(NodeId::new(local_id)),
+            NodeType::RangeLiteral => AnyNodeId::RangeLiteral(NodeId::new(local_id)),
+            NodeType::ArrayLiteral => AnyNodeId::ArrayLiteral(NodeId::new(local_id)),
+            NodeType::TupleLiteral => AnyNodeId::TupleLiteral(NodeId::new(local_id)),
+            NodeType::StructLiteral => AnyNodeId::StructLiteral(NodeId::new(local_id)),
+            NodeType::FieldLiteral => AnyNodeId::FieldLiteral(NodeId::new(local_id)),
+            // calls
+            NodeType::Index => AnyNodeId::Index(NodeId::new(local_id)),
+            NodeType::Call => AnyNodeId::Call(NodeId::new(local_id)),
+            NodeType::Cast => AnyNodeId::Cast(NodeId::new(local_id)),
+            NodeType::Coalesce => AnyNodeId::Coalesce(NodeId::new(local_id)),
+            // matching
+            NodeType::Match => AnyNodeId::Match(NodeId::new(local_id)),
+            NodeType::MatchCase => AnyNodeId::MatchCase(NodeId::new(local_id)),
+            NodeType::Pattern => AnyNodeId::Pattern(NodeId::new(local_id)),
+            NodeType::PatternField => AnyNodeId::PatternField(NodeId::new(local_id)),
+            // annotations
+            NodeType::Doc => AnyNodeId::Doc(NodeId::new(local_id)),
+            NodeType::Comment => AnyNodeId::Comment(NodeId::new(local_id)),
+        }
     }
 
     /// Get the span for a node.

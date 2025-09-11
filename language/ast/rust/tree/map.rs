@@ -73,28 +73,14 @@ impl NodeMap {
         best
     }
 
-    /// Find the first node that starts at or after `pos`.
-    /// If multiple nodes start at the same position, prefer the smallest span.
-    pub fn get_first_node_starting_after(&self, pos: u32) -> Option<(u32, Span)> {
-        let mut candidate: Option<(u32, Span)> = None;
+    /// Gets all enclosing spans in the given range (including index).
+    pub fn get_enclosing_spans(&self, start: u32, end: u32) -> Vec<(u32, Span)> {
+        let mut spans = Vec::new();
         for (i, span) in self.spans_per_node.iter().enumerate() {
-            if span.start >= pos {
-                match candidate {
-                    None => candidate = Some((i as u32, *span)),
-                    Some((_, cur)) => {
-                        if span.start < cur.start {
-                            candidate = Some((i as u32, *span));
-                        } else if span.start == cur.start {
-                            let cur_len = cur.end.saturating_sub(cur.start);
-                            let new_len = span.end.saturating_sub(span.start);
-                            if new_len < cur_len {
-                                candidate = Some((i as u32, *span));
-                            }
-                        }
-                    }
-                }
+            if span.contains(start) && span.contains(end) {
+                spans.push((i as u32, *span));
             }
         }
-        candidate
+        spans
     }
 }

@@ -3,10 +3,13 @@ use std::str::FromStr;
 use dyst_language_source::Source;
 use dyst_language_token::{RawLiteralType, TokenSpan, TokenType};
 
-use crate::{Keyword, NodeTree, NodeVisitor, Type, walk_type};
+use crate::{
+    Keyword, Node, NodeId, NodeTree, NodeVisitor, Type, walk_argument, walk_enum_field,
+    walk_parameter, walk_pattern_field, walk_struct_field, walk_type, walk_union_field,
+};
 
 /// The semantic type of a Span or Token.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum SemanticType {
     // lexical
     Whitespace,
@@ -178,21 +181,109 @@ pub struct SemanticTokenMap<'a> {
 
 impl<'a> SemanticTokenMap<'a> {
     pub fn from_tokens(source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
-        // start from lexical types
+        // start with lexical types
         let mut semantic_types = vec![SemanticType::Keyword; tokens.len()];
         for (i, token) in tokens.iter().enumerate() {
             semantic_types[i] = SemanticType::from_token(source, *token);
         }
+
         Self {
             tokens,
             semantic_types,
         }
     }
+
+    /// Set the semantic type for a span.
+    pub(crate) fn set_semantic_span<T: Node>(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<T>,
+        semantic_type: SemanticType,
+    ) {
+        let span = tree.get_span(id);
+        for (i, _) in tree.map.get_enclosing_spans(span.start, span.end) {
+            self.semantic_types[i as usize] = semantic_type;
+        }
+    }
 }
 
-// nocheckin: semantic tokens proper
 impl<'a> NodeVisitor for SemanticTokenMap<'a> {
-    fn visit_type(&mut self, tree: &NodeTree, type_node: &Type) {
+    // ------------------------------------------------------------
+    // Types
+    // ------------------------------------------------------------
+
+    fn visit_struct_field(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<super::StructField>,
+        struct_field: &super::StructField,
+    ) {
+        walk_struct_field(self, tree, struct_field);
+        self.set_semantic_span(tree, id, SemanticType::Variable);
+    }
+
+    fn visit_enum_field(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<super::EnumField>,
+        enum_field: &super::EnumField,
+    ) {
+        walk_enum_field(self, tree, enum_field);
+        self.set_semantic_span(tree, id, SemanticType::Variable);
+    }
+
+    fn visit_union_field(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<super::UnionField>,
+        union_field: &super::UnionField,
+    ) {
+        walk_union_field(self, tree, union_field);
+        self.set_semantic_span(tree, id, SemanticType::Variable);
+    }
+
+    fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, type_node: &Type) {
         walk_type(self, tree, type_node);
+        if let Type::Path { .. } = *type_node {
+            self.set_semantic_span(tree, id, SemanticType::Type);
+        }
+    }
+
+    // ------------------------------------------------------------
+    // Bindings
+    // ------------------------------------------------------------
+
+    fn visit_parameter(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<super::Parameter>,
+        parameter: &super::Parameter,
+    ) {
+        walk_parameter(self, tree, parameter);
+        self.set_semantic_span(tree, id, SemanticType::Parameter);
+    }
+
+    fn visit_argument(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<super::Argument>,
+        argument: &super::Argument,
+    ) {
+        walk_argument(self, tree, argument);
+        self.set_semantic_span(tree, id, SemanticType::Argument);
+    }
+
+    // ------------------------------------------------------------
+    // Matching
+    // ------------------------------------------------------------
+
+    fn visit_pattern_field(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<super::PatternField>,
+        pattern_field: &super::PatternField,
+    ) {
+        walk_pattern_field(self, tree, pattern_field);
+        self.set_semantic_span(tree, id, SemanticType::Variable);
     }
 }
