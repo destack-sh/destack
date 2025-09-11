@@ -1,6 +1,7 @@
 use dyst
 
 /// An Entity Epoch.
+// todo! tuple structs
 struct Epoch {
     value: uint64
 

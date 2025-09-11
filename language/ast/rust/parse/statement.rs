@@ -31,7 +31,6 @@ impl<'a> Parser<'a> {
         }
 
         let statement = {
-            let token = self.peek()?;
             let keyword = self.peek_any_keyword().ok();
 
             //
@@ -91,22 +90,10 @@ impl<'a> Parser<'a> {
             }
             //
             // ------------------------------------------------------------
-            // Documentation
-            // ------------------------------------------------------------
-            //
-            // doc
-            else if token.token.r#type == TokenType::DocLineComment
-                || token.token.r#type == TokenType::DocBlockComment
-            {
-                let doc_id = self.eat_doc()?;
-                Statement::Doc(doc_id)
-            }
-            //
-            // ------------------------------------------------------------
             // Expressions
             // ------------------------------------------------------------
             //
-            // expression (fallback)
+            // anything else is an expression
             else {
                 let expression_id = self.eat_expression(ExpressionParserOptions {
                     visibility,

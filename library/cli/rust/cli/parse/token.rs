@@ -34,7 +34,7 @@ pub(crate) fn parse_token(ctx: CommandArguments) -> i32 {
         "Length".to_string(),
     ];
     let mut rows: Vec<Vec<String>> = Vec::new();
-    let tokens = tokenize_semantic(source.id, &source.content);
+    let (tokens, _) = tokenize_semantic(source.id, &source.content);
 
     for (index, tok) in tokens.iter().enumerate() {
         let start_offset = tok.span.start as usize;
