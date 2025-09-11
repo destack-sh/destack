@@ -180,9 +180,6 @@ pub enum Statement {
     With(NodeId<With>),
     /// Use declaration for dependency and context management (see Use).
     Use(NodeId<Use>),
-
-    /// Doc comment (free floating, otherwise this is attached inside the declaration).
-    Doc(NodeId<Doc>),
 }
 
 impl Node for Statement {
@@ -282,8 +279,6 @@ pub enum Expression {
         right: NodeId<Expression>,
     },
 
-    /// Doc comment (free floating, otherwise this is attached inside the declaration).
-    Doc(NodeId<Doc>),
     /// Error placeholder.
     Error(ParseError),
 }

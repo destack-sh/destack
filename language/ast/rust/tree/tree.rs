@@ -5,7 +5,12 @@ use std::marker::PhantomData;
 use dyst_language_source::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeMap, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
+    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
+    Match, MatchCase, Module, Node, NodeMap, NodeType, Parameter, Pattern, PatternField,
+    RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try,
+    Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With,
+    WithClause,
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -111,8 +116,7 @@ pub struct NodeTree {
 
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NodeTree")
-            .finish()
+        f.debug_struct("NodeTree").finish()
     }
 }
 
@@ -258,25 +262,43 @@ impl NodeTree {
         self.map.set_span(node_id, span);
     }
 
-    /// Append a doc to a node.
+    /// Append a doc to a node by its global id.
     #[inline]
-    pub fn append_doc<T>(&mut self, node_id: NodeId<T>, doc: NodeId<Doc>)
+    pub fn append_doc(&mut self, global_id: u32, doc: NodeId<Doc>) {
+        self.docs_per_node.entry(global_id).or_default().push(doc);
+    }
+
+    /// Append a comment to a node by its global id.
+    #[inline]
+    pub fn append_comment(&mut self, global_id: u32, comment: NodeId<Comment>) {
+        self.comments_per_node
+            .entry(global_id)
+            .or_default()
+            .push(comment);
+    }
+
+    /// Get docs attached to a node, cloned as a Vec.
+    #[inline]
+    pub fn get_docs_for<T>(&self, node_id: NodeId<T>) -> Vec<NodeId<Doc>>
     where
         T: Node,
     {
-        self.docs_per_node.entry(node_id.id).or_default().push(doc);
+        self.docs_per_node
+            .get(&node_id.id)
+            .cloned()
+            .unwrap_or_else(Vec::new)
     }
 
-    /// Append a comment to a node.
+    /// Get comments attached to a node, cloned as a Vec.
     #[inline]
-    pub fn append_comment<T>(&mut self, node_id: NodeId<T>, comment: NodeId<Comment>)
+    pub fn get_comments_for<T>(&self, node_id: NodeId<T>) -> Vec<NodeId<Comment>>
     where
         T: Node,
     {
         self.comments_per_node
-            .entry(node_id.id)
-            .or_default()
-            .push(comment);
+            .get(&node_id.id)
+            .cloned()
+            .unwrap_or_else(Vec::new)
     }
 }
 

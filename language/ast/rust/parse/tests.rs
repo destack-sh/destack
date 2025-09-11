@@ -11,7 +11,7 @@ pub(crate) struct TestParser {
 impl TestParser {
     pub(crate) fn new(input: &str) -> Self {
         let source_id = SourceId::new(0);
-        let source = Source::new(source_id, "<test>".to_string(), input.to_string());
+        let source = Source::from_string(source_id, "<test>".to_string(), input.to_string());
         Self { source }
     }
 
@@ -212,7 +212,7 @@ mod tests {
 
         // parse every ds file
         for (i, ds_file) in ds_files.iter().enumerate() {
-            let source = Source::new(
+            let source = Source::from_string(
                 SourceId::new(i as u32),
                 ds_file.to_string_lossy().into_owned(),
                 fs::read_to_string(ds_file).unwrap(),

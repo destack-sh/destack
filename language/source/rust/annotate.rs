@@ -436,7 +436,7 @@ mod tests {
     let variable = 42;
 }"#
         .to_string();
-        let source = Source::new(id, "<test>".to_string(), content.clone());
+        let source = Source::from_string(id, "<test>".to_string(), content.clone());
         let start = source.content.find("variable").unwrap();
         let end = start + "variable".len();
         let span = LabeledSpan {
@@ -467,7 +467,7 @@ mod tests {
     fn test_annotate_wrapped_line() {
         let content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
         let id = SourceId::new(0);
-        let source = Source::new(id, "<test>".to_string(), content.to_string());
+        let source = Source::from_string(id, "<test>".to_string(), content.to_string());
         let start = 150usize;
         let end = 155usize;
         let span = LabeledSpan {

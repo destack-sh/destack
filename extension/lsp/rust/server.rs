@@ -4,7 +4,7 @@ use crate::doc::DocumentStore;
 use crate::protocol::jsonrpc::Result as JsonRpcResult;
 use crate::protocol::types::MessageType;
 use crate::protocol::{Client, LanguageServer, lsp};
-use crate::semantic::{get_semantic_tokens, get_token_type_at_position};
+use crate::semantic::{SEMANTIC_TOKEN_TYPES, get_semantic_tokens};
 
 #[derive(Debug, Clone)]
 pub struct Backend {
@@ -22,17 +22,7 @@ impl LanguageServer for Backend {
 
         // semantic tokens
         let semantic_tokens_legend = lsp::SemanticTokensLegend {
-            token_types: vec![
-                lsp::SemanticTokenType::COMMENT,
-                lsp::SemanticTokenType::DECORATOR,
-                lsp::SemanticTokenType::KEYWORD,
-                lsp::SemanticTokenType::STRING,
-                lsp::SemanticTokenType::NUMBER,
-                lsp::SemanticTokenType::OPERATOR,
-                lsp::SemanticTokenType::FUNCTION,
-                lsp::SemanticTokenType::TYPE,
-                lsp::SemanticTokenType::VARIABLE,
-            ],
+            token_types: SEMANTIC_TOKEN_TYPES.to_vec(),
             token_modifiers: vec![],
         };
 
@@ -155,29 +145,5 @@ impl LanguageServer for Backend {
                 data: tokens,
             },
         )))
-    }
-
-    /// Provide hover information for a symbol at a given position.
-    fn hover(&self, params: lsp::HoverParams) -> JsonRpcResult<Option<lsp::Hover>> {
-        let uri = params.text_document_position_params.text_document.uri;
-        let position = params.text_document_position_params.position;
-        self.client.log_message(
-            MessageType::INFO,
-            format!("destack: hover: {:?} @ {:?}", uri, position),
-        );
-        let Some(text) = self.docs.get(&uri) else {
-            return Ok(None);
-        };
-
-        if let Some(kind) = get_token_type_at_position(&text, &position) {
-            let markdown = lsp::MarkedString::String(format!("token: {:?}", kind));
-            let hover = lsp::Hover {
-                contents: lsp::HoverContents::Scalar(markdown),
-                range: None,
-            };
-            return Ok(Some(hover));
-        }
-
-        Ok(None)
     }
 }

@@ -57,7 +57,7 @@ impl Debug for Parser<'_> {
 }
 
 impl<'a> Parser<'a> {
-    /// Create a new parser.
+    /// Create a new parser from source.
     pub fn from_source(source: &'a Source) -> Self {
         let (tokens, trivia_tokens) = tokenize_semantic(source.id, &source.content);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {

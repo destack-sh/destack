@@ -50,9 +50,9 @@ pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {
         let p = Path::new(path);
         fs::read_to_string(p)
             .map_err(|e| format!("failed to read {path}: {e}"))
-            .map(|s| Source::new(SourceId::new(0), path.to_string(), s))
+            .map(|s| Source::from_string(SourceId::new(0), path.to_string(), s))
     } else if let Some(string) = ctx.option("string") {
-        Ok(Source::new(
+        Ok(Source::from_string(
             SourceId::new(0),
             "<input>".to_string(),
             string.to_string(),
