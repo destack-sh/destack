@@ -1,11 +1,8 @@
 use dyst
 
 /// An Entity Epoch.
-// todo! tuple structs
-struct Epoch {
-    value: uint64
-
-    let Zero = Epoch { value: 0 }
+struct Epoch(uint64) {
+    let Zero = Epoch(0)
 } 
 
 /// The materialization level of an Entity.
@@ -44,11 +41,6 @@ enum(uint8) ExtensionFlag {
     Instantiable
     /// The Entity is extensible.
     Extensible
-}
-
-/// Declare a struct as an Entity. Auto-includes Entity.
-function @entity(structDecl: StructDefinition) => StructDefinition {
-    structDeclr
 }
 
 trait Entity {

@@ -2,7 +2,7 @@
 
 use crate::Parser;
 
-// nocheckin todo!: docs in statements/expressions and associate with items
+// nocheckin: docs in statements/expressions and associate with items
 //  (also keep regular comments for pretty printing? some side-table AST?)
 
 impl<'a> Parser<'a> {

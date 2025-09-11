@@ -51,8 +51,6 @@ pub struct NodeTree {
     pub(crate) docs_per_node: HashMap<u32, Vec<NodeId<Doc>>>,
     /// The comments attached to nodes in the AST .
     pub(crate) comments_per_node: HashMap<u32, Vec<NodeId<Comment>>>,
-    /// The tombstones (compacted after parsing).
-    pub(crate) tombstones: Vec<u32>,
 
     // per-node arenas
     // groupings
@@ -144,7 +142,6 @@ impl NodeTree {
             spans_per_node: Vec::with_capacity(capacity),
             docs_per_node: HashMap::new(),
             comments_per_node: HashMap::new(),
-            tombstones: Vec::new(),
             // groupings
             blocks: NodeArena::new(),
             statements: NodeArena::new(),
@@ -226,19 +223,6 @@ impl NodeTree {
         }
     }
 
-    /// "Free" an existing node in the tree.
-    /// Will be freed later.
-    ///
-    /// Returns whether the node was already freed.
-    pub(crate) fn free<T: Node>(&mut self, node_id: NodeId<T>) {
-        let node_id_raw = node_id.get() as u32;
-        debug_assert!(
-            !self.tombstones.contains(&node_id_raw),
-            "node already freed"
-        );
-        self.tombstones.push(node_id_raw);
-    }
-
     /// Get an immutable reference to the node with the given NodeId.
     #[inline]
     pub fn get<T>(&self, id: NodeId<T>) -> &T
@@ -246,7 +230,6 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        debug_assert!(!self.tombstones.contains(&id.id), "node already freed");
         let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get(self, local_id)
     }
@@ -258,7 +241,6 @@ impl NodeTree {
         T: Node,
         Self: NodeTreeStore<T>,
     {
-        debug_assert!(!self.tombstones.contains(&id.id), "node already freed");
         let local_id = self.local_id_by_node[id.id as usize];
         <Self as NodeTreeStore<T>>::get_mut(self, local_id)
     }
