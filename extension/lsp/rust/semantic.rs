@@ -1,7 +1,9 @@
 //! SemanticTokens.
 
 use crate::protocol::types as lsp;
+use dyst_language_ast::Keyword;
 use dyst_language_token::{TokenType, tokenize};
+use std::str::FromStr;
 
 /// Get semantic tokens for the given text.
 pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
@@ -145,12 +147,18 @@ fn map_token(slice: &str, kind: TokenType) -> Option<(u32, usize)> {
         // skip these token types first
         K::Newline | K::Whitespace | K::Unknown | K::End => return None,
 
-        // comments
+        // annotations
         K::LineComment | K::BlockComment => 0,
         K::DocLineComment | K::DocBlockComment => 3,
 
         // identifiers
-        K::Identifier | K::InvalidIdentifier => 6,
+        K::Identifier | K::InvalidIdentifier => {
+            if Keyword::from_str(slice).is_ok() {
+                5
+            } else {
+                6
+            }
+        }
 
         K::UnknownLiteralPrefix => 6,
 

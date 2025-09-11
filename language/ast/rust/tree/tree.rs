@@ -5,12 +5,7 @@ use std::marker::PhantomData;
 use dyst_language_source::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
-    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
-    Match, MatchCase, Module, Node, NodeType, Parameter, Pattern, PatternField, RangeLiteral,
-    Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple,
-    TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With,
-    WithClause,
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeMap, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
 };
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -45,12 +40,13 @@ pub struct NodeTree {
     pub(crate) local_id_by_node: Vec<u32>,
     /// The kinds of all nodes in the AST. Index is the global node id.
     pub(crate) kind_by_node: Vec<NodeType>,
-    /// The spans of all nodes in the AST. Index is the global node id.
-    pub(crate) spans_per_node: Vec<Span>,
     /// The documentation attached nodes in the AST.
     pub(crate) docs_per_node: HashMap<u32, Vec<NodeId<Doc>>>,
     /// The comments attached to nodes in the AST .
     pub(crate) comments_per_node: HashMap<u32, Vec<NodeId<Comment>>>,
+
+    /// The mapping between spans and nodes.
+    pub map: NodeMap,
 
     // per-node arenas
     // groupings
@@ -108,7 +104,7 @@ pub struct NodeTree {
     patterns: NodeArena<Pattern>,
     pattern_fields: NodeArena<PatternField>,
     match_cases: NodeArena<MatchCase>,
-    // comments
+    // annotations
     docs: NodeArena<Doc>,
     comments: NodeArena<Comment>,
 }
@@ -116,7 +112,6 @@ pub struct NodeTree {
 impl Debug for NodeTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeTree")
-            .field("spans", &self.spans_per_node)
             .finish()
     }
 }
@@ -139,9 +134,9 @@ impl NodeTree {
             next_id: 0,
             local_id_by_node: Vec::with_capacity(capacity),
             kind_by_node: Vec::with_capacity(capacity),
-            spans_per_node: Vec::with_capacity(capacity),
             docs_per_node: HashMap::new(),
             comments_per_node: HashMap::new(),
+            map: NodeMap::new(),
             // groupings
             blocks: NodeArena::new(),
             statements: NodeArena::new(),
@@ -197,7 +192,7 @@ impl NodeTree {
             patterns: NodeArena::new(),
             pattern_fields: NodeArena::new(),
             match_cases: NodeArena::new(),
-            // comments
+            // annotations
             comments: NodeArena::new(),
             docs: NodeArena::new(),
         }
@@ -216,7 +211,7 @@ impl NodeTree {
         self.kind_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
-        self.spans_per_node.push(span);
+        self.map.append_span(span);
         NodeId {
             id: global_id,
             _ty: PhantomData,
@@ -251,7 +246,7 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.spans_per_node[node_id.id as usize]
+        self.map.get_span(node_id)
     }
 
     /// Set the span for a node.
@@ -260,7 +255,7 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.spans_per_node[node_id.id as usize] = span;
+        self.map.set_span(node_id, span);
     }
 
     /// Append a doc to a node.
@@ -447,7 +442,7 @@ impl_node_tree_stores! {
     Pattern => patterns,
     PatternField => pattern_fields,
     MatchCase => match_cases,
-    // comments
+    // annotations
     Comment => comments,
     Doc => docs,
 }

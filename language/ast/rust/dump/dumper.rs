@@ -934,12 +934,12 @@ impl Dump for Trait {
         });
     }
 }
+
 impl Dump for Implement {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Implement").end();
         dumper.with_depth(|dumper| {
             if let Some(static_arguments) = &self.static_arguments {
-                // there will always be at least the receiver after static args
                 dumper.dump_nodes_tail(static_arguments, None, true);
             }
             let has_after_receiver = self.for_trait.is_some() || !self.statements.is_empty();
@@ -1753,7 +1753,7 @@ impl Dump for PatternField {
 }
 
 // ----------------------------------------------------------------------------
-// Comments
+// Annotations
 // ----------------------------------------------------------------------------
 
 impl Dump for Doc {

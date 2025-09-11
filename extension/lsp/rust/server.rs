@@ -24,6 +24,7 @@ impl LanguageServer for Backend {
         let semantic_tokens_legend = lsp::SemanticTokensLegend {
             token_types: vec![
                 lsp::SemanticTokenType::COMMENT,
+                lsp::SemanticTokenType::DECORATOR,
                 lsp::SemanticTokenType::KEYWORD,
                 lsp::SemanticTokenType::STRING,
                 lsp::SemanticTokenType::NUMBER,

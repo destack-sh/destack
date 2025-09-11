@@ -27,6 +27,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
         Vec::new(),
         TokenType::End,
     );
+    parser.process_annotations();
 
     // print statements
     let mut dumper = parser.dumper(dump_options);

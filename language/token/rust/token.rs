@@ -47,7 +47,7 @@ pub enum TokenType {
     /// End of sequence (e.g., end of source file)
     End,
 
-    // comments
+    // annotations
     /// Line comment, e.g. `// comment` `//// comment` `//////// comment`.
     LineComment,
     /// Block comment, e.g. `/* comment */`

@@ -383,7 +383,7 @@ pub trait LanguageServer: Send + Sync + 'static {
     /// [`textDocument/hover`]: https://microsoft.github.io/language-server-protocol/specification#textDocument_hover
     ///
     /// Such hover information typically includes type signature information and inline
-    /// Comments for the symbol at the given text document position.
+    /// Annotations for the symbol at the given text document position.
     fn hover(&self, _params: types::HoverParams) -> jsonrpc::Result<Option<types::Hover>> {
         Ok(None)
     }

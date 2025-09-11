@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     /// trait { // anonymous trait
     ///     ...
     /// }
-    /// 
+    ///
     /// trait _ {} // explicit anonymous trait (for disambiguation)
     ///
     /// trait Foo {
