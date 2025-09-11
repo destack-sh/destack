@@ -662,9 +662,6 @@ impl Dump for Statement {
             Statement::Use(node) => {
                 dumper.node_unwrap("Statement::Use", *node);
             }
-            Statement::Doc(node) => {
-                dumper.node_unwrap("Statement::Doc", *node);
-            }
         }
     }
 }
@@ -810,9 +807,6 @@ impl Dump for Expression {
                 });
             }
 
-            Expression::Doc(node) => {
-                dumper.node_unwrap("Expression::Doc", *node);
-            }
             Expression::Error(_) => {
                 dumper.node("Expression::Error").end();
             }

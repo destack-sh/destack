@@ -290,8 +290,10 @@ impl<'a> Parser<'a> {
                 Ok(ty_id)
             }
 
-        // pointer with `*`
-        } else if next.token.r#type == TokenType::Multiply {
+        // pointer with `*` (also accept `&`)
+        } else if next.token.r#type == TokenType::Multiply
+            || next.token.r#type == TokenType::BitwiseAnd
+        {
             self.bump();
             let mutability = if let Ok(identifier) = self.peek_token(TokenType::Identifier)
                 && self.get_token_str(*identifier) == "var"

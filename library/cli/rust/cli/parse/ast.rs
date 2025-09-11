@@ -20,7 +20,6 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
 
     // parse as (implicit) block of statements
     let mut parser = Parser::from_source(&source);
-    let dump_options = DumperOptions::default();
     let statements = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),
@@ -30,6 +29,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     parser.process_annotations();
 
     // print statements
+    let dump_options = DumperOptions::default();
     let mut dumper = parser.dumper(dump_options);
     dumper.dump_nodes(&statements, None);
     console::info(&dumper.finish());

@@ -43,7 +43,7 @@ fn bench_parse(c: &mut Criterion) {
             }
         }
     }
-    let source = Source::new(SourceId::new(0), "input".to_string(), ds_str);
+    let source = Source::from_string(SourceId::new(0), "input".to_string(), ds_str);
 
     // single benchmark over the whole workspace content
     let mut group = c.benchmark_group("dyst_language_ast");

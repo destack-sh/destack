@@ -1,28 +1,24 @@
 //! Annotation parsing.
 
-use crate::{Doc, NodeId, ParseResult, Parser};
-use dyst_language_source::Span;
-use dyst_language_token::{TokenSpan, TokenType};
-
-// nocheckin todo!: docs in statements/expressions and associate with items
-//  (also keep regular comments for pretty printing? some side-table AST?)
+use crate::Parser;
 
 impl<'a> Parser<'a> {
     /// Attach annotations to respective AST nodes.
     /// Must be called *after* parsing.
     ///
+    /// Whitespace is completely ignored (except newlines, as usual).
     /// Annotations of the same type are merged,
     ///  and annotations are attached to nodes immediately following them.
     /// One newline is ignored (both between annotations and between annotations and nodes).
+    /// Annotations without corresponding following nodes are "free floating"
+    ///  (we allocate them but don't append them to any nodes).
     pub fn process_annotations(&mut self) {
         let mut combined_tokens = Vec::with_capacity(self.tokens.len() + self.trivia_tokens.len());
         combined_tokens.extend(self.tokens.clone());
         combined_tokens.extend(self.trivia_tokens.clone());
         combined_tokens.sort_by_key(|token| token.span.start);
 
-        for ele in combined_tokens {
-            println!("{:?}", ele);
-        }
+        // nocheckin todo!: Parser.process_annotations
     }
 }
 
