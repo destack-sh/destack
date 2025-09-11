@@ -1,7 +1,7 @@
 mod argument;
 mod block;
 mod call;
-mod comment;
+mod annotation;
 mod context;
 mod r#enum;
 mod error;

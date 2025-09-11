@@ -522,6 +522,7 @@ union(uint4, uint60) Foo<T>: Boz {
                 assert_eq!(*name, parser.strings.intern("E"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
                     let struct_ = parser.tree.get(*struct_id);
+                    assert_eq!(struct_.style, StructStyle::Struct);
                     assert_eq!(struct_.fields.len(), 2);
 
                     // x: int32

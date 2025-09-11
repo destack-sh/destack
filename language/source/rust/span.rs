@@ -43,21 +43,25 @@ impl Span {
     }
 
     /// Check if the Span is empty.
+    #[inline]
     pub fn is_empty(self) -> bool {
         self.start == self.end
     }
 
     /// Compute the length of the Span in bytes.
+    #[inline]
     pub fn len(self) -> u32 {
         self.end.saturating_sub(self.start)
     }
 
     /// Check whether the Span contains the given absolute byte position.
+    #[inline]
     pub fn contains(self, position: u32) -> bool {
         position >= self.start && position < self.end
     }
 
     /// Check whether the two spans overlap (on the same source).
+    #[inline]
     pub fn intersects(self, other: Self) -> bool {
         if self.source != other.source {
             return false;

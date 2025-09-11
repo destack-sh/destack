@@ -64,7 +64,7 @@ pub enum NodeType {
     MatchCase,
     Pattern,
     PatternField,
-    // Comments
+    // Annotations
     Doc,
     Comment,
 }
@@ -428,7 +428,7 @@ impl Node for StructField {
 /// ```
 /// // anonymous enum (for use as a value)
 /// enum { Success, Failure }
-/// 
+///
 /// enum _ {} // explicit anonymous enum (for disambiguation)
 ///
 /// enum Foo {
@@ -506,7 +506,7 @@ pub enum UnionStyle {
 ///     myField: int32
 ///     myOtherField: boolean
 /// }
-/// 
+///
 /// union _ {} // explicit anonymous union (for disambiguation)
 ///
 /// union(uint4, uint60) Foo<T> { // 4-bit tag with 60-bit content
@@ -586,7 +586,7 @@ impl Node for UnionField {
 /// trait { // anonymous trait
 ///     ...
 /// }
-/// 
+///
 /// trait _ {} // explicit anonymous trait (for disambiguation)
 ///
 /// trait Foo: Baz { // Foo is a super
@@ -2038,13 +2038,23 @@ impl Node for MatchCase {
 }
 
 // ----------------------------------------------------------------------------
-// Comments
+// Annotations
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum CommentStyle {
+pub enum AnnotationStyle {
+    /// Line style.
     Line,
+    /// Block style.
     Block,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum AnnotationPosition {
+    /// Annotation before the node.
+    Prefix,
+    /// Annotation after the node (on same line).
+    Suffix,
 }
 
 /// A Doc is a full documentation comment string AST node.
@@ -2064,7 +2074,9 @@ pub struct Doc {
     /// Newlines preserved, leading/trailing whitespace stripped.
     pub string: StringId,
     /// The style of the documentation comment.
-    pub style: CommentStyle,
+    pub style: AnnotationStyle,
+    /// The position of the documentation comment.
+    pub position: AnnotationPosition,
 }
 
 impl Node for Doc {
@@ -2084,7 +2096,9 @@ pub struct Comment {
     /// The clean comment string.
     pub string: StringId,
     /// The style of the comment.
-    pub style: CommentStyle,
+    pub style: AnnotationStyle,
+    /// The position of the comment.
+    pub position: AnnotationPosition,
 }
 
 impl Node for Comment {

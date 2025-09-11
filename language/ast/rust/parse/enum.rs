@@ -14,7 +14,7 @@ impl<'a> Parser<'a> {
     /// ```
     /// // anonymous enum (for use as a value)
     /// enum { Success, Failure }
-    /// 
+    ///
     /// enum _ {} // explicit anonymous enum (for disambiguation)
     ///
     /// enum Foo {

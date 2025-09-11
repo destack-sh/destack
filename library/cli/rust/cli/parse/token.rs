@@ -140,7 +140,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Newline | TokenType::Whitespace | TokenType::End => "2", // dim
         TokenType::Unknown => "31",                                         // red
 
-        // comments
+        // annotations
         TokenType::LineComment | TokenType::BlockComment => "2", // dim
         TokenType::DocLineComment | TokenType::DocBlockComment => "32", // green
 

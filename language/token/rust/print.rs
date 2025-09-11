@@ -18,7 +18,7 @@ impl Token {
             }
             TokenType::End => String::new(),
 
-            // comments
+            // annotations
             TokenType::LineComment => {
                 // emit original slice for lexemes where we don't want to reformat
                 source[offset..offset + len].to_string()
