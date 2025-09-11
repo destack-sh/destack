@@ -53,7 +53,7 @@ pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
     combined_tokens.sort_by_key(|token| token.span.start);
     let mut builder = SemanticTokenMap::from_tokens(&source, &combined_tokens);
     for statement in statements {
-        builder.visit_statement(&parser.tree, parser.tree.get(statement));
+        builder.visit_statement(&parser.tree, statement, parser.tree.get(statement));
     }
 
     get_lsp_semantic_tokens(&source, builder.tokens, &builder.semantic_types)
@@ -89,7 +89,7 @@ pub(crate) fn get_lsp_semantic_tokens(
         };
 
         // find token type index in SEMANTIC_TOKEN_TYPES
-        let lsp_semantic_type = get_lsp_semantic_type(semantic_types[i].clone());
+        let lsp_semantic_type = get_lsp_semantic_type(semantic_types[i]);
         let token_type = SEMANTIC_TOKEN_TYPES
             .iter()
             .position(|t| *t == lsp_semantic_type)

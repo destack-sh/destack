@@ -4,10 +4,13 @@
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
 //!  and in many cases we can suggest automatic fixes (like `->` to `=>`, or drop ``).
 
-use crate::{NodeId, ParseError, PathId, StringId};
+use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
+
+use crate::{ParseError, PathId, StringId};
 
 /// The type of a node in the AST.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NodeType {
     // Groupings
     Block,
@@ -67,6 +70,101 @@ pub enum NodeType {
     // Annotations
     Doc,
     Comment,
+}
+
+/// Unique identifier for nodes in an arena, parameterized by node type.
+#[repr(transparent)]
+#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct NodeId<T: Node> {
+    pub id: u32,
+    _ty: PhantomData<fn() -> T>,
+}
+
+impl<T: Node> NodeId<T> {
+    pub fn new(id: u32) -> Self {
+        Self {
+            id,
+            _ty: PhantomData,
+        }
+    }
+}
+
+impl<T: Node> Debug for NodeId<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NodeId").field("id", &self.id).finish()
+    }
+}
+
+// manually mark as Copy since PhantomData over T breaks Copy otherwise (?)
+impl<T: Clone + Node> Copy for NodeId<T> {}
+
+impl<T: Node> NodeId<T> {
+    #[inline]
+    pub fn get(&self) -> usize {
+        self.id as usize
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum AnyNodeId {
+    // Groupings
+    Block(NodeId<Block>),
+    Statement(NodeId<Statement>),
+    Expression(NodeId<Expression>),
+    // Declarations
+    Module(NodeId<Module>),
+    Struct(NodeId<Struct>),
+    StructField(NodeId<StructField>),
+    Enum(NodeId<Enum>),
+    EnumField(NodeId<EnumField>),
+    Union(NodeId<Union>),
+    UnionField(NodeId<UnionField>),
+    Trait(NodeId<Trait>),
+    Implement(NodeId<Implement>),
+    Type(NodeId<Type>),
+    Tuple(NodeId<Tuple>),
+    TupleField(NodeId<TupleField>),
+    Function(NodeId<Function>),
+    // Context
+    With(NodeId<With>),
+    WithClause(NodeId<WithClause>),
+    Use(NodeId<Use>),
+    UseClause(NodeId<UseClause>),
+    UseItem(NodeId<UseItem>),
+    // Control
+    If(NodeId<If>),
+    While(NodeId<While>),
+    For(NodeId<For>),
+    Loop(NodeId<Loop>),
+    Break(NodeId<Break>),
+    Continue(NodeId<Continue>),
+    Defer(NodeId<Defer>),
+    Return(NodeId<Return>),
+    Try(NodeId<Try>),
+    // Bindings
+    Let(NodeId<Let>),
+    Parameter(NodeId<Parameter>),
+    Argument(NodeId<Argument>),
+    // Literals
+    ScalarLiteral(NodeId<ScalarLiteral>),
+    RangeLiteral(NodeId<RangeLiteral>),
+    ArrayLiteral(NodeId<ArrayLiteral>),
+    TupleLiteral(NodeId<TupleLiteral>),
+    StructLiteral(NodeId<StructLiteral>),
+    FieldLiteral(NodeId<FieldLiteral>),
+    // Calls
+    Index(NodeId<Index>),
+    Call(NodeId<Call>),
+    Cast(NodeId<Cast>),
+    Coalesce(NodeId<Coalesce>),
+    // Matching
+    Match(NodeId<Match>),
+    MatchCase(NodeId<MatchCase>),
+    Pattern(NodeId<Pattern>),
+    PatternField(NodeId<PatternField>),
+    // Annotations
+    Doc(NodeId<Doc>),
+    Comment(NodeId<Comment>),
 }
 
 /// A Node in the AST.

@@ -12,13 +12,13 @@ pub use doc::DocumentStore;
 
 use crate::protocol::{LspService, Server};
 
-use crate::server::Backend;
+use crate::server::DestackLanguageServer;
 
 /// Run the language server over stdio.
 pub fn run_libraryio_server_stdio() -> Result<(), Box<dyn std::error::Error>> {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
-    let (service, socket) = LspService::new(|client| Backend {
+    let (service, socket) = LspService::new(|client| DestackLanguageServer {
         client,
         docs: DocumentStore::default(),
     });

@@ -37,7 +37,7 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
 
 /// Tokenize the input string into an Iterator of Tokens and Spans.
 /// Returns both semantic and trivia tokens.
-pub fn tokenize_semantic(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
+pub fn tokenize_with_spans(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
     let mut cursor = Tokenizer::new(input);
     let mut semantic_tokens: Vec<TokenSpan> = Vec::new();
     let mut trivia_tokens: Vec<TokenSpan> = Vec::new();
