@@ -304,12 +304,14 @@ impl NodeTree {
     /// Append a doc to a node by its global id.
     #[inline]
     pub fn append_doc(&mut self, global_id: u32, doc: NodeId<Doc>) {
+        debug_assert!(global_id < self.next_id);
         self.docs_per_node.entry(global_id).or_default().push(doc);
     }
 
     /// Append a comment to a node by its global id.
     #[inline]
     pub fn append_comment(&mut self, global_id: u32, comment: NodeId<Comment>) {
+        debug_assert!(global_id < self.next_id);
         self.comments_per_node
             .entry(global_id)
             .or_default()
