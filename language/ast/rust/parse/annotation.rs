@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
-use crate::{AnnotationPosition, AnnotationStyle, Comment, Doc, Parser};
+use crate::{AnnotationPosition, AnnotationStyle, Comment, Doc, NodeType, Parser};
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
     TokenType::LineComment,
@@ -14,16 +14,34 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
     TokenType::DocBlockComment,
 ];
 
+const ANNOTATED_NODE_TYPES: [NodeType; 15] = [
+    // Groupings (fallback)
+    NodeType::Statement,
+    NodeType::Expression,
+    // Declarations
+    NodeType::Module,
+    NodeType::Struct,
+    NodeType::StructField,
+    NodeType::Enum,
+    NodeType::EnumField,
+    NodeType::Union,
+    NodeType::UnionField,
+    NodeType::Trait,
+    NodeType::Implement,
+    NodeType::Type,
+    NodeType::Tuple,
+    NodeType::TupleField,
+    NodeType::Function,
+];
+
 impl<'a> Parser<'a> {
     /// Attach annotations to respective AST nodes.
     /// Must be called *after* parsing.
     ///
-    /// Whitespace is completely ignored (except newlines, as usual).
     /// Annotations of the same type are merged,
     ///  and annotations are attached to nodes immediately following them.
     /// One newline is ignored (both between annotations and between annotations and nodes).
-    /// Annotations without corresponding following nodes are "free floating"
-    ///  (we allocate them but don't append them to any nodes).
+    /// Whitespace is completely ignored (except newlines, as usual).
     pub fn process_annotations(&mut self) {
         let mut tokens = Vec::with_capacity(self.tokens.len());
         tokens.extend(self.tokens.clone());
@@ -75,11 +93,13 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            // get the node to attach to
+            // get the best node to attach to
             let Some((target_node_id, _)) = self
                 .tree
                 .map
-                .get_innermost_enclosing_span(target_token.span.start)
+                .get_enclosing_spans(target_token.span.start, target_token.span.end)
+                .into_iter()
+                .find(|(i, _)| ANNOTATED_NODE_TYPES.contains(&self.tree.get_type(*i)))
             else {
                 return; // no valid target node, bail
             };
@@ -229,8 +249,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        AnnotationPosition, AnnotationStyle, BlockFormat, Comment, Doc, Expression, Statement,
-        Struct, StructField, assert_node,
+        AnnotationPosition, AnnotationStyle, BlockFormat, Comment, Doc, Statement, Struct,
+        StructField, assert_node,
     };
 
     #[test]
@@ -312,33 +332,29 @@ func() /* comment 3, detached */
 
         // let x = 1 + 1
         assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
-            assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
-                let comments = parser.tree.get_comments_for(*let_node);
-                assert_eq!(comments.len(), 1);
+            let comments = parser.tree.get_comments_for(*expr_node);
+            assert_eq!(comments.len(), 1);
 
-                // comment 1 + comment 1.1
-                assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
-                    let string = parser.strings.get(*string);
-                    assert_eq!(string, "comment 1\ncomment 1.1");
-                    assert_eq!(*style, AnnotationStyle::Line);
-                    assert_eq!(*position, AnnotationPosition::Prefix);
-                });
+            // comment 1 + comment 1.1
+            assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
+                let string = parser.strings.get(*string);
+                assert_eq!(string, "comment 1\ncomment 1.1");
+                assert_eq!(*style, AnnotationStyle::Line);
+                assert_eq!(*position, AnnotationPosition::Prefix);
             });
         });
 
         // func()
         assert_node!(parser.tree, statements[1], Statement::Expression(expr_node) => {
-            assert_node!(parser.tree, *expr_node, Expression::Call(call_node) => {
-                let comments = parser.tree.get_comments_for(*call_node);
-                assert_eq!(comments.len(), 1);
+            let comments = parser.tree.get_comments_for(*expr_node);
+            assert_eq!(comments.len(), 1);
 
-                // comment 2 (comment 3 should not be attached)
-                assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
-                    let string = parser.strings.get(*string);
-                    assert_eq!(string, "comment 2");
-                    assert_eq!(*style, AnnotationStyle::Line);
-                    assert_eq!(*position, AnnotationPosition::Prefix);
-                });
+            // comment 2 (comment 3 should not be attached)
+            assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
+                let string = parser.strings.get(*string);
+                assert_eq!(string, "comment 2");
+                assert_eq!(*style, AnnotationStyle::Line);
+                assert_eq!(*position, AnnotationPosition::Prefix);
             });
         });
     }

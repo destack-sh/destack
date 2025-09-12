@@ -194,6 +194,12 @@ impl NodeTree {
         NodeId::new(global_id)
     }
 
+    /// Get the type of an untyped node id.
+    #[inline]
+    pub fn get_type(&self, id: u32) -> NodeType {
+        self.type_by_node[id as usize]
+    }
+
     /// Get an immutable reference to the node with the given NodeId.
     #[inline]
     pub fn get<T>(&self, id: NodeId<T>) -> &T

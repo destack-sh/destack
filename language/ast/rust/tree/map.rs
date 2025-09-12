@@ -73,7 +73,7 @@ impl NodeMap {
         best
     }
 
-    /// Gets all enclosing spans in the given range (including index).
+    /// Gets all enclosing spans in the given range (including index), sorted by innermost-ness.
     pub fn get_enclosing_spans(&self, start: u32, end: u32) -> Vec<(u32, Span)> {
         let mut spans = Vec::new();
         for (i, span) in self.spans_per_node.iter().enumerate() {
@@ -81,6 +81,8 @@ impl NodeMap {
                 spans.push((i as u32, *span));
             }
         }
+        // sort by innermost-ness (smallest length first)
+        spans.sort_by_key(|(_, span)| span.end.saturating_sub(span.start));
         spans
     }
 }
