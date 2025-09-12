@@ -1,5 +1,8 @@
 //! Annotation parsing.
 
+use std::borrow::Cow;
+
+use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{AnnotationPosition, AnnotationStyle, Comment, Doc, Parser};
@@ -35,7 +38,7 @@ impl<'a> Parser<'a> {
         }
 
         // flush group
-        let mut flush_group = |start: u32, end: u32, group_type: TokenType| {
+        let mut flush_annotation_group = |start: u32, end: u32, group_type: TokenType| {
             // check if it's an annotation
             let separator = match group_type {
                 // line annotations with newlines
@@ -44,11 +47,12 @@ impl<'a> Parser<'a> {
                 // block annotations with spaces
                 TokenType::BlockComment => " ",
                 TokenType::DocBlockComment => " ",
-                _ => return, // not a comment, bail
+                // not an annotation, bail
+                _ => panic!("unexpected token type: {group_type:?}"),
             };
 
-            // get the next token to attach to
-            let next_token = {
+            // get the target token to attach to
+            let target_token = {
                 // next token is valid target
                 if let Some(next_token) = tokens.get(end as usize)
                     && next_token.token.r#type != TokenType::Newline
@@ -56,14 +60,14 @@ impl<'a> Parser<'a> {
                 {
                     next_token
                 }
-                // next next token is valid target with newline
+                // next next token is valid target (with newline in between)
                 else if let Some(next_token) = tokens.get((end) as usize)
                     && next_token.token.r#type == TokenType::Newline
                     && let Some(next_next_token) = tokens.get((end + 1) as usize)
                     && next_next_token.token.r#type != TokenType::Newline
                     && !ANNOTATION_TOKEN_TYPES.contains(&next_next_token.token.r#type)
                 {
-                    next_token
+                    next_next_token
                 }
                 // no valid target token, bail
                 else {
@@ -72,7 +76,10 @@ impl<'a> Parser<'a> {
             };
 
             // get the node to attach to
-            let Some((next_node_id, _)) = self.tree.map.get_enclosing_span(next_token.span.start)
+            let Some((target_node_id, _)) = self
+                .tree
+                .map
+                .get_innermost_enclosing_span(target_token.span.start)
             else {
                 return; // no valid target node, bail
             };
@@ -80,10 +87,16 @@ impl<'a> Parser<'a> {
             // merge content
             let merged_content = tokens[start as usize..end as usize]
                 .iter()
+                .filter(|token| token.token.r#type == group_type)
                 .map(|token| self.clean_annotation(*token))
                 .collect::<Vec<_>>()
                 .join(separator);
             let string_id = self.strings.intern(merged_content);
+            let merged_span = Span::new(
+                target_token.span.source,
+                tokens[start as usize].span.start,
+                tokens[end as usize].span.end,
+            );
 
             // append annotation node
             match group_type {
@@ -94,9 +107,9 @@ impl<'a> Parser<'a> {
                             style: AnnotationStyle::Line,
                             position: AnnotationPosition::Prefix,
                         },
-                        next_token.span,
+                        merged_span,
                     );
-                    self.tree.append_comment(next_node_id, annotation_node_id);
+                    self.tree.append_comment(target_node_id, annotation_node_id);
                 }
                 TokenType::DocLineComment => {
                     let annotation_node_id = self.tree.allocate(
@@ -105,9 +118,9 @@ impl<'a> Parser<'a> {
                             style: AnnotationStyle::Line,
                             position: AnnotationPosition::Prefix,
                         },
-                        next_token.span,
+                        merged_span,
                     );
-                    self.tree.append_doc(next_node_id, annotation_node_id);
+                    self.tree.append_doc(target_node_id, annotation_node_id);
                 }
                 TokenType::BlockComment => {
                     let annotation_node_id = self.tree.allocate(
@@ -116,9 +129,9 @@ impl<'a> Parser<'a> {
                             style: AnnotationStyle::Block,
                             position: AnnotationPosition::Prefix,
                         },
-                        next_token.span,
+                        merged_span,
                     );
-                    self.tree.append_comment(next_node_id, annotation_node_id);
+                    self.tree.append_comment(target_node_id, annotation_node_id);
                 }
                 TokenType::DocBlockComment => {
                     let annotation_node_id = self.tree.allocate(
@@ -127,9 +140,9 @@ impl<'a> Parser<'a> {
                             style: AnnotationStyle::Block,
                             position: AnnotationPosition::Prefix,
                         },
-                        next_token.span,
+                        merged_span,
                     );
-                    self.tree.append_doc(next_node_id, annotation_node_id);
+                    self.tree.append_doc(target_node_id, annotation_node_id);
                 }
                 _ => panic!("unexpected token type: {group_type:?}"),
             }
@@ -140,43 +153,54 @@ impl<'a> Parser<'a> {
         let mut current_type: TokenType = tokens[0].token.r#type;
         for (i, token) in tokens.iter().enumerate() {
             if current_type != token.token.r#type {
-                flush_group(current_start, i as u32, current_type);
+                // skip one newline
+                if token.token.r#type == TokenType::Newline
+                    && let Some(prev_token) = tokens.get(i - 1)
+                    && prev_token.token.r#type == current_type
+                    && let Some(next_token) = tokens.get(i + 1)
+                    && next_token.token.r#type == current_type
+                {
+                    continue;
+                }
+                // flush annotation group
+                if ANNOTATION_TOKEN_TYPES.contains(&current_type) {
+                    flush_annotation_group(current_start, i as u32, current_type);
+                }
+                // reset current group
                 current_start = i as u32;
                 current_type = token.token.r#type;
             }
         }
-        if current_start != tokens.len() as u32 {
-            flush_group(current_start, tokens.len() as u32, current_type);
+        if current_start != tokens.len() as u32 && ANNOTATION_TOKEN_TYPES.contains(&current_type) {
+            flush_annotation_group(current_start, tokens.len() as u32, current_type);
         }
     }
 
     /// Clean an annotation token into its inner string (newlines are preserved).
-    /// Panics if the token is not an annotation (!).
-    #[inline]
-    fn clean_annotation(&self, token: TokenSpan) -> &str {
-        match token.token.r#type {
+    fn clean_annotation(&self, token: TokenSpan) -> Cow<'_, str> {
+        let string = self.source.get_span_str(token.span);
+
+        let annotation = match token.token.r#type {
+            // line comments
             TokenType::LineComment => {
                 // strip leading `//`
-                let string = self.source.get_span_str(token.span);
                 string.strip_prefix("//").unwrap_or(string)
             }
+            TokenType::DocLineComment => {
+                // strip leading `///`
+                string.strip_prefix("///").unwrap_or(string)
+            }
+            // block comments
             TokenType::BlockComment => {
                 // strip leading `/*` and trailing `*/`
-                let string = self.source.get_span_str(token.span);
                 string
                     .strip_prefix("/*")
                     .unwrap_or(string)
                     .strip_suffix("*/")
                     .unwrap_or(string)
             }
-            TokenType::DocLineComment => {
-                // strip leading `///`
-                let string = self.source.get_span_str(token.span);
-                string.strip_prefix("///").unwrap_or(string)
-            }
             TokenType::DocBlockComment => {
                 // strip leading `/**` and trailing `*/`
-                let string = self.source.get_span_str(token.span);
                 string
                     .strip_prefix("/**")
                     .unwrap_or(string)
@@ -184,14 +208,30 @@ impl<'a> Parser<'a> {
                     .unwrap_or(string)
             }
             _ => panic!("unexpected token type: {:?}", token.token.r#type),
+        };
+
+        // strip leading space on every line
+        if annotation.contains('\n') {
+            // only allocate for multiline strings
+            let cleaned: String = annotation
+                .lines()
+                .map(|line| line.strip_prefix(' ').unwrap_or(line))
+                .collect::<Vec<_>>()
+                .join("\n");
+            Cow::Owned(cleaned)
+        } else {
+            Cow::Borrowed(annotation.strip_prefix(' ').unwrap_or(annotation))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::BlockFormat;
     use crate::parse::tests::TestParser;
+    use crate::{
+        AnnotationPosition, AnnotationStyle, BlockFormat, Comment, Doc, Expression, Statement,
+        Struct, StructField, assert_node,
+    };
 
     #[test]
     fn test_attach_docs() {
@@ -199,10 +239,11 @@ mod tests {
             r"
 /// doc, floating
 
-/// doc, new
-/// continued
+/// doc, struct
+/// doc, struct continued
 struct Floof {
     /// doc, struct field
+    /// doc, struct field continued
     a: int32
 }
         ",
@@ -210,6 +251,43 @@ struct Floof {
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
+
+        assert_eq!(statements.len(), 1);
+        // struct Floof
+        assert_node!(parser.tree, statements[0], Statement::Struct(node) => {
+            let docs = parser.tree.get_docs_for(*node);
+            assert_eq!(docs.len(), 1);
+
+            // doc, struct + doc, struct continued
+            assert_node!(parser.tree, docs[0], Doc { string, style, position } => {
+                let string = parser.strings.get(*string);
+                assert_eq!(string, "doc, struct\ndoc, struct continued");
+                assert_eq!(*style, AnnotationStyle::Line);
+                assert_eq!(*position, AnnotationPosition::Prefix);
+            });
+
+            // struct Floof
+            assert_node!(parser.tree, *node, Struct { fields, .. } => {
+                assert_eq!(fields.len(), 1);
+
+                // a: int32
+                assert_node!(parser.tree, fields[0], StructField { name, .. } => {
+                    assert_eq!(*name, Some(parser.strings.intern("a")));
+
+                    // doc, struct field + doc, struct field continued
+                    let docs = parser.tree.get_docs_for(fields[0]);
+                    assert_eq!(docs.len(), 1);
+                    // doc, struct field + doc, struct field continued
+                    assert_node!(parser.tree, docs[0], Doc { string, style, position } => {
+                        let string = parser.strings.get(*string);
+                        assert_eq!(string, "doc, struct field\ndoc, struct field continued");
+                        assert_eq!(*style, AnnotationStyle::Line);
+                        assert_eq!(*position, AnnotationPosition::Prefix);
+                    });
+                });
+            });
+
+        })
     }
 
     #[test]
@@ -229,5 +307,39 @@ func() /* comment 3, detached */
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
+
+        assert_eq!(statements.len(), 2);
+
+        // let x = 1 + 1
+        assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
+            assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
+                let comments = parser.tree.get_comments_for(*let_node);
+                assert_eq!(comments.len(), 1);
+
+                // comment 1 + comment 1.1
+                assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
+                    let string = parser.strings.get(*string);
+                    assert_eq!(string, "comment 1\ncomment 1.1");
+                    assert_eq!(*style, AnnotationStyle::Line);
+                    assert_eq!(*position, AnnotationPosition::Prefix);
+                });
+            });
+        });
+
+        // func()
+        assert_node!(parser.tree, statements[1], Statement::Expression(expr_node) => {
+            assert_node!(parser.tree, *expr_node, Expression::Call(call_node) => {
+                let comments = parser.tree.get_comments_for(*call_node);
+                assert_eq!(comments.len(), 1);
+
+                // comment 2 (comment 3 should not be attached)
+                assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
+                    let string = parser.strings.get(*string);
+                    assert_eq!(string, "comment 2");
+                    assert_eq!(*style, AnnotationStyle::Line);
+                    assert_eq!(*position, AnnotationPosition::Prefix);
+                });
+            });
+        });
     }
 }
