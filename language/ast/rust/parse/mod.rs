@@ -28,6 +28,7 @@ mod r#type;
 mod union;
 mod visibility;
 
+pub use annotation::{ANNOTATED_NODE_TYPES, ANNOTATION_TOKEN_TYPES};
 pub use error::*;
 pub use expression::ExpressionParserOptions;
 pub use parser::*;

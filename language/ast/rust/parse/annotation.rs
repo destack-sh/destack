@@ -7,14 +7,14 @@ use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{AnnotationPosition, AnnotationStyle, Comment, Doc, NodeType, Parser};
 
-const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
+pub const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
     TokenType::LineComment,
     TokenType::DocLineComment,
     TokenType::BlockComment,
     TokenType::DocBlockComment,
 ];
 
-const ANNOTATED_NODE_TYPES: [NodeType; 15] = [
+pub const ANNOTATED_NODE_TYPES: [NodeType; 15] = [
     // Groupings (fallback)
     NodeType::Statement,
     NodeType::Expression,
