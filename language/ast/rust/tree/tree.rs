@@ -13,6 +13,7 @@ use crate::{
 };
 
 /// The Node tree.
+#[derive(Clone)]
 pub struct NodeTree {
     /// The next id to allocate.
     pub(crate) next_id: u32,
@@ -353,6 +354,7 @@ impl NodeTree {
 ///
 /// Provides stable NodeId handles for nodes and efficient access to both
 /// node data and source location information.
+#[derive(Clone)]
 pub struct NodeArena<T> {
     /// The nodes in the arena.
     nodes: Vec<T>,

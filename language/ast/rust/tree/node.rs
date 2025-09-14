@@ -1,4 +1,4 @@
-//! The AST Nodes and in Destack.
+//! The AST Nodes in Dyst.
 //!
 //! The set of allowable ASTs is larger than the set of valid Destack programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,

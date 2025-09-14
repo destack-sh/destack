@@ -1,1 +1,11 @@
 use dyst
+
+@entity
+struct MeetupSeries {
+    name: String,
+}
+
+@entity
+struct Meetup {
+
+}
