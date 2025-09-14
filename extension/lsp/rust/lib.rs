@@ -3,14 +3,15 @@
 //! Provides a synchronous stdio LSP server entrypoint and internal modules for
 //! document storage and semantic token computation.
 
-pub mod doc;
+pub mod analyzer;
 pub mod protocol;
 pub mod semantic;
 pub mod server;
-
-pub use doc::DocumentStore;
+pub mod source;
 
 use crate::protocol::{LspService, Server};
+pub use analyzer::Analyzer;
+pub use source::SourceStore;
 
 use crate::server::DestackLanguageServer;
 
@@ -20,7 +21,8 @@ pub fn run_libraryio_server_stdio() -> Result<(), Box<dyn std::error::Error>> {
     let stdout = std::io::stdout();
     let (service, socket) = LspService::new(|client| DestackLanguageServer {
         client,
-        docs: DocumentStore::default(),
+        sources: SourceStore::default(),
+        analyzer: Analyzer::default(),
     });
     Server::new(stdin, stdout, socket).serve(service)?;
     Ok(())

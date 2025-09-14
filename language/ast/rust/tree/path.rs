@@ -53,6 +53,7 @@ impl Path {
 ///
 /// Stores each unique path once and returns PathId handles for fast comparison.
 /// Uses hash-based indexing with collision handling for efficient lookups.
+#[derive(Clone)]
 pub struct PathPool {
     // single ownership of paths; index by PathId (vector index)
     storage: Vec<Path>,

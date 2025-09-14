@@ -22,6 +22,7 @@ pub(crate) struct ParserOptions {
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
+#[derive(Clone)]
 pub struct Parser<'a> {
     /// The source we're parsing.
     pub source: &'a Source,

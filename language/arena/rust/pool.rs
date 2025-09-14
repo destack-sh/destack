@@ -12,6 +12,7 @@ pub struct StringId(pub NonZeroU32);
 ///
 /// Stores each unique string once and returns StringId handles for fast comparison.
 /// Uses hash-based indexing with collision handling for efficient lookups.
+#[derive(Clone)]
 pub struct StringPool {
     // single ownership of bytes; index is by id (vector index)
     storage: Vec<Box<str>>,
