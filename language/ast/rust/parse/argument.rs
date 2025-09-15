@@ -138,7 +138,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, IntType, PrimitiveType, Type, assert_bool, assert_int, assert_node,
+        Argument, Expression, IntType, PrimitiveType, Type, assert_bool, assert_int, assert_node, assert_string,
     };
 
     #[test]
@@ -148,7 +148,7 @@ mod tests {
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
-        assert_eq!(parser.get_string(parameter.name), "T");
+        assert_string!(parser.session, parameter.name, "T");
         assert!(parameter.r#type.is_none());
         assert!(parameter.default.is_none());
     }
@@ -162,7 +162,7 @@ mod tests {
         let parameter = parser.tree.get(parameter_id);
 
         // x
-        assert_eq!(parser.get_string(parameter.name), "x");
+        assert_string!(parser.session, parameter.name, "x");
 
         // int32
         assert_node!(parser.tree, parameter.r#type.unwrap(),
@@ -183,7 +183,7 @@ mod tests {
         let parameter = parser.tree.get(parameter_id);
 
         // validate
-        assert_eq!(parser.get_string(parameter.name), "validate");
+        assert_string!(parser.session, parameter.name, "validate");
 
         // boolean
         assert_node!(
@@ -208,7 +208,7 @@ mod tests {
 
         assert_node!(parser.tree, argument_id, Argument::Named { name, value } => {
             // x
-            assert_eq!(parser.get_string(*name), "x");
+            assert_string!(parser.session, *name, "x");
             // 1
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(literal_id) => {
                 assert_int!(parser.tree, *literal_id, 1);

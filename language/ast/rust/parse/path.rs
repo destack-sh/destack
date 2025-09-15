@@ -69,15 +69,14 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
+    use crate::assert_path;
 
     #[test]
     fn test_parse_simple_path_single_segment() {
         let mut test = TestParser::new("destack");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
-        let destack = parser.intern_string("destack");
-        let destack_path = parser.intern_path(vec![destack]);
-        assert_eq!(path, destack_path);
+        assert_path!(parser.session, path, "destack");
     }
 
     #[test]
@@ -85,11 +84,7 @@ mod tests {
         let mut test = TestParser::new("destack.geometry.math");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
-        let destack = parser.intern_string("destack");
-        let geometry = parser.intern_string("geometry");
-        let math = parser.intern_string("math");
-        let destack_path = parser.intern_path(vec![destack, geometry, math]);
-        assert_eq!(path, destack_path);
+        assert_path!(parser.session, path, "destack.geometry.math");
     }
 
     #[test]
@@ -97,10 +92,7 @@ mod tests {
         let mut test = TestParser::new("ds.geometry.{Vector2}");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
-        let ds = parser.intern_string("ds");
-        let geometry = parser.intern_string("geometry");
-        let ds_path = parser.intern_path(vec![ds, geometry]);
-        assert_eq!(path, ds_path);
+        assert_path!(parser.session, path, "ds.geometry");
         // ensure next token is the `.` for the group
         let next = parser.peek().unwrap();
         assert_eq!(next.token.r#type, dyst_language_token::TokenType::Dot);
@@ -111,10 +103,7 @@ mod tests {
         let mut test = TestParser::new("geom.Vector<Dims: 2, float32>");
         let mut parser = test.parser();
         let path = parser.eat_path().unwrap();
-        let geom = parser.intern_string("geom");
-        let vector = parser.intern_string("Vector");
-        let geom_path = parser.intern_path(vec![geom, vector]);
-        assert_eq!(path, geom_path);
+        assert_path!(parser.session, path, "geom.Vector");
         // ensure next token is the `<` for the generic arguments
         let next = parser.peek().unwrap();
         assert_eq!(next.token.r#type, dyst_language_token::TokenType::LessThan);
