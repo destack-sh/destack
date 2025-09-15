@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
             Mutability::Immutable
         };
         // pattern
-        let pattern = self.eat_pattern()?;
+        let pattern = self.eat_pattern(ExpressionParserOptions::default())?;
         // type
         let r#type = if self.peek_colon().is_ok() {
             self.eat_colon()?;

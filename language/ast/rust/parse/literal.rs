@@ -521,7 +521,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         ArrayLiteral, Expression, FieldLiteral, ScalarLiteral, StructLiteral, TupleLiteral,
-        assert_bool, assert_char, assert_float, assert_int, assert_lit_string, assert_node
+        assert_bool, assert_char, assert_float, assert_int, assert_lit_string, assert_node,
     };
 
     #[test]

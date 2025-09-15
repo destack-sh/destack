@@ -341,7 +341,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, Mutability, Parameter, PrimitiveType, Statement, StructField, StructStyle,
-        Type, Union, UnionField, UnionStyle, Use, assert_int, assert_node, assert_string, assert_path,
+        Type, Union, UnionField, UnionStyle, Use, assert_int, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]

@@ -3,7 +3,10 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
-use crate::{Keyword, Mutability, NodeId, ParseError, ParseResult, Parser, Pattern, PatternField};
+use crate::{
+    ExpressionParserOptions, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser, Pattern,
+    PatternField,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a pattern.
@@ -20,7 +23,10 @@ impl<'a> Parser<'a> {
     /// Vector2 { x: 0, y, z: zed }
     /// geom.Mesh<2, float32> { vertices: [2, ..] }
     /// ```
-    pub fn eat_pattern(&mut self) -> ParseResult<NodeId<Pattern>> {
+    pub fn eat_pattern(
+        &mut self,
+        options: ExpressionParserOptions,
+    ) -> ParseResult<NodeId<Pattern>> {
         let start = self.mark();
 
         // ------------------------------------------------------------
@@ -47,7 +53,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Mutability::Immutable
                 };
-                let target_id = self.eat_pattern()?;
+                let target_id = self.eat_pattern(options)?;
                 self.tree.allocate(
                     Pattern::Pointer {
                         mutability,
@@ -68,8 +74,11 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
-                let fields =
-                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
+                let fields = self.eat_pattern_field_list(
+                    TokenType::Comma,
+                    TokenType::CloseParenthesis,
+                    ExpressionParserOptions::default(),
+                )?;
                 let pattern = Pattern::Tuple { path: None, fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.allocate(pattern, self.get_span_from(start))
@@ -78,20 +87,26 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 self.bump(); // eat open bracket
                 self.eat_newlines_maybe()?;
-                let fields =
-                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBracket)?;
+                let fields = self.eat_pattern_field_list(
+                    TokenType::Comma,
+                    TokenType::CloseBracket,
+                    ExpressionParserOptions::default(),
+                )?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
                 self.tree
                     .allocate(Pattern::Slice { fields }, self.get_span_from(start))
             }
             // struct
-            else if self.peek_struct_literal().is_ok() {
+            else if !options.is_before_block && self.peek_struct_literal().is_ok() {
                 let r#type = self.eat_type()?;
                 self.eat_token(TokenType::OpenBrace)?;
                 self.eat_newlines_maybe()?;
-                let fields =
-                    self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)?;
+                let fields = self.eat_pattern_field_list(
+                    TokenType::Comma,
+                    TokenType::CloseBrace,
+                    ExpressionParserOptions::default(),
+                )?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBrace)?;
                 self.tree.allocate(
@@ -108,8 +123,11 @@ impl<'a> Parser<'a> {
                     let path = self.eat_path()?;
                     self.bump(); // eat open parenthesis
                     self.eat_newlines_maybe()?;
-                    let fields =
-                        self.eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)?;
+                    let fields = self.eat_pattern_field_list(
+                        TokenType::Comma,
+                        TokenType::CloseParenthesis,
+                        ExpressionParserOptions::default(),
+                    )?;
                     let pattern = Pattern::Tuple {
                         path: Some(path),
                         fields,
@@ -145,7 +163,7 @@ impl<'a> Parser<'a> {
         // range
         if self.peek_token(TokenType::Range).is_ok() {
             self.bump(); // eat range
-            let end_id = self.eat_pattern()?;
+            let end_id = self.eat_pattern(options)?;
             let pattern = Pattern::Range {
                 start: Some(pattern_id),
                 end: Some(end_id),
@@ -165,7 +183,7 @@ impl<'a> Parser<'a> {
                         in_implicit_union: true,
                         ..self.options
                     },
-                    |parser| parser.eat_pattern(),
+                    |parser| parser.eat_pattern(options),
                 )?;
                 fields.push(field_pattern_id);
             }
@@ -184,6 +202,7 @@ impl<'a> Parser<'a> {
         &mut self,
         seperator: TokenType,
         terminator: TokenType,
+        options: ExpressionParserOptions,
     ) -> ParseResult<Vec<NodeId<PatternField>>> {
         let mut fields: Vec<NodeId<PatternField>> = Vec::new();
         loop {
@@ -205,7 +224,7 @@ impl<'a> Parser<'a> {
                         }
                         // named with pattern
                         else {
-                            let pattern = self.eat_pattern()?;
+                            let pattern = self.eat_pattern(options)?;
                             PatternField::Named {
                                 name,
                                 pattern: Some(pattern),
@@ -222,7 +241,7 @@ impl<'a> Parser<'a> {
                 }
                 // positional
                 else {
-                    let pattern = self.eat_pattern()?;
+                    let pattern = self.eat_pattern(options)?;
                     PatternField::Positional { pattern }
                 }
             };
@@ -255,7 +274,7 @@ mod tests {
         // _
         let mut test = TestParser::new("_");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
     }
 
@@ -264,7 +283,7 @@ mod tests {
         // ..
         let mut test = TestParser::new("..");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Rest);
     }
 
@@ -273,7 +292,7 @@ mod tests {
         // *var _
         let mut test = TestParser::new("*var _");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         // *
         assert_node!(parser.tree, pattern_id,
             Pattern::Pointer { mutability, target } => {
@@ -287,7 +306,7 @@ mod tests {
         // *1
         let mut test = TestParser::new("*1");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         // *
         assert_node!(parser.tree, pattern_id, Pattern::Pointer { mutability, target } => {
             assert_eq!(*mutability, Mutability::Immutable);
@@ -302,7 +321,7 @@ mod tests {
     fn test_parse_pattern_identifier() {
         let mut test = TestParser::new("x");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Identifier(identifier) => {
             assert_eq!(parser.get_string(*identifier), "x");
         });
@@ -312,7 +331,7 @@ mod tests {
     fn test_parse_pattern_path() {
         let mut test = TestParser::new("MyEnum.A");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
             assert_path!(parser.session, *path, "MyEnum.A");
         });
@@ -322,7 +341,7 @@ mod tests {
     fn test_parse_pattern_tuple() {
         let mut test = TestParser::new("(x: 1, 2, ..)");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
         // (x: 1, 2, ..)
         assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
@@ -354,7 +373,7 @@ mod tests {
     fn test_parse_pattern_tuple_with_path() {
         let mut test = TestParser::new("Result.Success(_, ..)");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
         // Result.Success(_, ..)
         assert_node!(parser.tree, pattern_id, Pattern::Tuple { path, fields } => {
@@ -386,7 +405,7 @@ mod tests {
         );
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
         // (x: 1, 2, ..)
         assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
@@ -419,7 +438,7 @@ mod tests {
         // 1 | 2 | 3
         let mut test = TestParser::new("1 | 2 | 3");
         let mut parser = test.parser();
-        let pattern_id = parser.eat_pattern().unwrap();
+        let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
         assert_node!(parser.tree, pattern_id, Pattern::Union { fields } => {
             assert_eq!(fields.len(), 3);

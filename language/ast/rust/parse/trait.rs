@@ -111,7 +111,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Function, Statement, Trait, Type, WithClause, assert_node, assert_string, assert_path};
+    use crate::{
+        Function, Statement, Trait, Type, WithClause, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_trait_anonymous_empty() {

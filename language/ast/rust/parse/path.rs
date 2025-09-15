@@ -68,8 +68,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::tests::TestParser;
     use crate::assert_path;
+    use crate::parse::tests::TestParser;
 
     #[test]
     fn test_parse_simple_path_single_segment() {
