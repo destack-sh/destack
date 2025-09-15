@@ -521,7 +521,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         ArrayLiteral, Expression, FieldLiteral, ScalarLiteral, StructLiteral, TupleLiteral,
-        assert_bool, assert_char, assert_float, assert_int, assert_node, assert_string,
+        assert_bool, assert_char, assert_float, assert_int, assert_lit_string, assert_node
     };
 
     #[test]
@@ -589,12 +589,7 @@ mod tests {
 
         // "Hello, world!"
         let literal_id = parser.eat_scalar_literal().unwrap();
-        assert_string!(
-            parser.tree,
-            literal_id,
-            "Hello, world!",
-            using | id | parser.get_string(id)
-        );
+        assert_lit_string!(parser.session, parser.tree.get(literal_id), "Hello, world!");
 
         // b"abc"
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -605,21 +600,11 @@ mod tests {
 
         // r"abc"
         let literal_id = parser.eat_scalar_literal().unwrap();
-        assert_string!(
-            parser.tree,
-            literal_id,
-            "abc",
-            using | id | parser.get_string(id)
-        );
+        assert_lit_string!(parser.session, parser.tree.get(literal_id), "abc");
 
         // r##"a#b#c"##
         let literal_id = parser.eat_scalar_literal().unwrap();
-        assert_string!(
-            parser.tree,
-            literal_id,
-            "a#b#c",
-            using | id | parser.get_string(id)
-        );
+        assert_lit_string!(parser.session, parser.tree.get(literal_id), "a#b#c");
 
         // br"abc"
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -685,11 +670,10 @@ mod tests {
 
             // [2] = "Hi"
             assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_string!(
-                    parser.tree,
-                    *scalar_literal_id,
-                    "Hi",
-                    using | id | parser.get_string(id)
+                assert_lit_string!(
+                    parser.session,
+                    parser.tree.get(*scalar_literal_id),
+                    "Hi"
                 );
             });
         });
@@ -764,11 +748,10 @@ mod tests {
 
             // [2] = "Hi"
             assert_node!(parser.tree, elements[2], Expression::ScalarLiteral(scalar_literal_id) => {
-                assert_string!(
-                    parser.tree,
-                    *scalar_literal_id,
-                    "Hi",
-                    using | id | parser.get_string(id)
+                assert_lit_string!(
+                    parser.session,
+                    parser.tree.get(*scalar_literal_id),
+                    "Hi"
                 );
             });
         });

@@ -216,7 +216,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Function, IntType, Mutability, PrimitiveType, Type, WithClause, assert_node};
+    use crate::{Function, IntType, Mutability, PrimitiveType, Type, WithClause, assert_node, assert_string, assert_path};
 
     #[test]
     fn test_parse_function_with_clause() {
@@ -233,19 +233,10 @@ function foo() with (
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let bar = parser.intern_string("Bar");
-        let bar_path = parser.intern_path(vec![bar]);
-        let time = parser.intern_string("Time");
-        let time_path = parser.intern_path(vec![time]);
-        let f = parser.intern_string("F");
-        let f_path = parser.intern_path(vec![f]);
-        let numeric = parser.intern_string("Numeric");
-        let numeric_path = parser.intern_path(vec![numeric]);
-
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, with, return_type, .. } => {
             // function name
-            assert_eq!(parser.get_string(name.unwrap()), "foo");
+            assert_string!(parser.session, name.unwrap(), "foo");
 
             // with clause present
             let with_id = with.expect("expected with declaration");
@@ -256,10 +247,7 @@ function foo() with (
             assert_node!(parser.tree, with.clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Not(inner_id) => {
                     assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
-                        assert_eq!(
-                            *path,
-                            bar_path
-                        );
+                        assert_path!(parser.session, *path, "Bar");
                     });
                 });
             });
@@ -267,10 +255,7 @@ function foo() with (
             // Time
             assert_node!(parser.tree, with.clauses[1], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
-                    assert_eq!(
-                        *path,
-                        time_path
-                    );
+                    assert_path!(parser.session, *path, "Time");
                     assert!(static_arguments.is_none());
                 });
             });
@@ -278,13 +263,10 @@ function foo() with (
             // F: Numeric
             assert_node!(parser.tree, with.clauses[2], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, f_path);
+                    assert_path!(parser.session, *path, "F");
                 });
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
-                    assert_eq!(
-                        *path,
-                        numeric_path
-                    );
+                    assert_path!(parser.session, *path, "Numeric");
                 });
             });
 
@@ -304,7 +286,7 @@ function foo() with (
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(parser.get_string(name.unwrap()), "a");
+            assert_string!(parser.session, name.unwrap(), "a");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(!self_param.is_pointer);
@@ -329,7 +311,7 @@ function b(
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(parser.get_string(name.unwrap()), "b");
+            assert_string!(parser.session, name.unwrap(), "b");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);
@@ -337,7 +319,7 @@ function b(
 
             assert_eq!(dynamic_parameters.len(), 1);
             let param = parser.tree.get(dynamic_parameters[0]);
-            assert_eq!(parser.get_string(param.name), "x");
+            assert_string!(parser.session, param.name, "x");
 
             let param_type = param.r#type.expect("expected type for parameter x");
             assert_node!(parser.tree, param_type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
@@ -354,7 +336,7 @@ function b(
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(parser.get_string(name.unwrap()), "c");
+            assert_string!(parser.session, name.unwrap(), "c");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);

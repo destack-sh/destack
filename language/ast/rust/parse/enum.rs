@@ -173,7 +173,10 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Enum, EnumField, Expression, PrimitiveType, Type, assert_int, assert_node};
+    use crate::{
+        Enum, EnumField, Expression, PrimitiveType, Type, assert_int, assert_node, assert_path,
+        assert_string,
+    };
 
     #[test]
     fn test_parse_enum_with_super_types() {
@@ -185,18 +188,16 @@ enum Foo: Day {}
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let day = parser.intern_string("Day");
-        let day_path = parser.intern_path(vec![day]);
         let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Enum { name, super_types, fields, statements, .. } => {
-            assert_eq!(parser.get_string(name.unwrap()), "Foo");
+            assert_string!(parser.session, name.unwrap(), "Foo");
             assert!(statements.is_empty());
             assert!(fields.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, day_path);
+                assert_path!(parser.session, *path, "Day");
             });
         });
     }
@@ -223,13 +224,13 @@ enum {
 
             // Success
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_eq!(parser.get_string(*name), "Success");
+                assert_string!(parser.session, *name, "Success");
                 assert!(value.is_none());
             });
 
             // Failure
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_eq!(parser.get_string(*name), "Failure");
+                assert_string!(parser.session, *name, "Failure");
                 assert!(value.is_none());
             });
         });
@@ -253,13 +254,10 @@ enum(uint8) Foo: Day {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let day = parser.intern_string("Day");
-        let day_path = parser.intern_path(vec![day]);
-
         let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, super_types, .. } => {
             // enum name
-            assert_eq!(parser.get_string(name.unwrap()), "Foo");
+            assert_string!(parser.session, name.unwrap(), "Foo");
 
             // enum type
             assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
@@ -271,14 +269,14 @@ enum(uint8) Foo: Day {
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, day_path);
+                assert_path!(parser.session, *path, "Day");
             });
 
             assert_eq!(fields.len(), 2);
 
             // Baz = 1
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_eq!(parser.get_string(*name), "Baz");
+                assert_string!(parser.session, *name, "Baz");
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                     assert_int!(parser.tree, *literal_id, 1);
                 });
@@ -286,7 +284,7 @@ enum(uint8) Foo: Day {
 
             // Qux = 2
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_eq!(parser.get_string(*name), "Qux");
+                assert_string!(parser.session, *name, "Qux");
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                     assert_int!(parser.tree, *literal_id, 2);
                 });

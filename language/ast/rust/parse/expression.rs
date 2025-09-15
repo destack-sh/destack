@@ -359,7 +359,7 @@ pub struct ExpressionParserOptions {
     /// Whether we're in parenthesized expression (directly).
     /// These expressions might be tuple literals if followed by a comma.
     pub is_parenthesized: bool = false,
-    /// Whether we're parsing an expression followed by a block (like in if, match).
+    /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
     /// We disallow struct literals at the root level in these cases to avoid ambiguity with expr {}.
     pub is_before_block: bool = false,
     /// The left precedence preceding (i.e. before) the expression. 
@@ -817,7 +817,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Mutability, Runtime,
-        ScalarLiteral, StructLiteral, TupleLiteral, Type, assert_int, assert_node, assert_path,
+        ScalarLiteral, StructLiteral, TupleLiteral, Type, assert_expr_path, assert_int,
+        assert_node, assert_path, assert_string,
     };
 
     /// Tuple literals are disambiguated.
@@ -871,10 +872,6 @@ mod tests {
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
-        let geom = parser.intern_string("geom");
-        let vector2 = parser.intern_string("Vector2");
-        let x = parser.intern_string("x");
-        let y = parser.intern_string("y");
 
         // geom.Vector2 { x: 1, y }
         assert_node!(
@@ -890,10 +887,7 @@ mod tests {
                             parser.tree,
                             *r#type,
                             Type::Path { path, static_arguments: _ } => {
-                                let p = parser.get_path(*path);
-                                assert_eq!(p.segments.len(), 2);
-                                assert_eq!(p.segments[0], geom);
-                                assert_eq!(p.segments[1], vector2);
+                                assert_path!(parser.session, *path, "geom.Vector2");
                             }
                         );
                         // fields
@@ -904,7 +898,7 @@ mod tests {
                             fields[0],
                             FieldLiteral::Named { name, value } => {
                                 // x
-                                assert_eq!(*name, x);
+                                assert_string!(parser.session, *name, "x");
                                 // 1
                                 assert_node!(
                                     parser.tree,
@@ -925,7 +919,7 @@ mod tests {
                             fields[1],
                             FieldLiteral::NamedShorthand { name } => {
                                 // y
-                                assert_eq!(*name, y);
+                                assert_string!(parser.session, *name, "y");
                             }
                         );
                     }
@@ -951,12 +945,6 @@ geom.Mesh<2, Dims: 4> {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let geom = parser.intern_string("geom");
-        let mesh = parser.intern_string("Mesh");
-        let vertices = parser.intern_string("vertices");
-        let y = parser.intern_string("y");
-        let geom_mesh_path = parser.intern_path(vec![geom, mesh]);
-
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -972,7 +960,7 @@ geom.Mesh<2, Dims: 4> {
                     struct_literal.r#type,
                     Type::Path { path, static_arguments } => {
                         // geom.Mesh
-                        assert_eq!(*path, geom_mesh_path);
+                        assert_path!(parser.session, *path, "geom.Mesh");
                         // <2, Dims: 4>
                         assert!(static_arguments.is_some());
                         let params = static_arguments.as_ref().unwrap();
@@ -986,7 +974,7 @@ geom.Mesh<2, Dims: 4> {
                     parser.tree,
                     fields[0],
                     FieldLiteral::Named { name, value } => {
-                        assert_eq!(*name, vertices);
+                        assert_string!(parser.session, *name, "vertices");
                         assert_node!(
                             parser.tree,
                             *value,
@@ -999,7 +987,7 @@ geom.Mesh<2, Dims: 4> {
                     parser.tree,
                     fields[1],
                     FieldLiteral::NamedShorthand { name } => {
-                        assert_eq!(*name, y);
+                        assert_string!(parser.session, *name, "y");
                     }
                 );
             }
@@ -1016,8 +1004,6 @@ geom.Mesh<2, Dims: 4> {
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
 
-        let x = parser.intern_string("x");
-
         // &x
         assert_node!(
             parser.tree,
@@ -1026,11 +1012,7 @@ geom.Mesh<2, Dims: 4> {
                 // &
                 assert_eq!(*mutability, Mutability::Immutable);
                 // x
-                assert_path!(parser.tree, *right, x, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*right), "x");
             }
         );
     }
@@ -1044,10 +1026,6 @@ geom.Mesh<2, Dims: 4> {
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
-
-        let self_str = parser.intern_string("self");
-        let foo = parser.intern_string("foo");
-        let self_foo_path = parser.intern_path(vec![self_str, foo]);
 
         // &var self.foo()
         assert_node!(
@@ -1071,7 +1049,7 @@ geom.Mesh<2, Dims: 4> {
                                     parser.tree,
                                     *receiver,
                                     Expression::Path(path_id) => {
-                                        assert_eq!(*path_id, self_foo_path);
+                                        assert_path!(parser.session, *path_id, "self.foo");
                                     }
                                 );
                             }
@@ -1093,10 +1071,6 @@ geom.Mesh<2, Dims: 4> {
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
 
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-        let c = parser.intern_string("c");
-
         assert_node!(
             parser.tree,
             expr_id,
@@ -1109,27 +1083,15 @@ geom.Mesh<2, Dims: 4> {
                     // (a + b)
                     Expression::Binary { left, operator, right } => {
                         // a
-                        assert_path!(parser.tree, *left, a, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // b
-                        assert_path!(parser.tree, *right, b, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
                     }
                 );
                 // c
-                assert_path!(parser.tree, *right, c, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
             }
         );
     }
@@ -1145,10 +1107,6 @@ geom.Mesh<2, Dims: 4> {
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
 
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-        let c = parser.intern_string("c");
-
         assert_node!(
             parser.tree,
             expr_id,
@@ -1157,11 +1115,7 @@ geom.Mesh<2, Dims: 4> {
                 // +
                 assert_eq!(*operator, BinaryOperator::Add);
                 // a
-                assert_path!(parser.tree, *left, a, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*left), "a");
                 assert_node!(
                     parser.tree,
                     *right,
@@ -1170,17 +1124,9 @@ geom.Mesh<2, Dims: 4> {
                         // *
                         assert_eq!(*operator, BinaryOperator::Multiply);
                         // b
-                        assert_path!(parser.tree, *left, b, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "b");
                         // c
-                        assert_path!(parser.tree, *right, c, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "c");
                     }
                 );
             }
@@ -1198,10 +1144,6 @@ geom.Mesh<2, Dims: 4> {
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
 
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-        let c = parser.intern_string("c");
-
         assert_node!(
             parser.tree,
             expr_id,
@@ -1217,25 +1159,13 @@ geom.Mesh<2, Dims: 4> {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_path!(parser.tree, *left, a, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
                         // b
-                        assert_path!(parser.tree, *right, b, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
                     }
                 );
                 // c
-                assert_path!(parser.tree, *right, c, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
             }
         );
     }
@@ -1250,11 +1180,6 @@ geom.Mesh<2, Dims: 4> {
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
-
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-        let c = parser.intern_string("c");
-        let d = parser.intern_string("d");
 
         assert_node!(
             parser.tree,
@@ -1271,11 +1196,7 @@ geom.Mesh<2, Dims: 4> {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_path!(parser.tree, *left, a, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
                         assert_node!(
                             parser.tree,
                             *right,
@@ -1284,27 +1205,15 @@ geom.Mesh<2, Dims: 4> {
                                 // *
                                 assert_eq!(*operator, BinaryOperator::Multiply);
                                 // b
-                                assert_path!(parser.tree, *left, b, using |path_id| {
-                                    let p = parser.get_path(path_id);
-                                    assert_eq!(p.segments.len(), 1);
-                                    p.segments[0]
-                                });
+                                assert_expr_path!(parser.session, parser.tree.get(*left), "b");
                                 // c
-                                assert_path!(parser.tree, *right, c, using |path_id| {
-                                    let p = parser.get_path(path_id);
-                                    assert_eq!(p.segments.len(), 1);
-                                    p.segments[0]
-                                });
+                                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
                             }
                         );
                     }
                 );
                 // d
-                assert_path!(parser.tree, *right, d, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*right), "d");
             }
         );
     }
@@ -1319,11 +1228,6 @@ geom.Mesh<2, Dims: 4> {
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
-
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-        let c = parser.intern_string("c");
-        let d = parser.intern_string("d");
 
         assert_node!(
             parser.tree,
@@ -1340,17 +1244,9 @@ geom.Mesh<2, Dims: 4> {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // a
-                        assert_path!(parser.tree, *left, a, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
                         // b
-                        assert_path!(parser.tree, *right, b, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
                     }
                 );
                 assert_node!(
@@ -1361,17 +1257,9 @@ geom.Mesh<2, Dims: 4> {
                         // +
                         assert_eq!(*operator, BinaryOperator::Add);
                         // c
-                        assert_path!(parser.tree, *left, c, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "c");
                         // d
-                        assert_path!(parser.tree, *right, d, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "d");
                     }
                 );
             }
@@ -1389,11 +1277,6 @@ geom.Mesh<2, Dims: 4> {
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
 
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-        let c = parser.intern_string("c");
-        let d = parser.intern_string("d");
-
         assert_node!(
             parser.tree,
             expr_id,
@@ -1409,17 +1292,9 @@ geom.Mesh<2, Dims: 4> {
                         // ==
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // a
-                        assert_path!(parser.tree, *left, a, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
                         // b
-                        assert_path!(parser.tree, *right, b, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
                     }
                 );
                 assert_node!(
@@ -1430,17 +1305,9 @@ geom.Mesh<2, Dims: 4> {
                         // ==
                         assert_eq!(*operator, BinaryOperator::Equal);
                         // c
-                        assert_path!(parser.tree, *left, c, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "c");
                         // d
-                        assert_path!(parser.tree, *right, d, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "d");
                     }
                 );
             }
@@ -1458,9 +1325,6 @@ geom.Mesh<2, Dims: 4> {
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
 
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-
         assert_node!(
             parser.tree,
             expr_id,
@@ -1474,19 +1338,11 @@ geom.Mesh<2, Dims: 4> {
                     // (-a)
                     Expression::Unary { operator: _, right } => {
                         // a
-                        assert_path!(parser.tree, *right, a, using |path_id| {
-                            let p = parser.get_path(path_id);
-                            assert_eq!(p.segments.len(), 1);
-                            p.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "a");
                     }
                 );
                 // b
-                assert_path!(parser.tree, *right, b, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*right), "b");
             }
         );
     }
@@ -1502,10 +1358,6 @@ geom.Mesh<2, Dims: 4> {
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
-
-        let a = parser.intern_string("a");
-        let b = parser.intern_string("b");
-        let c = parser.intern_string("c");
 
         assert_node!(
             parser.tree,
@@ -1526,11 +1378,7 @@ geom.Mesh<2, Dims: 4> {
                             Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
                                 assert_eq!(*runtime, Runtime::Dynamic);
                                 // a
-                                assert_path!(parser.tree, *receiver, a, using |path_id| {
-                                    let path = parser.get_path(path_id);
-                                    assert_eq!(path.segments.len(), 1);
-                                    path.segments[0]
-                                });
+                                assert_expr_path!(parser.session, parser.tree.get(*receiver), "a");
                             }
                         );
                     }
@@ -1553,21 +1401,13 @@ geom.Mesh<2, Dims: 4> {
                                     Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
                                         assert_eq!(*runtime, Runtime::Static);
                                         // b
-                                        assert_path!(parser.tree, *receiver, b, using |path_id| {
-                                            let path = parser.get_path(path_id);
-                                            assert_eq!(path.segments.len(), 1);
-                                            path.segments[0]
-                                        });
+                                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "b");
                                     }
                                 );
                             }
                         );
                         // c
-                        assert_path!(parser.tree, *right, c, using |path_id| {
-                            let path = parser.get_path(path_id);
-                            assert_eq!(path.segments.len(), 1);
-                            path.segments[0]
-                        });
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "c");
                     }
                 );
             }
@@ -1585,10 +1425,6 @@ geom.Mesh<2, Dims: 4> {
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
 
-        let y = parser.intern_string("y");
-        let sqrt = parser.intern_string("sqrt");
-        let sqrt_path = parser.intern_path(vec![sqrt]);
-
         assert_node!(
             parser.tree,
             expr_id,
@@ -1604,23 +1440,15 @@ geom.Mesh<2, Dims: 4> {
                                 // ((y * y).sqrt())
                                 assert_node!(parser.tree, *receiver, Expression::Member { receiver, path } => {
                                     // sqrt
-                                    assert_eq!(*path, sqrt_path);
+                                    assert_path!(parser.session, *path, "sqrt");
                                     // (y * y)
                                     assert_node!(parser.tree, *receiver, Expression::Binary { left, operator, right } => {
                                         // *
                                         assert_eq!(*operator, BinaryOperator::Multiply);
                                         // y
-                                        assert_path!(parser.tree, *left, y, using |path_id| {
-                                            let path = parser.get_path(path_id);
-                                            assert_eq!(path.segments.len(), 1);
-                                            path.segments[0]
-                                        });
+                                        assert_expr_path!(parser.session, parser.tree.get(*left), "y");
                                         // y
-                                        assert_path!(parser.tree, *right, y, using |path_id| {
-                                            let path = parser.get_path(path_id);
-                                            assert_eq!(path.segments.len(), 1);
-                                            path.segments[0]
-                                        });
+                                        assert_expr_path!(parser.session, parser.tree.get(*right), "y");
                                     });
                                 });
                             });

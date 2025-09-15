@@ -165,7 +165,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, Cast, Expression, Index, IntType, PrimitiveType, Runtime, ScalarLiteral, Type,
-        assert_node,
+        assert_node, assert_string,
     };
 
     #[test]
@@ -225,7 +225,7 @@ mod tests {
             let static_args = static_arguments.as_ref().expect("expected static args");
             assert_eq!(static_args.len(), 1);
             assert_node!(parser.tree, static_args[0], Argument::Named { name, value } => {
-                assert_eq!(parser.get_string(*name), "Validate");
+                assert_string!(parser.session, *name, "Validate");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
                     assert_node!(parser.tree, *lit_id, ScalarLiteral::Boolean(false));
                 });
@@ -243,7 +243,7 @@ mod tests {
 
             // x: 2
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
-                assert_eq!(parser.get_string(*name), "x");
+                assert_string!(parser.session, *name, "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
                     assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2, _));
                 });

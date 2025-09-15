@@ -72,7 +72,10 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{BinaryOperator, Block, Expression, If, assert_bool, assert_node, assert_path};
+    use crate::{
+        BinaryOperator, Block, Expression, If, assert_bool, assert_expr_path, assert_node,
+        assert_path,
+    };
 
     #[test]
     fn test_parse_if_basic() {
@@ -161,27 +164,15 @@ if x > y {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let x = parser.intern_string("x");
-        let y = parser.intern_string("y");
-        let z = parser.intern_string("z");
-
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
             // if x > y
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
                 // x
-                assert_path!(parser.tree, *left, x, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*left), "x");
                 // y
-                assert_path!(parser.tree, *right, y, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*right), "y");
             });
             // { y }
             assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
@@ -194,17 +185,9 @@ if x > y {
                 assert_node!(parser.tree, *inner_condition, Expression::Binary { left, operator, right } => {
                     assert_eq!(*operator, BinaryOperator::Equal);
                     // y
-                    assert_path!(parser.tree, *left, y, using |path_id| {
-                        let p = parser.get_path(path_id);
-                        assert_eq!(p.segments.len(), 1);
-                        p.segments[0]
-                    });
+                    assert_expr_path!(parser.session, parser.tree.get(*left), "y");
                     // z
-                    assert_path!(parser.tree, *right, z, using |path_id| {
-                        let p = parser.get_path(path_id);
-                        assert_eq!(p.segments.len(), 1);
-                        p.segments[0]
-                    });
+                    assert_expr_path!(parser.session, parser.tree.get(*right), "z");
                 });
                 // { x }
                 assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {
@@ -263,27 +246,15 @@ else { v }
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let v = parser.intern_string("v");
-        let lo = parser.intern_string("lo");
-        let hi = parser.intern_string("hi");
-
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
             // if v < lo
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
                 // v
-                assert_path!(parser.tree, *left, v, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*left), "v");
                 // lo
-                assert_path!(parser.tree, *right, lo, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*right), "lo");
             });
             // { lo }
             assert_node!(parser.tree, *then_block, Block { format: _, statements, label } => {
@@ -296,17 +267,9 @@ else { v }
                 assert_node!(parser.tree, *inner_condition, Expression::Binary { left, operator, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
                     // v
-                    assert_path!(parser.tree, *left, v, using |path_id| {
-                        let p = parser.get_path(path_id);
-                        assert_eq!(p.segments.len(), 1);
-                        p.segments[0]
-                    });
+                    assert_expr_path!(parser.session, parser.tree.get(*left), "v");
                     // hi
-                    assert_path!(parser.tree, *right, hi, using |path_id| {
-                        let p = parser.get_path(path_id);
-                        assert_eq!(p.segments.len(), 1);
-                        p.segments[0]
-                    });
+                    assert_expr_path!(parser.session, parser.tree.get(*right), "hi");
                 });
                 // { hi }
                 assert_node!(parser.tree, *inner_then, Block { format: _, statements, label } => {

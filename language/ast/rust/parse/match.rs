@@ -209,7 +209,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, Match, MatchCase, Pattern, Try, assert_bool, assert_int, assert_node,
-        assert_path,
+        assert_path, assert_expr_path,
     };
 
     #[test]
@@ -227,15 +227,10 @@ match x {
         parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
-        let x = parser.intern_string("x");
 
         assert_node!(parser.tree, match_id, Match { value, cases } => {
             // value: path x
-            assert_path!(parser.tree, *value, x, using |path_id| {
-                let p = parser.get_path(path_id);
-                assert_eq!(p.segments.len(), 1);
-                p.segments[0]
-            });
+            assert_expr_path!(parser.session, parser.tree.get(*value), "x");
 
             assert_eq!(cases.len(), 3);
 
@@ -325,23 +320,10 @@ match self {
 
         let match_id = parser.eat_match().unwrap();
 
-        let self_str = parser.intern_string("self");
-        let tetris_piece_shape = parser.intern_string("TetrisPieceShape");
-        let i = parser.intern_string("I");
-        let j = parser.intern_string("J");
-        let color = parser.intern_string("Color");
-        let blue = parser.intern_string("Blue");
-        let red = parser.intern_string("Red");
-        let gray = parser.intern_string("Gray");
-
         // match self { ... }
         assert_node!(parser.tree, match_id, Match { value, cases } => {
             // self
-            assert_path!(parser.tree, *value, self_str, using |path_id| {
-                let p = parser.get_path(path_id);
-                assert_eq!(p.segments.len(), 1);
-                p.segments[0]
-            });
+            assert_expr_path!(parser.session, parser.tree.get(*value), "self");
 
             assert_eq!(cases.len(), 3);
 
@@ -350,18 +332,10 @@ match self {
                 assert!(guard.is_none());
                 // TetrisPieceShape.I
                 assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                    let p = parser.get_path(*path_id);
-                    assert_eq!(p.segments.len(), 2);
-                    assert_eq!(p.segments[0], tetris_piece_shape);
-                    assert_eq!(p.segments[1], i);
+                    assert_path!(parser.session, *path_id, "TetrisPieceShape.I");
                 });
                 // Color.Blue
-                assert_path!(parser.tree, *body, blue, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 2);
-                    assert_eq!(p.segments[0], color);
-                    p.segments[1]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*body), "Color.Blue");
             });
 
             // TetrisPieceShape.J => Color.Red
@@ -369,18 +343,10 @@ match self {
                 assert!(guard.is_none());
                 // TetrisPieceShape.J
                 assert_node!(parser.tree, *pattern, Pattern::Path(path_id) => {
-                    let p = parser.get_path(*path_id);
-                    assert_eq!(p.segments.len(), 2);
-                    assert_eq!(p.segments[0], tetris_piece_shape);
-                    assert_eq!(p.segments[1], j);
+                    assert_path!(parser.session, *path_id, "TetrisPieceShape.J");
                 });
                 // Color.Red
-                assert_path!(parser.tree, *body, red, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 2);
-                    assert_eq!(p.segments[0], color);
-                    p.segments[1]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*body), "Color.Red");
             });
 
             // _ => Color.Gray
@@ -388,12 +354,7 @@ match self {
                 assert!(guard.is_none());
                 assert_node!(parser.tree, *pattern, Pattern::Wildcard);
                 // Color.Gray
-                assert_path!(parser.tree, *body, gray, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 2);
-                    assert_eq!(p.segments[0], color);
-                    p.segments[1]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*body), "Color.Gray");
             });
         });
     }
@@ -413,11 +374,7 @@ try foo()
             assert_node!(parser.tree, *try_expression, Expression::Call(call_id) => {
                 let call = parser.tree.get(*call_id);
                 // receiver is path foo
-                assert_path!(parser.tree, call.receiver, parser.intern_string("foo"), using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(call.receiver), "foo");
             });
         });
     }
@@ -457,18 +414,13 @@ try {
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try_catch().unwrap();
-        let e = parser.intern_string("e");
         assert_node!(parser.tree, try_id, Try::BlockWithCatch { try_block, catch_match } => {
             // try block exists
             let _block = parser.tree.get(*try_block);
 
             // catch match: value is path e, one case with wildcard and block body
             assert_node!(parser.tree, *catch_match, Match { value, cases } => {
-                assert_path!(parser.tree, *value, e, using |path_id| {
-                    let p = parser.get_path(path_id);
-                    assert_eq!(p.segments.len(), 1);
-                    p.segments[0]
-                });
+                assert_expr_path!(parser.session, parser.tree.get(*value), "e");
 
                 assert_eq!(cases.len(), 1);
                 assert_node!(parser.tree, cases[0], MatchCase::Block { pattern, body: _, guard } => {

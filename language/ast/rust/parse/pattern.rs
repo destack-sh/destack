@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
                     self.get_span_from(start),
                 )
             }
-            // tuple (without path)
+            // tuple (without path prefix, no struct tuples)
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
@@ -246,7 +246,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{IntType, Mutability, Pattern, PatternField, ScalarLiteral, assert_node};
+    use crate::{
+        IntType, Mutability, Pattern, PatternField, ScalarLiteral, assert_node, assert_path,
+    };
 
     #[test]
     fn test_parse_pattern_wildcard() {
@@ -297,15 +299,22 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_pattern_identifier() {
+        let mut test = TestParser::new("x");
+        let mut parser = test.parser();
+        let pattern_id = parser.eat_pattern().unwrap();
+        assert_node!(parser.tree, pattern_id, Pattern::Identifier(identifier) => {
+            assert_eq!(parser.get_string(*identifier), "x");
+        });
+    }
+
+    #[test]
     fn test_parse_pattern_path() {
         let mut test = TestParser::new("MyEnum.A");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
-        let my_enum = parser.intern_string("MyEnum");
-        let a = parser.intern_string("A");
-        let my_enum_path = parser.intern_path(vec![my_enum, a]);
         assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
-            assert_eq!(*path, my_enum_path);
+            assert_path!(parser.session, *path, "MyEnum.A");
         });
     }
 

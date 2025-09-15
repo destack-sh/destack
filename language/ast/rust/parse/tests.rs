@@ -165,29 +165,54 @@ macro_rules! assert_char {
     }};
 }
 
-// todo! nocheckin @Cleanup: assert_string and assert_path
-
-/// Assert a `ScalarLiteral::String`.
+/// Assert a `StringId` directly against an expected string.
 #[macro_export]
 macro_rules! assert_string {
-    // Resolve StringId to string and compare to expected.
-    ($tree:expr, $id:expr, $expected:expr, using $resolve:expr) => {{
-        $crate::assert_node!($tree, $id, $crate::ScalarLiteral::String(s) => {
-            let got = ($resolve)(*s);
-            assert_eq!(got, $expected, "expected string literal");
-        });
+    ($session:expr, $id:expr, $expected:expr) => {{
+        let got = $session.get_string($id);
+        assert_eq!(got, $expected, "expected string");
     }};
 }
 
-/// Assert an `Expression::Path(path)`.
+/// Assert a `ScalarLiteral::String`.
+#[macro_export]
+macro_rules! assert_lit_string {
+    ($session:expr, $id:expr, $expected:expr) => {{
+        match $id {
+            $crate::ScalarLiteral::String(s) => {
+                let got = $session.get_string(*s);
+                assert_eq!(got, $expected, "expected string");
+            }
+            other => panic!("expected ScalarLiteral::String, got {other:?}"),
+        }
+    }};
+}
+
+/// Assert a `Path` directly against an expected string.
 #[macro_export]
 macro_rules! assert_path {
-    // Resolve PathId to string and compare to expected.
-    ($tree:expr, $expr_id:expr, $expected:expr, using $resolve:expr) => {{
-        $crate::assert_node!($tree, $expr_id, $crate::Expression::Path(path) => {
-            let got = ($resolve)(*path);
-            assert_eq!(got, $expected, "expected path");
-        });
+    ($session:expr, $id:expr, $expected:expr) => {{
+        let got = $session.get_path($id);
+        let got_str = got
+            .segments
+            .iter()
+            .map(|s| $session.get_string(*s))
+            .collect::<Vec<_>>()
+            .join(".");
+        assert_eq!(got_str, $expected, "expected path");
+    }};
+}
+
+/// Assert an "Expression::Path(path)" directly against an expected string.
+#[macro_export]
+macro_rules! assert_expr_path {
+    ($session:expr, $expr:expr, $expected:expr) => {{
+        match $expr {
+            $crate::Expression::Path(path) => {
+                assert_path!($session, *path, $expected);
+            }
+            other => panic!("expected Expression::Path, got {other:?}"),
+        }
     }};
 }
 

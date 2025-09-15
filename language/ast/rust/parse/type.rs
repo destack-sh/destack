@@ -440,6 +440,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Argument, Expression, FloatType, IntType, Mutability, PrimitiveType, Type, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -601,11 +602,6 @@ mod tests {
     fn test_parse_type_path_simple() {
         let mut test = TestParser::new("geom.Vector2");
         let mut parser = test.parser();
-
-        let geom_str = parser.intern_string("geom");
-        let vector2_str = parser.intern_string("Vector2");
-        let expected_path = parser.intern_path(vec![geom_str, vector2_str]);
-
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
@@ -615,7 +611,7 @@ mod tests {
                 path,
                 static_arguments: None
             } => {
-                assert_eq!(*path, expected_path);
+                assert_path!(parser.session, *path, "geom.Vector2");
             }
         );
     }
@@ -624,11 +620,6 @@ mod tests {
     fn test_parse_type_path_with_static_arguments() {
         let mut test = TestParser::new("MyMesh<false, Dims: 3>");
         let mut parser = test.parser();
-
-        let mymesh_str = parser.intern_string("MyMesh");
-        let expected_path = parser.intern_path(vec![mymesh_str]);
-        let dims_str = parser.intern_string("Dims");
-
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
@@ -638,7 +629,7 @@ mod tests {
                 path,
                 static_arguments,
             } => {
-                assert_eq!(*path, expected_path);
+                assert_path!(parser.session, *path, "MyMesh");
                 let args = static_arguments.as_ref().expect("expected static args");
                 assert_eq!(args.len(), 2);
 
@@ -663,7 +654,7 @@ mod tests {
                 assert_node!(
                     arg1,
                     Argument::Named { name, value } => {
-                        assert_eq!(*name, dims_str);
+                        assert_string!(parser.session, *name, "Dims");
                         assert_node!(
                             parser.tree,
                             *value,
@@ -716,10 +707,6 @@ mod tests {
     fn test_parse_type_not() {
         let mut test = TestParser::new("!Time");
         let mut parser = test.parser();
-
-        let time_str = parser.intern_string("Time");
-        let expected_time_path = parser.intern_path(vec![time_str]);
-
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
@@ -733,7 +720,7 @@ mod tests {
                         path,
                         static_arguments: None
                     } => {
-                        assert_eq!(*path, expected_time_path);
+                        assert_path!(parser.session, *path, "Time");
                     }
                 );
             }
@@ -744,10 +731,6 @@ mod tests {
     fn test_parse_type_pointer_immutable() {
         let mut test = TestParser::new("*Vector2");
         let mut parser = test.parser();
-
-        let vector2_str = parser.intern_string("Vector2");
-        let expected_path = parser.intern_path(vec![vector2_str]);
-
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
@@ -765,7 +748,7 @@ mod tests {
                         path,
                         static_arguments: None
                     } => {
-                        assert_eq!(*path, expected_path);
+                        assert_path!(parser.session, *path, "Vector2");
                     }
                 );
             }
@@ -776,10 +759,6 @@ mod tests {
     fn test_parse_type_pointer_mutable() {
         let mut test = TestParser::new("*var T");
         let mut parser = test.parser();
-
-        let t_str = parser.intern_string("T");
-        let expected_path = parser.intern_path(vec![t_str]);
-
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
@@ -797,7 +776,7 @@ mod tests {
                         path,
                         static_arguments: None
                     } => {
-                        assert_eq!(*path, expected_path);
+                        assert_path!(parser.session, *path, "T");
                     }
                 );
             }
@@ -808,10 +787,6 @@ mod tests {
     fn test_parse_type_virtual() {
         let mut test = TestParser::new("$T");
         let mut parser = test.parser();
-
-        let t_str = parser.intern_string("T");
-        let expected_path = parser.intern_path(vec![t_str]);
-
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Virtual(inner_id) => {
@@ -819,7 +794,7 @@ mod tests {
                 path,
                 static_arguments: None
             } => {
-                assert_eq!(*path, expected_path);
+                assert_path!(parser.session, *path, "T");
             });
         });
     }
@@ -828,10 +803,6 @@ mod tests {
     fn test_parse_type_variadic() {
         let mut test = TestParser::new("..T");
         let mut parser = test.parser();
-
-        let t_str = parser.intern_string("T");
-        let expected_path = parser.intern_path(vec![t_str]);
-
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Variadic(inner_id) => {
@@ -839,7 +810,7 @@ mod tests {
                 path,
                 static_arguments: None
             } => {
-                assert_eq!(*path, expected_path);
+                assert_path!(parser.session, *path, "T");
             });
         });
     }
