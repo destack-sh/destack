@@ -49,7 +49,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             },
         );
         let diagnostic_header =
-            Color::Red.apply_bold(&format!("{}: {}", diagnostic.id, diagnostic.message));
+            Color::Red.apply_bold(&format!("{}: {}", diagnostic.code, diagnostic.message));
         console::error(&diagnostic_header);
         console::info(&annotated);
     }

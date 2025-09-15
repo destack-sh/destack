@@ -4,11 +4,12 @@ use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, ParseResult, Parser, Runtime,
+    Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, ParseError, ParseResult, Parser,
+    Runtime, ScalarLiteral,
 };
 
 impl<'a> Parser<'a> {
-    /// Eat an index (postfix, excluding the receiver).
+    /// Eat an explicit index (postfix, excluding the receiver, with `[` and `]`).
     ///
     /// Examples:
     /// ```
@@ -17,7 +18,7 @@ impl<'a> Parser<'a> {
     /// ["bar"]
     /// [variable+1]
     /// ```
-    pub fn eat_index_postfix(
+    pub fn eat_index_postfix_explicit(
         &mut self,
         receiver_id: NodeId<Expression>,
     ) -> ParseResult<NodeId<Index>> {
@@ -26,7 +27,34 @@ impl<'a> Parser<'a> {
         let index = self.eat_expression(ExpressionParserOptions::default())?;
         self.eat_token(TokenType::CloseBracket)?;
         let index_id = self.tree.allocate(
-            Index {
+            Index::Explicit {
+                receiver: receiver_id,
+                index,
+            },
+            self.get_span_from(start),
+        );
+        Ok(index_id)
+    }
+
+    /// Eat an implicit tuple index (postfix, excluding the receiver, with `.`).
+    ///
+    /// Examples:
+    /// ```
+    /// .1
+    /// ```
+    pub fn eat_index_postfix_implicit(
+        &mut self,
+        receiver_id: NodeId<Expression>,
+    ) -> ParseResult<NodeId<Index>> {
+        let start = self.mark();
+        self.eat_token(TokenType::Dot)?;
+        let literal_id = self.eat_scalar_literal()?;
+        let index = match self.tree.get(literal_id) {
+            ScalarLiteral::Integer(index, _) => *index,
+            _ => return Err(ParseError::unexpected(self.peek()?.span)),
+        };
+        let index_id = self.tree.allocate(
+            Index::Implicit {
                 receiver: receiver_id,
                 index,
             },
@@ -141,7 +169,7 @@ mod tests {
     };
 
     #[test]
-    fn test_parse_index_postfix() {
+    fn test_parse_index_postfix_explicit() {
         // [1]
         let mut test = TestParser::new("[1]");
         let mut parser = test.parser();
@@ -151,12 +179,29 @@ mod tests {
             .tree
             .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
 
-        let index_id = parser.eat_index_postfix(recv).unwrap();
-        assert_node!(parser.tree, index_id, Index { receiver, index } => {
+        let index_id = parser.eat_index_postfix_explicit(recv).unwrap();
+        assert_node!(parser.tree, index_id, Index::Explicit { receiver, index } => {
             assert_eq!(*receiver, recv);
             assert_node!(parser.tree, *index, Expression::ScalarLiteral(lit_id) => {
                 assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(1, _));
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_index_postfix_implicit() {
+        // .1
+        let mut test = TestParser::new(".1");
+        let mut parser = test.parser();
+        let self_str = parser.intern_string("self");
+        let self_path = parser.intern_path(vec![self_str]);
+        let recv = parser
+            .tree
+            .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
+        let index_id = parser.eat_index_postfix_implicit(recv).unwrap();
+        assert_node!(parser.tree, index_id, Index::Implicit { receiver, index } => {
+            assert_eq!(*receiver, recv);
+            assert_eq!(*index, 1);
         });
     }
 

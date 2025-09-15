@@ -254,7 +254,7 @@ mod tests {
                         use_color: false,
                     },
                 );
-                let diagnostic_header = format!("{}: {}", diagnostic.id, diagnostic.message);
+                let diagnostic_header = format!("{}: {}", diagnostic.code, diagnostic.message);
                 eprintln!("{diagnostic_header}");
                 eprintln!("{annotated}");
             }

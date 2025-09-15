@@ -54,7 +54,7 @@ pub(crate) fn read_source(ctx: &CommandArguments) -> Result<Source, String> {
     } else if let Some(string) = ctx.option("string") {
         Ok(Source::from_string(
             SourceId::new(0),
-            "<input>".to_string(),
+            "<string>".to_string(),
             string.to_string(),
         ))
     } else {

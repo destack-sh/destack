@@ -714,7 +714,9 @@ impl<'a> Parser<'a> {
         // eat all postfix operations
         loop {
             // member
-            if self.peek_token(TokenType::Dot).is_ok() {
+            if self.peek_token(TokenType::Dot).is_ok()
+                && self.peek_next_token(TokenType::Identifier).is_ok()
+            {
                 self.bump(); // eat dot
                 let path_id = self.eat_path()?;
                 let expression = Expression::Member {
@@ -723,9 +725,17 @@ impl<'a> Parser<'a> {
                 };
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // index
+            // index (explicit)
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
-                let index_id = self.eat_index_postfix(left_expression_id)?;
+                let index_id = self.eat_index_postfix_explicit(left_expression_id)?;
+                let expression = Expression::Index(index_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // index (implicit)
+            else if self.peek_token(TokenType::Dot).is_ok()
+                && self.peek_next_token(TokenType::Literal).is_ok()
+            {
+                let index_id = self.eat_index_postfix_implicit(left_expression_id)?;
                 let expression = Expression::Index(index_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }

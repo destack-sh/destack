@@ -1560,10 +1560,21 @@ impl Dump for FieldLiteral {
 impl Dump for Index {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
         dumper.node("Index").end();
-        dumper.with_depth(|dumper| {
-            dumper.dump_node_branch(&self.receiver, Some("receiver"), true);
-            dumper.dump_node_branch(&self.index, Some("index"), false);
-        });
+        match self {
+            Index::Explicit { receiver, index } => {
+                dumper.node("Index::Explicit").end();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_node_branch(receiver, Some("receiver"), true);
+                    dumper.dump_node_branch(index, Some("index"), false);
+                });
+            }
+            Index::Implicit { receiver, index } => {
+                dumper.node("Index::Implicit").field("index", index).end();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_node_branch(receiver, Some("receiver"), true);
+                });
+            }
+        }
     }
 }
 

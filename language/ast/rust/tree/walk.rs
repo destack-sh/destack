@@ -795,10 +795,15 @@ pub fn walk_struct_literal<V: NodeVisitor + ?Sized>(
 
 /// Walk the Index's children.
 pub fn walk_index<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, index: &Index) {
-    let receiver = tree.get(index.receiver);
-    visitor.visit_expression(tree, index.receiver, receiver);
-    let index_expr = tree.get(index.index);
-    visitor.visit_expression(tree, index.index, index_expr);
+    match index {
+        Index::Explicit { receiver, index } => {
+            visitor.visit_expression(tree, *receiver, tree.get(*receiver));
+            visitor.visit_expression(tree, *index, tree.get(*index));
+        }
+        Index::Implicit { receiver, index: _ } => {
+            visitor.visit_expression(tree, *receiver, tree.get(*receiver));
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
