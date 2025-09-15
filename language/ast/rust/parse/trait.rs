@@ -206,8 +206,8 @@ trait Baz<T> with T: Copy {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let baz_str = parser.intern_string("Baz");
-        let baz_path = parser.intern_path(vec![baz_str]);
+        let t_str = parser.intern_string("T");
+        let t_path = parser.intern_path(vec![t_str]);
         let copy_str = parser.intern_string("Copy");
         let copy_path = parser.intern_path(vec![copy_str]);
 
@@ -224,11 +224,13 @@ trait Baz<T> with T: Copy {
             let with_id = withs[0];
             let with = parser.tree.get(with_id);
             assert_eq!(with.clauses.len(), 1);
-
+            // with T: Copy
             assert_node!(parser.tree, with.clauses[0], WithClause::Assertion { target, assertion } => {
+                // T
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, baz_path);
+                    assert_eq!(*path, t_path);
                 });
+                // Copy
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
                     assert_eq!(
                         *path,
@@ -242,10 +244,13 @@ trait Baz<T> with T: Copy {
             // function baz() => T
             let statement_id = statements[0];
             assert_node!(parser.tree, statement_id, Statement::Function(func_id) => {
-                assert_node!(parser.tree, *func_id, Function { return_type, .. } => {
+                assert_node!(parser.tree, *func_id, Function { name, return_type, .. } => {
+                    // baz
+                    assert_eq!(parser.get_string(name.unwrap()), "baz");
+                    // => T
                     let ret = return_type.expect("expected return type");
                     assert_node!(parser.tree, ret, Type::Path { path, .. } => {
-                        assert_eq!(*path, baz_path);
+                        assert_eq!(*path, t_path);
                     });
                 })
             })
