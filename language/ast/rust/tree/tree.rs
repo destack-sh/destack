@@ -327,24 +327,20 @@ impl NodeTree {
 
     /// Get docs attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_docs_for<T>(&self, node_id: NodeId<T>) -> Vec<NodeId<Doc>>
-    where
-        T: Node,
+    pub fn get_docs_for(&self, node_id: u32) -> Vec<NodeId<Doc>>
     {
         self.docs_per_node
-            .get(&node_id.id)
+            .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
     }
 
     /// Get comments attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_comments_for<T>(&self, node_id: NodeId<T>) -> Vec<NodeId<Comment>>
-    where
-        T: Node,
+    pub fn get_comments_for(&self, node_id: u32) -> Vec<NodeId<Comment>>
     {
         self.comments_per_node
-            .get(&node_id.id)
+            .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
     }

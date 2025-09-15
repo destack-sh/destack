@@ -77,9 +77,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{
-        Argument, Expression, Implement, Type, assert_node, assert_path,
-    };
+    use crate::{Argument, Expression, Implement, Type, assert_node, assert_path};
 
     #[test]
     fn test_parse_implement_simple() {

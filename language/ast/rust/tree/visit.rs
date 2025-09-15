@@ -1,35 +1,28 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Continue, Defer, Enum, EnumField,
-    Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase,
-    Module, NodeId, NodeTree, Parameter, Pattern, PatternField, RangeLiteral, Return,
-    ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField,
-    TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
-    walk_argument, walk_array_literal, walk_block, walk_break, walk_call, walk_cast, walk_coalesce,
-    walk_continue, walk_defer, walk_enum, walk_enum_field, walk_expression, walk_for,
-    walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match,
-    walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field,
-    walk_range_literal, walk_return, walk_statement, walk_struct, walk_struct_field,
-    walk_struct_literal, walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal,
-    walk_type, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while,
-    walk_with, walk_with_clause,
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause, walk_argument, walk_array_literal, walk_block, walk_break, walk_call, walk_cast, walk_coalesce, walk_comment, walk_continue, walk_defer, walk_doc, walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal, walk_statement, walk_struct, walk_struct_field, walk_struct_literal, walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause
 };
 
 /// A NodeVisitor is a visitor for the AST.
 pub trait NodeVisitor {
+    #[inline]
+    fn visit_any(&mut self, tree: &NodeTree, ty: NodeType, id: u32) {
+        // nothing to do
+    }
+
     // ------------------------------------------------------------
     // Groupings
     // ------------------------------------------------------------
 
     /// Visit a Block.
     fn visit_block(&mut self, tree: &NodeTree, id: NodeId<Block>, block: &Block) {
-        walk_block(self, tree, block);
+        walk_block(self, tree, id, block);
     }
 
     /// Visit a Statement.
     fn visit_statement(&mut self, tree: &NodeTree, id: NodeId<Statement>, statement: &Statement) {
-        walk_statement(self, tree, statement);
+        walk_statement(self, tree, id, statement);
     }
 
     /// Visit an Expression.
@@ -39,7 +32,7 @@ pub trait NodeVisitor {
         id: NodeId<Expression>,
         expression: &Expression,
     ) {
-        walk_expression(self, tree, expression);
+        walk_expression(self, tree, id, expression);
     }
 
     // ------------------------------------------------------------
@@ -48,12 +41,12 @@ pub trait NodeVisitor {
 
     /// Visit a Module.
     fn visit_module(&mut self, tree: &NodeTree, id: NodeId<Module>, module: &Module) {
-        walk_module(self, tree, module);
+        walk_module(self, tree, id, module);
     }
 
     /// Visit a Struct.
     fn visit_struct(&mut self, tree: &NodeTree, id: NodeId<Struct>, struct_node: &Struct) {
-        walk_struct(self, tree, struct_node);
+        walk_struct(self, tree, id, struct_node);
     }
 
     /// Visit a StructField.
@@ -63,22 +56,22 @@ pub trait NodeVisitor {
         id: NodeId<StructField>,
         struct_field: &StructField,
     ) {
-        walk_struct_field(self, tree, struct_field);
+        walk_struct_field(self, tree, id, struct_field);
     }
 
     /// Visit an Enum.
     fn visit_enum(&mut self, tree: &NodeTree, id: NodeId<Enum>, enum_node: &Enum) {
-        walk_enum(self, tree, enum_node);
+        walk_enum(self, tree, id, enum_node);
     }
 
     /// Visit an EnumField.
     fn visit_enum_field(&mut self, tree: &NodeTree, id: NodeId<EnumField>, enum_field: &EnumField) {
-        walk_enum_field(self, tree, enum_field);
+        walk_enum_field(self, tree, id, enum_field);
     }
 
     /// Visit a Union.
     fn visit_union(&mut self, tree: &NodeTree, id: NodeId<Union>, union_node: &Union) {
-        walk_union(self, tree, union_node);
+        walk_union(self, tree, id, union_node);
     }
 
     /// Visit a UnionField.
@@ -88,27 +81,27 @@ pub trait NodeVisitor {
         id: NodeId<UnionField>,
         union_field: &UnionField,
     ) {
-        walk_union_field(self, tree, union_field);
+        walk_union_field(self, tree, id, union_field);
     }
 
     /// Visit a Trait.
     fn visit_trait(&mut self, tree: &NodeTree, id: NodeId<Trait>, trait_node: &Trait) {
-        walk_trait(self, tree, trait_node);
+        walk_trait(self, tree, id, trait_node);
     }
 
     /// Visit an Implement.
     fn visit_implement(&mut self, tree: &NodeTree, id: NodeId<Implement>, implement: &Implement) {
-        walk_implement(self, tree, implement);
+        walk_implement(self, tree, id, implement);
     }
 
     /// Visit a Type.
     fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, type_node: &Type) {
-        walk_type(self, tree, type_node);
+        walk_type(self, tree, id, type_node);
     }
 
     /// Visit a Tuple.
     fn visit_tuple(&mut self, tree: &NodeTree, id: NodeId<Tuple>, tuple: &Tuple) {
-        walk_tuple(self, tree, tuple);
+        walk_tuple(self, tree, id, tuple);
     }
 
     /// Visit a TupleField.
@@ -118,12 +111,12 @@ pub trait NodeVisitor {
         id: NodeId<TupleField>,
         tuple_field: &TupleField,
     ) {
-        walk_tuple_field(self, tree, tuple_field);
+        walk_tuple_field(self, tree, id, tuple_field);
     }
 
     /// Visit a Function.
     fn visit_function(&mut self, tree: &NodeTree, id: NodeId<Function>, function: &Function) {
-        walk_function(self, tree, function);
+        walk_function(self, tree, id, function);
     }
 
     // ------------------------------------------------------------
@@ -132,7 +125,7 @@ pub trait NodeVisitor {
 
     /// Visit a With.
     fn visit_with(&mut self, tree: &NodeTree, id: NodeId<With>, with: &With) {
-        walk_with(self, tree, with);
+        walk_with(self, tree, id, with);
     }
 
     /// Visit a WithClause.
@@ -142,22 +135,22 @@ pub trait NodeVisitor {
         id: NodeId<WithClause>,
         with_clause: &WithClause,
     ) {
-        walk_with_clause(self, tree, with_clause);
+        walk_with_clause(self, tree, id, with_clause);
     }
 
     /// Visit a Use.
     fn visit_use(&mut self, tree: &NodeTree, id: NodeId<Use>, use_node: &Use) {
-        walk_use(self, tree, use_node);
+        walk_use(self, tree, id, use_node);
     }
 
     /// Visit a UseClause.
     fn visit_use_clause(&mut self, tree: &NodeTree, id: NodeId<UseClause>, use_clause: &UseClause) {
-        walk_use_clause(self, tree, use_clause);
+        walk_use_clause(self, tree, id, use_clause);
     }
 
     /// Visit a UseItem.
     fn visit_use_item(&mut self, tree: &NodeTree, id: NodeId<UseItem>, use_item: &UseItem) {
-        walk_use_item(self, tree, use_item);
+        walk_use_item(self, tree, id, use_item);
     }
 
     // ------------------------------------------------------------
@@ -166,47 +159,47 @@ pub trait NodeVisitor {
 
     /// Visit an If.
     fn visit_if(&mut self, tree: &NodeTree, id: NodeId<If>, if_node: &If) {
-        walk_if(self, tree, if_node);
+        walk_if(self, tree, id, if_node);
     }
 
     /// Visit a While.
     fn visit_while(&mut self, tree: &NodeTree, id: NodeId<While>, while_node: &While) {
-        walk_while(self, tree, while_node);
+        walk_while(self, tree, id, while_node);
     }
 
     /// Visit a For.
     fn visit_for(&mut self, tree: &NodeTree, id: NodeId<For>, for_node: &For) {
-        walk_for(self, tree, for_node);
+        walk_for(self, tree, id, for_node);
     }
 
     /// Visit a Loop.
     fn visit_loop(&mut self, tree: &NodeTree, id: NodeId<Loop>, loop_node: &Loop) {
-        walk_loop(self, tree, loop_node);
+        walk_loop(self, tree, id, loop_node);
     }
 
     /// Visit a Break.
     fn visit_break(&mut self, tree: &NodeTree, id: NodeId<Break>, break_node: &Break) {
-        walk_break(self, tree, break_node);
+        walk_break(self, tree, id, break_node);
     }
 
     /// Visit a Continue.
     fn visit_continue(&mut self, tree: &NodeTree, id: NodeId<Continue>, continue_node: &Continue) {
-        walk_continue(self, tree, continue_node);
+        walk_continue(self, tree, id, continue_node);
     }
 
     /// Visit a Defer.
     fn visit_defer(&mut self, tree: &NodeTree, id: NodeId<Defer>, defer: &Defer) {
-        walk_defer(self, tree, defer);
+        walk_defer(self, tree, id, defer);
     }
 
     /// Visit a Return.
     fn visit_return(&mut self, tree: &NodeTree, id: NodeId<Return>, return_node: &Return) {
-        walk_return(self, tree, return_node);
+        walk_return(self, tree, id, return_node);
     }
 
     /// Visit a Try.
     fn visit_try(&mut self, tree: &NodeTree, id: NodeId<Try>, try_node: &Try) {
-        walk_try(self, tree, try_node);
+        walk_try(self, tree, id, try_node);
     }
 
     // ------------------------------------------------------------
@@ -215,17 +208,17 @@ pub trait NodeVisitor {
 
     /// Visit a Let.
     fn visit_let(&mut self, tree: &NodeTree, id: NodeId<Let>, let_node: &Let) {
-        walk_let(self, tree, let_node);
+        walk_let(self, tree, id, let_node);
     }
 
     /// Visit a Parameter.
     fn visit_parameter(&mut self, tree: &NodeTree, id: NodeId<Parameter>, parameter: &Parameter) {
-        walk_parameter(self, tree, parameter);
+        walk_parameter(self, tree, id, parameter);
     }
 
     /// Visit an Argument.
     fn visit_argument(&mut self, tree: &NodeTree, id: NodeId<Argument>, argument: &Argument) {
-        walk_argument(self, tree, argument);
+        walk_argument(self, tree, id, argument);
     }
 
     // ------------------------------------------------------------
@@ -239,6 +232,7 @@ pub trait NodeVisitor {
         id: NodeId<ScalarLiteral>,
         scalar_literal: &ScalarLiteral,
     ) {
+        walk_scalar_literal(self, tree, id, scalar_literal);
     }
 
     /// Visit a RangeLiteral.
@@ -248,7 +242,7 @@ pub trait NodeVisitor {
         id: NodeId<RangeLiteral>,
         range_literal: &RangeLiteral,
     ) {
-        walk_range_literal(self, tree, range_literal);
+        walk_range_literal(self, tree, id, range_literal);
     }
 
     /// Visit an ArrayLiteral.
@@ -258,7 +252,7 @@ pub trait NodeVisitor {
         id: NodeId<ArrayLiteral>,
         array_literal: &ArrayLiteral,
     ) {
-        walk_array_literal(self, tree, array_literal);
+        walk_array_literal(self, tree, id, array_literal);
     }
 
     /// Visit a TupleLiteral.
@@ -268,7 +262,7 @@ pub trait NodeVisitor {
         id: NodeId<TupleLiteral>,
         tuple_literal: &TupleLiteral,
     ) {
-        walk_tuple_literal(self, tree, tuple_literal);
+        walk_tuple_literal(self, tree, id, tuple_literal);
     }
 
     /// Visit a StructLiteral.
@@ -278,7 +272,7 @@ pub trait NodeVisitor {
         id: NodeId<StructLiteral>,
         struct_literal: &StructLiteral,
     ) {
-        walk_struct_literal(self, tree, struct_literal);
+        walk_struct_literal(self, tree, id, struct_literal);
     }
 
     /// Visit a FieldLiteral.
@@ -288,6 +282,7 @@ pub trait NodeVisitor {
         id: NodeId<FieldLiteral>,
         field_literal: &FieldLiteral,
     ) {
+        walk_field_literal(self, tree, id, field_literal);
     }
 
     // ------------------------------------------------------------
@@ -296,22 +291,22 @@ pub trait NodeVisitor {
 
     /// Visit an Index.
     fn visit_index(&mut self, tree: &NodeTree, id: NodeId<Index>, index: &Index) {
-        walk_index(self, tree, index);
+        walk_index(self, tree, id, index);
     }
 
     /// Visit a Call.
     fn visit_call(&mut self, tree: &NodeTree, id: NodeId<Call>, call: &Call) {
-        walk_call(self, tree, call);
+        walk_call(self, tree, id, call);
     }
 
     /// Visit a Cast.
     fn visit_cast(&mut self, tree: &NodeTree, id: NodeId<Cast>, cast: &Cast) {
-        walk_cast(self, tree, cast);
+        walk_cast(self, tree, id, cast);
     }
 
     /// Visit a Coalesce.
     fn visit_coalesce(&mut self, tree: &NodeTree, id: NodeId<Coalesce>, coalesce: &Coalesce) {
-        walk_coalesce(self, tree, coalesce);
+        walk_coalesce(self, tree, id, coalesce);
     }
 
     // ------------------------------------------------------------
@@ -320,17 +315,17 @@ pub trait NodeVisitor {
 
     /// Visit a Match.
     fn visit_match(&mut self, tree: &NodeTree, id: NodeId<Match>, match_node: &Match) {
-        walk_match(self, tree, match_node);
+        walk_match(self, tree, id, match_node);
     }
 
     /// Visit a MatchCase.
     fn visit_match_case(&mut self, tree: &NodeTree, id: NodeId<MatchCase>, match_case: &MatchCase) {
-        walk_match_case(self, tree, match_case);
+        walk_match_case(self, tree, id, match_case);
     }
 
     /// Visit a Pattern.
     fn visit_pattern(&mut self, tree: &NodeTree, id: NodeId<Pattern>, pattern: &Pattern) {
-        walk_pattern(self, tree, pattern);
+        walk_pattern(self, tree, id, pattern);
     }
 
     /// Visit a PatternField.
@@ -340,6 +335,20 @@ pub trait NodeVisitor {
         id: NodeId<PatternField>,
         pattern_field: &PatternField,
     ) {
-        walk_pattern_field(self, tree, pattern_field);
+        walk_pattern_field(self, tree, id, pattern_field);
+    }
+
+    // ------------------------------------------------------------
+    // Annotations
+    // ------------------------------------------------------------
+
+    /// Visit a Doc.
+    fn visit_doc(&mut self, tree: &NodeTree, id: NodeId<Doc>, doc: &Doc) {
+        walk_doc(self, tree, id, doc);
+    }
+
+    /// Visit a Comment.
+    fn visit_comment(&mut self, tree: &NodeTree, id: NodeId<Comment>, comment: &Comment) {
+        walk_comment(self, tree, id, comment);
     }
 }

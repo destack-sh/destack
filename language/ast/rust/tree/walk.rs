@@ -1,29 +1,33 @@
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Continue, Defer, Enum, EnumField,
-    Expression, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, NodeTree,
-    NodeVisitor, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement,
-    Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
-    UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
 };
 
 // ----------------------------------------------------------------------------
 // Groupings
 // ----------------------------------------------------------------------------
 
-/// Walk the Block's children.
-pub fn walk_block<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, block: &Block) {
+/// Walk the Block.
+pub fn walk_block<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Block>,
+    block: &Block,
+) {
+    visitor.visit_any(tree, NodeType::Block, id.id);
     for statement_id in &block.statements {
         let statement = tree.get(*statement_id);
         visitor.visit_statement(tree, *statement_id, statement);
     }
 }
 
-/// Walk the Statement's children.
+/// Walk the Statement.
 pub fn walk_statement<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Statement>,
     statement: &Statement,
 ) {
+    visitor.visit_any(tree, NodeType::Statement, id.id);
     match statement {
         Statement::Expression(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
         Statement::Module(node) => visitor.visit_module(tree, *node, tree.get(*node)),
@@ -37,13 +41,14 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         Statement::Use(node) => visitor.visit_use(tree, *node, tree.get(*node)),
     }
 }
-
-/// Walk the Expression's children.
+/// Walk the Expression.
 pub fn walk_expression<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Expression>,
     expression: &Expression,
 ) {
+    visitor.visit_any(tree, NodeType::Expression, id.id);
     match expression {
         Expression::Module(node) => visitor.visit_module(tree, *node, tree.get(*node)),
         Expression::Struct(node) => visitor.visit_struct(tree, *node, tree.get(*node)),
@@ -119,20 +124,28 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 // Declarations
 // ----------------------------------------------------------------------------
 
-/// Walk the Module's children.
-pub fn walk_module<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, module: &Module) {
+/// Walk the Module.
+pub fn walk_module<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Module>,
+    module: &Module,
+) {
+    visitor.visit_any(tree, NodeType::Module, id.id);
     for statement_id in &module.statements {
         let statement = tree.get(*statement_id);
         visitor.visit_statement(tree, *statement_id, statement);
     }
 }
 
-/// Walk the Struct's children.
+/// Walk the Struct.
 pub fn walk_struct<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Struct>,
     struct_node: &Struct,
 ) {
+    visitor.visit_any(tree, NodeType::Struct, id.id);
     if let Some(super_types) = &struct_node.super_types {
         for type_id in super_types {
             let type_node = tree.get(*type_id);
@@ -163,12 +176,14 @@ pub fn walk_struct<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the StructField's children.
+/// Walk the StructField.
 pub fn walk_struct_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<StructField>,
     field: &StructField,
 ) {
+    visitor.visit_any(tree, NodeType::StructField, id.id);
     let type_node = tree.get(field.r#type);
     visitor.visit_type(tree, field.r#type, type_node);
 
@@ -178,8 +193,14 @@ pub fn walk_struct_field<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Enum's children.
-pub fn walk_enum<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, enum_node: &Enum) {
+/// Walk the Enum.
+pub fn walk_enum<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Enum>,
+    enum_node: &Enum,
+) {
+    visitor.visit_any(tree, NodeType::Enum, id.id);
     if let Some(type_node) = &enum_node.r#type {
         let type_ref = tree.get(*type_node);
         visitor.visit_type(tree, *type_node, type_ref);
@@ -203,20 +224,28 @@ pub fn walk_enum<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, enum
     }
 }
 
-/// Walk the EnumField's children.
+/// Walk the EnumField.
 pub fn walk_enum_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<EnumField>,
     field: &EnumField,
 ) {
+    visitor.visit_any(tree, NodeType::EnumField, id.id);
     if let Some(value) = &field.value {
         let expression = tree.get(*value);
         visitor.visit_expression(tree, *value, expression);
     }
 }
 
-/// Walk the Union's children.
-pub fn walk_union<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, union_node: &Union) {
+/// Walk the Union.
+pub fn walk_union<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Union>,
+    union_node: &Union,
+) {
+    visitor.visit_any(tree, NodeType::Union, id.id);
     if let Some(tag_type) = &union_node.tag_type {
         let type_node = tree.get(*tag_type);
         visitor.visit_type(tree, *tag_type, type_node);
@@ -252,12 +281,14 @@ pub fn walk_union<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, uni
     }
 }
 
-/// Walk the UnionField's children.
+/// Walk the UnionField.
 pub fn walk_union_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<UnionField>,
     field: &UnionField,
 ) {
+    visitor.visit_any(tree, NodeType::UnionField, id.id);
     if let Some(type_node) = &field.r#type {
         let type_ref = tree.get(*type_node);
         visitor.visit_type(tree, *type_node, type_ref);
@@ -269,8 +300,14 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Trait's children.
-pub fn walk_trait<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, trait_node: &Trait) {
+/// Walk the Trait.
+pub fn walk_trait<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Trait>,
+    trait_node: &Trait,
+) {
+    visitor.visit_any(tree, NodeType::Trait, id.id);
     if let Some(super_types) = &trait_node.super_types {
         for type_id in super_types {
             let type_node = tree.get(*type_id);
@@ -296,12 +333,14 @@ pub fn walk_trait<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, tra
     }
 }
 
-/// Walk the Implement's children.
+/// Walk the Implement.
 pub fn walk_implement<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Implement>,
     implement: &Implement,
 ) {
+    visitor.visit_any(tree, NodeType::Implement, id.id);
     if let Some(static_arguments) = &implement.static_arguments {
         for argument_id in static_arguments {
             let argument = tree.get(*argument_id);
@@ -323,12 +362,14 @@ pub fn walk_implement<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Function's children.
+/// Walk the Function.
 pub fn walk_function<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Function>,
     function: &Function,
 ) {
+    visitor.visit_any(tree, NodeType::Function, id.id);
     if let Some(static_parameters) = &function.static_parameters {
         for parameter_id in static_parameters {
             let parameter = tree.get(*parameter_id);
@@ -357,8 +398,14 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Let's children.
-pub fn walk_let<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, let_node: &Let) {
+/// Walk the Let.
+pub fn walk_let<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Let>,
+    let_node: &Let,
+) {
+    visitor.visit_any(tree, NodeType::Let, id.id);
     let pattern = tree.get(let_node.pattern);
     visitor.visit_pattern(tree, let_node.pattern, pattern);
 
@@ -373,20 +420,28 @@ pub fn walk_let<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, let_n
     }
 }
 
-/// Walk the Tuple's children.
-pub fn walk_tuple<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, tuple: &Tuple) {
+/// Walk the Tuple.
+pub fn walk_tuple<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Tuple>,
+    tuple: &Tuple,
+) {
+    visitor.visit_any(tree, NodeType::Tuple, id.id);
     for element_id in &tuple.elements {
         let element = tree.get(*element_id);
         visitor.visit_tuple_field(tree, *element_id, element);
     }
 }
 
-/// Walk the TupleField's children.
+/// Walk the TupleField.
 pub fn walk_tuple_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<TupleField>,
     field: &TupleField,
 ) {
+    visitor.visit_any(tree, NodeType::TupleField, id.id);
     match field {
         TupleField::Named { name: _, r#type } => {
             let type_node = tree.get(*r#type);
@@ -399,8 +454,14 @@ pub fn walk_tuple_field<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Type's children.
-pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, type_node: &Type) {
+/// Walk the Type.
+pub fn walk_type<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Type>,
+    type_node: &Type,
+) {
+    visitor.visit_any(tree, NodeType::Type, id.id);
     match type_node {
         Type::Infer => {}
         Type::Maybe(inner) => {
@@ -477,20 +538,28 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, type
 // Context
 // ----------------------------------------------------------------------------
 
-/// Walk the With's children.
-pub fn walk_with<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, with: &With) {
+/// Walk the With.
+pub fn walk_with<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<With>,
+    with: &With,
+) {
+    visitor.visit_any(tree, NodeType::With, id.id);
     for clause_id in &with.clauses {
         let clause = tree.get(*clause_id);
         visitor.visit_with_clause(tree, *clause_id, clause);
     }
 }
 
-/// Walk the WithClause's children.
+/// Walk the WithClause.
 pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<WithClause>,
     with_clause: &WithClause,
 ) {
+    visitor.visit_any(tree, NodeType::WithClause, id.id);
     match with_clause {
         WithClause::Declaration { target, alias: _ } => {
             let target_type = tree.get(*target);
@@ -505,8 +574,14 @@ pub fn walk_with_clause<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Use's children.
-pub fn walk_use<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, use_node: &Use) {
+/// Walk the Use.
+pub fn walk_use<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Use>,
+    use_node: &Use,
+) {
+    visitor.visit_any(tree, NodeType::Use, id.id);
     for clause_id in &use_node.clauses {
         let clause = tree.get(*clause_id);
         visitor.visit_use_clause(tree, *clause_id, clause);
@@ -518,12 +593,14 @@ pub fn walk_use<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, use_n
     }
 }
 
-/// Walk the UseClause's children.
+/// Walk the UseClause.
 pub fn walk_use_clause<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<UseClause>,
     use_clause: &UseClause,
 ) {
+    visitor.visit_any(tree, NodeType::UseClause, id.id);
     let target = tree.get(use_clause.target);
     visitor.visit_expression(tree, use_clause.target, target);
 
@@ -535,12 +612,14 @@ pub fn walk_use_clause<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the UseItem's children.
+/// Walk the UseItem.
 pub fn walk_use_item<V: NodeVisitor + ?Sized>(
-    _visitor: &mut V,
+    visitor: &mut V,
     _tree: &NodeTree,
+    id: NodeId<UseItem>,
     _use_item: &UseItem,
 ) {
+    visitor.visit_any(_tree, NodeType::UseItem, id.id);
     // UseItem has no child nodes to visit (only StringId fields)
 }
 
@@ -548,8 +627,14 @@ pub fn walk_use_item<V: NodeVisitor + ?Sized>(
 // Control
 // ----------------------------------------------------------------------------
 
-/// Walk the If's children.
-pub fn walk_if<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, if_node: &If) {
+/// Walk the If.
+pub fn walk_if<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<If>,
+    if_node: &If,
+) {
+    visitor.visit_any(tree, NodeType::If, id.id);
     match if_node {
         If::If {
             condition,
@@ -587,16 +672,28 @@ pub fn walk_if<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, if_nod
     }
 }
 
-/// Walk the While's children.
-pub fn walk_while<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, while_node: &While) {
+/// Walk the While.
+pub fn walk_while<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<While>,
+    while_node: &While,
+) {
+    visitor.visit_any(tree, NodeType::While, id.id);
     let condition = tree.get(while_node.condition);
     visitor.visit_expression(tree, while_node.condition, condition);
     let body = tree.get(while_node.body);
     visitor.visit_block(tree, while_node.body, body);
 }
 
-/// Walk the For's children.
-pub fn walk_for<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, for_node: &For) {
+/// Walk the For.
+pub fn walk_for<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<For>,
+    for_node: &For,
+) {
+    visitor.visit_any(tree, NodeType::For, id.id);
     let pattern = tree.get(for_node.pattern);
     visitor.visit_pattern(tree, for_node.pattern, pattern);
     let iterator = tree.get(for_node.iterator);
@@ -605,31 +702,51 @@ pub fn walk_for<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, for_n
     visitor.visit_block(tree, for_node.body, body);
 }
 
-/// Walk the Loop's children.
-pub fn walk_loop<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, loop_node: &Loop) {
+/// Walk the Loop.
+pub fn walk_loop<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Loop>,
+    loop_node: &Loop,
+) {
+    visitor.visit_any(tree, NodeType::Loop, id.id);
     let body = tree.get(loop_node.body);
     visitor.visit_block(tree, loop_node.body, body);
 }
 
-/// Walk the Break's children.
-pub fn walk_break<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, break_node: &Break) {
+/// Walk the Break.
+pub fn walk_break<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Break>,
+    break_node: &Break,
+) {
+    visitor.visit_any(tree, NodeType::Break, id.id);
     if let Some(value) = &break_node.value {
         let value_expr = tree.get(*value);
         visitor.visit_expression(tree, *value, value_expr);
     }
 }
 
-/// Walk the Continue's children.
+/// Walk the Continue.
 pub fn walk_continue<V: NodeVisitor + ?Sized>(
-    _visitor: &mut V,
-    _tree: &NodeTree,
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Continue>,
     _continue_node: &Continue,
 ) {
+    visitor.visit_any(tree, NodeType::Continue, id.id);
     // Continue has no child nodes to visit (only optional StringId)
 }
 
-/// Walk the Defer's children.
-pub fn walk_defer<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, defer_node: &Defer) {
+/// Walk the Defer.
+pub fn walk_defer<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Defer>,
+    defer_node: &Defer,
+) {
+    visitor.visit_any(tree, NodeType::Defer, id.id);
     match defer_node {
         Defer::Expression(expr_id) => {
             let expression = tree.get(*expr_id);
@@ -642,20 +759,28 @@ pub fn walk_defer<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, def
     }
 }
 
-/// Walk the Return's children.
+/// Walk the Return.
 pub fn walk_return<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Return>,
     return_node: &Return,
 ) {
+    visitor.visit_any(tree, NodeType::Return, id.id);
     if let Some(value) = &return_node.value {
         let value_expr = tree.get(*value);
         visitor.visit_expression(tree, *value, value_expr);
     }
 }
 
-/// Walk the Match's children.
-pub fn walk_match<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, match_node: &Match) {
+/// Walk the Match.
+pub fn walk_match<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Match>,
+    match_node: &Match,
+) {
+    visitor.visit_any(tree, NodeType::Match, id.id);
     let value = tree.get(match_node.value);
     visitor.visit_expression(tree, match_node.value, value);
 
@@ -665,8 +790,14 @@ pub fn walk_match<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, mat
     }
 }
 
-/// Walk the Try's children.
-pub fn walk_try<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, try_node: &Try) {
+/// Walk the Try.
+pub fn walk_try<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Try>,
+    try_node: &Try,
+) {
+    visitor.visit_any(tree, NodeType::Try, id.id);
     match try_node {
         Try::Expression { try_expression } => {
             let expression = tree.get(*try_expression);
@@ -688,12 +819,14 @@ pub fn walk_try<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, try_n
     }
 }
 
-/// Walk the Parameter's children.
+/// Walk the Parameter.
 pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Parameter>,
     parameter: &Parameter,
 ) {
+    visitor.visit_any(tree, NodeType::Parameter, id.id);
     if let Some(type_node) = &parameter.r#type {
         let type_ref = tree.get(*type_node);
         visitor.visit_type(tree, *type_node, type_ref);
@@ -705,12 +838,14 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the Argument's children.
+/// Walk the Argument.
 pub fn walk_argument<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Argument>,
     argument: &Argument,
 ) {
+    visitor.visit_any(tree, NodeType::Argument, id.id);
     match argument {
         Argument::Named { name: _, value } => {
             let value_expr = tree.get(*value);
@@ -730,21 +865,25 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
 // Literals
 // ----------------------------------------------------------------------------
 
-/// Walk the ScalarLiteral's children.
+/// Walk the ScalarLiteral.
 pub fn walk_scalar_literal<V: NodeVisitor + ?Sized>(
-    _visitor: &mut V,
-    _tree: &NodeTree,
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<ScalarLiteral>,
     _scalar_literal: &ScalarLiteral,
 ) {
+    visitor.visit_any(tree, NodeType::ScalarLiteral, id.id);
     // ScalarLiteral has no child nodes to visit
 }
 
-/// Walk the RangeLiteral's children.
+/// Walk the RangeLiteral.
 pub fn walk_range_literal<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<RangeLiteral>,
     range_literal: &RangeLiteral,
 ) {
+    visitor.visit_any(tree, NodeType::RangeLiteral, id.id);
     if let Some(start) = &range_literal.start {
         let start_expr = tree.get(*start);
         visitor.visit_expression(tree, *start, start_expr);
@@ -755,12 +894,14 @@ pub fn walk_range_literal<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the ArrayLiteral's children.
+/// Walk the ArrayLiteral.
 pub fn walk_array_literal<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<ArrayLiteral>,
     array_literal: &ArrayLiteral,
 ) {
+    visitor.visit_any(tree, NodeType::ArrayLiteral, id.id);
     match array_literal {
         ArrayLiteral::Fixed { elements } => {
             for element_id in elements {
@@ -771,30 +912,50 @@ pub fn walk_array_literal<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the TupleLiteral's children.
+/// Walk the TupleLiteral.
 pub fn walk_tuple_literal<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<TupleLiteral>,
     tuple_literal: &TupleLiteral,
 ) {
+    visitor.visit_any(tree, NodeType::TupleLiteral, id.id);
     for element_id in &tuple_literal.elements {
         let element = tree.get(*element_id);
         visitor.visit_expression(tree, *element_id, element);
     }
 }
 
-/// Walk the StructLiteral's children.
+/// Walk the StructLiteral.
 pub fn walk_struct_literal<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<StructLiteral>,
     struct_literal: &StructLiteral,
 ) {
+    visitor.visit_any(tree, NodeType::StructLiteral, id.id);
     let type_node = tree.get(struct_literal.r#type);
     visitor.visit_type(tree, struct_literal.r#type, type_node);
 }
 
-/// Walk the Index's children.
-pub fn walk_index<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, index: &Index) {
+/// Walk the FieldLiteral.
+pub fn walk_field_literal<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<FieldLiteral>,
+    _field_literal: &FieldLiteral,
+) {
+    visitor.visit_any(tree, NodeType::FieldLiteral, id.id);
+}
+
+/// Walk the Index.
+pub fn walk_index<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Index>,
+    index: &Index,
+) {
+    visitor.visit_any(tree, NodeType::Index, id.id);
     match index {
         Index::Explicit { receiver, index } => {
             visitor.visit_expression(tree, *receiver, tree.get(*receiver));
@@ -810,8 +971,14 @@ pub fn walk_index<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, ind
 // Calls
 // ----------------------------------------------------------------------------
 
-/// Walk the Call's children.
-pub fn walk_call<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, call: &Call) {
+/// Walk the Call.
+pub fn walk_call<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Call>,
+    call: &Call,
+) {
+    visitor.visit_any(tree, NodeType::Call, id.id);
     let receiver = tree.get(call.receiver);
     visitor.visit_expression(tree, call.receiver, receiver);
 
@@ -828,20 +995,28 @@ pub fn walk_call<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, call
     }
 }
 
-/// Walk the Cast's children.
-pub fn walk_cast<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, cast: &Cast) {
+/// Walk the Cast.
+pub fn walk_cast<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Cast>,
+    cast: &Cast,
+) {
+    visitor.visit_any(tree, NodeType::Cast, id.id);
     let receiver = tree.get(cast.receiver);
     visitor.visit_expression(tree, cast.receiver, receiver);
     let type_node = tree.get(cast.r#type);
     visitor.visit_type(tree, cast.r#type, type_node);
 }
 
-/// Walk the Coalesce's children.
+/// Walk the Coalesce.
 pub fn walk_coalesce<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<Coalesce>,
     coalesce: &Coalesce,
 ) {
+    visitor.visit_any(tree, NodeType::Coalesce, id.id);
     let receiver = tree.get(coalesce.receiver);
     visitor.visit_expression(tree, coalesce.receiver, receiver);
     let default = tree.get(coalesce.default);
@@ -852,8 +1027,14 @@ pub fn walk_coalesce<V: NodeVisitor + ?Sized>(
 // Patterns
 // ----------------------------------------------------------------------------
 
-/// Walk the Pattern's children.
-pub fn walk_pattern<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, pattern: &Pattern) {
+/// Walk the Pattern.
+pub fn walk_pattern<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Pattern>,
+    pattern: &Pattern,
+) {
+    visitor.visit_any(tree, NodeType::Pattern, id.id);
     match pattern {
         Pattern::Wildcard => {
             // no child nodes to visit
@@ -921,12 +1102,14 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, p
     }
 }
 
-/// Walk the PatternField's children.
+/// Walk the PatternField.
 pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<PatternField>,
     pattern_field: &PatternField,
 ) {
+    visitor.visit_any(tree, NodeType::PatternField, id.id);
     match pattern_field {
         PatternField::Named { name: _, pattern } => {
             if let Some(pattern_id) = pattern {
@@ -944,12 +1127,14 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     }
 }
 
-/// Walk the MatchCase's children.
+/// Walk the MatchCase.
 pub fn walk_match_case<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &NodeTree,
+    id: NodeId<MatchCase>,
     match_case: &MatchCase,
 ) {
+    visitor.visit_any(tree, NodeType::MatchCase, id.id);
     match match_case {
         MatchCase::Expression {
             pattern,
@@ -980,4 +1165,28 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
             }
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+// Annotations
+// ----------------------------------------------------------------------------
+
+/// Walk the Doc.
+pub fn walk_doc<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Doc>,
+    _doc: &Doc,
+) {
+    visitor.visit_any(tree, NodeType::Doc, id.id);
+}
+
+/// Walk the Comment.
+pub fn walk_comment<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Comment>,
+    _comment: &Comment,
+) {
+    visitor.visit_any(tree, NodeType::Comment, id.id);
 }

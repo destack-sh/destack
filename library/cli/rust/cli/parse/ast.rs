@@ -1,4 +1,4 @@
-use dyst_language_ast::{BlockFormat, DumperOptions, Parser};
+use dyst_language_ast::{BlockFormat, DumperOptions, NodeVisitor, Parser};
 use dyst_language_diagnostic::Severity;
 use dyst_language_session::Session;
 use dyst_language_source::{AnnotateOptions, Color, annotate_source};
@@ -33,7 +33,9 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     // print statements
     let dump_options = DumperOptions::default();
     let mut dumper = parser.dumper(dump_options);
-    dumper.dump_nodes(&statements, None);
+    for statement in statements {
+        dumper.visit_statement(&parser.tree, statement, parser.tree.get(statement));
+    }
     console::info(&dumper.finish());
 
     // print errors
