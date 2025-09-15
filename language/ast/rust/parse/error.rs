@@ -35,7 +35,7 @@ impl From<ParseError> for Diagnostic {
     /// Convert to a Diagnostic.
     fn from(error: ParseError) -> Self {
         Diagnostic {
-            id: "E001".to_string(),
+            code: "E001".to_string(),
             kind: DiagnosticKind::Parse,
             severity: Severity::Error,
             message: "parse error".to_string(),

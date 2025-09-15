@@ -345,7 +345,6 @@ pub enum Expression {
         receiver: NodeId<Expression>,
         path: PathId,
     },
-    // todo!: member/index tuple paths? (like self.0, self.1, ...)
     /// Index access (postfix as an Expression, see Index).
     Index(NodeId<Index>),
     /// A Call is call to a function (postfix as an Expression, see Call).
@@ -1909,11 +1908,18 @@ pub enum InfixOperator {
 /// foo[1..3]
 /// foo["bar"]
 /// foo().result[0][variable+1]
+/// foo.1 // for member access tuple
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct Index {
-    pub receiver: NodeId<Expression>,
-    pub index: NodeId<Expression>,
+pub enum Index {
+    Explicit {
+        receiver: NodeId<Expression>,
+        index: NodeId<Expression>,
+    },
+    Implicit {
+        receiver: NodeId<Expression>,
+        index: i64,
+    },
 }
 
 impl Node for Index {
