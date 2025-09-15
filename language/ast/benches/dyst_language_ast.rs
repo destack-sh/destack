@@ -1,6 +1,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use destack_library_file::glob;
 use dyst_language_ast::{BlockFormat, Parser};
+use dyst_language_session::Session;
 use dyst_language_source::{Source, SourceId};
 use dyst_language_token::TokenType;
 use pprof::criterion::{Output, PProfProfiler};
@@ -46,12 +47,13 @@ fn bench_parse(c: &mut Criterion) {
     let source = Source::from_string(SourceId::new(0), "input".to_string(), ds_str);
 
     // single benchmark over the whole workspace content
+    let mut session = Session::new();
     let mut group = c.benchmark_group("dyst_language_ast");
     let line_count = source.content.lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("parse", "all"), &source, |b, source| {
         b.iter(|| {
-            let mut parser = Parser::from_source(source);
+            let mut parser = Parser::from_source(source, &mut session);
             let module = parser.with_recovery(
                 parser.mark(),
                 |parser| {

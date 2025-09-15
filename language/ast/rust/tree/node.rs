@@ -1753,6 +1753,7 @@ pub enum UnaryOperator {
     BitwiseNot = 242,
     /// `*`
     Dereference = 241,
+    /// todo!: DereferenceMut? (*var) how does zig / rustc model this?
     /// `&`
     Reference = 240,
 }

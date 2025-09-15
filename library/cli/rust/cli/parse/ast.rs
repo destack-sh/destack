@@ -1,6 +1,7 @@
 use dyst_language_ast::{BlockFormat, DumperOptions, Parser};
 use dyst_language_diagnostic::Severity;
 use dyst_language_source::{AnnotateOptions, Color, annotate_source};
+use dyst_language_session::Session;
 use dyst_language_token::TokenType;
 
 use crate::cli::parse::read_source;
@@ -19,7 +20,8 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     };
 
     // parse as (implicit) block of statements
-    let mut parser = Parser::from_source(&source);
+    let mut session = Session::new();
+    let mut parser = Parser::from_source(&source, &mut session);
     let statements = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),
@@ -35,10 +37,10 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
     console::info(&dumper.finish());
 
     // print errors
-    for diagnostic in &parser.diagnostics {
+    for diagnostic in &session.diagnostics {
         let annotated = annotate_source(
             &source,
-            diagnostic.primary_span.as_ref().unwrap(),
+            &diagnostic.primary_span,
             AnnotateOptions {
                 max_line_length: 100,
                 prefix_lines: 1,
@@ -52,7 +54,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
         console::info(&annotated);
     }
 
-    let has_errors = parser
+    let has_errors = session
         .diagnostics
         .iter()
         .any(|d| d.severity == Severity::Error);

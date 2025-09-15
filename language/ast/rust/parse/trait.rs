@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_parse_trait_anonymous_empty() {
-        let test = TestParser::new("trait {}");
+        let mut test = TestParser::new("trait {}");
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait(None).unwrap();
@@ -129,25 +129,28 @@ mod tests {
 
     #[test]
     fn test_parse_trait_with_super_types() {
-        let test = TestParser::new("trait Foo: Bar {}");
+        let mut test = TestParser::new("trait Foo: Bar {}");
         let mut parser = test.parser();
+
+        let bar_str = parser.intern_string("Bar");
+        let bar_path = parser.intern_path(vec![bar_str]);
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, super_types, statements, .. } => {
-            assert_eq!(*name, Some(parser.intern_string("Foo")));
+            assert_eq!(parser.get_string(name.unwrap()), "Foo");
             assert!(statements.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Bar")]));
+                assert_eq!(*path, bar_path);
             });
         });
     }
 
     #[test]
     fn test_parse_trait_with_members() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 trait Foo: Baz {
     let x: int32 = 4
@@ -161,28 +164,31 @@ trait Foo: Baz {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
+        let baz_str = parser.intern_string("Baz");
+        let baz_path = parser.intern_path(vec![baz_str]);
+
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, statements, super_types, .. } => {
-            assert_eq!(*name, Some(parser.intern_string("Foo")));
+            assert_eq!(parser.get_string(name.unwrap()), "Foo");
             assert_eq!(statements.len(), 3);
 
             // : Baz
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Baz")]));
+                assert_eq!(*path, baz_path);
             });
         });
     }
 
     #[test]
     fn test_parse_trait_with_static_parameters() {
-        let test = TestParser::new("trait Baz<T> {}");
+        let mut test = TestParser::new("trait Baz<T> {}");
         let mut parser = test.parser();
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, .. } => {
-            assert_eq!(*name, Some(parser.intern_string("Baz")));
+            assert_eq!(parser.get_string(name.unwrap()), "Baz");
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
         });
@@ -190,7 +196,7 @@ trait Foo: Baz {
 
     #[test]
     fn test_parse_trait_with_clause() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 trait Baz<T> with T: Copy {
     function baz() => T
@@ -200,9 +206,14 @@ trait Baz<T> with T: Copy {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
+        let baz_str = parser.intern_string("Baz");
+        let baz_path = parser.intern_path(vec![baz_str]);
+        let copy_str = parser.intern_string("Copy");
+        let copy_path = parser.intern_path(vec![copy_str]);
+
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, statements, .. } => {
-            assert_eq!(*name, Some(parser.intern_string("Baz")));
+            assert_eq!(parser.get_string(name.unwrap()), "Baz");
 
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
@@ -216,12 +227,12 @@ trait Baz<T> with T: Copy {
 
             assert_node!(parser.tree, with.clauses[0], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("T")]));
+                    assert_eq!(*path, baz_path);
                 });
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
                     assert_eq!(
                         *path,
-                        parser.intern_path(vec![parser.intern_string("Copy")])
+                        copy_path
                     );
                 });
             });
@@ -234,7 +245,7 @@ trait Baz<T> with T: Copy {
                 assert_node!(parser.tree, *func_id, Function { return_type, .. } => {
                     let ret = return_type.expect("expected return type");
                     assert_node!(parser.tree, ret, Type::Path { path, .. } => {
-                        assert_eq!(*path, parser.intern_path(vec![parser.intern_string("T")]));
+                        assert_eq!(*path, baz_path);
                     });
                 })
             })

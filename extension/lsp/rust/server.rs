@@ -8,7 +8,7 @@ use crate::protocol::{Client, LanguageServer, lsp};
 use crate::semantic::SEMANTIC_TOKEN_TYPES;
 use crate::workspace::Workspace;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DestackLanguageServer {
     pub client: Client,
     pub workspaces_by_uri: HashMap<String, Workspace>,

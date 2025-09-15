@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_wildcard() {
         // _
-        let test = TestParser::new("_");
+        let mut test = TestParser::new("_");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_rest() {
         // ..
-        let test = TestParser::new("..");
+        let mut test = TestParser::new("..");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Rest);
@@ -269,7 +269,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_pointer() {
         // *var _
-        let test = TestParser::new("*var _");
+        let mut test = TestParser::new("*var _");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
         // *
@@ -283,7 +283,7 @@ mod tests {
         );
 
         // *1
-        let test = TestParser::new("*1");
+        let mut test = TestParser::new("*1");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
         // *
@@ -298,17 +298,20 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_path() {
-        let test = TestParser::new("MyEnum.A");
+        let mut test = TestParser::new("MyEnum.A");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
+        let my_enum = parser.intern_string("MyEnum");
+        let a = parser.intern_string("A");
+        let my_enum_path = parser.intern_path(vec![my_enum, a]);
         assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
-            assert_eq!(*path, parser.intern_path(vec![parser.intern_string("MyEnum"), parser.intern_string("A")]));
+            assert_eq!(*path, my_enum_path);
         });
     }
 
     #[test]
     fn test_parse_pattern_tuple() {
-        let test = TestParser::new("(x: 1, 2, ..)");
+        let mut test = TestParser::new("(x: 1, 2, ..)");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -318,7 +321,7 @@ mod tests {
 
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
-                assert_eq!(*name, parser.intern_string("x"));
+                assert_eq!(parser.get_string(*name), "x");
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
                     assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
                 });
@@ -340,7 +343,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_tuple_with_path() {
-        let test = TestParser::new("Result.Success(_, ..)");
+        let mut test = TestParser::new("Result.Success(_, ..)");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
 
@@ -364,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_tuple_newline_separated() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             "
 (
     x: 1
@@ -382,7 +385,7 @@ mod tests {
 
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
-                assert_eq!(*name, parser.intern_string("x"));
+                assert_eq!(parser.get_string(*name), "x");
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
                     assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
                 });
@@ -405,7 +408,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_union() {
         // 1 | 2 | 3
-        let test = TestParser::new("1 | 2 | 3");
+        let mut test = TestParser::new("1 | 2 | 3");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
 

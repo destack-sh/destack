@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_parse_function_with_clause() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 function foo() with (
   !Bar,
@@ -233,10 +233,19 @@ function foo() with (
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
+        let bar = parser.intern_string("Bar");
+        let bar_path = parser.intern_path(vec![bar]);
+        let time = parser.intern_string("Time");
+        let time_path = parser.intern_path(vec![time]);
+        let f = parser.intern_string("F");
+        let f_path = parser.intern_path(vec![f]);
+        let numeric = parser.intern_string("Numeric");
+        let numeric_path = parser.intern_path(vec![numeric]);
+
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, with, return_type, .. } => {
             // function name
-            assert_eq!(*name, Some(parser.intern_string("foo")));
+            assert_eq!(parser.get_string(name.unwrap()), "foo");
 
             // with clause present
             let with_id = with.expect("expected with declaration");
@@ -249,7 +258,7 @@ function foo() with (
                     assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
                         assert_eq!(
                             *path,
-                            parser.intern_path(vec![parser.intern_string("Bar")])
+                            bar_path
                         );
                     });
                 });
@@ -260,7 +269,7 @@ function foo() with (
                 assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
                     assert_eq!(
                         *path,
-                        parser.intern_path(vec![parser.intern_string("Time")])
+                        time_path
                     );
                     assert!(static_arguments.is_none());
                 });
@@ -269,12 +278,12 @@ function foo() with (
             // F: Numeric
             assert_node!(parser.tree, with.clauses[2], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("F")]));
+                    assert_eq!(*path, f_path);
                 });
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
                     assert_eq!(
                         *path,
-                        parser.intern_path(vec![parser.intern_string("Numeric")])
+                        numeric_path
                     );
                 });
             });
@@ -290,12 +299,12 @@ function foo() with (
 
     #[test]
     fn test_parse_function_self_parameter_simple() {
-        let test = TestParser::new("function a(self) {}");
+        let mut test = TestParser::new("function a(self) {}");
         let mut parser = test.parser();
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(*name, Some(parser.intern_string("a")));
+            assert_eq!(parser.get_string(name.unwrap()), "a");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(!self_param.is_pointer);
@@ -307,7 +316,7 @@ function foo() with (
 
     #[test]
     fn test_parse_function_self_parameter_pointer() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 function b(
   *self
@@ -320,7 +329,7 @@ function b(
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(*name, Some(parser.intern_string("b")));
+            assert_eq!(parser.get_string(name.unwrap()), "b");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);
@@ -328,7 +337,7 @@ function b(
 
             assert_eq!(dynamic_parameters.len(), 1);
             let param = parser.tree.get(dynamic_parameters[0]);
-            assert_eq!(param.name, parser.intern_string("x"));
+            assert_eq!(parser.get_string(param.name), "x");
 
             let param_type = param.r#type.expect("expected type for parameter x");
             assert_node!(parser.tree, param_type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
@@ -340,12 +349,12 @@ function b(
 
     #[test]
     fn test_parse_function_self_parameter_mutable_pointer() {
-        let test = TestParser::new("function c(*var self) {}");
+        let mut test = TestParser::new("function c(*var self) {}");
         let mut parser = test.parser();
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(*name, Some(parser.intern_string("c")));
+            assert_eq!(parser.get_string(name.unwrap()), "c");
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);

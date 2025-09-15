@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_attach_docs() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r"
 /// doc, floating
 
@@ -292,7 +292,7 @@ struct Floof {
 
                 // a: int32
                 assert_node!(parser.tree, fields[0], StructField { name, .. } => {
-                    assert_eq!(*name, Some(parser.intern_string("a")));
+                    assert_eq!(parser.get_string(name.unwrap()), "a");
 
                     // doc, struct field + doc, struct field continued
                     let docs = parser.tree.get_docs_for(fields[0]);
@@ -312,7 +312,7 @@ struct Floof {
 
     #[test]
     fn test_attach_comments() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r"
 // comment, floating
 
