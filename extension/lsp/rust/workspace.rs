@@ -24,7 +24,7 @@ impl Workspace {
         Self {
             root,
             session: Session::new(),
-            
+
             next_source_id: 0,
             sources_by_uri: HashMap::new(),
             ast_by_uri: HashMap::new(),
@@ -50,6 +50,4 @@ impl Workspace {
     pub fn get_source(&self, uri: Uri) -> Option<&Source> {
         self.sources_by_uri.get(&uri.to_string())
     }
-
-
 }

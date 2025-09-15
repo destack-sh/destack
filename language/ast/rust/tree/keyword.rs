@@ -31,6 +31,8 @@ pub enum Keyword {
     With,
     /// Alias or cast an item.
     As,
+    /// Constant modifier.
+    Const,
     /// Let expression.
     Let,
     /// Var expression.
@@ -81,6 +83,7 @@ impl Keyword {
             Keyword::Use => "use",
             Keyword::With => "with",
             Keyword::As => "as",
+            Keyword::Const => "const",
             Keyword::Let => "let",
             Keyword::Var => "var",
             Keyword::If => "if",
@@ -119,6 +122,7 @@ impl FromStr for Keyword {
             "use" => Ok(Keyword::Use),
             "with" => Ok(Keyword::With),
             "as" => Ok(Keyword::As),
+            "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
             "var" => Ok(Keyword::Var),
             "if" => Ok(Keyword::If),

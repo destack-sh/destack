@@ -197,7 +197,7 @@ let (x, y) = foo()
 
         let let_id = parser.eat_let_or_var(None).unwrap();
         let x = parser.intern_string("x");
-        
+
         // let x: int32
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x

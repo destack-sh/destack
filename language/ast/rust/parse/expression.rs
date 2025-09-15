@@ -3,8 +3,9 @@
 use dyst_language_token::TokenType;
 
 use crate::{
-    AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, NodeId, OperatorPrecedence,
-    ParseError, ParseResult, Parser, ParserMark, Runtime, TupleLiteral, UnaryOperator, Visibility,
+    AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, Mutability, NodeId,
+    OperatorPrecedence, ParseError, ParseResult, Parser, ParserMark, Runtime, TupleLiteral,
+    UnaryOperator, Visibility,
 };
 
 impl BinaryOperator {
@@ -46,8 +47,8 @@ impl BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => OperatorPrecedence::Comparison,
 
             // logical
-            BinaryOperator::LogicalAnd => OperatorPrecedence::Logical,
-            BinaryOperator::LogicalOr => OperatorPrecedence::Logical,
+            BinaryOperator::And => OperatorPrecedence::Logical,
+            BinaryOperator::Or => OperatorPrecedence::Logical,
         }
     }
 
@@ -95,8 +96,8 @@ impl BinaryOperator {
             TokenType::GreaterThanOrEqual => Some(BinaryOperator::GreaterThanOrEqual),
 
             // logical
-            TokenType::LogicalAnd => Some(BinaryOperator::LogicalAnd),
-            TokenType::LogicalOr => Some(BinaryOperator::LogicalOr),
+            TokenType::LogicalAnd => Some(BinaryOperator::And),
+            TokenType::LogicalOr => Some(BinaryOperator::Or),
 
             _ => None,
         }
@@ -140,8 +141,8 @@ impl BinaryOperator {
             BinaryOperator::GreaterThanOrEqual => TokenType::GreaterThanOrEqual,
 
             // logical
-            BinaryOperator::LogicalAnd => TokenType::LogicalAnd,
-            BinaryOperator::LogicalOr => TokenType::LogicalOr,
+            BinaryOperator::And => TokenType::LogicalAnd,
+            BinaryOperator::Or => TokenType::LogicalOr,
         }
     }
 }
@@ -164,11 +165,10 @@ impl UnaryOperator {
     #[inline]
     pub fn from_token_type(token_type: TokenType) -> Option<UnaryOperator> {
         match token_type {
-            TokenType::Not => Some(UnaryOperator::LogicalNot),
+            TokenType::Not => Some(UnaryOperator::Not),
             TokenType::Subtract => Some(UnaryOperator::Negate),
             TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
-            TokenType::BitwiseAnd => Some(UnaryOperator::Reference),
             TokenType::BitwiseNot => Some(UnaryOperator::BitwiseNot),
             _ => None,
         }
@@ -178,11 +178,10 @@ impl UnaryOperator {
     #[inline]
     pub fn as_token_type(&self) -> TokenType {
         match self {
-            UnaryOperator::LogicalNot => TokenType::Not,
+            UnaryOperator::Not => TokenType::Not,
             UnaryOperator::Negate => TokenType::Subtract,
             UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
             UnaryOperator::Dereference => TokenType::Multiply,
-            UnaryOperator::Reference => TokenType::BitwiseAnd,
             UnaryOperator::BitwiseNot => TokenType::BitwiseNot,
         }
     }
@@ -222,7 +221,7 @@ impl AssignOperator {
             | AssignOperator::BitwiseOrAssign => OperatorPrecedence::AssignmentBitwise,
 
             // assignment logical
-            AssignOperator::LogicalAndAssign | AssignOperator::LogicalOrAssign => {
+            AssignOperator::AndAssign | AssignOperator::OrAssign => {
                 OperatorPrecedence::AssignmentLogical
             }
         }
@@ -267,8 +266,8 @@ impl AssignOperator {
             TokenType::BitwiseXorAssign => Some(AssignOperator::BitwiseXorAssign),
 
             // logical
-            TokenType::LogicalAndAssign => Some(AssignOperator::LogicalAndAssign),
-            TokenType::LogicalOrAssign => Some(AssignOperator::LogicalOrAssign),
+            TokenType::LogicalAndAssign => Some(AssignOperator::AndAssign),
+            TokenType::LogicalOrAssign => Some(AssignOperator::OrAssign),
 
             _ => None,
         }
@@ -306,8 +305,8 @@ impl AssignOperator {
             AssignOperator::BitwiseXorAssign => TokenType::BitwiseXorAssign,
 
             // logical
-            AssignOperator::LogicalAndAssign => TokenType::LogicalAndAssign,
-            AssignOperator::LogicalOrAssign => TokenType::LogicalOrAssign,
+            AssignOperator::AndAssign => TokenType::LogicalAndAssign,
+            AssignOperator::OrAssign => TokenType::LogicalOrAssign,
         }
     }
 }
@@ -347,8 +346,8 @@ static IN_STATIC_TYPE_BINARY_OPERATORS: [BinaryOperator; 15] = [
     BinaryOperator::WrappingSubtract,
     BinaryOperator::SaturatingSubtract,
     // logical
-    BinaryOperator::LogicalAnd,
-    BinaryOperator::LogicalOr,
+    BinaryOperator::And,
+    BinaryOperator::Or,
     // comparison
     BinaryOperator::Equal,
     BinaryOperator::NotEqual,
@@ -533,6 +532,19 @@ impl<'a> Parser<'a> {
                     operator: unary_operator,
                     right,
                 };
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
+            // reference (`&` or `&var`)
+            else if self.peek_token(TokenType::BitwiseAnd).is_ok() {
+                self.bump(); // eat &
+                let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
+                    self.bump(); // eat var
+                    Mutability::Mutable
+                } else {
+                    Mutability::Immutable
+                };
+                let right = self.eat_expression(options)?;
+                let expression = Expression::Reference { mutability, right };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             //
@@ -794,8 +806,8 @@ mod tests {
     use crate::parse::expression::ExpressionParserOptions;
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Runtime, ScalarLiteral,
-        StructLiteral, TupleLiteral, Type, assert_int, assert_node, assert_path,
+        BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Mutability, Runtime,
+        ScalarLiteral, StructLiteral, TupleLiteral, Type, assert_int, assert_node, assert_path,
     };
 
     /// Tuple literals are disambiguated.
@@ -978,6 +990,82 @@ geom.Mesh<2, Dims: 4> {
                     fields[1],
                     FieldLiteral::NamedShorthand { name } => {
                         assert_eq!(*name, y);
+                    }
+                );
+            }
+        );
+    }
+
+    /// Reference operator on variable.
+    /// &x
+    #[test]
+    fn test_parse_reference_variable() {
+        let mut test = TestParser::new("&x");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        let x = parser.intern_string("x");
+
+        // &x
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Reference { mutability, right } => {
+                // &
+                assert_eq!(*mutability, Mutability::Immutable);
+                // x
+                assert_path!(parser.tree, *right, x, using |path_id| {
+                    let p = parser.get_path(path_id);
+                    assert_eq!(p.segments.len(), 1);
+                    p.segments[0]
+                });
+            }
+        );
+    }
+
+    /// Reference operator on member access with method call.
+    /// &var self.foo()
+    #[test]
+    fn test_parse_reference_member_call() {
+        let mut test = TestParser::new("&var self.foo()");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        let self_str = parser.intern_string("self");
+        let foo = parser.intern_string("foo");
+        let self_foo_path = parser.intern_path(vec![self_str, foo]);
+
+        // &var self.foo()
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Reference { mutability, right } => {
+                // &var
+                assert_eq!(*mutability, Mutability::Mutable);
+                // self.foo()
+                assert_node!(
+                    parser.tree,
+                    *right,
+                    Expression::Call(call_id) => {
+                        assert_node!(
+                            parser.tree,
+                            *call_id,
+                            Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                assert_eq!(*runtime, Runtime::Dynamic);
+                                // self.foo
+                                assert_node!(
+                                    parser.tree,
+                                    *receiver,
+                                    Expression::Path(path_id) => {
+                                        assert_eq!(*path_id, self_foo_path);
+                                    }
+                                );
+                            }
+                        );
                     }
                 );
             }
@@ -1302,7 +1390,7 @@ geom.Mesh<2, Dims: 4> {
             // ((a == b) && (c == d))
             Expression::Binary { left, operator, right } => {
                 // &&
-                assert_eq!(*operator, BinaryOperator::LogicalAnd);
+                assert_eq!(*operator, BinaryOperator::And);
                 assert_node!(
                     parser.tree,
                     *left,
