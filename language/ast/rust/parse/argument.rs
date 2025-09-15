@@ -138,7 +138,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Argument, Expression, IntType, PrimitiveType, Type, assert_bool, assert_int, assert_node, assert_string,
+        Argument, Expression, IntType, PrimitiveType, Type, assert_bool, assert_int, assert_node,
+        assert_string,
     };
 
     #[test]

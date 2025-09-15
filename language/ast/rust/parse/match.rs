@@ -83,7 +83,7 @@ impl<'a> Parser<'a> {
     pub fn eat_match_case(&mut self) -> ParseResult<NodeId<MatchCase>> {
         let start = self.mark();
         // pattern
-        let pattern_id = self.eat_pattern()?;
+        let pattern_id = self.eat_pattern(ExpressionParserOptions::default())?;
         // guard
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
             self.eat_keyword(Keyword::If)?;
@@ -208,8 +208,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Match, MatchCase, Pattern, Try, assert_bool, assert_int, assert_node,
-        assert_path, assert_expr_path,
+        Expression, Match, MatchCase, Pattern, Try, assert_bool, assert_expr_path, assert_int,
+        assert_node, assert_path,
     };
 
     #[test]

@@ -216,7 +216,9 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
-    use crate::{Break, Continue, Defer, Expression, Return, assert_int, assert_node, assert_string};
+    use crate::{
+        Break, Continue, Defer, Expression, Return, assert_int, assert_node, assert_string,
+    };
 
     #[test]
     fn test_parse_empty_block() {

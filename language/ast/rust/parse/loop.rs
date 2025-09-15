@@ -48,7 +48,10 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // header
         self.eat_keyword(Keyword::For)?;
-        let pattern_id = self.eat_pattern()?;
+        let pattern_id = self.eat_pattern(ExpressionParserOptions {
+            is_before_block: true,
+            ..ExpressionParserOptions::default()
+        })?;
         self.eat_keyword(Keyword::In)?;
         let iterator_id = self.eat_expression(ExpressionParserOptions {
             is_before_block: true,
