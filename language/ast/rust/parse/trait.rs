@@ -134,13 +134,13 @@ mod tests {
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, super_types, statements, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(*name, Some(parser.intern_string("Foo")));
             assert!(statements.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Bar")]));
             });
         });
     }
@@ -163,14 +163,14 @@ trait Foo: Baz {
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, statements, super_types, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(*name, Some(parser.intern_string("Foo")));
             assert_eq!(statements.len(), 3);
 
             // : Baz
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Baz")]));
+                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Baz")]));
             });
         });
     }
@@ -182,7 +182,7 @@ trait Foo: Baz {
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Baz")));
+            assert_eq!(*name, Some(parser.intern_string("Baz")));
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
         });
@@ -202,7 +202,7 @@ trait Baz<T> with T: Copy {
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, statements, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Baz")));
+            assert_eq!(*name, Some(parser.intern_string("Baz")));
 
             let params = static_parameters.as_ref().expect("expected static params");
             assert_eq!(params.len(), 1);
@@ -216,12 +216,12 @@ trait Baz<T> with T: Copy {
 
             assert_node!(parser.tree, with.clauses[0], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("T")]));
                 });
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
                     assert_eq!(
                         *path,
-                        parser.paths.intern(vec![parser.strings.intern("Copy")])
+                        parser.intern_path(vec![parser.intern_string("Copy")])
                     );
                 });
             });
@@ -234,7 +234,7 @@ trait Baz<T> with T: Copy {
                 assert_node!(parser.tree, *func_id, Function { return_type, .. } => {
                     let ret = return_type.expect("expected return type");
                     assert_node!(parser.tree, ret, Type::Path { path, .. } => {
-                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
+                        assert_eq!(*path, parser.intern_path(vec![parser.intern_string("T")]));
                     });
                 })
             })

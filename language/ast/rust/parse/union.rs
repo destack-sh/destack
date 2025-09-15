@@ -363,14 +363,14 @@ union { A, B }
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
-                assert_eq!(*name, parser.strings.intern("A"));
+                assert_eq!(*name, parser.intern_string("A"));
                 assert!(r#type.is_none());
                 assert!(value.is_none());
             });
 
             // B
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
-                assert_eq!(*name, parser.strings.intern("B"));
+                assert_eq!(*name, parser.intern_string("B"));
                 assert!(r#type.is_none());
                 assert!(value.is_none());
             });
@@ -389,14 +389,14 @@ union Foo: Bar {}
 
         let union_id = parser.eat_union(None).unwrap();
         assert_node!(parser.tree, union_id, Union { name, super_types, fields, statements, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(*name, Some(parser.intern_string("Foo")));
             assert!(statements.is_empty());
             assert!(fields.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Bar")]));
             });
         });
     }
@@ -422,7 +422,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
         let union_id = parser.eat_union(None).unwrap();
         assert_node!(parser.tree, union_id, Union { name, tag_type, representation_type, style, static_parameters, fields, statements, super_types, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(*name, Some(parser.intern_string("Foo")));
             assert_eq!(*style, UnionStyle::Explicit);
 
             // (uint4, uint60)
@@ -440,7 +440,7 @@ union(uint4, uint60) Foo<T>: Boz {
             let static_parameters = static_parameters.as_ref().unwrap();
             assert_eq!(static_parameters.len(), 1);
             assert_node!(parser.tree, static_parameters[0], Parameter { name, r#type, .. } => {
-                assert_eq!(*name, parser.strings.intern("T"));
+                assert_eq!(*name, parser.intern_string("T"));
                 assert!(r#type.is_none());
             });
 
@@ -448,7 +448,7 @@ union(uint4, uint60) Foo<T>: Boz {
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Boz")]));
+                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Boz")]));
             });
 
             assert_eq!(statements.len(), 2);
@@ -463,14 +463,14 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
-                assert_eq!(*name, parser.strings.intern("A"));
+                assert_eq!(*name, parser.intern_string("A"));
                 assert!(r#type.is_none());
                 assert!(value.is_none());
             });
 
             // C(boolean)
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
-                assert_eq!(*name, parser.strings.intern("C"));
+                assert_eq!(*name, parser.intern_string("C"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
                     let struct_ = parser.tree.get(*struct_id);
                     assert_eq!(struct_.style, StructStyle::Tuple);
@@ -487,7 +487,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // D(boolean, count: int32) = 6
             assert_node!(parser.tree, fields[2], UnionField { name, r#type, value } => {
-                assert_eq!(*name, parser.strings.intern("D"));
+                assert_eq!(*name, parser.intern_string("D"));
 
                 // (boolean, count: int32)
                 assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
@@ -503,7 +503,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
                     // count: int32
                     assert_node!(parser.tree, struct_.fields[1], StructField { name, r#type, .. } => {
-                        assert_eq!(name.unwrap(), parser.strings.intern("count"));
+                        assert_eq!(name.unwrap(), parser.intern_string("count"));
                         assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                             assert_eq!(int_ty.width, 32);
                             assert!(int_ty.is_signed);
@@ -519,7 +519,7 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // E { x: int32, y: T }
             assert_node!(parser.tree, fields[3], UnionField { name, r#type, .. } => {
-                assert_eq!(*name, parser.strings.intern("E"));
+                assert_eq!(*name, parser.intern_string("E"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
                     let struct_ = parser.tree.get(*struct_id);
                     assert_eq!(struct_.style, StructStyle::Struct);
@@ -528,7 +528,7 @@ union(uint4, uint60) Foo<T>: Boz {
                     // x: int32
                     assert_node!(parser.tree, struct_.fields[0], StructField { name, r#type, .. } => {
                         // x
-                        assert_eq!(name.unwrap(), parser.strings.intern("x"));
+                        assert_eq!(name.unwrap(), parser.intern_string("x"));
                         // int32
                         assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                             assert_eq!(int_ty.width, 32);
@@ -539,10 +539,10 @@ union(uint4, uint60) Foo<T>: Boz {
                     // y: T
                     assert_node!(parser.tree, struct_.fields[1], StructField { name, r#type, .. } => {
                         // y
-                        assert_eq!(name.unwrap(), parser.strings.intern("y"));
+                        assert_eq!(name.unwrap(), parser.intern_string("y"));
                         // T
                         assert_node!(parser.tree, *r#type, Type::Path { path, static_arguments: _ } => {
-                            assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
+                            assert_eq!(*path, parser.intern_path(vec![parser.intern_string("T")]));
                         });
                     });
                 });
@@ -565,22 +565,22 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
-                assert_eq!(*name, parser.strings.intern("A"));
+                assert_eq!(*name, parser.intern_string("A"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
-                    let path_data = parser.paths.get(*path);
+                    let path_data = parser.get_path(*path);
                     assert_eq!(path_data.segments.len(), 1);
-                    assert_eq!(path_data.segments[0], parser.strings.intern("A"));
+                    assert_eq!(path_data.segments[0], parser.intern_string("A"));
                 });
                 assert!(value.is_none());
             });
 
             // B
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
-                assert_eq!(*name, parser.strings.intern("B"));
+                assert_eq!(*name, parser.intern_string("B"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
-                    let path_data = parser.paths.get(*path);
+                    let path_data = parser.get_path(*path);
                     assert_eq!(path_data.segments.len(), 1);
-                    assert_eq!(path_data.segments[0], parser.strings.intern("B"));
+                    assert_eq!(path_data.segments[0], parser.intern_string("B"));
                 });
                 assert!(value.is_none());
             });
@@ -598,20 +598,20 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // A
             assert_node!(parser.tree, fields[0], UnionField { name, r#type, value: _ } => {
-                assert_eq!(*name, parser.strings.intern("A"));
+                assert_eq!(*name, parser.intern_string("A"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
-                    let path_data = parser.paths.get(*path);
-                    assert_eq!(path_data.segments[0], parser.strings.intern("A"));
+                    let path_data = parser.get_path(*path);
+                    assert_eq!(path_data.segments[0], parser.intern_string("A"));
                 });
             });
 
             // ?B
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value: _ } => {
-                assert_eq!(*name, parser.strings.intern("B"));
+                assert_eq!(*name, parser.intern_string("B"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Maybe(inner_ty_id) => {
                     assert_node!(parser.tree, *inner_ty_id, Type::Path { path, static_arguments: _ } => {
-                        let path_data = parser.paths.get(*path);
-                        assert_eq!(path_data.segments[0], parser.strings.intern("B"));
+                        let path_data = parser.get_path(*path);
+                        assert_eq!(path_data.segments[0], parser.intern_string("B"));
                     });
                 });
             });
@@ -629,12 +629,12 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // *C
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value: _ } => {
-                assert_eq!(*name, parser.strings.intern("C"));
+                assert_eq!(*name, parser.intern_string("C"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Pointer { target, mutability } => {
                     assert_eq!(*mutability, Mutability::Immutable);
                     assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
-                        let path_data = parser.paths.get(*path);
-                        assert_eq!(path_data.segments[0], parser.strings.intern("C"));
+                        let path_data = parser.get_path(*path);
+                        assert_eq!(path_data.segments[0], parser.intern_string("C"));
                     });
                 });
             });
@@ -652,13 +652,13 @@ union(uint4, uint60) Foo<T>: Boz {
 
             // ?*var D
             assert_node!(parser.tree, fields[0], UnionField { name, r#type, value: _ } => {
-                assert_eq!(*name, parser.strings.intern("D"));
+                assert_eq!(*name, parser.intern_string("D"));
                 assert_node!(parser.tree, r#type.unwrap(), Type::Maybe(inner_ty_id) => {
                     assert_node!(parser.tree, *inner_ty_id, Type::Pointer { target, mutability } => {
                         assert_eq!(*mutability, Mutability::Mutable);
                         assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
-                            let path_data = parser.paths.get(*path);
-                            assert_eq!(path_data.segments[0], parser.strings.intern("D"));
+                            let path_data = parser.get_path(*path);
+                            assert_eq!(path_data.segments[0], parser.intern_string("D"));
                         });
                     });
                 });

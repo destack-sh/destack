@@ -26,11 +26,10 @@ use crate::{
     FunctionStyle, If, Implement, Index, IntType, Let, LetInitialization, Loop, Match, MatchCase,
     Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, Parameter, PathId, PathPool,
     Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral,
-    SelfParameter, Statement, StringPool, Struct, StructField, StructLiteral, Trait, Try, Tuple,
-    TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem,
-    Visibility, While, With, WithClause,
+    SelfParameter, Statement, StringId, StringPool, Struct, StructField, StructLiteral, Trait, Try,
+    Tuple, TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause,
+    UseItem, Visibility, While, With, WithClause,
 };
-use dyst_language_arena::StringId;
 
 /// The console colors.
 #[derive(Debug, Clone, Copy)]
@@ -106,6 +105,8 @@ impl Default for DumperOptions {
         }
     }
 }
+
+// todo!: also dump annotations somehow (docs/comments)
 
 /// A Dumper for dumping AST nodes.
 #[derive(Debug)]

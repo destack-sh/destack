@@ -156,7 +156,7 @@ mod tests {
 
             // x: int32
             assert_node!(parser.tree, elements[0], TupleField::Named { name, r#type } => {
-                assert_eq!(*name, parser.strings.intern("x"));
+                assert_eq!(*name, parser.intern_string("x"));
                 assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                     assert_eq!(int_ty.width, 32);
                     assert!(int_ty.is_signed);
@@ -165,7 +165,7 @@ mod tests {
 
             // y: boolean
             assert_node!(parser.tree, elements[1], TupleField::Named { name, r#type } => {
-                assert_eq!(*name, parser.strings.intern("y"));
+                assert_eq!(*name, parser.intern_string("y"));
                 assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
             });
         });

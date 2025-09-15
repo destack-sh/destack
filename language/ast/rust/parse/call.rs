@@ -146,7 +146,7 @@ mod tests {
         let test = TestParser::new("[1]");
         let mut parser = test.parser();
         let recv = parser.tree.allocate(
-            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
             parser.peek().unwrap().span,
         );
 
@@ -165,7 +165,7 @@ mod tests {
         let test = TestParser::new("[Validate: false](1, x: 2)");
         let mut parser = test.parser();
         let recv = parser.tree.allocate(
-            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
             parser.peek().unwrap().span,
         );
 
@@ -178,7 +178,7 @@ mod tests {
             let static_args = static_arguments.as_ref().expect("expected static args");
             assert_eq!(static_args.len(), 1);
             assert_node!(parser.tree, static_args[0], Argument::Named { name, value } => {
-                assert_eq!(*name, parser.strings.intern("Validate"));
+                assert_eq!(*name, parser.intern_string("Validate"));
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
                     assert_node!(parser.tree, *lit_id, ScalarLiteral::Boolean(false));
                 });
@@ -196,7 +196,7 @@ mod tests {
 
             // x: 2
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
-                assert_eq!(*name, parser.strings.intern("x"));
+                assert_eq!(*name, parser.intern_string("x"));
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
                     assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2, _));
                 });
@@ -210,7 +210,7 @@ mod tests {
         let test = TestParser::new("()");
         let mut parser = test.parser();
         let recv = parser.tree.allocate(
-            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
             parser.peek().unwrap().span,
         );
 
@@ -229,7 +229,7 @@ mod tests {
         let test = TestParser::new("as int32");
         let mut parser = test.parser();
         let recv = parser.tree.allocate(
-            Expression::Path(parser.paths.intern(vec![parser.strings.intern("self")])),
+            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
             parser.peek().unwrap().span,
         );
 

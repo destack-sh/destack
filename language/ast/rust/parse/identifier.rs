@@ -1,6 +1,6 @@
 //! Parse identifiers.
 
-use dyst_language_arena::StringId;
+use dyst_language_source::StringId;
 use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{ParseError, ParseResult, Parser};

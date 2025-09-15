@@ -17,7 +17,7 @@ impl TestParser {
 
     /// Get a Parser for this test.
     pub(crate) fn parser(&self) -> Parser<'_> {
-        Parser::from_source(&self.source)
+        Parser::from_source(&self.source, &Session::new())
     }
 }
 
@@ -190,6 +190,7 @@ mod tests {
     use std::path::PathBuf;
 
     use destack_library_file::glob;
+    use dyst_language_session::Session;
     use dyst_language_source::{Source, SourceId};
     use dyst_language_token::TokenType;
 
@@ -210,6 +211,8 @@ mod tests {
         // glob all .ds files under the workspace root
         let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
 
+        let session = Session::new();
+
         // parse every ds file
         for (i, ds_file) in ds_files.iter().enumerate() {
             let source = Source::from_string(
@@ -217,33 +220,34 @@ mod tests {
                 ds_file.to_string_lossy().into_owned(),
                 fs::read_to_string(ds_file).unwrap(),
             );
-            let mut parser = Parser::from_source(&source);
+            let mut parser = Parser::from_source(&source, &session);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),
                 Vec::new(),
                 TokenType::End,
             );
+        }
 
-            // dump diagnostics
-            if !parser.diagnostics.is_empty() {
-                for diagnostic in &parser.diagnostics {
-                    let annotated = dyst_language_source::annotate_source(
-                        &source,
-                        diagnostic.primary_span.as_ref().unwrap(),
-                        dyst_language_source::AnnotateOptions {
-                            max_line_length: 100,
-                            prefix_lines: 1,
-                            suffix_lines: 1,
-                            use_color: false,
-                        },
-                    );
-                    let diagnostic_header = format!("{}: {}", diagnostic.id, diagnostic.message);
-                    eprintln!("{diagnostic_header}");
-                    eprintln!("{annotated}");
-                }
-                panic!("errors in {ds_file:?}");
+        // dump diagnostics
+        if !session.diagnostics.is_empty() {
+            for diagnostic in &session.diagnostics {
+                let source = session.sources.get(diagnostic.source).unwrap();
+                let annotated = dyst_language_source::annotate_source(
+                    &source,
+                    &diagnostic.primary_span,
+                    dyst_language_source::AnnotateOptions {
+                        max_line_length: 100,
+                        prefix_lines: 1,
+                        suffix_lines: 1,
+                        use_color: false,
+                    },
+                );
+                let diagnostic_header = format!("{}: {}", diagnostic.id, diagnostic.message);
+                eprintln!("{diagnostic_header}");
+                eprintln!("{annotated}");
             }
+            panic!("errors in {ds_file:?}");
         }
     }
 }

@@ -1,11 +1,11 @@
 use core::fmt;
-use std::fmt::Debug;
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
-use dyst_language_diagnostic::Diagnostic;
-use dyst_language_source::{Source, SourceId, Span};
+use dyst_language_source::{Path, PathId, Source, SourceId, Span, StringId};
 use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
-use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult, PathPool, StringPool};
+use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult};
+use dyst_language_session::Session;
 
 /// Configure parsing behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
@@ -18,7 +18,7 @@ pub(crate) struct ParserOptions {
     pub in_implicit_union: bool = false,
 }
 
-/// A parser for Dyst source code.
+/// A parser for Dyst AST.
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
@@ -35,21 +35,15 @@ pub struct Parser<'a> {
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     pub eof_token: TokenSpan,
 
-    /// The Node tree.
-    pub tree: NodeTree,
-
-    /// NOTE :Architecture: move Parser.diagnostics into Session?
-    /// Diagnostics emitted in this session.
-    pub diagnostics: Vec<Diagnostic>,
-    /// The string pool.
-    pub strings: StringPool,
-    /// The path pool.
-    pub paths: PathPool,
-
     /// The current position in the tokens.
     pos: usize,
     /// The parser options.
     pub(crate) options: ParserOptions,
+
+    /// The Node tree.
+    pub tree: NodeTree,
+    /// The session.
+    pub session: &'a Session,
 }
 
 impl Debug for Parser<'_> {
@@ -60,7 +54,7 @@ impl Debug for Parser<'_> {
 
 impl<'a> Parser<'a> {
     /// Create a new parser from source.
-    pub fn from_source(source: &'a Source) -> Self {
+    pub fn from_source(source: &'a Source, session: &'a Session) -> Self {
         let (tokens, trivia_tokens) = tokenize_with_spans(source.id, &source.content);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {
             span: Span {
@@ -71,18 +65,13 @@ impl<'a> Parser<'a> {
             token: Token::eof(),
         });
         let tree = NodeTree::new();
-        let diagnostics = Vec::new();
-        let strings = StringPool::new();
-        let paths = PathPool::new();
         Self {
             source,
             source_id: source.id,
             tokens,
             trivia_tokens,
             tree,
-            diagnostics,
-            strings,
-            paths,
+            session,
             pos: 0,
             eof_token,
             options: ParserOptions::default(),
@@ -91,7 +80,12 @@ impl<'a> Parser<'a> {
 
     /// Create a new Dumper.
     pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
-        Dumper::new(&self.strings, &self.paths, &self.tree, options)
+        Dumper::new(
+            &self.session.strings,
+            &self.session.paths,
+            &self.tree,
+            options,
+        )
     }
 
     /// Get the current position.
@@ -119,10 +113,27 @@ impl<'a> Parser<'a> {
     /// Errors are deduplicated, collected and added to the diagnostics.
     #[inline]
     pub(crate) fn handle_error(&mut self, e: ParseError) {
-        let diagnostic = e.into();
-        if !self.diagnostics.contains(&diagnostic) {
-            self.diagnostics.push(diagnostic);
-        }
+        self.session.handle_diagnostic(e.into());
+    }
+
+    /// Intern a string.
+    pub fn intern_string<S: AsRef<str>>(&mut self, string: S) -> StringId {
+        self.session.intern_string(string)
+    }
+
+    /// Get an interned string.
+    pub fn get_string(&self, string_id: StringId) -> &str {
+        self.session.get_string(string_id)
+    }
+
+    /// Intern a path.
+    pub fn intern_path<T: AsRef<[StringId]>>(&mut self, path: T) -> PathId {
+        self.session.intern(path)
+    }
+
+    /// Get an interned path.
+    pub fn get_path(&self, path_id: PathId) -> &Path {
+        self.session.get_path(path_id)
     }
 
     /// Gets a mark of the current position.

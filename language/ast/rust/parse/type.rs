@@ -603,9 +603,9 @@ mod tests {
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
-        let expected_path = parser.paths.intern(vec![
-            parser.strings.intern("geom"),
-            parser.strings.intern("Vector2"),
+        let expected_path = parser.intern_path(vec![
+            parser.intern_string("geom"),
+            parser.intern_string("Vector2"),
         ]);
 
         assert_node!(
@@ -626,7 +626,7 @@ mod tests {
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
-        let expected_path = parser.paths.intern(vec![parser.strings.intern("MyMesh")]);
+        let expected_path = parser.intern_path(vec![parser.intern_string("MyMesh")]);
 
         assert_node!(
             parser.tree,
@@ -660,7 +660,7 @@ mod tests {
                 assert_node!(
                     arg1,
                     Argument::Named { name, value } => {
-                        assert_eq!(*name, parser.strings.intern("Dims"));
+                        assert_eq!(*name, parser.intern_string("Dims"));
                         assert_node!(
                             parser.tree,
                             *value,
@@ -715,7 +715,7 @@ mod tests {
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
-        let expected_time_path = parser.paths.intern(vec![parser.strings.intern("Time")]);
+        let expected_time_path = parser.intern_path(vec![parser.intern_string("Time")]);
 
         assert_node!(
             parser.tree,
@@ -756,7 +756,7 @@ mod tests {
                         path,
                         static_arguments: None
                     } => {
-                        let expected_path = parser.paths.intern(vec![parser.strings.intern("Vector2")]);
+                        let expected_path = parser.intern_path(vec![parser.intern_string("Vector2")]);
                         assert_eq!(*path, expected_path);
                     }
                 );
@@ -785,7 +785,7 @@ mod tests {
                         path,
                         static_arguments: None
                     } => {
-                        let expected_path = parser.paths.intern(vec![parser.strings.intern("T")]);
+                        let expected_path = parser.intern_path(vec![parser.intern_string("T")]);
                         assert_eq!(*path, expected_path);
                     }
                 );
@@ -804,7 +804,7 @@ mod tests {
                 path,
                 static_arguments: None
             } => {
-                let expected_path = parser.paths.intern(vec![parser.strings.intern("T")]);
+                let expected_path = parser.intern_path(vec![parser.intern_string("T")]);
                 assert_eq!(*path, expected_path);
             });
         });
@@ -821,7 +821,7 @@ mod tests {
                 path,
                 static_arguments: None
             } => {
-                let expected_path = parser.paths.intern(vec![parser.strings.intern("T")]);
+                let expected_path = parser.intern_path(vec![parser.intern_string("T")]);
                 assert_eq!(*path, expected_path);
             });
         });

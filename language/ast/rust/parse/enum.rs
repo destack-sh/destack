@@ -187,14 +187,14 @@ enum Foo: Day {}
 
         let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Enum { name, super_types, fields, statements, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(*name, Some(parser.intern_string("Foo")));
             assert!(statements.is_empty());
             assert!(fields.is_empty());
 
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Day")]));
+                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Day")]));
             });
         });
     }
@@ -221,13 +221,13 @@ enum {
 
             // Success
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_eq!(*name, parser.strings.intern("Success"));
+                assert_eq!(*name, parser.intern_string("Success"));
                 assert!(value.is_none());
             });
 
             // Failure
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_eq!(*name, parser.strings.intern("Failure"));
+                assert_eq!(*name, parser.intern_string("Failure"));
                 assert!(value.is_none());
             });
         });
@@ -254,7 +254,7 @@ enum(uint8) Foo: Day {
         let enum_id = parser.eat_enum(None).unwrap();
         assert_node!(parser.tree, enum_id, Enum { name, r#type, fields, super_types, .. } => {
             // enum name
-            assert_eq!(*name, Some(parser.strings.intern("Foo")));
+            assert_eq!(*name, Some(parser.intern_string("Foo")));
 
             // enum type
             assert_node!(parser.tree, r#type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
@@ -266,14 +266,14 @@ enum(uint8) Foo: Day {
             let supers = super_types.as_ref().expect("expected super types");
             assert_eq!(supers.len(), 1);
             assert_node!(parser.tree, supers[0], Type::Path { path, .. } => {
-                assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Day")]));
+                assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Day")]));
             });
 
             assert_eq!(fields.len(), 2);
 
             // Baz = 1
             assert_node!(parser.tree, fields[0], EnumField { name, value } => {
-                assert_eq!(*name, parser.strings.intern("Baz"));
+                assert_eq!(*name, parser.intern_string("Baz"));
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                     assert_int!(parser.tree, *literal_id, 1);
                 });
@@ -281,7 +281,7 @@ enum(uint8) Foo: Day {
 
             // Qux = 2
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
-                assert_eq!(*name, parser.strings.intern("Qux"));
+                assert_eq!(*name, parser.intern_string("Qux"));
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                     assert_int!(parser.tree, *literal_id, 2);
                 });

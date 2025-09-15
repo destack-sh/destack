@@ -236,7 +236,7 @@ function foo() with (
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, with, return_type, .. } => {
             // function name
-            assert_eq!(*name, Some(parser.strings.intern("foo")));
+            assert_eq!(*name, Some(parser.intern_string("foo")));
 
             // with clause present
             let with_id = with.expect("expected with declaration");
@@ -249,7 +249,7 @@ function foo() with (
                     assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
                         assert_eq!(
                             *path,
-                            parser.paths.intern(vec![parser.strings.intern("Bar")])
+                            parser.intern_path(vec![parser.intern_string("Bar")])
                         );
                     });
                 });
@@ -260,7 +260,7 @@ function foo() with (
                 assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
                     assert_eq!(
                         *path,
-                        parser.paths.intern(vec![parser.strings.intern("Time")])
+                        parser.intern_path(vec![parser.intern_string("Time")])
                     );
                     assert!(static_arguments.is_none());
                 });
@@ -269,12 +269,12 @@ function foo() with (
             // F: Numeric
             assert_node!(parser.tree, with.clauses[2], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("F")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("F")]));
                 });
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
                     assert_eq!(
                         *path,
-                        parser.paths.intern(vec![parser.strings.intern("Numeric")])
+                        parser.intern_path(vec![parser.intern_string("Numeric")])
                     );
                 });
             });
@@ -295,7 +295,7 @@ function foo() with (
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("a")));
+            assert_eq!(*name, Some(parser.intern_string("a")));
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(!self_param.is_pointer);
@@ -320,7 +320,7 @@ function b(
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("b")));
+            assert_eq!(*name, Some(parser.intern_string("b")));
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);
@@ -328,7 +328,7 @@ function b(
 
             assert_eq!(dynamic_parameters.len(), 1);
             let param = parser.tree.get(dynamic_parameters[0]);
-            assert_eq!(param.name, parser.strings.intern("x"));
+            assert_eq!(param.name, parser.intern_string("x"));
 
             let param_type = param.r#type.expect("expected type for parameter x");
             assert_node!(parser.tree, param_type, Type::Primitive(PrimitiveType::Int(IntType { width, is_signed })) => {
@@ -345,7 +345,7 @@ function b(
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
-            assert_eq!(*name, Some(parser.strings.intern("c")));
+            assert_eq!(*name, Some(parser.intern_string("c")));
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);

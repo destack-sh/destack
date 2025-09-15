@@ -172,20 +172,6 @@ pub trait Node: Sized {
     const KIND: NodeType;
 }
 
-/// A Path is static path to a named definition in a namespace.
-/// In the case of a Use declaration, the Path excludes the items.
-///
-/// Examples:
-/// ```
-/// foo
-/// foobar
-/// foo.bar.baz.qux
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct Path {
-    pub segments: Vec<StringId>,
-}
-
 /// A Visibility is the visibility of an item.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Visibility {
@@ -352,6 +338,7 @@ pub enum Expression {
     /// Member access (postfix as an Expression, see Member).
     Member {
         receiver: NodeId<Expression>,
+        // todo!: member tuple paths? (like self.0, self.1, ...)
         path: PathId,
     },
     /// Index access (postfix as an Expression, see Index).
@@ -474,9 +461,9 @@ pub struct Struct {
     pub visibility: Option<Visibility>,
     /// The style of the struct.
     pub style: StructStyle,
-    /// The super types of the struct.
+    /// The super types of the struct (desugars to `use`-ing other types).
     pub super_types: Option<Vec<NodeId<Type>>>,
-    /// The representation type of the union (if explicitly specified).
+    /// The representation type of the union.
     pub representation_type: Option<NodeId<Type>>,
     /// The static parameters of the struct.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
@@ -550,7 +537,7 @@ pub struct Enum {
     pub visibility: Option<Visibility>,
     /// The type of the enum (if explicitly specified).
     pub r#type: Option<NodeId<Type>>,
-    /// The super types of the enum.
+    /// The super types of the enum (desugars to `use`-ing other types).
     pub super_types: Option<Vec<NodeId<Type>>>,
     /// The fields of the enum.
     pub fields: Vec<NodeId<EnumField>>,
@@ -637,7 +624,7 @@ pub struct Union {
     pub representation_type: Option<NodeId<Type>>,
     /// The static parameters of the union.
     pub static_parameters: Option<Vec<NodeId<Parameter>>>,
-    /// The super types of the union.
+    /// The super types of the union (desugars to `use`-ing other types).
     pub super_types: Option<Vec<NodeId<Type>>>,
     /// The fields of the union.
     pub fields: Vec<NodeId<UnionField>>,

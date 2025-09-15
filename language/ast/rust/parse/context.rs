@@ -292,12 +292,14 @@ mod tests {
         let test = TestParser::new("with T: int32");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
+        let t = parser.intern_string("T");
+        let t_path = parser.intern_path(vec![t]);
         // with T: int32
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("T")]));
+                    assert_eq!(*path, t_path);
                 });
                 assert_node!(parser.tree, *assertion, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                     assert_eq!(int_ty.width, 32);
@@ -312,13 +314,15 @@ mod tests {
         let test = TestParser::new("with Foo");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
+        let foo = parser.intern_string("Foo");
+        let foo_path = parser.intern_path(vec![foo]);
         // with Foo
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
                 assert!(alias.is_none());
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Foo")]));
+                    assert_eq!(*path, foo_path);
                 });
             });
         });
@@ -329,13 +333,17 @@ mod tests {
         let test = TestParser::new("with Foo as Bar");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
+        let foo = parser.intern_string("Foo");
+        let bar = parser.intern_string("Bar");
+        let foo_path = parser.intern_path(vec![foo]);
+        let bar_path = parser.intern_path(vec![bar]);
         // with Foo as Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
-                assert_eq!(*alias, Some(parser.strings.intern("Bar")));
+                assert_eq!(*alias, Some(bar));
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Foo")]));
+                    assert_eq!(*path, foo_path);
                 });
             });
         });
@@ -346,16 +354,16 @@ mod tests {
         let test = TestParser::new("with Foo.Bar");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
+        let foo = parser.intern_string("Foo");
+        let bar = parser.intern_string("Bar");
+        let foo_bar_path = parser.intern_path(vec![foo, bar]);
         // with Foo.Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, alias } => {
                 assert!(alias.is_none());
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![
-                        parser.strings.intern("Foo"),
-                        parser.strings.intern("Bar")
-                    ]));
+                    assert_eq!(*path, foo_bar_path);
                 });
             });
         });
@@ -366,6 +374,8 @@ mod tests {
         let test = TestParser::new("with !Bar");
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
+        let bar = parser.intern_string("Bar");
+        let bar_path = parser.intern_path(vec![bar]);
         // with !Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 1);
@@ -373,7 +383,7 @@ mod tests {
                 assert!(alias.is_none());
                 assert_node!(parser.tree, *target, Type::Not(inner_id) => {
                     assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
-                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+                        assert_eq!(*path, bar_path);
                     });
                 });
             });
@@ -386,7 +396,7 @@ mod tests {
         let test = TestParser::new(input);
         let mut parser = test.parser();
         let with_id = parser.eat_with().unwrap();
-
+        let bar = parser.intern_string("Bar");
         assert_node!(parser.tree, with_id, With { clauses } => {
             assert_eq!(clauses.len(), 3);
 
@@ -394,7 +404,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Not(inner_id) => {
                     assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
-                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+                        assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Bar")]));
                     });
                 });
             });
@@ -402,7 +412,7 @@ mod tests {
             // Time
             assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Time")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Time")]));
                     assert!(static_arguments.is_none());
                 });
             });
@@ -410,10 +420,10 @@ mod tests {
             // F: Numeric
             assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("F")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("F")]));
                 });
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Numeric")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Numeric")]));
                 });
             });
         });
@@ -437,7 +447,7 @@ mod tests {
             assert_node!(parser.tree, clauses[0], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Not(inner_id) => {
                     assert_node!(parser.tree, *inner_id, Type::Path { path, .. } => {
-                        assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Bar")]));
+                        assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Bar")]));
                     });
                 });
             });
@@ -445,7 +455,7 @@ mod tests {
             // Time
             assert_node!(parser.tree, clauses[1], WithClause::Declaration { target, .. } => {
                 assert_node!(parser.tree, *target, Type::Path { path, static_arguments } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Time")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Time")]));
                     assert!(static_arguments.is_none());
                 });
             });
@@ -453,10 +463,10 @@ mod tests {
             // F: Numeric
             assert_node!(parser.tree, clauses[2], WithClause::Assertion { target, assertion } => {
                 assert_node!(parser.tree, *target, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("F")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("F")]));
                 });
                 assert_node!(parser.tree, *assertion, Type::Path { path, .. } => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("Numeric")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("Numeric")]));
                 });
             });
         });
@@ -479,7 +489,7 @@ mod tests {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_node!(parser.tree, *target, Expression::Path(path) => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("dyst")]));
                 });
             });
         });
@@ -498,9 +508,9 @@ mod tests {
                 assert!(alias.is_none());
                 assert!(items.is_none());
                 assert_node!(parser.tree, *target, Expression::Path(path) => {
-                    assert_eq!(*path, parser.paths.intern(vec![
-                        parser.strings.intern("dyst"),
-                        parser.strings.intern("geometry")
+                    assert_eq!(*path, parser.intern_path(vec![
+                        parser.intern_string("dyst"),
+                        parser.intern_string("geometry")
                     ]));
                 });
             });
@@ -517,10 +527,10 @@ mod tests {
             assert_eq!(clauses.len(), 1);
             // use dyst as ds
             assert_node!(parser.tree, clauses[0], UseClause { target, alias, items } => {
-                assert_eq!(*alias, Some(parser.strings.intern("ds")));
+                assert_eq!(*alias, Some(parser.intern_string("ds")));
                 assert!(items.is_none());
                 assert_node!(parser.tree, *target, Expression::Path(path) => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("dyst")]));
                 });
             });
         });
@@ -541,19 +551,19 @@ mod tests {
                 assert_eq!(items.len(), 2);
                 // Vector2
                 assert_node!(parser.tree, items[0], UseItem { name, alias } => {
-                    assert_eq!(*name, parser.strings.intern("Vector2"));
+                    assert_eq!(*name, parser.intern_string("Vector2"));
                     assert_eq!(*alias, None);
                 });
                 // Vector3 as V3
                 assert_node!(parser.tree, items[1], UseItem { name, alias } => {
-                    assert_eq!(*name, parser.strings.intern("Vector3"));
-                    assert_eq!(*alias, Some(parser.strings.intern("V3")));
+                    assert_eq!(*name, parser.intern_string("Vector3"));
+                    assert_eq!(*alias, Some(parser.intern_string("V3")));
                 });
                 // ds.geometry
                 assert_node!(parser.tree, *target, Expression::Path(path) => {
-                    assert_eq!(*path, parser.paths.intern(vec![
-                        parser.strings.intern("ds"),
-                        parser.strings.intern("geometry")
+                    assert_eq!(*path, parser.intern_path(vec![
+                        parser.intern_string("ds"),
+                        parser.intern_string("geometry")
                     ]));
                 });
             });
@@ -572,13 +582,13 @@ mod tests {
             // use dyst
             assert_node!(parser.tree, clauses[0], UseClause { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path(path) => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("dyst")]));
                 });
             });
             // use dyst
             assert_node!(parser.tree, clauses[1], UseClause { target, .. } => {
                 assert_node!(parser.tree, *target, Expression::Path(path) => {
-                    assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("dyst")]));
+                    assert_eq!(*path, parser.intern_path(vec![parser.intern_string("dyst")]));
                 });
             });
         });

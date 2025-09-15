@@ -234,7 +234,7 @@ mod tests {
         let mut parser = test.parser();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
-        assert_eq!(block.label, Some(parser.strings.intern("label")));
+        assert_eq!(block.label, Some(parser.intern_string("label")));
         assert!(block.statements.is_empty());
     }
 
@@ -255,7 +255,7 @@ mod tests {
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
-            assert_eq!(*label, Some(parser.strings.intern("label")));
+            assert_eq!(*label, Some(parser.intern_string("label")));
             assert!(value.is_none());
         });
     }
@@ -266,7 +266,7 @@ mod tests {
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
-            assert_eq!(*label, Some(parser.strings.intern("label")));
+            assert_eq!(*label, Some(parser.intern_string("label")));
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                 assert_int!(parser.tree, *literal_id, 17);
@@ -304,7 +304,7 @@ mod tests {
         let mut parser = test.parser();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Continue { label } => {
-            assert_eq!(*label, Some(parser.strings.intern("label")));
+            assert_eq!(*label, Some(parser.intern_string("label")));
         });
     }
 
