@@ -90,11 +90,12 @@ let x: int32 = 1
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let_or_var(None).unwrap();
+        let x = parser.intern_string("x");
 
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
-                assert_eq!(*name, parser.strings.intern("x"));
+                assert_eq!(*name, x);
             });
             assert_eq!(*mutability, Mutability::Immutable);
 
@@ -125,6 +126,7 @@ var x: [3]float64 = --
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let_or_var(None).unwrap();
+        let x = parser.intern_string("x");
 
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // var (mutable)
@@ -132,7 +134,7 @@ var x: [3]float64 = --
 
             // pattern: x
             assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
-                assert_eq!(*name, parser.strings.intern("x"));
+                assert_eq!(*name, x);
             });
 
             // [3]float64
@@ -161,6 +163,8 @@ let (x, y) = foo()
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let_or_var(None).unwrap();
+        let x = parser.intern_string("x");
+        let y = parser.intern_string("y");
 
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // (x, y)
@@ -168,11 +172,11 @@ let (x, y) = foo()
                 assert_eq!(fields.len(), 2);
                 // x
                 assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {
-                    assert_eq!(*name, parser.strings.intern("x"));
+                    assert_eq!(*name, x);
                 });
                 // y
                 assert_node!(parser.tree, fields[1], PatternField::Named { name, .. } => {
-                    assert_eq!(*name, parser.strings.intern("y"));
+                    assert_eq!(*name, y);
                 });
             });
 
@@ -192,12 +196,13 @@ let (x, y) = foo()
         let mut parser = test.parser();
 
         let let_id = parser.eat_let_or_var(None).unwrap();
-
+        let x = parser.intern_string("x");
+        
         // let x: int32
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
-                assert_eq!(*name, parser.strings.intern("x"));
+                assert_eq!(*name, x);
             });
             assert_eq!(*mutability, Mutability::Immutable);
             // int32

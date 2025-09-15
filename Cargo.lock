@@ -597,20 +597,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_language_arena"
-version = "2025.9.13-0"
-dependencies = [
- "quickcheck",
- "quickcheck_macros",
-]
-
-[[package]]
 name = "dyst_language_ast"
 version = "2025.9.13-0"
 dependencies = [
  "criterion",
  "destack_library_file",
- "dyst_language_arena",
  "dyst_language_diagnostic",
  "dyst_language_session",
  "dyst_language_source",

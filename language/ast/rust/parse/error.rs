@@ -39,13 +39,14 @@ impl From<ParseError> for Diagnostic {
             kind: DiagnosticKind::Parse,
             severity: Severity::Error,
             message: "parse error".to_string(),
-            primary_span: Some(LabeledSpan {
+            source: error.span.source,
+            primary_span: LabeledSpan {
                 span: error.span,
                 label: match error.expected_token {
                     Some(token_type) => format!("expected {token_type:?}"),
                     None => "unexpected".to_string(),
                 },
-            }),
+            },
             secondary_spans: None,
             suggestions: None,
         }

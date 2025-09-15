@@ -15,7 +15,7 @@ pub struct StringId(pub NonZeroU32);
 #[derive(Clone)]
 pub struct StringPool {
     // single ownership of bytes; index is by id (vector index)
-    storage: Vec<Box<str>>,
+    strings: Vec<Box<str>>,
     // hash -> small bucket of candidate ids; we compare bytes to disambiguate
     index: HashMap<u64, Vec<StringId>>,
 }
@@ -23,7 +23,7 @@ pub struct StringPool {
 impl Debug for StringPool {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("StringPool")
-            .field("len", &self.storage.len())
+            .field("len", &self.strings.len())
             .finish()
     }
 }
@@ -38,7 +38,7 @@ impl StringPool {
     /// Create a new empty StringPool.
     pub fn new() -> Self {
         Self {
-            storage: Vec::new(),
+            strings: Vec::new(),
             index: HashMap::new(),
         }
     }
@@ -53,7 +53,7 @@ impl StringPool {
     /// Get the string associated with the given StringId.
     #[inline]
     pub fn get(&self, id: StringId) -> &str {
-        &self.storage[id.as_usize()]
+        &self.strings[id.as_usize()]
     }
 
     /// Intern a string, storing only one owned copy of bytes.
@@ -73,9 +73,9 @@ impl StringPool {
         }
 
         // not found: store once and index by hash
-        let next_index = self.storage.len();
+        let next_index = self.strings.len();
         let id = StringId::from_zero_based_index(next_index);
-        self.storage.push(input.to_owned().into_boxed_str());
+        self.strings.push(input.to_owned().into_boxed_str());
         self.index.entry(hash).or_default().push(id);
         id
     }
@@ -83,13 +83,13 @@ impl StringPool {
     /// Get the number of unique strings stored in this pool.
     #[inline]
     pub fn len(&self) -> usize {
-        self.storage.len()
+        self.strings.len()
     }
 
     /// Check if the pool contains no strings.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.storage.is_empty()
+        self.strings.is_empty()
     }
 }
 

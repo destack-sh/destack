@@ -207,7 +207,7 @@ impl<'a> Parser<'a> {
                     ));
                 }
                 let content = literal_str.trim_start_matches('"').trim_end_matches('"');
-                let string_id = self.strings.intern(content);
+                let string_id = self.intern_string(content);
                 let scalar_literal = self
                     .tree
                     .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
@@ -243,7 +243,7 @@ impl<'a> Parser<'a> {
                         ));
                     }
                     let content = &literal_str[prefix_len..literal_str.len() - suffix_len];
-                    let string_id = self.strings.intern(content);
+                    let string_id = self.intern_string(content);
                     let scalar_literal = self
                         .tree
                         .allocate(ScalarLiteral::String(string_id), self.get_span_from(start));
@@ -593,7 +593,7 @@ mod tests {
             parser.tree,
             literal_id,
             "Hello, world!",
-            using | id | parser.strings.get(id)
+            using | id | parser.get_string(id)
         );
 
         // b"abc"
@@ -609,7 +609,7 @@ mod tests {
             parser.tree,
             literal_id,
             "abc",
-            using | id | parser.strings.get(id)
+            using | id | parser.get_string(id)
         );
 
         // r##"a#b#c"##
@@ -618,7 +618,7 @@ mod tests {
             parser.tree,
             literal_id,
             "a#b#c",
-            using | id | parser.strings.get(id)
+            using | id | parser.get_string(id)
         );
 
         // br"abc"
@@ -689,7 +689,7 @@ mod tests {
                     parser.tree,
                     *scalar_literal_id,
                     "Hi",
-                    using | id | parser.strings.get(id)
+                    using | id | parser.get_string(id)
                 );
             });
         });
@@ -768,7 +768,7 @@ mod tests {
                     parser.tree,
                     *scalar_literal_id,
                     "Hi",
-                    using | id | parser.strings.get(id)
+                    using | id | parser.get_string(id)
                 );
             });
         });
@@ -826,7 +826,7 @@ destack.geometry.Mesh<2, int32> {
 
             // vertices: []
             assert_node!(parser.tree, fields[0], FieldLiteral::Named { name, value } => {
-                assert_eq!(parser.strings.get(*name), "vertices");
+                assert_eq!(parser.get_string(*name), "vertices");
                 assert_node!(parser.tree, *value, Expression::ArrayLiteral(array_literal_id) => {
                     assert_node!(parser.tree, *array_literal_id, ArrayLiteral::Fixed { elements } => {
                         assert_eq!(elements.len(), 2);
@@ -842,7 +842,7 @@ destack.geometry.Mesh<2, int32> {
 
             // indices: 2
             assert_node!(parser.tree, fields[1], FieldLiteral::Named { name, value } => {
-                assert_eq!(parser.strings.get(*name), "indices");
+                assert_eq!(parser.get_string(*name), "indices");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(scalar_literal_id) => {
                     assert_int!(parser.tree, *scalar_literal_id, 2);
                 });

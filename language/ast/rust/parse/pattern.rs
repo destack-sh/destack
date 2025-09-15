@@ -302,7 +302,7 @@ mod tests {
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
-            assert_eq!(*path, parser.paths.intern(vec![parser.strings.intern("MyEnum"), parser.strings.intern("A")]));
+            assert_eq!(*path, parser.intern_path(vec![parser.intern_string("MyEnum"), parser.intern_string("A")]));
         });
     }
 
@@ -318,7 +318,7 @@ mod tests {
 
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
-                assert_eq!(*name, parser.strings.intern("x"));
+                assert_eq!(*name, parser.intern_string("x"));
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
                     assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
                 });
@@ -382,7 +382,7 @@ mod tests {
 
             // x: 1
             assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
-                assert_eq!(*name, parser.strings.intern("x"));
+                assert_eq!(*name, parser.intern_string("x"));
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
                     assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
                 });

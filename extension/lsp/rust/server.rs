@@ -1,22 +1,22 @@
 //! LSP server implementation.
 
-use crate::analyzer::Analyzer;
-use crate::source::SourceStore;
+use std::collections::HashMap;
+
 use crate::protocol::jsonrpc::Result as JsonRpcResult;
 use crate::protocol::types::MessageType;
 use crate::protocol::{Client, LanguageServer, lsp};
-use crate::semantic::{SEMANTIC_TOKEN_TYPES, get_semantic_tokens};
+use crate::semantic::SEMANTIC_TOKEN_TYPES;
+use crate::workspace::Workspace;
 
 #[derive(Debug, Clone)]
-pub struct DestackLanguageServer<'a> {
+pub struct DestackLanguageServer {
     pub client: Client,
-    pub sources: SourceStore,
-    pub analyzer: Analyzer<'a>,
+    pub workspaces_by_uri: HashMap<String, Workspace>,
 }
 
-impl<'a> DestackLanguageServer<'a> {}
+impl DestackLanguageServer {}
 
-impl<'a> LanguageServer for DestackLanguageServer<'a> {
+impl LanguageServer for DestackLanguageServer {
     /// Initialize the language server with client capabilities and return server capabilities.
     fn initialize(&self, _: lsp::InitializeParams) -> JsonRpcResult<lsp::InitializeResult> {
         self.client
@@ -69,33 +69,6 @@ impl<'a> LanguageServer for DestackLanguageServer<'a> {
         Ok(())
     }
 
-    /// Handle document open notification and store the document content.
-    fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
-        let uri = params.text_document.uri;
-        let text = params.text_document.text;
-        self.sources.set(&uri, text);
-        self.client
-            .log_message(MessageType::INFO, format!("destack: did_open: {:?}", uri));
-    }
-
-    /// Handle document change notification and update the stored document content.
-    fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
-        let uri = params.text_document.uri;
-        // SyncKind::FULL, take the full content from the single change
-        if let Some(change) = params.content_changes.into_iter().last() {
-            self.sources.set(&uri, change.text);
-        }
-        self.client
-            .log_message(MessageType::INFO, format!("destack: did_change: {:?}", uri));
-    }
-
-    fn did_close(&self, _params: lsp::DidCloseTextDocumentParams) {
-        let uri = _params.text_document.uri;
-        self.sources.remove(&uri);
-        self.client
-            .log_message(MessageType::INFO, format!("destack: did_close: {:?}", uri));
-    }
-
     /// Compute semantic tokens for the entire document.
     fn semantic_tokens_full(
         &self,
@@ -106,24 +79,7 @@ impl<'a> LanguageServer for DestackLanguageServer<'a> {
             MessageType::INFO,
             format!("destack: semantic_tokens_full: {:?}", uri),
         );
-        let Some(text) = self.sources.get(&uri) else {
-            return Ok(None);
-        };
-        let tokens = get_semantic_tokens(&text);
-        self.client.log_message(
-            MessageType::INFO,
-            format!(
-                "destack: semantic_tokens_full: {:?} -> {:?}",
-                uri,
-                tokens.len()
-            ),
-        );
-        Ok(Some(lsp::SemanticTokensResult::Tokens(
-            lsp::SemanticTokens {
-                result_id: None,
-                data: tokens,
-            },
-        )))
+        Ok(None)
     }
 
     /// Compute semantic tokens for a specific range in the document.
@@ -136,23 +92,6 @@ impl<'a> LanguageServer for DestackLanguageServer<'a> {
             MessageType::INFO,
             format!("destack: semantic_tokens_range: {:?}", uri),
         );
-        let Some(text) = self.sources.get(&uri) else {
-            return Ok(None);
-        };
-        let tokens = get_semantic_tokens(&text);
-        self.client.log_message(
-            MessageType::INFO,
-            format!(
-                "destack: semantic_tokens_range: {:?} -> {:?}",
-                uri,
-                tokens.len()
-            ),
-        );
-        Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
-            lsp::SemanticTokens {
-                result_id: None,
-                data: tokens,
-            },
-        )))
+        Ok(None)
     }
 }

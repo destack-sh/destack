@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
                 .map(|token| self.clean_annotation(*token))
                 .collect::<Vec<_>>()
                 .join(separator);
-            let string_id = self.strings.intern(merged_content);
+            let string_id = self.intern_string(&merged_content);
             let merged_span = Span::new(
                 target_token.span.source,
                 tokens[start as usize].span.start,
@@ -280,7 +280,7 @@ struct Floof {
 
             // doc, struct + doc, struct continued
             assert_node!(parser.tree, docs[0], Doc { string, style, position } => {
-                let string = parser.strings.get(*string);
+                let string = parser.get_string(*string);
                 assert_eq!(string, "doc, struct\ndoc, struct continued");
                 assert_eq!(*style, AnnotationStyle::Line);
                 assert_eq!(*position, AnnotationPosition::Prefix);
@@ -292,14 +292,14 @@ struct Floof {
 
                 // a: int32
                 assert_node!(parser.tree, fields[0], StructField { name, .. } => {
-                    assert_eq!(*name, Some(parser.strings.intern("a")));
+                    assert_eq!(*name, Some(parser.intern_string("a")));
 
                     // doc, struct field + doc, struct field continued
                     let docs = parser.tree.get_docs_for(fields[0]);
                     assert_eq!(docs.len(), 1);
                     // doc, struct field + doc, struct field continued
                     assert_node!(parser.tree, docs[0], Doc { string, style, position } => {
-                        let string = parser.strings.get(*string);
+                        let string = parser.get_string(*string);
                         assert_eq!(string, "doc, struct field\ndoc, struct field continued");
                         assert_eq!(*style, AnnotationStyle::Line);
                         assert_eq!(*position, AnnotationPosition::Prefix);
@@ -337,7 +337,7 @@ func() /* comment 3, detached */
 
             // comment 1 + comment 1.1
             assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
-                let string = parser.strings.get(*string);
+                let string = parser.get_string(*string);
                 assert_eq!(string, "comment 1\ncomment 1.1");
                 assert_eq!(*style, AnnotationStyle::Line);
                 assert_eq!(*position, AnnotationPosition::Prefix);
@@ -351,7 +351,7 @@ func() /* comment 3, detached */
 
             // comment 2 (comment 3 should not be attached)
             assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
-                let string = parser.strings.get(*string);
+                let string = parser.get_string(*string);
                 assert_eq!(string, "comment 2");
                 assert_eq!(*style, AnnotationStyle::Line);
                 assert_eq!(*position, AnnotationPosition::Prefix);

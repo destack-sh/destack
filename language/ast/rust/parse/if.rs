@@ -161,9 +161,9 @@ if x > y {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let x = parser.strings.intern("x");
-        let y = parser.strings.intern("y");
-        let z = parser.strings.intern("z");
+        let x = parser.intern_string("x");
+        let y = parser.intern_string("y");
+        let z = parser.intern_string("z");
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
@@ -172,13 +172,13 @@ if x > y {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
                 // x
                 assert_path!(parser.tree, *left, x, using |path_id| {
-                    let p = parser.paths.get(path_id);
+                    let p = parser.get_path(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
                 });
                 // y
                 assert_path!(parser.tree, *right, y, using |path_id| {
-                    let p = parser.paths.get(path_id);
+                    let p = parser.get_path(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
                 });
@@ -195,13 +195,13 @@ if x > y {
                     assert_eq!(*operator, BinaryOperator::Equal);
                     // y
                     assert_path!(parser.tree, *left, y, using |path_id| {
-                        let p = parser.paths.get(path_id);
+                        let p = parser.get_path(path_id);
                         assert_eq!(p.segments.len(), 1);
                         p.segments[0]
                     });
                     // z
                     assert_path!(parser.tree, *right, z, using |path_id| {
-                        let p = parser.paths.get(path_id);
+                        let p = parser.get_path(path_id);
                         assert_eq!(p.segments.len(), 1);
                         p.segments[0]
                     });
@@ -263,9 +263,9 @@ else { v }
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let v = parser.strings.intern("v");
-        let lo = parser.strings.intern("lo");
-        let hi = parser.strings.intern("hi");
+        let v = parser.intern_string("v");
+        let lo = parser.intern_string("lo");
+        let hi = parser.intern_string("hi");
 
         let if_id = parser.eat_if().unwrap();
         assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
@@ -274,13 +274,13 @@ else { v }
                 assert_eq!(*operator, BinaryOperator::LessThan);
                 // v
                 assert_path!(parser.tree, *left, v, using |path_id| {
-                    let p = parser.paths.get(path_id);
+                    let p = parser.get_path(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
                 });
                 // lo
                 assert_path!(parser.tree, *right, lo, using |path_id| {
-                    let p = parser.paths.get(path_id);
+                    let p = parser.get_path(path_id);
                     assert_eq!(p.segments.len(), 1);
                     p.segments[0]
                 });
@@ -297,13 +297,13 @@ else { v }
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
                     // v
                     assert_path!(parser.tree, *left, v, using |path_id| {
-                        let p = parser.paths.get(path_id);
+                        let p = parser.get_path(path_id);
                         assert_eq!(p.segments.len(), 1);
                         p.segments[0]
                     });
                     // hi
                     assert_path!(parser.tree, *right, hi, using |path_id| {
-                        let p = parser.paths.get(path_id);
+                        let p = parser.get_path(path_id);
                         assert_eq!(p.segments.len(), 1);
                         p.segments[0]
                     });

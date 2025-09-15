@@ -1,5 +1,5 @@
 use crate::Suggestion;
-use dyst_language_source::LabeledSpan;
+use dyst_language_source::{LabeledSpan, SourceId};
 
 /// The kind of a diagnostic.
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
@@ -33,8 +33,10 @@ pub struct Diagnostic {
     pub severity: Severity,
     /// The message of the diagnostic.
     pub message: String,
+    /// The primary source of the diagnostic.
+    pub source: SourceId,
     /// The primary span of the diagnostic.
-    pub primary_span: Option<LabeledSpan>,
+    pub primary_span: LabeledSpan,
     /// The secondary spans of the diagnostic.
     pub secondary_spans: Option<Vec<LabeledSpan>>,
     /// The suggestions for the diagnostic.

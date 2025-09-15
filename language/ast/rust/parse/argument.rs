@@ -148,7 +148,7 @@ mod tests {
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
-        assert_eq!(parameter.name, parser.strings.intern("T"));
+        assert_eq!(parameter.name, parser.intern_string("T"));
         assert!(parameter.r#type.is_none());
         assert!(parameter.default.is_none());
     }
@@ -162,7 +162,7 @@ mod tests {
         let parameter = parser.tree.get(parameter_id);
 
         // x
-        assert_eq!(parameter.name, parser.strings.intern("x"));
+        assert_eq!(parameter.name, parser.intern_string("x"));
 
         // int32
         assert_node!(parser.tree, parameter.r#type.unwrap(),
@@ -183,7 +183,7 @@ mod tests {
         let parameter = parser.tree.get(parameter_id);
 
         // validate
-        assert_eq!(parameter.name, parser.strings.intern("validate"));
+        assert_eq!(parameter.name, parser.intern_string("validate"));
 
         // boolean
         assert_node!(
@@ -208,7 +208,7 @@ mod tests {
 
         assert_node!(parser.tree, argument_id, Argument::Named { name, value } => {
             // x
-            assert_eq!(*name, parser.strings.intern("x"));
+            assert_eq!(*name, parser.intern_string("x"));
             // 1
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(literal_id) => {
                 assert_int!(parser.tree, *literal_id, 1);

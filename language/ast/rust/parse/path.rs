@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser, PathId};
-use dyst_language_arena::StringId;
+use dyst_language_source::StringId;
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -77,7 +77,7 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            parser.paths.intern(vec![parser.strings.intern("destack")])
+            parser.intern_path(vec![parser.intern_string("destack")])
         );
     }
 
@@ -88,10 +88,10 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            parser.paths.intern(vec![
-                parser.strings.intern("destack"),
-                parser.strings.intern("geometry"),
-                parser.strings.intern("math")
+            parser.intern_path(vec![
+                parser.intern_string("destack"),
+                parser.intern_string("geometry"),
+                parser.intern_string("math")
             ])
         );
     }
@@ -103,9 +103,9 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            parser.paths.intern(vec![
-                parser.strings.intern("ds"),
-                parser.strings.intern("geometry")
+            parser.intern_path(vec![
+                parser.intern_string("ds"),
+                parser.intern_string("geometry")
             ])
         );
         // ensure next token is the `.` for the group
@@ -120,9 +120,9 @@ mod tests {
         let path = parser.eat_path().unwrap();
         assert_eq!(
             path,
-            parser.paths.intern(vec![
-                parser.strings.intern("geom"),
-                parser.strings.intern("Vector")
+            parser.intern_path(vec![
+                parser.intern_string("geom"),
+                parser.intern_string("Vector")
             ])
         );
         // ensure next token is the `<` for the generic arguments
