@@ -225,7 +225,7 @@ match x {
         );
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
-        
+
         let match_id = parser.eat_match().unwrap();
         let x = parser.intern_string("x");
 

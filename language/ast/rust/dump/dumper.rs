@@ -758,6 +758,14 @@ impl Dump for Expression {
                     dumper.dump_node(right, None);
                 });
             }
+            Expression::Reference { mutability, right } => {
+                let mut node_dumper = dumper.node("Expression::Reference");
+                node_dumper.field("mutability", mutability);
+                node_dumper.end();
+                dumper.with_depth(|dumper| {
+                    dumper.dump_node(right, None);
+                });
+            }
             Expression::Member { receiver, path } => {
                 let mut node_dumper = dumper.node("Expression::Member");
                 node_dumper.field("path", path);

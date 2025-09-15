@@ -1,7 +1,7 @@
 use dyst_language_ast::{BlockFormat, DumperOptions, Parser};
 use dyst_language_diagnostic::Severity;
-use dyst_language_source::{AnnotateOptions, Color, annotate_source};
 use dyst_language_session::Session;
+use dyst_language_source::{AnnotateOptions, Color, annotate_source};
 use dyst_language_token::TokenType;
 
 use crate::cli::parse::read_source;

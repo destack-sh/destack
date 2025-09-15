@@ -147,10 +147,9 @@ mod tests {
         let mut parser = test.parser();
         let self_str = parser.intern_string("self");
         let self_path = parser.intern_path(vec![self_str]);
-        let recv = parser.tree.allocate(
-            Expression::Path(self_path),
-            parser.peek().unwrap().span,
-        );
+        let recv = parser
+            .tree
+            .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
 
         let index_id = parser.eat_index_postfix(recv).unwrap();
         assert_node!(parser.tree, index_id, Index { receiver, index } => {
@@ -168,10 +167,9 @@ mod tests {
         let mut parser = test.parser();
         let self_str = parser.intern_string("self");
         let self_path = parser.intern_path(vec![self_str]);
-        let recv = parser.tree.allocate(
-            Expression::Path(self_path),
-            parser.peek().unwrap().span,
-        );
+        let recv = parser
+            .tree
+            .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
 
         let call_id = parser.eat_call_postfix(recv, Runtime::Dynamic).unwrap();
         assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {

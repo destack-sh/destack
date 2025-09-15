@@ -80,6 +80,12 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Unary { operator: _, right } => {
             visitor.visit_expression(tree, *right, tree.get(*right));
         }
+        Expression::Reference {
+            mutability: _,
+            right,
+        } => {
+            visitor.visit_expression(tree, *right, tree.get(*right));
+        }
         Expression::Binary {
             left,
             operator: _,

@@ -335,12 +335,17 @@ pub enum Expression {
         operator: UnaryOperator,
         right: NodeId<Expression>,
     },
+    /// Reference operation (prefix as an Expression).
+    Reference {
+        mutability: Mutability,
+        right: NodeId<Expression>,
+    },
     /// Member access (postfix as an Expression, see Member).
     Member {
         receiver: NodeId<Expression>,
-        // todo!: member tuple paths? (like self.0, self.1, ...)
         path: PathId,
     },
+    // todo!: member/index tuple paths? (like self.0, self.1, ...)
     /// Index access (postfix as an Expression, see Index).
     Index(NodeId<Index>),
     /// A Call is call to a function (postfix as an Expression, see Call).
@@ -1678,7 +1683,7 @@ pub enum PrimitiveType {
 ///
 /// Precedence:
 /// ```
-/// !x -x -%x ~x &x *x            // prefix
+/// !x -x -%x ~x *x &x            // prefix
 /// x() x[] x{} x as y x? x ?? y  // postfix
 /// * / % ** *% *|                // multiplication
 /// + - +% -% +| -|               // addition
@@ -1744,7 +1749,7 @@ pub enum OperatorPrecedence {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `!`
-    LogicalNot = 245,
+    Not = 245,
     /// `-`
     Negate = 244,
     /// `-%`
@@ -1753,9 +1758,6 @@ pub enum UnaryOperator {
     BitwiseNot = 242,
     /// `*`
     Dereference = 241,
-    /// todo!: ReferenceMut? (*var) how does zig / rustc model this?
-    /// `&`
-    Reference = 240,
 }
 
 /// A BinaryOperator is an infix binary operator.
@@ -1820,9 +1822,9 @@ pub enum BinaryOperator {
 
     // logical
     /// `&&`
-    LogicalAnd = 171,
+    And = 171,
     /// `||`
-    LogicalOr = 170,
+    Or = 170,
 }
 
 /// An AssignOperator is assignment type.
@@ -1885,9 +1887,9 @@ pub enum AssignOperator {
 
     // assignment logical
     /// `&&=`
-    LogicalAndAssign = 111,
+    AndAssign = 111,
     /// `||=`
-    LogicalOrAssign = 110,
+    OrAssign = 110,
 }
 
 /// An InfixOperator is an umbrella for either a binary or assignment operator.
