@@ -6,7 +6,7 @@ use dyst_language_source::{Source, SourceId};
 use ls_types::Uri;
 use ls_types::lsp::Diagnostic;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Workspace {
     pub root: Uri,
     pub session: Session,

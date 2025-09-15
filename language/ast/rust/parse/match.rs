@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_match_simple_literal_arms() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 match x {
     1 => 10
@@ -274,7 +274,7 @@ match x {
 
     #[test]
     fn test_match_with_guard() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 match x {
     2 if true => 20
@@ -311,7 +311,7 @@ match x {
 
     #[test]
     fn test_match_with_paths() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r"
 match self {
     TetrisPieceShape.I => Color.Blue
@@ -400,7 +400,7 @@ match self {
 
     #[test]
     fn test_try_expression() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 try foo()
 "###,
@@ -424,7 +424,7 @@ try foo()
 
     #[test]
     fn test_try_block_without_catch() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 try {
     foo()
@@ -442,7 +442,7 @@ try {
 
     #[test]
     fn test_try_block_with_catch() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 try {
     foo()

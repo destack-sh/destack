@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_parse_if_basic() {
-        let test = TestParser::new("if true {}");
+        let mut test = TestParser::new("if true {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn test_parse_if_else() {
-        let test = TestParser::new("if false {} else {}");
+        let mut test = TestParser::new("if false {} else {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -119,7 +119,7 @@ mod tests {
 
     #[test]
     fn test_parse_if_else_if() {
-        let test = TestParser::new("if true {} else if false {}");
+        let mut test = TestParser::new("if true {} else if false {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -150,7 +150,7 @@ mod tests {
     fn test_parse_if_else_if_ambiguous() {
         // ambiguous because y and z could be interpreted as struct literals
         //  (this is disambiguated in a condition / guard clause, see ExpressionParserOptions)
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r"
 if x > y {
     y
@@ -217,7 +217,7 @@ if x > y {
 
     #[test]
     fn test_parse_if_else_if_else() {
-        let test = TestParser::new("if true {} else if false {} else {}");
+        let mut test = TestParser::new("if true {} else if false {} else {}");
         let mut parser = test.parser();
 
         let if_id = parser.eat_if().unwrap();
@@ -253,7 +253,7 @@ if x > y {
 
     #[test]
     fn test_parse_if_else_if_else_multiline() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r"
 if v < lo { lo } 
 else if v > hi { hi }
@@ -324,7 +324,7 @@ else { v }
 
     #[test]
     fn test_parse_if_with_expression_condition() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 if x > 0 {
     print("positive")

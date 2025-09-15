@@ -143,10 +143,12 @@ mod tests {
     #[test]
     fn test_parse_index_postfix() {
         // [1]
-        let test = TestParser::new("[1]");
+        let mut test = TestParser::new("[1]");
         let mut parser = test.parser();
+        let self_str = parser.intern_string("self");
+        let self_path = parser.intern_path(vec![self_str]);
         let recv = parser.tree.allocate(
-            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
+            Expression::Path(self_path),
             parser.peek().unwrap().span,
         );
 
@@ -162,10 +164,12 @@ mod tests {
     #[test]
     fn test_parse_call_postfix() {
         // [Validate: false](1, x: 2)
-        let test = TestParser::new("[Validate: false](1, x: 2)");
+        let mut test = TestParser::new("[Validate: false](1, x: 2)");
         let mut parser = test.parser();
+        let self_str = parser.intern_string("self");
+        let self_path = parser.intern_path(vec![self_str]);
         let recv = parser.tree.allocate(
-            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
+            Expression::Path(self_path),
             parser.peek().unwrap().span,
         );
 
@@ -178,7 +182,7 @@ mod tests {
             let static_args = static_arguments.as_ref().expect("expected static args");
             assert_eq!(static_args.len(), 1);
             assert_node!(parser.tree, static_args[0], Argument::Named { name, value } => {
-                assert_eq!(*name, parser.intern_string("Validate"));
+                assert_eq!(parser.get_string(*name), "Validate");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
                     assert_node!(parser.tree, *lit_id, ScalarLiteral::Boolean(false));
                 });
@@ -196,7 +200,7 @@ mod tests {
 
             // x: 2
             assert_node!(parser.tree, dynamic_arguments[1], Argument::Named { name, value } => {
-                assert_eq!(*name, parser.intern_string("x"));
+                assert_eq!(parser.get_string(*name), "x");
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(lit_id) => {
                     assert_node!(parser.tree, *lit_id, ScalarLiteral::Integer(2, _));
                 });
@@ -207,12 +211,13 @@ mod tests {
     #[test]
     fn test_parse_call_postfix_empty() {
         // ()
-        let test = TestParser::new("()");
+        let mut test = TestParser::new("()");
         let mut parser = test.parser();
-        let recv = parser.tree.allocate(
-            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
-            parser.peek().unwrap().span,
-        );
+        let self_str = parser.intern_string("self");
+        let self_path = parser.intern_path(vec![self_str]);
+        let recv = parser
+            .tree
+            .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
 
         let call_id = parser.eat_call_postfix(recv, Runtime::Dynamic).unwrap();
         assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
@@ -226,12 +231,13 @@ mod tests {
     #[test]
     fn test_parse_as_postfix() {
         // as int32
-        let test = TestParser::new("as int32");
+        let mut test = TestParser::new("as int32");
         let mut parser = test.parser();
-        let recv = parser.tree.allocate(
-            Expression::Path(parser.intern_path(vec![parser.intern_string("self")])),
-            parser.peek().unwrap().span,
-        );
+        let self_str = parser.intern_string("self");
+        let self_path = parser.intern_path(vec![self_str]);
+        let recv = parser
+            .tree
+            .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
 
         let cast_id = parser.eat_as_postfix(recv).unwrap();
         assert_node!(parser.tree, cast_id, Cast { receiver, r#type } => {

@@ -144,11 +144,11 @@ mod tests {
     #[test]
     fn test_parse_parameter_type_only() {
         // T
-        let test = TestParser::new("T");
+        let mut test = TestParser::new("T");
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
-        assert_eq!(parameter.name, parser.intern_string("T"));
+        assert_eq!(parser.get_string(parameter.name), "T");
         assert!(parameter.r#type.is_none());
         assert!(parameter.default.is_none());
     }
@@ -156,13 +156,13 @@ mod tests {
     #[test]
     fn test_parse_parameter_with_type() {
         // x: int32
-        let test = TestParser::new("x: int32");
+        let mut test = TestParser::new("x: int32");
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
 
         // x
-        assert_eq!(parameter.name, parser.intern_string("x"));
+        assert_eq!(parser.get_string(parameter.name), "x");
 
         // int32
         assert_node!(parser.tree, parameter.r#type.unwrap(),
@@ -177,13 +177,13 @@ mod tests {
     #[test]
     fn test_parse_parameter_with_default() {
         // validate: boolean = false
-        let test = TestParser::new("validate: boolean = false");
+        let mut test = TestParser::new("validate: boolean = false");
         let mut parser = test.parser();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
 
         // validate
-        assert_eq!(parameter.name, parser.intern_string("validate"));
+        assert_eq!(parser.get_string(parameter.name), "validate");
 
         // boolean
         assert_node!(
@@ -202,13 +202,13 @@ mod tests {
     #[test]
     fn test_parse_argument_named() {
         // x: 1
-        let test = TestParser::new("x: 1");
+        let mut test = TestParser::new("x: 1");
         let mut parser = test.parser();
         let argument_id = parser.eat_argument().unwrap();
 
         assert_node!(parser.tree, argument_id, Argument::Named { name, value } => {
             // x
-            assert_eq!(*name, parser.intern_string("x"));
+            assert_eq!(parser.get_string(*name), "x");
             // 1
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(literal_id) => {
                 assert_int!(parser.tree, *literal_id, 1);
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn test_parse_argument_positional() {
         // 3
-        let test = TestParser::new("3");
+        let mut test = TestParser::new("3");
         let mut parser = test.parser();
         let argument_id = parser.eat_argument().unwrap();
 

@@ -35,9 +35,9 @@ pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 23] = [
 /// Get semantic tokens for the given text.
 pub fn get_semantic_tokens(text: &str) -> Vec<lsp::SemanticToken> {
     // parse
-    let session = Session::new();
+    let mut session = Session::new();
     let source = Source::from_string(SourceId::new(0), "<semantic>".to_string(), text.to_string());
-    let mut parser = Parser::from_source(&source, &session);
+    let mut parser = Parser::from_source(&source, &mut session);
     let statements = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),

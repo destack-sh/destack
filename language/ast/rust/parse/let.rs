@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_parse_let_scalar() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 let x: int32 = 1
 "###,
@@ -117,7 +117,7 @@ let x: int32 = 1
 
     #[test]
     fn test_parse_var_array_uninitialized() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 var x: [3]float64 = --
 "###,
@@ -154,7 +154,7 @@ var x: [3]float64 = --
 
     #[test]
     fn test_parse_let_tuple_pattern() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 let (x, y) = foo()
 "###,
@@ -192,7 +192,7 @@ let (x, y) = foo()
 
     #[test]
     fn test_parse_let_implicit_uninitialized() {
-        let test = TestParser::new("let x: int32");
+        let mut test = TestParser::new("let x: int32");
         let mut parser = test.parser();
 
         let let_id = parser.eat_let_or_var(None).unwrap();

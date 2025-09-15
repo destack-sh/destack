@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::fmt::Debug;
 
 use dyst_language_source::{Path, PathId, Source, SourceId, Span, StringId};
 use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_with_spans};
@@ -22,7 +22,6 @@ pub(crate) struct ParserOptions {
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
-#[derive(Clone)]
 pub struct Parser<'a> {
     /// The source we're parsing.
     pub source: &'a Source,
@@ -43,7 +42,7 @@ pub struct Parser<'a> {
     /// The Node tree.
     pub tree: NodeTree,
     /// The session.
-    pub session: &'a Session,
+    pub session: &'a mut Session,
 }
 
 impl Debug for Parser<'_> {
@@ -54,7 +53,7 @@ impl Debug for Parser<'_> {
 
 impl<'a> Parser<'a> {
     /// Create a new parser from source.
-    pub fn from_source(source: &'a Source, session: &'a Session) -> Self {
+    pub fn from_source(source: &'a Source, session: &'a mut Session) -> Self {
         let (tokens, trivia_tokens) = tokenize_with_spans(source.id, &source.content);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {
             span: Span {

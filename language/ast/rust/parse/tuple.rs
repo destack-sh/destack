@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_positional_single() {
-        let test = TestParser::new("(int32)");
+        let mut test = TestParser::new("(int32)");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_positional_two_elements_comma() {
-        let test = TestParser::new("(int32, boolean)");
+        let mut test = TestParser::new("(int32, boolean)");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_positional_newline_separated() {
-        let test = TestParser::new(
+        let mut test = TestParser::new(
             r###"
 (
   int32
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_named_elements() {
-        let test = TestParser::new("(x: int32, y: boolean)");
+        let mut test = TestParser::new("(x: int32, y: boolean)");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 
@@ -156,7 +156,7 @@ mod tests {
 
             // x: int32
             assert_node!(parser.tree, elements[0], TupleField::Named { name, r#type } => {
-                assert_eq!(*name, parser.intern_string("x"));
+                assert_eq!(parser.get_string(*name), "x");
                 assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Int(int_ty)) => {
                     assert_eq!(int_ty.width, 32);
                     assert!(int_ty.is_signed);
@@ -165,7 +165,7 @@ mod tests {
 
             // y: boolean
             assert_node!(parser.tree, elements[1], TupleField::Named { name, r#type } => {
-                assert_eq!(*name, parser.intern_string("y"));
+                assert_eq!(parser.get_string(*name), "y");
                 assert_node!(parser.tree, *r#type, Type::Primitive(PrimitiveType::Boolean));
             });
         });
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_parse_tuple_empty() {
-        let test = TestParser::new("()");
+        let mut test = TestParser::new("()");
         let mut parser = test.parser();
         let tuple_id = parser.eat_tuple().unwrap();
 

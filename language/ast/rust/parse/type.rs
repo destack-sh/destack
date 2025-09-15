@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_void() {
-        let test = TestParser::new("void");
+        let mut test = TestParser::new("void");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -453,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_null() {
-        let test = TestParser::new("null");
+        let mut test = TestParser::new("null");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_boolean() {
-        let test = TestParser::new("boolean");
+        let mut test = TestParser::new("boolean");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_character() {
-        let test = TestParser::new("character");
+        let mut test = TestParser::new("character");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -484,7 +484,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_int32() {
-        let test = TestParser::new("int32");
+        let mut test = TestParser::new("int32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -500,7 +500,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_uint7() {
-        let test = TestParser::new("uint7");
+        let mut test = TestParser::new("uint7");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_uint0() {
-        let test = TestParser::new("uint0");
+        let mut test = TestParser::new("uint0");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -532,7 +532,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_uint999() {
-        let test = TestParser::new("uint999");
+        let mut test = TestParser::new("uint999");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -548,7 +548,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_int128() {
-        let test = TestParser::new("int128");
+        let mut test = TestParser::new("int128");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -564,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_float32() {
-        let test = TestParser::new("float32");
+        let mut test = TestParser::new("float32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -577,7 +577,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_float64() {
-        let test = TestParser::new("float64");
+        let mut test = TestParser::new("float64");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -590,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_infer() {
-        let test = TestParser::new("_");
+        let mut test = TestParser::new("_");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -599,14 +599,14 @@ mod tests {
 
     #[test]
     fn test_parse_type_path_simple() {
-        let test = TestParser::new("geom.Vector2");
+        let mut test = TestParser::new("geom.Vector2");
         let mut parser = test.parser();
-        let ty_id = parser.eat_type().unwrap();
 
-        let expected_path = parser.intern_path(vec![
-            parser.intern_string("geom"),
-            parser.intern_string("Vector2"),
-        ]);
+        let geom_str = parser.intern_string("geom");
+        let vector2_str = parser.intern_string("Vector2");
+        let expected_path = parser.intern_path(vec![geom_str, vector2_str]);
+
+        let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
             parser.tree,
@@ -622,11 +622,14 @@ mod tests {
 
     #[test]
     fn test_parse_type_path_with_static_arguments() {
-        let test = TestParser::new("MyMesh<false, Dims: 3>");
+        let mut test = TestParser::new("MyMesh<false, Dims: 3>");
         let mut parser = test.parser();
-        let ty_id = parser.eat_type().unwrap();
 
-        let expected_path = parser.intern_path(vec![parser.intern_string("MyMesh")]);
+        let mymesh_str = parser.intern_string("MyMesh");
+        let expected_path = parser.intern_path(vec![mymesh_str]);
+        let dims_str = parser.intern_string("Dims");
+
+        let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
             parser.tree,
@@ -660,7 +663,7 @@ mod tests {
                 assert_node!(
                     arg1,
                     Argument::Named { name, value } => {
-                        assert_eq!(*name, parser.intern_string("Dims"));
+                        assert_eq!(*name, dims_str);
                         assert_node!(
                             parser.tree,
                             *value,
@@ -683,7 +686,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_maybe() {
-        let test = TestParser::new("?float32");
+        let mut test = TestParser::new("?float32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -702,7 +705,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_never() {
-        let test = TestParser::new("!");
+        let mut test = TestParser::new("!");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -711,11 +714,13 @@ mod tests {
 
     #[test]
     fn test_parse_type_not() {
-        let test = TestParser::new("!Time");
+        let mut test = TestParser::new("!Time");
         let mut parser = test.parser();
-        let ty_id = parser.eat_type().unwrap();
 
-        let expected_time_path = parser.intern_path(vec![parser.intern_string("Time")]);
+        let time_str = parser.intern_string("Time");
+        let expected_time_path = parser.intern_path(vec![time_str]);
+
+        let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
             parser.tree,
@@ -737,8 +742,12 @@ mod tests {
 
     #[test]
     fn test_parse_type_pointer_immutable() {
-        let test = TestParser::new("*Vector2");
+        let mut test = TestParser::new("*Vector2");
         let mut parser = test.parser();
+
+        let vector2_str = parser.intern_string("Vector2");
+        let expected_path = parser.intern_path(vec![vector2_str]);
+
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
@@ -756,7 +765,6 @@ mod tests {
                         path,
                         static_arguments: None
                     } => {
-                        let expected_path = parser.intern_path(vec![parser.intern_string("Vector2")]);
                         assert_eq!(*path, expected_path);
                     }
                 );
@@ -766,8 +774,12 @@ mod tests {
 
     #[test]
     fn test_parse_type_pointer_mutable() {
-        let test = TestParser::new("*var T");
+        let mut test = TestParser::new("*var T");
         let mut parser = test.parser();
+
+        let t_str = parser.intern_string("T");
+        let expected_path = parser.intern_path(vec![t_str]);
+
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(
@@ -785,7 +797,6 @@ mod tests {
                         path,
                         static_arguments: None
                     } => {
-                        let expected_path = parser.intern_path(vec![parser.intern_string("T")]);
                         assert_eq!(*path, expected_path);
                     }
                 );
@@ -795,8 +806,12 @@ mod tests {
 
     #[test]
     fn test_parse_type_virtual() {
-        let test = TestParser::new("$T");
+        let mut test = TestParser::new("$T");
         let mut parser = test.parser();
+
+        let t_str = parser.intern_string("T");
+        let expected_path = parser.intern_path(vec![t_str]);
+
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Virtual(inner_id) => {
@@ -804,7 +819,6 @@ mod tests {
                 path,
                 static_arguments: None
             } => {
-                let expected_path = parser.intern_path(vec![parser.intern_string("T")]);
                 assert_eq!(*path, expected_path);
             });
         });
@@ -812,8 +826,12 @@ mod tests {
 
     #[test]
     fn test_parse_type_variadic() {
-        let test = TestParser::new("..T");
+        let mut test = TestParser::new("..T");
         let mut parser = test.parser();
+
+        let t_str = parser.intern_string("T");
+        let expected_path = parser.intern_path(vec![t_str]);
+
         let ty_id = parser.eat_type().unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Variadic(inner_id) => {
@@ -821,7 +839,6 @@ mod tests {
                 path,
                 static_arguments: None
             } => {
-                let expected_path = parser.intern_path(vec![parser.intern_string("T")]);
                 assert_eq!(*path, expected_path);
             });
         });

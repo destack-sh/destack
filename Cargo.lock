@@ -323,6 +323,7 @@ name = "destack_extension_lsp"
 version = "2025.9.13-0"
 dependencies = [
  "dyst_language_ast",
+ "dyst_language_session",
  "dyst_language_source",
  "dyst_language_token",
  "ls-types",
@@ -362,6 +363,7 @@ dependencies = [
  "destack_library_tokei",
  "dyst_language_ast",
  "dyst_language_diagnostic",
+ "dyst_language_session",
  "dyst_language_source",
  "dyst_language_token",
  "tokio",

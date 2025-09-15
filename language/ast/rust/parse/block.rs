@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_parse_empty_block() {
-        let test = TestParser::new("{}");
+        let mut test = TestParser::new("{}");
         let mut parser = test.parser();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
@@ -230,17 +230,17 @@ mod tests {
 
     #[test]
     fn test_parse_labeled_empty_block() {
-        let test = TestParser::new("label: {}");
+        let mut test = TestParser::new("label: {}");
         let mut parser = test.parser();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
-        assert_eq!(block.label, Some(parser.intern_string("label")));
+        assert_eq!(parser.get_string(block.label.unwrap()), "label");
         assert!(block.statements.is_empty());
     }
 
     #[test]
     fn test_break_no_label_no_value() {
-        let test = TestParser::new("break");
+        let mut test = TestParser::new("break");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
@@ -251,22 +251,22 @@ mod tests {
 
     #[test]
     fn test_break_with_label() {
-        let test = TestParser::new("break :label");
+        let mut test = TestParser::new("break :label");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
-            assert_eq!(*label, Some(parser.intern_string("label")));
+            assert_eq!(parser.get_string(label.unwrap()), "label");
             assert!(value.is_none());
         });
     }
 
     #[test]
     fn test_break_with_label_and_value() {
-        let test = TestParser::new("break :label 17");
+        let mut test = TestParser::new("break :label 17");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
-            assert_eq!(*label, Some(parser.intern_string("label")));
+            assert_eq!(parser.get_string(label.unwrap()), "label");
             assert!(value.is_some());
             assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(literal_id) => {
                 assert_int!(parser.tree, *literal_id, 17);
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_break_with_value() {
-        let test = TestParser::new("break 15");
+        let mut test = TestParser::new("break 15");
         let mut parser = test.parser();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
@@ -290,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_continue_no_label() {
-        let test = TestParser::new("continue");
+        let mut test = TestParser::new("continue");
         let mut parser = test.parser();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Continue { label } => {
@@ -300,17 +300,17 @@ mod tests {
 
     #[test]
     fn test_continue_with_label() {
-        let test = TestParser::new("continue :label");
+        let mut test = TestParser::new("continue :label");
         let mut parser = test.parser();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Continue { label } => {
-            assert_eq!(*label, Some(parser.intern_string("label")));
+            assert_eq!(parser.get_string(label.unwrap()), "label");
         });
     }
 
     #[test]
     fn test_return_no_value() {
-        let test = TestParser::new("return");
+        let mut test = TestParser::new("return");
         let mut parser = test.parser();
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Return { value } => {
@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_return_with_value() {
-        let test = TestParser::new("return 42");
+        let mut test = TestParser::new("return 42");
         let mut parser = test.parser();
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Return { value } => {
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     fn test_defer_expression() {
-        let test = TestParser::new("defer someFunction()");
+        let mut test = TestParser::new("defer someFunction()");
         let mut parser = test.parser();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Defer::Expression(expr_id) => {
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn test_defer_block() {
-        let test = TestParser::new("defer {}");
+        let mut test = TestParser::new("defer {}");
         let mut parser = test.parser();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Defer::Block(block_id) => {

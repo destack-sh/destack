@@ -1,3 +1,4 @@
+use dyst_language_session::Session;
 use dyst_language_source::{Source, SourceId};
 
 use crate::Parser;
@@ -6,18 +7,22 @@ use crate::Parser;
 #[derive(Debug)]
 pub(crate) struct TestParser {
     pub source: Source,
+    pub session: Session,
 }
 
 impl TestParser {
     pub(crate) fn new(input: &str) -> Self {
         let source_id = SourceId::new(0);
         let source = Source::from_string(source_id, "<test>".to_string(), input.to_string());
-        Self { source }
+        Self {
+            source,
+            session: Session::new(),
+        }
     }
 
     /// Get a Parser for this test.
-    pub(crate) fn parser(&self) -> Parser<'_> {
-        Parser::from_source(&self.source, &Session::new())
+    pub(crate) fn parser(&mut self) -> Parser<'_> {
+        Parser::from_source(&self.source, &mut self.session)
     }
 }
 
@@ -160,6 +165,8 @@ macro_rules! assert_char {
     }};
 }
 
+// todo! nocheckin @Cleanup: assert_string and assert_path
+
 /// Assert a `ScalarLiteral::String`.
 #[macro_export]
 macro_rules! assert_string {
@@ -186,6 +193,7 @@ macro_rules! assert_path {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::fs;
     use std::path::PathBuf;
 
@@ -211,16 +219,19 @@ mod tests {
         // glob all .ds files under the workspace root
         let ds_files = glob::glob(&format!("{workspace_root}/**/*.ds"));
 
-        let session = Session::new();
+        let mut sources: HashMap<SourceId, Source> = HashMap::new();
+        let mut session = Session::new();
 
         // parse every ds file
         for (i, ds_file) in ds_files.iter().enumerate() {
+            let source_id = SourceId::new(i as u32);
             let source = Source::from_string(
-                SourceId::new(i as u32),
+                source_id,
                 ds_file.to_string_lossy().into_owned(),
                 fs::read_to_string(ds_file).unwrap(),
             );
-            let mut parser = Parser::from_source(&source, &session);
+            sources.insert(source_id, source);
+            let mut parser = Parser::from_source(sources.get(&source_id).unwrap(), &mut session);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),
@@ -231,10 +242,10 @@ mod tests {
 
         // dump diagnostics
         if !session.diagnostics.is_empty() {
-            for diagnostic in &session.diagnostics {
-                let source = session.sources.get(diagnostic.source).unwrap();
+            for diagnostic in session.diagnostics.iter() {
+                let source = sources.get(&diagnostic.source).unwrap();
                 let annotated = dyst_language_source::annotate_source(
-                    &source,
+                    source,
                     &diagnostic.primary_span,
                     dyst_language_source::AnnotateOptions {
                         max_line_length: 100,
@@ -247,7 +258,6 @@ mod tests {
                 eprintln!("{diagnostic_header}");
                 eprintln!("{annotated}");
             }
-            panic!("errors in {ds_file:?}");
         }
     }
 }

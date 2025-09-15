@@ -16,7 +16,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
         let token = *self.eat_token(TokenType::Identifier)?;
-        let string_id = self.strings.intern(self.get_token_str(token));
+        let string_id = self.intern_string(self.get_token_str(token));
         Ok(string_id)
     }
 
@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn eat_identifier_str(&mut self, string: &str) -> ParseResult<StringId> {
         let span = self.peek_identifier_str(string)?;
-        let string_id = self.strings.intern(self.get_token_str(*span));
+        let string_id = self.intern_string(self.get_token_str(*span));
         self.bump();
         Ok(string_id)
     }
