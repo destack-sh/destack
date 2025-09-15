@@ -4,7 +4,6 @@ use dyst_language_ast::NodeTree;
 use dyst_language_session::Session;
 use dyst_language_source::{Source, SourceId};
 use ls_types::Uri;
-use ls_types::lsp::Diagnostic;
 
 #[derive(Debug)]
 pub struct Workspace {
@@ -16,7 +15,7 @@ pub struct Workspace {
 
     ast_by_uri: HashMap<Uri, NodeTree>,
 
-    diagnostics: Vec<Diagnostic>,
+    // diagnostics: Vec<Diagnostic>,
 }
 
 impl Workspace {
@@ -28,7 +27,7 @@ impl Workspace {
             next_source_id: 0,
             sources_by_uri: HashMap::new(),
             ast_by_uri: HashMap::new(),
-            diagnostics: Vec::new(),
+            // diagnostics: Vec::new(),
         }
     }
 

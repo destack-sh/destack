@@ -275,7 +275,7 @@ struct Floof {
         assert_eq!(statements.len(), 1);
         // struct Floof
         assert_node!(parser.tree, statements[0], Statement::Struct(node) => {
-            let docs = parser.tree.get_docs_for(*node);
+            let docs = parser.tree.get_docs_for(node.id);
             assert_eq!(docs.len(), 1);
 
             // doc, struct + doc, struct continued
@@ -295,7 +295,7 @@ struct Floof {
                     assert_eq!(parser.get_string(name.unwrap()), "a");
 
                     // doc, struct field + doc, struct field continued
-                    let docs = parser.tree.get_docs_for(fields[0]);
+                    let docs = parser.tree.get_docs_for(fields[0].id);
                     assert_eq!(docs.len(), 1);
                     // doc, struct field + doc, struct field continued
                     assert_node!(parser.tree, docs[0], Doc { string, style, position } => {
@@ -332,7 +332,7 @@ func() /* comment 3, detached */
 
         // let x = 1 + 1
         assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
-            let comments = parser.tree.get_comments_for(*expr_node);
+            let comments = parser.tree.get_comments_for(expr_node.id);
             assert_eq!(comments.len(), 1);
 
             // comment 1 + comment 1.1
@@ -346,7 +346,7 @@ func() /* comment 3, detached */
 
         // func()
         assert_node!(parser.tree, statements[1], Statement::Expression(expr_node) => {
-            let comments = parser.tree.get_comments_for(*expr_node);
+            let comments = parser.tree.get_comments_for(expr_node.id);
             assert_eq!(comments.len(), 1);
 
             // comment 2 (comment 3 should not be attached)

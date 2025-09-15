@@ -218,7 +218,7 @@ impl<'a> NodeVisitor for SemanticTokenMap<'a> {
         id: NodeId<super::StructField>,
         struct_field: &super::StructField,
     ) {
-        walk_struct_field(self, tree, struct_field);
+        walk_struct_field(self, tree, id, struct_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
     }
 
@@ -228,7 +228,7 @@ impl<'a> NodeVisitor for SemanticTokenMap<'a> {
         id: NodeId<super::EnumField>,
         enum_field: &super::EnumField,
     ) {
-        walk_enum_field(self, tree, enum_field);
+        walk_enum_field(self, tree, id, enum_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
     }
 
@@ -238,12 +238,12 @@ impl<'a> NodeVisitor for SemanticTokenMap<'a> {
         id: NodeId<super::UnionField>,
         union_field: &super::UnionField,
     ) {
-        walk_union_field(self, tree, union_field);
+        walk_union_field(self, tree, id, union_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
     }
 
     fn visit_type(&mut self, tree: &NodeTree, id: NodeId<Type>, type_node: &Type) {
-        walk_type(self, tree, type_node);
+        walk_type(self, tree, id, type_node);
         if let Type::Path { .. } = *type_node {
             self.set_semantic_span(tree, id, SemanticType::Type);
         }
@@ -259,7 +259,7 @@ impl<'a> NodeVisitor for SemanticTokenMap<'a> {
         id: NodeId<super::Parameter>,
         parameter: &super::Parameter,
     ) {
-        walk_parameter(self, tree, parameter);
+        walk_parameter(self, tree, id, parameter);
         self.set_semantic_span(tree, id, SemanticType::Parameter);
     }
 
@@ -269,7 +269,7 @@ impl<'a> NodeVisitor for SemanticTokenMap<'a> {
         id: NodeId<super::Argument>,
         argument: &super::Argument,
     ) {
-        walk_argument(self, tree, argument);
+        walk_argument(self, tree, id, argument);
         self.set_semantic_span(tree, id, SemanticType::Argument);
     }
 
@@ -283,7 +283,7 @@ impl<'a> NodeVisitor for SemanticTokenMap<'a> {
         id: NodeId<super::PatternField>,
         pattern_field: &super::PatternField,
     ) {
-        walk_pattern_field(self, tree, pattern_field);
+        walk_pattern_field(self, tree, id, pattern_field);
         self.set_semantic_span(tree, id, SemanticType::Variable);
     }
 }
