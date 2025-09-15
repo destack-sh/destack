@@ -14,7 +14,9 @@ pub const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
     TokenType::DocBlockComment,
 ];
 
-pub const ANNOTATED_NODE_TYPES: [NodeType; 15] = [
+/// Node types that we directly attach annotations to.
+/// (These are all the nodes that are meaningful separate expressions / statements).
+pub const ANNOTATED_NODE_TYPES: [NodeType; 18] = [
     // Groupings (fallback)
     NodeType::Statement,
     NodeType::Expression,
@@ -32,6 +34,10 @@ pub const ANNOTATED_NODE_TYPES: [NodeType; 15] = [
     NodeType::Tuple,
     NodeType::TupleField,
     NodeType::Function,
+    // Bindings
+    NodeType::Let,
+    NodeType::Parameter,
+    NodeType::Argument,
 ];
 
 impl<'a> Parser<'a> {
@@ -94,12 +100,16 @@ impl<'a> Parser<'a> {
             };
 
             // get the best node to attach to
-            let Some((target_node_id, _)) = self
+            let enclosing_nodes_ids = self
                 .tree
                 .map
-                .get_enclosing_spans(target_token.span.start, target_token.span.end)
+                .get_enclosing_spans(target_token.span.start, target_token.span.end - 1)
                 .into_iter()
-                .find(|(i, _)| ANNOTATED_NODE_TYPES.contains(&self.tree.get_type(*i)))
+                .map(|(i, _)| i)
+                .collect::<Vec<_>>();
+            let Some(target_node_id) = enclosing_nodes_ids
+                .into_iter()
+                .find(|&i| ANNOTATED_NODE_TYPES.contains(&self.tree.get_type(i)))
             else {
                 return; // no valid target node, bail
             };
@@ -249,12 +259,12 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        AnnotationPosition, AnnotationStyle, BlockFormat, Comment, Doc, Statement, Struct,
-        StructField, assert_node,
+        AnnotationPosition, AnnotationStyle, BlockFormat, Comment, Doc, Enum, EnumField,
+        Expression, Statement, Struct, StructField, assert_node, assert_string,
     };
 
     #[test]
-    fn test_attach_docs() {
+    fn test_attach_docs_to_struct() {
         let mut test = TestParser::new(
             r"
 /// doc, floating
@@ -272,8 +282,8 @@ struct Floof {
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
 
-        assert_eq!(statements.len(), 1);
         // struct Floof
+        assert_eq!(statements.len(), 1);
         assert_node!(parser.tree, statements[0], Statement::Struct(node) => {
             let docs = parser.tree.get_docs_for(node.id);
             assert_eq!(docs.len(), 1);
@@ -311,7 +321,123 @@ struct Floof {
     }
 
     #[test]
-    fn test_attach_comments() {
+    fn test_attach_docs_to_enum() {
+        let mut test = TestParser::new(
+            r"
+enum Floof {
+    /// A
+    A
+}
+        ",
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.process_annotations();
+
+        // enum Floof
+        assert_eq!(statements.len(), 1);
+        assert_node!(parser.tree, statements[0], Statement::Enum(node) => {
+            // enum Floof
+            assert_node!(parser.tree, *node, Enum { fields, .. } => {
+                assert_eq!(fields.len(), 1);
+                // A
+                assert_node!(parser.tree, fields[0], EnumField { name, .. } => {
+                    assert_string!(parser.session, *name, "A");
+                    let docs = parser.tree.get_docs_for(fields[0].id);
+                    assert_eq!(docs.len(), 1);
+                    // A + doc, enum field
+                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                        let string = parser.get_string(*string);
+                        assert_eq!(string, "A");
+                    });
+                });
+            });
+        })
+    }
+
+    #[test]
+    fn test_attach_docs_to_enum_with_values() {
+        let mut test = TestParser::new(
+            r"
+/// doc, enum
+/// doc, enum continued
+enum Floof {
+    /// A
+    /// doc, enum field
+    A = 1
+    
+    /// B
+    /// doc, enum field
+    B = 2
+
+    C
+
+    /// D
+    D = 3
+}
+        ",
+        );
+        let mut parser = test.parser();
+        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.process_annotations();
+
+        // enum Floof
+        assert_eq!(statements.len(), 1);
+        assert_node!(parser.tree, statements[0], Statement::Enum(node) => {
+            // enum Floof
+            assert_node!(parser.tree, *node, Enum { fields, .. } => {
+                assert_eq!(fields.len(), 4);
+
+                // A
+                assert_node!(parser.tree, fields[0], EnumField { name, .. } => {
+                    assert_string!(parser.session, *name, "A");
+                    let docs = parser.tree.get_docs_for(fields[0].id);
+                    assert_eq!(docs.len(), 1);
+                    // A + doc, enum field
+                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                        let string = parser.get_string(*string);
+                        assert_eq!(string, "A\ndoc, enum field");
+                    });
+                });
+
+                // B
+                assert_node!(parser.tree, fields[1], EnumField { name, .. } => {
+                    assert_string!(parser.session, *name, "B");
+                    let docs = parser.tree.get_docs_for(fields[1].id);
+                    assert_eq!(docs.len(), 1);
+                    // B + doc, enum field
+                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                        let string = parser.get_string(*string);
+                        assert_eq!(string, "B\ndoc, enum field");
+                    });
+                });
+
+                // C
+                assert_node!(parser.tree, fields[2], EnumField { name, .. } => {
+                    assert_string!(parser.session, *name, "C");
+                    // <nothing>
+                    let docs = parser.tree.get_docs_for(fields[2].id);
+                    assert_eq!(docs.len(), 0);
+                });
+
+                // D
+                assert_node!(parser.tree, fields[3], EnumField { name, .. } => {
+                    assert_string!(parser.session, *name, "D");
+                    let docs = parser.tree.get_docs_for(fields[3].id);
+                    assert_eq!(docs.len(), 1);
+                    // D + doc, enum field
+                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                        let string = parser.get_string(*string);
+                        assert_eq!(string, "D");
+                    });
+                });
+            });
+        })
+    }
+
+    #[test]
+    fn test_attach_comments_to_let() {
         let mut test = TestParser::new(
             r"
 // comment, floating
@@ -328,20 +454,22 @@ func() /* comment 3, detached */
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
 
-        assert_eq!(statements.len(), 2);
-
         // let x = 1 + 1
+        assert_eq!(statements.len(), 2);
         assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
-            let comments = parser.tree.get_comments_for(expr_node.id);
-            assert_eq!(comments.len(), 1);
-
-            // comment 1 + comment 1.1
-            assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
-                let string = parser.get_string(*string);
-                assert_eq!(string, "comment 1\ncomment 1.1");
-                assert_eq!(*style, AnnotationStyle::Line);
-                assert_eq!(*position, AnnotationPosition::Prefix);
+            // let x = 1 + 1
+            assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
+                let comments = parser.tree.get_comments_for(let_node.id);
+                assert_eq!(comments.len(), 1);
+                // comment 1 + comment 1.1
+                assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
+                    let string = parser.get_string(*string);
+                    assert_eq!(string, "comment 1\ncomment 1.1");
+                    assert_eq!(*style, AnnotationStyle::Line);
+                    assert_eq!(*position, AnnotationPosition::Prefix);
+                });
             });
+
         });
 
         // func()

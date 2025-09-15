@@ -14,7 +14,6 @@ pub struct Workspace {
     sources_by_uri: HashMap<String, Source>,
 
     ast_by_uri: HashMap<Uri, NodeTree>,
-
     // diagnostics: Vec<Diagnostic>,
 }
 

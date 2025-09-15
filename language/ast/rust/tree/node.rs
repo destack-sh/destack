@@ -105,68 +105,6 @@ impl<T: Node> NodeId<T> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum AnyNodeId {
-    // Groupings
-    Block(NodeId<Block>),
-    Statement(NodeId<Statement>),
-    Expression(NodeId<Expression>),
-    // Declarations
-    Module(NodeId<Module>),
-    Struct(NodeId<Struct>),
-    StructField(NodeId<StructField>),
-    Enum(NodeId<Enum>),
-    EnumField(NodeId<EnumField>),
-    Union(NodeId<Union>),
-    UnionField(NodeId<UnionField>),
-    Trait(NodeId<Trait>),
-    Implement(NodeId<Implement>),
-    Type(NodeId<Type>),
-    Tuple(NodeId<Tuple>),
-    TupleField(NodeId<TupleField>),
-    Function(NodeId<Function>),
-    // Context
-    With(NodeId<With>),
-    WithClause(NodeId<WithClause>),
-    Use(NodeId<Use>),
-    UseClause(NodeId<UseClause>),
-    UseItem(NodeId<UseItem>),
-    // Control
-    If(NodeId<If>),
-    While(NodeId<While>),
-    For(NodeId<For>),
-    Loop(NodeId<Loop>),
-    Break(NodeId<Break>),
-    Continue(NodeId<Continue>),
-    Defer(NodeId<Defer>),
-    Return(NodeId<Return>),
-    Try(NodeId<Try>),
-    // Bindings
-    Let(NodeId<Let>),
-    Parameter(NodeId<Parameter>),
-    Argument(NodeId<Argument>),
-    // Literals
-    ScalarLiteral(NodeId<ScalarLiteral>),
-    RangeLiteral(NodeId<RangeLiteral>),
-    ArrayLiteral(NodeId<ArrayLiteral>),
-    TupleLiteral(NodeId<TupleLiteral>),
-    StructLiteral(NodeId<StructLiteral>),
-    FieldLiteral(NodeId<FieldLiteral>),
-    // Calls
-    Index(NodeId<Index>),
-    Call(NodeId<Call>),
-    Cast(NodeId<Cast>),
-    Coalesce(NodeId<Coalesce>),
-    // Matching
-    Match(NodeId<Match>),
-    MatchCase(NodeId<MatchCase>),
-    Pattern(NodeId<Pattern>),
-    PatternField(NodeId<PatternField>),
-    // Annotations
-    Doc(NodeId<Doc>),
-    Comment(NodeId<Comment>),
-}
-
 /// A Node in the AST.
 pub trait Node: Sized {
     const KIND: NodeType;

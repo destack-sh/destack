@@ -37,6 +37,11 @@ impl NodeMap {
         self.spans_per_node[node_id.id as usize]
     }
 
+    #[inline]
+    pub fn get_span_by_id(&self, node_id: u32) -> Span {
+        self.spans_per_node[node_id as usize]
+    }
+
     /// Gets the smallest enclosing span for a given position.
     pub fn get_enclosing_span(&self, pos: u32) -> Option<(u32, Span)> {
         let mut min_distance = u32::MAX;
