@@ -1,5 +1,10 @@
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause
+    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
+    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
+    Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
+    PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
+    StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
+    UseClause, UseItem, While, With, WithClause,
 };
 
 // ----------------------------------------------------------------------------

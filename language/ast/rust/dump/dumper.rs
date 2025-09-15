@@ -255,7 +255,7 @@ impl<'a> Dumper<'a> {
 
     /// Helper for dumping a single node.
     #[inline]
-    pub fn node<'d>(&'d mut self, name: &str) -> StructDumper<'d, 'a> {
+    pub fn node<'d>(&'d mut self, name: &str, id: u32) -> StructDumper<'d, 'a> {
         let has_more = false;
         // draw prefix depending on current structural depth
         if self.branch_stack.is_empty() {
@@ -273,13 +273,13 @@ impl<'a> Dumper<'a> {
         }
         // set before dumping so nested with_depth sees correct parent branch info
         self.last_line_has_more = Some(has_more);
-        StructDumper::begin(self, name, true)
+        StructDumper::new(self, name, Some(id))
     }
 
     /// Helper for dumping a single struct.
     #[inline]
     pub fn object<'d>(&'d mut self, name: &str) -> StructDumper<'d, 'a> {
-        StructDumper::begin(self, name, false)
+        StructDumper::new(self, name, None)
     }
 }
 
@@ -287,17 +287,17 @@ impl<'a> Dumper<'a> {
 #[derive(Debug)]
 pub struct StructDumper<'d, 'p> {
     dumper: &'d mut Dumper<'p>,
-    is_node: bool,
+    node_id: Option<u32>,
     has_fields: bool,
 }
 
 impl<'d, 'p> StructDumper<'d, 'p> {
     /// Begin a new struct-like dumper with some name.
-    pub fn begin(dumper: &'d mut Dumper<'p>, name: &str, is_node: bool) -> Self {
+    pub fn new(dumper: &'d mut Dumper<'p>, name: &str, node_id: Option<u32>) -> Self {
         dumper.write_str(name, Some(Color::BrightBlue));
         Self {
             dumper,
-            is_node,
+            node_id,
             has_fields: false,
         }
     }
@@ -337,8 +337,13 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         } else {
             self.dumper.write_str(" { .. }", Some(Color::White));
         }
-        if self.is_node {
-            self.dumper.write_str("\n", None);
+        if let Some(node_id) = self.node_id {
+            let span = self.dumper.tree.map.get_span_by_id(node_id);
+            self.dumper.write_str(
+                format!("{}[{}..{}]", node_id, span.start, span.end).as_str(),
+                Some(Color::White),
+            );
+            self.dumper.write_char('\n', None);
         }
         self
     }
@@ -348,8 +353,13 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         if self.has_fields {
             self.dumper.write_str(" }", Some(Color::White));
         }
-        if self.is_node {
-            self.dumper.write_str("\n", None);
+        if let Some(node_id) = self.node_id {
+            let span = self.dumper.tree.map.get_span_by_id(node_id);
+            self.dumper.write_str(
+                format!("{}[{}..{}]", node_id, span.start, span.end).as_str(),
+                Some(Color::White),
+            );
+            self.dumper.write_char('\n', None);
         }
         self
     }
@@ -599,7 +609,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
 
     fn visit_block(&mut self, _tree: &NodeTree, _id: NodeId<Block>, block: &Block) {
-        self.node("Block")
+        self.node("Block", _id.id)
             .field("format", &block.format)
             .field("label", &block.label)
             .end();
@@ -611,34 +621,34 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_statement(&mut self, _tree: &NodeTree, _id: NodeId<Statement>, statement: &Statement) {
         match statement {
             Statement::Expression(_node) => {
-                self.node("Statement::Expression").end();
+                self.node("Statement::Expression", _id.id).end();
             }
             Statement::Module(_node) => {
-                self.node("Statement::Module").end();
+                self.node("Statement::Module", _id.id).end();
             }
             Statement::Struct(_node) => {
-                self.node("Statement::Struct").end();
+                self.node("Statement::Struct", _id.id).end();
             }
             Statement::Enum(_node) => {
-                self.node("Statement::Enum").end();
+                self.node("Statement::Enum", _id.id).end();
             }
             Statement::Union(_node) => {
-                self.node("Statement::Union").end();
+                self.node("Statement::Union", _id.id).end();
             }
             Statement::Trait(_node) => {
-                self.node("Statement::Trait").end();
+                self.node("Statement::Trait", _id.id).end();
             }
             Statement::Implement(_node) => {
-                self.node("Statement::Implement").end();
+                self.node("Statement::Implement", _id.id).end();
             }
             Statement::Function(_node) => {
-                self.node("Statement::Function").end();
+                self.node("Statement::Function", _id.id).end();
             }
             Statement::With(_node) => {
-                self.node("Statement::With").end();
+                self.node("Statement::With", _id.id).end();
             }
             Statement::Use(_node) => {
-                self.node("Statement::Use").end();
+                self.node("Statement::Use", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -654,85 +664,87 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match expression {
             Expression::Module(..) => {
-                self.node("Expression::Module").end();
+                self.node("Expression::Module", _id.id).end();
             }
             Expression::Struct(_node) => {
-                self.node("Expression::Struct").end();
+                self.node("Expression::Struct", _id.id).end();
             }
             Expression::Enum(_node) => {
-                self.node("Expression::Enum").end();
+                self.node("Expression::Enum", _id.id).end();
             }
             Expression::Union(_node) => {
-                self.node("Expression::Union").end();
+                self.node("Expression::Union", _id.id).end();
             }
             Expression::Trait(_node) => {
-                self.node("Expression::Trait").end();
+                self.node("Expression::Trait", _id.id).end();
             }
             Expression::Implement(_node) => {
-                self.node("Expression::Implement").end();
+                self.node("Expression::Implement", _id.id).end();
             }
             Expression::Function(_node) => {
-                self.node("Expression::Function").end();
+                self.node("Expression::Function", _id.id).end();
             }
 
             Expression::Let(_node) => {
-                self.node("Expression::Let").end();
+                self.node("Expression::Let", _id.id).end();
             }
             Expression::Block(_node) => {
-                self.node("Expression::Block").end();
+                self.node("Expression::Block", _id.id).end();
             }
             Expression::If(_node) => {
-                self.node("Expression::If").end();
+                self.node("Expression::If", _id.id).end();
             }
             Expression::While(_node) => {
-                self.node("Expression::While").end();
+                self.node("Expression::While", _id.id).end();
             }
             Expression::For(_node) => {
-                self.node("Expression::For").end();
+                self.node("Expression::For", _id.id).end();
             }
             Expression::Loop(_node) => {
-                self.node("Expression::Loop").end();
+                self.node("Expression::Loop", _id.id).end();
             }
             Expression::Break(_node) => {
-                self.node("Expression::Break").end();
+                self.node("Expression::Break", _id.id).end();
             }
             Expression::Continue(_node) => {
-                self.node("Expression::Continue").end();
+                self.node("Expression::Continue", _id.id).end();
             }
             Expression::Defer(_node) => {
-                self.node("Expression::Defer").end();
+                self.node("Expression::Defer", _id.id).end();
             }
             Expression::Return(_node) => {
-                self.node("Expression::Return").end();
+                self.node("Expression::Return", _id.id).end();
             }
             Expression::Try(_node) => {
-                self.node("Expression::Try").end();
+                self.node("Expression::Try", _id.id).end();
             }
             Expression::Match(_node) => {
-                self.node("Expression::Match").end();
+                self.node("Expression::Match", _id.id).end();
             }
 
             Expression::Path(path) => {
-                self.node("Expression::Path").field("path", path).end();
+                self.node("Expression::Path", _id.id)
+                    .field("path", path)
+                    .end();
             }
             Expression::ScalarLiteral(_node) => {
-                self.node("Expression::ScalarLiteral").end();
+                self.node("Expression::ScalarLiteral", _id.id).end();
             }
             Expression::RangeLiteral(_node) => {
-                self.node("Expression::RangeLiteral").end();
+                self.node("Expression::RangeLiteral", _id.id).end();
             }
             Expression::ArrayLiteral(_node) => {
-                self.node("Expression::ArrayLiteral").end();
+                self.node("Expression::ArrayLiteral", _id.id).end();
             }
             Expression::TupleLiteral(_node) => {
-                self.node("Expression::TupleLiteral").end();
+                self.node("Expression::TupleLiteral", _id.id).end();
             }
             Expression::StructLiteral(_node) => {
-                self.node("Expression::StructLiteral").end();
+                self.node("Expression::StructLiteral", _id.id).end();
             }
 
             Expression::Unary { operator, right: _ } => {
-                self.node("Expression::Unary")
+                self.node("Expression::Unary", _id.id)
                     .field("operator", operator)
                     .end();
             }
@@ -740,34 +752,36 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 mutability,
                 right: _,
             } => {
-                self.node("Expression::Reference")
+                self.node("Expression::Reference", _id.id)
                     .field("mutability", mutability)
                     .end();
             }
             Expression::Member { receiver: _, path } => {
-                self.node("Expression::Member").field("path", path).end();
+                self.node("Expression::Member", _id.id)
+                    .field("path", path)
+                    .end();
             }
             Expression::Index(_node) => {
-                self.node("Expression::Index").end();
+                self.node("Expression::Index", _id.id).end();
             }
             Expression::Call(_node) => {
-                self.node("Expression::Call").end();
+                self.node("Expression::Call", _id.id).end();
             }
             Expression::Cast(_node) => {
-                self.node("Expression::Cast").end();
+                self.node("Expression::Cast", _id.id).end();
             }
             Expression::Coalesce(_node) => {
-                self.node("Expression::Coalesce").end();
+                self.node("Expression::Coalesce", _id.id).end();
             }
             Expression::Unwrap(_node) => {
-                self.node("Expression::Unwrap").end();
+                self.node("Expression::Unwrap", _id.id).end();
             }
             Expression::Binary {
                 left: _,
                 operator,
                 right: _,
             } => {
-                self.node("Expression::Binary")
+                self.node("Expression::Binary", _id.id)
                     .field("operator", operator)
                     .end();
             }
@@ -776,13 +790,13 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 operator,
                 right: _,
             } => {
-                self.node("Expression::Assign")
+                self.node("Expression::Assign", _id.id)
                     .field("operator", operator)
                     .end();
             }
 
             Expression::Error(_) => {
-                self.node("Expression::Error").end();
+                self.node("Expression::Error", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -795,7 +809,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
 
     fn visit_module(&mut self, _tree: &NodeTree, _id: NodeId<Module>, module: &Module) {
-        self.node("Module")
+        self.node("Module", _id.id)
             .field_optional("name", &module.name)
             .field_optional("visibility", &module.visibility)
             .end();
@@ -805,7 +819,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_struct(&mut self, _tree: &NodeTree, _id: NodeId<Struct>, struct_node: &Struct) {
-        self.node("Struct")
+        self.node("Struct", _id.id)
             .field_optional("name", &struct_node.name)
             .field_optional("visibility", &struct_node.visibility)
             .end();
@@ -820,14 +834,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<StructField>,
         field: &StructField,
     ) {
-        self.node("StructField").field("name", &field.name).end();
+        self.node("StructField", _id.id)
+            .field("name", &field.name)
+            .end();
         self.with_depth(|dumper| {
             walk_struct_field(dumper, _tree, _id, field);
         });
     }
 
     fn visit_enum(&mut self, _tree: &NodeTree, _id: NodeId<Enum>, enum_node: &Enum) {
-        self.node("Enum")
+        self.node("Enum", _id.id)
             .field_optional("name", &enum_node.name)
             .field_optional("visibility", &enum_node.visibility)
             .end();
@@ -837,14 +853,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_enum_field(&mut self, _tree: &NodeTree, _id: NodeId<EnumField>, field: &EnumField) {
-        self.node("EnumField").field("name", &field.name).end();
+        self.node("EnumField", _id.id)
+            .field("name", &field.name)
+            .end();
         self.with_depth(|dumper| {
             walk_enum_field(dumper, _tree, _id, field);
         });
     }
 
     fn visit_union(&mut self, _tree: &NodeTree, _id: NodeId<Union>, union_node: &Union) {
-        self.node("Union")
+        self.node("Union", _id.id)
             .field_optional("name", &union_node.name)
             .field_optional("visibility", &union_node.visibility)
             .end();
@@ -854,14 +872,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_union_field(&mut self, _tree: &NodeTree, _id: NodeId<UnionField>, field: &UnionField) {
-        self.node("UnionField").field("name", &field.name).end();
+        self.node("UnionField", _id.id)
+            .field("name", &field.name)
+            .end();
         self.with_depth(|dumper| {
             walk_union_field(dumper, _tree, _id, field);
         });
     }
 
     fn visit_trait(&mut self, _tree: &NodeTree, _id: NodeId<Trait>, trait_node: &Trait) {
-        self.node("Trait")
+        self.node("Trait", _id.id)
             .field_optional("name", &trait_node.name)
             .field_optional("visibility", &trait_node.visibility)
             .end();
@@ -876,7 +896,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<Implement>,
         _implement: &Implement,
     ) {
-        self.node("Implement").end();
+        self.node("Implement", _id.id).end();
         self.with_depth(|dumper| {
             walk_implement(dumper, _tree, _id, _implement);
         });
@@ -885,60 +905,60 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_type(&mut self, _tree: &NodeTree, _id: NodeId<Type>, type_node: &Type) {
         match type_node {
             Type::Infer => {
-                self.node("Type::Infer").end();
+                self.node("Type::Infer", _id.id).end();
             }
             Type::Maybe(..) => {
-                self.node("Type::Maybe").end();
+                self.node("Type::Maybe", _id.id).end();
             }
             Type::Not(..) => {
-                self.node("Type::Not").end();
+                self.node("Type::Not", _id.id).end();
             }
             Type::Never => {
-                self.node("Type::Never").end();
+                self.node("Type::Never", _id.id).end();
             }
             Type::Self_ => {
-                self.node("Type::Self").end();
+                self.node("Type::Self", _id.id).end();
             }
             Type::Primitive(primitive) => {
-                self.node("Type::Primitive").value(primitive).end();
+                self.node("Type::Primitive", _id.id).value(primitive).end();
             }
             Type::Path { path, .. } => {
-                self.node("Type::Path").value(path).end();
+                self.node("Type::Path", _id.id).value(path).end();
             }
             Type::Pointer {
                 mutability,
                 target: _,
             } => {
-                self.node("Type::Pointer")
+                self.node("Type::Pointer", _id.id)
                     .field("mutability", mutability)
                     .end();
             }
             Type::Virtual(..) => {
-                self.node("Type::Virtual").end();
+                self.node("Type::Virtual", _id.id).end();
             }
             Type::Variadic(..) => {
-                self.node("Type::Variadic").end();
+                self.node("Type::Variadic", _id.id).end();
             }
             Type::Array { .. } => {
-                self.node("Type::Array").end();
+                self.node("Type::Array", _id.id).end();
             }
             Type::Slice { element: _ } => {
-                self.node("Type::Slice").end();
+                self.node("Type::Slice", _id.id).end();
             }
             Type::Tuple(_tuple) => {
-                self.node("Type::Tuple").end();
+                self.node("Type::Tuple", _id.id).end();
             }
             Type::Struct(_struct_node) => {
-                self.node("Type::Struct").end();
+                self.node("Type::Struct", _id.id).end();
             }
             Type::Enum(_enum_node) => {
-                self.node("Type::Enum").end();
+                self.node("Type::Enum", _id.id).end();
             }
             Type::Union(_union_node) => {
-                self.node("Type::Union").end();
+                self.node("Type::Union", _id.id).end();
             }
             Type::Function(_function) => {
-                self.node("Type::Function").end();
+                self.node("Type::Function", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -947,7 +967,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_tuple(&mut self, _tree: &NodeTree, _id: NodeId<Tuple>, _tuple: &Tuple) {
-        self.node("Tuple").end();
+        self.node("Tuple", _id.id).end();
         self.with_depth(|dumper| {
             walk_tuple(dumper, _tree, _id, _tuple);
         });
@@ -956,10 +976,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_tuple_field(&mut self, _tree: &NodeTree, _id: NodeId<TupleField>, field: &TupleField) {
         match field {
             TupleField::Named { name, r#type: _ } => {
-                self.node("TupleField::Named").field("name", name).end();
+                self.node("TupleField::Named", _id.id)
+                    .field("name", name)
+                    .end();
             }
             TupleField::Positional { r#type: _ } => {
-                self.node("TupleField::Positional").end();
+                self.node("TupleField::Positional", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -968,7 +990,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_function(&mut self, _tree: &NodeTree, _id: NodeId<Function>, function: &Function) {
-        self.node("Function")
+        self.node("Function", _id.id)
             .field_optional("name", &function.name)
             .field_optional("visibility", &function.visibility)
             .field("runtime", &function.runtime)
@@ -983,7 +1005,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
 
     fn visit_with(&mut self, _tree: &NodeTree, _id: NodeId<With>, _with: &With) {
-        self.node("With").end();
+        self.node("With", _id.id).end();
         self.with_depth(|dumper| {
             walk_with(dumper, _tree, _id, _with);
         });
@@ -997,7 +1019,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match clause {
             WithClause::Declaration { target: _, alias } => {
-                self.node("WithClause::Declaration")
+                self.node("WithClause::Declaration", _id.id)
                     .field_optional("alias", alias)
                     .end();
             }
@@ -1005,7 +1027,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target: _,
                 assertion: _,
             } => {
-                self.node("WithClause::Assertion").end();
+                self.node("WithClause::Assertion", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1014,7 +1036,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_use(&mut self, _tree: &NodeTree, _id: NodeId<Use>, use_node: &Use) {
-        self.node("Use")
+        self.node("Use", _id.id)
             .field_optional("visibility", &use_node.visibility)
             .end();
         self.with_depth(|dumper| {
@@ -1023,7 +1045,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_use_clause(&mut self, _tree: &NodeTree, _id: NodeId<UseClause>, clause: &UseClause) {
-        self.node("UseClause")
+        self.node("UseClause", _id.id)
             .field_optional("alias", &clause.alias)
             .end();
         self.with_depth(|dumper| {
@@ -1032,7 +1054,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_use_item(&mut self, _tree: &NodeTree, _id: NodeId<UseItem>, item: &UseItem) {
-        self.node("UseItem")
+        self.node("UseItem", _id.id)
             .field("name", &item.name)
             .field_optional("alias", &item.alias)
             .end();
@@ -1051,21 +1073,21 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 condition: _,
                 then_block: _,
             } => {
-                self.node("If::If").end();
+                self.node("If::If", _id.id).end();
             }
             If::IfElse {
                 condition: _,
                 then_block: _,
                 else_block: _,
             } => {
-                self.node("If::IfElse").end();
+                self.node("If::IfElse", _id.id).end();
             }
             If::IfElseIf {
                 condition: _,
                 then_block: _,
                 else_if: _,
             } => {
-                self.node("If::IfElseIf").end();
+                self.node("If::IfElseIf", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1074,28 +1096,28 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_while(&mut self, _tree: &NodeTree, _id: NodeId<While>, _while_node: &While) {
-        self.node("While").end();
+        self.node("While", _id.id).end();
         self.with_depth(|dumper| {
             walk_while(dumper, _tree, _id, _while_node);
         });
     }
 
     fn visit_for(&mut self, _tree: &NodeTree, _id: NodeId<For>, _for_node: &For) {
-        self.node("For").end();
+        self.node("For", _id.id).end();
         self.with_depth(|dumper| {
             walk_for(dumper, _tree, _id, _for_node);
         });
     }
 
     fn visit_loop(&mut self, _tree: &NodeTree, _id: NodeId<Loop>, _loop_node: &Loop) {
-        self.node("Loop").end();
+        self.node("Loop", _id.id).end();
         self.with_depth(|dumper| {
             walk_loop(dumper, _tree, _id, _loop_node);
         });
     }
 
     fn visit_break(&mut self, _tree: &NodeTree, _id: NodeId<Break>, _break_node: &Break) {
-        self.node("Break").end();
+        self.node("Break", _id.id).end();
         self.with_depth(|dumper| {
             walk_break(dumper, _tree, _id, _break_node);
         });
@@ -1107,7 +1129,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<Continue>,
         _continue_node: &Continue,
     ) {
-        self.node("Continue").end();
+        self.node("Continue", _id.id).end();
         self.with_depth(|dumper| {
             walk_continue(dumper, _tree, _id, _continue_node);
         });
@@ -1116,10 +1138,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_defer(&mut self, _tree: &NodeTree, _id: NodeId<Defer>, defer_node: &Defer) {
         match defer_node {
             Defer::Expression(_expression) => {
-                self.node("Defer::Expression").end();
+                self.node("Defer::Expression", _id.id).end();
             }
             Defer::Block(_block) => {
-                self.node("Defer::Block").end();
+                self.node("Defer::Block", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1128,7 +1150,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_return(&mut self, _tree: &NodeTree, _id: NodeId<Return>, _return_node: &Return) {
-        self.node("Return").end();
+        self.node("Return", _id.id).end();
         self.with_depth(|dumper| {
             walk_return(dumper, _tree, _id, _return_node);
         });
@@ -1137,16 +1159,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_try(&mut self, _tree: &NodeTree, _id: NodeId<Try>, try_node: &Try) {
         match try_node {
             Try::Expression { try_expression: _ } => {
-                self.node("Try::Expression").end();
+                self.node("Try::Expression", _id.id).end();
             }
             Try::Block { try_block: _ } => {
-                self.node("Try::Block").end();
+                self.node("Try::Block", _id.id).end();
             }
             Try::BlockWithCatch {
                 try_block: _,
                 catch_match: _,
             } => {
-                self.node("Try::BlockWithCatch").end();
+                self.node("Try::BlockWithCatch", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1159,7 +1181,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
 
     fn visit_let(&mut self, _tree: &NodeTree, _id: NodeId<Let>, let_node: &Let) {
-        self.node("Let")
+        self.node("Let", _id.id)
             .field("mutability", &let_node.mutability)
             .field_optional("visibility", &let_node.visibility)
             .end();
@@ -1169,7 +1191,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_parameter(&mut self, _tree: &NodeTree, _id: NodeId<Parameter>, param: &Parameter) {
-        self.node("Parameter").field("name", &param.name).end();
+        self.node("Parameter", _id.id)
+            .field("name", &param.name)
+            .end();
         self.with_depth(|dumper| {
             walk_parameter(dumper, _tree, _id, param);
         });
@@ -1178,15 +1202,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_argument(&mut self, _tree: &NodeTree, _id: NodeId<Argument>, arg: &Argument) {
         match arg {
             Argument::Named { name, value: _ } => {
-                self.node("Argument::Named").field("name", name).end();
+                self.node("Argument::Named", _id.id)
+                    .field("name", name)
+                    .end();
             }
             Argument::NamedShorthand { name } => {
-                self.node("Argument::NamedShorthand")
+                self.node("Argument::NamedShorthand", _id.id)
                     .field("name", name)
                     .end();
             }
             Argument::Positional { value: _ } => {
-                self.node("Argument::Positional").end();
+                self.node("Argument::Positional", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1206,43 +1232,43 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match literal {
             ScalarLiteral::Void => {
-                self.node("ScalarLiteral::Void").end();
+                self.node("ScalarLiteral::Void", _id.id).end();
             }
             ScalarLiteral::Null => {
-                self.node("ScalarLiteral::Null").end();
+                self.node("ScalarLiteral::Null", _id.id).end();
             }
             ScalarLiteral::Boolean(value) => {
-                self.node("ScalarLiteral::Boolean")
+                self.node("ScalarLiteral::Boolean", _id.id)
                     .field("value", &value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Byte(value) => {
-                self.node("ScalarLiteral::Byte")
+                self.node("ScalarLiteral::Byte", _id.id)
                     .field("value", &value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Integer(value, _) => {
-                self.node("ScalarLiteral::Integer")
+                self.node("ScalarLiteral::Integer", _id.id)
                     .field("value", &value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Float(value, _) => {
-                self.node("ScalarLiteral::Float")
+                self.node("ScalarLiteral::Float", _id.id)
                     .field("value", &value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::Character(value) => {
-                self.node("ScalarLiteral::Character")
+                self.node("ScalarLiteral::Character", _id.id)
                     .field("value", &value.to_string().as_str())
                     .end();
             }
             ScalarLiteral::String(value) => {
-                self.node("ScalarLiteral::String")
+                self.node("ScalarLiteral::String", _id.id)
                     .field("value", value)
                     .end();
             }
             ScalarLiteral::ByteString(value) => {
-                self.node("ScalarLiteral::ByteString")
+                self.node("ScalarLiteral::ByteString", _id.id)
                     .field("value", value)
                     .end();
             }
@@ -1258,7 +1284,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<RangeLiteral>,
         _literal: &RangeLiteral,
     ) {
-        self.node("RangeLiteral").end();
+        self.node("RangeLiteral", _id.id).end();
         self.with_depth(|dumper| {
             walk_range_literal(dumper, _tree, _id, _literal);
         });
@@ -1272,7 +1298,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match literal {
             ArrayLiteral::Fixed { elements: _ } => {
-                self.node("ArrayLiteral::Fixed").end();
+                self.node("ArrayLiteral::Fixed", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1286,7 +1312,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<TupleLiteral>,
         _literal: &TupleLiteral,
     ) {
-        self.node("TupleLiteral").end();
+        self.node("TupleLiteral", _id.id).end();
         self.with_depth(|dumper| {
             walk_tuple_literal(dumper, _tree, _id, _literal);
         });
@@ -1298,7 +1324,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: NodeId<StructLiteral>,
         _literal: &StructLiteral,
     ) {
-        self.node("StructLiteral").end();
+        self.node("StructLiteral", _id.id).end();
         self.with_depth(|dumper| {
             walk_struct_literal(dumper, _tree, _id, _literal);
         });
@@ -1312,10 +1338,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match literal {
             FieldLiteral::Named { name, value: _ } => {
-                self.node("FieldLiteral::Named").field("name", name).end();
+                self.node("FieldLiteral::Named", _id.id)
+                    .field("name", name)
+                    .end();
             }
             FieldLiteral::NamedShorthand { name } => {
-                self.node("FieldLiteral::NamedShorthand")
+                self.node("FieldLiteral::NamedShorthand", _id.id)
                     .field("name", name)
                     .end();
             }
@@ -1335,10 +1363,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 receiver: _,
                 index: _,
             } => {
-                self.node("Index::Explicit").end();
+                self.node("Index::Explicit", _id.id).end();
             }
             Index::Implicit { receiver: _, index } => {
-                self.node("Index::Implicit").field("index", index).end();
+                self.node("Index::Implicit", _id.id)
+                    .field("index", index)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
@@ -1347,21 +1377,23 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_call(&mut self, _tree: &NodeTree, _id: NodeId<Call>, call: &Call) {
-        self.node("Call").field("runtime", &call.runtime).end();
+        self.node("Call", _id.id)
+            .field("runtime", &call.runtime)
+            .end();
         self.with_depth(|dumper| {
             walk_call(dumper, _tree, _id, call);
         });
     }
 
     fn visit_cast(&mut self, _tree: &NodeTree, _id: NodeId<Cast>, _cast: &Cast) {
-        self.node("Cast").end();
+        self.node("Cast", _id.id).end();
         self.with_depth(|dumper| {
             walk_cast(dumper, _tree, _id, _cast);
         });
     }
 
     fn visit_coalesce(&mut self, _tree: &NodeTree, _id: NodeId<Coalesce>, _coalesce: &Coalesce) {
-        self.node("Coalesce").end();
+        self.node("Coalesce", _id.id).end();
         self.with_depth(|dumper| {
             walk_coalesce(dumper, _tree, _id, _coalesce);
         });
@@ -1372,7 +1404,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
 
     fn visit_match(&mut self, _tree: &NodeTree, _id: NodeId<Match>, _match_node: &Match) {
-        self.node("Match").end();
+        self.node("Match", _id.id).end();
         self.with_depth(|dumper| {
             walk_match(dumper, _tree, _id, _match_node);
         });
@@ -1385,14 +1417,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 body: _,
                 guard: _,
             } => {
-                self.node("MatchCase::Expression").end();
+                self.node("MatchCase::Expression", _id.id).end();
             }
             MatchCase::Block {
                 pattern: _,
                 body: _,
                 guard: _,
             } => {
-                self.node("MatchCase::Block").end();
+                self.node("MatchCase::Block", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1403,55 +1435,55 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_pattern(&mut self, _tree: &NodeTree, _id: NodeId<Pattern>, pattern: &Pattern) {
         match pattern {
             Pattern::Wildcard => {
-                self.node("Pattern::Wildcard").end();
+                self.node("Pattern::Wildcard", _id.id).end();
             }
             Pattern::Rest => {
-                self.node("Pattern::Rest").end();
+                self.node("Pattern::Rest", _id.id).end();
             }
             Pattern::Pointer {
                 target: _,
                 mutability,
             } => {
-                self.node("Pattern::Pointer")
+                self.node("Pattern::Pointer", _id.id)
                     .field("mutability", mutability)
                     .end();
             }
             Pattern::Literal(_node) => {
-                self.node("Pattern::Literal").end();
+                self.node("Pattern::Literal", _id.id).end();
             }
             Pattern::Identifier(string_id) => {
-                self.node("Pattern::Identifier")
+                self.node("Pattern::Identifier", _id.id)
                     .field("identifier", string_id)
                     .end();
             }
             Pattern::Path(path) => {
-                self.node("Pattern::Path").field("path", path).end();
+                self.node("Pattern::Path", _id.id).field("path", path).end();
             }
             Pattern::Range {
                 start: _,
                 end: _,
                 is_inclusive,
             } => {
-                self.node("Pattern::Range")
+                self.node("Pattern::Range", _id.id)
                     .field("is_inclusive", is_inclusive)
                     .end();
             }
             Pattern::Tuple { path, fields: _ } => {
-                self.node("Pattern::Tuple")
+                self.node("Pattern::Tuple", _id.id)
                     .field_optional("path", path)
                     .end();
             }
             Pattern::Slice { fields: _ } => {
-                self.node("Pattern::Slice").end();
+                self.node("Pattern::Slice", _id.id).end();
             }
             Pattern::Struct {
                 r#type: _,
                 fields: _,
             } => {
-                self.node("Pattern::Struct").end();
+                self.node("Pattern::Struct", _id.id).end();
             }
             Pattern::Union { fields: _ } => {
-                self.node("Pattern::Union").end();
+                self.node("Pattern::Union", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1467,16 +1499,18 @@ impl<'a> NodeVisitor for Dumper<'a> {
     ) {
         match field {
             PatternField::Named { name, pattern: _ } => {
-                self.node("PatternField::Named").field("name", name).end();
+                self.node("PatternField::Named", _id.id)
+                    .field("name", name)
+                    .end();
             }
             PatternField::NamedAlias { name, alias } => {
-                self.node("PatternField::NamedAlias")
+                self.node("PatternField::NamedAlias", _id.id)
                     .field("name", name)
                     .field("alias", alias)
                     .end();
             }
             PatternField::Positional { pattern: _ } => {
-                self.node("PatternField::Positional").end();
+                self.node("PatternField::Positional", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -1490,12 +1524,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_doc(&mut self, _tree: &NodeTree, _id: NodeId<Doc>, doc: &Doc) {
         let string = truncate_string(self.strings.get(doc.string), 40, "...");
-        self.node("Doc").field("string", &string.as_ref()).end();
+        self.node("Doc", _id.id)
+            .field("string", &string.as_ref())
+            .end();
     }
 
     fn visit_comment(&mut self, _tree: &NodeTree, _id: NodeId<Comment>, comment: &Comment) {
         let string = truncate_string(self.strings.get(comment.string), 40, "...");
-        self.node("Comment").field("string", &string.as_ref()).end();
+        self.node("Comment", _id.id)
+            .field("string", &string.as_ref())
+            .end();
     }
 }
 
