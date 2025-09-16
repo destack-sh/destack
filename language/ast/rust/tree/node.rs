@@ -983,6 +983,7 @@ impl Node for Type {
 /// ```
 /// with T: int32
 /// with Foo
+/// with Foo as Bar
 /// with Foo, Bar
 /// with Foo.Bar
 /// with !Bar
@@ -1699,15 +1700,17 @@ pub enum OperatorPrecedence {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum UnaryOperator {
     /// `!`
-    Not = 245,
+    Not = 246,
     /// `-`
-    Negate = 244,
+    Negate = 245,
     /// `-%`
-    WrappingNegate = 243,
+    WrappingNegate = 244,
     /// `~`
-    BitwiseNot = 242,
+    BitwiseNot = 243,
     /// `*`
-    Dereference = 241,
+    Dereference = 242,
+    /// `*?`
+    TryDereference = 241,
 }
 
 /// A BinaryOperator is an infix binary operator.
@@ -2097,7 +2100,7 @@ pub enum AnnotationPosition {
     Suffix,
 }
 
-// todo! parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
+// NOTE :Incomplete: parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
 
 /// A Doc is a full documentation comment string.
 /// Like comments, Docs are attached in a side tree outside of the main parse / tree.

@@ -378,7 +378,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_library_core"
+name = "destack_library_entity"
+version = "2025.9.13-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "destack_library_event"
 version = "2025.9.13-0"
 dependencies = [
  "quickcheck",
@@ -491,6 +499,14 @@ dependencies = [
 
 [[package]]
 name = "destack_library_telemetry"
+version = "2025.9.13-0"
+dependencies = [
+ "quickcheck",
+ "quickcheck_macros",
+]
+
+[[package]]
+name = "destack_library_text"
 version = "2025.9.13-0"
 dependencies = [
  "quickcheck",

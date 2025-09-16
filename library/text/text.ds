@@ -17,7 +17,7 @@ enum TextSpanType {
 /// Flags that can be applied to a TextSpan.
 enum TextStyleFlag {
     /// Default style flag.
-    Default,
+    Default = 0,
     /// Bold style flag.
     Bold,
     /// Italic style flag.
@@ -41,7 +41,7 @@ struct TextSpan {
     /// Optional hyperlink URL.
     url: ?String,
     /// Styling flags for self span.
-    styleFlags: TextStyleFlag = TextStyleFlag.Default,
+    style: TextStyleFlag = TextStyleFlag.Default,
 }
 
 /// A single paragraph composed of TextSpans with inline styling.
@@ -49,7 +49,7 @@ struct Text {
     /// The spans composing the paragraph.
     spans: List<TextSpan>
     /// Styling flags for the whole paragraph.
-    styleFlags: TextStyleFlag = TextStyleFlag.Default
+    style: TextStyleFlag = TextStyleFlag.Default
 }
 
 

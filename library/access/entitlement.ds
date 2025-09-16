@@ -8,46 +8,38 @@ enum EntitlementType {
 
 /// Base event regarding an Entitlement.
 @event
-struct EntitlementEvent {
+struct EntitlementEvent: Event {
     /// The Entitlement self event pertains to.
-    entitlement: Entitlement,
+    entitlement: EntityReference<Entitlement>,
     /// The Entitled target Entity.
     target: Entity,
 }
 
 /// Entitlement was requested.
 @event
-struct EntitlementRequestedEvent { 
- use EntitlementEvent 
- }
+struct EntitlementRequestedEvent: EntitlementEvent { }
 
 /// Entitlement was granted.
 @event
-struct EntitlementGrantedEvent { 
- use EntitlementEvent 
- }
+struct EntitlementGrantedEvent: EntitlementEvent { }
 
 /// Entitlement was revoked.
 @event
-struct EntitlementRevokedEvent { 
- use EntitlementEvent 
- }
+struct EntitlementRevokedEvent: EntitlementEvent { }
 
 /// Entitlement has expired.
 @event
-struct EntitlementExpiredEvent { 
- use EntitlementEvent 
- }
+struct EntitlementExpiredEvent: EntitlementEvent { }
 
 /// An Entitlement to some Entity.
 @entity
-struct Entitlement {
+struct Entitlement: Entity {
     /// The Entitlement type.
     type: EntitlementType,
     /// When the Entitlement expires.
     expiresAt: ?Timestamp,
     /// The target Entity of the Entitlement.
-    target: Entity,
+    target: EntityReference<Entity>,
 }
 
 
