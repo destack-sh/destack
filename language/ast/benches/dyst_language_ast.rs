@@ -2,7 +2,7 @@ use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, 
 use destack_library_file::glob;
 use dyst_language_ast::{BlockFormat, Parser};
 use dyst_language_session::Session;
-use dyst_language_source::{Source, SourceId};
+use dyst_language_source::{Source, SourceId, Uri};
 use dyst_language_token::TokenType;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
@@ -44,7 +44,7 @@ fn bench_parse(c: &mut Criterion) {
             }
         }
     }
-    let source = Source::from_string(SourceId::new(0), "input".to_string(), ds_str);
+    let source = Source::from_string(SourceId::new(0), Uri::from_string("input"), ds_str);
 
     // single benchmark over the whole workspace content
     let mut session = Session::new();

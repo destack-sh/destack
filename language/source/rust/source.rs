@@ -1,4 +1,4 @@
-use crate::Span;
+use crate::{Span, Uri};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -15,8 +15,8 @@ impl SourceId {
 pub struct Source {
     /// The id of the SourceFile.
     pub id: SourceId,
-    /// The full name or path of the SourceFile.
-    pub name: String,
+    /// The URI of the SourceFile.
+    pub uri: Uri,
     /// The content of the source file.
     pub content: String,
     /// The length of the SourceFile in bytes.
@@ -28,7 +28,7 @@ pub struct Source {
 impl Source {
     /// Create a new Source.
     /// Precomputes indexing information immediately.
-    pub fn from_string(id: SourceId, name: String, content: String) -> Self {
+    pub fn from_string(id: SourceId, uri: Uri, content: String) -> Self {
         let len = content.len() as u32;
 
         // precompute line start byte offsets for O(1) line -> byte lookup
@@ -41,7 +41,7 @@ impl Source {
 
         Self {
             id,
-            name,
+            uri,
             content,
             len,
             line_start_offsets,
