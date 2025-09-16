@@ -133,7 +133,7 @@ fn write_header(buffer: &mut String, source: &Source, line: u32, col: u32, use_c
         buffer.push_str(&Color::White.apply(HEADER_PREFIX));
         buffer.push_str(&Color::White.apply(" "));
         // name
-        buffer.push_str(&Color::BrightWhite.apply(&source.name));
+        buffer.push_str(&Color::BrightWhite.apply(source.uri.as_ref()));
         buffer.push_str(&Color::White.apply(":"));
         // line
         buffer.push_str(&Color::BrightMagenta.apply(&line.saturating_add(1).to_string()));
@@ -145,7 +145,7 @@ fn write_header(buffer: &mut String, source: &Source, line: u32, col: u32, use_c
         buffer.push_str(HEADER_PREFIX);
         buffer.push(' ');
         // name
-        buffer.push_str(&source.name);
+        buffer.push_str(source.uri.as_ref());
         buffer.push(':');
         // line
         buffer.push_str(&line.saturating_add(1).to_string());
@@ -427,7 +427,7 @@ fn get_highlight_offset(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{SourceId, Span};
+    use crate::{SourceId, Span, Uri};
 
     #[test]
     fn test_annotate_single_line() {
@@ -436,7 +436,7 @@ mod tests {
     let variable = 42;
 }"#
         .to_string();
-        let source = Source::from_string(id, "<test>".to_string(), content.clone());
+        let source = Source::from_string(id, Uri::from_string("<test>"), content.clone());
         let start = source.content.find("variable").unwrap();
         let end = start + "variable".len();
         let span = LabeledSpan {
@@ -467,7 +467,7 @@ mod tests {
     fn test_annotate_wrapped_line() {
         let content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n";
         let id = SourceId::new(0);
-        let source = Source::from_string(id, "<test>".to_string(), content.to_string());
+        let source = Source::from_string(id, Uri::from_string("<test>"), content.to_string());
         let start = 150usize;
         let end = 155usize;
         let span = LabeledSpan {

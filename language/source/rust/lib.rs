@@ -5,6 +5,7 @@ mod path;
 mod source;
 mod span;
 mod string;
+mod uri;
 
 pub use annotate::*;
 pub use color::*;
@@ -13,3 +14,4 @@ pub use path::*;
 pub use source::*;
 pub use span::*;
 pub use string::*;
+pub use uri::*;

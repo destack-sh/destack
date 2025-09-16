@@ -1,5 +1,5 @@
 use dyst_language_session::Session;
-use dyst_language_source::{Source, SourceId};
+use dyst_language_source::{Source, SourceId, Uri};
 
 use crate::Parser;
 
@@ -13,7 +13,7 @@ pub(crate) struct TestParser {
 impl TestParser {
     pub(crate) fn new(input: &str) -> Self {
         let source_id = SourceId::new(0);
-        let source = Source::from_string(source_id, "<test>".to_string(), input.to_string());
+        let source = Source::from_string(source_id, Uri::from_string("<test>"), input.to_string());
         Self {
             source,
             session: Session::new(),
@@ -252,7 +252,7 @@ mod tests {
             let source_id = SourceId::new(i as u32);
             let source = Source::from_string(
                 source_id,
-                ds_file.to_string_lossy().into_owned(),
+                ds_file.into(),
                 fs::read_to_string(ds_file).unwrap(),
             );
             sources.insert(source_id, source);
