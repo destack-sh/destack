@@ -66,13 +66,17 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            // get the biggest, "lowest" next node to attach to
-            let mut enclosing_nodes_ids = self
+            // get the biggest, "lowest" next node to attach to that starts right after the annotation
+            // (we automatically get the "lowest" because indices are created bottom-up)
+            let mut enclosing_spans = self
                 .tree
                 .map
-                .get_enclosing_spans(target_token.span.start, target_token.span.end - 1);
-            enclosing_nodes_ids.sort_by_key(|span| span.length);
-            let Some(target_node_id) = enclosing_nodes_ids.into_iter().next().map(|span| span.idx)
+                .get_enclosing_spans(target_token.span.start, target_token.span.end - 1)
+                .into_iter()
+                .filter(|span| target_token.span.start == span.span.start)
+                .collect::<Vec<_>>();
+            enclosing_spans.sort_by_key(|span| -(span.length as i64));
+            let Some(target_node_id) = enclosing_spans.into_iter().next().map(|span| span.idx)
             else {
                 return; // no valid target node, bail
             };

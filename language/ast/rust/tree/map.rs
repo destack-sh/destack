@@ -50,12 +50,12 @@ impl NodeMap {
         self.spans_per_node[node_id as usize]
     }
 
-    /// Gets all enclosing spans in the given range (including index), sorted by innermost-ness.
-    pub fn get_enclosing_spans(&self, start: u32, end: u32) -> Vec<EnclosingSpan> {
+    /// Gets all enclosing spans in the given range (including index).
+    pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
         let mut spans: Vec<EnclosingSpan> = Vec::new();
         for (i, span) in self.spans_per_node.iter().enumerate() {
-            if span.contains(start) && span.contains(end) {
-                let distance = (start).abs_diff(span.start) + (span.end).abs_diff(end);
+            if span.contains(start) && span.contains(end_inclusive) {
+                let distance = (start).abs_diff(span.start) + (span.end).abs_diff(end_inclusive);
                 spans.push(EnclosingSpan {
                     idx: i as u32,
                     distance,
@@ -64,8 +64,6 @@ impl NodeMap {
                 });
             }
         }
-        // sort by innermost-ness (smallest length first)
-        spans.sort_by_key(|span| span.distance);
         spans
     }
 }

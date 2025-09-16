@@ -80,13 +80,11 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::CloseBrace)?;
 
         // fill header data
-        let r#enum = self.tree.get_mut(enum_id);
-        r#enum.name = name;
-        r#enum.r#type = explicit_type;
-        r#enum.super_types = super_types;
-
-        // extend span to include header and braces (best-effort)
-        let _ = start; // NOTE @Cleanup: spans not updated post-allocation
+        let enum_ = self.tree.get_mut(enum_id);
+        enum_.name = name;
+        enum_.r#type = explicit_type;
+        enum_.super_types = super_types;
+        self.tree.set_span(enum_id, self.get_span_from(start));
 
         Ok(enum_id)
     }
