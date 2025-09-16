@@ -1,4 +1,4 @@
-//! The AST Nodes in Dyst.
+//! Thes in Dyst.
 //!
 //! The set of allowable ASTs is larger than the set of valid Destack programs.
 //! Allowing invalid but syntactically correct ASTs is great for linting and error messages,
@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 
 use dyst_language_token::TokenType;
 
-use crate::{ParseError, PathId, StringId};
+use crate::{PathId, StringId};
 
 /// The type of a node in the AST.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -161,7 +161,7 @@ pub enum BlockFormat {
     Implicit,
 }
 
-/// A Block is a block AST node of statements.
+/// A Block is a block of statements.
 ///
 /// Examples:
 /// ```
@@ -185,7 +185,7 @@ impl Node for Block {
     const KIND: NodeType = NodeType::Block;
 }
 
-/// An Statement is a top-level AST node in a container in the AST.
+/// An Statement is a top-level in a container in the AST.
 /// Statements do not have to produce values, but they can be any Expression.
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
@@ -209,9 +209,9 @@ pub enum Statement {
     /// Function definition (as a Statement, see Function).
     Function(NodeId<Function>),
 
-    /// With declaration for dependency and context management (see With).
+    /// With declaration for context management (see With).
     With(NodeId<With>),
-    /// Use declaration for dependency and context management (see Use).
+    /// Use declaration for dependency management (see Use).
     Use(NodeId<Use>),
 }
 
@@ -219,7 +219,7 @@ impl Node for Statement {
     const KIND: NodeType = NodeType::Statement;
 }
 
-/// An Expression is a generic container AST node for all possible expression nodes in the AST.
+/// An Expression is a generic container for all possible expression nodes in the AST.
 /// Expressions can be literals, bindings, calls, definitions, control flow, etc.
 ///
 /// Some Expressions are "place Expressions" and can be read from and written to,
@@ -318,7 +318,7 @@ pub enum Expression {
     },
 
     /// Error placeholder.
-    Error(ParseError),
+    Error,
 }
 
 impl Node for Expression {
@@ -329,7 +329,7 @@ impl Node for Expression {
 // Declarations
 // ----------------------------------------------------------------------------
 
-/// A Module is a module declaration AST node.
+/// A Module is a module declaration.
 /// Modules may be whole directories, single files, or nested within a file.
 ///
 /// Examples:
@@ -430,7 +430,7 @@ impl Node for Struct {
     const KIND: NodeType = NodeType::Struct;
 }
 
-/// A StructField is a (struct) field declaration AST node.
+/// A StructField is a (struct) field declaration.
 ///
 /// Examples:
 /// ```
@@ -502,7 +502,7 @@ impl Node for Enum {
     const KIND: NodeType = NodeType::Enum;
 }
 
-/// A EnumField is a enum field declaration AST node.
+/// A EnumField is a enum field declaration.
 ///
 /// Examples:
 /// ```
@@ -589,7 +589,7 @@ impl Node for Union {
     const KIND: NodeType = NodeType::Union;
 }
 
-/// A UnionField is a union field declaration AST node.
+/// A UnionField is a union field declaration.
 ///
 /// Examples:
 /// ```
@@ -785,7 +785,7 @@ impl Node for Function {
     const KIND: NodeType = NodeType::Function;
 }
 
-/// The "self" parameter for a function (also accepts `this`).
+/// The "self" parameter for a function (also accepts `this` and `&`).
 ///
 /// Examples:
 /// ```
@@ -793,6 +793,8 @@ impl Node for Function {
 /// var self
 /// *self
 /// *var self
+/// $self
+/// $var self
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
@@ -869,7 +871,7 @@ impl Node for Tuple {
     const KIND: NodeType = NodeType::Tuple;
 }
 
-/// A TupleField is a tuple field definition AST node.
+/// A TupleField is a tuple field definition.
 /// Tuple elements may be named or anonymous, but cannot have default values.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TupleField {
@@ -930,7 +932,7 @@ pub enum Type {
     /// Never `!`.
     Never,
     /// Self type (only inside associated scopes for types).
-    Self_,
+    This,
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.
@@ -943,9 +945,9 @@ pub enum Type {
         mutability: Mutability,
         target: NodeId<Type>,
     },
-    /// Virtual type `$T`.
+    /// Virtual type `$T`. Somewhat like Any<T>.
     Virtual(NodeId<Type>),
-    /// Variadic type `..T`.
+    /// Variadic type `..T`. Behaves like a slice.
     Variadic(NodeId<Type>),
     /// Inline Array type `[N]T`. Must have static length.
     Array {
@@ -974,7 +976,7 @@ impl Node for Type {
 // Context
 // ----------------------------------------------------------------------------
 
-/// A With is a with declaration AST node for dependency and context management.
+/// A With is a with declaration for context management.
 /// With can declare the use of an item in a scope and refine type bounds.
 ///
 /// Examples:
@@ -1000,7 +1002,7 @@ impl Node for With {
     const KIND: NodeType = NodeType::With;
 }
 
-/// A WithClause is a single clause AST node in a with declaration.
+/// A WithClause is a single clause in a with declaration.
 /// It can be a type assertion (`T: Y`) or a use declaration (`Foo` or `Foo.Bar as Zeb`).
 /// Only positive declarations should have aliases (checked later).
 ///
@@ -1035,7 +1037,7 @@ impl Node for WithClause {
     const KIND: NodeType = NodeType::WithClause;
 }
 
-/// A Use is a use declaration AST node for dependency and context management.
+/// A Use is a use declaration for dependency management.
 /// Use can be used as statement for the containing scope or in block form.
 /// `use` includes all or some items from a definition in the relevant scope.
 ///
@@ -1074,7 +1076,7 @@ impl Node for Use {
     const KIND: NodeType = NodeType::Use;
 }
 
-/// A UseClause is a single clause AST node in a use declaration.
+/// A UseClause is a single clause in a use declaration.
 ///
 /// Examples:
 /// ```
@@ -1097,7 +1099,7 @@ impl Node for UseClause {
     const KIND: NodeType = NodeType::UseClause;
 }
 
-/// A UseItem is an item AST node to use in a use clause.
+/// A UseItem is an item to use in a use clause.
 ///
 /// Examples:
 /// ```
@@ -1392,7 +1394,7 @@ impl Node for Try {
     const KIND: NodeType = NodeType::Try;
 }
 
-/// A Parameter is a parameter AST node to some expression.
+/// A Parameter is a parameter to some expression.
 /// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
 ///
 /// Examples:
@@ -1417,7 +1419,7 @@ impl Node for Parameter {
     const KIND: NodeType = NodeType::Parameter;
 }
 
-/// An Argument is an argument AST node to a function call in the AST.
+/// An Argument is an argument to a function call in the AST.
 /// It may be named or positional.
 /// Can be used in static and dynamic contexts (e.g. in [..] or (..)).
 ///
@@ -1958,7 +1960,7 @@ impl Node for Coalesce {
 // Patterns
 // ----------------------------------------------------------------------------
 
-/// A Pattern is a pattern AST node to match something and unwrap it.
+/// A Pattern is a pattern to match something and unwrap it.
 /// Guards are handled only for match cases (see MatchCase).
 ///
 /// Examples:
@@ -2018,7 +2020,7 @@ impl Node for Pattern {
     const KIND: NodeType = NodeType::Pattern;
 }
 
-/// A PatternStructField is a field AST node of a struct pattern.
+/// A PatternStructField is a field of a struct pattern.
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
 ///
 /// Examples:
@@ -2045,7 +2047,7 @@ impl Node for PatternField {
     const KIND: NodeType = NodeType::PatternField;
 }
 
-/// A MatchCase is a match case AST node inside a Match expression.
+/// A MatchCase is a match case inside a Match expression.
 /// MatchCases can be any Pattern and can have an optional `if` guard.
 ///
 /// Examples:
@@ -2097,7 +2099,7 @@ pub enum AnnotationPosition {
 
 // todo! parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
 
-/// A Doc is a full documentation comment string AST node.
+/// A Doc is a full documentation comment string.
 /// Like comments, Docs are attached in a side tree outside of the main parse / tree.
 ///
 /// Examples:
@@ -2123,7 +2125,7 @@ impl Node for Doc {
     const KIND: NodeType = NodeType::Doc;
 }
 
-/// A Comment is a free-floating comment AST node.
+/// A Comment is a free-floating comment.
 /// Like documentation, Comments are attached in a side tree outside of the main parse / tree.
 ///
 /// Examples:

@@ -7,7 +7,7 @@ use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_wit
 use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult};
 use dyst_language_session::Session;
 
-/// Configure parsing behavior.
+/// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
 #[derive(Debug, Copy, Clone, Default)]
 pub(crate) struct ParserOptions {
@@ -43,6 +43,8 @@ pub struct Parser<'a> {
     pub tree: NodeTree,
     /// The session.
     pub session: &'a mut Session,
+    /// The errors encountered so far.
+    pub errors: Vec<ParseError>,
 }
 
 impl Debug for Parser<'_> {
@@ -74,6 +76,7 @@ impl<'a> Parser<'a> {
             pos: 0,
             eof_token,
             options: ParserOptions::default(),
+            errors: Vec::new(),
         }
     }
 
@@ -108,11 +111,15 @@ impl<'a> Parser<'a> {
         result
     }
 
-    /// Called when an error is encountered.
-    /// Errors are deduplicated, collected and added to the diagnostics.
+    /// Handle an error as a Diagnostic.
+    /// Errors are deduplicated by leaf content to avoid squiggly red line noise.
     #[inline]
-    pub(crate) fn handle_error(&mut self, e: ParseError) {
-        self.session.handle_diagnostic(e.into());
+    pub(crate) fn handle_error(&mut self, e: &ParseError) {
+        if !self.errors.iter().any(|d| d.eq_content(e)) {
+            self.errors.push(e.clone());
+            let diagnostic = e.into();
+            self.session.handle_diagnostic(diagnostic);
+        }
     }
 
     /// Intern a string.
@@ -357,8 +364,8 @@ impl<'a> Parser<'a> {
     ) -> T {
         match func(self) {
             Ok(result) => result,
-            Err(_) => {
-                let _ = self.try_recover(start, bail);
+            Err(err) => {
+                let _ = self.try_recover(start, bail, Some(err));
                 default
             }
         }
@@ -366,12 +373,18 @@ impl<'a> Parser<'a> {
 
     /// Recover until the expected token.
     /// Everything from start to then is an error.
-    pub fn try_recover(&mut self, start: ParserMark, recover: TokenType) -> ParseResult<()> {
+    pub fn try_recover(
+        &mut self,
+        start: ParserMark,
+        recover: TokenType,
+        error: Option<ParseError>,
+    ) -> ParseResult<()> {
+        // let error = error.unwrap_or_else(|| ParseError::unexpected(self.get_span_from(start)));
         while let Ok(token) = self.peek() {
             // recover from here (but report error)
             if token.token.r#type == recover {
-                let error = ParseError::unexpected(self.get_span_from(start));
-                self.handle_error(error);
+                let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+                self.handle_error(&error);
                 return Ok(());
             } else {
                 // keep going
@@ -379,8 +392,8 @@ impl<'a> Parser<'a> {
             }
         }
         // error if we didn't hit the expected token
-        let error = ParseError::unexpected(self.get_span_from(start));
-        self.handle_error(error);
+        let error = ParseError::from_source_maybe(self.get_span_from(start), error);
+        self.handle_error(&error);
         Err(error)
     }
 
@@ -404,7 +417,7 @@ impl<'a> Parser<'a> {
             if token.token.r#type == expected {
                 let error = ParseError::unexpected(self.get_span_from(start));
                 self.bump();
-                self.handle_error(error);
+                self.handle_error(&error);
                 return Ok(());
             }
             // keep going
@@ -415,7 +428,7 @@ impl<'a> Parser<'a> {
 
         // error if we didn't hit the expected token, we're either at recovery or EOF
         let error = ParseError::unexpected(self.get_span_from(start));
-        self.handle_error(error);
+        self.handle_error(&error);
         Err(error)
     }
 }

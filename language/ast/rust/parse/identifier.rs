@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
         if self.get_token_str(*span) == string {
             Ok(span)
         } else {
-            Err(ParseError::expected_token(span.span, TokenType::Identifier))
+            Err(ParseError::expected(span.span, TokenType::Identifier))
         }
     }
 

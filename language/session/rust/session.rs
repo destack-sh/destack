@@ -27,9 +27,7 @@ impl Session {
 
     /// Handle a Diagnostic.
     pub fn handle_diagnostic(&mut self, diagnostic: Diagnostic) {
-        if !self.diagnostics.contains(&diagnostic) {
-            self.diagnostics.push(diagnostic);
-        }
+        self.diagnostics.push(diagnostic);
     }
 
     /// Intern a string.
