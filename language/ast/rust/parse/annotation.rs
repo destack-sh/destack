@@ -5,40 +5,7 @@ use std::borrow::Cow;
 use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
-use crate::{AnnotationPosition, AnnotationStyle, Comment, Doc, NodeType, Parser};
-
-pub const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
-    TokenType::LineComment,
-    TokenType::DocLineComment,
-    TokenType::BlockComment,
-    TokenType::DocBlockComment,
-];
-
-/// Node types that we directly attach annotations to.
-/// (These are all the nodes that are meaningful separate expressions / statements).
-pub const ANNOTATED_NODE_TYPES: [NodeType; 18] = [
-    // Groupings (fallback)
-    NodeType::Statement,
-    NodeType::Expression,
-    // Declarations
-    NodeType::Module,
-    NodeType::Struct,
-    NodeType::StructField,
-    NodeType::Enum,
-    NodeType::EnumField,
-    NodeType::Union,
-    NodeType::UnionField,
-    NodeType::Trait,
-    NodeType::Implement,
-    NodeType::Type,
-    NodeType::Tuple,
-    NodeType::TupleField,
-    NodeType::Function,
-    // Bindings
-    NodeType::Let,
-    NodeType::Parameter,
-    NodeType::Argument,
-];
+use crate::{ANNOTATION_TOKEN_TYPES, AnnotationPosition, AnnotationStyle, Comment, Doc, Parser};
 
 impl<'a> Parser<'a> {
     /// Attach annotations to respective AST nodes.
@@ -99,17 +66,13 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            // get the best node to attach to
-            let enclosing_nodes_ids = self
+            // get the biggest, "lowest" next node to attach to
+            let mut enclosing_nodes_ids = self
                 .tree
                 .map
-                .get_enclosing_spans(target_token.span.start, target_token.span.end - 1)
-                .into_iter()
-                .map(|(i, _)| i)
-                .collect::<Vec<_>>();
-            let Some(target_node_id) = enclosing_nodes_ids
-                .into_iter()
-                .find(|&i| ANNOTATED_NODE_TYPES.contains(&self.tree.get_type(i)))
+                .get_enclosing_spans(target_token.span.start, target_token.span.end - 1);
+            enclosing_nodes_ids.sort_by_key(|span| span.length);
+            let Some(target_node_id) = enclosing_nodes_ids.into_iter().next().map(|span| span.idx)
             else {
                 return; // no valid target node, bail
             };
@@ -445,17 +408,14 @@ enum Floof {
 // comment 1
 // comment 1.1
 let x = 1 + 1
-
-// comment 2
-func() /* comment 3, detached */
         ",
         );
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
 
-        // let x = 1 + 1
-        assert_eq!(statements.len(), 2);
+        // let x = 1 + 1 (let node)
+        assert_eq!(statements.len(), 1);
         assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
             // let x = 1 + 1
             assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
@@ -471,9 +431,23 @@ func() /* comment 3, detached */
             });
 
         });
+    }
 
-        // func()
-        assert_node!(parser.tree, statements[1], Statement::Expression(expr_node) => {
+    #[test]
+    fn test_attach_comments_to_call() {
+        let mut test = TestParser::new(
+            r"
+// comment 2
+func() /* comment 3, detached */
+        ",
+        );
+        let mut parser = test.parser();
+        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.process_annotations();
+
+        // func() (expression node)
+        assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
+            // comments should be on the biggest, "lowest" next node
             let comments = parser.tree.get_comments_for(expr_node.id);
             assert_eq!(comments.len(), 1);
 

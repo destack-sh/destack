@@ -340,7 +340,7 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         if let Some(node_id) = self.node_id {
             let span = self.dumper.tree.map.get_span_by_id(node_id);
             self.dumper.write_str(
-                format!("{}[{}..{}]", node_id, span.start, span.end).as_str(),
+                format!(" {} [{}..{}]", node_id, span.start, span.end).as_str(),
                 Some(Color::White),
             );
             self.dumper.write_char('\n', None);
@@ -356,7 +356,7 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         if let Some(node_id) = self.node_id {
             let span = self.dumper.tree.map.get_span_by_id(node_id);
             self.dumper.write_str(
-                format!("{}[{}..{}]", node_id, span.start, span.end).as_str(),
+                format!(" {} [{}..{}]", node_id, span.start, span.end).as_str(),
                 Some(Color::White),
             );
             self.dumper.write_char('\n', None);
