@@ -7,6 +7,8 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
+use dyst_language_token::TokenType;
+
 use crate::{ParseError, PathId, StringId};
 
 /// The type of a node in the AST.
@@ -71,6 +73,15 @@ pub enum NodeType {
     Doc,
     Comment,
 }
+
+pub const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
+    TokenType::LineComment,
+    TokenType::DocLineComment,
+    TokenType::BlockComment,
+    TokenType::DocBlockComment,
+];
+
+pub const ANNOTATED_NODE_TYPES: [NodeType; 2] = [NodeType::Doc, NodeType::Comment];
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]
@@ -2083,6 +2094,8 @@ pub enum AnnotationPosition {
     /// Annotation after the node (on same line).
     Suffix,
 }
+
+// todo! parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
 
 /// A Doc is a full documentation comment string AST node.
 /// Like comments, Docs are attached in a side tree outside of the main parse / tree.

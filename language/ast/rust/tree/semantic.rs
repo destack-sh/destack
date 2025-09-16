@@ -201,8 +201,8 @@ impl<'a> SemanticTokenMap<'a> {
         semantic_type: SemanticType,
     ) {
         let span = tree.get_span(id);
-        for (i, _) in tree.map.get_enclosing_spans(span.start, span.end) {
-            self.semantic_types[i as usize] = semantic_type;
+        for span in tree.map.get_enclosing_spans(span.start, span.end) {
+            self.semantic_types[span.idx as usize] = semantic_type;
         }
     }
 }

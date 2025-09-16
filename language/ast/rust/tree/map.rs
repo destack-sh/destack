@@ -15,6 +15,14 @@ impl Default for NodeMap {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct EnclosingSpan {
+    pub idx: u32,
+    pub distance: u32,
+    pub length: u32,
+    pub span: Span,
+}
+
 impl NodeMap {
     pub fn new() -> Self {
         Self {
@@ -42,52 +50,22 @@ impl NodeMap {
         self.spans_per_node[node_id as usize]
     }
 
-    /// Gets the smallest enclosing span for a given position.
-    pub fn get_enclosing_span(&self, pos: u32) -> Option<(u32, Span)> {
-        let mut min_distance = u32::MAX;
-        let mut enclosing_span: Option<(u32, Span)> = None;
-        for (i, span) in self.spans_per_node.iter().enumerate() {
-            if span.contains(pos) {
-                let distance = pos.saturating_sub(span.start);
-                if distance < min_distance {
-                    min_distance = distance;
-                    enclosing_span = Some((i as u32, *span));
-                }
-            }
-        }
-        enclosing_span
-    }
-
-    /// Gets the innermost (smallest-length) enclosing span for a given position.
-    pub fn get_innermost_enclosing_span(&self, pos: u32) -> Option<(u32, Span)> {
-        let mut best: Option<(u32, Span)> = None;
-        for (i, span) in self.spans_per_node.iter().enumerate() {
-            if span.contains(pos) {
-                match best {
-                    None => best = Some((i as u32, *span)),
-                    Some((_, current)) => {
-                        let cur_len = current.end.saturating_sub(current.start);
-                        let new_len = span.end.saturating_sub(span.start);
-                        if new_len < cur_len {
-                            best = Some((i as u32, *span));
-                        }
-                    }
-                }
-            }
-        }
-        best
-    }
-
     /// Gets all enclosing spans in the given range (including index), sorted by innermost-ness.
-    pub fn get_enclosing_spans(&self, start: u32, end: u32) -> Vec<(u32, Span)> {
-        let mut spans = Vec::new();
+    pub fn get_enclosing_spans(&self, start: u32, end: u32) -> Vec<EnclosingSpan> {
+        let mut spans: Vec<EnclosingSpan> = Vec::new();
         for (i, span) in self.spans_per_node.iter().enumerate() {
             if span.contains(start) && span.contains(end) {
-                spans.push((i as u32, *span));
+                let distance = (start).abs_diff(span.start) + (span.end).abs_diff(end);
+                spans.push(EnclosingSpan {
+                    idx: i as u32,
+                    distance,
+                    length: span.end.saturating_sub(span.start),
+                    span: *span,
+                });
             }
         }
         // sort by innermost-ness (smallest length first)
-        spans.sort_by_key(|(_, span)| span.end.saturating_sub(span.start));
+        spans.sort_by_key(|span| span.distance);
         spans
     }
 }
