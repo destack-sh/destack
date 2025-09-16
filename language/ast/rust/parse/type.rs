@@ -221,7 +221,7 @@ impl<'a> Parser<'a> {
             "float32" => Ok(PrimitiveType::Float(FloatType::Float32)),
             // float64
             "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
-            _ => Err(ParseError::expected_token(next.span, TokenType::Identifier)),
+            _ => Err(ParseError::expected(next.span, TokenType::Identifier)),
         }
     }
 
@@ -433,8 +433,6 @@ impl<'a> Parser<'a> {
     }
 }
 
-// todo! :Broken: unglue << and >> for static type arguments (everywhere)
-
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
@@ -618,7 +616,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_path_with_static_arguments() {
-        let mut test = TestParser::new("MyMesh<false, Dims: 3>");
+        let mut test = TestParser::new("Mesh<false, Dims: 3>");
         let mut parser = test.parser();
         let ty_id = parser.eat_type().unwrap();
 
@@ -629,7 +627,7 @@ mod tests {
                 path,
                 static_arguments,
             } => {
-                assert_path!(parser.session, *path, "MyMesh");
+                assert_path!(parser.session, *path, "Mesh");
                 let args = static_arguments.as_ref().expect("expected static args");
                 assert_eq!(args.len(), 2);
 
@@ -667,6 +665,57 @@ mod tests {
                                         assert_eq!(*int_ty, IntType::INT32);
                                     }
                                 );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_type_path_with_nested_static_arguments() {
+        // todo! @Broken: unglue << and >> for static type arguments (everywhere)
+
+        let mut test = TestParser::new("HashMap<Key<int32>, Value: List<number>>");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type().unwrap();
+
+        assert_node!(
+            parser.tree,
+            ty_id,
+            Type::Path {
+                path,
+                static_arguments,
+            } => {
+                assert_path!(parser.session, *path, "HashMap");
+                let args = static_arguments.as_ref().expect("expected static args");
+                assert_eq!(args.len(), 2);
+
+                // Key<int32>
+                assert_node!(
+                    parser.tree.get(args[0]),
+                    Argument::Positional { value } => {
+                        assert_node!(
+                            parser.tree,
+                            *value,
+                            Expression::Path(..) => {
+
+                            }
+                        );
+                    }
+                );
+
+
+                // Value: List<number>
+                assert_node!(
+                    parser.tree.get(args[1]),
+                    Argument::Named { name, value } => {
+                        assert_string!(parser.session, *name, "Value");
+                        assert_node!(
+                            parser.tree,
+                            *value,
+                            Expression::Path(..) => {
                             }
                         );
                     }

@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected_token(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Comma,
             ))
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
         {
             self.bump();
         } else {
-            return Err(ParseError::expected_token(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Comma,
             ));
@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected_token(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ))
@@ -61,7 +61,7 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParseError::expected_token(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));
@@ -79,7 +79,7 @@ impl<'a> Parser<'a> {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParseError::expected_token(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));
@@ -98,7 +98,7 @@ impl<'a> Parser<'a> {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected_token(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ))
@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
         {
             self.bump();
         } else {
-            return Err(ParseError::expected_token(
+            return Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Newline,
             ));

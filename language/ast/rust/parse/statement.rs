@@ -12,8 +12,9 @@ impl<'a> Parser<'a> {
         match self.eat_statement() {
             Ok(statement_id) => Ok(Some(statement_id)),
             Err(err) => {
-                let start = ParserMark::new(err.span.start as usize);
-                self.try_recover(start, TokenType::Newline)?;
+                let span = err.leaf_span();
+                let start = ParserMark::new(span.start as usize);
+                self.try_recover(start, TokenType::Newline, Some(err))?;
                 Ok(None)
             }
         }

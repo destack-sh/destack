@@ -375,10 +375,8 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_token_type(token.token.r#type).ok_or(ParseError::expected_token(
-            token.span,
-            TokenType::Identifier,
-        ))
+        UnaryOperator::from_token_type(token.token.r#type)
+            .ok_or(ParseError::expected(token.span, TokenType::Identifier))
     }
 
     /// Peek a binary operator.
@@ -456,11 +454,12 @@ impl<'a> Parser<'a> {
         match self.eat_expression(options) {
             Ok(expression_id) => Ok(expression_id),
             Err(err) => {
-                let start = ParserMark::new(err.span.start as usize);
-                self.try_recover(start, recover)?;
+                let span = err.leaf_span();
+                let start = ParserMark::new(span.start as usize);
+                self.try_recover(start, recover, Some(err))?;
                 let error_id = self
                     .tree
-                    .allocate(Expression::Error(err), self.get_span_from(start));
+                    .allocate(Expression::Error, self.get_span_from(start));
                 Ok(error_id)
             }
         }

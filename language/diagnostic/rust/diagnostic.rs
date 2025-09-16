@@ -25,10 +25,10 @@ pub enum Severity {
 /// A Diagnostic.
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Diagnostic {
-    /// The stable identifier of the diagnostic (like `E001` or `W017`).
-    pub code: String,
     /// The kind of the diagnostic.
     pub kind: DiagnosticKind,
+    /// The stable identifier of the diagnostic (like `E001` or `W017`).
+    pub code: String,
     /// The severity of the diagnostic.
     pub severity: Severity,
     /// The message of the diagnostic.

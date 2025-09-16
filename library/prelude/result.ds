@@ -1,7 +1,7 @@
 /// A Result value which may hold Success(T) or Error(E).
 union Result<T, E> {
     Success(T),
-    Error(E),
+    Failure(E),
 }
 
 implement Result {
@@ -9,7 +9,7 @@ implement Result {
     function isSuccess(self) => boolean {
         match self {
             Success(_) => true
-            Error(_) => false
+            Failure(_) => false
         }
     }
 
@@ -17,7 +17,7 @@ implement Result {
     function isError(self) => boolean {
         match self {
             Success(_) => false
-            Error(_) => true
+            Failure(_) => true
         }
     }
 }

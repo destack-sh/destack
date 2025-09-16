@@ -121,7 +121,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Cast(node) => visitor.visit_cast(tree, *node, tree.get(*node)),
         Expression::Coalesce(node) => visitor.visit_coalesce(tree, *node, tree.get(*node)),
 
-        Expression::Error(_) => {}
+        Expression::Error => {}
     }
 }
 
@@ -478,7 +478,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             visitor.visit_type(tree, *inner, inner_type);
         }
         Type::Never => {}
-        Type::Self_ => {}
+        Type::This => {}
         Type::Primitive(_) => {}
         Type::Path {
             path: _,

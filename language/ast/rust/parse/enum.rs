@@ -141,7 +141,7 @@ impl<'a> Parser<'a> {
         {
             Ok(())
         } else {
-            Err(ParseError::expected_token(
+            Err(ParseError::expected(
                 self.peek().unwrap_or(&self.eof_token).span,
                 TokenType::Identifier,
             ))

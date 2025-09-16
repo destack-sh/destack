@@ -795,7 +795,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Expression::Error(_) => {
+            Expression::Error => {
                 self.node("Expression::Error", _id.id).end();
             }
         }
@@ -916,7 +916,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Never => {
                 self.node("Type::Never", _id.id).end();
             }
-            Type::Self_ => {
+            Type::This => {
                 self.node("Type::Self", _id.id).end();
             }
             Type::Primitive(primitive) => {

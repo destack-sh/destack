@@ -2,14 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "dyst_language_token",
+      "name": "dyst_language_ast",
       "type": "lldb",
       "request": "launch",
       "cargo": {
         "args": ["run", "--bin", "destack_library_cli"],
         "filter": { "kind": "bin", "name": "destack_library_cli" }
       },
-      "args": ["parse", "lex", "--file", "library/geometry/module.ds"],
+      "args": ["parse", "ast", "--string", "HashMap<Key<int32>, Value: List<number>>"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     }
