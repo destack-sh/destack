@@ -43,48 +43,62 @@ enum(uint4) ExtensionFlag {
     Extensible
 }
 
+struct Reference<T: Entity> {
+    id: Uuid
+    space_id: Uuid
+    branch_id: Uuid
+    snapshot_id: Uuid
+}
+
 struct Identity {
     /// The universally unique identifier of self Entity.
     id: Uuid
     /// The Space self Entity is in.
-    space: EntityReference<Space>
+    space: Reference<Space>
     /// The Branch self Entity is part of (in its Space).
-    branch: EntityReference<Branch>
+    branch: Reference<Branch>
     /// The Snapshot self Entity is part of (in its Space and Branch).
-    snapshot: EntityReference<Snapshot>
-    /// The materialization level of self Entity.
-    materialization: Materialization = Materialization.Root
-    /// The definition self Entity is an instance of.
-    definition: ?EntityReference<Entity>
-    /// The (root) Entity that is being instantiated.
-    instance: ?EntityReference<Entity>
+    snapshot: Reference<Snapshot>
 }
 
-implement Dereference for Identity {
-    function dereference(&self) with GraphContext {
-        with GraphContext as graph
-        return graph.get(self.id)
+implement TryDereference for Identity {
+    function dereference(&self) with (
+        GraphContext as graph
+    ) {
+        graph.get(self)
     } 
+
+    function dereferenceVar(&self) with (
+        GraphContext as graph
+    ) {
+        graph.get(self)
+    }
 }
 
 /// A named, versioned, mutable object in the system.
 @entity
 struct Entity {
     use Identity as identity
+    /// The materialization level of self Entity.
+    materialization: Materialization = Materialization.Root
+    /// The definition self Entity is an instance of.
+    definition: ?Reference<Entity>
+    /// The (root) Entity that is being instantiated.
+    instance: ?Reference<Entity>
     
     /// The logical time self Entity was created.
     createdEpoch: Epoch
     /// The logical time self Entity was last updated.
     updatedEpoch: Epoch
     /// The exclusive owner of self Entity (the authority on access).
-    owner: EntityReference<Entity>
+    owner: Reference<Entity>
     /// The exclusive controller of self Entity (the authority on changes).
-    controller: EntityReference<Entity>
+    controller: Reference<Entity>
     /// The process flags of self Entity.
     processFlags: ProcessFlag = ProcessFlag.Default
 
     /// The parent of self Entity. Most Entities can be attached to any other Entity.
-    parent: ?EntityReference<Entity>
+    parent: ?Reference<Entity>
     /// The name of self Entity.
     name: String
     /// The key of self Entity (for reconciliation and querying).
@@ -94,5 +108,5 @@ struct Entity {
     extensionFlags: ExtensionFlag
 
     /// The Script of self Entity.
-    script: ?EntityReference<Script>
+    script: ?Reference<Script>
 }
