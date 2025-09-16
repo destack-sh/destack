@@ -21,7 +21,7 @@ dyst_language_token = { workspace = true }
 dyst_language_session = { workspace = true }
 dyst_language_source = { workspace = true }
 
-# NOTE: vendor LSP types & serde (once Dyst is more mature)
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ls-types = { git = "https://github.com/tower-lsp-community/ls-types", branch = "main" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "sync"] }
+tower-lsp-server = "0.22.1"
