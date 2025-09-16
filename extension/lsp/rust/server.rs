@@ -69,6 +69,8 @@ impl LanguageServer for DestackLanguageServer {
         Ok(())
     }
 
+    // todo!: basic LSP server stuff
+
     /// Compute semantic tokens for the entire document.
     fn semantic_tokens_full(
         &self,

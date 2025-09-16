@@ -20,7 +20,8 @@ members = [
 	"library/audio",
 	"library/cli",
 	"library/cloud",
-	"library/core",
+	"library/entity",
+	"library/event",
 	"library/file",
 	"library/geometry",
 	"library/image",
@@ -43,6 +44,7 @@ members = [
 	"library/uuid",
 	"library/video",
 	"library/view",
+	"library/text",
 	# extension
 	"extension/lsp",
 	"extension/zed",
@@ -85,7 +87,8 @@ destack_library_animation = { path = "library/animation" }
 destack_library_audio = { path = "library/audio" }
 destack_library_cli = { path = "library/cli" }
 destack_library_cloud = { path = "library/cloud" }
-destack_library_core = { path = "library/core" }
+destack_library_entity = { path = "library/entity" }
+destack_library_event = { path = "library/event" }
 destack_library_file = { path = "library/file" }
 destack_library_geometry = { path = "library/geometry" }
 destack_library_image = { path = "library/image" }
@@ -101,6 +104,7 @@ destack_library_scene = { path = "library/scene" }
 destack_library_script = { path = "library/script" }
 destack_library_social = { path = "library/social" }
 destack_library_style = { path = "library/style" }
+destack_library_text = { path = "library/text" }
 destack_library_time = { path = "library/time" }
 destack_library_tokei = { path = "library/tokei" }
 destack_library_unicode = { path = "library/unicode" }

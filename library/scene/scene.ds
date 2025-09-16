@@ -2,7 +2,7 @@ use dyst
 
 /// Base type for scene events.
 @event
-struct SceneEvent {
+struct SceneEvent : Event {
     /// The Scene the event pertains to.
     scene: EntityReference<Scene>,
 }

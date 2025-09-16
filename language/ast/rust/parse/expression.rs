@@ -160,31 +160,6 @@ impl UnaryOperator {
         // just transmute the enum value to an u8
         self as u8
     }
-
-    /// Convert a TokenType to a UnaryOperator (if a direct mapping exists).
-    #[inline]
-    pub fn from_token_type(token_type: TokenType) -> Option<UnaryOperator> {
-        match token_type {
-            TokenType::Not => Some(UnaryOperator::Not),
-            TokenType::Subtract => Some(UnaryOperator::Negate),
-            TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
-            TokenType::Multiply => Some(UnaryOperator::Dereference),
-            TokenType::BitwiseNot => Some(UnaryOperator::BitwiseNot),
-            _ => None,
-        }
-    }
-
-    /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
-    #[inline]
-    pub fn as_token_type(&self) -> TokenType {
-        match self {
-            UnaryOperator::Not => TokenType::Not,
-            UnaryOperator::Negate => TokenType::Subtract,
-            UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
-            UnaryOperator::Dereference => TokenType::Multiply,
-            UnaryOperator::BitwiseNot => TokenType::BitwiseNot,
-        }
-    }
 }
 
 impl AssignOperator {
@@ -375,8 +350,20 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
-        UnaryOperator::from_token_type(token.token.r#type)
-            .ok_or(ParseError::expected(token.span, TokenType::Identifier))
+        match token.token.r#type {
+            TokenType::Not => Ok(UnaryOperator::Not),
+            TokenType::Subtract => Ok(UnaryOperator::Negate),
+            TokenType::WrappingSubtract => Ok(UnaryOperator::WrappingNegate),
+            TokenType::Multiply => {
+                if self.peek_next_token(TokenType::Maybe).is_ok() {
+                    Ok(UnaryOperator::TryDereference)
+                } else {
+                    Ok(UnaryOperator::Dereference)
+                }
+            }
+            TokenType::BitwiseNot => Ok(UnaryOperator::BitwiseNot),
+            _ => Err(ParseError::unexpected(token.span)),
+        }
     }
 
     /// Peek a binary operator.
@@ -523,6 +510,9 @@ impl<'a> Parser<'a> {
             else if let Ok(unary_operator) = self.peek_unary_operator() {
                 let right_precedence = unary_operator.precedence();
                 self.bump(); // eat unary operator (always because right associative)
+                if unary_operator == UnaryOperator::TryDereference {
+                    self.bump() // two tokens
+                }
                 let right = self.eat_expression(ExpressionParserOptions {
                     left_precedence: Some(right_precedence),
                     ..options

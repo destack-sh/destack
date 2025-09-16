@@ -19,9 +19,9 @@ enum(uint2) Materialization {
 
 /// How an Entity should be treated for processing by the system.
 @flag 
-enum(uint8) ProcessFlag {
+enum(uint4) ProcessFlag {
     /// The default process flag (no special processing).
-    Default
+    Default = 0
     /// The Entity is deleted.
     Deleted
     /// The Entity is inactive.
@@ -34,25 +34,16 @@ enum(uint8) ProcessFlag {
 
 /// How an Entity should be treated for extension by the system.
 @flag 
-enum(uint8) ExtensionFlag {
+enum(uint4) ExtensionFlag {
     /// The default extension flag (no special processing).
-    Default
+    Default = 0
     /// The Entity is instantiable.
     Instantiable
     /// The Entity is extensible.
     Extensible
 }
 
-trait Entity {
-    /// The name of the Entity type.
-    let Name: String
-
-    function identity() => EntityIdentity;
-
-    function reference() => EntityReference;
-}
-
-struct EntityIdentity {
+struct Identity {
     /// The universally unique identifier of self Entity.
     id: Uuid
     /// The Space self Entity is in.
@@ -69,16 +60,23 @@ struct EntityIdentity {
     instance: ?EntityReference<Entity>
 }
 
+implement Dereference for Identity {
+    function dereference(&self) with GraphContext {
+        with GraphContext as graph
+        return graph.get(self.id)
+    } 
+}
+
 /// A named, versioned, mutable object in the system.
 @entity
 struct Entity {
-    use EntityIdentity
+    use Identity as identity
     
     /// The logical time self Entity was created.
     createdEpoch: Epoch
     /// The logical time self Entity was last updated.
     updatedEpoch: Epoch
-    /// The exclusive owner of self Entity (the root on access).
+    /// The exclusive owner of self Entity (the authority on access).
     owner: EntityReference<Entity>
     /// The exclusive controller of self Entity (the authority on changes).
     controller: EntityReference<Entity>
