@@ -18,14 +18,7 @@ enum EventStatus {
 
 /// An immutable datum of something happening to an Entity.
 struct Event {
-    /// The universally unique identifier of self Node.
-    id: Uuid,
-    /// The Space self Node is in.
-    space: EntityReference<Space>,
-    /// The Branch self Node is part of (in its Space).
-    branch: EntityReference<Branch>,
-    /// The Snapshot self Node is part of (in its Space and Branch).
-    snapshot: EntityReference<Snapshot>,
+    use Identity as identity
 
     /// The logical time self Event was created (system).
     createdEpoch: uint64,

@@ -59,7 +59,7 @@ const DEFAULT_EXTENSIONS: &[LanguageDeclaration<'static>] = &[
         name: Some("JSON"),
     },
     LanguageDeclaration {
-        extension: &["md"],
+        extension: &["md", "mdc"],
         name: Some("Markdown"),
     },
     LanguageDeclaration {
