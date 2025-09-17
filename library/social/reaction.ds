@@ -11,7 +11,7 @@ struct Reaction {
 @event
 struct ReactionEvent: Event {
     /// The Reaction self event pertains to.
-    reaction: EntityReference<Reaction>,
+    reaction: Reference<Reaction>,
     /// The reaction content.
     content: String,
 }

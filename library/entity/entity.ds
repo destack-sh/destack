@@ -1,5 +1,7 @@
 use dyst
 
+let x =
+
 /// An Entity Epoch.
 struct Epoch(uint64) {
     let Zero = Epoch(0)

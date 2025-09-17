@@ -9,9 +9,9 @@ struct ColliderEvent {}
 struct ColliderContactEvent: ColliderEvent { 
 
     /// First collider
-    colliderA: EntityReference<Collider2D>,
+    colliderA: Reference<Collider2D>,
     /// Second collider
-    colliderB: EntityReference<Collider2D>,
+    colliderB: Reference<Collider2D>,
 }
 
 /// A Collider in 2D space

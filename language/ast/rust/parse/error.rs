@@ -1,8 +1,8 @@
 use core::fmt;
 
 use dyst_language_diagnostic::{Diagnostic, DiagnosticKind, Severity};
-use dyst_language_source::{LabeledSpan, Span};
-use dyst_language_token::TokenType;
+use dyst_language_source::{LabeledSpan, Source, Span};
+use dyst_language_token::{TokenSpan, TokenType};
 
 /// Error when parsing the AST.
 #[derive(Debug, Clone)]
@@ -107,20 +107,29 @@ impl std::error::Error for ParseError {
     }
 }
 
-impl From<&ParseError> for Diagnostic {
-    fn from(error: &ParseError) -> Self {
-        let (span, expected) = error.leaf_content();
+impl ParseError {
+    pub fn to_diagnostic(&self, _source: &Source, tokens: &[TokenSpan]) -> Diagnostic {
+        let (span, expected) = self.leaf_content();
+
+        let token_at_primary_span = tokens
+            .iter()
+            .find(|token| token.span.start == span.start)
+            .map(|token| token.token.r#type)
+            .unwrap_or(TokenType::End);
         Diagnostic {
             kind: DiagnosticKind::Parse,
             code: "E001".to_string(),
             severity: Severity::Error,
-            message: "parse error".to_string(),
+            message: match expected {
+                Some(token_type) => format!("parse error: expected {token_type:?}"),
+                None => format!("parse error: unexpected {token_at_primary_span:?}"),
+            },
             source: span.source,
             primary_span: LabeledSpan {
                 span,
                 label: match expected {
                     Some(token_type) => format!("expected {token_type:?}"),
-                    None => "unexpected".to_string(),
+                    None => format!("unexpected {token_at_primary_span:?}"),
                 },
             },
             secondary_spans: None,

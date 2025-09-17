@@ -8,7 +8,7 @@ struct Star {}
 @event
 struct StarEvent: Event {
     /// The Star self event pertains to.
-    star: EntityReference<Star>,
+    star: Reference<Star>,
 }
 
 /// Star added.

@@ -80,9 +80,9 @@ struct Joint2D {
     use Entity2D 
 
     /// First body connected by the Joint
-    bodyA: EntityReference<Body2D>,
+    bodyA: Reference<Body2D>,
     /// Second body connected by the Joint
-    bodyB: EntityReference<Body2D>,
+    bodyB: Reference<Body2D>,
     /// Joint frame on Body A (local anchor position and orientation)
     frameA: JointFrame2D,
     /// Joint frame on Body B (local anchor position and orientation)
@@ -172,9 +172,9 @@ struct Joint3D {
     use Entity3D 
 
     /// First body connected by the Joint
-    bodyA: EntityReference<Body3D>,
+    bodyA: Reference<Body3D>,
     /// Second body connected by the Joint
-    bodyB: EntityReference<Body3D>,
+    bodyB: Reference<Body3D>,
     /// Joint frame on Body A (local anchor position and orientation)
     frameA: JointFrame3D,
     /// Joint frame on Body B (local anchor position and orientation)

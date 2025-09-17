@@ -9,5 +9,5 @@ struct GaugeMetric: Metric {}
 struct GaugeMeasurementEvent: MeasurementEvent { 
 
     /// The Gauge metric definition.
-    definition: EntityReference<GaugeMetric>,
+    definition: Reference<GaugeMetric>,
 }
