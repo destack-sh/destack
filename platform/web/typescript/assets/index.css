@@ -4,41 +4,41 @@
 *,
 ::before,
 ::after {
-  box-sizing: border-box;
-  border-width: 0;
-  border-style: solid;
-  border-color: #e5e7eb;
-  content: "";
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: #e5e7eb;
+    content: "";
 }
 
 /* base html styling with system font stack */
 html {
-  line-height: 1.5;
-  -webkit-text-size-adjust: 100%;
-  -moz-tab-size: 4;
-  tab-size: 4;
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  font-feature-settings: normal;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -moz-tab-size: 4;
+    tab-size: 4;
+    font-family:
+        ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-feature-settings: normal;
 }
 
 /* remove default body margin */
 body {
-  margin: 0;
-  line-height: inherit;
+    margin: 0;
+    line-height: inherit;
 }
 
 /* horizontal rule styling */
 hr {
-  height: 0;
-  color: inherit;
-  border-top-width: 1px;
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
 }
 
 /* dotted underline for abbreviations with titles */
 abbr:where([title]) {
-  -webkit-text-decoration: underline dotted;
-  text-decoration: underline dotted;
+    -webkit-text-decoration: underline dotted;
+    text-decoration: underline dotted;
 }
 
 /* reset heading font sizes and weights */
@@ -48,20 +48,20 @@ h3,
 h4,
 h5,
 h6 {
-  font-size: inherit;
-  font-weight: inherit;
+    font-size: inherit;
+    font-weight: inherit;
 }
 
 /* remove default link styling */
 a {
-  color: inherit;
-  text-decoration: inherit;
+    color: inherit;
+    text-decoration: inherit;
 }
 
 /* ensure bold elements are actually bold */
 b,
 strong {
-  font-weight: bolder;
+    font-weight: bolder;
 }
 
 /* monospace font stack for code elements */
@@ -69,39 +69,39 @@ code,
 kbd,
 samp,
 pre {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
-  font-size: 1em;
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+        monospace;
+    font-size: 1em;
 }
 
 /* smaller text for small element */
 small {
-  font-size: 80%;
+    font-size: 80%;
 }
 
 /* subscript and superscript positioning */
 sub,
 sup {
-  font-size: 75%;
-  line-height: 0;
-  position: relative;
-  vertical-align: baseline;
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
 }
 
 sub {
-  bottom: -0.25em;
+    bottom: -0.25em;
 }
 
 sup {
-  top: -0.5em;
+    top: -0.5em;
 }
 
 /* table border inheritance and collapse */
 table {
-  text-indent: 0;
-  border-color: inherit;
-  border-collapse: collapse;
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
 }
 
 /* form element font inheritance and reset */
@@ -110,19 +110,19 @@ input,
 optgroup,
 select,
 textarea {
-  font-family: inherit;
-  font-size: 100%;
-  font-weight: inherit;
-  line-height: inherit;
-  color: inherit;
-  margin: 0;
-  padding: 0;
+    font-family: inherit;
+    font-size: 100%;
+    font-weight: inherit;
+    line-height: inherit;
+    color: inherit;
+    margin: 0;
+    padding: 0;
 }
 
 /* prevent text transformation on buttons and selects */
 button,
 select {
-  text-transform: none;
+    text-transform: none;
 }
 
 /* button appearance reset */
@@ -130,52 +130,52 @@ button,
 [type="button"],
 [type="reset"],
 [type="submit"] {
-  -webkit-appearance: button;
-  background-color: transparent;
-  background-image: none;
+    -webkit-appearance: button;
+    background-color: transparent;
+    background-image: none;
 }
 
 /* firefox focus ring */
 :-moz-focusring {
-  outline: auto;
+    outline: auto;
 }
 
 /* firefox invalid input styling */
 :-moz-ui-invalid {
-  box-shadow: none;
+    box-shadow: none;
 }
 
 /* progress element alignment */
 progress {
-  vertical-align: baseline;
+    vertical-align: baseline;
 }
 
 /* webkit number input spinner buttons */
 ::-webkit-inner-spin-button,
 ::-webkit-outer-spin-button {
-  height: auto;
+    height: auto;
 }
 
 /* search input styling */
 [type="search"] {
-  -webkit-appearance: textfield;
-  outline-offset: -2px;
+    -webkit-appearance: textfield;
+    outline-offset: -2px;
 }
 
 /* webkit search decoration */
 ::-webkit-search-decoration {
-  -webkit-appearance: none;
+    -webkit-appearance: none;
 }
 
 /* file upload button styling */
 ::-webkit-file-upload-button {
-  -webkit-appearance: button;
-  font: inherit;
+    -webkit-appearance: button;
+    font: inherit;
 }
 
 /* summary element display */
 summary {
-  display: list-item;
+    display: list-item;
 }
 
 /* margin reset for common elements */
@@ -192,50 +192,50 @@ hr,
 figure,
 p,
 pre {
-  margin: 0;
+    margin: 0;
 }
 
 /* fieldset margin and padding reset */
 fieldset {
-  margin: 0;
-  padding: 0;
+    margin: 0;
+    padding: 0;
 }
 
 /* legend padding reset */
 legend {
-  padding: 0;
+    padding: 0;
 }
 
 /* list styling reset */
 ol,
 ul,
 menu {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
 /* textarea resize behavior */
 textarea {
-  resize: vertical;
+    resize: vertical;
 }
 
 /* placeholder text styling */
 input::placeholder,
 textarea::placeholder {
-  opacity: 1;
-  color: #9ca3af;
+    opacity: 1;
+    color: #9ca3af;
 }
 
 /* cursor pointer for interactive elements */
 button,
 [role="button"] {
-  cursor: pointer;
+    cursor: pointer;
 }
 
 /* default cursor for disabled elements */
 :disabled {
-  cursor: default;
+    cursor: default;
 }
 
 /* media element display and alignment */
@@ -247,45 +247,45 @@ audio,
 iframe,
 embed,
 object {
-  display: block;
-  vertical-align: middle;
+    display: block;
+    vertical-align: middle;
 }
 
 /* responsive image and video sizing */
 img,
 video {
-  max-width: 100%;
-  height: auto;
+    max-width: 100%;
+    height: auto;
 }
 
 /* hidden element display */
 [hidden] {
-  display: none;
+    display: none;
 }
 
 /* prevent overscrolling on all elements */
 * {
-  overscroll-behavior: none;
-  scrollbar-gutter: overlay;
+    overscroll-behavior: none;
+    scrollbar-gutter: overlay;
 }
 
 /* utility class to hide scrollbars */
 .scrollbar-hidden {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 .scrollbar-hidden::-webkit-scrollbar {
-  display: none;
+    display: none;
 }
 
 /* custom text selection color */
 ::selection {
-  background-color: #fcd34d;
+    background-color: #fcd34d;
 }
 
 /* mark elements as bold without background */
 mark {
-  background-color: transparent;
-  color: inherit;
-  font-weight: bold;
+    background-color: transparent;
+    color: inherit;
+    font-weight: bold;
 }

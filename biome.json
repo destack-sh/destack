@@ -1,79 +1,79 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
-  "files": {
-    "ignoreUnknown": false,
-    "maxSize": 5242880
-  },
-  "formatter": {
-    "enabled": true,
-    "formatWithErrors": false,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineEnding": "lf",
-    "lineWidth": 100,
-    "attributePosition": "auto",
-    "bracketSameLine": false,
-    "bracketSpacing": true
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "a11y": {
-        "noSvgWithoutTitle": "off"
-      },
-      "correctness": {
-        "noUnusedImports": "error",
-        "noUnusedLabels": "off",
-        "noUnusedVariables": "off",
-        "noUnusedFunctionParameters": "off"
-      },
-      "style": {
-        "useConst": "off",
-        "noNonNullAssertion": "off"
-      },
-      "complexity": {
-        "noThisInStatic": "off",
-        "noForEach": "off",
-        "useLiteralKeys": "off",
-        "noBannedTypes": "off"
-      },
-      "suspicious": {
-        "noExplicitAny": "off",
-        "noImplicitAnyLet": "off",
-        "noDoubleEquals": "off",
-        "noThenProperty": "off",
-        "noShadowRestrictedNames": "off",
-        "noConfusingVoidType": "off",
-        "useGetterReturn": "off",
-        "noArrayIndexKey": "off"
-      }
-    }
-  },
-  "javascript": {
+    "$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
+    "vcs": {
+        "enabled": true,
+        "clientKind": "git",
+        "useIgnoreFile": true
+    },
+    "files": {
+        "ignoreUnknown": false,
+        "maxSize": 5242880
+    },
     "formatter": {
-      "jsxQuoteStyle": "double",
-      "quoteProperties": "asNeeded",
-      "trailingCommas": "all",
-      "semicolons": "always",
-      "arrowParentheses": "always",
-      "bracketSameLine": false,
-      "quoteStyle": "double",
-      "attributePosition": "auto",
-      "bracketSpacing": true
+        "enabled": true,
+        "formatWithErrors": false,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineEnding": "lf",
+        "lineWidth": 100,
+        "attributePosition": "auto",
+        "bracketSameLine": false,
+        "bracketSpacing": true
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "recommended": true,
+            "a11y": {
+                "noSvgWithoutTitle": "off"
+            },
+            "correctness": {
+                "noUnusedImports": "error",
+                "noUnusedLabels": "off",
+                "noUnusedVariables": "off",
+                "noUnusedFunctionParameters": "off"
+            },
+            "style": {
+                "useConst": "off",
+                "noNonNullAssertion": "off"
+            },
+            "complexity": {
+                "noThisInStatic": "off",
+                "noForEach": "off",
+                "useLiteralKeys": "off",
+                "noBannedTypes": "off"
+            },
+            "suspicious": {
+                "noExplicitAny": "off",
+                "noImplicitAnyLet": "off",
+                "noDoubleEquals": "off",
+                "noThenProperty": "off",
+                "noShadowRestrictedNames": "off",
+                "noConfusingVoidType": "off",
+                "useGetterReturn": "off",
+                "noArrayIndexKey": "off"
+            }
+        }
+    },
+    "javascript": {
+        "formatter": {
+            "jsxQuoteStyle": "double",
+            "quoteProperties": "asNeeded",
+            "trailingCommas": "all",
+            "semicolons": "always",
+            "arrowParentheses": "always",
+            "bracketSameLine": false,
+            "quoteStyle": "double",
+            "attributePosition": "auto",
+            "bracketSpacing": true
+        }
+    },
+    "assist": {
+        "enabled": true,
+        "actions": {
+            "source": {
+                "organizeImports": "on"
+            }
+        }
     }
-  },
-  "assist": {
-    "enabled": true,
-    "actions": {
-      "source": {
-        "organizeImports": "on"
-      }
-    }
-  }
 }

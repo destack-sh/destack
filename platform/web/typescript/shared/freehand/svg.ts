@@ -7,46 +7,46 @@ import { type Stroke, StrokePoint, type Vector2 } from "destack";
  * Uses partitioning at elbows for more natural line appearance.
  */
 export function renderStroke(
-  points: readonly Vector2[],
-  stroke: Stroke,
-  options: { isComplete: boolean },
+    points: readonly Vector2[],
+    stroke: Stroke,
+    options: { isComplete: boolean },
 ) {
-  const strokePoints = getStrokePoints(points, stroke, options);
-  const partitions = partitionStroke(strokePoints);
+    const strokePoints = getStrokePoints(points, stroke, options);
+    const partitions = partitionStroke(strokePoints);
 
-  const svgPartitions = [];
-  for (const partition of partitions) {
-    const svgPartition = renderPartition(partition, stroke);
-    svgPartitions.push(svgPartition);
-  }
-  return svgPartitions.join("");
+    const svgPartitions = [];
+    for (const partition of partitions) {
+        const svgPartition = renderPartition(partition, stroke);
+        svgPartitions.push(svgPartition);
+    }
+    return svgPartitions.join("");
 }
 
 /**
  * Generate SVG circle path for single point strokes.
  */
 function renderCirclePath(cx: number, cy: number, r: number) {
-  return (
-    "M " +
-    cx +
-    " " +
-    cy +
-    " m -" +
-    r +
-    ", 0 a " +
-    r +
-    "," +
-    r +
-    " 0 1,1 " +
-    r * 2 +
-    ",0 a " +
-    r +
-    "," +
-    r +
-    " 0 1,1 -" +
-    r * 2 +
-    ",0"
-  );
+    return (
+        "M " +
+        cx +
+        " " +
+        cy +
+        " m -" +
+        r +
+        ", 0 a " +
+        r +
+        "," +
+        r +
+        " 0 1,1 " +
+        r * 2 +
+        ",0 a " +
+        r +
+        "," +
+        r +
+        " 0 1,1 -" +
+        r * 2 +
+        ",0"
+    );
 }
 
 /**
@@ -54,55 +54,55 @@ function renderCirclePath(cx: number, cy: number, r: number) {
  * Handles single points as circles and multi-point strokes as paths with caps.
  */
 function renderPartition(strokePoints: readonly StrokePoint[], options: Stroke): string {
-  if (strokePoints.length === 0) {
-    return "";
-  } else if (strokePoints.length === 1) {
-    return renderCirclePath(
-      strokePoints[0].point.x,
-      strokePoints[0].point.y,
-      strokePoints[0].radius,
-    );
-  }
+    if (strokePoints.length === 0) {
+        return "";
+    } else if (strokePoints.length === 1) {
+        return renderCirclePath(
+            strokePoints[0].point.x,
+            strokePoints[0].point.y,
+            strokePoints[0].radius,
+        );
+    }
 
-  const { left, right } = getStrokeOutlineTracks(strokePoints, options);
-  right.reverse();
-  let svg = `M${vector2String(left[0])}T`;
+    const { left, right } = getStrokeOutlineTracks(strokePoints, options);
+    right.reverse();
+    let svg = `M${vector2String(left[0])}T`;
 
-  // draw left track
-  for (let i = 1; i < left.length; i++) {
-    svg += averageVector2String(left[i - 1], left[i]);
-  }
+    // draw left track
+    for (let i = 1; i < left.length; i++) {
+        svg += averageVector2String(left[i - 1], left[i]);
+    }
 
-  // draw end cap arc
-  {
-    const point = strokePoints[strokePoints.length - 1];
-    const radius = point.radius;
-    const direction = point.direction.per().mul(-1);
-    const arcStart = point.point.add(direction.mul(radius));
-    const arcEnd = point.point.add(direction.mul(-radius));
-    svg += `${vector2String(arcStart)}A${toDomPrecision(radius)},${toDomPrecision(
-      radius,
-    )} 0 0 1 ${vector2String(arcEnd)}T`;
-  }
+    // draw end cap arc
+    {
+        const point = strokePoints[strokePoints.length - 1];
+        const radius = point.radius;
+        const direction = point.direction.per().mul(-1);
+        const arcStart = point.point.add(direction.mul(radius));
+        const arcEnd = point.point.add(direction.mul(-radius));
+        svg += `${vector2String(arcStart)}A${toDomPrecision(radius)},${toDomPrecision(
+            radius,
+        )} 0 0 1 ${vector2String(arcEnd)}T`;
+    }
 
-  // draw right track
-  for (let i = 1; i < right.length; i++) {
-    svg += averageVector2String(right[i - 1], right[i]);
-  }
+    // draw right track
+    for (let i = 1; i < right.length; i++) {
+        svg += averageVector2String(right[i - 1], right[i]);
+    }
 
-  // draw start cap arc
-  {
-    const point = strokePoints[0];
-    const radius = point.radius;
-    const direction = point.direction.per();
-    const arcStart = point.point.add(direction.mul(radius));
-    const arcEnd = point.point.add(direction.mul(-radius));
-    svg += `${vector2String(arcStart)}A${toDomPrecision(radius)},${toDomPrecision(
-      radius,
-    )} 0 0 1 ${vector2String(arcEnd)}Z`;
-  }
+    // draw start cap arc
+    {
+        const point = strokePoints[0];
+        const radius = point.radius;
+        const direction = point.direction.per();
+        const arcStart = point.point.add(direction.mul(radius));
+        const arcEnd = point.point.add(direction.mul(-radius));
+        svg += `${vector2String(arcStart)}A${toDomPrecision(radius)},${toDomPrecision(
+            radius,
+        )} 0 0 1 ${vector2String(arcEnd)}Z`;
+    }
 
-  return svg;
+    return svg;
 }
 
 /**
@@ -110,42 +110,42 @@ function renderPartition(strokePoints: readonly StrokePoint[], options: Stroke):
  * Creates smooth curves between stroke points for SVG rendering.
  */
 export function renderStrokePath(points: readonly StrokePoint[], closed = false): string | null {
-  const len = points.length;
-  if (len < 2) {
-    return null; // nothing to render
-  }
+    const len = points.length;
+    if (len < 2) {
+        return null; // nothing to render
+    }
 
-  let a = points[0].point;
-  let b = points[1].point;
-  if (len === 2) {
-    return `M${vector2String(a)}L${vector2String(b)}`;
-  }
+    let a = points[0].point;
+    let b = points[1].point;
+    if (len === 2) {
+        return `M${vector2String(a)}L${vector2String(b)}`;
+    }
 
-  let result = "";
-  for (let i = 2, max = len - 1; i < max; i++) {
-    a = points[i].point;
-    b = points[i + 1].point;
-    result += averageVector2String(a, b);
-  }
+    let result = "";
+    for (let i = 2, max = len - 1; i < max; i++) {
+        a = points[i].point;
+        b = points[i + 1].point;
+        result += averageVector2String(a, b);
+    }
 
-  if (closed) {
-    // if closed, draw a curve from the last point to the first
-    return `M${averageVector2String(points[0].point, points[1].point)}Q${vector2String(points[1].point)}${averageVector2String(
-      points[1].point,
-      points[2].point,
-    )}T${result}${averageVector2String(points[len - 1].point, points[0].point)}${averageVector2String(
-      points[0].point,
-      points[1].point,
-    )}Z`;
-  } else {
-    // if not closed, draw a curve starting at the first point and
-    // ending at the midpoint of the last and second-last point, then
-    // complete the curve with a line segment to the last point
-    return `M${vector2String(points[0].point)}Q${vector2String(points[1].point)}${averageVector2String(
-      points[1].point,
-      points[2].point,
-    )}${points.length > 3 ? "T" : ""}${result}L${vector2String(points[len - 1].point)}`;
-  }
+    if (closed) {
+        // if closed, draw a curve from the last point to the first
+        return `M${averageVector2String(points[0].point, points[1].point)}Q${vector2String(points[1].point)}${averageVector2String(
+            points[1].point,
+            points[2].point,
+        )}T${result}${averageVector2String(points[len - 1].point, points[0].point)}${averageVector2String(
+            points[0].point,
+            points[1].point,
+        )}Z`;
+    } else {
+        // if not closed, draw a curve starting at the first point and
+        // ending at the midpoint of the last and second-last point, then
+        // complete the curve with a line segment to the last point
+        return `M${vector2String(points[0].point)}Q${vector2String(points[1].point)}${averageVector2String(
+            points[1].point,
+            points[2].point,
+        )}${points.length > 3 ? "T" : ""}${result}L${vector2String(points[len - 1].point)}`;
+    }
 }
 
 /**
@@ -153,61 +153,64 @@ export function renderStrokePath(points: readonly StrokePoint[], closed = false)
  * Creates separate segments for better rendering of complex paths.
  */
 function partitionStroke(points: readonly StrokePoint[]): readonly (readonly StrokePoint[])[] {
-  if (points.length <= 2) {
-    return [points];
-  }
-
-  const partitions: StrokePoint[][] = [];
-  let currentPartition: StrokePoint[] = [points[0]];
-  let prevV = points[1].point.sub(points[0].point).normalize();
-  let prevPoint: StrokePoint;
-  let currentPoint: StrokePoint;
-  let nextPoint: StrokePoint;
-
-  for (let i = 1, n = points.length; i < n - 1; i++) {
-    prevPoint = points[i - 1];
-    currentPoint = points[i];
-    nextPoint = points[i + 1];
-    const nextV = nextPoint.point.sub(currentPoint.point).normalize();
-    const cos = prevV.dot(nextV);
-    prevV = nextV;
-
-    if (cos < -0.8) {
-      // always treat such acute angles as elbows
-      // (use the .originalPoint as the elbow point for swooshiness in fast zaggy lines)
-      const elbowPoint = new StrokePoint({ ...currentPoint, point: currentPoint.originalPoint });
-      currentPartition.push(elbowPoint);
-      partitions.push(cleanUpPartition(currentPartition));
-      currentPartition = [elbowPoint];
-      continue;
+    if (points.length <= 2) {
+        return [points];
     }
 
-    currentPartition.push(currentPoint);
+    const partitions: StrokePoint[][] = [];
+    let currentPartition: StrokePoint[] = [points[0]];
+    let prevV = points[1].point.sub(points[0].point).normalize();
+    let prevPoint: StrokePoint;
+    let currentPoint: StrokePoint;
+    let nextPoint: StrokePoint;
 
-    if (cos > 0.7) {
-      // not an elbow
-      continue;
+    for (let i = 1, n = points.length; i < n - 1; i++) {
+        prevPoint = points[i - 1];
+        currentPoint = points[i];
+        nextPoint = points[i + 1];
+        const nextV = nextPoint.point.sub(currentPoint.point).normalize();
+        const cos = prevV.dot(nextV);
+        prevV = nextV;
+
+        if (cos < -0.8) {
+            // always treat such acute angles as elbows
+            // (use the .originalPoint as the elbow point for swooshiness in fast zaggy lines)
+            const elbowPoint = new StrokePoint({
+                ...currentPoint,
+                point: currentPoint.originalPoint,
+            });
+            currentPartition.push(elbowPoint);
+            partitions.push(cleanUpPartition(currentPartition));
+            currentPartition = [elbowPoint];
+            continue;
+        }
+
+        currentPartition.push(currentPoint);
+
+        if (cos > 0.7) {
+            // not an elbow
+            continue;
+        }
+
+        // we have a reasonably acute angle but it might not be an elbow if it's far
+        // (the original from perfect-freehand doesn't work well, so I played around until this came out)
+        const prevToCurrent = prevPoint.point.distance(currentPoint.point);
+        const currentToNext = currentPoint.point.distance(nextPoint.point);
+        const avgRadius = (prevPoint.radius + currentPoint.radius + nextPoint.radius) / 3;
+        if ((prevToCurrent + currentToNext) / avgRadius ** 2 < avgRadius) {
+            // point is also close to its neighbors, probably a hard elbow
+            currentPartition.push(currentPoint);
+            currentPartition = cleanUpPartition(currentPartition);
+            partitions.push(currentPartition);
+            currentPartition = [currentPoint];
+        }
     }
 
-    // we have a reasonably acute angle but it might not be an elbow if it's far
-    // (the original from perfect-freehand doesn't work well, so I played around until this came out)
-    const prevToCurrent = prevPoint.point.distance(currentPoint.point);
-    const currentToNext = currentPoint.point.distance(nextPoint.point);
-    const avgRadius = (prevPoint.radius + currentPoint.radius + nextPoint.radius) / 3;
-    if ((prevToCurrent + currentToNext) / avgRadius ** 2 < avgRadius) {
-      // point is also close to its neighbors, probably a hard elbow
-      currentPartition.push(currentPoint);
-      currentPartition = cleanUpPartition(currentPartition);
-      partitions.push(currentPartition);
-      currentPartition = [currentPoint];
-    }
-  }
+    currentPartition.push(points[points.length - 1]);
+    currentPartition = cleanUpPartition(currentPartition);
+    partitions.push(currentPartition);
 
-  currentPartition.push(points[points.length - 1]);
-  currentPartition = cleanUpPartition(currentPartition);
-  partitions.push(currentPartition);
-
-  return partitions;
+    return partitions;
 }
 
 /**
@@ -215,49 +218,49 @@ function partitionStroke(points: readonly StrokePoint[]): readonly (readonly Str
  * Adjust cap point vectors to point to nearest neighbors.
  */
 function cleanUpPartition(partition: StrokePoint[]): StrokePoint[] {
-  // clean up start of partition (remove points that are too close to the start)
-  const startPoint = partition[0];
-  let nextPoint: StrokePoint;
-  while (partition.length > 2) {
-    nextPoint = partition[1];
-    if (
-      startPoint.point.distance2(nextPoint.point) <
-      (((startPoint.radius + nextPoint.radius) / 2) * 0.5) ** 2
-    ) {
-      partition.splice(1, 1);
-    } else {
-      break;
+    // clean up start of partition (remove points that are too close to the start)
+    const startPoint = partition[0];
+    let nextPoint: StrokePoint;
+    while (partition.length > 2) {
+        nextPoint = partition[1];
+        if (
+            startPoint.point.distance2(nextPoint.point) <
+            (((startPoint.radius + nextPoint.radius) / 2) * 0.5) ** 2
+        ) {
+            partition.splice(1, 1);
+        } else {
+            break;
+        }
     }
-  }
 
-  // clean up end of partition in the same fashion
-  const endPoint = partition[partition.length - 1];
-  let prevPoint: StrokePoint;
-  while (partition.length > 2) {
-    prevPoint = partition[partition.length - 2];
-    if (
-      endPoint.point.distance2(prevPoint.point) <
-      (((endPoint.radius + prevPoint.radius) / 2) * 0.5) ** 2
-    ) {
-      partition.splice(partition.length - 2, 1);
-    } else {
-      break;
+    // clean up end of partition in the same fashion
+    const endPoint = partition[partition.length - 1];
+    let prevPoint: StrokePoint;
+    while (partition.length > 2) {
+        prevPoint = partition[partition.length - 2];
+        if (
+            endPoint.point.distance2(prevPoint.point) <
+            (((endPoint.radius + prevPoint.radius) / 2) * 0.5) ** 2
+        ) {
+            partition.splice(partition.length - 2, 1);
+        } else {
+            break;
+        }
     }
-  }
 
-  // now readjust the cap point vectors to point to their nearest neighbors
-  if (partition.length > 1) {
-    partition[0] = new StrokePoint({
-      ...partition[0],
-      direction: partition[0].point.sub(partition[1].point).normalize(),
-    });
-    partition[partition.length - 1] = new StrokePoint({
-      ...partition[partition.length - 1],
-      direction: partition[partition.length - 2].point
-        .sub(partition[partition.length - 1].point)
-        .normalize(),
-    });
-  }
+    // now readjust the cap point vectors to point to their nearest neighbors
+    if (partition.length > 1) {
+        partition[0] = new StrokePoint({
+            ...partition[0],
+            direction: partition[0].point.sub(partition[1].point).normalize(),
+        });
+        partition[partition.length - 1] = new StrokePoint({
+            ...partition[partition.length - 1],
+            direction: partition[partition.length - 2].point
+                .sub(partition[partition.length - 1].point)
+                .normalize(),
+        });
+    }
 
-  return partition;
+    return partition;
 }

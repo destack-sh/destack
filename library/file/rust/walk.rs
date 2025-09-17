@@ -29,7 +29,7 @@ impl Default for WalkOptions {
 ///
 /// The visitor closure receives `&Path` of a file.
 /// Errors are ignored.
-pub fn walk_directory<F>(options: &WalkOptions, mut visitor: F)
+pub fn walk<F>(options: &WalkOptions, mut visitor: F)
 where
     F: FnMut(&Path),
 {

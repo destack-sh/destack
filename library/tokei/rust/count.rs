@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use destack_library_file::walk::{WalkOptions, walk_directory};
+use destack_library_file::walk::{WalkOptions, walk};
 
 const FILE_BUFFER_SIZE: usize = 512 * 1024; // 512KB
 
@@ -90,7 +90,7 @@ pub fn count(options: &Options) -> io::Result<Statistics> {
         ignore: Some(options.ignore_paths.clone()),
         glob: Some(options.patterns.clone()),
     };
-    walk_directory(&walker_options, |path| {
+    walk(&walker_options, |path| {
         if let Some((lang_name, _)) = match_language(path, &ext_to_language) {
             let lines = count_file_lines(path).unwrap_or_default();
             statistics.total_files += 1;

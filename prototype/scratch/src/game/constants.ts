@@ -37,18 +37,16 @@ export const MAX_STEPS_PER_FRAME = 14; // safety cap per frame
 export const STORAGE_KEY = "breakout_progress_v1";
 
 export const COLORS = {
-  background: "#0f0f14",
-  foreground: "#e6e6e6",
-  paddle: "#9ae6b4",
-  ball: "#fcd34d",
-  brick1: "#60a5fa",
-  brick2: "#34d399",
-  brick3: "#f472b6",
-  brick4: "#fbbf24",
-  brick5: "#f87171",
-  uiGood: "#22c55e",
-  uiWarn: "#f59e0b",
-  uiBad: "#ef4444",
+    background: "#0f0f14",
+    foreground: "#e6e6e6",
+    paddle: "#9ae6b4",
+    ball: "#fcd34d",
+    brick1: "#60a5fa",
+    brick2: "#34d399",
+    brick3: "#f472b6",
+    brick4: "#fbbf24",
+    brick5: "#f87171",
+    uiGood: "#22c55e",
+    uiWarn: "#f59e0b",
+    uiBad: "#ef4444",
 } as const;
-
-
