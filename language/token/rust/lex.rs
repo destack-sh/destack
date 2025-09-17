@@ -270,7 +270,7 @@ impl Tokenizer<'_> {
                 // ->
                 if self.peek() == '>' {
                     self.bump();
-                    (TokenType::BadArrow, None)
+                    (TokenType::ThinArrow, None)
                 }
                 // --
                 else if self.peek() == '-' {
@@ -381,7 +381,7 @@ impl Tokenizer<'_> {
                 // =>
                 if self.peek() == '>' {
                     self.bump();
-                    (TokenType::Arrow, None)
+                    (TokenType::FatArrow, None)
                 }
                 // ==
                 else if self.peek() == '=' {

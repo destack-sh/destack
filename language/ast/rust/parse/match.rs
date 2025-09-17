@@ -88,13 +88,13 @@ impl<'a> Parser<'a> {
         let guard = if self.peek_keyword(Keyword::If).is_ok() {
             self.eat_keyword(Keyword::If)?;
             let guard =
-                self.try_eat_expression(ExpressionParserOptions::default(), TokenType::Arrow)?;
+                self.try_eat_expression(ExpressionParserOptions::default(), TokenType::FatArrow)?;
             Some(guard)
         } else {
             None
         };
         // arrow
-        self.eat_token(TokenType::Arrow)?;
+        self.eat_arrow()?;
         // body
         if self.peek_block().is_ok() {
             let block_id = self.eat_block()?;

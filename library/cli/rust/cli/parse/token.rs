@@ -161,8 +161,8 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Pound => "95",     // bright magenta
         TokenType::Empty => "95",     // bright magenta
         TokenType::EmptyWide => "95", // bright magenta
-        TokenType::Arrow => "95",     // bright magenta
-        TokenType::BadArrow => "95",  // bright magenta
+        TokenType::FatArrow => "95",  // bright magenta
+        TokenType::ThinArrow => "95", // bright magenta
 
         // parentheses
         TokenType::OpenParenthesis => "33",  // yellow

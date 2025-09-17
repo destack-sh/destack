@@ -19,6 +19,7 @@ mod module;
 mod parser;
 mod path;
 mod pattern;
+mod seperator;
 mod statement;
 mod stop;
 mod r#struct;

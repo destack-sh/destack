@@ -105,13 +105,13 @@ fn test_random_symbols() {
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // =>
-        Token::new(TokenType::Arrow, 2, None),
+        Token::new(TokenType::FatArrow, 2, None),
         // (space)
         Token::new(TokenType::Whitespace, 1, None),
         // c
         Token::new(TokenType::Identifier, 1, None),
         // ->
-        Token::new(TokenType::BadArrow, 2, None),
+        Token::new(TokenType::ThinArrow, 2, None),
         // d
         Token::new(TokenType::Identifier, 1, None),
         // (space)

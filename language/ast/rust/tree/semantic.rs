@@ -98,8 +98,8 @@ impl SemanticType {
             | TokenType::Pound
             | TokenType::Empty
             | TokenType::EmptyWide
-            | TokenType::Arrow
-            | TokenType::BadArrow
+            | TokenType::FatArrow
+            | TokenType::ThinArrow
             | TokenType::At
             | TokenType::BitwiseNot
             | TokenType::Maybe

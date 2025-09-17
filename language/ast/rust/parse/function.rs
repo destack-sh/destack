@@ -178,7 +178,7 @@ impl<'a> Parser<'a> {
         };
 
         // return type
-        let return_type = if self.peek_token(TokenType::Arrow).is_ok() {
+        let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
             Some(self.eat_type()?)
         } else {
