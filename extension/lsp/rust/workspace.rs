@@ -63,14 +63,14 @@ impl Workspace {
         self.documents.keys().cloned().collect()
     }
 
-    /// Get diagnostics for a source. If no source is provided, all diagnostics are returned.
-    pub fn get_diagnostics(&self, source: Option<SourceId>) -> Vec<Diagnostic> {
-        self.session.get_diagnostics(source)
-    }
-
     /// Get all diagnostics.
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.session.diagnostics
+    }
+
+    /// Get diagnostics for a source.
+    pub fn get_diagnostics_for_source(&self, source: SourceId) -> Vec<Diagnostic> {
+        self.session.get_diagnostics_for_source(source)
     }
 
     /// Get diagnostics for a predicate.
@@ -81,13 +81,19 @@ impl Workspace {
         self.session.get_diagnostics_for_predicate(predicate)
     }
 
-    /// Reset diagnostics for a source. If no source is provided, all diagnostics are reset.
-    pub fn reset_diagnostics(&mut self, source: Option<SourceId>) {
-        self.session.reset_diagnostics(source);
+    /// Reset all diagnostics.
+    pub fn reset_diagnostics(&mut self) {
+        self.session.reset_diagnostics();
+    }
+
+    /// Reset diagnostics for a source.
+    pub fn reset_diagnostics_for_source(&mut self, source: SourceId) {
+        self.session.reset_diagnostics_for_source(source);
     }
 
     /// Upsert and parse a document into the workspace.
-    pub fn upsert_document(&mut self, uri: &Uri, content: String, is_open: bool) -> bool {
+    pub fn upsert_document(&mut self, uri: &Uri, content: String, is_open: bool) -> SourceId {
+        // get or acquire the source ID
         let source_id = self
             .documents
             .get(uri)
@@ -98,44 +104,34 @@ impl Workspace {
                 id
             });
 
-        if let Some(existing) = self.documents.get_mut(uri) {
-            if existing.is_open && !is_open {
-                return false;
-            }
-            existing.is_open = is_open;
-        }
-
+        // create the source
         let source = Source::from_string(source_id, uri.clone(), content);
-        self.reset_diagnostics(Some(source_id));
+
+        // reset diagnostics
+        self.reset_diagnostics_for_source(source_id);
         let document = Document::parse(source, &mut self.session, is_open);
         self.documents.insert(uri.clone(), document);
 
-        true
+        source_id
     }
 
     /// Remove a document from the workspace.
     pub fn remove_document(&mut self, uri: &Uri) {
         if let Some(document) = self.documents.remove(uri) {
-            self.reset_diagnostics(Some(document.source.id));
-        }
-    }
-
-    /// Update the open flag for a document if it exists.
-    pub fn set_document_is_open(&mut self, uri: &Uri, is_open: bool) {
-        if let Some(document) = self.documents.get_mut(uri) {
-            document.is_open = is_open;
+            self.reset_diagnostics_for_source(document.source.id);
         }
     }
 
     /// Refresh a single document from disk when it is not open.
-    pub fn sync_document_from_disk(&mut self, uri: &Uri) -> io::Result<bool> {
+    pub fn sync_document_from_disk(&mut self, uri: &Uri) -> io::Result<()> {
+        // skip if the document is open
         if self
             .documents
             .get(uri)
             .map(|document| document.is_open)
             .unwrap_or(false)
         {
-            return Ok(false);
+            return Ok(());
         }
 
         // read the document from disk
@@ -147,7 +143,8 @@ impl Workspace {
         let content = fs::read_to_string(&path)?;
 
         // upsert the document
-        Ok(self.upsert_document(uri, content, false))
+        self.upsert_document(uri, content, false);
+        Ok(())
     }
 
     /// Rebuild the workspace state from disk for all `.ds` sources.
@@ -184,9 +181,8 @@ impl Workspace {
             };
 
             // upsert the document
-            if self.upsert_document(&uri, content, false) {
-                index.updated.push(uri.clone());
-            }
+            self.upsert_document(&uri, content, false);
+            index.updated.push(uri.clone());
         }
 
         // drop documents that disappeared from disk

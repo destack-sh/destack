@@ -267,7 +267,7 @@ impl LanguageServer for DestackLanguageServer {
             };
 
             // create file in workspace
-            let workspace_handle = self.ensure_workspace_for_document(&lsp_uri).await;
+            let workspace_handle = self.get_or_create_workspace_for_document(&lsp_uri).await;
             let mut workspace = workspace_handle.write().await;
             let uri = lsp_uri_to_uri(&lsp_uri);
             match workspace.sync_document_from_disk(&uri) {
@@ -342,7 +342,7 @@ impl LanguageServer for DestackLanguageServer {
             }
 
             // add the new document
-            let new_workspace_handle = self.ensure_workspace_for_document(&new_uri).await;
+            let new_workspace_handle = self.get_or_create_workspace_for_document(&new_uri).await;
             let mut workspace = new_workspace_handle.write().await;
             let uri = lsp_uri_to_uri(&new_uri);
             match workspace.sync_document_from_disk(&uri) {

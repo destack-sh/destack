@@ -30,29 +30,23 @@ impl Session {
         self.diagnostics.push(diagnostic);
     }
 
-    /// Reset diagnostics for a source.
-    pub fn reset_diagnostics(&mut self, source: Option<SourceId>) {
-        match source {
-            Some(source) => {
-                self.diagnostics.retain(|d| d.source != source);
-            }
-            None => {
-                self.diagnostics.clear();
-            }
-        }
+    /// Reset all diagnostics.
+    pub fn reset_diagnostics(&mut self) {
+        self.diagnostics.clear();
     }
 
-    /// Get diagnostics for a source. If no source is provided, all diagnostics are returned.
-    pub fn get_diagnostics(&self, source: Option<SourceId>) -> Vec<Diagnostic> {
-        match source {
-            Some(source) => self
-                .diagnostics
-                .iter()
-                .filter(|d| d.source != source)
-                .cloned()
-                .collect(),
-            None => self.diagnostics.clone(),
-        }
+    /// Reset diagnostics for a source.
+    pub fn reset_diagnostics_for_source(&mut self, source: SourceId) {
+        self.diagnostics.retain(|d| d.source != source);
+    }
+
+    /// Get diagnostics for a source.
+    pub fn get_diagnostics_for_source(&self, source: SourceId) -> Vec<Diagnostic> {
+        self.diagnostics
+            .iter()
+            .filter(|d| d.source == source)
+            .cloned()
+            .collect()
     }
 
     /// Get diagnostics for a predicate.

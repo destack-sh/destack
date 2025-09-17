@@ -135,25 +135,29 @@ impl DestackLanguageServer {
     }
 
     /// Get or create a Workspace for the given document URI.
-    pub(crate) async fn ensure_workspace_for_document(
+    pub(crate) async fn get_or_create_workspace_for_document(
         &self,
         uri: &lsp::Uri,
     ) -> Arc<RwLock<Workspace>> {
+        // bail if the workspace already exists
         if let Some(workspace_handle) = self.find_workspace_for_document(uri).await {
             return workspace_handle;
         }
 
+        // insert workspace 
         let created_root = self
             .derive_workspace_root(uri)
             .unwrap_or_else(|| uri.clone());
         let (workspace_handle, inserted) = self.insert_workspace(created_root).await;
+        
+        // index if it was newly inserted (race condition)
         if inserted {
             if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
                 self.client
                     .log_message(
                         lsp::MessageType::ERROR,
                         format!(
-                            "destack.ensure_workspace_for_document.register_watch error={error}"
+                            "destack.get_or_create_workspace_for_document.register_watch error={error}"
                         ),
                     )
                     .await;
@@ -161,6 +165,7 @@ impl DestackLanguageServer {
 
             self.index_workspace(workspace_handle.clone()).await;
         }
+        
         workspace_handle
     }
 
@@ -245,7 +250,7 @@ impl DestackLanguageServer {
             return Vec::new();
         };
         workspace
-            .get_diagnostics(Some(document.source.id))
+            .get_diagnostics_for_source(document.source.id)
             .into_iter()
             .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &document.source))
             .collect()
@@ -254,30 +259,20 @@ impl DestackLanguageServer {
     /// Update an open document's content in the appropriate Workspace.
     pub(crate) async fn update_open_document(&self, lsp_uri: &lsp::Uri, content: String) {
         // update the document
-        let workspace_handle = self.ensure_workspace_for_document(lsp_uri).await;
+        let workspace_handle = self.get_or_create_workspace_for_document(lsp_uri).await;
         let mut workspace = workspace_handle.write().await;
         let uri = lsp_uri_to_uri(lsp_uri);
         workspace.upsert_document(&uri, content, true);
+        drop(workspace);
 
-        // update the diagnostics
-        let diagnostics = Self::get_diagnostics_for_uri(&workspace, &uri);
-        diagnostics.iter().for_each(|diagnostic| {
-            eprintln!("diagnostic for {lsp_uri:?}: {:?}", diagnostic);
-        });
-        let num_diagnostics = diagnostics.len();
-        let lsp_uri = uri_to_lsp_uri(&uri);
-        self.client
-            .publish_diagnostics(lsp_uri.clone(), diagnostics, None)
+        // re-analyze the workspace
+        self.analyze_workspace(workspace_handle.clone(), Some(vec![uri]))
             .await;
 
         self.client
             .log_message(
                 lsp::MessageType::INFO,
-                format!(
-                    "destack.update_open_document uri={:?}, diagnostics={}",
-                    lsp_uri,
-                    num_diagnostics
-                ),
+                format!("destack.update_open_document uri={}", lsp_uri.as_str(),),
             )
             .await;
     }
@@ -288,7 +283,7 @@ impl DestackLanguageServer {
         workspace_handle: Arc<RwLock<Workspace>>,
         uris: Option<Vec<dyst_language_source::Uri>>,
     ) {
-        // todo! re-analyze in background?
+        // TODO: re-analyze in background (we just have the new AST-level diagnostics here)
 
         // read the workspace once
         let workspace = workspace_handle.read().await;
@@ -305,7 +300,8 @@ impl DestackLanguageServer {
             .log_message(
                 lsp::MessageType::INFO,
                 format!(
-                    "destack.analyze_workspace diagnostics={}",
+                    "destack.analyze_workspace uris={} diagnostics={}",
+                    uris.len(),
                     workspace.diagnostics().len()
                 ),
             )
@@ -353,7 +349,7 @@ impl DestackLanguageServer {
             .log_message(
                 lsp::MessageType::INFO,
                 format!(
-                    "destack.index_workspace root={} diagnostics={} uris={}",
+                    "destack.index_workspace root={} uris={} diagnostics={}",
                     root, num_diagnostics, num_uris
                 ),
             )
@@ -389,7 +385,6 @@ impl DestackLanguageServer {
 
         let mut workspace = workspace_handle.write().await;
         let uri = lsp_uri_to_uri(lsp_uri);
-        workspace.set_document_is_open(&uri, false);
 
         // resync the document
         match workspace.sync_document_from_disk(&uri) {
