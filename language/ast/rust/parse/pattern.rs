@@ -55,7 +55,7 @@ impl<'a> Parser<'a> {
                 };
                 let target_id = self.eat_pattern(options)?;
                 self.tree.allocate(
-                    Pattern::Pointer {
+                    Pattern::Reference {
                         mutability,
                         target: target_id,
                     },
@@ -288,14 +288,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_pattern_pointer() {
-        // *var _
-        let mut test = TestParser::new("*var _");
+    fn test_parse_pattern_reference() {
+        // &var _
+        let mut test = TestParser::new("&var _");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
-        // *
+        // &
         assert_node!(parser.tree, pattern_id,
-            Pattern::Pointer { mutability, target } => {
+            Pattern::Reference { mutability, target } => {
                 // var
                 assert_eq!(*mutability, Mutability::Mutable);
                 // _
@@ -303,12 +303,12 @@ mod tests {
             }
         );
 
-        // *1
-        let mut test = TestParser::new("*1");
+        // &1
+        let mut test = TestParser::new("&1");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
-        // *
-        assert_node!(parser.tree, pattern_id, Pattern::Pointer { mutability, target } => {
+        // &
+        assert_node!(parser.tree, pattern_id, Pattern::Reference { mutability, target } => {
             assert_eq!(*mutability, Mutability::Immutable);
             // 1
             assert_node!(parser.tree, *target, Pattern::Literal(literal) => {

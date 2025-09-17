@@ -491,7 +491,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Type::Pointer {
+        Type::Reference {
             mutability: _,
             target,
         } => {
@@ -1047,7 +1047,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
         Pattern::Rest => {
             // no child nodes to visit
         }
-        Pattern::Pointer {
+        Pattern::Reference {
             target,
             mutability: _,
         } => {

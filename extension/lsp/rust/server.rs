@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -14,7 +13,8 @@ use crate::diagnostic::diagnostic_to_lsp_diagnostic;
 use crate::semantic;
 use crate::workspace::{Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
 
-const DYST_FILE_GLOB: &str = "**/*.ds";
+pub const DYST_FILE_GLOB: &str = "**/*.ds";
+pub const DYST_FILE_EXTENSION: &str = "ds";
 
 #[derive(Debug)]
 pub struct DestackLanguageServer {
@@ -37,14 +37,14 @@ impl DestackLanguageServer {
     }
 
     /// Register file watchers for all existing workspaces.
-    async fn register_all_watches(&self) {
-        let handles: Vec<_> = {
+    async fn register_all_file_watches(&self) {
+        let workspace_handles: Vec<_> = {
             let guard = self.workspaces.read().await;
             guard.values().cloned().collect()
         };
 
-        for handle in handles {
-            if let Err(error) = self.register_watch(handle.clone()).await {
+        for workspace_handle in workspace_handles {
+            if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
                 self.client
                     .log_message(
                         lsp::MessageType::ERROR,
@@ -56,7 +56,7 @@ impl DestackLanguageServer {
     }
 
     /// Register a file watcher for the given Workspace.
-    async fn register_watch(
+    async fn register_file_watch(
         &self,
         workspace_handle: Arc<RwLock<Workspace>>,
     ) -> jsonrpc::Result<()> {
@@ -95,7 +95,7 @@ impl DestackLanguageServer {
     }
 
     /// Unregister the file watcher for the given Workspace.
-    async fn unregister_watch(
+    async fn unregister_file_watch(
         &self,
         workspace_handle: Arc<RwLock<Workspace>>,
     ) -> jsonrpc::Result<()> {
@@ -121,23 +121,29 @@ impl DestackLanguageServer {
 
     /// Get or create a Workspace for the given document URI.
     async fn ensure_workspace_for_document(&self, uri: &lsp::Uri) -> Arc<RwLock<Workspace>> {
-        if let Some(handle) = self.find_workspace_for_document(uri).await {
-            return handle;
+        if let Some(workspace_handle) = self.find_workspace_for_document(uri).await {
+            return workspace_handle;
         }
 
         let created_root = self
             .derive_workspace_root(uri)
             .unwrap_or_else(|| uri.clone());
-        let (handle, inserted) = self.insert_workspace(created_root).await;
-        if inserted && let Err(error) = self.register_watch(handle.clone()).await {
-            self.client
-                .log_message(
-                    lsp::MessageType::ERROR,
-                    format!("destack.ensure_workspace_for_document.register_watch error={error}"),
-                )
-                .await;
+        let (workspace_handle, inserted) = self.insert_workspace(created_root).await;
+        if inserted {
+            if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
+                self.client
+                    .log_message(
+                        lsp::MessageType::ERROR,
+                        format!(
+                            "destack.ensure_workspace_for_document.register_watch error={error}"
+                        ),
+                    )
+                    .await;
+            }
+
+            self.reindex_workspace(workspace_handle.clone()).await;
         }
-        handle
+        workspace_handle
     }
 
     /// Find the Workspace that contains the given document URI.
@@ -148,7 +154,7 @@ impl DestackLanguageServer {
             .iter()
             .filter(|(root, _)| key.starts_with(root.as_str()))
             .max_by_key(|(root, _)| root.len())
-            .map(|(_, handle)| handle.clone())
+            .map(|(_, workspace_handle)| workspace_handle.clone())
     }
 
     /// Insert a new Workspace or get existing one for the given root URI.
@@ -156,20 +162,19 @@ impl DestackLanguageServer {
     async fn insert_workspace(&self, root: lsp::Uri) -> (Arc<RwLock<Workspace>>, bool) {
         let key = Self::get_workspace_key(&root);
         {
-            let guard = self.workspaces.read().await;
-            if let Some(existing) = guard.get(&key) {
+            let workspace = self.workspaces.read().await;
+            if let Some(existing) = workspace.get(&key) {
                 return (existing.clone(), false);
             }
         }
 
         let mut guard = self.workspaces.write().await;
-        let (handle, inserted) = match guard.entry(key.clone()) {
+        let (workspace_handle, inserted) = match guard.entry(key.clone()) {
             Entry::Vacant(vacant) => {
                 let workspace = Workspace::new(lsp_uri_to_uri(&root));
-                let handle = Arc::new(RwLock::new(workspace));
-                let cloned = handle.clone();
-                vacant.insert(handle);
-                (cloned, true)
+                let workspace_handle = Arc::new(RwLock::new(workspace));
+                vacant.insert(workspace_handle.clone());
+                (workspace_handle, true)
             }
             Entry::Occupied(occupied) => (occupied.get().clone(), false),
         };
@@ -181,7 +186,7 @@ impl DestackLanguageServer {
             )
             .await;
 
-        (handle, inserted)
+        (workspace_handle, inserted)
     }
 
     /// Remove and return the Workspace for the given root URI.
@@ -210,32 +215,170 @@ impl DestackLanguageServer {
         lsp::Uri::from_file_path(&path)
     }
 
-    /// Update document content in the appropriate Workspace.
-    async fn update_document(&self, lsp_uri: &lsp::Uri, content: String) {
-        let handle = self.ensure_workspace_for_document(lsp_uri).await;
-        let mut workspace = handle.write().await;
-        let uri = lsp_uri_to_uri(lsp_uri);
-        workspace.upsert_document(&uri, content);
-        let document = workspace.get_document(&uri).unwrap();
+    /// Collect diagnostics for a URI and encode them for the client.
+    fn diagnostics_for_uri(
+        workspace: &Workspace,
+        uri: &dyst_language_source::Uri,
+    ) -> Vec<lsp::Diagnostic> {
+        workspace
+            .get_document(uri)
+            .map(|document| {
+                workspace
+                    .get_diagnostics(Some(document.source.id))
+                    .into_iter()
+                    .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &document.source))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
 
-        // todo! schedule analysis properly?
+    /// Update an open document's content in the appropriate Workspace.
+    async fn update_open_document(&self, lsp_uri: &lsp::Uri, content: String) {
+        let workspace_handle = self.ensure_workspace_for_document(lsp_uri).await;
+        let (uri, diagnostics) = {
+            let mut workspace = workspace_handle.write().await;
+            let uri = lsp_uri_to_uri(lsp_uri);
+            workspace.upsert_document(&uri, content, true);
+            let diagnostics = Self::diagnostics_for_uri(&workspace, &uri);
+            (uri_to_lsp_uri(&uri), diagnostics)
+        };
 
-        let diagnostics = workspace
-            .get_diagnostics(None)
-            .iter()
-            .map(|diagnostic| diagnostic_to_lsp_diagnostic(diagnostic, &document.source))
-            .collect();
         self.client
-            .publish_diagnostics(lsp_uri.clone(), diagnostics, None)
+            .publish_diagnostics(uri, diagnostics, None)
+            .await;
+    }
+
+    /// Reanalyze a batch of URIs.
+    async fn reanalyze_workspace(
+        &self,
+        workspace_handle: Arc<RwLock<Workspace>>,
+        uris: Vec<dyst_language_source::Uri>,
+    ) {
+        if uris.is_empty() {
+            return;
+        }
+
+        // todo! analyze in background?
+
+        // read the workspace once
+        let workspace = workspace_handle.read().await;
+        for uri in uris {
+            let lsp_uri = uri_to_lsp_uri(&uri);
+            let diagnostics = Self::diagnostics_for_uri(&workspace, &uri);
+            self.client
+                .publish_diagnostics(lsp_uri, diagnostics, None)
+                .await;
+        }
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.reanalyze_workspace diagnostics={}",
+                    workspace.diagnostics().len()
+                ),
+            )
+            .await;
+    }
+
+    /// Refresh a workspace from disk and publish updated diagnostics.
+    async fn reindex_workspace(&self, workspace_handle: Arc<RwLock<Workspace>>) {
+        let mut workspace = workspace_handle.write().await;
+        let uris = match workspace.reindex_from_disk() {
+            Ok(outcome) => {
+                // merge updates and removals so diagnostics clear for former files
+                let mut combined = outcome.updated;
+                combined.extend(outcome.removed);
+                combined
+            }
+            Err(error) => {
+                let root_display = workspace.root.as_ref().to_string();
+                self.client
+                    .log_message(
+                        lsp::MessageType::ERROR,
+                        format!("destack.reindex_workspace root={root_display} error={error}"),
+                    )
+                    .await;
+                return;
+            }
+        };
+        let num_uris = uris.len();
+        self.reanalyze_workspace(workspace_handle.clone(), uris)
+            .await;
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.reindex_workspace diagnostics={} uris={}",
+                    workspace.diagnostics().len(),
+                    num_uris
+                ),
+            )
+            .await;
+    }
+
+    /// Reindex every known workspace.
+    async fn reindex_all_workspaces(&self) {
+        let workspace_handles: Vec<_> = {
+            let guard = self.workspaces.read().await;
+            guard.values().cloned().collect()
+        };
+
+        for workspace_handle in &workspace_handles {
+            self.reindex_workspace(workspace_handle.clone()).await;
+        }
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.reindex_all_workspaces workspaces={}",
+                    workspace_handles.len()
+                ),
+            )
             .await;
     }
 
     /// Remove document from its Workspace.
     async fn close_document(&self, uri: &lsp::Uri) {
-        if let Some(handle) = self.find_workspace_for_document(uri).await {
-            let mut workspace = handle.write().await;
-            workspace.remove_document(&lsp_uri_to_uri(uri));
+        let Some(workspace_handle) = self.find_workspace_for_document(uri).await else {
+            return;
+        };
+
+        let mut workspace = workspace_handle.write().await;
+        let internal_uri = lsp_uri_to_uri(uri);
+        workspace.set_document_is_open(&internal_uri, false);
+
+        // resync the document
+        match workspace.sync_document_from_disk(&internal_uri) {
+            Ok(_) => {
+                let diagnostics = Self::diagnostics_for_uri(&workspace, &internal_uri);
+                self.client
+                    .publish_diagnostics(uri.clone(), diagnostics, None)
+                    .await;
+            }
+            Err(error) => {
+                workspace.remove_document(&internal_uri);
+                self.client
+                    .log_message(
+                        lsp::MessageType::WARNING,
+                        format!(
+                            "destack.close_document.sync_failed uri={} error={error}",
+                            uri.as_str()
+                        ),
+                    )
+                    .await;
+                return;
+            }
         }
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.close_document uri={}", uri.as_str()),
+            )
+            .await;
     }
 
     /// Compute semantic tokens for a document, optionally restricted to a range.
@@ -244,8 +387,8 @@ impl DestackLanguageServer {
         uri: &lsp::Uri,
         range: Option<lsp::Range>,
     ) -> Option<lsp::SemanticTokens> {
-        let handle = self.find_workspace_for_document(uri).await?;
-        let workspace = handle.read().await;
+        let workspace_handle = self.find_workspace_for_document(uri).await?;
+        let workspace = workspace_handle.read().await;
         let encoded = match range {
             Some(range) => workspace.semantic_tokens_range(&lsp_uri_to_uri(uri), &range),
             None => workspace.semantic_tokens_full(&lsp_uri_to_uri(uri)),
@@ -258,28 +401,20 @@ impl DestackLanguageServer {
 
     /// Add initial workspaces from initialization parameters.
     async fn add_initial_workspaces(&self, params: &lsp::InitializeParams) {
-        if let Some(folders) = &params.workspace_folders {
-            for folder in folders {
-                self.insert_workspace(folder.uri.clone()).await;
-            }
+        let Some(folders) = &params.workspace_folders else {
             return;
+        };
+
+        // insert workspaces
+        let mut workspace_handles = Vec::with_capacity(folders.len());
+        for folder in folders {
+            let (workspace_handle, _) = self.insert_workspace(folder.uri.clone()).await;
+            workspace_handles.push(workspace_handle);
         }
 
-        #[allow(deprecated)]
-        if let Some(uri) = &params.root_uri {
-            self.insert_workspace(uri.clone()).await;
-        } else {
-            #[allow(deprecated)]
-            if let Some(path) = &params.root_path {
-                if let Ok(uri) = lsp::Uri::from_str(path) {
-                    self.insert_workspace(uri).await;
-                } else if !path.is_empty() {
-                    let path_buf = PathBuf::from(path);
-                    if let Some(uri) = lsp::Uri::from_file_path(path_buf) {
-                        self.insert_workspace(uri).await;
-                    }
-                }
-            }
+        // reindex workspaces
+        for workspace_handle in workspace_handles {
+            self.reindex_workspace(workspace_handle.clone()).await;
         }
     }
 }
@@ -332,15 +467,9 @@ impl LanguageServer for DestackLanguageServer {
                     did_delete: Some(lsp::FileOperationRegistrationOptions {
                         filters: file_operation_filters.clone(),
                     }),
-                    will_create: Some(lsp::FileOperationRegistrationOptions {
-                        filters: file_operation_filters.clone(),
-                    }),
-                    will_rename: Some(lsp::FileOperationRegistrationOptions {
-                        filters: file_operation_filters.clone(),
-                    }),
-                    will_delete: Some(lsp::FileOperationRegistrationOptions {
-                        filters: file_operation_filters.clone(),
-                    }),
+                    will_create: None,
+                    will_rename: None,
+                    will_delete: None,
                 }),
             }),
             ..Default::default()
@@ -360,7 +489,8 @@ impl LanguageServer for DestackLanguageServer {
         self.client
             .log_message(lsp::MessageType::INFO, "destack.initialized")
             .await;
-        self.register_all_watches().await;
+        self.register_all_file_watches().await;
+        self.reindex_all_workspaces().await;
     }
 
     /// The [`shutdown`] request asks the server to gracefully shut down, but to not exit.
@@ -374,7 +504,8 @@ impl LanguageServer for DestackLanguageServer {
     /// The [`textDocument/didOpen`] notification is sent from the client to the server to signal that a new text document has been opened by the client.
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
-        self.update_document(&uri, params.text_document.text).await;
+        self.update_open_document(&uri, params.text_document.text)
+            .await;
         self.client
             .log_message(
                 lsp::MessageType::INFO,
@@ -387,7 +518,7 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().last() {
-            self.update_document(&uri, change.text).await;
+            self.update_open_document(&uri, change.text).await;
         }
         self.client
             .log_message(
@@ -412,8 +543,8 @@ impl LanguageServer for DestackLanguageServer {
     /// The [`workspace/didChangeWorkspaceFolders`] notification is sent from the client to the server to inform about workspace folder configuration changes.
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
         for folder in params.event.added {
-            let (handle, inserted) = self.insert_workspace(folder.uri.clone()).await;
-            if inserted && let Err(error) = self.register_watch(handle).await {
+            let (workspace_handle, _) = self.insert_workspace(folder.uri.clone()).await;
+            if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
                 self.client
                     .log_message(
                         lsp::MessageType::ERROR,
@@ -423,17 +554,43 @@ impl LanguageServer for DestackLanguageServer {
                     )
                     .await;
             }
+
+            self.reindex_workspace(workspace_handle.clone()).await;
         }
 
         for folder in params.event.removed {
-            if let Some(handle) = self.remove_workspace(&folder.uri).await
-                && let Err(_) = self.unregister_watch(handle).await
-            {
+            if let Some(workspace_handle) = self.remove_workspace(&folder.uri).await {
+                if let Err(error) = self.unregister_file_watch(workspace_handle.clone()).await {
+                    self.client
+                        .log_message(
+                            lsp::MessageType::ERROR,
+                            format!(
+                                "destack.did_change_workspace_folders.unregister_watch uri={} error={error}",
+                                folder.uri.as_str()
+                            ),
+                        )
+                        .await;
+                }
+
+                // update files in the workspace
+                let new_uris = {
+                    let mut workspace = workspace_handle.write().await;
+                    let uris = workspace.document_uris();
+                    for uri in &uris {
+                        workspace.remove_document(uri);
+                    }
+                    uris
+                };
+
+                // reanalyze the workspace
+                self.reanalyze_workspace(workspace_handle.clone(), new_uris)
+                    .await;
+
                 self.client
                     .log_message(
-                        lsp::MessageType::ERROR,
+                        lsp::MessageType::INFO,
                         format!(
-                            "destack.did_change_workspace_folders.unregister_watch uri={}",
+                            "destack.did_change_workspace_folders.removed uri={}",
                             folder.uri.as_str()
                         ),
                     )
@@ -445,24 +602,209 @@ impl LanguageServer for DestackLanguageServer {
     /// The [`workspace/didChangeWatchedFiles`] notification is sent from the client to the server when the client detects changes to files watched by the language client.
     async fn did_change_watched_files(&self, params: lsp::DidChangeWatchedFilesParams) {
         for change in params.changes {
-            let uri = lsp_uri_to_uri(&change.uri);
-            if change.typ == lsp::FileChangeType::CREATED
-                || change.typ == lsp::FileChangeType::CHANGED
-            {
-                // todo!
-            } else if change.typ == lsp::FileChangeType::DELETED {
-                self.close_document(&uri_to_lsp_uri(&uri)).await;
+            let Some(handle) = self.find_workspace_for_document(&change.uri).await else {
+                continue;
+            };
+
+            let source_uri = lsp_uri_to_uri(&change.uri);
+            let mut workspace = handle.write().await;
+            match change.typ {
+                // sync the document if created/changed
+                lsp::FileChangeType::CREATED | lsp::FileChangeType::CHANGED => {
+                    match workspace.sync_document_from_disk(&source_uri) {
+                        Ok(_) => {}
+                        Err(error) => {
+                            self.client
+                                .log_message(
+                                    lsp::MessageType::WARNING,
+                                    format!(
+                                        "destack.did_change_watched_files.sync_failed uri={} error={error}",
+                                        change.uri.as_str()
+                                    ),
+                                )
+                                .await;
+                            continue;
+                        }
+                    }
+                }
+                // remove the document if deleted
+                lsp::FileChangeType::DELETED => {
+                    workspace.remove_document(&source_uri);
+                }
+                _ => {}
             }
+            drop(workspace);
+
+            self.reanalyze_workspace(handle.clone(), vec![source_uri])
+                .await;
+
             self.client
                 .log_message(
                     lsp::MessageType::INFO,
                     format!(
                         "destack.did_change_watched_files.change type={:?} uri={}",
                         change.typ,
-                        uri.as_ref()
+                        change.uri.as_str()
                     ),
                 )
                 .await;
+        }
+    }
+
+    /// The [`workspace/didCreateFiles`] notification is sent from the client to the server after files are created.
+    async fn did_create_files(&self, params: lsp::CreateFilesParams) {
+        for file in params.files {
+            let Some(lsp_uri) = lsp::Uri::from_str(&file.uri).ok() else {
+                self.client
+                    .log_message(
+                        lsp::MessageType::WARNING,
+                        format!("destack.did_create_files.parse_failed uri={}", file.uri),
+                    )
+                    .await;
+                continue;
+            };
+
+            // create file in workspace
+            let workspace_handle = self.ensure_workspace_for_document(&lsp_uri).await;
+            let mut workspace = workspace_handle.write().await;
+            let uri = lsp_uri_to_uri(&lsp_uri);
+            match workspace.sync_document_from_disk(&uri) {
+                Ok(_) => {}
+                Err(error) => {
+                    self.client
+                        .log_message(
+                            lsp::MessageType::WARNING,
+                            format!(
+                                "destack.did_create_files.sync_failed uri={} error={error}",
+                                file.uri
+                            ),
+                        )
+                        .await;
+                    continue;
+                }
+            }
+            drop(workspace);
+
+            // reanalyze the workspace (partial)
+            self.reanalyze_workspace(workspace_handle.clone(), vec![uri])
+                .await;
+
+            self.client
+                .log_message(
+                    lsp::MessageType::INFO,
+                    format!("destack.did_create_files uri={}", lsp_uri.as_str()),
+                )
+                .await;
+        }
+    }
+
+    /// The [`workspace/didRenameFiles`] notification is sent from the client to the server after files are renamed.
+    async fn did_rename_files(&self, params: lsp::RenameFilesParams) {
+        for rename in params.files {
+            // convert uris
+            let Some(old_uri) = lsp::Uri::from_str(&rename.old_uri).ok() else {
+                self.client
+                    .log_message(
+                        lsp::MessageType::WARNING,
+                        format!(
+                            "destack.did_rename_files.parse_failed old_uri={}",
+                            rename.old_uri
+                        ),
+                    )
+                    .await;
+                continue;
+            };
+            let Some(new_uri) = lsp::Uri::from_str(&rename.new_uri).ok() else {
+                self.client
+                    .log_message(
+                        lsp::MessageType::WARNING,
+                        format!(
+                            "destack.did_rename_files.parse_failed new_uri={}",
+                            rename.new_uri
+                        ),
+                    )
+                    .await;
+                continue;
+            };
+
+            // remove the old document
+            if let Some(old_workspace_handle) = self.find_workspace_for_document(&old_uri).await {
+                let old_uris = {
+                    let mut workspace = old_workspace_handle.write().await;
+                    let uri = lsp_uri_to_uri(&old_uri);
+                    workspace.remove_document(&uri);
+                    vec![uri]
+                };
+                self.reanalyze_workspace(old_workspace_handle.clone(), old_uris)
+                    .await;
+            }
+
+            // add the new document
+            let new_workspace_handle = self.ensure_workspace_for_document(&new_uri).await;
+            let mut workspace = new_workspace_handle.write().await;
+            let uri = lsp_uri_to_uri(&new_uri);
+            match workspace.sync_document_from_disk(&uri) {
+                Ok(_) => {}
+                Err(error) => {
+                    self.client
+                        .log_message(
+                            lsp::MessageType::WARNING,
+                            format!(
+                                "destack.did_rename_files.sync_failed new_uri={} error={}",
+                                rename.new_uri, error
+                            ),
+                        )
+                        .await;
+                    return;
+                }
+            }
+            self.reanalyze_workspace(new_workspace_handle.clone(), vec![uri])
+                .await;
+
+            self.client
+                .log_message(
+                    lsp::MessageType::INFO,
+                    format!(
+                        "destack.did_rename_files old_uri={} new_uri={}",
+                        rename.old_uri, rename.new_uri
+                    ),
+                )
+                .await;
+        }
+    }
+
+    /// The [`workspace/didDeleteFiles`] notification is sent from the client to the server after files are deleted.
+    async fn did_delete_files(&self, params: lsp::DeleteFilesParams) {
+        for file in params.files {
+            // parse the URI
+            let Some(lsp_uri) = lsp::Uri::from_str(&file.uri).ok() else {
+                self.client
+                    .log_message(
+                        lsp::MessageType::WARNING,
+                        format!("destack.did_delete_files.parse_failed uri={}", file.uri),
+                    )
+                    .await;
+                continue;
+            };
+
+            // remove the document
+            if let Some(handle) = self.find_workspace_for_document(&lsp_uri).await {
+                let uris = {
+                    let mut workspace = handle.write().await;
+                    let uri = lsp_uri_to_uri(&lsp_uri);
+                    workspace.remove_document(&uri);
+                    vec![uri]
+                };
+
+                self.reanalyze_workspace(handle.clone(), uris).await;
+
+                self.client
+                    .log_message(
+                        lsp::MessageType::INFO,
+                        format!("destack.did_delete_files uri={}", file.uri),
+                    )
+                    .await;
+            }
         }
     }
 

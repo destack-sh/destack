@@ -55,6 +55,18 @@ impl Session {
         }
     }
 
+    /// Get diagnostics for a predicate.
+    pub fn get_diagnostics_for_predicate(
+        &self,
+        predicate: impl Fn(&Diagnostic) -> bool,
+    ) -> Vec<Diagnostic> {
+        self.diagnostics
+            .iter()
+            .filter(|d| predicate(d))
+            .cloned()
+            .collect()
+    }
+
     /// Intern a string.
     pub fn intern_string<S: AsRef<str>>(&mut self, string: S) -> StringId {
         self.strings.intern(string)
