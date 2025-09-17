@@ -42,6 +42,8 @@ enum(uint4) ExtensionFlag {
     Extensible
 }
 
+let x = // nocheckin: error
+
 /// A reference to an Entity.
 struct Reference<T: Entity> {
     /// The universally unique identifier of self Entity.
