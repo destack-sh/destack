@@ -1,29 +1,29 @@
 {
-  "python.languageServer": "None",
-  "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true,
-  "python.testing.cwd": "${workspaceFolder}/destack-ds",
-  "python.testing.pytestArgs": ["destack/test"],
-  "python.envFile": "${workspaceFolder}/.env.test",
-  "ty.diagnosticMode": "workspace",
-  "biome.enabled": true,
-  "biome.requireConfiguration": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "css.lint.unknownAtRules": "ignore",
-  "scss.lint.unknownAtRules": "ignore",
-  "vsicons.associations.files": [
-    {
-      "icon": "spacengine",
-      "extension": [".ds"]
+    "python.languageServer": "None",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.cwd": "${workspaceFolder}/destack-ds",
+    "python.testing.pytestArgs": ["destack/test"],
+    "python.envFile": "${workspaceFolder}/.env.test",
+    "ty.diagnosticMode": "workspace",
+    "biome.enabled": true,
+    "biome.requireConfiguration": true,
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore",
+    "vsicons.associations.files": [
+        {
+            "icon": "spacengine",
+            "extension": [".ds"]
+        }
+    ],
+    "destack.server.command": "/Users/florian/symbol/destack/target/debug/destack_library_cli",
+    "destack.server.cwd": "/Users/florian/symbol/destack",
+    "destack.server.args": ["lsp"],
+    "editor.semanticHighlighting.enabled": true,
+    "[dyst]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false
     }
-  ],
-  "destack.server.command": "/Users/florian/symbol/destack/target/debug/destack_library_cli",
-  "destack.server.cwd": "/Users/florian/symbol/destack",
-  "destack.server.args": ["lsp"],
-  "editor.semanticHighlighting.enabled": true,
-  "[dyst]": {
-    "editor.tabSize": 4,
-    "editor.insertSpaces": true,
-    "editor.detectIndentation": false
-  }
 }

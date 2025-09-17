@@ -1,54 +1,54 @@
 {
-  "name": "destack_monorepo",
-  "version": "2025.09.17.1",
-  "license": "proprietary",
-  "private": true,
-  "type": "module",
-  "workspaces": {
-    "packages": [
-      "client/destack_ts",
-      "extension/vscode",
-      "platform/web"
-    ]
-  },
-  "scripts": {
-    "vscode:compile": "cd extension/vscode && bun run compile",
-    "vscode:watch": "cd extension/vscode && bun run watch"
-  },
-  "catalog": {
-    "temporal-polyfill": "^0.3.0"
-  },
-  "catalogs": {
-    "build": {
-      "@babel/plugin-proposal-class-properties": "^7.18.6",
-      "@babel/plugin-proposal-class-static-block": "^7.21.0",
-      "@babel/plugin-proposal-decorators": "^7.28.0",
-      "@babel/plugin-transform-class-static-block": "^7.27.1",
-      "@babel/plugin-transform-typescript": "^7.28.0",
-      "@babel/preset-typescript": "^7.27.1",
-      "@biomejs/biome": "^2.1.2",
-      "typescript": "~5.8.3",
-      "vite": "^6.3.5",
-      "vite-tsconfig-paths": "^5.1.4",
-      "postcss": "^8.5.6",
-      "@tsconfig/node20": "^20.1.6",
-      "vite-plugin-babel": "^1.3.2",
-      "vite-plugin-static-copy": "^3.1.1"
+    "name": "destack_monorepo",
+    "version": "2025.09.17.4",
+    "license": "proprietary",
+    "private": true,
+    "type": "module",
+    "workspaces": {
+        "packages": [
+            "client/destack_ts",
+            "extension/vscode",
+            "platform/web"
+        ]
     },
-    "types": {
-      "@types/bun": "^1.2.18",
-      "@types/node": "^22.16.4",
-      "@types/jsdom": "^21.1.7"
+    "scripts": {
+        "vscode:compile": "cd extension/vscode && bun run compile",
+        "vscode:watch": "cd extension/vscode && bun run watch"
     },
-    "test": {
-      "fast-check": "^4.2.0",
-      "jsdom": "^26.1.0",
-      "fake-indexeddb": "^6.0.1",
-      "mitata": "^1.0.34"
+    "catalog": {
+        "temporal-polyfill": "^0.3.0"
+    },
+    "catalogs": {
+        "build": {
+            "@babel/plugin-proposal-class-properties": "^7.18.6",
+            "@babel/plugin-proposal-class-static-block": "^7.21.0",
+            "@babel/plugin-proposal-decorators": "^7.28.0",
+            "@babel/plugin-transform-class-static-block": "^7.27.1",
+            "@babel/plugin-transform-typescript": "^7.28.0",
+            "@babel/preset-typescript": "^7.27.1",
+            "@biomejs/biome": "^2.1.2",
+            "typescript": "~5.8.3",
+            "vite": "^6.3.5",
+            "vite-tsconfig-paths": "^5.1.4",
+            "postcss": "^8.5.6",
+            "@tsconfig/node20": "^20.1.6",
+            "vite-plugin-babel": "^1.3.2",
+            "vite-plugin-static-copy": "^3.1.1"
+        },
+        "types": {
+            "@types/bun": "^1.2.18",
+            "@types/node": "^22.16.4",
+            "@types/jsdom": "^21.1.7"
+        },
+        "test": {
+            "fast-check": "^4.2.0",
+            "jsdom": "^26.1.0",
+            "fake-indexeddb": "^6.0.1",
+            "mitata": "^1.0.34"
+        }
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "bun": ">=1.0.0"
     }
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "bun": ">=1.0.0"
-  }
 }

@@ -1,99 +1,99 @@
 {
-  "name": "destack-extension-vscode",
-  "displayName": "Destack & Dyst",
-  "description": "Destack & Dyst for VSCode (.ds, .dsb, .dst, .dsx)",
-  "version": "2025.9.17-1",
-  "license": "proprietary",
-  "engines": {
-    "vscode": "^1.90.0"
-  },
-  "publisher": "symbol-industries",
-  "categories": [
-    "Programming Languages"
-  ],
-  "repository": {
-    "type": "web",
-    "url": "https://destack.dev"
-  },
-  "activationEvents": [
-    "onStartupFinished"
-  ],
-  "main": "./out/extension.js",
-  "files": [
-    "out/extension.js",
-    "language-configuration.json",
-    "package.json",
-    "README.md",
-    "LICENSE.txt"
-  ],
-  "contributes": {
-    "configuration": {
-      "title": "Destack",
-      "properties": {
-        "destack.server.command": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "Absolute path to Destack LSP. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
-        },
-        "destack.server.args": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": [],
-          "description": "Additional arguments to pass to the language server."
-        },
-        "destack.server.cwd": {
-          "type": "string",
-          "default": "",
-          "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
-        }
-      }
+    "name": "destack-extension-vscode",
+    "displayName": "Destack & Dyst",
+    "description": "Destack & Dyst for VSCode (.ds, .dsb, .dst, .dsx)",
+    "version": "2025.9.17-4",
+    "license": "proprietary",
+    "engines": {
+        "vscode": "^1.90.0"
     },
-    "commands": [
-      {
-        "command": "destack.restart",
-        "title": "Destack: Restart Server"
-      }
+    "publisher": "symbol-industries",
+    "categories": [
+        "Programming Languages"
     ],
-    "languages": [
-      {
-        "id": "dyst",
-        "aliases": [
-          "Dyst",
-          "ds"
+    "repository": {
+        "type": "web",
+        "url": "https://destack.dev"
+    },
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./out/extension.js",
+    "files": [
+        "out/extension.js",
+        "language-configuration.json",
+        "package.json",
+        "README.md",
+        "LICENSE.txt"
+    ],
+    "contributes": {
+        "configuration": {
+            "title": "Destack",
+            "properties": {
+                "destack.server.command": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Absolute path to Destack LSP. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
+                },
+                "destack.server.args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "Additional arguments to pass to the language server."
+                },
+                "destack.server.cwd": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "destack.restart",
+                "title": "Destack: Restart Server"
+            }
         ],
-        "extensions": [
-          ".ds"
-        ],
-        "configuration": "./language-configuration.json"
-      },
-      {
-        "id": "destack",
-        "aliases": [
-          "Destack"
-        ],
-        "extensions": [
-          ".dsb",
-          ".dst",
-          ".dsx"
+        "languages": [
+            {
+                "id": "dyst",
+                "aliases": [
+                    "Dyst",
+                    "ds"
+                ],
+                "extensions": [
+                    ".ds"
+                ],
+                "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "destack",
+                "aliases": [
+                    "Destack"
+                ],
+                "extensions": [
+                    ".dsb",
+                    ".dst",
+                    ".dsx"
+                ]
+            }
         ]
-      }
-    ]
-  },
-  "scripts": {
-    "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
-    "vscode:prepublish": "bun run bundle",
-    "package": "bunx --bun @vscode/vsce@latest package --no-dependencies"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "@types/node": "^20.11.25",
-    "@types/vscode": "^1.90.0",
-    "esbuild": "^0.25.9",
-    "typescript": "~5.5.4",
-    "vsce": "^2.15.0",
-    "vscode": "^1.1.37",
-    "vscode-languageclient": "^9.0.1"
-  }
+    },
+    "scripts": {
+        "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
+        "vscode:prepublish": "bun run bundle",
+        "package": "bunx --bun @vscode/vsce@latest package --no-dependencies"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "@types/node": "^20.11.25",
+        "@types/vscode": "^1.90.0",
+        "esbuild": "^0.25.9",
+        "typescript": "~5.5.4",
+        "vsce": "^2.15.0",
+        "vscode": "^1.1.37",
+        "vscode-languageclient": "^9.0.1"
+    }
 }

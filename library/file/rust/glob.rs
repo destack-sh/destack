@@ -1,6 +1,8 @@
 //! Globbing and glob-style pattern matching with no external dependencies.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+use crate::walk::{WalkOptions, walk};
 
 /// Check if `text` matches a glob `pattern` supporting '*' and '?' wildcards.
 ///
@@ -38,43 +40,17 @@ pub fn matches(pattern: &[u8], mut pattern_idx: usize, text: &[u8], mut text_idx
 }
 
 /// Glob for file paths matching `pattern`, similar to the `glob` crate.
-///
-/// The `pattern` can be absolute or relative to the current working directory.
-/// Wildcards '*' and '?' are supported. Directory separators may be matched by '*'.
-/// Returns a vector of matching file paths. Errors during traversal are ignored.
+/// We use `walk` underneath to automatically handle ignore rules.
+/// To customize that, call `walk` directly.
 pub fn glob(pattern: &str) -> Vec<PathBuf> {
     let (base_dir, normalized_pattern) = split_base_directory(pattern);
-    let mut result: Vec<PathBuf> = Vec::new();
-
-    // stack-based DFS to avoid recursion
-    let mut directories_to_visit: Vec<PathBuf> = vec![base_dir.clone()];
-    while let Some(directory) = directories_to_visit.pop() {
-        let read_dir = match std::fs::read_dir(&directory) {
-            Ok(rd) => rd,
-            Err(_) => continue,
-        };
-        for entry in read_dir.flatten() {
-            let path = entry.path();
-            let file_type = match entry.file_type() {
-                Ok(ft) => ft,
-                Err(_) => continue,
-            };
-            if file_type.is_dir() {
-                directories_to_visit.push(path.clone());
-            }
-            // match against unix-like text; absolute patterns are matched against
-            // absolute strings, relative patterns against absolute strings too
-            let candidate_text = unix_path(&path);
-            if matches(
-                normalized_pattern.as_bytes(),
-                0,
-                candidate_text.as_bytes(),
-                0,
-            ) {
-                result.push(path);
-            }
-        }
-    }
+    let walk_options = WalkOptions {
+        root: base_dir,
+        ignore: None,
+        glob: Some(vec![normalized_pattern]),
+    };
+    let mut result = Vec::new();
+    walk(&walk_options, |path| result.push(path.to_path_buf()));
     result
 }
 
@@ -107,15 +83,12 @@ fn split_base_directory(pattern: &str) -> (PathBuf, String) {
     (base_path, normalized)
 }
 
-fn unix_path(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs::{self, File};
     use std::io::Write;
+    use std::path::Path;
 
     #[test]
     fn matches_basic_patterns() {
@@ -135,7 +108,7 @@ mod tests {
         write_file(&src.join("main.rs"), "");
         write_file(&src.join("sub").join("mod.rs"), "");
 
-        let pattern = format!("{}/**/*.rs", unix_path(&base));
+        let pattern = format!("{}/**/*.rs", base.to_string_lossy());
         let mut paths = glob(&pattern);
         paths.sort();
 

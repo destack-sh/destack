@@ -5,6 +5,7 @@
 
 pub mod diagnostic;
 pub mod document;
+pub mod language_server;
 pub mod semantic;
 pub mod server;
 pub mod source;

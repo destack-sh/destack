@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
 use std::{fs, io};
 
+use destack_library_file::glob::glob;
 use dyst_language_diagnostic::Diagnostic;
 use dyst_language_session::Session;
 use dyst_language_source::{Source, SourceId, Uri};
@@ -9,7 +9,6 @@ use std::str::FromStr;
 use tower_lsp_server::{UriExt, lsp_types as lsp};
 
 use crate::Document;
-use crate::server::DYST_FILE_EXTENSION;
 
 /// The result of a workspace reindex.
 #[derive(Debug, Default)]
@@ -153,6 +152,7 @@ impl Workspace {
 
     /// Rebuild the workspace state from disk for all `.ds` sources.
     pub fn reindex_from_disk(&mut self) -> io::Result<WorkspaceReindex> {
+        // build pattern
         let root_uri = uri_to_lsp_uri(&self.root);
         let root_path = root_uri
             .to_file_path()
@@ -162,25 +162,25 @@ impl Workspace {
                     "workspace root is not a file path",
                 )
             })?
+            .to_string_lossy()
             .into_owned();
+        let glob_pattern = format!("{}/**/*.ds", root_path);
 
         // collect from workspace tree
         let mut seen_uris = HashSet::new();
         let mut index = WorkspaceReindex::default();
-        for path in walk_ds_files(&root_path)? {
-            let Some(lsp_uri) = lsp::Uri::from_file_path(&path) else {
+        let paths = glob(&glob_pattern);
+        for path in &paths {
+            let Some(lsp_uri) = lsp::Uri::from_file_path(path) else {
                 continue;
             };
             let uri = lsp_uri_to_uri(&lsp_uri);
             seen_uris.insert(uri.clone());
 
             // read the document from disk
-            let content = match fs::read_to_string(&path) {
+            let content = match fs::read_to_string(path) {
                 Ok(value) => value,
-                Err(error) => {
-                    let message = format!("failed to read {:?}: {error}", path);
-                    return Err(io::Error::other(message));
-                }
+                Err(_) => continue, // ignore?
             };
 
             // upsert the document
@@ -213,33 +213,4 @@ pub fn lsp_uri_to_uri(uri: &lsp::Uri) -> Uri {
 /// Convert a URI to an LSP URI. Panics on invalid Uri.
 pub fn uri_to_lsp_uri(uri: &Uri) -> lsp::Uri {
     lsp::Uri::from_str(uri.as_ref()).unwrap()
-}
-
-/// Recursively gather all `.ds` files under a root path.
-fn walk_ds_files(root: &Path) -> io::Result<Vec<PathBuf>> {
-    let mut stack = vec![root.to_path_buf()];
-    let mut files = Vec::new();
-
-    while let Some(dir) = stack.pop() {
-        for entry in fs::read_dir(&dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if entry.file_type()?.is_dir() {
-                stack.push(path);
-                continue;
-            }
-
-            let extension_matches = path
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| ext.eq_ignore_ascii_case(DYST_FILE_EXTENSION))
-                .unwrap_or(false);
-            if extension_matches {
-                files.push(path);
-            }
-        }
-    }
-
-    files.sort();
-    Ok(files)
 }
