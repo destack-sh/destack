@@ -118,7 +118,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn handle_error(&mut self, e: &ParseError) {
         if !self.errors.iter().any(|d| d.eq_content(e)) {
             self.errors.push(e.clone());
-            let diagnostic = e.into();
+            let diagnostic = e.to_diagnostic(self.source, &self.tokens);
             self.session.handle_diagnostic(diagnostic);
         }
     }

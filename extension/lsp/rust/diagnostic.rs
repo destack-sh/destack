@@ -2,24 +2,12 @@ use dyst_language_diagnostic::{Diagnostic, Severity};
 use dyst_language_source::Source;
 use tower_lsp_server::lsp_types as lsp;
 
-use crate::source::byte_to_utf16_position;
+use crate::source::byte_span_to_range;
 
 /// Convert a Dyst diagnostic to an LSP diagnostic.
 pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &Source) -> lsp::Diagnostic {
     // convert byte span to LSP range
-    let start_pos = byte_to_utf16_position(source, diagnostic.primary_span.span.start)
-        .map(|(line, character)| lsp::Position { line, character })
-        .unwrap_or_default();
-
-    let end_pos = byte_to_utf16_position(source, diagnostic.primary_span.span.end)
-        .map(|(line, character)| lsp::Position { line, character })
-        .unwrap_or_default();
-
-    let range = lsp::Range {
-        start: start_pos,
-        end: end_pos,
-    };
-
+    let range = byte_span_to_range(source, diagnostic.primary_span.span);
     // map diagnostic severity
     let severity = match diagnostic.severity {
         Severity::Error => Some(lsp::DiagnosticSeverity::ERROR),
@@ -27,7 +15,7 @@ pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &Source) ->
         Severity::Note => Some(lsp::DiagnosticSeverity::INFORMATION),
         Severity::Help => Some(lsp::DiagnosticSeverity::HINT),
     };
-
+    // create diagnostic
     lsp::Diagnostic {
         range,
         severity,

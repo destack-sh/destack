@@ -37,7 +37,7 @@ struct TextSpan {
     /// Optional textual content.
     content: ?String,
     /// Optional reference to a Node.
-    node: ?EntityReference<Entity>,
+    node: ?Reference<Entity>,
     /// Optional hyperlink URL.
     url: ?String,
     /// Styling flags for self span.

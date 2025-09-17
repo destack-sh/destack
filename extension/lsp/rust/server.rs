@@ -253,14 +253,32 @@ impl DestackLanguageServer {
 
     /// Update an open document's content in the appropriate Workspace.
     pub(crate) async fn update_open_document(&self, lsp_uri: &lsp::Uri, content: String) {
+        // update the document
         let workspace_handle = self.ensure_workspace_for_document(lsp_uri).await;
         let mut workspace = workspace_handle.write().await;
         let uri = lsp_uri_to_uri(lsp_uri);
         workspace.upsert_document(&uri, content, true);
+
+        // update the diagnostics
         let diagnostics = Self::get_diagnostics_for_uri(&workspace, &uri);
+        diagnostics.iter().for_each(|diagnostic| {
+            eprintln!("diagnostic for {lsp_uri:?}: {:?}", diagnostic);
+        });
+        let num_diagnostics = diagnostics.len();
         let lsp_uri = uri_to_lsp_uri(&uri);
         self.client
-            .publish_diagnostics(lsp_uri, diagnostics, None)
+            .publish_diagnostics(lsp_uri.clone(), diagnostics, None)
+            .await;
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.update_open_document uri={:?}, diagnostics={}",
+                    lsp_uri,
+                    num_diagnostics
+                ),
+            )
             .await;
     }
 

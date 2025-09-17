@@ -23,9 +23,9 @@ struct Event {
     /// The logical time self Event was created (system).
     createdEpoch: uint64,
     /// The exclusive owner of self Entity (the root on access).
-    owner: EntityReference<Entity>,
+    owner: Reference<Entity>,
     /// The Client that created self Event (client, but verified).
-    client: EntityReference<Client>,
+    client: Reference<Client>,
     /// The nonce of the Client that created self Event (client).
     clientNonce: uint8,
     /// The logical time last seen from the system in the Client for self space (client).
@@ -35,5 +35,5 @@ struct Event {
     /// The status of the Event (system).
     status: EventStatus = EventStatus.Pending,
     /// The Event that caused self Event (if any).
-    causedBy: ?EntityReference<Event>,
+    causedBy: ?Reference<Event>,
 }

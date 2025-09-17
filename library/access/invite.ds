@@ -4,11 +4,11 @@ use dyst
 @event
 struct InviteEvent {
     /// The Invite self event pertains to.
-    invite: EntityReference<Invite>,
+    invite: Reference<Invite>,
     /// The Joinable Entity the Invite is for.
-    joinable: EntityReference<Joinable>,
+    joinable: Reference<Joinable>,
     /// The invited member Entity.
-    member: EntityReference<Actor>,
+    member: Reference<Actor>,
 }
 
 /// Invite was sent.
@@ -17,7 +17,7 @@ struct InviteSentEvent {
     use InviteEvent 
 
     /// The Role assigned by the Invite.
-    role: EntityReference<Role>,
+    role: Reference<Role>,
     /// The type of the Role.
     roleType: RoleType,
 }
@@ -34,7 +34,7 @@ struct InviteAcceptedEvent {
     use InviteEvent 
 
     /// The Role accepted by the member.
-    role: EntityReference<Role>,
+    role: Reference<Role>,
     /// The type of the Role.
     roleType: RoleType,
 }
@@ -49,9 +49,9 @@ struct InviteRejectedEvent {
 @entity
 struct Invite {
     /// The invited member.
-    member: EntityReference<Actor>,
+    member: Reference<Actor>,
     /// The Role offered by the Invite.
-    role: ?EntityReference<Role>,
+    role: ?Reference<Role>,
     /// The type of the Role offered by the Invite.
     roleType: ?RoleType,
 }

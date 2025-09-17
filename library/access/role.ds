@@ -4,9 +4,9 @@ use dyst
 @event
 struct RoleEvent {
     /// The Role self event pertains to.
-    role: EntityReference<Role>,
+    role: Reference<Role>,
     /// The actor Entity affected by the Role.
-    actor: EntityReference<Actor>,
+    actor: Reference<Actor>,
 }
 
 /// A Role was assigned.

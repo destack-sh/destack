@@ -8,7 +8,7 @@ struct Follow {}
 @event
 struct FollowEvent: Event {
     /// The Follow self event pertains to.
-    follow: EntityReference<Follow>,
+    follow: Reference<Follow>,
 }
 
 /// Follow added.

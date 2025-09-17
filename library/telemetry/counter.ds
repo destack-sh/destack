@@ -10,7 +10,7 @@ struct CounterMeasurementEvent {
     use MeasurementEvent 
 
     /// The Counter metric definition.
-    definition: EntityReference<CounterMetric>,
+    definition: Reference<CounterMetric>,
 }
 
 

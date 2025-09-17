@@ -2,9 +2,25 @@
 
 use std::cmp;
 
-use dyst_language_source::Source;
+use dyst_language_source::{Source, Span};
 use dyst_language_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
+
+/// Convert byte span to LSP range.
+pub fn byte_span_to_range(source: &Source, span: Span) -> lsp::Range {
+    let (start_line, start_column) = byte_to_utf16_position(source, span.start).unwrap_or_default();
+    let (end_line, end_column) = byte_to_utf16_position(source, span.end).unwrap_or_default();
+    lsp::Range {
+        start: lsp::Position {
+            line: start_line,
+            character: start_column,
+        },
+        end: lsp::Position {
+            line: end_line,
+            character: end_column,
+        },
+    }
+}
 
 /// Convert LSP range to byte span in source.
 pub fn range_to_byte_span(source: &Source, range: &lsp::Range) -> Option<(u32, u32)> {

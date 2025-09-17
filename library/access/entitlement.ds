@@ -10,7 +10,7 @@ enum EntitlementType {
 @event
 struct EntitlementEvent: Event {
     /// The Entitlement self event pertains to.
-    entitlement: EntityReference<Entitlement>,
+    entitlement: Reference<Entitlement>,
     /// The Entitled target Entity.
     target: Entity,
 }
@@ -39,7 +39,7 @@ struct Entitlement: Entity {
     /// When the Entitlement expires.
     expiresAt: ?Timestamp,
     /// The target Entity of the Entitlement.
-    target: EntityReference<Entity>,
+    target: Reference<Entity>,
 }
 
 
