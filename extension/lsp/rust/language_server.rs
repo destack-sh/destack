@@ -88,7 +88,7 @@ impl LanguageServer for DestackLanguageServer {
             .log_message(lsp::MessageType::INFO, "destack.initialized.start")
             .await;
         self.register_all_file_watches().await;
-        self.reindex_all_workspaces().await;
+        self.index_all_workspaces().await;
         self.client
             .log_message(lsp::MessageType::INFO, "destack.initialized")
             .await;
@@ -143,23 +143,24 @@ impl LanguageServer for DestackLanguageServer {
 
     /// The [`workspace/didChangeWorkspaceFolders`] notification is sent from the client to the server to inform about workspace folder configuration changes.
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
-        for folder in params.event.added {
+        for folder in &params.event.added {
             let (workspace_handle, _) = self.insert_workspace(folder.uri.clone()).await;
             if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
                 self.client
                     .log_message(
                         lsp::MessageType::ERROR,
                         format!(
-                            "destack.did_change_workspace_folders.register_watch error={error}"
+                            "destack.did_change_workspace_folders.register_watch uri={} error={error}",
+                            folder.uri.as_str()
                         ),
                     )
                     .await;
             }
 
-            self.reindex_workspace(workspace_handle.clone()).await;
+            self.index_workspace(workspace_handle.clone()).await;
         }
 
-        for folder in params.event.removed {
+        for folder in &params.event.removed {
             if let Some(workspace_handle) = self.remove_workspace(&folder.uri).await {
                 if let Err(error) = self.unregister_file_watch(workspace_handle.clone()).await {
                     self.client
@@ -184,7 +185,7 @@ impl LanguageServer for DestackLanguageServer {
                 };
 
                 // reanalyze the workspace
-                self.reanalyze_workspace(workspace_handle.clone(), new_uris)
+                self.analyze_workspace(workspace_handle.clone(), Some(new_uris))
                     .await;
 
                 self.client
@@ -236,7 +237,7 @@ impl LanguageServer for DestackLanguageServer {
             }
             drop(workspace);
 
-            self.reanalyze_workspace(handle.clone(), vec![source_uri])
+            self.analyze_workspace(handle.clone(), Some(vec![source_uri]))
                 .await;
 
             self.client
@@ -287,7 +288,7 @@ impl LanguageServer for DestackLanguageServer {
             drop(workspace);
 
             // reanalyze the workspace (partial)
-            self.reanalyze_workspace(workspace_handle.clone(), vec![uri])
+            self.analyze_workspace(workspace_handle.clone(), Some(vec![uri]))
                 .await;
 
             self.client
@@ -336,7 +337,7 @@ impl LanguageServer for DestackLanguageServer {
                     workspace.remove_document(&uri);
                     vec![uri]
                 };
-                self.reanalyze_workspace(old_workspace_handle.clone(), old_uris)
+                self.analyze_workspace(old_workspace_handle.clone(), Some(old_uris))
                     .await;
             }
 
@@ -359,7 +360,7 @@ impl LanguageServer for DestackLanguageServer {
                     return;
                 }
             }
-            self.reanalyze_workspace(new_workspace_handle.clone(), vec![uri])
+            self.analyze_workspace(new_workspace_handle.clone(), Some(vec![uri]))
                 .await;
 
             self.client
@@ -397,7 +398,7 @@ impl LanguageServer for DestackLanguageServer {
                     vec![uri]
                 };
 
-                self.reanalyze_workspace(handle.clone(), uris).await;
+                self.analyze_workspace(handle.clone(), Some(uris)).await;
 
                 self.client
                     .log_message(

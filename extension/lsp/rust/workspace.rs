@@ -151,7 +151,7 @@ impl Workspace {
     }
 
     /// Rebuild the workspace state from disk for all `.ds` sources.
-    pub fn reindex_from_disk(&mut self) -> io::Result<WorkspaceReindex> {
+    pub fn index_from_disk(&mut self) -> io::Result<WorkspaceReindex> {
         // build pattern
         let root_uri = uri_to_lsp_uri(&self.root);
         let root_path = root_uri
