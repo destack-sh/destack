@@ -27,6 +27,12 @@ impl FromStr for Uri {
     }
 }
 
+impl AsRef<str> for Uri {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 impl From<&PathBuf> for Uri {
     fn from(path: &PathBuf) -> Self {
         Self(path.to_string_lossy().into_owned())
@@ -41,12 +47,6 @@ impl Display for Uri {
 
 impl Borrow<str> for Uri {
     fn borrow(&self) -> &str {
-        &self.0
-    }
-}
-
-impl AsRef<str> for Uri {
-    fn as_ref(&self) -> &str {
         &self.0
     }
 }

@@ -32,7 +32,6 @@ enum(uint4) ProcessFlag {
     Sleeping
 }
 
-/// How an Entity should be treated for extension by the system.
 @flag 
 enum(uint4) ExtensionFlag {
     /// The default extension flag (no special processing).
@@ -53,6 +52,20 @@ struct Reference<T: Entity> {
     branchId: Uuid
 }
 
+implement<T: Entity> TryDereference for Reference<T> {
+    function dereference(&self) with (
+        GraphContext as graph
+    ) => &T {
+        graph.get(self)
+    } 
+
+    function dereferenceVar(&var self) with (
+        GraphContext as graph
+    ) => &var T {
+        graph.getVar(self)
+    }
+}
+
 /// An Identity is globally unique identifier for an Entity.
 struct Identity {
     /// The universally unique identifier of self Entity.
@@ -61,20 +74,6 @@ struct Identity {
     space: Reference<Space>
     /// The Branch self Entity is part of (in its Space).
     branch: Reference<Branch>
-}
-
-implement TryDereference for Identity {
-    function dereference(&self) with (
-        GraphContext as graph
-    ) {
-        graph.get(self)
-    } 
-
-    function dereferenceVar(&self) with (
-        GraphContext as graph
-    ) {
-        graph.get(self)
-    }
 }
 
 /// A named, versioned, mutable object in the system.
@@ -100,7 +99,7 @@ struct Entity {
     /// The exclusive controller of the `Entity` (the authority on changes).
     controller: Reference<Entity>
     /// The process flags of the `Entity`.
-    processFlags: ProcessFlag = ProcessFlag.Default
+    processing: ProcessFlag = ProcessFlag.Default
 
     /// The parent of the `Entity`. Most `Entity`s can be attached to any other `Entity`.
     parent: ?Reference<Entity>
@@ -110,8 +109,7 @@ struct Entity {
     key: ?String
 
     /// The extension flags of the `Entity`.
-    extensionFlags: ExtensionFlag
-
+    extensibility: ExtensionFlag
     /// The Script of the `Entity`.
     script: ?Reference<Script>
 }
