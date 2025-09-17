@@ -17,9 +17,13 @@ impl Default for NodeMap {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct EnclosingSpan {
+    /// The index of the enclosing span in the map.
     pub idx: u32,
+    /// The distance to the target span.
     pub distance: u32,
+    /// The length of the enclosing span.
     pub length: u32,
+    /// The enclosing span.
     pub span: Span,
 }
 
