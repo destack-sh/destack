@@ -39,7 +39,7 @@ pub struct Parser<'a> {
     /// The parser options.
     pub(crate) options: ParserOptions,
 
-    /// The Node tree.
+    /// The Node AST tree.
     pub tree: NodeTree,
     /// The session.
     pub session: &'a mut Session,
@@ -55,6 +55,7 @@ impl Debug for Parser<'_> {
 
 impl<'a> Parser<'a> {
     /// Create a new parser from source.
+    /// Tokenizes immediately.
     pub fn from_source(source: &'a Source, session: &'a mut Session) -> Self {
         let (tokens, trivia_tokens) = tokenize_with_spans(source.id, &source.content);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {
