@@ -43,6 +43,7 @@ enum(uint4) ExtensionFlag {
     Extensible
 }
 
+/// A reference to an Entity.
 struct Reference<T: Entity> {
     id: Uuid
     space_id: Uuid
@@ -50,6 +51,7 @@ struct Reference<T: Entity> {
     snapshot_id: Uuid
 }
 
+/// An Identity is globally unique identifier for an Entity.
 struct Identity {
     /// The universally unique identifier of self Entity.
     id: Uuid

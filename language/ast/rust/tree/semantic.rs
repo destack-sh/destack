@@ -172,14 +172,14 @@ impl SemanticType {
     }
 }
 
-/// A builder for SemanticTokenSpans.
+/// An index for SemanticTokenSpans.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SemanticTokenMap<'a> {
+pub struct SemanticTokenIndex<'a> {
     pub tokens: &'a Vec<TokenSpan>,
     pub semantic_types: Vec<SemanticType>, // same length as tokens
 }
 
-impl<'a> SemanticTokenMap<'a> {
+impl<'a> SemanticTokenIndex<'a> {
     pub fn from_tokens(source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
         // start with lexical types
         let mut semantic_types = vec![SemanticType::Keyword; tokens.len()];
@@ -207,7 +207,7 @@ impl<'a> SemanticTokenMap<'a> {
     }
 }
 
-impl<'a> NodeVisitor for SemanticTokenMap<'a> {
+impl<'a> NodeVisitor for SemanticTokenIndex<'a> {
     // ------------------------------------------------------------
     // Types
     // ------------------------------------------------------------

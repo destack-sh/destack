@@ -1,3 +1,5 @@
+use dyst_language_source::StringId;
+
 use crate::{BlockFormat, Keyword, Module, NodeId, ParseResult, Parser, Visibility};
 
 impl<'a> Parser<'a> {
@@ -25,13 +27,14 @@ impl<'a> Parser<'a> {
     pub fn eat_module_body(
         &mut self,
         visibility: Option<Visibility>,
+        name: Option<StringId>,
         format: BlockFormat,
     ) -> ParseResult<NodeId<Module>> {
         let start = self.mark();
         let statements = self.eat_block_body(BlockFormat::Implicit)?;
         let module = Module {
             format,
-            name: None,
+            name,
             visibility,
             statements,
         };

@@ -58,7 +58,7 @@ fn bench_parse(c: &mut Criterion) {
                 parser.mark(),
                 |parser| {
                     parser
-                        .eat_module_body(None, BlockFormat::Implicit)
+                        .eat_module_body(None, None, BlockFormat::Implicit)
                         .map(Some)
                 },
                 None,

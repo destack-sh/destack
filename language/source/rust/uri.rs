@@ -8,8 +8,14 @@ use std::str::FromStr;
 pub struct Uri(String);
 
 impl Uri {
+    /// Create a new URI from a string.
     pub fn from_string<T: Into<String>>(uri: T) -> Self {
         Self(uri.into())
+    }
+
+    /// Get the last segment of the URI.
+    pub fn last_segment(&self) -> Option<&str> {
+        self.0.split("/").last()
     }
 }
 

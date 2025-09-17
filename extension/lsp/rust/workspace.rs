@@ -1,34 +1,33 @@
 use std::collections::HashMap;
 
-use dyst_language_ast::{BlockFormat, Module, NodeId, NodeTree, Parser};
 use dyst_language_session::Session;
-use dyst_language_source::{Source, SourceId, Uri as DystUri};
-use dyst_language_token::{TokenSpan, TokenType};
+use dyst_language_source::{Source, SourceId, Uri};
+use std::str::FromStr;
 use tower_lsp_server::lsp_types as lsp;
 
-use crate::semantic;
+use crate::Document;
 
 #[derive(Debug)]
 pub struct Workspace {
-    root_uri: lsp::Uri,
-    session: Session,
-    next_source_id: u32,
-    documents: HashMap<lsp::Uri, DocumentState>,
-    watch_registration_id: Option<String>,
-}
+    /// The root URI of the workspace.
+    pub root: Uri,
+    /// The shared session for the workspace.
+    pub session: Session,
 
-#[derive(Debug, Clone)]
-struct DocumentState {
-    source: Source,
-    tokens: Vec<TokenSpan>,
-    tree: NodeTree,
-    root_module: Option<NodeId<Module>>,
+    /// The next source ID to use for a new document.
+    next_source_id: u32,
+    /// All the source states.
+    documents: HashMap<Uri, Document>,
+
+    /// The LSP registration ID for the file watcher.
+    pub watch_registration_id: Option<String>,
 }
 
 impl Workspace {
-    pub fn new(root_uri: lsp::Uri) -> Self {
+    /// Create a new workspace.
+    pub fn new(root_uri: Uri) -> Self {
         Self {
-            root_uri,
+            root: root_uri,
             session: Session::new(),
             next_source_id: 0,
             documents: HashMap::new(),
@@ -36,24 +35,8 @@ impl Workspace {
         }
     }
 
-    pub fn root_uri(&self) -> &lsp::Uri {
-        &self.root_uri
-    }
-
-    pub fn watch_registration_id(&self) -> Option<&str> {
-        self.watch_registration_id.as_deref()
-    }
-
-    pub fn set_watch_registration_id(&mut self, id: String) {
-        self.watch_registration_id = Some(id);
-    }
-
-    pub fn clear_watch_registration_id(&mut self) {
-        self.watch_registration_id = None;
-    }
-
-    pub fn upsert_document(&mut self, uri: &lsp::Uri, content: String) {
-        let dyst_uri = DystUri::from_string(uri.as_str());
+    /// Upsert and parse a document into the workspace.
+    pub fn upsert_document(&mut self, uri: &Uri, content: String) {
         let source_id = self
             .documents
             .get(uri)
@@ -64,56 +47,34 @@ impl Workspace {
                 id
             });
 
-        let source = Source::from_string(source_id, dyst_uri, content);
-        let (tokens, tree, root_module) = self.parse(&source);
+        let source = Source::from_string(source_id, uri.clone(), content);
+        let document = Document::parse(source, &mut self.session);
 
-        let state = DocumentState {
-            source,
-            tokens,
-            tree,
-            root_module,
-        };
-        self.documents.insert(uri.clone(), state);
+        self.documents.insert(uri.clone(), document);
     }
 
-    pub fn remove_document(&mut self, uri: &lsp::Uri) {
+    /// Remove a document from the workspace.
+    pub fn remove_document(&mut self, uri: &Uri) {
         self.documents.remove(uri);
     }
 
-    pub fn has_document(&self, uri: &lsp::Uri) -> bool {
+    /// Check if a document exists in the workspace.
+    pub fn has_document(&self, uri: &Uri) -> bool {
         self.documents.contains_key(uri)
     }
 
-    pub fn semantic_tokens_full(&self, uri: &lsp::Uri) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = self.documents.get(uri)?;
-        let tree = doc.root_module.map(|root| (&doc.tree, root));
-        semantic::collect_full_tokens(&doc.source, &doc.tokens, tree)
+    /// Get a document from the workspace.
+    pub fn get_document(&self, uri: &Uri) -> Option<&Document> {
+        self.documents.get(uri)
     }
+}
 
-    pub fn semantic_tokens_range(
-        &self,
-        uri: &lsp::Uri,
-        range: &lsp::Range,
-    ) -> Option<Vec<lsp::SemanticToken>> {
-        let doc = self.documents.get(uri)?;
-        let tree = doc.root_module.map(|root| (&doc.tree, root));
-        semantic::collect_range_tokens(&doc.source, &doc.tokens, tree, range)
-    }
+/// Convert an LSP URI to a URI.
+pub fn lsp_uri_to_uri(uri: &lsp::Uri) -> Uri {
+    Uri::from_string(uri.to_string())
+}
 
-    fn parse(&mut self, source: &Source) -> (Vec<TokenSpan>, NodeTree, Option<NodeId<Module>>) {
-        let mut parser = Parser::from_source(source, &mut self.session);
-        let root_module = parser.with_recovery(
-            parser.mark(),
-            |parser| {
-                parser
-                    .eat_module_body(None, BlockFormat::Implicit)
-                    .map(Some)
-            },
-            None,
-            TokenType::End,
-        );
-        let tokens = parser.tokens.clone();
-        let tree = parser.tree.clone();
-        (tokens, tree, root_module)
-    }
+/// Convert a URI to an LSP URI. Panics on invalid Uri.
+pub fn uri_to_lsp_uri(uri: &Uri) -> lsp::Uri {
+    lsp::Uri::from_str(uri.as_ref()).unwrap()
 }

@@ -17,9 +17,8 @@ pub fn app() -> CommandApp {
 
 /// Run the LSP server over stdio.
 fn run(_ctx: CommandArguments) -> i32 {
-    // NOTE: don't print anything to stdout or stderr so we don't interfere with the LSP protocol
-
-    match destack_extension_lsp::run_libraryio_server_stdio() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    match rt.block_on(destack_extension_lsp::run_stdio_server()) {
         Ok(_) => 0,
         Err(e) => {
             console::error(&format!("LSP exited with error: {e}"));
