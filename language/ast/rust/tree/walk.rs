@@ -116,9 +116,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *receiver, tree.get(*receiver));
         }
         Expression::Index(node) => visitor.visit_index(tree, *node, tree.get(*node)),
-        Expression::Unwrap(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
         Expression::Call(node) => visitor.visit_call(tree, *node, tree.get(*node)),
         Expression::Cast(node) => visitor.visit_cast(tree, *node, tree.get(*node)),
+        Expression::Unwrap(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
+        Expression::UnwrapOrPanic(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
         Expression::Coalesce(node) => visitor.visit_coalesce(tree, *node, tree.get(*node)),
 
         Expression::Error => {}

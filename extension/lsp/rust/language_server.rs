@@ -10,6 +10,10 @@ use crate::{DestackLanguageServer, semantic};
 use tower_lsp_server::lsp_types as lsp;
 
 impl LanguageServer for DestackLanguageServer {
+    // ------------------------------------------------------------
+    // Lifecycle
+    // ------------------------------------------------------------
+
     /// The [`initialize`] request is the first request sent from the client to the server.
     async fn initialize(
         &self,
@@ -46,6 +50,7 @@ impl LanguageServer for DestackLanguageServer {
                     },
                 ),
             ),
+            document_formatting_provider: Some(lsp::OneOf::Left(true)),
             workspace: Some(lsp::WorkspaceServerCapabilities {
                 workspace_folders: Some(lsp::WorkspaceFoldersServerCapabilities {
                     supported: Some(true),
@@ -101,6 +106,10 @@ impl LanguageServer for DestackLanguageServer {
             .await;
         Ok(())
     }
+
+    // ------------------------------------------------------------
+    // Synchronization
+    // ------------------------------------------------------------
 
     /// The [`textDocument/didOpen`] notification is sent from the client to the server to signal that a new text document has been opened by the client.
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
@@ -410,6 +419,10 @@ impl LanguageServer for DestackLanguageServer {
         }
     }
 
+    // ------------------------------------------------------------
+    // Semantic Tokens
+    // ------------------------------------------------------------
+
     /// The [`textDocument/semanticTokens/full`] request is sent from the client to the server to
     /// resolve the semantic tokens of a given file.
     async fn semantic_tokens_full(
@@ -438,5 +451,18 @@ impl LanguageServer for DestackLanguageServer {
             Some(tokens) => Ok(Some(lsp::SemanticTokensRangeResult::Tokens(tokens))),
             None => Ok(None),
         }
+    }
+
+    // ------------------------------------------------------------
+    // Formatting
+    // ------------------------------------------------------------
+
+    /// The [`textDocument/formatting`] request is sent from the client to the server to
+    /// format a given text document.
+    async fn formatting(
+        &self,
+        params: lsp::DocumentFormattingParams,
+    ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
+        Ok(None)
     }
 }

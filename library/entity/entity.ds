@@ -1,7 +1,5 @@
 use dyst
 
-let x =
-
 /// An Entity Epoch.
 struct Epoch(uint64) {
     let Zero = Epoch(0)
@@ -43,8 +41,6 @@ enum(uint4) ExtensionFlag {
     /// The Entity is extensible.
     Extensible
 }
-
-let x = // nocheckin: error
 
 /// A reference to an Entity.
 struct Reference<T: Entity> {
