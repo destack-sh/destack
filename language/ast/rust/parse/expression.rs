@@ -743,8 +743,14 @@ impl<'a> Parser<'a> {
             }
             // unwrap
             else if self.peek_token(TokenType::Maybe).is_ok() {
-                self.bump(); // eat question
+                self.bump(); // eat ?
                 let expression = Expression::Unwrap(left_expression_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // force unwrap
+            else if self.peek_token(TokenType::Not).is_ok() {
+                self.bump(); // eat !
+                let expression = Expression::UnwrapOrPanic(left_expression_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // coalesce

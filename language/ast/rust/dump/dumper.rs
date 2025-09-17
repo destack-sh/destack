@@ -770,11 +770,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Cast(_node) => {
                 self.node("Expression::Cast", _id.id).end();
             }
-            Expression::Coalesce(_node) => {
-                self.node("Expression::Coalesce", _id.id).end();
-            }
             Expression::Unwrap(_node) => {
                 self.node("Expression::Unwrap", _id.id).end();
+            }
+            Expression::UnwrapOrPanic(_node) => {
+                self.node("Expression::UnwrapOrPanic", _id.id).end();
+            }
+            Expression::Coalesce(_node) => {
+                self.node("Expression::Coalesce", _id.id).end();
             }
             Expression::Binary {
                 left: _,

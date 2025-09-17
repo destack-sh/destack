@@ -300,8 +300,10 @@ pub enum Expression {
     Call(NodeId<Call>),
     /// As casting (postfix as an Expression, see As).
     Cast(NodeId<Cast>),
-    /// Unwrap an expression with `?` (postfix as an Expression).
+    /// Unwrap an expression with `?` and propagate (postfix as an Expression).
     Unwrap(NodeId<Expression>),
+    /// Unwrap an expression with `!` and propagate (postfix as an Expression).
+    UnwrapOrPanic(NodeId<Expression>),
     /// Coalesce an expression with `??` (postfix as an Expression).
     Coalesce(NodeId<Coalesce>),
     /// Binary operation (infix between Expressions, see BinaryOperator).
