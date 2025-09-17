@@ -904,10 +904,10 @@ impl Node for TupleField {
 /// []float32
 /// [3]float64
 /// (int32, int32)
-/// *T // pointer to T
-/// *?T // pointer to Maybe<T>
-/// ?*T // Maybe pointer to T
-/// ?*?T // Maybe pointer to Maybe<T>
+/// &T // reference to T
+/// &?T // reference to Maybe<T>
+/// ?&T // Maybe pointer to T
+/// ?&?T // Maybe pointer to Maybe<T>
 /// $T // virtual type T
 /// T<int32>
 /// T<Validate: false>
@@ -940,8 +940,8 @@ pub enum Type {
         path: PathId,
         static_arguments: Option<Vec<NodeId<Argument>>>,
     },
-    /// Pointer `*T` to a `T`. Or `*var T` for a mutable pointer.
-    Pointer {
+    /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
+    Reference {
         mutability: Mutability,
         target: NodeId<Type>,
     },
@@ -1986,8 +1986,8 @@ pub enum Pattern {
     Wildcard,
     /// Wildcard rest pattern (`..`).
     Rest,
-    /// Pointer pattern (like `*x`).
-    Pointer {
+    /// Reference pattern (like `&x`).
+    Reference {
         target: NodeId<Pattern>,
         mutability: Mutability,
     },

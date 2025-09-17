@@ -7,6 +7,8 @@ use dyst_language_token::{TokenSpan, TokenType};
 pub struct Document {
     /// The source of the document.
     pub source: Source,
+    /// Whether the document content is controlled by an open editor session.
+    pub is_open: bool,
     /// The semantic tokens of the document.
     pub tokens: Vec<TokenSpan>,
     /// The combined tokens of the document.
@@ -19,7 +21,7 @@ pub struct Document {
 
 impl Document {
     /// Parse the document from source.
-    pub fn parse(source: Source, session: &mut Session) -> Self {
+    pub fn parse(source: Source, session: &mut Session, is_open: bool) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
         let module_name = session.intern_string(module_name);
@@ -46,6 +48,7 @@ impl Document {
         let ast = parser.tree;
         Document {
             source,
+            is_open,
             tokens,
             combined_tokens,
             ast,

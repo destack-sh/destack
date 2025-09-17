@@ -925,7 +925,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Path { path, .. } => {
                 self.node("Type::Path", _id.id).value(path).end();
             }
-            Type::Pointer {
+            Type::Reference {
                 mutability,
                 target: _,
             } => {
@@ -1440,7 +1440,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Rest => {
                 self.node("Pattern::Rest", _id.id).end();
             }
-            Pattern::Pointer {
+            Pattern::Reference {
                 target: _,
                 mutability,
             } => {
