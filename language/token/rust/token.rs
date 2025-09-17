@@ -89,9 +89,9 @@ pub enum TokenType {
     /// `---`,
     EmptyWide,
     /// `=>`
-    Arrow,
+    FatArrow,
     /// `->`
-    BadArrow,
+    ThinArrow,
     /// `@`
     At,
     /// `~`

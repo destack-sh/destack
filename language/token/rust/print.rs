@@ -65,8 +65,8 @@ impl Token {
             TokenType::Pound => "#".to_string(),
             TokenType::Empty => "--".to_string(),
             TokenType::EmptyWide => "---".to_string(),
-            TokenType::Arrow => "=>".to_string(),
-            TokenType::BadArrow => "->".to_string(),
+            TokenType::FatArrow => "=>".to_string(),
+            TokenType::ThinArrow => "->".to_string(),
 
             // parentheses
             TokenType::OpenParenthesis => "(".to_string(),

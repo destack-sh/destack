@@ -144,12 +144,12 @@ impl DestackLanguageServer {
             return workspace_handle;
         }
 
-        // insert workspace 
+        // insert workspace
         let created_root = self
             .derive_workspace_root(uri)
             .unwrap_or_else(|| uri.clone());
         let (workspace_handle, inserted) = self.insert_workspace(created_root).await;
-        
+
         // index if it was newly inserted (race condition)
         if inserted {
             if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
@@ -165,7 +165,7 @@ impl DestackLanguageServer {
 
             self.index_workspace(workspace_handle.clone()).await;
         }
-        
+
         workspace_handle
     }
 
