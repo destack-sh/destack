@@ -7,16 +7,55 @@ import {
     LogMessageNotification,
     MessageType,
     type ServerOptions,
+    State,
     type StreamInfo,
 } from "vscode-languageclient/node";
 
 let client: LanguageClient | undefined;
-let serverProc: ChildProcessWithoutNullStreams | undefined;
+let serverProc: ChildProcessWithoutNullStreams | undefined; // <— single source of truth
 
 const DEBUG = false;
 
 /**
- * Activate the Destack VSCode extension.
+ * Try to stop the server process gracefully, then force-kill if needed.
+ */
+async function stopServerProc(serverLog: vscode.OutputChannel) {
+    const proc = serverProc;
+    if (!proc || proc.killed) return;
+
+    serverProc = undefined;
+
+    try {
+        // Close stdin to encourage graceful shutdown.
+        proc.stdin.end();
+    } catch {}
+
+    try {
+        process.kill(proc.pid!, "SIGTERM");
+    } catch {}
+
+    const exited = await new Promise<boolean>((resolve) => {
+        const to = setTimeout(() => resolve(false), 1500);
+        proc.once("exit", () => {
+            clearTimeout(to);
+            resolve(true);
+        });
+        proc.once("close", () => {
+            clearTimeout(to);
+            resolve(true);
+        });
+    });
+
+    if (!exited) {
+        serverLog.appendLine("Server didn't exit on SIGTERM, sending SIGKILL.");
+        try {
+            process.kill(proc.pid!, "SIGKILL");
+        } catch {}
+    }
+}
+
+/**
+ * Activate the Destack VSC ode extension.
  * Sets up the language server client and establishes communication.
  */
 export async function activate(ctx: vscode.ExtensionContext) {
@@ -35,53 +74,63 @@ export async function activate(ctx: vscode.ExtensionContext) {
             throw new Error("destack.server.command is required");
         }
 
-        serverLog.info(`Using Destack Server: ${serverCommand}`);
+        serverLog.info(`Using Destack Server: ${serverCommand} ${args.join(" ")}`);
 
         return await new Promise<StreamInfo>((resolve, reject) => {
-            // set up the server process
-            let env = { ...process.env };
+            // Prepare env
+            const env = { ...process.env };
             if (DEBUG) {
                 env.WAIT_FOR_DEBUGGER = "1";
-                env.RUST_LOG = "trace";
-                env.RUST_BACKTRACE = "full";
+                env.RUST_LOG = env.RUST_LOG || "trace";
+                env.RUST_BACKTRACE = env.RUST_BACKTRACE || "full";
             }
-            let serverProc = spawn(serverCommand, args, {
+
+            // Spawn and **assign the module-level serverProc**
+            serverProc = spawn(serverCommand, args, {
                 stdio: ["pipe", "pipe", "pipe"],
                 cwd: cwd || workspaceFolder?.uri.fsPath,
-                env: env,
+                env,
+                shell: false,
             });
+
+            // stderr -> serverLog
             serverProc.stderr.setEncoding("utf8");
             serverProc.stderr.on("data", (chunk: string) => serverLog.append(chunk));
 
-            // handle spawn success
             serverProc.once("spawn", () => {
                 serverLog.info(
                     `Spawned ${serverCommand} ${args.join(" ")} (pid ${serverProc?.pid ?? ""}) cwd=${cwd || workspaceFolder?.uri.fsPath}`,
                 );
-                // if DEBUG, pipe the server stdout and stdin to the client log
+
                 if (DEBUG) {
+                    // Tee server stdout to both client reader and log.
                     const outTee = new PassThrough();
                     serverProc!.stdout.pipe(outTee);
-                    outTee.on("data", (chunk) =>
-                        serverLog.append(`[server → client]\n${chunk.toString()}\n`),
-                    );
+                    outTee.on("data", (chunk) => {
+                        // Log raw LSP from server -> client
+                        serverLog.append(`[server → client]\n${chunk.toString()}\n`);
+                    });
+
+                    // Tee client writer to both child stdin and log.
                     const inTee = new PassThrough();
-                    inTee.on("data", (chunk) =>
-                        serverLog.append(`[client → server]\n${chunk.toString()}\n`),
-                    );
+                    inTee.on("data", (chunk) => {
+                        // Log raw LSP from client -> server
+                        serverLog.append(`[client → server]\n${chunk.toString()}\n`);
+                    });
+                    // **IMPORTANT**: pipe the tee into the real stdin
+                    inTee.pipe(serverProc!.stdin);
+
                     resolve({ reader: outTee, writer: inTee });
                 } else {
                     resolve({ reader: serverProc!.stdout, writer: serverProc!.stdin });
                 }
             });
 
-            // handle error
             serverProc.once("error", (err) => {
                 serverLog.error(`Failed to spawn ${serverCommand}: ${err.message}`);
                 reject(err);
             });
 
-            // handle termination
             serverProc.on("exit", (code, signal) => {
                 serverLog.warn(`${serverCommand} exited (code=${code}, signal=${signal ?? ""})`);
             });
@@ -95,6 +144,14 @@ export async function activate(ctx: vscode.ExtensionContext) {
     };
 
     client = new LanguageClient("destack", "Destack", serverOptions, clientOptions);
+
+    // When client fully stops, make sure the child is gone.
+    client.onDidChangeState((e) => {
+        // 2 === Stopped
+        if (e.newState == State.Stopped) {
+            stopServerProc(serverLog);
+        }
+    });
 
     // start the language client
     await client.start();
@@ -116,10 +173,10 @@ export async function activate(ctx: vscode.ExtensionContext) {
                 serverLog.info(`[server] ${p.message}`);
                 break;
             case MessageType.Debug:
-                serverLog.debug(`[server] ${p.message}`);
+                (serverLog as any).debug?.(`[server] ${p.message}`);
                 break;
             default:
-                serverLog.trace?.(`[server] ${p.message}`);
+                (serverLog as any).trace?.(`[server] ${p.message}`);
                 break;
         }
     });
@@ -129,13 +186,8 @@ export async function activate(ctx: vscode.ExtensionContext) {
         clientLog,
         serverLog,
         new vscode.Disposable(() => {
-            if (serverProc && !serverProc.killed) {
-                try {
-                    serverProc.kill();
-                } catch {
-                    // ignore kill errors
-                }
-            }
+            // Final guard on extension deactivation/disposal.
+            void stopServerProc(serverLog);
         }),
     );
 
@@ -143,7 +195,10 @@ export async function activate(ctx: vscode.ExtensionContext) {
     ctx.subscriptions.push(
         vscode.commands.registerCommand("destack.restart", async () => {
             try {
-                await client!.restart();
+                // Ensure the previous child is gone before starting anew.
+                await client!.stop();
+                await stopServerProc(serverLog);
+                await client!.start();
                 vscode.window.showInformationMessage(`Destack restarted.`);
             } catch (e: any) {
                 vscode.window.showErrorMessage(`Destack restart failed: ${e?.message || e}`);
@@ -160,6 +215,9 @@ export async function deactivate() {
     try {
         await client?.stop();
     } finally {
-        // NOTE: server process cleanup is handled by disposables
+        // Ensure server process is terminated.
+        const serverLog = vscode.window.createOutputChannel("Destack Server", { log: true });
+        await stopServerProc(serverLog);
+        serverLog.dispose();
     }
 }
