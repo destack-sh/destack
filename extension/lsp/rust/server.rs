@@ -277,7 +277,6 @@ impl LanguageServer for DestackLanguageServer {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
                 lsp::TextDocumentSyncKind::FULL,
             )),
-            hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
             semantic_tokens_provider: Some(
                 lsp::SemanticTokensServerCapabilities::SemanticTokensOptions(
                     lsp::SemanticTokensOptions {
@@ -401,7 +400,7 @@ impl LanguageServer for DestackLanguageServer {
                 .log_message(
                     lsp::MessageType::INFO,
                     format!(
-                        "destack.did_change_watched_files.change typ={:?} uri={}",
+                        "destack.did_change_watched_files.change type={:?} uri={}",
                         change.typ,
                         change.uri.as_str()
                     ),

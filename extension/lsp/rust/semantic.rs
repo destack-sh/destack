@@ -54,11 +54,11 @@ pub fn collect_semantic_tokens(
     }
 
     // build semantic type mapping from AST if available
-    let mut semantic_map = SemanticTokenIndex::from_tokens(source, tokens);
-    // if let Some((tree, module_id)) = tree {
-    //     let module = tree.get(module_id);
-    //     semantic_map.visit_module(tree, module_id, module);
-    // }
+    let mut semantic_index = SemanticTokenIndex::from_tokens(source, tokens);
+    if let Some((tree, module_id)) = tree {
+        let module = tree.get(module_id);
+        semantic_index.visit_module(tree, module_id, module);
+    }
 
     // convert range to byte span for filtering
     let byte_span = if let Some(range) = range {
@@ -70,7 +70,7 @@ pub fn collect_semantic_tokens(
         None
     };
 
-    encode_semantic_tokens(source, tokens, &semantic_map.semantic_types, byte_span)
+    encode_semantic_tokens(source, tokens, &semantic_index.semantic_types, byte_span)
 }
 
 /// Encode tokens into LSP semantic token format with delta encoding.

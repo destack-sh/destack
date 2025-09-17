@@ -175,11 +175,15 @@ impl SemanticType {
 /// An index for SemanticTokenSpans.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SemanticTokenIndex<'a> {
+    /// The tokens to index.
     pub tokens: &'a Vec<TokenSpan>,
-    pub semantic_types: Vec<SemanticType>, // same length as tokens
+    /// The semantic types for the tokens (same length as tokens).
+    pub semantic_types: Vec<SemanticType>,
 }
 
 impl<'a> SemanticTokenIndex<'a> {
+    /// Create a new SemanticTokenIndex from a list of tokens.
+    /// Immediately walks tokens and initialies to lexical semantic types.
     pub fn from_tokens(source: &Source, tokens: &'a Vec<TokenSpan>) -> Self {
         // start with lexical types
         let mut semantic_types = vec![SemanticType::Keyword; tokens.len()];
@@ -201,8 +205,10 @@ impl<'a> SemanticTokenIndex<'a> {
         semantic_type: SemanticType,
     ) {
         let span = tree.get_span(id);
-        for span in tree.map.get_enclosing_spans(span.start, span.end) {
-            self.semantic_types[span.idx as usize] = semantic_type;
+        for (i, token) in self.tokens.iter().enumerate() {
+            if token.span.contains(span.start) || span.contains(span.end) {
+                self.semantic_types[i] = semantic_type;
+            }
         }
     }
 }
