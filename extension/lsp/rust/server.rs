@@ -10,13 +10,19 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
 use tower_lsp_server::{Client, LanguageServer, UriExt, jsonrpc, lsp_types as lsp};
 
+use crate::diagnostic::diagnostic_to_lsp_diagnostic;
 use crate::semantic;
 use crate::workspace::{Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
 
+const DYST_FILE_GLOB: &str = "**/*.ds";
+
 #[derive(Debug)]
 pub struct DestackLanguageServer {
+    /// The client that the language server is connected to.
     client: Client,
+    /// The workspaces that the language server is connected to.
     workspaces: RwLock<HashMap<String, Arc<RwLock<Workspace>>>>,
+    /// The next watch id to use for the language server.
     next_watch_id: AtomicU64,
 }
 
@@ -67,7 +73,7 @@ impl DestackLanguageServer {
         // create file watcher for .ds files in workspace
         let pattern = lsp::RelativePattern {
             base_uri: lsp::OneOf::Right(uri_to_lsp_uri(&workspace.root)),
-            pattern: "**/*.ds".to_string(),
+            pattern: DYST_FILE_GLOB.to_string(),
         };
         let watchers = vec![lsp::FileSystemWatcher {
             glob_pattern: lsp::GlobPattern::Relative(pattern),
@@ -148,7 +154,7 @@ impl DestackLanguageServer {
     /// Insert a new Workspace or get existing one for the given root URI.
     /// Returns the Workspace handle and whether it was newly inserted.
     async fn insert_workspace(&self, root: lsp::Uri) -> (Arc<RwLock<Workspace>>, bool) {
-        let key = Self::workspace_key(&root);
+        let key = Self::get_workspace_key(&root);
         {
             let guard = self.workspaces.read().await;
             if let Some(existing) = guard.get(&key) {
@@ -180,13 +186,13 @@ impl DestackLanguageServer {
 
     /// Remove and return the Workspace for the given root URI.
     async fn remove_workspace(&self, root: &lsp::Uri) -> Option<Arc<RwLock<Workspace>>> {
-        let key = Self::workspace_key(root);
+        let key = Self::get_workspace_key(root);
         let mut guard = self.workspaces.write().await;
         guard.remove(&key)
     }
 
     /// Generate a normalized key for workspace storage from URI.
-    fn workspace_key(uri: &lsp::Uri) -> String {
+    fn get_workspace_key(uri: &lsp::Uri) -> String {
         let mut value = uri.as_str().to_string();
         if !value.ends_with('/') {
             value.push('/');
@@ -205,10 +211,23 @@ impl DestackLanguageServer {
     }
 
     /// Update document content in the appropriate Workspace.
-    async fn update_document(&self, uri: &lsp::Uri, content: String) {
-        let handle = self.ensure_workspace_for_document(uri).await;
+    async fn update_document(&self, lsp_uri: &lsp::Uri, content: String) {
+        let handle = self.ensure_workspace_for_document(lsp_uri).await;
         let mut workspace = handle.write().await;
-        workspace.upsert_document(&lsp_uri_to_uri(uri), content);
+        let uri = lsp_uri_to_uri(lsp_uri);
+        workspace.upsert_document(&uri, content);
+        let document = workspace.get_document(&uri).unwrap();
+
+        // todo! schedule analysis properly?
+
+        let diagnostics = workspace
+            .get_diagnostics(None)
+            .iter()
+            .map(|diagnostic| diagnostic_to_lsp_diagnostic(diagnostic, &document.source))
+            .collect();
+        self.client
+            .publish_diagnostics(lsp_uri.clone(), diagnostics, None)
+            .await;
     }
 
     /// Remove document from its Workspace.
@@ -273,6 +292,17 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<lsp::InitializeResult> {
         self.add_initial_workspaces(&params).await;
 
+        let file_operation_filters = vec![lsp::FileOperationFilter {
+            scheme: None,
+            pattern: lsp::FileOperationPattern {
+                glob: DYST_FILE_GLOB.to_string(),
+                matches: Some(lsp::FileOperationPatternKind::File),
+                options: Some(lsp::FileOperationPatternOptions {
+                    ignore_case: Some(true),
+                }),
+            },
+        }];
+
         let capabilities = lsp::ServerCapabilities {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
                 lsp::TextDocumentSyncKind::FULL,
@@ -292,7 +322,26 @@ impl LanguageServer for DestackLanguageServer {
                     supported: Some(true),
                     change_notifications: Some(lsp::OneOf::Left(true)),
                 }),
-                file_operations: None,
+                file_operations: Some(lsp::WorkspaceFileOperationsServerCapabilities {
+                    did_create: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
+                    did_rename: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
+                    did_delete: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
+                    will_create: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
+                    will_rename: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
+                    will_delete: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
+                }),
             }),
             ..Default::default()
         };
@@ -396,13 +445,21 @@ impl LanguageServer for DestackLanguageServer {
     /// The [`workspace/didChangeWatchedFiles`] notification is sent from the client to the server when the client detects changes to files watched by the language client.
     async fn did_change_watched_files(&self, params: lsp::DidChangeWatchedFilesParams) {
         for change in params.changes {
+            let uri = lsp_uri_to_uri(&change.uri);
+            if change.typ == lsp::FileChangeType::CREATED
+                || change.typ == lsp::FileChangeType::CHANGED
+            {
+                // todo!
+            } else if change.typ == lsp::FileChangeType::DELETED {
+                self.close_document(&uri_to_lsp_uri(&uri)).await;
+            }
             self.client
                 .log_message(
                     lsp::MessageType::INFO,
                     format!(
                         "destack.did_change_watched_files.change type={:?} uri={}",
                         change.typ,
-                        change.uri.as_str()
+                        uri.as_ref()
                     ),
                 )
                 .await;

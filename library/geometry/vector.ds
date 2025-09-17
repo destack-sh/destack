@@ -814,13 +814,15 @@ implement Divide<int32> for Vector3i {
 
 /// A 4-dimensional vector with int32 components.
 struct Vector4i {
+    /// The x component of the Vector.
     x: int32
+    /// The y component of the Vector.
     y: int32
+    /// The z component of the Vector.
     z: int32
+    /// The w component of the Vector.
     w: int32
-}
 
-implement Vector4i {
     /// The zero Vector4i (0, 0, 0, 0).
     let Zero: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 0 }
     /// The one Vector4i (1, 1, 1, 1).
@@ -846,7 +848,9 @@ implement Vector4i {
     function new(x: int32, y: int32, z: int32, w: int32) => Vector4i {
         Vector4i { x, y, z, w }
     }
+}
 
+implement Vector4i {
     /// Construct a Vector4i with all components set to the same value.
     function splat(v: int32) => Vector4i {
         Vector4i { x: v, y: v, z: v, w: v }

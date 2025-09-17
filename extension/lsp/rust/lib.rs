@@ -3,6 +3,7 @@
 //! Provides a synchronous stdio LSP server entrypoint and internal modules for
 //! document storage and semantic token computation.
 
+pub mod diagnostic;
 pub mod document;
 pub mod semantic;
 pub mod server;

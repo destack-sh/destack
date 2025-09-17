@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use dyst_language_diagnostic::Diagnostic;
 use dyst_language_session::Session;
 use dyst_language_source::{Source, SourceId, Uri};
 use std::str::FromStr;
@@ -35,8 +36,18 @@ impl Workspace {
         }
     }
 
+    /// Get diagnostics for a source. If no source is provided, all diagnostics are returned.
+    pub fn get_diagnostics(&self, source: Option<SourceId>) -> Vec<Diagnostic> {
+        self.session.get_diagnostics(source)
+    }
+
+    /// Reset diagnostics for a source. If no source is provided, all diagnostics are reset.
+    pub fn reset_diagnostics(&mut self, source: Option<SourceId>) {
+        self.session.reset_diagnostics(source);
+    }
+
     /// Upsert and parse a document into the workspace.
-    pub fn upsert_document(&mut self, uri: &Uri, content: String) {
+    pub fn upsert_document(&mut self, uri: &Uri, content: String) -> SourceId {
         let source_id = self
             .documents
             .get(uri)
@@ -48,14 +59,18 @@ impl Workspace {
             });
 
         let source = Source::from_string(source_id, uri.clone(), content);
+        self.reset_diagnostics(Some(source_id));
         let document = Document::parse(source, &mut self.session);
-
         self.documents.insert(uri.clone(), document);
+
+        source_id
     }
 
     /// Remove a document from the workspace.
     pub fn remove_document(&mut self, uri: &Uri) {
-        self.documents.remove(uri);
+        if let Some(document) = self.documents.remove(uri) {
+            self.reset_diagnostics(Some(document.source.id));
+        }
     }
 
     /// Check if a document exists in the workspace.

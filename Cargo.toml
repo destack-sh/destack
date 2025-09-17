@@ -116,7 +116,6 @@ destack_library_view = { path = "library/view" }
 destack_extension_lsp = { path = "extension/lsp" }
 # platform
 destack_platform_web = { path = "platform/web" }
-# ...
 # demo
 destack_demo_breakout = { path = "demo/breakout" }
 destack_demo_tetris = { path = "demo/tetris" }

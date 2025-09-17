@@ -1,7 +1,7 @@
 #![allow(clippy::new_without_default)]
 
 use dyst_language_diagnostic::Diagnostic;
-use dyst_language_source::{Path, PathId, PathPool, StringId, StringPool};
+use dyst_language_source::{Path, PathId, PathPool, SourceId, StringId, StringPool};
 
 /// A session for diagnostic operations.
 #[derive(Debug)]
@@ -28,6 +28,31 @@ impl Session {
     /// Handle a Diagnostic.
     pub fn handle_diagnostic(&mut self, diagnostic: Diagnostic) {
         self.diagnostics.push(diagnostic);
+    }
+
+    /// Reset diagnostics for a source.
+    pub fn reset_diagnostics(&mut self, source: Option<SourceId>) {
+        match source {
+            Some(source) => {
+                self.diagnostics.retain(|d| d.source != source);
+            }
+            None => {
+                self.diagnostics.clear();
+            }
+        }
+    }
+
+    /// Get diagnostics for a source. If no source is provided, all diagnostics are returned.
+    pub fn get_diagnostics(&self, source: Option<SourceId>) -> Vec<Diagnostic> {
+        match source {
+            Some(source) => self
+                .diagnostics
+                .iter()
+                .filter(|d| d.source != source)
+                .cloned()
+                .collect(),
+            None => self.diagnostics.clone(),
+        }
     }
 
     /// Intern a string.
