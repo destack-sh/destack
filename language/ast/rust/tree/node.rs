@@ -966,6 +966,8 @@ pub enum Type {
     Enum(NodeId<Enum>),
     /// Inline Union type `union MyUnion { ... }` or implicit `A | B | C`.
     Union(NodeId<Union>),
+    /// Inline Intersection type `T1 & T2 & ...`.
+    Intersection(Vec<NodeId<Type>>),
     /// Inline Function type `(T1, T2, ...) => T`.
     Function(NodeId<Function>),
 }

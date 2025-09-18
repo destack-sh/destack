@@ -672,7 +672,6 @@ dependencies = [
 name = "dyst_language_format"
 version = "2025.9.18-0"
 dependencies = [
- "dyst_language_ast",
  "dyst_language_diagnostic",
  "dyst_language_session",
  "dyst_language_source",

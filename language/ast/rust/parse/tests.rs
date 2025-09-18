@@ -273,7 +273,7 @@ mod tests {
                     source,
                     &diagnostic.primary_span,
                     dyst_language_source::AnnotateOptions {
-                        max_line_length: 100,
+                        max_line_width: 100,
                         prefix_lines: 1,
                         suffix_lines: 1,
                         use_color: false,

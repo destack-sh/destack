@@ -1,0 +1,163 @@
+use std::cell::Cell;
+use std::num::NonZeroU8;
+
+use crate::{Group, GroupId};
+
+/// A Tag marking the start and end of some content to which some special formatting should be applied.
+///
+/// Tags always come in pairs of a start and an end tag and the styling defined by this tag
+/// will be applied to all elements in between the start/end tags.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Tag {
+    /// Indents the content one level deeper, see `crate::builders::indent` for documentation and examples.
+    StartIndent,
+    EndIndent,
+
+    /// Variant of [`TagKind::Indent`] that indents content by a number of spaces. For example, `Align(2)`
+    /// indents any content following a line break by an additional two spaces.
+    ///
+    /// Nesting (Aligns)[`TagKind::Align`] has the effect that all except the most inner align are handled as (Indent)[`TagKind::Indent`].
+    StartAlign(NonZeroU8),
+    EndAlign,
+
+    /// Reduces the indentation of the specified content either by one level or to the root, depending on the mode.
+    /// Reverse operation of `Indent` and can be used to *undo* an `Align` for nested content.
+    StartDedent(DedentMode),
+    EndDedent,
+
+    /// Creates a logical group where its content is either consistently printed:
+    /// - on a single line: Omitting `LineMode::Soft` line breaks and printing spaces for `LineMode::SoftOrSpace`
+    /// - on multiple lines: Printing all line breaks
+    ///
+    /// See [`crate::builders::group`] for documentation and examples.
+    StartGroup(Group),
+    EndGroup,
+
+    /// Creates a logical group similar to [`Tag::StartGroup`] but only if the condition is met.
+    /// This is an optimized representation for (assuming the content should only be grouped if another group fits):
+    ///
+    /// ```text
+    /// if_group_breaks(content, other_group_id),
+    /// if_group_fits_on_line(group(&content), other_group_id)
+    /// ```
+    StartConditionalGroup(Condition),
+    EndConditionalGroup,
+
+    /// Allows to specify content that gets printed depending on whatever the enclosing group
+    /// is printed on a single line or multiple lines. See [`crate::builders::if_group_breaks`] for examples.
+    StartConditionalContent(Condition),
+    EndConditionalContent,
+
+    /// Optimized version of [`Tag::StartConditionalContent`] for the case where some content
+    /// should be indented if the specified group breaks.
+    StartIndentIfGroupBreaks(GroupId),
+    EndIndentIfGroupBreaks,
+
+    /// Concatenates multiple elements together with a given separator printed in either
+    /// flat or expanded mode to fill the print width. Expect that the content is a list of alternating
+    /// [element, separator] See [`crate::Formatter::fill`].
+    StartFill,
+    EndFill,
+
+    /// Entry inside of a [`Tag::StartFill`]
+    StartEntry,
+    EndEntry,
+
+    /// Delay the printing of its content until the next line break. Using reserved width will include
+    /// the associated line suffix during measurement.
+    StartLineSuffix {
+        reserved_width: u32,
+    },
+    EndLineSuffix,
+
+    /// A token that tracks tokens/nodes that are printed as verbatim.
+    StartVerbatim,
+    EndVerbatim,
+
+    StartFitsExpanded(FitsExpanded),
+    EndFitsExpanded,
+
+    /// Marks the start and end of a best-fitting variant.
+    StartBestFittingEntry,
+    EndBestFittingEntry,
+
+    /// Parenthesizes the content but only if adding the parentheses and indenting the content
+    /// makes the content fit in the configured line width.
+    ///
+    /// See [`crate::builders::best_fit_parenthesize`] for an in-depth explanation.
+    StartBestFitParenthesize {
+        id: Option<GroupId>,
+    },
+    EndBestFitParenthesize,
+}
+
+/// The kind of a `Tag`.
+///
+/// Each start end tag pair has its own `TagKind`.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum TagKind {
+    Indent,
+    Align,
+    Dedent,
+    Group,
+    ConditionalGroup,
+    ConditionalContent,
+    IndentIfGroupBreaks,
+    Fill,
+    Entry,
+    LineSuffix,
+    Verbatim,
+    Labelled,
+    FitsExpanded,
+    BestFittingEntry,
+    BestFitParenthesize,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DedentMode {
+    /// Reduces the indent by a level (if the current indent is > 0)
+    Level,
+    /// Reduces the indent to the root
+    Root,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Condition {
+    /// - `Flat` -> Omitted if the enclosing group is a multiline group, printed for groups fitting on a single line
+    /// - `Expanded` -> Omitted if the enclosing group fits on a single line, printed if the group breaks over multiple lines.
+    pub(crate) mode: PrintMode,
+
+    /// The id of the group for which it should check if it breaks or not. The group must appear in the document
+    /// before the conditional group (but doesn't have to be in the ancestor chain).
+    pub(crate) group_id: Option<GroupId>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum PrintMode {
+    /// Omits any soft line breaks
+    Flat,
+    /// Prints soft line breaks as line breaks
+    Expanded,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct FitsExpanded {
+    pub(crate) condition: Option<Condition>,
+    pub(crate) propagate_expand: Cell<bool>,
+}
+
+impl FitsExpanded {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub fn with_condition(mut self, condition: Option<Condition>) -> Self {
+        self.condition = condition;
+        self
+    }
+
+    pub fn propagate_expand(&self) {
+        self.propagate_expand.set(true);
+    }
+}
