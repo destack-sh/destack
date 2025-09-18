@@ -50,6 +50,7 @@ impl<'a> Tokenizer<'a> {
 
     /// Gets the last eaten symbol (or `'\0'` in release builds).
     /// (For debug assertions only.)
+    #[inline]
     pub fn prev(&self) -> char {
         #[cfg(debug_assertions)]
         {
@@ -86,7 +87,7 @@ impl<'a> Tokenizer<'a> {
 
     /// Checks if there is nothing more to consume.
     #[inline]
-    pub fn is_eof(&self) -> bool {
+    pub fn is_end(&self) -> bool {
         self.chars.as_str().is_empty()
     }
 
@@ -117,7 +118,7 @@ impl<'a> Tokenizer<'a> {
     pub fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
         // NOTE: @Performance: rustc tried making optimized version of this for
         //  e.g., line comments, but apparently LLVM inlines all this to fast iteration over bytes.
-        while predicate(self.peek()) && !self.is_eof() {
+        while predicate(self.peek()) && !self.is_end() {
             self.bump();
         }
     }

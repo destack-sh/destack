@@ -75,6 +75,7 @@ impl<'a> Parser<'a> {
             // break if we're at the end of the block
             if self.peek().is_err()
                 || format == BlockFormat::Explicit && self.peek_token(TokenType::CloseBrace).is_ok()
+                || self.peek_token(TokenType::End).is_ok()
             {
                 break;
             }

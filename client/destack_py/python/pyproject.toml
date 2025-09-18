@@ -1,4 +1,4 @@
 [project]
 name = "destack_py"
-version = "2025.09.17.6"
+version = "2025.09.18.0"
 description = "Destack Python Library"

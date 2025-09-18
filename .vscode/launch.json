@@ -16,7 +16,7 @@
                 "args": ["run", "--bin", "destack_library_cli"],
                 "filter": { "kind": "bin", "name": "destack_library_cli" }
             },
-            "args": ["parse", "ast", "--string", "HashMap<Key<int32>, Value: List<number>>"],
+            "args": ["parse", "ast", "--string", "let x = "],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
