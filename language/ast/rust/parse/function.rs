@@ -121,27 +121,27 @@ impl<'a> Parser<'a> {
                     is_pointer: false,
                 })
             }
-            // *self
+            // &self
             else if (self.peek_token(TokenType::Multiply).is_ok()
                 || self.peek_token(TokenType::BitwiseAnd).is_ok())
                 && (self.peek_next_keyword(Keyword::Self_).is_ok()
                     || self.peek_next_keyword(Keyword::This).is_ok())
             {
-                self.bump(); // eat *
+                self.bump(); // eat &
                 self.bump(); // eat self
                 Some(SelfParameter {
                     mutability: Mutability::Immutable,
                     is_pointer: true,
                 })
             }
-            // *var self
+            // &var self
             else if (self.peek_token(TokenType::Multiply).is_ok()
                 || self.peek_token(TokenType::BitwiseAnd).is_ok())
                 && self.peek_next_keyword(Keyword::Var).is_ok()
                 && (self.peek_next_next_keyword(Keyword::Self_).is_ok()
                     || self.peek_next_next_keyword(Keyword::This).is_ok())
             {
-                self.bump(); // eat *
+                self.bump(); // eat &
                 self.bump(); // eat var
                 self.bump(); // eat self
                 Some(SelfParameter {
@@ -304,7 +304,7 @@ function foo() with (
         let mut test = TestParser::new(
             r###"
 function b(
-  *self
+  &self
   x: int32
 ) {}
 "###,
@@ -334,7 +334,7 @@ function b(
 
     #[test]
     fn test_parse_function_self_parameter_mutable_pointer() {
-        let mut test = TestParser::new("function c(*var self) {}");
+        let mut test = TestParser::new("function c(&var self) {}");
         let mut parser = test.parser();
 
         let function_id = parser.eat_function(None).unwrap();
