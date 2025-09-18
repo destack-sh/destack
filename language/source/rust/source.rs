@@ -25,6 +25,18 @@ pub struct Source {
     pub line_start_offsets: Vec<u32>,
 }
 
+impl Default for Source {
+    fn default() -> Self {
+        Self {
+            id: SourceId::new(0),
+            uri: Uri::default(),
+            content: String::new(),
+            len: 0,
+            line_start_offsets: vec![],
+        }
+    }
+}
+
 impl Source {
     /// Create a new Source.
     /// Precomputes indexing information immediately.

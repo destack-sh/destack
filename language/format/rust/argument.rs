@@ -96,8 +96,8 @@ impl<'fmt, Context> From<&'fmt Argument<'fmt, Context>> for Arguments<'fmt, Cont
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
-    use crate::{FormatState, Group, Tag, VecBuffer, format_args, write};
+    use crate::{group, prelude::*};
+    use crate::{FormatState, FormatTag, VecBuffer, builder, format_args, tag, write};
 
     #[test]
     fn test_nesting() {
@@ -124,10 +124,10 @@ mod tests {
                 FormatElement::Token { text: "a" },
                 FormatElement::Space,
                 // Group
-                FormatElement::Tag(Tag::StartGroup(Group::new())),
+                FormatElement::Tag(FormatTag::StartGroup(group::Group::new())),
                 FormatElement::Token { text: "(" },
                 FormatElement::Token { text: ")" },
-                FormatElement::Tag(Tag::EndGroup)
+                FormatElement::Tag(FormatTag::EndGroup)
             ]
         );
     }

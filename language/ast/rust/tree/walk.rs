@@ -533,6 +533,12 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let union_node = tree.get(*union_id);
             visitor.visit_union(tree, *union_id, union_node);
         }
+        Type::Intersection(intersection_ids) => {
+            for intersection_id in intersection_ids {
+                let intersection_type = tree.get(*intersection_id);
+                visitor.visit_type(tree, *intersection_id, intersection_type);
+            }
+        }
         Type::Function(function_id) => {
             let function = tree.get(*function_id);
             visitor.visit_function(tree, *function_id, function);

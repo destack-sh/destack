@@ -336,8 +336,10 @@ macro_rules! best_fitting {
 
 #[cfg(test)]
 mod tests {
+    use dyst_language_source::Source;
+
     use crate::prelude::*;
-    use crate::{FormatOptions, FormatState, SimpleFormatOptions, VecBuffer, write};
+    use crate::{FormatState, SimpleFormatOptions, VecBuffer, write};
 
     struct TestFormat;
 
@@ -474,10 +476,13 @@ mod tests {
 
         let best_fitting_code = Formatted::new(
             formatted_best_fitting.into_document(),
-            SimpleFormatContext::new(SimpleFormatOptions {
-                line_width: 30.try_into().unwrap(),
-                ..SimpleFormatOptions::default()
-            }),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    line_width: 30.try_into().unwrap(),
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
         )
         .print()
         .expect("Document to be valid")
@@ -486,10 +491,13 @@ mod tests {
 
         let normal_list_code = Formatted::new(
             formatted_normal_list.into_document(),
-            SimpleFormatContext::new(SimpleFormatOptions {
-                line_width: 30.try_into().unwrap(),
-                ..SimpleFormatOptions::default()
-            }),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    line_width: 30.try_into().unwrap(),
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
         )
         .print()
         .expect("Document to be valid")

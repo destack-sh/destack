@@ -1,14 +1,14 @@
 use std::cell::Cell;
-use std::num::NonZeroU8;
 
-use crate::{Group, GroupId};
+use crate::group::{ConditionalGroup, Group};
+use crate::{GroupId, GroupMode};
 
 /// A Tag marking the start and end of some content to which some special formatting should be applied.
 ///
 /// Tags always come in pairs of a start and an end tag and the styling defined by this tag
 /// will be applied to all elements in between the start/end tags.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Tag {
+pub enum FormatTag {
     /// Indents the content one level deeper, see `crate::builders::indent` for documentation and examples.
     StartIndent,
     EndIndent,
@@ -17,7 +17,7 @@ pub enum Tag {
     /// indents any content following a line break by an additional two spaces.
     ///
     /// Nesting (Aligns)[`TagKind::Align`] has the effect that all except the most inner align are handled as (Indent)[`TagKind::Indent`].
-    StartAlign(NonZeroU8),
+    StartAlign(u8),
     EndAlign,
 
     /// Reduces the indentation of the specified content either by one level or to the root, depending on the mode.
@@ -40,7 +40,7 @@ pub enum Tag {
     /// if_group_breaks(content, other_group_id),
     /// if_group_fits_on_line(group(&content), other_group_id)
     /// ```
-    StartConditionalGroup(Condition),
+    StartConditionalGroup(ConditionalGroup),
     EndConditionalGroup,
 
     /// Allows to specify content that gets printed depending on whatever the enclosing group
@@ -71,7 +71,7 @@ pub enum Tag {
     EndLineSuffix,
 
     /// A token that tracks tokens/nodes that are printed as verbatim.
-    StartVerbatim,
+    StartVerbatim(VerbatimKind),
     EndVerbatim,
 
     StartFitsExpanded(FitsExpanded),
@@ -91,11 +91,65 @@ pub enum Tag {
     EndBestFitParenthesize,
 }
 
+impl FormatTag {
+    /// Returns `true` if `self` is any start tag.
+    pub const fn is_start(&self) -> bool {
+        matches!(
+            self,
+            FormatTag::StartIndent
+                | FormatTag::StartAlign(_)
+                | FormatTag::StartDedent(_)
+                | FormatTag::StartGroup(_)
+                | FormatTag::StartConditionalGroup(_)
+                | FormatTag::StartConditionalContent(_)
+                | FormatTag::StartIndentIfGroupBreaks(_)
+                | FormatTag::StartFill
+                | FormatTag::StartEntry
+                | FormatTag::StartLineSuffix { .. }
+                | FormatTag::StartVerbatim(_)
+                | FormatTag::StartFitsExpanded(_)
+                | FormatTag::StartBestFittingEntry
+                | FormatTag::StartBestFitParenthesize { .. }
+        )
+    }
+
+    /// Returns `true` if `self` is any end tag.
+    pub const fn is_end(&self) -> bool {
+        !self.is_start()
+    }
+
+    pub const fn kind(&self) -> FormatTagKind {
+        #[allow(clippy::enum_glob_use)]
+        use FormatTag::*;
+
+        match self {
+            StartIndent | EndIndent => FormatTagKind::Indent,
+            StartAlign(_) | EndAlign => FormatTagKind::Align,
+            StartDedent(_) | EndDedent => FormatTagKind::Dedent,
+            StartGroup(_) | EndGroup => FormatTagKind::Group,
+            StartConditionalGroup(_) | EndConditionalGroup => FormatTagKind::ConditionalGroup,
+            StartConditionalContent(_) | EndConditionalContent => FormatTagKind::ConditionalContent,
+            StartIndentIfGroupBreaks(_) | EndIndentIfGroupBreaks => {
+                FormatTagKind::IndentIfGroupBreaks
+            }
+            StartFill | EndFill => FormatTagKind::Fill,
+            StartEntry | EndEntry => FormatTagKind::Entry,
+            StartLineSuffix { reserved_width: _ } | EndLineSuffix => FormatTagKind::LineSuffix,
+            StartVerbatim(_) | EndVerbatim => FormatTagKind::Verbatim,
+            StartFitsExpanded { .. } | EndFitsExpanded => FormatTagKind::FitsExpanded,
+            StartBestFittingEntry | EndBestFittingEntry => FormatTagKind::BestFittingEntry,
+            StartBestFitParenthesize { .. } | EndBestFitParenthesize => {
+                FormatTagKind::BestFitParenthesize
+            }
+        }
+    }
+}
+
 /// The kind of a `Tag`.
 ///
 /// Each start end tag pair has its own `TagKind`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum TagKind {
+pub enum FormatTagKind {
     Indent,
     Align,
     Dedent,
@@ -140,6 +194,25 @@ pub enum PrintMode {
     Expanded,
 }
 
+impl PrintMode {
+    pub const fn is_flat(&self) -> bool {
+        matches!(self, PrintMode::Flat)
+    }
+
+    pub const fn is_expanded(&self) -> bool {
+        matches!(self, PrintMode::Expanded)
+    }
+}
+
+impl From<GroupMode> for PrintMode {
+    fn from(value: GroupMode) -> Self {
+        match value {
+            GroupMode::Flat => PrintMode::Flat,
+            GroupMode::Expand | GroupMode::Propagated => PrintMode::Expanded,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct FitsExpanded {
     pub(crate) condition: Option<Condition>,
@@ -159,5 +232,21 @@ impl FitsExpanded {
 
     pub fn propagate_expand(&self) {
         self.propagate_expand.set(true);
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum VerbatimKind {
+    Bogus,
+    Suppressed,
+    Verbatim {
+        /// the length of the formatted node
+        length: u32,
+    },
+}
+
+impl VerbatimKind {
+    pub const fn is_bogus(&self) -> bool {
+        matches!(self, VerbatimKind::Bogus)
     }
 }

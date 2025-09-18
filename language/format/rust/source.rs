@@ -36,7 +36,7 @@ pub fn normalize_newlines<const N: usize>(text: &str, terminators: [char; N]) ->
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SourceMarker {
     /// Position of the marker in the original source
-    pub source: TextSize,
+    pub source: u32,
     /// Position of the marker in the output code
-    pub dest: TextSize,
+    pub dest: u32,
 }

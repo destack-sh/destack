@@ -1,3 +1,10 @@
+use std::fmt::Display;
+
+use crate::{
+    Arguments, Buffer, Document, FormatContext, FormatOptions, FormatResult, FormatState,
+    Formatter, PrintResult, Printed, Printer, VecBuffer,
+};
+
 //// Formatting trait for types that can create a formatted representation. The `ruff_formatter` equivalent
 /// to [`std::fmt::Display`].
 ///
@@ -73,7 +80,7 @@ impl<Context> Format<Context> for () {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Formatted<Context> {
     document: Document,
     context: Context,
@@ -115,18 +122,114 @@ where
     }
 
     fn create_printer(&self) -> Printer<'_> {
-        let source_code = self.context.source_code();
+        let source = self.context.source();
         let print_options = self.context.options().as_print_options();
 
-        Printer::new(source_code, print_options)
+        Printer::new(source, print_options)
     }
 }
 
-impl<Context> Display for Formatted<Context>
+/// The `write` function takes a target buffer and an `Arguments` struct that can be precompiled with the `format_args!` macro.
+///
+/// The arguments will be formatted in-order into the output buffer provided.
+///
+/// # Examples
+///
+/// ```
+/// use ruff_formatter::prelude::*;
+/// use ruff_formatter::{VecBuffer, format_args, FormatState, write, Formatted};
+///
+/// # fn main() -> FormatResult<()> {
+/// let mut state = FormatState::new(SimpleFormatContext::default());
+/// let mut buffer = VecBuffer::new(&mut state);
+///
+/// write!(&mut buffer, [format_args!(token("Hello World"))])?;
+///
+/// let formatted = Formatted::new(Document::from(buffer.into_vec()), SimpleFormatContext::default());
+///
+/// assert_eq!("Hello World", formatted.print()?.as_code());
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Please note that using [`write!`] might be preferable. Example:
+///
+/// ```
+/// use ruff_formatter::prelude::*;
+/// use ruff_formatter::{VecBuffer, format_args, FormatState, write, Formatted};
+///
+/// # fn main() -> FormatResult<()> {
+/// let mut state = FormatState::new(SimpleFormatContext::default());
+/// let mut buffer = VecBuffer::new(&mut state);
+///
+/// write!(&mut buffer, [token("Hello World")])?;
+///
+/// let formatted = Formatted::new(Document::from(buffer.into_vec()), SimpleFormatContext::default());
+///
+/// assert_eq!("Hello World", formatted.print()?.as_code());
+/// # Ok(())
+/// # }
+/// ```
+#[inline]
+pub fn write<Context>(
+    output: &mut dyn Buffer<Context = Context>,
+    args: Arguments<Context>,
+) -> FormatResult<()> {
+    let mut f = Formatter::new(output);
+
+    f.write_fmt(args)
+}
+
+/// The `format` function takes an [`Arguments`] struct and returns the resulting formatting IR.
+///
+/// The [`Arguments`] instance can be created with the [`format_args!`].
+///
+/// # Examples
+///
+/// Basic usage:
+///
+/// ```
+/// use ruff_formatter::prelude::*;
+/// use ruff_formatter::{format, format_args};
+///
+/// # fn main() -> FormatResult<()> {
+/// let formatted = format!(SimpleFormatContext::default(), [&format_args!(token("test"))])?;
+/// assert_eq!("test", formatted.print()?.as_code());
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Please note that using [`format!`] might be preferable. Example:
+///
+/// ```
+/// use ruff_formatter::prelude::*;
+/// use ruff_formatter::{format};
+///
+/// # fn main() -> FormatResult<()> {
+/// let formatted = format!(SimpleFormatContext::default(), [token("test")])?;
+/// assert_eq!("test", formatted.print()?.as_code());
+/// # Ok(())
+/// # }
+/// ```
+pub fn format<Context>(
+    context: Context,
+    arguments: Arguments<Context>,
+) -> FormatResult<Formatted<Context>>
 where
     Context: FormatContext,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.document.display(self.context.source_code()), f)
-    }
+    let source_length = context.source().content.len();
+    // Use a simple heuristic to guess the number of expected format elements.
+    // See [#6612](https://github.com/astral-sh/ruff/pull/6612) for more details on how the formula was determined. Changes to our formatter, or supporting
+    // more languages may require fine tuning the formula.
+    let estimated_buffer_size = source_length / 2;
+    let mut state = FormatState::new(context);
+    let mut buffer = VecBuffer::with_capacity(estimated_buffer_size, &mut state);
+
+    buffer.write_fmt(arguments)?;
+
+    let mut document = Document::from(buffer.into_vec());
+    document.propagate_expand();
+
+    Ok(Formatted::new(document, state.into_context()))
 }

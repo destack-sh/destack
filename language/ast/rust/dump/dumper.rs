@@ -960,6 +960,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Union(_union_node) => {
                 self.node("Type::Union", _id.id).end();
             }
+            Type::Intersection(_) => {
+                self.node("Type::Intersection", _id.id).end();
+            }
             Type::Function(_function) => {
                 self.node("Type::Function", _id.id).end();
             }
