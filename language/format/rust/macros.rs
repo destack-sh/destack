@@ -344,7 +344,7 @@ mod tests {
     struct TestFormat;
 
     impl Format<SimpleFormatContext> for TestFormat {
-        fn fmt(&self, f: &mut Formatter<SimpleFormatContext>) -> FormatResult<()> {
+        fn fmt(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
             write!(f, [token("test")])
         }
     }

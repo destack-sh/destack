@@ -19,19 +19,40 @@ pub mod source;
 pub mod spacing;
 pub mod tag;
 
-pub use argument::*;
-pub use buffer::*;
-pub use builder::*;
-pub use context::*;
-pub use document::*;
-pub use element::*;
-pub use error::*;
-pub use format::*;
-pub use formatter::*;
-pub use group::*;
-pub use label::*;
-pub use printer::*;
-pub use sizing::*;
-pub use source::*;
-pub use spacing::*;
-pub use tag::*;
+pub use argument::{Argument, Arguments};
+pub use buffer::{
+    Buffer, BufferExtensions, BufferSnapshot, Inspect, Recorded, Recording, RemoveSoftLinesBuffer,
+    VecBuffer,
+};
+pub use builder::{
+    Align, BestFitParenthesize, BestFitting, BlockIndent, Dedent, ExpandParent, FillBuilder,
+    FormatOnce, FormatWith, IfGroupBreaks, Indent, IndentIfGroupBreaks, JoinBuilder, Line,
+    LineBoundary, LineSuffix, SourceSliceBuilder, Space, Text, Token, align,
+    best_fit_parenthesize, block_indent, conditional_group, dedent, dedent_to_root, empty_line,
+    expand_parent, fits_expanded, format_once, format_with, group, hard_line_break,
+    if_group_breaks, if_group_fits_on_line, indent, indent_if_group_breaks, line_suffix,
+    line_suffix_boundary, soft_block_indent, soft_line_break, soft_line_break_or_space,
+    soft_line_indent_or_space, soft_space_or_block_indent, source_text_slice, space, text, token,
+};
+pub use context::{
+    FormatContext, FormatOptions, FormatState, SimpleFormatContext, SimpleFormatOptions,
+};
+pub use document::Document;
+pub use element::{FormatElement, Interned, LineMode};
+pub use error::{
+    ActualStart, FormatError, FormatResult, InvalidDocumentError, PrintError, PrintResult,
+};
+pub use format::{Format, Formatted, format, write};
+pub use formatter::{Formatter, FormatterSnapshot};
+pub use group::{ConditionalGroup, DebugGroupId, Group, GroupId, GroupMode, ReleaseGroupId};
+pub use label::{LabelDefinition, LabelId};
+pub use printer::{LineEnding, PrintOptions, Printed, PrintedSpan, Printer};
+pub use sizing::{
+    BestFittingMode, BestFittingVariants, BestFittingVariantsIter, FormatElements, TextLen,
+    TextWidth, Width,
+};
+pub use source::{LINE_TERMINATORS, SourceMarker, normalize_newlines};
+pub use spacing::{IndentStyle, Indentation};
+pub use tag::{
+    Condition, DedentMode, FitsExpanded, FormatTag, FormatTagKind, PrintMode, VerbatimKind,
+};

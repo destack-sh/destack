@@ -186,6 +186,49 @@ pub struct Condition {
     pub(crate) group_id: Option<GroupId>,
 }
 
+impl Condition {
+    pub(crate) fn new(mode: PrintMode) -> Self {
+        Self {
+            mode,
+            group_id: None,
+        }
+    }
+
+    pub fn if_fits_on_line() -> Self {
+        Self {
+            mode: PrintMode::Flat,
+            group_id: None,
+        }
+    }
+
+    pub fn if_group_fits_on_line(group_id: GroupId) -> Self {
+        Self {
+            mode: PrintMode::Flat,
+            group_id: Some(group_id),
+        }
+    }
+
+    pub fn if_breaks() -> Self {
+        Self {
+            mode: PrintMode::Expanded,
+            group_id: None,
+        }
+    }
+
+    pub fn if_group_breaks(group_id: GroupId) -> Self {
+        Self {
+            mode: PrintMode::Expanded,
+            group_id: Some(group_id),
+        }
+    }
+
+    #[must_use]
+    pub fn with_group_id(mut self, id: Option<GroupId>) -> Self {
+        self.group_id = id;
+        self
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PrintMode {
     /// Omits any soft line breaks

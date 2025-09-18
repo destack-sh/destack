@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use dyst_language_source::Source;
-
-use crate::{FitsExpanded, FormatElement, Interned, LineMode, FormatTag, group};
+use crate::{FitsExpanded, FormatElement, FormatTag, Interned, LineMode, group};
 
 /// A formatted document.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -36,7 +34,7 @@ impl Document {
             },
         }
 
-        fn expand_parent(enclosing: &[Enclosing]) {
+        fn expand_parent(enclosing: &[Enclosing<'_>]) {
             match enclosing.last() {
                 Some(Enclosing::Group(group)) => group.propagate_expand(),
                 Some(Enclosing::ConditionalGroup(group)) => group.propagate_expand(),
@@ -118,7 +116,7 @@ impl Document {
                         text: _,
                         text_width,
                     } => text_width.is_multiline(),
-                    FormatElement::Source { text_width, .. } => text_width.is_multiline(),
+                    FormatElement::SourceSlice { text_width, .. } => text_width.is_multiline(),
                     FormatElement::ExpandParent
                     | FormatElement::Line(LineMode::Hard | LineMode::Empty) => true,
                     _ => false,

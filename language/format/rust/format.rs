@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::{
     Arguments, Buffer, Document, FormatContext, FormatOptions, FormatResult, FormatState,
     Formatter, PrintResult, Printed, Printer, VecBuffer,
@@ -37,7 +35,7 @@ use crate::{
 /// ```
 pub trait Format<Context> {
     /// Formats the object using the given formatter.
-    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()>;
+    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()>;
 }
 
 impl<T, Context> Format<Context> for &T
@@ -45,7 +43,7 @@ where
     T: ?Sized + Format<Context>,
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
+    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         Format::fmt(&**self, f)
     }
 }
@@ -55,7 +53,7 @@ where
     T: ?Sized + Format<Context>,
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
+    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         Format::fmt(&**self, f)
     }
 }
@@ -64,7 +62,7 @@ impl<T, Context> Format<Context> for Option<T>
 where
     T: Format<Context>,
 {
-    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
+    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         match self {
             Some(value) => value.fmt(f),
             None => Ok(()),
@@ -74,7 +72,7 @@ where
 
 impl<Context> Format<Context> for () {
     #[inline]
-    fn fmt(&self, _: &mut Formatter<Context>) -> FormatResult<()> {
+    fn fmt(&self, _: &mut Formatter<'_, Context>) -> FormatResult<()> {
         // Intentionally left empty
         Ok(())
     }
@@ -173,7 +171,7 @@ where
 #[inline]
 pub fn write<Context>(
     output: &mut dyn Buffer<Context = Context>,
-    args: Arguments<Context>,
+    args: Arguments<'_, Context>,
 ) -> FormatResult<()> {
     let mut f = Formatter::new(output);
 
@@ -213,7 +211,7 @@ pub fn write<Context>(
 /// ```
 pub fn format<Context>(
     context: Context,
-    arguments: Arguments<Context>,
+    arguments: Arguments<'_, Context>,
 ) -> FormatResult<Formatted<Context>>
 where
     Context: FormatContext,

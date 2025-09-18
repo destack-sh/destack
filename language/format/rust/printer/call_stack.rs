@@ -1,9 +1,10 @@
+use crate::printer::mode::MeasureMode;
+use crate::printer::stack::{Stack, StackedStack};
 use crate::{
-    IndentStyle, Indentation, InvalidDocumentError, MeasureMode, PrintError, PrintMode,
-    PrintResult, Stack, StackedStack, FormatTagKind,
+    FormatTagKind, IndentStyle, Indentation, InvalidDocumentError, PrintError, PrintMode,
+    PrintResult,
 };
 use std::fmt::Debug;
-use std::num::NonZeroU8;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum StackFrameKind {
@@ -65,7 +66,7 @@ impl PrintElementArgs {
         self
     }
 
-    pub(crate) fn set_indent_align(mut self, count: NonZeroU8) -> Self {
+    pub(crate) fn set_indent_align(mut self, count: u8) -> Self {
         self.indent = self.indent.set_align(count);
         self
     }

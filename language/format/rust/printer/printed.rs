@@ -1,6 +1,6 @@
 use dyst_language_source::{SourceId, Span};
 
-use crate::SourceMarker;
+use crate::{SourceMarker, TextLen};
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Printed {
@@ -142,7 +142,7 @@ impl Printed {
             .unwrap_or_default();
 
         let (source_end, formatted_end) = end_marker
-            .map_or((source.len(), self.code.len()), |marker| {
+            .map_or((source.len() as u32, self.code.len() as u32), |marker| {
                 (marker.source, marker.dest)
             });
 
@@ -165,7 +165,7 @@ impl Printed {
 /// # Panics
 /// If `range.start` is out of `source`'s bounds.
 fn extend_range_to_include_indent(range: Span, source: &str) -> Span {
-    let whitespace_len: usize = source[..range.start as usize]
+    let whitespace_len: u32 = source[..range.start as usize]
         .chars()
         .rev()
         .take_while(|c| matches!(c, ' ' | '\t'))

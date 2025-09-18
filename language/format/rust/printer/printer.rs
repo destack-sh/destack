@@ -1,19 +1,21 @@
-use drop_bomb::DebugDropBomb;
+use crate::sizing::CharWidth;
 
-use dyst_language_source::{Source, Span};
+use dyst_language_source::{Source, SourceId, Span};
 
+use super::bomb::DebugDropBomb;
 use crate::printer::call_stack::{
     CallStack, FitsCallStack, PrintCallStack, PrintElementArgs, StackFrame,
 };
 use crate::printer::line_suffixes::{LineSuffixEntry, LineSuffixes};
+use crate::printer::mode::MeasureMode;
 use crate::printer::queue::{
     AllPredicate, FitsEndPredicate, FitsQueue, PrintQueue, Queue, SingleEntryPredicate,
 };
 use crate::{
     ActualStart, BestFittingMode, BestFittingVariants, Condition, DedentMode, Document,
-    FormatElement, FormatOptions, FormatTag, FormatTagKind, GroupId, GroupMode, IndentStyle,
-    Indentation, InvalidDocumentError, LineMode, MeasureMode, PrintError, PrintMode, PrintOptions,
-    PrintResult, Printed, SourceMarker, TextWidth, VerbatimKind, tag,
+    FormatElement, FormatTag, FormatTagKind, GroupId, GroupMode, IndentStyle, Indentation,
+    InvalidDocumentError, LineMode, PrintError, PrintMode, PrintOptions, PrintResult, Printed,
+    SourceMarker, TextWidth, VerbatimKind, tag,
 };
 
 /// Prints the format elements into a string
@@ -91,7 +93,7 @@ impl<'a> Printer<'a> {
                 text,
                 text_width: *text_width,
             }),
-            FormatElement::Source { slice, text_width } => {
+            FormatElement::SourceSlice { slice, text_width } => {
                 let text = slice.text(self.source);
                 self.print_text(Text::Text {
                     text,
@@ -265,7 +267,7 @@ impl<'a> Printer<'a> {
             FormatElement::Tag(StartIndent) => {
                 stack.push(
                     FormatTagKind::Indent,
-                    args.increment_indent_level(self.options.indent_style()),
+                    args.increment_indent_level(self.options.indent_style),
                 );
             }
 
@@ -278,7 +280,7 @@ impl<'a> Printer<'a> {
             }
 
             FormatElement::Tag(StartAlign(align)) => {
-                stack.push(FormatTagKind::Align, args.set_indent_align(align.count()));
+                stack.push(FormatTagKind::Align, args.set_indent_align(*align));
             }
 
             FormatElement::Tag(StartConditionalContent(Condition { mode, group_id })) => {
@@ -317,7 +319,8 @@ impl<'a> Printer<'a> {
                     // SAFETY: Ruff only supports formatting files <= 4GB
                     #[expect(clippy::cast_possible_truncation)]
                     self.state.verbatim_markers.push(Span::at(
-                        TextSize::from(self.state.buffer.len() as u32),
+                        SourceId::new(0), // nocheckin: get SourceId from somewhere?
+                        self.state.buffer.len() as u32,
                         *length,
                     ));
                 }
@@ -421,7 +424,7 @@ impl<'a> Printer<'a> {
         Ok(print_mode)
     }
 
-    fn print_text(&mut self, text: Text) {
+    fn print_text(&mut self, text: Text<'_>) {
         if !self.state.pending_indent.is_empty() {
             let (indent_char, repeat_count) = match self.options.indent_style {
                 IndentStyle::Tab => ('\t', 1),
@@ -475,7 +478,7 @@ impl<'a> Printer<'a> {
 
         let marker = SourceMarker {
             source: source_position,
-            dest: self.state.buffer.text_len(),
+            dest: self.state.buffer.len() as u32,
         };
 
         if self.state.source_markers.last() != Some(&marker) {
@@ -818,9 +821,9 @@ impl<'a> Printer<'a> {
 
             #[expect(clippy::cast_possible_truncation)]
             let char_width = if char == '\t' {
-                self.options.indent_width
+                self.options.indent_width as u32
             } else {
-                char.width().unwrap_or(0) as u32
+                char.width() as u32
             };
 
             self.state.line_width += char_width;
@@ -832,14 +835,11 @@ impl<'a> Printer<'a> {
 enum FillPairLayout {
     /// The item, separator, and next item fit. Print the first item and the separator in flat mode.
     Flat,
-
     /// The item and separator fit but the next element does not. Print the item in flat mode and
     /// the separator in expanded mode.
     ItemFlatSeparatorExpanded,
-
     /// The item does not fit. Print the item and any potential separator in expanded mode.
     Expanded,
-
     /// The item fits but the separator does not in flat mode. If the separator fits in expanded mode then
     /// print the item in flat and the separator in expanded mode, otherwise print both in expanded mode.
     ItemMaybeFlat,
@@ -1093,7 +1093,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                     args,
                 ));
             }
-            FormatElement::Source { slice, text_width } => {
+            FormatElement::SourceSlice { slice, text_width } => {
                 let text = slice.text(self.printer.source);
                 return Ok(self.fits_text(
                     Text::Text {
@@ -1140,7 +1140,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
             FormatElement::Tag(StartIndent) => {
                 self.stack.push(
                     FormatTagKind::Indent,
-                    args.increment_indent_level(self.options().indent_style()),
+                    args.increment_indent_level(self.options().indent_style),
                 );
             }
 
@@ -1154,7 +1154,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
 
             FormatElement::Tag(StartAlign(align)) => {
                 self.stack
-                    .push(FormatTagKind::Align, args.set_indent_align(align.count()));
+                    .push(FormatTagKind::Align, args.set_indent_align(*align));
             }
 
             FormatElement::Tag(StartGroup(group)) => {
@@ -1236,7 +1236,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                     PrintMode::Expanded => {
                         self.stack.push(
                             FormatTagKind::IndentIfGroupBreaks,
-                            args.increment_indent_level(self.options().indent_style()),
+                            args.increment_indent_level(self.options().indent_style),
                         );
                     }
                 }
@@ -1355,15 +1355,15 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
         Fits::Maybe
     }
 
-    fn fits_text(&mut self, text: Text, args: PrintElementArgs) -> Fits {
-        fn exceeds_width(fits: &FitsMeasurer, args: PrintElementArgs) -> bool {
+    fn fits_text(&mut self, text: Text<'_>, args: PrintElementArgs) -> Fits {
+        fn exceeds_width(fits: &FitsMeasurer<'_, '_>, args: PrintElementArgs) -> bool {
             fits.state.line_width > fits.options().line_width.into()
                 && !args.measure_mode().allows_text_overflow()
         }
 
         let indent = std::mem::take(&mut self.state.pending_indent);
-        self.state.line_width +=
-            u32::from(indent.level()) * self.options().indent_width() + u32::from(indent.align());
+        self.state.line_width += u32::from(indent.level()) * u32::from(self.options().indent_width)
+            + u32::from(indent.align());
 
         match text {
             #[expect(clippy::cast_possible_truncation)]
@@ -1397,9 +1397,9 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                                 }
                             }
                             #[expect(clippy::cast_possible_truncation)]
-                            c => c.width().unwrap_or(0) as u32,
+                            c => c.width(),
                         };
-                        self.state.line_width += char_width;
+                        self.state.line_width += char_width as u32;
                     }
                 }
             }
@@ -1927,7 +1927,7 @@ Group 1 breaks"
     }
 
     impl Format<SimpleFormatContext> for FormatArrayElements<'_> {
-        fn fmt(&self, f: &mut Formatter<SimpleFormatContext>) -> FormatResult<()> {
+        fn fmt(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
             write!(
                 f,
                 [group(&format_args!(

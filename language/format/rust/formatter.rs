@@ -215,7 +215,7 @@ impl<Context> Buffer for Formatter<'_, Context> {
     }
 
     #[inline]
-    fn write_fmt(&mut self, arguments: Arguments<Self::Context>) -> FormatResult<()> {
+    fn write_fmt(&mut self, arguments: Arguments<'_, Self::Context>) -> FormatResult<()> {
         for argument in arguments.items() {
             argument.format(self)?;
         }

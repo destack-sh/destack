@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{Debug, Formatter};
 use std::num::NonZeroU32;
 
 use crate::Condition;

@@ -19,6 +19,15 @@ impl Span {
         Self { source, start, end }
     }
 
+    /// Create a new Span from a position and length.
+    pub fn at(source: SourceId, start: u32, length: u32) -> Self {
+        Self {
+            source,
+            start,
+            end: start + length,
+        }
+    }
+
     /// Create an empty Span.
     pub fn empty(source: SourceId) -> Self {
         Self {
