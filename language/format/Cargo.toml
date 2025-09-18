@@ -11,7 +11,6 @@ rust-version.workspace = true
 path = "rust/lib.rs"
 
 [dependencies]
-dyst_language_ast = { workspace = true }
 dyst_language_diagnostic = { workspace = true }
 dyst_language_session = { workspace = true }
 dyst_language_source = { workspace = true }

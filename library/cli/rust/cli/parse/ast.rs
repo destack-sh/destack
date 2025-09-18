@@ -44,7 +44,7 @@ pub(crate) fn parse_ast(ctx: CommandArguments) -> i32 {
             &source,
             &diagnostic.primary_span,
             AnnotateOptions {
-                max_line_length: 100,
+                max_line_width: 100,
                 prefix_lines: 1,
                 suffix_lines: 1,
                 use_color: true,

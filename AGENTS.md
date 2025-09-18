@@ -23,12 +23,11 @@ Function, module, class, .. documentation must be proper sentences with punctuat
 Comments MAY start with certain keywords:
  - NOTE: call out something important that should not be missed when reading this code.
  - TODO: something is missing / slow / imperfect about this code, should be addressed eventually.
- - nocheckin: this is temporary and should not be committed / checked in.
+ - n o c h e c k i n (without the spaces): this is temporary and should not be committed / checked in.
  (Do not use lowercase Note:, always NOTE)
 Comments like that SHOULD also include one or more tags like:
  - NOTE @Performance: this clones the string, use custom alloc (?)
  - TODO @Cleanup: this seems unnecessarily confusing
- - nocheckin @Broken: commented out for testing, uncomment to commit
  The allowable tags are:
  - @Performance: could be faster or more efficient
  - @Robustness: this might be flaky in some cases

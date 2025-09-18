@@ -5,7 +5,8 @@ alwaysApply: true
 ---
 Inline comments SHOULD be short and begin with a lowercase letter.
 Inline comments SHOULD be above a related code block (these blocks are usually 2-10 lines).
-Most comments are <1 sentence and SHOULD not include a . at the end.
+Most comments are <1 sentence and those SHOULD not include a . at the end.
+Comments and especially documentation SHOULD be one line per sentence.
 
 Function, module, class, .. documentation must be proper sentences with punctuation. 
 

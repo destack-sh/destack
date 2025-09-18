@@ -8,8 +8,8 @@ use std::error::Error;
 use std::fmt::{self, Debug, Display};
 use std::hash::{Hash, Hasher};
 
-pub const ORDER_HEAD_INLINE_LENGTH: usize = 4;
-pub const ORDER_TAIL_INLINE_LENGTH: usize = 4;
+pub const ORDER_HEAD_INline_width: usize = 4;
+pub const ORDER_TAIL_INline_width: usize = 4;
 
 /// A position token in a sequence as a single u64. Immutable, orderable, and compact.
 /// - head 4 bytes (32 bits):
@@ -63,7 +63,7 @@ impl Order {
         if b.contains(&0) {
             return Err(OrderError::InvalidByteZero);
         }
-        if b.len() > ORDER_TAIL_INLINE_LENGTH {
+        if b.len() > ORDER_TAIL_INline_width {
             return Err(OrderError::InvalidComparison {
                 a: hex(b),
                 b: String::from("tail too long"),
@@ -231,7 +231,7 @@ impl Order {
                     // no lower head, use tail midpoint against 0 within head 0
                     let rtail = rhs.tail();
                     let t =
-                        tail_between_capped(None, Some(rtail.as_slice()), ORDER_TAIL_INLINE_LENGTH)
+                        tail_between_capped(None, Some(rtail.as_slice()), ORDER_TAIL_INline_width)
                             .ok_or_else(|| OrderError::InvalidComparison {
                                 a: String::from("None"),
                                 b: rhs.to_hex(),
@@ -261,7 +261,7 @@ impl Order {
                         Some(rtail.as_slice())
                     };
                     let t =
-                        tail_between_capped(lt, rt, ORDER_TAIL_INLINE_LENGTH).ok_or_else(|| {
+                        tail_between_capped(lt, rt, ORDER_TAIL_INline_width).ok_or_else(|| {
                             OrderError::InvalidComparison {
                                 a: left.to_hex(),
                                 b: rhs.to_hex(),
@@ -277,7 +277,7 @@ impl Order {
                     } else {
                         Some(ltail.as_slice())
                     };
-                    if let Some(t) = tail_between_capped(lt, None, ORDER_TAIL_INLINE_LENGTH) {
+                    if let Some(t) = tail_between_capped(lt, None, ORDER_TAIL_INline_width) {
                         Ok(Order::from_head_and_vec(lh, t))
                     } else {
                         let rtail = rhs.tail();
@@ -286,11 +286,12 @@ impl Order {
                         } else {
                             Some(rtail.as_slice())
                         };
-                        let t = tail_between_capped(None, rt, ORDER_TAIL_INLINE_LENGTH)
-                            .ok_or_else(|| OrderError::InvalidComparison {
+                        let t = tail_between_capped(None, rt, ORDER_TAIL_INline_width).ok_or_else(
+                            || OrderError::InvalidComparison {
                                 a: left.to_hex(),
                                 b: rhs.to_hex(),
-                            })?;
+                            },
+                        )?;
                         Ok(Order::from_head_and_vec(rh, t))
                     }
                 }
@@ -351,7 +352,7 @@ impl From<Vec<u8>> for Order {
     /// For convenience/tests: head=0 with the provided tail (len <= 4).
     fn from(v: Vec<u8>) -> Self {
         debug_assert!(!v.contains(&0));
-        debug_assert!(v.len() <= ORDER_TAIL_INLINE_LENGTH);
+        debug_assert!(v.len() <= ORDER_TAIL_INline_width);
         Order::from_head_and_vec(0, v)
     }
 }
@@ -387,7 +388,7 @@ impl Hash for Order {
 impl Order {
     #[inline]
     fn from_head_and_slice(head: u32, bytes: &[u8]) -> Self {
-        debug_assert!(bytes.len() <= ORDER_TAIL_INLINE_LENGTH);
+        debug_assert!(bytes.len() <= ORDER_TAIL_INline_width);
         let mut t: u32 = 0;
         for (i, &b) in bytes.iter().enumerate() {
             let shift = 24 - (i as u32) * 8;
@@ -400,7 +401,7 @@ impl Order {
     #[inline]
     fn from_head_and_vec(head: u32, v: Vec<u8>) -> Self {
         debug_assert!(!v.contains(&0));
-        debug_assert!(v.len() <= ORDER_TAIL_INLINE_LENGTH);
+        debug_assert!(v.len() <= ORDER_TAIL_INline_width);
         Self::from_head_and_slice(head, &v)
     }
 }
@@ -472,7 +473,7 @@ fn hex(b: &[u8]) -> String {
 /// Tail small value object that views up to 4 bytes.
 #[derive(Copy, Clone, Debug)]
 pub struct OrderTail {
-    buf: [u8; ORDER_TAIL_INLINE_LENGTH],
+    buf: [u8; ORDER_TAIL_INline_width],
     len: u8,
 }
 

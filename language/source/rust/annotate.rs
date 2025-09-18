@@ -11,7 +11,7 @@ const ELIDE: &str = "..";
 #[derive(Debug, Clone, Copy)]
 pub struct AnnotateOptions {
     /// Maximum number of characters to show from a source line. 0 disables clipping.
-    pub max_line_length: usize,
+    pub max_line_width: usize,
     /// Number of context lines to show before the start line.
     pub prefix_lines: u8,
     /// Number of context lines to show after the end line.
@@ -23,7 +23,7 @@ pub struct AnnotateOptions {
 impl Default for AnnotateOptions {
     fn default() -> Self {
         Self {
-            max_line_length: 100,
+            max_line_width: 100,
             prefix_lines: 1,
             suffix_lines: 1,
             use_color: false,
@@ -50,7 +50,7 @@ impl Default for AnnotateOptions {
 ///
 /// Prefix and suffix line counts control how many lines are shown before and
 /// after the highlighted region.
-/// Lines longer than `max_line_length` are clipped to keep the highlight visible.
+/// Lines longer than `max_line_width` are clipped to keep the highlight visible.
 pub fn annotate_source(source: &Source, span: &LabeledSpan, options: AnnotateOptions) -> String {
     debug_assert_eq!(source.id, span.span.source);
 
@@ -91,7 +91,7 @@ pub fn annotate_source(source: &Source, span: &LabeledSpan, options: AnnotateOpt
             span,
             span_start_line,
             span_end_line,
-            options.max_line_length,
+            options.max_line_width,
         );
         let is_in_span = line >= span_start_line && line <= span_end_line;
         write_source_line(
@@ -305,7 +305,7 @@ fn get_visible_source_slice<'a>(
     span: &LabeledSpan,
     start_line: u32,
     end_line: u32,
-    max_line_length: usize,
+    max_line_width: usize,
 ) -> (&'a str, (usize, usize, usize, usize), bool, bool) {
     let line_text = source.get_line(current_line).unwrap_or_default();
     let (line_start_byte, line_end_byte) = source.get_line_bounds(current_line).unwrap_or((0, 0));
@@ -315,8 +315,8 @@ fn get_visible_source_slice<'a>(
     let mut slice_start_in_line: usize = 0;
     let mut slice_end_in_line: usize = line_len_bytes;
 
-    // truncate long lines to fit within max_line_length
-    if max_line_length > 0 && line_len_bytes > max_line_length {
+    // truncate long lines to fit within max_line_width
+    if max_line_width > 0 && line_len_bytes > max_line_width {
         // calculate where the highlight appears within this line
         let highlight_start_in_line = if current_line == start_line {
             (span.span.start as usize).saturating_sub(line_start_byte)
@@ -333,12 +333,12 @@ fn get_visible_source_slice<'a>(
 
         // position the slice to show the highlight
         let needed_end = highlight_end_in_line.min(line_len_bytes);
-        if needed_end <= max_line_length {
+        if needed_end <= max_line_width {
             slice_start_in_line = 0;
-            slice_end_in_line = max_line_length;
+            slice_end_in_line = max_line_width;
         } else {
             slice_end_in_line = needed_end;
-            slice_start_in_line = slice_end_in_line.saturating_sub(max_line_length);
+            slice_start_in_line = slice_end_in_line.saturating_sub(max_line_width);
         }
 
         // adjust slice bounds to respect UTF-8 character boundaries
@@ -444,7 +444,7 @@ mod tests {
             label: "variable name".to_string(),
         };
         let options = AnnotateOptions {
-            max_line_length: 80,
+            max_line_width: 80,
             prefix_lines: 1,
             suffix_lines: 1,
             use_color: false,
@@ -475,7 +475,7 @@ mod tests {
             label: "tail".to_string(),
         };
         let options = AnnotateOptions {
-            max_line_length: 60,
+            max_line_width: 60,
             prefix_lines: 0,
             suffix_lines: 0,
             use_color: false,
