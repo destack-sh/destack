@@ -836,16 +836,41 @@ impl<'a> Parser<'a> {
         //
 
         // eat infix expressions while left precedence is weaker than right precedence
-        while let Ok(right_operator) = self.peek_infix_operator()
-            && (options.left_precedence.is_none()
-                || options.left_precedence.unwrap() < right_operator.precedence())
-        {
+        loop {
+            let right_operator = {
+                // infix operator on same line
+                if let Ok(right_operator) = self.peek_infix_operator()
+                    && (options.left_precedence.is_none()
+                        || options.left_precedence.unwrap() < right_operator.precedence())
+                {
+                    right_operator
+                }
+                // infix operator on next line
+                else if self.peek_token(TokenType::Newline).is_ok()
+                    && let Ok(right_operator) = self.peek_next_infix_operator()
+                    && (options.left_precedence.is_none()
+                        || options.left_precedence.unwrap() < right_operator.precedence())
+                {
+                    right_operator
+                }
+                // no infix operator, break
+                else {
+                    break;
+                }
+            };
+            if self.peek_token(TokenType::Newline).is_ok() {
+                self.bump(); // eat newline
+            }
             self.bump(); // eat infix operator
-            // self.eat_newline_maybe()?; // allow one newline // nocheckin this breaks everything?
+            self.eat_newline_maybe()?; // allow one newline
+
+            // eat right expression
             let right_expression_id = self.eat_expression(ExpressionParserOptions {
                 left_precedence: Some(right_operator.precedence()),
                 ..options
             })?;
+
+            // combine into new left expression
             let left_expression =
                 self.make_infix_expression(left_expression_id, right_operator, right_expression_id);
             left_expression_id = self
@@ -862,8 +887,8 @@ mod tests {
     use crate::parse::expression::ExpressionParserOptions;
     use crate::parse::tests::TestParser;
     use crate::{
-        BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Mutability, Runtime,
-        ScalarLiteral, StructLiteral, TupleLiteral, Type, assert_expr_path, assert_int,
+        BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability, Pattern,
+        Runtime, ScalarLiteral, StructLiteral, TupleLiteral, Type, assert_expr_path, assert_int,
         assert_node, assert_path, assert_string,
     };
 
@@ -1096,6 +1121,129 @@ geom.Mesh<2, Dims: 4> {
                                     *receiver,
                                     Expression::Path(path_id) => {
                                         assert_path!(parser.session, *path_id, "self.foo");
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    }
+
+    /// Test parse mult-line let with multi-linx infix.
+    /// let x =
+    ///     foo.parse()
+    ///         + 2
+    ///         + (x / 4)
+    #[test]
+    fn test_parse_let_multiline_infix() {
+        let mut test = TestParser::new(
+            r"
+let x = 
+    foo.parse()
+        + 2 
+        + (x / 4)
+",
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // let x = foo.parse() + 2 + (x / 4)
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Let(let_id) => {
+                assert_node!(
+                    parser.tree,
+                    *let_id,
+                    Let { mutability, pattern, r#type: _, value, visibility: _, initialization: _ } => {
+                        assert_eq!(*mutability, Mutability::Immutable);
+                        // x
+                        assert_node!(
+                            parser.tree,
+                            *pattern,
+                            Pattern::Identifier(name) => {
+                                assert_eq!(parser.session.get_string(*name), "x");
+                            }
+                        );
+
+                        // foo.parse() + 2 + (x / 4)
+                        assert_node!(
+                            parser.tree,
+                            value.unwrap(),
+                            Expression::Binary { left, operator, right } => {
+                                assert_eq!(*operator, BinaryOperator::Add);
+                                // foo.parse() + 2
+                                assert_node!(
+                                    parser.tree,
+                                    *left,
+                                    Expression::Binary { left, operator, right } => {
+                                        assert_eq!(*operator, BinaryOperator::Add);
+                                        // foo.parse()
+                                        assert_node!(
+                                            parser.tree,
+                                            *left,
+                                            Expression::Call(call_id) => {
+                                                assert_node!(
+                                                    parser.tree,
+                                                    *call_id,
+                                                    Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                                        assert_eq!(*runtime, Runtime::Dynamic);
+                                                        // foo.parse
+                                                        assert_node!(
+                                                            parser.tree,
+                                                            *receiver,
+                                                            Expression::Path(path_id) => {
+                                                                assert_path!(parser.session, *path_id, "foo.parse");
+                                                            }
+                                                        );
+                                                    }
+                                                );
+                                            }
+                                        );
+                                        // 2
+                                        assert_node!(
+                                            parser.tree,
+                                            *right,
+                                            Expression::ScalarLiteral(scalar_id) => {
+                                                assert_node!(
+                                                    parser.tree,
+                                                    *scalar_id,
+                                                    ScalarLiteral::Integer(value, _) => {
+                                                        assert_eq!(*value, 2);
+                                                    }
+                                                );
+                                            }
+                                        );
+                                    }
+                                );
+                                // (x / 4)
+                                assert_node!(
+                                    parser.tree,
+                                    *right,
+                                    Expression::Binary { left, operator, right } => {
+                                        assert_eq!(*operator, BinaryOperator::Divide);
+                                        // x
+                                        assert_expr_path!(parser.session, parser.tree.get(*left), "x");
+                                        // 4
+                                        assert_node!(
+                                            parser.tree,
+                                            *right,
+                                            Expression::ScalarLiteral(scalar_id) => {
+                                                assert_node!(
+                                                    parser.tree,
+                                                    *scalar_id,
+                                                    ScalarLiteral::Integer(value, _) => {
+                                                        assert_eq!(*value, 4);
+                                                    }
+                                                );
+                                            }
+                                        );
                                     }
                                 );
                             }
