@@ -89,7 +89,7 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let span = self.span;
         match self.expected {
-            Some(tok) => write!(f, "expected {tok:?} at {span:?}")?,
+            Some(tok) => write!(f, "expected {tok} at {span:?}")?,
             None => write!(f, "unexpected token at {span:?}")?,
         }
         Ok(())
@@ -121,15 +121,15 @@ impl ParseError {
             code: "E001".to_string(),
             severity: Severity::Error,
             message: match expected {
-                Some(token_type) => format!("parse error: expected {token_type:?}"),
-                None => format!("parse error: unexpected {token_at_primary_span:?}"),
+                Some(token_type) => format!("parse error: expected {token_type}"),
+                None => format!("parse error: unexpected {token_at_primary_span}"),
             },
             source: span.source,
             primary_span: LabeledSpan {
                 span,
                 label: match expected {
-                    Some(token_type) => format!("expected {token_type:?}"),
-                    None => format!("unexpected {token_at_primary_span:?}"),
+                    Some(token_type) => format!("expected {token_type}"),
+                    None => format!("unexpected {token_at_primary_span}"),
                 },
             },
             secondary_spans: None,

@@ -234,6 +234,127 @@ pub enum TokenType {
     LogicalOrAssign,
 }
 
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            // structural
+            TokenType::Newline => write!(f, "Newline"),
+            TokenType::Whitespace => write!(f, "Whitespace"),
+            TokenType::Unknown => write!(f, "Unknown"),
+            TokenType::End => write!(f, "End"),
+
+            // annotations
+            TokenType::LineComment => write!(f, "//"),
+            TokenType::BlockComment => write!(f, "/*"),
+            TokenType::DocLineComment => write!(f, "///"),
+            TokenType::DocBlockComment => write!(f, "/**"),
+
+            // identifiers / literals
+            TokenType::Identifier => write!(f, "Identifier"),
+            TokenType::InvalidIdentifier => write!(f, "InvalidIdentifier"),
+            TokenType::UnknownLiteralPrefix => write!(f, "UnknownLiteralPrefix"),
+            TokenType::Literal => write!(f, "Literal"),
+
+            // symbols
+            TokenType::Wildcard => write!(f, "_"),
+            TokenType::Colon => write!(f, ":"),
+            TokenType::Semicolon => write!(f, ";"),
+            TokenType::Comma => write!(f, ","),
+            TokenType::Dot => write!(f, "."),
+            TokenType::Range => write!(f, ".."),
+            TokenType::RangeWide => write!(f, "..."),
+            TokenType::Pound => write!(f, "#"),
+            TokenType::Empty => write!(f, "--"),
+            TokenType::EmptyWide => write!(f, "---"),
+            TokenType::FatArrow => write!(f, "=>"),
+            TokenType::ThinArrow => write!(f, "->"),
+            TokenType::At => write!(f, "@"),
+            TokenType::BitwiseNot => write!(f, "~"),
+            TokenType::Maybe => write!(f, "?"),
+            TokenType::Coalesce => write!(f, "??"),
+            TokenType::Virtual => write!(f, "$"),
+            TokenType::Not => write!(f, "!"),
+
+            // parentheses
+            TokenType::OpenParenthesis => write!(f, "("),
+            TokenType::CloseParenthesis => write!(f, ")"),
+            TokenType::OpenBrace => write!(f, "{{"),
+            TokenType::CloseBrace => write!(f, "}}"),
+            TokenType::OpenBracket => write!(f, "["),
+            TokenType::CloseBracket => write!(f, "]"),
+
+            // multiplication
+            TokenType::Multiply => write!(f, "*"),
+            TokenType::WrappingMultiply => write!(f, "*%"),
+            TokenType::SaturatingMultiply => write!(f, "*|"),
+            TokenType::Divide => write!(f, "/"),
+            TokenType::Remainder => write!(f, "%"),
+
+            // addition
+            TokenType::Add => write!(f, "+"),
+            TokenType::WrappingAdd => write!(f, "+%"),
+            TokenType::SaturatingAdd => write!(f, "+|"),
+            TokenType::Subtract => write!(f, "-"),
+            TokenType::WrappingSubtract => write!(f, "-%"),
+            TokenType::SaturatingSubtract => write!(f, "-|"),
+
+            // shift
+            TokenType::ShiftLeft => write!(f, "<<"),
+            TokenType::SaturatingShiftLeft => write!(f, "<<|"),
+            TokenType::ShiftRight => write!(f, ">>"),
+
+            // bitwise
+            TokenType::BitwiseAnd => write!(f, "&"),
+            TokenType::BitwiseXor => write!(f, "^"),
+            TokenType::BitwiseOr => write!(f, "|"),
+
+            // comparison
+            TokenType::Equal => write!(f, "=="),
+            TokenType::NotEqual => write!(f, "!="),
+            TokenType::LessThan => write!(f, "<"),
+            TokenType::LessThanOrEqual => write!(f, "<="),
+            TokenType::GreaterThan => write!(f, ">"),
+            TokenType::GreaterThanOrEqual => write!(f, ">="),
+
+            // logical
+            TokenType::LogicalAnd => write!(f, "&&"),
+            TokenType::LogicalOr => write!(f, "||"),
+
+            // assignment
+            TokenType::Assign => write!(f, "="),
+
+            // assignment multiplication
+            TokenType::MultiplyAssign => write!(f, "*="),
+            TokenType::WrappingMultiplyAssign => write!(f, "*%="),
+            TokenType::SaturatingMultiplyAssign => write!(f, "*|=="),
+            TokenType::DivideAssign => write!(f, "/="),
+            TokenType::RemainderAssign => write!(f, "%="),
+
+            // assignment addition
+            TokenType::AddAssign => write!(f, "+="),
+            TokenType::WrappingAddAssign => write!(f, "+%="),
+            TokenType::SaturatingAddAssign => write!(f, "+|=="),
+            TokenType::SubtractAssign => write!(f, "-="),
+            TokenType::WrappingSubtractAssign => write!(f, "-%="),
+            TokenType::SaturatingSubtractAssign => write!(f, "-|=="),
+
+            // assignment shift
+            TokenType::ShiftLeftAssign => write!(f, "<<="),
+            TokenType::SaturatingShiftLeftAssign => write!(f, "<<|=="),
+            TokenType::ShiftRightAssign => write!(f, ">>="),
+
+            // assignment bitwise
+            TokenType::BitwiseAndAssign => write!(f, "&="),
+            TokenType::BitwiseXorAssign => write!(f, "^="),
+            TokenType::BitwiseOrAssign => write!(f, "|="),
+
+            // assignment logical
+            TokenType::LogicalAndAssign => write!(f, "&&="),
+            TokenType::LogicalOrAssign => write!(f, "||="),
+        }
+    }
+}
+
 /// "Raw" Literal Token for literal, scalar values.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RawLiteralType {

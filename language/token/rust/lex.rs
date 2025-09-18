@@ -8,13 +8,12 @@ use super::tokenizer::{EOF_CHAR, Tokenizer};
 use destack_library_unicode::UnicodeEmoji;
 use dyst_language_source::{SourceId, Span};
 
-pub const TRIVIA_TOKEN_TYPES: [TokenType; 6] = [
+pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Whitespace,
     TokenType::LineComment,
     TokenType::BlockComment,
     TokenType::DocLineComment,
     TokenType::DocBlockComment,
-    TokenType::End,
 ];
 
 #[inline]
@@ -25,13 +24,16 @@ pub fn is_semantic(token_type: TokenType) -> bool {
 /// Tokenize the input string into an Iterator of semantic and non-semantic Tokens (no Spans).
 pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
     let mut cursor = Tokenizer::new(input);
+    let mut done = false;
     std::iter::from_fn(move || {
-        let token = cursor.advance();
-        if token.r#type != TokenType::End {
-            Some(token)
-        } else {
-            None
+        if done {
+            return None;
         }
+        let token = cursor.advance();
+        if token.r#type == TokenType::End {
+            done = true;
+        }
+        Some(token)
     })
 }
 
@@ -42,11 +44,9 @@ pub fn tokenize_with_spans(source_id: SourceId, input: &str) -> (Vec<TokenSpan>,
     let mut semantic_tokens: Vec<TokenSpan> = Vec::new();
     let mut trivia_tokens: Vec<TokenSpan> = Vec::new();
     let mut pos = 0;
-    while !cursor.is_eof() {
+
+    loop {
         let token = cursor.advance();
-        if token.r#type == TokenType::End {
-            break;
-        }
         let token_span = TokenSpan {
             token,
             span: Span {
@@ -61,8 +61,18 @@ pub fn tokenize_with_spans(source_id: SourceId, input: &str) -> (Vec<TokenSpan>,
             trivia_tokens.push(token_span);
         }
         pos = pos.saturating_add(token.len);
+        if token.r#type == TokenType::End {
+            break;
+        }
     }
-    assert_eq!(pos, input.len() as u32);
+
+    debug_assert!(!semantic_tokens.is_empty());
+    debug_assert_eq!(
+        semantic_tokens[semantic_tokens.len() - 1].token.r#type,
+        TokenType::End
+    );
+    debug_assert_eq!(pos, input.len() as u32);
+
     (semantic_tokens, trivia_tokens)
 }
 
@@ -71,7 +81,6 @@ impl Tokenizer<'_> {
     pub(crate) fn advance(&mut self) -> Token {
         // eat first character until nothing is left (=EOF)
         let Some(first_char) = self.bump() else {
-            // EOF is also a Token
             return Token::new(TokenType::End, 0, None);
         };
 
@@ -782,7 +791,7 @@ impl Tokenizer<'_> {
                 // newline without following '\'' means unclosed quote, stop parsing
                 '\n' if self.peek_next() != '\'' => break,
                 // end of file, stop parsing
-                EOF_CHAR if self.is_eof() => break,
+                EOF_CHAR if self.is_end() => break,
                 // escaped slash is considered one character, so bump twice
                 '\\' => {
                     self.bump();
@@ -866,7 +875,7 @@ impl Tokenizer<'_> {
         loop {
             self.eat_until(b'"');
 
-            if self.is_eof() {
+            if self.is_end() {
                 return Err(RawStringError::NoTerminator {
                     expected_hashes: n_start_hashes,
                     found_hashes: max_hashes,
@@ -952,7 +961,7 @@ impl Tokenizer<'_> {
     /// Assumes the initial `/*` has been seen (the `/` is already consumed and `*` consumed by caller).
     pub(crate) fn eat_block_comment_body(&mut self) {
         let mut depth: u32 = 1;
-        while !self.is_eof() {
+        while !self.is_end() {
             let bytes = self.as_str().as_bytes();
             if bytes.len() >= 2 {
                 // start of nested block comment

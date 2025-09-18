@@ -41,7 +41,8 @@ impl<'a> Parser<'a> {
     pub fn peek_statement_stop(&self) -> ParseResult<&TokenSpan> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon)
+                || token.token.r#type == TokenType::Semicolon
+                || token.token.r#type == TokenType::End)
         {
             Ok(token)
         } else {
@@ -57,7 +58,8 @@ impl<'a> Parser<'a> {
     pub fn eat_statement_stop(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon)
+                || token.token.r#type == TokenType::Semicolon
+                || token.token.r#type == TokenType::End)
         {
             self.bump(); // eat semicolon or newline
         } else {
@@ -75,7 +77,8 @@ impl<'a> Parser<'a> {
     pub fn eat_statement_stop_with_newlines(&mut self) -> ParseResult<()> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline
-                || token.token.r#type == TokenType::Semicolon)
+                || token.token.r#type == TokenType::Semicolon
+                || token.token.r#type == TokenType::End)
         {
             self.bump(); // eat semicolon or newline
         } else {
@@ -94,7 +97,8 @@ impl<'a> Parser<'a> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline
                 || token.token.r#type == TokenType::Semicolon
-                || token.token.r#type == TokenType::Comma)
+                || token.token.r#type == TokenType::Comma
+                || token.token.r#type == TokenType::End)
         {
             Ok(token)
         } else {
@@ -112,7 +116,8 @@ impl<'a> Parser<'a> {
         if let Ok(token) = self.peek()
             && (token.token.r#type == TokenType::Newline
                 || token.token.r#type == TokenType::Semicolon
-                || token.token.r#type == TokenType::Comma)
+                || token.token.r#type == TokenType::Comma
+                || token.token.r#type == TokenType::End)
         {
             self.bump();
         } else {
