@@ -45,7 +45,9 @@ impl<'a> Parser<'a> {
                 self.tree.allocate(Pattern::Rest, self.get_span_from(start))
             }
             // pointer
-            else if self.peek_token(TokenType::Multiply).is_ok() {
+            else if self.peek_token(TokenType::Multiply).is_ok()
+                || self.peek_token(TokenType::BitwiseAnd).is_ok()
+            {
                 self.bump(); // eat pointer
                 let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
                     self.bump(); // eat var
