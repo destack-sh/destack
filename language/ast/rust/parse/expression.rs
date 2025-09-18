@@ -1,6 +1,6 @@
 //! Parse expressions. Mostly defers to other parsers.
 
-use dyst_language_token::TokenType;
+use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{
     AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, Mutability, NodeId,
@@ -159,6 +159,19 @@ impl UnaryOperator {
     pub fn precedence(self) -> u8 {
         // just transmute the enum value to an u8
         self as u8
+    }
+
+    /// Covnert a TokenType to a UnaryOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_token_type(token_type: TokenType) -> Option<UnaryOperator> {
+        match token_type {
+            TokenType::Not => Some(UnaryOperator::Not),
+            TokenType::Subtract => Some(UnaryOperator::Negate),
+            TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
+            TokenType::Multiply => Some(UnaryOperator::Dereference),
+            TokenType::BitwiseNot => Some(UnaryOperator::BitwiseNot),
+            _ => None,
+        }
     }
 }
 
@@ -350,45 +363,71 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn peek_unary_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
-        match token.token.r#type {
-            TokenType::Not => Ok(UnaryOperator::Not),
-            TokenType::Subtract => Ok(UnaryOperator::Negate),
-            TokenType::WrappingSubtract => Ok(UnaryOperator::WrappingNegate),
-            TokenType::Multiply => Ok(UnaryOperator::Dereference),
-            TokenType::BitwiseNot => Ok(UnaryOperator::BitwiseNot),
-            _ => Err(ParseError::unexpected(token.span)),
+        UnaryOperator::from_token_type(token.token.r#type).ok_or(ParseError::unexpected(token.span))
+    }
+
+    /// Peek a next unary operator.
+    #[inline]
+    pub fn peek_next_unary_operator(&self) -> ParseResult<UnaryOperator> {
+        let token = self.peek_next()?;
+        UnaryOperator::from_token_type(token.token.r#type).ok_or(ParseError::unexpected(token.span))
+    }
+    /// Make a binary operator.
+    #[inline]
+    fn to_binary_operator(&self, token: &TokenSpan) -> ParseResult<BinaryOperator> {
+        if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type) {
+            if self.options.in_static_type
+                && !IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator)
+            {
+                return Err(ParseError::unexpected(token.span));
+            }
+            Ok(binary_operator)
+        } else {
+            Err(ParseError::unexpected(token.span))
         }
+    }
+
+    /// Make an assign operator.
+    #[inline]
+    fn to_assign_operator(&self, token: &TokenSpan) -> ParseResult<AssignOperator> {
+        if self.options.in_static_type {
+            return Err(ParseError::unexpected(token.span));
+        }
+        AssignOperator::from_token_type(token.token.r#type)
+            .ok_or(ParseError::unexpected(token.span))
     }
 
     /// Peek a binary operator.
     #[inline]
     pub fn peek_binary_operator(&self) -> ParseResult<BinaryOperator> {
-        if self.options.in_static_type
-            && !IN_STATIC_TYPE_BINARY_OPERATORS
-                .contains(&BinaryOperator::from_token_type(self.peek()?.token.r#type).unwrap())
-        {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
         let token = self.peek()?;
-        BinaryOperator::from_token_type(token.token.r#type)
-            .ok_or(ParseError::unexpected(token.span))
+        self.to_binary_operator(token)
+    }
+
+    /// Peek a next binary operator.
+    #[inline]
+    pub fn peek_next_binary_operator(&self) -> ParseResult<BinaryOperator> {
+        let token = self.peek_next()?;
+        self.to_binary_operator(token)
     }
 
     /// Peek an assign operator.
     #[inline]
     pub fn peek_assign_operator(&self) -> ParseResult<AssignOperator> {
-        if self.options.in_static_type {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
         let token = self.peek()?;
-        AssignOperator::from_token_type(token.token.r#type)
-            .ok_or(ParseError::unexpected(token.span))
+        self.to_assign_operator(token)
     }
 
-    /// Peek an infix operator.
+    /// Peek a next assign operator.
     #[inline]
-    pub fn peek_infix_operator(&self) -> ParseResult<InfixOperator> {
-        let token = self.peek()?;
+    pub fn peek_next_assign_operator(&self) -> ParseResult<AssignOperator> {
+        let token = self.peek_next()?;
+        self.to_assign_operator(token)
+    }
+
+    /// Make an infix operator.
+    #[inline]
+    fn to_infix_operator(&self, token: &TokenSpan) -> ParseResult<InfixOperator> {
         if let Some(binary_operator) = BinaryOperator::from_token_type(token.token.r#type)
             && (!self.options.in_static_type
                 || IN_STATIC_TYPE_BINARY_OPERATORS.contains(&binary_operator))
@@ -401,6 +440,20 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParseError::unexpected(token.span))
         }
+    }
+
+    /// Peek an infix operator.
+    #[inline]
+    pub fn peek_infix_operator(&self) -> ParseResult<InfixOperator> {
+        let token = self.peek()?;
+        self.to_infix_operator(token)
+    }
+
+    /// Peek a next infix operator.
+    #[inline]
+    pub fn peek_next_infix_operator(&self) -> ParseResult<InfixOperator> {
+        let token = self.peek_next()?;
+        self.to_infix_operator(token)
     }
 
     /// Make an expression from an infix operator.
@@ -693,10 +746,16 @@ impl<'a> Parser<'a> {
 
         // eat all postfix operations
         loop {
-            // member
+            // member (also works across newline)
             if self.peek_token(TokenType::Dot).is_ok()
                 && self.peek_next_token(TokenType::Identifier).is_ok()
+                || self.peek_token(TokenType::Newline).is_ok()
+                    && self.peek_next_token(TokenType::Dot).is_ok()
+                    && self.peek_next_next_token(TokenType::Identifier).is_ok()
             {
+                if self.peek_token(TokenType::Newline).is_ok() {
+                    self.bump(); // eat newline first
+                }
                 self.bump(); // eat dot
                 let path_id = self.eat_path()?;
                 let expression = Expression::Member {
@@ -782,6 +841,7 @@ impl<'a> Parser<'a> {
                 || options.left_precedence.unwrap() < right_operator.precedence())
         {
             self.bump(); // eat infix operator
+            // self.eat_newline_maybe()?; // allow one newline // nocheckin this breaks everything?
             let right_expression_id = self.eat_expression(ExpressionParserOptions {
                 left_precedence: Some(right_operator.precedence()),
                 ..options
@@ -1046,12 +1106,120 @@ geom.Mesh<2, Dims: 4> {
         );
     }
 
+    /// Reference operator on member access with method call.
+    /// self
+    ///    .foo()
+    ///    .baz()
+    #[test]
+    fn test_parse_member_access_multiline() {
+        let mut test = TestParser::new(
+            r"
+self
+    .foo()
+    .baz()
+",
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // self.foo().baz()
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Call(call_id) => {
+                assert_node!(
+                    parser.tree,
+                    *call_id,
+                    Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                        assert_eq!(*runtime, Runtime::Dynamic);
+                        // self.foo().baz
+                        assert_node!(
+                            parser.tree,
+                            *receiver,
+                            Expression::Member { receiver, path } => {
+                                // self.foo()
+                                assert_node!(
+                                    parser.tree,
+                                    *receiver,
+                                    Expression::Call(call_id) => {
+                                        assert_node!(
+                                            parser.tree,
+                                            *call_id,
+                                            Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                                                assert_eq!(*runtime, Runtime::Dynamic);
+                                                // self.foo
+                                                assert_node!(
+                                                    parser.tree,
+                                                    *receiver,
+                                                    Expression::Member { receiver, path } => {
+                                                        // self
+                                                        assert_expr_path!(parser.session, parser.tree.get(*receiver), "self");
+                                                        // foo
+                                                        assert_path!(parser.session, *path, "foo");
+                                                    }
+                                                );
+                                            }
+                                        );
+                                    }
+                                );
+                                // baz
+                                assert_path!(parser.session, *path, "baz");
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    }
+
     /// Addition is left associative.
     /// a + b + c
     /// => ((a + b) + c)
     #[test]
     fn test_parse_precedence_addition_left_associative() {
         let mut test = TestParser::new("a + b + c");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            // ((a + b) + c)
+            Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                assert_node!(
+                    parser.tree,
+                    *left,
+                    // (a + b)
+                    Expression::Binary { left, operator, right } => {
+                        // a
+                        assert_expr_path!(parser.session, parser.tree.get(*left), "a");
+                        // +
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        // b
+                        assert_expr_path!(parser.session, parser.tree.get(*right), "b");
+                    }
+                );
+                // c
+                assert_expr_path!(parser.session, parser.tree.get(*right), "c");
+            }
+        );
+    }
+
+    /// Infix operators work across lines.
+    /// a +
+    /// b +
+    /// c
+    /// => ((a + b) + c)
+    #[test]
+    fn test_parse_precedence_addition_across_lines() {
+        let mut test = TestParser::new("a +\n b +\n c");
         let mut parser = test.parser();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())

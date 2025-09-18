@@ -50,6 +50,18 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Newline)
     }
 
+    /// Eat 0 or 1 newline.
+    #[inline]
+    pub fn eat_newline_maybe(&mut self) -> ParseResult<()> {
+        let token = self.peek()?;
+        if token.token.r#type == TokenType::Newline {
+            self.bump();
+            Ok(())
+        } else {
+            Err(ParseError::expected(token.span, TokenType::Newline))
+        }
+    }
+
     /// Eat 0 or more newlines.
     #[inline]
     pub fn eat_newlines_maybe(&mut self) -> ParseResult<()> {
