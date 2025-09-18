@@ -56,10 +56,8 @@ impl<'a> Parser<'a> {
         let token = self.peek()?;
         if token.token.r#type == TokenType::Newline {
             self.bump();
-            Ok(())
-        } else {
-            Err(ParseError::expected(token.span, TokenType::Newline))
         }
+        Ok(())
     }
 
     /// Eat 0 or more newlines.
