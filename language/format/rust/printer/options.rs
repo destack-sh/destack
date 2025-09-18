@@ -1,5 +1,3 @@
-use std::num::NonZeroU16;
-
 use crate::IndentStyle;
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -9,9 +7,31 @@ pub struct PrintOptions {
     /// The indent style.
     pub indent_style: IndentStyle,
     /// Spaces per indent.
-    pub indent_width: NonZeroU16 = NonZeroU16::new(4).unwrap(),
+    pub indent_width: u8,
     /// Maximum line length (best effort).
-    pub line_width: NonZeroU16 = NonZeroU16::new(100).unwrap(),
+    pub line_width: u8,
+}
+
+impl PrintOptions {
+    pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
+        self.line_ending = line_ending;
+        self
+    }
+
+    pub fn with_indent_style(mut self, indent_style: IndentStyle) -> Self {
+        self.indent_style = indent_style;
+        self
+    }
+
+    pub fn with_indent_width(mut self, indent_width: u8) -> Self {
+        self.indent_width = indent_width;
+        self
+    }
+
+    pub fn with_line_width(mut self, line_width: u8) -> Self {
+        self.line_width = line_width;
+        self
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]

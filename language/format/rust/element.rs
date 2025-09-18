@@ -1,16 +1,23 @@
-use crate::Tag;
+use std::hash::{Hash, Hasher};
+use std::ops::Deref;
+use std::rc::Rc;
+
+use dyst_language_source::Span;
+
+use crate::{BestFittingMode, BestFittingVariants, FormatTag, FormatTagKind, TextWidth};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LineMode {
     Soft,
     SoftOrSpace,
     Hard,
+    Empty,
 }
 
 /// Language agnostic IR for formatting source code.
 ///
 /// Use the helper functions like [`crate::builders::space`], [`crate::builders::soft_line_break`] etc. defined in this file to create elements.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum FormatElement {
     /// A space token, see [`crate::builders::space`] for documentation.
     Space,
@@ -20,11 +27,6 @@ pub enum FormatElement {
 
     /// Forces the parent group to print in expanded mode.
     ExpandParent,
-
-    /// Indicates the position of the elements coming after this element in the source document.
-    /// The printer will create a source map entry from this position in the source document to the
-    /// formatted position.
-    SourcePosition(TextSize),
 
     /// A ASCII only Token that contains no line breaks or tab characters.
     Token { text: &'static str },
@@ -37,14 +39,11 @@ pub enum FormatElement {
     },
 
     /// Text that gets emitted as it is in the source code. Optimized to avoid any allocations.
-    SourceCodeSlice {
-        slice: SourceCodeSlice,
-        text_width: TextWidth,
-    },
+    Source { slice: Span, text_width: TextWidth },
 
     /// Prevents that line suffixes move past this boundary. Forces the printer to print any pending
     /// line suffixes, potentially by inserting a hard line break.
-    LineSuffixBoundary,
+    LineBoundary,
 
     /// An interned format element. Useful when the same content must be emitted multiple times to avoid
     /// deep cloning the IR when using the `best_fitting!` macro or `if_group_fits_on_line` and `if_group_breaks`.
@@ -58,11 +57,11 @@ pub enum FormatElement {
     },
 
     /// A [Tag] that marks the start/end of some content to which some special formatting is applied.
-    Tag(Tag),
+    Tag(FormatTag),
 }
 
 impl FormatElement {
-    pub fn tag_kind(&self) -> Option<TagKind> {
+    pub fn tag_kind(&self) -> Option<FormatTagKind> {
         if let FormatElement::Tag(tag) = self {
             Some(tag.kind())
         } else {
@@ -79,12 +78,12 @@ impl std::fmt::Debug for FormatElement {
             FormatElement::ExpandParent => write!(fmt, "ExpandParent"),
             FormatElement::Token { text } => fmt.debug_tuple("Token").field(text).finish(),
             FormatElement::Text { text, .. } => fmt.debug_tuple("DynamicText").field(text).finish(),
-            FormatElement::SourceCodeSlice { slice, text_width } => fmt
+            FormatElement::Source { slice, text_width } => fmt
                 .debug_tuple("Text")
                 .field(slice)
                 .field(text_width)
                 .finish(),
-            FormatElement::LineSuffixBoundary => write!(fmt, "LineSuffixBoundary"),
+            FormatElement::LineBoundary => write!(fmt, "LineBoundary"),
             FormatElement::BestFitting { variants, mode } => fmt
                 .debug_struct("BestFitting")
                 .field("variants", variants)
@@ -92,9 +91,6 @@ impl std::fmt::Debug for FormatElement {
                 .finish(),
             FormatElement::Interned(interned) => fmt.debug_list().entries(&**interned).finish(),
             FormatElement::Tag(tag) => fmt.debug_tuple("Tag").field(tag).finish(),
-            FormatElement::SourcePosition(position) => {
-                fmt.debug_tuple("SourcePosition").field(position).finish()
-            }
         }
     }
 }

@@ -1,6 +1,6 @@
 use super::{Arguments, FormatElement, write};
 use crate::element::Interned;
-use crate::prelude::{LineMode, Tag};
+use crate::prelude::{LineMode, FormatTag};
 use crate::{FormatResult, FormatState};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -515,7 +515,7 @@ impl RemoveSoftLineBreaksState {
                 // For `if_group_fits_on_line`: Unwrap the content. This is important because the enclosing group
                 // might still *expand* if the content exceeds the line width limit, in which case the
                 // `if_group_fits_on_line` content would be removed.
-                FormatElement::Tag(Tag::StartConditionalContent(condition)) => {
+                FormatElement::Tag(FormatTag::StartConditionalContent(condition)) => {
                     if condition.mode.is_expanded() {
                         *self = Self::InIfGroupBreaks {
                             conditional_content_level: NonZeroUsize::new(1).unwrap(),
@@ -523,7 +523,7 @@ impl RemoveSoftLineBreaksState {
                     }
                     true
                 }
-                FormatElement::Tag(Tag::EndConditionalContent) => true,
+                FormatElement::Tag(FormatTag::EndConditionalContent) => true,
                 _ => false,
             },
             Self::InIfGroupBreaks {
@@ -531,11 +531,11 @@ impl RemoveSoftLineBreaksState {
             } => {
                 match element {
                     // A nested `if_group_breaks` or `if_group_fits_on_line`
-                    FormatElement::Tag(Tag::StartConditionalContent(_)) => {
+                    FormatElement::Tag(FormatTag::StartConditionalContent(_)) => {
                         *conditional_content_level = conditional_content_level.saturating_add(1);
                     }
                     // The end of an `if_group_breaks` or `if_group_fits_on_line`.
-                    FormatElement::Tag(Tag::EndConditionalContent) => {
+                    FormatElement::Tag(FormatTag::EndConditionalContent) => {
                         if let Some(level) = NonZeroUsize::new(conditional_content_level.get() - 1)
                         {
                             *conditional_content_level = level;

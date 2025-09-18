@@ -1,5 +1,5 @@
 use crate::printer::{invalid_end_tag, invalid_start_tag};
-use crate::{FormatElement, PrintResult, Tag, TagKind};
+use crate::{FormatElement, PrintResult, FormatTag, FormatTagKind};
 use std::fmt::Debug;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
@@ -35,7 +35,7 @@ pub(crate) trait Queue<'a> {
     fn pop_slice(&mut self) -> Option<&'a [FormatElement]>;
 
     /// Skips all content until it finds the corresponding end tag with the given kind.
-    fn skip_content(&mut self, kind: TagKind)
+    fn skip_content(&mut self, kind: FormatTagKind)
     where
         Self: Sized,
     {
@@ -47,7 +47,7 @@ pub(crate) trait Queue<'a> {
     }
 
     /// Iterates over all elements until it finds the matching end tag of the specified kind.
-    fn iter_content<'q>(&'q mut self, kind: TagKind) -> QueueContentIterator<'a, 'q, Self>
+    fn iter_content<'q>(&'q mut self, kind: FormatTagKind) -> QueueContentIterator<'a, 'q, Self>
     where
         Self: Sized,
     {
@@ -189,7 +189,7 @@ impl<'a> Queue<'a> for FitsQueue<'a, '_> {
 
 pub(super) struct QueueContentIterator<'a, 'q, Q: Queue<'a>> {
     queue: &'q mut Q,
-    kind: TagKind,
+    kind: FormatTagKind,
     depth: usize,
     lifetime: PhantomData<&'a ()>,
 }
@@ -198,7 +198,7 @@ impl<'a, 'q, Q> QueueContentIterator<'a, 'q, Q>
 where
     Q: Queue<'a>,
 {
-    fn new(queue: &'q mut Q, kind: TagKind) -> Self {
+    fn new(queue: &'q mut Q, kind: FormatTagKind) -> Self {
         Self {
             queue,
             kind,
@@ -289,14 +289,14 @@ impl FitsEndPredicate for SingleEntryPredicate {
         let result = match self {
             SingleEntryPredicate::Done => true,
             SingleEntryPredicate::Entry { depth } => match element {
-                FormatElement::Tag(Tag::StartEntry) => {
+                FormatElement::Tag(FormatTag::StartEntry) => {
                     *depth += 1;
 
                     false
                 }
-                FormatElement::Tag(Tag::EndEntry) => {
+                FormatElement::Tag(FormatTag::EndEntry) => {
                     if *depth == 0 {
-                        return invalid_end_tag(TagKind::Entry, None);
+                        return invalid_end_tag(FormatTagKind::Entry, None);
                     }
 
                     *depth -= 1;
@@ -311,7 +311,7 @@ impl FitsEndPredicate for SingleEntryPredicate {
                 }
                 FormatElement::Interned(_) => false,
                 element if *depth == 0 => {
-                    return invalid_start_tag(TagKind::Entry, Some(element));
+                    return invalid_start_tag(FormatTagKind::Entry, Some(element));
                 }
                 _ => false,
             },
@@ -324,14 +324,14 @@ impl FitsEndPredicate for SingleEntryPredicate {
 #[cfg(test)]
 mod tests {
     use crate::printer::queue::{PrintQueue, Queue};
-    use crate::{FormatElement, LineMode, Tag};
+    use crate::{FormatElement, LineMode, FormatTag};
 
     #[test]
     fn extend_back_pop_last() {
         let mut queue =
-            PrintQueue::new(&[FormatElement::Tag(Tag::StartEntry), FormatElement::Space]);
+            PrintQueue::new(&[FormatElement::Tag(FormatTag::StartEntry), FormatElement::Space]);
 
-        assert_eq!(queue.pop(), Some(&FormatElement::Tag(Tag::StartEntry)));
+        assert_eq!(queue.pop(), Some(&FormatElement::Tag(FormatTag::StartEntry)));
 
         queue.extend_back(&[FormatElement::Line(LineMode::SoftOrSpace)]);
 
@@ -347,9 +347,9 @@ mod tests {
     #[test]
     fn extend_back_empty_queue() {
         let mut queue =
-            PrintQueue::new(&[FormatElement::Tag(Tag::StartEntry), FormatElement::Space]);
+            PrintQueue::new(&[FormatElement::Tag(FormatTag::StartEntry), FormatElement::Space]);
 
-        assert_eq!(queue.pop(), Some(&FormatElement::Tag(Tag::StartEntry)));
+        assert_eq!(queue.pop(), Some(&FormatElement::Tag(FormatTag::StartEntry)));
         assert_eq!(queue.pop(), Some(&FormatElement::Space));
 
         queue.extend_back(&[FormatElement::Line(LineMode::SoftOrSpace)]);

@@ -1,6 +1,6 @@
 use crate::{
     IndentStyle, Indentation, InvalidDocumentError, MeasureMode, PrintError, PrintMode,
-    PrintResult, Stack, StackedStack, TagKind,
+    PrintResult, Stack, StackedStack, FormatTagKind,
 };
 use std::fmt::Debug;
 use std::num::NonZeroU8;
@@ -8,7 +8,7 @@ use std::num::NonZeroU8;
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum StackFrameKind {
     Root,
-    Tag(TagKind),
+    Tag(FormatTagKind),
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -106,7 +106,7 @@ pub(crate) trait CallStack {
     ///
     /// Returns `Ok` with the arguments if the kind of the top stack frame matches `kind`, otherwise
     /// returns `Err`.
-    fn pop(&mut self, kind: TagKind) -> PrintResult<PrintElementArgs> {
+    fn pop(&mut self, kind: FormatTagKind) -> PrintResult<PrintElementArgs> {
         let last = self.stack_mut().pop();
 
         match last {
@@ -145,8 +145,8 @@ pub(crate) trait CallStack {
 
     #[cold]
     fn invalid_document_error(
-        end_kind: TagKind,
-        start_kind: Option<TagKind>,
+        end_kind: FormatTagKind,
+        start_kind: Option<FormatTagKind>,
     ) -> InvalidDocumentError {
         match start_kind {
             None => InvalidDocumentError::StartTagMissing { kind: end_kind },
@@ -166,7 +166,7 @@ pub(crate) trait CallStack {
     }
 
     /// Returns the [`TagKind`] of the current stack frame or [None] if this is the root stack frame.
-    fn top_kind(&self) -> Option<TagKind> {
+    fn top_kind(&self) -> Option<FormatTagKind> {
         match self
             .stack()
             .top()
@@ -179,7 +179,7 @@ pub(crate) trait CallStack {
     }
 
     /// Creates a new stack frame for a [`FormatElement::Tag`] of `kind` with `args` as the call arguments.
-    fn push(&mut self, kind: TagKind, args: PrintElementArgs) {
+    fn push(&mut self, kind: FormatTagKind, args: PrintElementArgs) {
         self.stack_mut().push(StackFrame {
             kind: StackFrameKind::Tag(kind),
             args,

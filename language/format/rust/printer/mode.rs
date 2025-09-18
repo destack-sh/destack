@@ -1,3 +1,5 @@
+use crate::BestFittingMode;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum MeasureMode {
     /// The content fits if a hard line break or soft line break in [`PrintMode::Expanded`] is seen

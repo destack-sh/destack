@@ -2,16 +2,16 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 use std::num::NonZeroU8;
 
-#[allow(clippy::enum_glob_use)]
-use Tag::*;
-use ruff_text_size::TextRange;
-
 use crate::prelude::*;
-use crate::tag::{Condition, Tag};
+use crate::tag::{Condition, FormatTag};
 use crate::{
-    Argument, Arguments, Buffer, DedentMode, FormatContext, FormatOptions, GroupId, GroupMode,
-    LabelId, TextSize, VecBuffer, write,
+    Argument, Arguments, BestFittingMode, BestFittingVariants, Buffer, DedentMode, FormatContext,
+    FormatOptions, GroupId, GroupMode, LabelId, PrintMode, TextWidth, VecBuffer, write,
 };
+
+#[allow(clippy::enum_glob_use)]
+use FormatTag::*;
+use dyst_language_source::Span;
 
 /// A line break that only gets printed if the enclosing `Group` doesn't fit on a single line.
 /// It's omitted if the enclosing `Group` fits on a single line.
@@ -192,7 +192,7 @@ pub const fn soft_line_break_or_space() -> Line {
     Line::new(LineMode::SoftOrSpace)
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Line {
     mode: LineMode,
 }
@@ -280,64 +280,6 @@ impl std::fmt::Debug for Token {
     }
 }
 
-/// Creates a source map entry from the passed source `position` to the position in the formatted output.
-///
-/// ## Examples
-///
-/// ```
-/// use ruff_formatter::format;
-/// use ruff_formatter::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// // the tab must be encoded as \\t to not literally print a tab character ("Hello{tab}World" vs "Hello\tWorld")
-/// use ruff_text_size::TextSize;
-/// use ruff_formatter::SourceMarker;
-///
-///
-/// let elements = format!(SimpleFormatContext::default(), [
-///     source_position(TextSize::new(0)),
-///     token("\"Hello "),
-///     source_position(TextSize::new(8)),
-///     token("'Ruff'"),
-///     source_position(TextSize::new(14)),
-///     token("\""),
-///     source_position(TextSize::new(20))
-/// ])?;
-///
-/// let printed = elements.print()?;
-///
-/// assert_eq!(printed.as_code(), r#""Hello 'Ruff'""#);
-/// assert_eq!(printed.sourcemap(), [
-///     SourceMarker { source: TextSize::new(0), dest: TextSize::new(0) },
-///     SourceMarker { source: TextSize::new(8), dest: TextSize::new(7) },
-///     SourceMarker { source: TextSize::new(14), dest: TextSize::new(13) },
-///     SourceMarker { source: TextSize::new(20), dest: TextSize::new(14) },
-/// ]);
-///
-/// # Ok(())
-/// # }
-/// ```
-pub const fn source_position(position: TextSize) -> SourcePosition {
-    SourcePosition(position)
-}
-
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
-pub struct SourcePosition(TextSize);
-
-impl<Context> Format<Context> for SourcePosition {
-    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
-        if let Some(FormatElement::SourcePosition(last_position)) = f.buffer.elements().last() {
-            if *last_position == self.0 {
-                return Ok(());
-            }
-        }
-
-        f.write_element(FormatElement::SourcePosition(self.0));
-
-        Ok(())
-    }
-}
-
 /// Creates a text from a dynamic string.
 ///
 /// This is done by allocating a new string internally.
@@ -373,13 +315,13 @@ impl std::fmt::Debug for Text<'_> {
 }
 
 /// Emits a text as it is written in the source document. Optimized to avoid allocations.
-pub const fn source_text_slice(range: TextRange) -> SourceTextSliceBuilder {
+pub const fn source_text_slice(range: Span) -> SourceTextSliceBuilder {
     SourceTextSliceBuilder { range }
 }
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct SourceTextSliceBuilder {
-    range: TextRange,
+    range: Span,
 }
 
 impl<Context> Format<Context> for SourceTextSliceBuilder
@@ -387,16 +329,14 @@ where
     Context: FormatContext,
 {
     fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
-        let source_code = f.context().source_code();
-        let slice = source_code.slice(self.range);
-        debug_assert_no_newlines(slice.text(source_code));
+        let source = f.context().source();
+        let slice = source.slice(self.range);
+        debug_assert_no_newlines(slice.text(source));
 
-        let text_width = TextWidth::from_text(
-            slice.text(source_code),
-            f.context().options().indent_width(),
-        );
+        let text_width =
+            TextWidth::from_text(slice.text(source), f.context().options().indent_width());
 
-        f.write_element(FormatElement::SourceCodeSlice { slice, text_width });
+        f.write_element(FormatElement::Source { slice, text_width });
 
         Ok(())
     }
@@ -523,119 +463,18 @@ impl<Context> std::fmt::Debug for LineSuffix<'_, Context> {
 /// # Ok(())
 /// # }
 /// ```
-pub const fn line_suffix_boundary() -> LineSuffixBoundary {
-    LineSuffixBoundary
+pub const fn line_suffix_boundary() -> LineBoundary {
+    LineBoundary
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct LineSuffixBoundary;
+pub struct LineBoundary;
 
-impl<Context> Format<Context> for LineSuffixBoundary {
+impl<Context> Format<Context> for LineBoundary {
     fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::LineSuffixBoundary);
+        f.write_element(FormatElement::LineBoundary);
 
         Ok(())
-    }
-}
-
-/// Marks some content with a label.
-///
-/// This does not directly influence how this content will be printed, but some
-/// parts of the formatter may inspect the [labelled element](Tag::StartLabelled)
-/// using [`FormatElements::has_label`].
-///
-/// ## Examples
-///
-/// ```rust
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{format, write, LineWidth};
-///
-/// #[derive(Debug, Copy, Clone)]
-/// enum MyLabels {
-///     Main
-/// }
-///
-/// impl tag::LabelDefinition for MyLabels {
-///     fn value(&self) -> u64 {
-///         *self as u64
-///     }
-///
-///     fn name(&self) -> &'static str {
-///         match self {
-///             Self::Main => "Main"
-///         }
-///     }
-/// }
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(
-///     SimpleFormatContext::default(),
-///     [format_with(|f| {
-///         let mut recording = f.start_recording();
-///         write!(recording, [
-///             labelled(
-///                 LabelId::of(MyLabels::Main),
-///                 &token("'I have a label'")
-///             )
-///         ])?;
-///
-///         let recorded = recording.stop();
-///
-///         let is_labelled = recorded.first().is_some_and( |element| element.has_label(LabelId::of(MyLabels::Main)));
-///
-///         if is_labelled {
-///             write!(f, [token(" has label `Main`")])
-///         } else {
-///             write!(f, [token(" doesn't have label `Main`")])
-///         }
-///     })]
-/// )?;
-///
-/// assert_eq!("'I have a label' has label `Main`", formatted.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
-///
-/// ## Alternatives
-///
-/// Use `Memoized.inspect(f)?.has_label(LabelId::of::<SomeLabelId>()` if you need to know if some content breaks that should
-/// only be written later.
-#[inline]
-pub fn labelled<Content, Context>(
-    label_id: LabelId,
-    content: &Content,
-) -> FormatLabelled<'_, Context>
-where
-    Content: Format<Context>,
-{
-    FormatLabelled {
-        label_id,
-        content: Argument::new(content),
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct FormatLabelled<'a, Context> {
-    label_id: LabelId,
-    content: Argument<'a, Context>,
-}
-
-impl<Context> Format<Context> for FormatLabelled<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartLabelled(self.label_id)));
-        Arguments::from(&self.content).fmt(f)?;
-        f.write_element(FormatElement::Tag(EndLabelled));
-
-        Ok(())
-    }
-}
-
-impl<Context> std::fmt::Debug for FormatLabelled<'_, Context> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Label")
-            .field(&self.label_id)
-            .field(&"{{content}}")
-            .finish()
     }
 }
 
@@ -972,20 +811,20 @@ where
     Content: Format<Context>,
 {
     Align {
-        count: NonZeroU8::new(count).expect("Alignment count must be a non-zero number."),
+        count,
         content: Argument::new(content),
     }
 }
 
 #[derive(Copy, Clone)]
 pub struct Align<'a, Context> {
-    count: NonZeroU8,
+    count: u8,
     content: Argument<'a, Context>,
 }
 
 impl<Context> Format<Context> for Align<'_, Context> {
     fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartAlign(tag::Align(self.count))));
+        f.write_element(FormatElement::Tag(StartAlign(self.count)));
         Arguments::from(&self.content).fmt(f)?;
         f.write_element(FormatElement::Tag(EndAlign));
 
@@ -1407,6 +1246,63 @@ pub fn group<Context>(content: &impl Format<Context>) -> Group<'_, Context> {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct Group<'a, Context> {
+    content: Argument<'a, Context>,
+    id: Option<GroupId>,
+    should_expand: bool,
+}
+
+impl<Context> Group<'_, Context> {
+    #[must_use]
+    pub fn with_id(mut self, group_id: Option<GroupId>) -> Self {
+        self.id = group_id;
+        self
+    }
+
+    /// Changes the [`PrintMode`] of the group from [`Flat`](PrintMode::Flat) to [`Expanded`](PrintMode::Expanded).
+    /// The result is that any soft-line break gets printed as a regular line break.
+    ///
+    /// This is useful for content rendered inside of a [`FormatElement::BestFitting`] that prints each variant
+    /// in [`PrintMode::Flat`] to change some content to be printed in [`Expanded`](PrintMode::Expanded) regardless.
+    /// See the documentation of the [`best_fitting`] macro for an example.
+    #[must_use]
+    pub fn should_expand(mut self, should_expand: bool) -> Self {
+        self.should_expand = should_expand;
+        self
+    }
+}
+
+impl<Context> Format<Context> for Group<'_, Context> {
+    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
+        let mode = if self.should_expand {
+            GroupMode::Expand
+        } else {
+            GroupMode::Flat
+        };
+
+        f.write_element(FormatElement::Tag(StartGroup(
+            group::Group::new().with_id(self.id).with_mode(mode),
+        )));
+
+        Arguments::from(&self.content).fmt(f)?;
+
+        f.write_element(FormatElement::Tag(EndGroup));
+
+        Ok(())
+    }
+}
+
+impl<Context> std::fmt::Debug for Group<'_, Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Group")
+            .field("id", &self.id)
+            .field("should_expand", &self.should_expand)
+            .field("content", &"{{content}}")
+            .finish()
+    }
+}
+
 /// Content that may get parenthesized if it exceeds the configured line width but only if the parenthesized
 /// layout doesn't exceed the line width too, in which case it falls back to the flat layout.
 ///
@@ -1664,7 +1560,7 @@ pub struct ConditionalGroup<'content, Context> {
 impl<Context> Format<Context> for ConditionalGroup<'_, Context> {
     fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
         f.write_element(FormatElement::Tag(StartConditionalGroup(
-            tag::ConditionalGroup::new(self.condition),
+            group::ConditionalGroup::new(self.condition),
         )));
         f.write_fmt(Arguments::from(&self.content))?;
         f.write_element(FormatElement::Tag(EndConditionalGroup));
@@ -2166,6 +2062,34 @@ where
     FitsExpanded {
         content: Argument::new(content),
         condition: None,
+    }
+}
+
+#[derive(Clone)]
+pub struct FitsExpanded<'a, Context> {
+    content: Argument<'a, Context>,
+    condition: Option<Condition>,
+}
+
+impl<Context> FitsExpanded<'_, Context> {
+    /// Sets a `condition` to when the content should fit in expanded mode. The content uses the regular fits
+    /// definition if the `condition` is not met.
+    #[must_use]
+    pub fn with_condition(mut self, condition: Option<Condition>) -> Self {
+        self.condition = condition;
+        self
+    }
+}
+
+impl<Context> Format<Context> for FitsExpanded<'_, Context> {
+    fn fmt(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
+        f.write_element(FormatElement::Tag(StartFitsExpanded(
+            tag::FitsExpanded::new().with_condition(self.condition),
+        )));
+        f.write_fmt(Arguments::from(&self.content))?;
+        f.write_element(FormatElement::Tag(EndFitsExpanded));
+
+        Ok(())
     }
 }
 

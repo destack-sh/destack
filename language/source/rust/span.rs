@@ -1,6 +1,6 @@
 //! Spans and Multi-Spans into SourceFiles.
 
-use crate::SourceId;
+use crate::{Source, SourceId};
 
 /// A source range in bytes (in some SourceFile).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -26,6 +26,11 @@ impl Span {
             start: 0,
             end: 0,
         }
+    }
+
+    /// Get the text of the Span from some Source.
+    pub fn text(self, source: &Source) -> &str {
+        source.get_span_str(self)
     }
 
     /// Merge two Spans.
