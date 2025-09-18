@@ -461,7 +461,7 @@ impl LanguageServer for DestackLanguageServer {
     /// format a given text document.
     async fn formatting(
         &self,
-        params: lsp::DocumentFormattingParams,
+        _: lsp::DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
         Ok(None)
     }

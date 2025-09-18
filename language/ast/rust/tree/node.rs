@@ -1711,8 +1711,6 @@ pub enum UnaryOperator {
     BitwiseNot = 243,
     /// `*`
     Dereference = 242,
-    /// `*?`
-    TryDereference = 241,
 }
 
 /// A BinaryOperator is an infix binary operator.
