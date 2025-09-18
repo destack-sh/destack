@@ -25,7 +25,7 @@ impl<'fmt, Context> Argument<'fmt, Context> {
     #[inline]
     // Seems to only be triggered on wasm32 and looks like a false positive?
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    pub(super) fn format(&self, f: &mut Formatter<Context>) -> FormatResult<()> {
+    pub(super) fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         self.value.fmt(f)
     }
 }
@@ -77,7 +77,7 @@ impl<Context> Clone for Arguments<'_, Context> {
 
 impl<Context> Format<Context> for Arguments<'_, Context> {
     #[inline]
-    fn fmt(&self, formatter: &mut Formatter<Context>) -> FormatResult<()> {
+    fn fmt(&self, formatter: &mut Formatter<'_, Context>) -> FormatResult<()> {
         formatter.write_fmt(*self)
     }
 }
@@ -97,7 +97,7 @@ impl<'fmt, Context> From<&'fmt Argument<'fmt, Context>> for Arguments<'fmt, Cont
 #[cfg(test)]
 mod tests {
     use crate::{group, prelude::*};
-    use crate::{FormatState, FormatTag, VecBuffer, builder, format_args, tag, write};
+    use crate::{FormatState, FormatTag, VecBuffer, format_args, write};
 
     #[test]
     fn test_nesting() {

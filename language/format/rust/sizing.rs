@@ -1,7 +1,8 @@
-use std::{iter::FusedIterator, num::NonZeroU32, ops::Deref};
+use std::iter::FusedIterator;
+use std::num::NonZeroU32;
+use std::ops::Deref;
 
-use crate::{FormatElement, LabelId, FormatTag, FormatTagKind};
-
+use crate::{FormatElement, FormatTag, FormatTagKind, LabelId};
 
 /// Mode used to determine if any variant (except the most expanded) fits for [`BestFittingVariants`].
 #[repr(u8)]
@@ -44,7 +45,10 @@ impl BestFittingVariants {
         debug_assert!(
             variants
                 .iter()
-                .filter(|element| matches!(element, FormatElement::Tag(FormatTag::StartBestFittingEntry)))
+                .filter(|element| matches!(
+                    element,
+                    FormatElement::Tag(FormatTag::StartBestFittingEntry)
+                ))
                 .count()
                 >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -61,7 +65,10 @@ impl BestFittingVariants {
         assert!(
             self.as_slice()
                 .iter()
-                .filter(|element| matches!(element, FormatElement::Tag(FormatTag::StartBestFittingEntry)))
+                .filter(|element| matches!(
+                    element,
+                    FormatElement::Tag(FormatTag::StartBestFittingEntry)
+                ))
                 .count()
                 >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -82,7 +89,10 @@ impl BestFittingVariants {
         assert!(
             self.as_slice()
                 .iter()
-                .filter(|element| matches!(element, FormatElement::Tag(FormatTag::StartBestFittingEntry)))
+                .filter(|element| matches!(
+                    element,
+                    FormatElement::Tag(FormatTag::StartBestFittingEntry)
+                ))
                 .count()
                 >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -146,7 +156,10 @@ impl<'a> Iterator for BestFittingVariantsIter<'a> {
 impl DoubleEndedIterator for BestFittingVariantsIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let start_position = self.elements.iter().rposition(|element| {
-            matches!(element, FormatElement::Tag(FormatTag::StartBestFittingEntry))
+            matches!(
+                element,
+                FormatElement::Tag(FormatTag::StartBestFittingEntry)
+            )
         })?;
 
         let (rest, variant) = self.elements.split_at(start_position);
@@ -178,6 +191,44 @@ pub trait FormatElements {
     /// Returns the end tag if:
     /// - the last element is an end tag of `kind`
     fn end_tag(&self, kind: FormatTagKind) -> Option<&FormatTag>;
+}
+
+/// Primitives with a textual length that can be passed to [`TextSize::of`].
+pub trait TextLen: Copy {
+    /// The textual length of this primitive.
+    fn text_len(self) -> u32;
+}
+
+impl TextLen for &'_ str {
+    #[inline]
+    fn text_len(self) -> u32 {
+        self.len().try_into().unwrap()
+    }
+}
+
+impl TextLen for &'_ String {
+    #[inline]
+    fn text_len(self) -> u32 {
+        self.as_str().text_len()
+    }
+}
+
+impl TextLen for char {
+    #[inline]
+    #[expect(clippy::cast_possible_truncation)]
+    fn text_len(self) -> u32 {
+        (self.len_utf8() as u32).into()
+    }
+}
+
+pub(crate) trait CharWidth {
+    fn width(self) -> u8;
+}
+
+impl CharWidth for char {
+    fn width(self) -> u8 {
+        self.len_utf8() as u8 // nocheckin
+    }
 }
 
 /// New-type wrapper for a single-line text unicode width.
@@ -219,10 +270,9 @@ impl TextWidth {
             let char_width = match c {
                 '\t' => indent_width,
                 '\n' => return TextWidth::Multiline,
-                #[expect(clippy::cast_possible_truncation)]
-                c => c.width().unwrap_or(0) as u32,
+                c => c.width(),
             };
-            width += char_width;
+            width += char_width as u32;
         }
 
         Self::Width(Width::new(width))

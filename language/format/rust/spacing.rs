@@ -1,4 +1,3 @@
-use std::num::NonZeroU8;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Indentation {
@@ -6,7 +5,7 @@ pub enum Indentation {
     Level(u16),
 
     /// Indent the content by n-`level`s using the indentation sequence specified by the printer options and `align` spaces.
-    Align { level: u16, align: NonZeroU8 },
+    Align { level: u16, align: u8 },
 }
 
 impl Indentation {
@@ -73,7 +72,7 @@ impl Indentation {
     /// Adds an `align` of `count` spaces to the current indentation.
     ///
     /// It increments the `level` value if the current value is [`Indent::IndentAlign`].
-    pub(crate) fn set_align(self, count: NonZeroU8) -> Self {
+    pub(crate) fn set_align(self, count: u8) -> Self {
         match self {
             Indentation::Level(indent_count) => Indentation::Align {
                 level: indent_count,

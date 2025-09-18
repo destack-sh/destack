@@ -55,7 +55,7 @@ pub trait Buffer {
     ///
     /// assert_eq!(buffer.into_vec(), vec![FormatElement::Token{ text: "Hello World" }]);
     /// ```
-    fn write_fmt(mut self: &mut Self, arguments: Arguments<Self::Context>) -> FormatResult<()> {
+    fn write_fmt(mut self: &mut Self, arguments: Arguments<'_, Self::Context>) -> FormatResult<()> {
         write(&mut self, arguments)
     }
 
@@ -144,7 +144,7 @@ impl<W: Buffer<Context = Context> + ?Sized, Context> Buffer for &mut W {
         (**self).elements()
     }
 
-    fn write_fmt(&mut self, args: Arguments<Context>) -> FormatResult<()> {
+    fn write_fmt(&mut self, args: Arguments<'_, Context>) -> FormatResult<()> {
         (**self).write_fmt(args)
     }
 
@@ -642,7 +642,7 @@ where
     }
 
     #[inline]
-    pub fn write_fmt(&mut self, arguments: Arguments<B::Context>) -> FormatResult<()> {
+    pub fn write_fmt(&mut self, arguments: Arguments<'_, B::Context>) -> FormatResult<()> {
         self.buffer.write_fmt(arguments)
     }
 

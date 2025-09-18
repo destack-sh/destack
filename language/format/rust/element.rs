@@ -39,7 +39,7 @@ pub enum FormatElement {
     },
 
     /// Text that gets emitted as it is in the source code. Optimized to avoid any allocations.
-    Source { slice: Span, text_width: TextWidth },
+    SourceSlice { slice: Span, text_width: TextWidth },
 
     /// Prevents that line suffixes move past this boundary. Forces the printer to print any pending
     /// line suffixes, potentially by inserting a hard line break.
@@ -71,14 +71,14 @@ impl FormatElement {
 }
 
 impl std::fmt::Debug for FormatElement {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FormatElement::Space => write!(fmt, "Space"),
             FormatElement::Line(mode) => fmt.debug_tuple("Line").field(mode).finish(),
             FormatElement::ExpandParent => write!(fmt, "ExpandParent"),
             FormatElement::Token { text } => fmt.debug_tuple("Token").field(text).finish(),
             FormatElement::Text { text, .. } => fmt.debug_tuple("DynamicText").field(text).finish(),
-            FormatElement::Source { slice, text_width } => fmt
+            FormatElement::SourceSlice { slice, text_width } => fmt
                 .debug_tuple("Text")
                 .field(slice)
                 .field(text_width)

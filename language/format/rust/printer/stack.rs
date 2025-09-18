@@ -80,7 +80,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{Stack, StackedStack};
+    use crate::printer::stack::{Stack, StackedStack};
 
     #[test]
     fn restore_consumed_stack() {
