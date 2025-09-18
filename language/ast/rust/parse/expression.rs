@@ -354,13 +354,7 @@ impl<'a> Parser<'a> {
             TokenType::Not => Ok(UnaryOperator::Not),
             TokenType::Subtract => Ok(UnaryOperator::Negate),
             TokenType::WrappingSubtract => Ok(UnaryOperator::WrappingNegate),
-            TokenType::Multiply => {
-                if self.peek_next_token(TokenType::Maybe).is_ok() {
-                    Ok(UnaryOperator::TryDereference)
-                } else {
-                    Ok(UnaryOperator::Dereference)
-                }
-            }
+            TokenType::Multiply => Ok(UnaryOperator::Dereference),
             TokenType::BitwiseNot => Ok(UnaryOperator::BitwiseNot),
             _ => Err(ParseError::unexpected(token.span)),
         }
@@ -510,9 +504,6 @@ impl<'a> Parser<'a> {
             else if let Ok(unary_operator) = self.peek_unary_operator() {
                 let right_precedence = unary_operator.precedence();
                 self.bump(); // eat unary operator (always because right associative)
-                if unary_operator == UnaryOperator::TryDereference {
-                    self.bump() // two tokens
-                }
                 let right = self.eat_expression(ExpressionParserOptions {
                     left_precedence: Some(right_precedence),
                     ..options
