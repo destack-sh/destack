@@ -1,3 +1,4 @@
+use dyst_language_source::Span;
 use std::cell::Cell;
 use std::marker::PhantomData;
 
@@ -10,7 +11,6 @@ use crate::{
 
 #[allow(clippy::enum_glob_use)]
 use FormatTag::*;
-use dyst_language_source::Span;
 
 /// A line break that only gets printed if the enclosing `Group` doesn't fit on a single line.
 /// It's omitted if the enclosing `Group` fits on a single line.
@@ -21,8 +21,8 @@ use dyst_language_source::Span;
 /// Soft line breaks are omitted if the enclosing `Group` fits on a single line
 ///
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -41,8 +41,8 @@ use dyst_language_source::Span;
 ///
 /// Soft line breaks are emitted if the enclosing `Group` doesn't fit on a single line
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -77,8 +77,8 @@ pub const fn soft_line_break() -> Line {
 ///
 /// It forces a line break, even if the enclosing `Group` would otherwise fit on a single line.
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -108,8 +108,8 @@ pub const fn hard_line_break() -> Line {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// fn main() -> FormatResult<()> {
 /// let elements = format!(
@@ -140,8 +140,8 @@ pub const fn empty_line() -> Line {
 ///
 /// The line breaks are emitted as spaces if the enclosing `Group` fits on a single line:
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -162,8 +162,8 @@ pub const fn empty_line() -> Line {
 ///
 /// The printer breaks the lines if the enclosing `Group` doesn't fit on a single line:
 /// ```
-/// use ruff_formatter::{format_args, format, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format_args, format, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -221,8 +221,8 @@ impl std::fmt::Debug for Line {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::format;
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::format;
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [token("Hello World")])?;
@@ -239,8 +239,8 @@ impl std::fmt::Debug for Line {
 /// enclosed in quotes (depending on the target language).
 ///
 /// ```
-/// use ruff_formatter::format;
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::format;
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// // the tab must be encoded as \\t to not literally print a tab character ("Hello{tab}World" vs "Hello\tWorld")
@@ -355,8 +355,8 @@ fn debug_assert_no_newlines(text: &str) {
 /// ## Examples
 ///
 /// ```rust
-/// use ruff_formatter::format;
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::format;
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -372,8 +372,8 @@ fn debug_assert_no_newlines(text: &str) {
 ///
 /// Provide reserved width for the line suffix to include it during measurement.
 /// ```rust
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatContext, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatContext, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -445,8 +445,8 @@ impl<Context> std::fmt::Debug for LineSuffix<'_, Context> {
 ///
 /// Forces the line suffix "c" to be printed before the token `d`.
 /// ```
-/// use ruff_formatter::format;
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::format;
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn  main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -464,16 +464,16 @@ impl<Context> std::fmt::Debug for LineSuffix<'_, Context> {
 /// # Ok(())
 /// # }
 /// ```
-pub const fn line_suffix_boundary() -> LineBoundary {
-    LineBoundary
+pub const fn line_suffix_boundary() -> LineSuffixBoundary {
+    LineSuffixBoundary
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct LineBoundary;
+pub struct LineSuffixBoundary;
 
-impl<Context> Format<Context> for LineBoundary {
+impl<Context> Format<Context> for LineSuffixBoundary {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::LineBoundary);
+        f.write_element(FormatElement::LineSuffixBoundary);
 
         Ok(())
     }
@@ -484,8 +484,8 @@ impl<Context> Format<Context> for LineBoundary {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::format;
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::format;
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// // the tab must be encoded as \\t to not literally print a tab character ("Hello{tab}World" vs "Hello\tWorld")
@@ -506,7 +506,6 @@ pub struct Space;
 impl<Context> Format<Context> for Space {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_element(FormatElement::Space);
-
         Ok(())
     }
 }
@@ -522,8 +521,8 @@ impl<Context> Format<Context> for Space {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let block = format!(SimpleFormatContext::default(), [
@@ -586,8 +585,8 @@ impl<Context> std::fmt::Debug for Indent<'_, Context> {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let block = format!(SimpleFormatContext::default(), [
@@ -655,8 +654,8 @@ impl<Context> std::fmt::Debug for Dedent<'_, Context> {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let block = format!(SimpleFormatContext::default(), [
@@ -717,8 +716,8 @@ where
 ///
 /// ```
 /// use std::num::NonZeroU8;
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let block = format!(SimpleFormatContext::default(), [
@@ -762,11 +761,11 @@ where
 ///
 /// ```
 /// use std::num::NonZeroU8;
-/// use ruff_formatter::{format, format_args, IndentStyle, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, IndentStyle, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
-/// use ruff_formatter::IndentWidth;
+/// use dyst_language_format::IndentWidth;
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
 ///     indent_style: IndentStyle::Space,
 ///     indent_width: IndentWidth::try_from(4).unwrap(),
@@ -852,8 +851,8 @@ impl<Context> std::fmt::Debug for Align<'_, Context> {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let block = format![
@@ -893,8 +892,8 @@ pub fn block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, 
 /// Indents the content by one level and puts in new lines if the enclosing `Group` doesn't fit on a single line
 ///
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -924,8 +923,8 @@ pub fn block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, 
 ///
 /// Doesn't change the formatting if the enclosing `Group` fits on a single line
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -967,8 +966,8 @@ pub fn soft_block_indent<Context>(content: &impl Format<Context>) -> BlockIndent
 /// fit on a single line. Otherwise, just inserts a space.
 ///
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -1001,8 +1000,8 @@ pub fn soft_block_indent<Context>(content: &impl Format<Context>) -> BlockIndent
 ///
 /// Only adds a space if the enclosing `Group` fits on a single line
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -1101,8 +1100,8 @@ impl<Context> std::fmt::Debug for BlockIndent<'_, Context> {
 /// Adds line breaks and indents the content if the enclosing group doesn't fit on the line.
 ///
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -1133,8 +1132,8 @@ impl<Context> std::fmt::Debug for BlockIndent<'_, Context> {
 ///
 /// Adds spaces around the content if the group fits on the line
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -1180,8 +1179,8 @@ pub fn soft_space_or_block_indent<Context>(
 /// `Group` that fits on a single line
 ///
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -1208,8 +1207,8 @@ pub fn soft_space_or_block_indent<Context>(
 ///
 /// The printer breaks the `Group` over multiple lines if its content doesn't fit on a single line
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -1311,8 +1310,8 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 /// better performance.
 ///
 /// ```rust
-/// # use ruff_formatter::prelude::*;
-/// # use ruff_formatter::format_args;
+/// # use dyst_language_format::prelude::*;
+/// # use dyst_language_format::format_args;
 ///
 /// let format_expression = format_with(|f: &mut Formatter<SimpleFormatContext>| token("A long string").fmt(f));
 /// let _ = best_fitting![
@@ -1346,8 +1345,8 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 /// ### Content that fits into the configured line width.
 ///
 /// ```rust
-/// # use ruff_formatter::prelude::*;
-/// # use ruff_formatter::{format, PrintResult, write};
+/// # use dyst_language_format::prelude::*;
+/// # use dyst_language_format::{format, PrintResult, write};
 ///
 /// # fn main() -> FormatResult<()> {
 ///     let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
@@ -1365,8 +1364,8 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 /// ### Content that fits parenthesized
 ///
 /// ```rust
-/// # use ruff_formatter::prelude::*;
-/// # use ruff_formatter::{format, PrintResult, write};
+/// # use dyst_language_format::prelude::*;
+/// # use dyst_language_format::{format, PrintResult, write};
 ///
 /// # fn main() -> FormatResult<()> {
 ///     let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
@@ -1384,8 +1383,8 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 /// ### Content that exceeds the line width, parenthesized or not
 ///
 /// ```rust
-/// # use ruff_formatter::prelude::*;
-/// # use ruff_formatter::{format, PrintResult, write};
+/// # use dyst_language_format::prelude::*;
+/// # use dyst_language_format::{format, PrintResult, write};
 ///
 /// # fn main() -> FormatResult<()> {
 ///     let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
@@ -1456,11 +1455,11 @@ impl<Context> std::fmt::Debug for BestFitParenthesize<'_, Context> {
 /// Only expand before operators if the parentheses are necessary.
 ///
 /// ```
-/// # use ruff_formatter::prelude::*;
-/// # use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions};
+/// # use dyst_language_format::prelude::*;
+/// # use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
 ///
 /// # fn main() -> FormatResult<()> {
-/// use ruff_formatter::Formatted;
+/// use dyst_language_format::Formatted;
 /// let content = format_with(|f| {
 ///     let parentheses_id = f.group_id("parentheses");
 ///     group(&format_args![
@@ -1586,8 +1585,8 @@ impl<Context> std::fmt::Debug for ConditionalGroup<'_, Context> {
 /// ## Examples
 ///
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -1642,8 +1641,8 @@ impl<Context> Format<Context> for ExpandParent {
 ///
 /// Omits the trailing comma for the last array element if the `Group` fits on a single line
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let elements = format!(SimpleFormatContext::default(), [
@@ -1671,8 +1670,8 @@ impl<Context> Format<Context> for ExpandParent {
 ///
 /// Prints the trailing comma for the last array element if the `Group` doesn't fit on a single line
 /// ```
-/// use ruff_formatter::{format_args, format, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format_args, format, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -1723,8 +1722,8 @@ where
 ///
 /// Adds the trailing comma for the last array element if the `Group` fits on a single line
 /// ```
-/// use ruff_formatter::{format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(SimpleFormatContext::default(), [
@@ -1752,8 +1751,8 @@ where
 ///
 /// Omits the trailing comma for the last array element if the `Group` doesn't fit on a single line
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -1814,8 +1813,8 @@ impl<Context> IfGroupBreaks<'_, Context> {
     /// The item `[4]` in this example fits on a single line but the trailing comma should still be printed
     ///
     /// ```
-    /// use ruff_formatter::{format, format_args, write, LineWidth, SimpleFormatOptions};
-    /// use ruff_formatter::prelude::*;
+    /// use dyst_language_format::{format, format_args, write, LineWidth, SimpleFormatOptions};
+    /// use dyst_language_format::prelude::*;
     ///
     /// # fn main() -> FormatResult<()> {
     /// let context = SimpleFormatContext::new(SimpleFormatOptions {
@@ -1894,8 +1893,8 @@ impl<Context> std::fmt::Debug for IfGroupBreaks<'_, Context> {
 /// This IR has the same semantics as using [`if_group_breaks`] and [`if_group_fits_on_line`] together.
 ///
 /// ```
-/// # use ruff_formatter::prelude::*;
-/// # use ruff_formatter::write;
+/// # use dyst_language_format::prelude::*;
+/// # use dyst_language_format::write;
 /// # let format = format_with(|f: &mut Formatter<SimpleFormatContext>| {
 /// let id = f.group_id("head");
 ///
@@ -1917,8 +1916,8 @@ impl<Context> std::fmt::Debug for IfGroupBreaks<'_, Context> {
 ///
 /// Indent the body of an arrow function if the group wrapping the signature breaks:
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions, write};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions, write};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let content = format_with(|f| {
@@ -1947,8 +1946,8 @@ impl<Context> std::fmt::Debug for IfGroupBreaks<'_, Context> {
 ///
 /// It doesn't add an indent if the group wrapping the signature doesn't break:
 /// ```
-/// use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions, write};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions, write};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let content = format_with(|f| {
@@ -2022,8 +2021,8 @@ impl<Context> std::fmt::Debug for IndentIfGroupBreaks<'_, Context> {
 /// spans multiple lines with items exceeding the configured line width.
 ///
 /// ```
-/// # use ruff_formatter::{format, format_args, LineWidth, SimpleFormatOptions, write};
-/// # use ruff_formatter::prelude::*;
+/// # use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions, write};
+/// # use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let content = format_with(|f| {
@@ -2066,8 +2065,8 @@ where
     }
 }
 
-#[derive(Clone)]
-struct FitsExpanded<'a, Context> {
+#[derive(Debug, Clone)]
+pub struct FitsExpanded<'a, Context> {
     content: Argument<'a, Context>,
     condition: Option<Condition>,
 }
@@ -2122,9 +2121,8 @@ impl<Context, T> std::fmt::Debug for FormatWith<Context, T> {
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{SimpleFormatContext, format, write};
-/// use ruff_text_size::TextSize;
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{SimpleFormatContext, format, write};
 ///
 /// struct MyFormat {
 ///     items: Vec<&'static str>,
@@ -2179,8 +2177,8 @@ where
 /// # Example
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{SimpleFormatContext, format, write, Buffer};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{SimpleFormatContext, format, write, Buffer};
 ///
 /// struct MyFormat;
 ///
@@ -2217,9 +2215,8 @@ where
 /// Formatting the same value twice results in a panic.
 ///
 /// ```should_panic
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{SimpleFormatContext, format, write, Buffer};
-/// use ruff_text_size::TextSize;
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{SimpleFormatContext, format, write, Buffer};
 ///
 /// let mut count = 0;
 ///
@@ -2253,7 +2250,7 @@ where
 {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        let formatter = self.formatter.take().expect("Tried to format a `format_once` at least twice. This is not allowed. You may want to use `format_with` or `format.memoized` instead.");
+        let formatter = self.formatter.take().unwrap_or_else(|| panic!("tried to format a `format_once` at least twice. This is not allowed. You may want to use `format_with` or `format.memoized` instead."));
 
         (formatter)(f)
     }
@@ -2268,6 +2265,7 @@ impl<T, Context> std::fmt::Debug for FormatOnce<T, Context> {
 /// Builder to join together a sequence of content.
 /// See [`Formatter::join`]
 #[must_use = "must eventually call `finish()` on Format builders"]
+#[derive(Debug)]
 pub struct JoinBuilder<'fmt, 'buf, Separator, Context> {
     result: FormatResult<()>,
     fmt: &'fmt mut Formatter<'buf, Context>,
@@ -2302,10 +2300,10 @@ where
     /// Adds a new entry to the join output.
     pub fn entry(&mut self, entry: &dyn Format<Context>) -> &mut Self {
         self.result = self.result.and_then(|()| {
-            if let Some(with) = &self.with {
-                if self.has_elements {
-                    with.fmt(self.fmt)?;
-                }
+            if let Some(with) = &self.with
+                && self.has_elements
+            {
+                with.fmt(self.fmt)?;
             }
             self.has_elements = true;
 
@@ -2336,6 +2334,7 @@ where
 
 /// Builder to fill as many elements as possible on a single line.
 #[must_use = "must eventually call `finish()` on Format builders"]
+#[derive(Debug)]
 pub struct FillBuilder<'fmt, 'buf, Context> {
     result: FormatResult<()>,
     fmt: &'fmt mut Formatter<'buf, Context>,
@@ -2401,7 +2400,7 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
 
 /// The first variant is the most flat, and the last is the most expanded variant.
 /// See [`best_fitting!`] macro for a more in-detail documentation
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct BestFitting<'a, Context> {
     variants: Arguments<'a, Context>,
     mode: BestFittingMode,
@@ -2437,8 +2436,8 @@ impl<'a, Context> BestFitting<'a, Context> {
     /// ### All Lines
     ///
     /// ```
-    /// use ruff_formatter::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
-    /// use ruff_formatter::prelude::*;
+    /// use dyst_language_format::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
+    /// use dyst_language_format::prelude::*;
     ///
     /// # fn main() -> FormatResult<()> {
     /// let formatted = format!(

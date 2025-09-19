@@ -1,18 +1,19 @@
+use std::fmt::Debug;
+
 use crate::{
     Arguments, Buffer, Document, FormatContext, FormatOptions, FormatResult, FormatState,
     Formatter, PrintResult, Printed, Printer, VecBuffer,
 };
 
-//// Formatting trait for types that can create a formatted representation. The `ruff_formatter` equivalent
+/// Formatting trait for types that can create a formatted representation. The `dyst_language_format` equivalent
 /// to [`std::fmt::Display`].
 ///
 /// ## Example
 /// Implementing `Format` for a custom struct
 ///
 /// ```
-/// use ruff_formatter::{format, write, IndentStyle};
-/// use ruff_formatter::prelude::*;
-/// use ruff_text_size::TextSize;
+/// use dyst_language_format::{format, write, IndentStyle};
+/// use dyst_language_format::prelude::*;
 ///
 /// struct Paragraph(String);
 ///
@@ -134,8 +135,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{VecBuffer, format_args, FormatState, write, Formatted};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{VecBuffer, format_args, FormatState, write, Formatted};
 ///
 /// # fn main() -> FormatResult<()> {
 /// let mut state = FormatState::new(SimpleFormatContext::default());
@@ -153,8 +154,8 @@ where
 /// Please note that using [`write!`] might be preferable. Example:
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{VecBuffer, format_args, FormatState, write, Formatted};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{VecBuffer, format_args, FormatState, write, Formatted};
 ///
 /// # fn main() -> FormatResult<()> {
 /// let mut state = FormatState::new(SimpleFormatContext::default());
@@ -187,8 +188,8 @@ pub fn write<Context>(
 /// Basic usage:
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{format, format_args};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{format, format_args};
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(SimpleFormatContext::default(), [&format_args!(token("test"))])?;
@@ -200,8 +201,8 @@ pub fn write<Context>(
 /// Please note that using [`format!`] might be preferable. Example:
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{format};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{format};
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(SimpleFormatContext::default(), [token("test")])?;

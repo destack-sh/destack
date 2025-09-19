@@ -13,8 +13,8 @@ pub enum FormatTag {
     StartIndent,
     EndIndent,
 
-    /// Variant of [`TagKind::Indent`] that indents content by a number of spaces. For example, `Align(2)`
-    /// indents any content following a line break by an additional two spaces.
+    /// Variant of [`TagKind::Indent`] that indents content by a number of spaces.
+    /// For example, `Align(2)` indents any content following a line break by an additional two spaces.
     ///
     /// Nesting (Aligns)[`TagKind::Align`] has the effect that all except the most inner align are handled as (Indent)[`TagKind::Indent`].
     StartAlign(u8),
@@ -44,7 +44,8 @@ pub enum FormatTag {
     EndConditionalGroup,
 
     /// Allows to specify content that gets printed depending on whatever the enclosing group
-    /// is printed on a single line or multiple lines. See [`crate::builders::if_group_breaks`] for examples.
+    /// is printed on a single line or multiple lines.
+    /// See [`crate::builders::if_group_breaks`] for examples.
     StartConditionalContent(Condition),
     EndConditionalContent,
 
@@ -54,8 +55,8 @@ pub enum FormatTag {
     EndIndentIfGroupBreaks,
 
     /// Concatenates multiple elements together with a given separator printed in either
-    /// flat or expanded mode to fill the print width. Expect that the content is a list of alternating
-    /// [element, separator] See [`crate::Formatter::fill`].
+    /// flat or expanded mode to fill the print width.
+    /// Expect that the content is a list of alternating [element, separator] See [`crate::Formatter::fill`].
     StartFill,
     EndFill,
 
@@ -63,8 +64,8 @@ pub enum FormatTag {
     StartEntry,
     EndEntry,
 
-    /// Delay the printing of its content until the next line break. Using reserved width will include
-    /// the associated line suffix during measurement.
+    /// Delay the printing of its content until the next line break.
+    /// Using reserved width will include the associated line suffix during measurement.
     StartLineSuffix {
         reserved_width: u32,
     },
@@ -92,7 +93,7 @@ pub enum FormatTag {
 }
 
 impl FormatTag {
-    /// Returns `true` if `self` is any start tag.
+    /// Check if this is any start tag.
     pub const fn is_start(&self) -> bool {
         matches!(
             self,
@@ -113,11 +114,12 @@ impl FormatTag {
         )
     }
 
-    /// Returns `true` if `self` is any end tag.
+    /// Check if this is any end tag.
     pub const fn is_end(&self) -> bool {
         !self.is_start()
     }
 
+    /// Get the kind of this tag.
     pub const fn kind(&self) -> FormatTagKind {
         #[allow(clippy::enum_glob_use)]
         use FormatTag::*;
@@ -181,12 +183,13 @@ pub struct Condition {
     /// - `Expanded` -> Omitted if the enclosing group fits on a single line, printed if the group breaks over multiple lines.
     pub(crate) mode: PrintMode,
 
-    /// The id of the group for which it should check if it breaks or not. The group must appear in the document
-    /// before the conditional group (but doesn't have to be in the ancestor chain).
+    /// The id of the group for which it should check if it breaks or not.
+    /// The group must appear in the document before the conditional group (but doesn't have to be in the ancestor chain).
     pub(crate) group_id: Option<GroupId>,
 }
 
 impl Condition {
+    /// Create a new condition with the given mode.
     pub(crate) fn new(mode: PrintMode) -> Self {
         Self {
             mode,
@@ -194,6 +197,7 @@ impl Condition {
         }
     }
 
+    /// Create a condition that applies if the group fits on a single line.
     pub fn if_fits_on_line() -> Self {
         Self {
             mode: PrintMode::Flat,
@@ -201,6 +205,7 @@ impl Condition {
         }
     }
 
+    /// Create a condition that applies if the specified group fits on a single line.
     pub fn if_group_fits_on_line(group_id: GroupId) -> Self {
         Self {
             mode: PrintMode::Flat,
@@ -208,6 +213,7 @@ impl Condition {
         }
     }
 
+    /// Create a condition that applies if the group breaks across multiple lines.
     pub fn if_breaks() -> Self {
         Self {
             mode: PrintMode::Expanded,
@@ -215,6 +221,7 @@ impl Condition {
         }
     }
 
+    /// Create a condition that applies if the specified group breaks across multiple lines.
     pub fn if_group_breaks(group_id: GroupId) -> Self {
         Self {
             mode: PrintMode::Expanded,
@@ -222,6 +229,7 @@ impl Condition {
         }
     }
 
+    /// Set the group id for this condition.
     #[must_use]
     pub fn with_group_id(mut self, id: Option<GroupId>) -> Self {
         self.group_id = id;
@@ -238,10 +246,12 @@ pub enum PrintMode {
 }
 
 impl PrintMode {
+    /// Check if this mode is flat.
     pub const fn is_flat(&self) -> bool {
         matches!(self, PrintMode::Flat)
     }
 
+    /// Check if this mode is expanded.
     pub const fn is_expanded(&self) -> bool {
         matches!(self, PrintMode::Expanded)
     }
@@ -263,16 +273,19 @@ pub struct FitsExpanded {
 }
 
 impl FitsExpanded {
+    /// Create a new FitsExpanded.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the condition for this FitsExpanded.
     #[must_use]
     pub fn with_condition(mut self, condition: Option<Condition>) -> Self {
         self.condition = condition;
         self
     }
 
+    /// Mark that expansion should be propagated.
     pub fn propagate_expand(&self) {
         self.propagate_expand.set(true);
     }
@@ -289,6 +302,7 @@ pub enum VerbatimKind {
 }
 
 impl VerbatimKind {
+    /// Check if this is a bogus verbatim kind.
     pub const fn is_bogus(&self) -> bool {
         matches!(self, VerbatimKind::Bogus)
     }

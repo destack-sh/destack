@@ -2102,7 +2102,7 @@ pub enum AnnotationPosition {
     Suffix,
 }
 
-// NOTE :Incomplete: parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
+// NOTE @Incomplete: parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
 
 /// A Doc is a full documentation comment string.
 /// Like comments, Docs are attached in a side tree outside of the main parse / tree.

@@ -38,18 +38,20 @@ pub enum FormatElement {
         text_width: TextWidth,
     },
 
-    /// Text that gets emitted as it is in the source code. Optimized to avoid any allocations.
+    /// Text that gets emitted as it is in the source code.
+    /// Optimized to avoid any allocations.
     SourceSlice { slice: Span, text_width: TextWidth },
 
-    /// Prevents that line suffixes move past this boundary. Forces the printer to print any pending
-    /// line suffixes, potentially by inserting a hard line break.
-    LineBoundary,
+    /// Prevents that line suffixes move past this boundary.
+    /// Forces the printer to print any pending line suffixes, potentially by inserting a hard line break.
+    LineSuffixBoundary,
 
-    /// An interned format element. Useful when the same content must be emitted multiple times to avoid
-    /// deep cloning the IR when using the `best_fitting!` macro or `if_group_fits_on_line` and `if_group_breaks`.
+    /// An interned format element.
+    /// Useful when the same content must be emitted multiple times to avoid deep cloning the IR when using the `best_fitting!` macro or `if_group_fits_on_line` and `if_group_breaks`.
     Interned(Interned),
 
-    /// A list of different variants representing the same content. The printer picks the best fitting content.
+    /// A list of different variants representing the same content.
+    /// The printer picks the best fitting content.
     /// Line breaks inside of a best fitting don't propagate to parent groups.
     BestFitting {
         variants: BestFittingVariants,
@@ -61,6 +63,7 @@ pub enum FormatElement {
 }
 
 impl FormatElement {
+    /// Gets the tag kind if this element is a Tag.
     pub fn tag_kind(&self) -> Option<FormatTagKind> {
         if let FormatElement::Tag(tag) = self {
             Some(tag.kind())
@@ -83,7 +86,7 @@ impl std::fmt::Debug for FormatElement {
                 .field(slice)
                 .field(text_width)
                 .finish(),
-            FormatElement::LineBoundary => write!(fmt, "LineBoundary"),
+            FormatElement::LineSuffixBoundary => write!(fmt, "LineSuffixBoundary"),
             FormatElement::BestFitting { variants, mode } => fmt
                 .debug_struct("BestFitting")
                 .field("variants", variants)
@@ -95,10 +98,12 @@ impl std::fmt::Debug for FormatElement {
     }
 }
 
+/// Interned format element.
 #[derive(Clone)]
 pub struct Interned(Rc<[FormatElement]>);
 
 impl Interned {
+    /// Creates a new Interned from a vector of FormatElements.
     pub(super) fn new(content: Vec<FormatElement>) -> Self {
         Self(content.into())
     }

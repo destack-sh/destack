@@ -1,4 +1,3 @@
-
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Indentation {
     /// Indent the content by `count` levels by using the indentation sequence specified by the printer options.
@@ -13,12 +12,12 @@ impl Indentation {
         matches!(self, Indentation::Level(0))
     }
 
-    /// Creates a new indentation level with a zero-indent.
+    /// Create a new indentation level with a zero-indent.
     pub(crate) const fn new() -> Self {
         Indentation::Level(0)
     }
 
-    /// Returns the indentation level
+    /// Get the indentation level.
     pub(crate) fn level(self) -> u16 {
         match self {
             Indentation::Level(count) => count,
@@ -26,24 +25,24 @@ impl Indentation {
         }
     }
 
-    /// Returns the number of trailing align spaces or 0 if none
+    /// Get the number of trailing align spaces or 0 if none.
     pub(crate) fn align(self) -> u8 {
         match self {
             Indentation::Level(_) => 0,
-            Indentation::Align { align, .. } => align.into(),
+            Indentation::Align { align, .. } => align,
         }
     }
 
-    /// Increments the level by one.
+    /// Increment the level by one.
     ///
-    /// The behaviour depends on the [`indent_style`][IndentStyle] if this is an [`Indent::Align`]:
-    /// - **Tabs**: `align` is converted into an indent. This results in `level` increasing by two: once for the align, once for the level increment
+    /// The behaviour depends on the [`indent_style`][IndentStyle] if this is an [`Indentation::Align`]:
+    /// - **Tabs**: `align` is converted into an indent.
+    ///   This results in `level` increasing by two: once for the align, once for the level increment
     /// - **Spaces**: Increments the `level` by one and keeps the `align` unchanged.
-    ///   Keeps any  the current value is [`Indent::Align`] and increments the level by one.
     pub(crate) fn increment_level(self, indent_style: IndentStyle) -> Self {
         match self {
             Indentation::Level(count) => Indentation::Level(count + 1),
-            // Increase the indent AND convert the align to an indent
+            // increase the indent AND convert the align to an indent
             Indentation::Align { level, .. } if indent_style.is_tab() => {
                 Indentation::Level(level + 2)
             }
@@ -57,9 +56,10 @@ impl Indentation {
         }
     }
 
-    /// Decrements the indent by one by:
-    /// - Reducing the level by one if this is [`Indent::Level`]
-    /// - Removing the `align` if this is [`Indent::Align`]
+    /// Decrement the indent by one.
+    ///
+    /// - Reducing the level by one if this is [`Indentation::Level`]
+    /// - Removing the `align` if this is [`Indentation::Align`]
     ///
     /// No-op if the level is already zero.
     pub(crate) fn decrement(self) -> Self {
@@ -69,9 +69,9 @@ impl Indentation {
         }
     }
 
-    /// Adds an `align` of `count` spaces to the current indentation.
+    /// Add an `align` of `count` spaces to the current indentation.
     ///
-    /// It increments the `level` value if the current value is [`Indent::IndentAlign`].
+    /// It increments the `level` value if the current value is [`Indentation::Align`].
     pub(crate) fn set_align(self, count: u8) -> Self {
         match self {
             Indentation::Level(indent_count) => Indentation::Align {
@@ -79,7 +79,7 @@ impl Indentation {
                 align: count,
             },
 
-            // Convert the existing align to an indent
+            // convert the existing align to an indent
             Indentation::Align { level: indent, .. } => Indentation::Align {
                 level: indent + 1,
                 align: count,
@@ -104,17 +104,17 @@ pub enum IndentStyle {
 }
 
 impl IndentStyle {
-    /// Returns `true` if this is an [`IndentStyle::Tab`].
+    /// Check if this is an [`IndentStyle::Tab`].
     pub const fn is_tab(&self) -> bool {
         matches!(self, IndentStyle::Tab)
     }
 
-    /// Returns `true` if this is an [`IndentStyle::Space`].
+    /// Check if this is an [`IndentStyle::Space`].
     pub const fn is_space(&self) -> bool {
         matches!(self, IndentStyle::Space)
     }
 
-    /// Returns the string representation of the indent style.
+    /// Get the string representation of the indent style.
     pub const fn as_str(&self) -> &'static str {
         match self {
             IndentStyle::Tab => "tab",

@@ -18,12 +18,12 @@ pub(crate) struct StackFrame {
     args: PrintElementArgs,
 }
 
-/// Stores arguments passed to `print_element` call, holding the state specific to printing an element.
-/// E.g. the `indent` depends on the token the Printer's currently processing. That's why
-/// it must be stored outside of the [`PrinterState`] that stores the state common to all elements.
+/// Store arguments passed to `print_element` call, holding the state specific to printing an element.
 ///
-/// The state is passed by value, which is why it's important that it isn't storing any heavy
-/// data structures. Such structures should be stored on the [`PrinterState`] instead.
+/// E.g. the `indent` depends on the token the Printer's currently processing.
+/// That's why it must be stored outside of the [`PrinterState`] that stores the state common to all elements.
+/// The state is passed by value, which is why it's important that it isn't storing any heavy data structures.
+/// Such structures should be stored on the [`PrinterState`] instead.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) struct PrintElementArgs {
     indent: Indentation,
@@ -103,10 +103,9 @@ pub(crate) trait CallStack {
 
     fn stack_mut(&mut self) -> &mut Self::Stack;
 
-    /// Pops the call arguments at the top and asserts that they correspond to a start tag of `kind`.
+    /// Pop the call arguments at the top and assert that they correspond to a start tag of `kind`.
     ///
-    /// Returns `Ok` with the arguments if the kind of the top stack frame matches `kind`, otherwise
-    /// returns `Err`.
+    /// Returns `Ok` with the arguments if the kind of the top stack frame matches `kind`, otherwise returns `Err`.
     fn pop(&mut self, kind: FormatTagKind) -> PrintResult<PrintElementArgs> {
         let last = self.stack_mut().pop();
 
@@ -115,7 +114,8 @@ pub(crate) trait CallStack {
                 kind: StackFrameKind::Tag(actual_kind),
                 args,
             }) if actual_kind == kind => Ok(args),
-            // Start / End kind don't match
+
+            // start / end kind don't match
             Some(StackFrame {
                 kind: StackFrameKind::Tag(expected_kind),
                 ..
@@ -123,21 +123,23 @@ pub(crate) trait CallStack {
                 kind,
                 Some(expected_kind),
             ))),
-            // Tried to pop the outer most stack frame, which is not valid
+
+            // tried to pop the outer most stack frame, which is not valid
             Some(
                 frame @ StackFrame {
                     kind: StackFrameKind::Root,
                     ..
                 },
             ) => {
-                // Put it back in to guarantee that the stack is never empty
+                // put it back in to guarantee that the stack is never empty
                 self.stack_mut().push(frame);
                 Err(PrintError::InvalidDocument(Self::invalid_document_error(
                     kind, None,
                 )))
             }
 
-            // This should be unreachable but having it for completeness. Happens if the stack is empty.
+            // this should be unreachable but having it for completeness
+            // happens if the stack is empty
             None => Err(PrintError::InvalidDocument(Self::invalid_document_error(
                 kind, None,
             ))),
@@ -158,20 +160,20 @@ pub(crate) trait CallStack {
         }
     }
 
-    /// Returns the [`PrintElementArgs`] for the current stack frame.
+    /// Get the [`PrintElementArgs`] for the current stack frame.
     fn top(&self) -> PrintElementArgs {
         self.stack()
             .top()
-            .expect("Expected `stack` to never be empty.")
+            .unwrap_or_else(|| panic!("expected `stack` to never be empty"))
             .args
     }
 
-    /// Returns the [`TagKind`] of the current stack frame or [None] if this is the root stack frame.
+    /// Get the [`TagKind`] of the current stack frame or [None] if this is the root stack frame.
     fn top_kind(&self) -> Option<FormatTagKind> {
         match self
             .stack()
             .top()
-            .expect("Expected `stack` to never be empty.")
+            .unwrap_or_else(|| panic!("expected `stack` to never be empty"))
             .kind
         {
             StackFrameKind::Root => None,
@@ -179,7 +181,7 @@ pub(crate) trait CallStack {
         }
     }
 
-    /// Creates a new stack frame for a [`FormatElement::Tag`] of `kind` with `args` as the call arguments.
+    /// Create a new stack frame for a [`FormatElement::Tag`] of `kind` with `args` as the call arguments.
     fn push(&mut self, kind: FormatTagKind, args: PrintElementArgs) {
         self.stack_mut().push(StackFrame {
             kind: StackFrameKind::Tag(kind),
@@ -188,9 +190,9 @@ pub(crate) trait CallStack {
     }
 }
 
-/// Call stack used for printing the [`FormatElement`]s
+/// Call stack used for printing the [`FormatElement`]s.
 #[derive(Debug, Clone)]
-pub(super) struct PrintCallStack(Vec<StackFrame>);
+pub(crate) struct PrintCallStack(Vec<StackFrame>);
 
 impl PrintCallStack {
     pub(crate) fn new(args: PrintElementArgs) -> Self {

@@ -1,5 +1,5 @@
 use crate::printer::{invalid_end_tag, invalid_start_tag};
-use crate::{FormatElement, PrintResult, FormatTag, FormatTagKind};
+use crate::{FormatElement, FormatTag, FormatTagKind, PrintResult};
 use std::fmt::Debug;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
@@ -41,9 +41,8 @@ pub(crate) trait Queue<'a> {
     {
         let iter = self.iter_content(kind);
 
-        for _ in iter {
-            // consume whole iterator until end
-        }
+        // consume whole iterator until end
+        for _ in iter {}
     }
 
     /// Iterates over all elements until it finds the matching end tag of the specified kind.
@@ -106,7 +105,6 @@ impl<'a> Queue<'a> for PrintQueue<'a> {
         }
     }
 
-    /// Removes top slice.
     fn pop_slice(&mut self) -> Option<&'a [FormatElement]> {
         self.element_slices
             .pop()
@@ -177,7 +175,6 @@ impl<'a> Queue<'a> for FitsQueue<'a, '_> {
         }
     }
 
-    /// Removes top slice.
     fn pop_slice(&mut self) -> Option<&'a [FormatElement]> {
         self.queue.pop_slice().or_else(|| {
             self.rest_elements
@@ -187,7 +184,7 @@ impl<'a> Queue<'a> for FitsQueue<'a, '_> {
     }
 }
 
-pub(super) struct QueueContentIterator<'a, 'q, Q: Queue<'a>> {
+pub(crate) struct QueueContentIterator<'a, 'q, Q: Queue<'a>> {
     queue: &'q mut Q,
     kind: FormatTagKind,
     depth: usize,
@@ -220,12 +217,13 @@ where
         } else {
             let mut top = self.queue.pop();
 
+            // resolve interned elements by extending the queue
             while let Some(FormatElement::Interned(interned)) = top {
                 self.queue.extend_back(interned);
                 top = self.queue.pop();
             }
 
-            match top.expect("Missing end signal.") {
+            match top.unwrap_or_else(|| panic!("missing end signal")) {
                 element @ FormatElement::Tag(tag) if tag.kind() == self.kind => {
                     if tag.is_start() {
                         self.depth += 1;
@@ -250,7 +248,8 @@ impl<'a, Q> FusedIterator for QueueContentIterator<'a, '_, Q> where Q: Queue<'a>
 /// A predicate determining when to end measuring if some content fits on the line.
 ///
 /// Called for every [`element`](FormatElement) in the [`FitsQueue`] when measuring if a content
-/// fits on the line. The measuring of the content ends after the first element [`element`](FormatElement) for which this
+/// fits on the line.
+/// The measuring of the content ends after the first element [`element`](FormatElement) for which this
 /// predicate returns `true` (similar to a take while iterator except that it takes while the predicate returns `false`).
 pub(super) trait FitsEndPredicate {
     fn is_end(&mut self, element: &FormatElement) -> PrintResult<bool>;
@@ -324,14 +323,20 @@ impl FitsEndPredicate for SingleEntryPredicate {
 #[cfg(test)]
 mod tests {
     use crate::printer::queue::{PrintQueue, Queue};
-    use crate::{FormatElement, LineMode, FormatTag};
+    use crate::{FormatElement, FormatTag, LineMode};
 
     #[test]
-    fn extend_back_pop_last() {
-        let mut queue =
-            PrintQueue::new(&[FormatElement::Tag(FormatTag::StartEntry), FormatElement::Space]);
+    fn test_extend_back_pop_last() {
+        // extend_back should add elements to be processed before existing ones
+        let mut queue = PrintQueue::new(&[
+            FormatElement::Tag(FormatTag::StartEntry),
+            FormatElement::Space,
+        ]);
 
-        assert_eq!(queue.pop(), Some(&FormatElement::Tag(FormatTag::StartEntry)));
+        assert_eq!(
+            queue.pop(),
+            Some(&FormatElement::Tag(FormatTag::StartEntry))
+        );
 
         queue.extend_back(&[FormatElement::Line(LineMode::SoftOrSpace)]);
 
@@ -345,11 +350,17 @@ mod tests {
     }
 
     #[test]
-    fn extend_back_empty_queue() {
-        let mut queue =
-            PrintQueue::new(&[FormatElement::Tag(FormatTag::StartEntry), FormatElement::Space]);
+    fn test_extend_back_empty_queue() {
+        // extend_back should work correctly when queue becomes empty
+        let mut queue = PrintQueue::new(&[
+            FormatElement::Tag(FormatTag::StartEntry),
+            FormatElement::Space,
+        ]);
 
-        assert_eq!(queue.pop(), Some(&FormatElement::Tag(FormatTag::StartEntry)));
+        assert_eq!(
+            queue.pop(),
+            Some(&FormatElement::Tag(FormatTag::StartEntry))
+        );
         assert_eq!(queue.pop(), Some(&FormatElement::Space));
 
         queue.extend_back(&[FormatElement::Line(LineMode::SoftOrSpace)]);

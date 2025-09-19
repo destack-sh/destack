@@ -1,22 +1,30 @@
+use std::fmt::Debug;
+
 use crate::buffer::BufferSnapshot;
 use crate::builder::{FillBuilder, JoinBuilder};
 use crate::prelude::*;
 use crate::{Arguments, Buffer, FormatContext, FormatState, GroupId, VecBuffer};
 
-/// Handles the formatting of a CST and stores the context how the CST should be formatted (user preferences).
-/// The formatter is passed to the [Format] implementation of every node in the CST so that they
+/// Handles the formatting of a AST and stores the context how the AST should be formatted (user preferences).
+/// The formatter is passed to the [Format] implementation of every node in the AST so that they
 /// can use it to format their children.
 pub struct Formatter<'buf, Context> {
     pub(super) buffer: &'buf mut dyn Buffer<Context = Context>,
 }
 
+impl<Context> Debug for Formatter<'_, Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Formatter").finish()
+    }
+}
+
 impl<'buf, Context> Formatter<'buf, Context> {
-    /// Creates a new context that uses the given formatter context
+    /// Create a new context that uses the given formatter context.
     pub fn new(buffer: &'buf mut (dyn Buffer<Context = Context> + 'buf)) -> Self {
         Self { buffer }
     }
 
-    /// Returns the format options
+    /// Get the format options.
     pub fn options(&self) -> &Context::Options
     where
         Context: FormatContext,
@@ -24,30 +32,30 @@ impl<'buf, Context> Formatter<'buf, Context> {
         self.context().options()
     }
 
-    /// Returns the Context specifying how to format the current CST
+    /// Get the Context specifying how to format the current AST.
     pub fn context(&self) -> &Context {
         self.state().context()
     }
 
-    /// Returns a mutable reference to the context.
+    /// Get a mutable reference to the context.
     pub fn context_mut(&mut self) -> &mut Context {
         self.state_mut().context_mut()
     }
 
-    /// Creates a new group id that is unique to this document. The passed debug name is used in the
-    /// [`std::fmt::Debug`] of the document if this is a debug build.
+    /// Create a new group id that is unique to this document.
+    /// The passed debug name is used in the [`std::fmt::Debug`] of the document if this is a debug build.
     /// The name is unused for production builds and has no meaning on the equality of two group ids.
     pub fn group_id(&self, debug_name: &'static str) -> GroupId {
         self.state().group_id(debug_name)
     }
 
-    /// Joins multiple [Format] together without any separator
+    /// Join multiple [Format] together without any separator.
     ///
     /// ## Examples
     ///
     /// ```rust
-    /// use ruff_formatter::format;
-    /// use ruff_formatter::prelude::*;
+    /// use dyst_language_format::format;
+    /// use dyst_language_format::prelude::*;
     ///
     /// # fn main() -> FormatResult<()> {
     /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
@@ -71,15 +79,15 @@ impl<'buf, Context> Formatter<'buf, Context> {
         JoinBuilder::new(self)
     }
 
-    /// Joins the objects by placing the specified separator between every two items.
+    /// Join the objects by placing the specified separator between every two items.
     ///
     /// ## Examples
     ///
     /// Joining different tokens by separating them with a comma and a space.
     ///
     /// ```
-    /// use ruff_formatter::{format, format_args};
-    /// use ruff_formatter::prelude::*;
+    /// use dyst_language_format::{format, format_args};
+    /// use dyst_language_format::prelude::*;
     ///
     /// # fn main() -> FormatResult<()> {
     /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
@@ -108,15 +116,15 @@ impl<'buf, Context> Formatter<'buf, Context> {
         JoinBuilder::with_separator(self, joiner)
     }
 
-    /// Concatenates a list of [`crate::Format`] objects with spaces and line breaks to fit
-    /// them on as few lines as possible. Each element introduces a conceptual group. The printer
-    /// first tries to print the item in flat mode but then prints it in expanded mode if it doesn't fit.
+    /// Concatenate a list of [`crate::Format`] objects with spaces and line breaks to fit them on as few lines as possible.
+    /// Each element introduces a conceptual group.
+    /// The printer first tries to print the item in flat mode but then prints it in expanded mode if it doesn't fit.
     ///
     /// ## Examples
     ///
     /// ```rust
-    /// use ruff_formatter::prelude::*;
-    /// use ruff_formatter::{format, format_args};
+    /// use dyst_language_format::prelude::*;
+    /// use dyst_language_format::{format, format_args};
     ///
     /// # fn main() -> FormatResult<()> {
     /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
@@ -137,8 +145,8 @@ impl<'buf, Context> Formatter<'buf, Context> {
     /// ```
     ///
     /// ```rust
-    /// use ruff_formatter::prelude::*;
-    /// use ruff_formatter::{format, format_args};
+    /// use dyst_language_format::prelude::*;
+    /// use dyst_language_format::{format, format_args};
     ///
     /// # fn main() -> FormatResult<()> {
     /// let entries = vec![
@@ -163,7 +171,7 @@ impl<'buf, Context> Formatter<'buf, Context> {
         FillBuilder::new(self)
     }
 
-    /// Formats `content` into an interned element without writing it to the formatter's buffer.
+    /// Format `content` into an interned element without writing it to the formatter's buffer.
     pub fn intern(&mut self, content: &dyn Format<Context>) -> FormatResult<Option<FormatElement>> {
         let mut buffer = VecBuffer::new(self.state_mut());
         crate::write!(&mut buffer, [content])?;
@@ -172,11 +180,11 @@ impl<'buf, Context> Formatter<'buf, Context> {
         Ok(self.intern_vec(elements))
     }
 
+    /// Intern a vector of elements into a single element.
     pub fn intern_vec(&mut self, mut elements: Vec<FormatElement>) -> Option<FormatElement> {
         match elements.len() {
             0 => None,
-            // Doesn't get cheaper than calling clone, use the element directly
-            // SAFETY: Safe because of the `len == 1` check in the match arm.
+            // doesn't get cheaper than calling clone, use the element directly
             1 => Some(elements.pop().unwrap()),
             _ => Some(FormatElement::Interned(Interned::new(elements))),
         }
@@ -187,7 +195,7 @@ impl<Context> Formatter<'_, Context>
 where
     Context: FormatContext,
 {
-    /// Take a snapshot of the state of the formatter
+    /// Take a snapshot of the state of the formatter.
     #[inline]
     pub fn state_snapshot(&self) -> FormatterSnapshot {
         FormatterSnapshot {
@@ -195,8 +203,8 @@ where
         }
     }
 
+    /// Restore the state of the formatter to a previous snapshot.
     #[inline]
-    /// Restore the state of the formatter to a previous snapshot
     pub fn restore_state_snapshot(&mut self, snapshot: FormatterSnapshot) {
         self.buffer.restore_snapshot(snapshot.buffer);
     }
@@ -239,12 +247,9 @@ impl<Context> Buffer for Formatter<'_, Context> {
     }
 }
 
-/// Snapshot of the formatter state  used to handle backtracking if
-/// errors are encountered in the formatting process and the formatter
-/// has to fallback to printing raw tokens
-///
-/// In practice this only saves the set of printed tokens in debug
-/// mode and compiled to nothing in release mode
+/// Snapshot of the formatter state used to handle backtracking if errors are encountered in the formatting process and the formatter has to fallback to printing raw tokens.
+/// In practice this only saves the set of printed tokens in debug mode and compiled to nothing in release mode.
+#[derive(Debug)]
 pub struct FormatterSnapshot {
     buffer: BufferSnapshot,
 }

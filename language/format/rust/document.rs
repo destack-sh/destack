@@ -19,6 +19,7 @@ impl Document {
     /// [`BestFitting`]'s content expands is not propagated past the [`BestFitting`] element.
     ///
     /// [`BestFitting`]: FormatElement::BestFitting
+    #[allow(clippy::mutable_key_type)]
     pub(crate) fn propagate_expand(&mut self) {
         #[derive(Debug)]
         enum Enclosing<'a> {

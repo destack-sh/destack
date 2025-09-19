@@ -1,9 +1,17 @@
+use std::fmt::Debug;
+
 use super::{Buffer, Format, Formatter};
 use crate::FormatResult;
 
 /// A convenience wrapper for representing a formattable argument.
 pub struct Argument<'fmt, Context> {
     value: &'fmt dyn Format<Context>,
+}
+
+impl<Context> Debug for Argument<'_, Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Argument").finish()
+    }
 }
 
 impl<Context> Clone for Argument<'_, Context> {
@@ -14,16 +22,16 @@ impl<Context> Clone for Argument<'_, Context> {
 impl<Context> Copy for Argument<'_, Context> {}
 
 impl<'fmt, Context> Argument<'fmt, Context> {
-    /// Called by the [ruff_formatter::format_args] macro.
+    /// Called by the [dyst_language_format::format_args] macro.
     #[doc(hidden)]
     #[inline]
     pub const fn new<F: Format<Context>>(value: &'fmt F) -> Self {
         Self { value }
     }
 
-    /// Formats the value stored by this argument using the given formatter.
+    /// Format the value stored by this argument using the given formatter.
     #[inline]
-    // Seems to only be triggered on wasm32 and looks like a false positive?
+    // NOTE @Performance: seems to only be triggered on wasm32 and looks like a false positive?
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub(super) fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         self.value.fmt(f)
@@ -38,8 +46,8 @@ impl<'fmt, Context> Argument<'fmt, Context> {
 /// It will call the `format` function for each of its objects.
 ///
 /// ```rust
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{format, format_args};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{format, format_args};
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(SimpleFormatContext::default(), [
@@ -59,9 +67,10 @@ impl<'fmt, Context> Arguments<'fmt, Context> {
         Self(arguments)
     }
 
-    /// Returns the arguments
+    /// Get the arguments.
     #[inline]
-    #[allow(clippy::trivially_copy_pass_by_ref)] // Bug in Clippy? Sizeof Arguments is 16
+    // NOTE @Performance: bug in Clippy? Sizeof Arguments is 16
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub(super) fn items(&self) -> &'fmt [Argument<'fmt, Context>] {
         self.0
     }
@@ -96,9 +105,10 @@ impl<'fmt, Context> From<&'fmt Argument<'fmt, Context>> for Arguments<'fmt, Cont
 
 #[cfg(test)]
 mod tests {
-    use crate::{group, prelude::*};
-    use crate::{FormatState, FormatTag, VecBuffer, format_args, write};
+    use crate::prelude::*;
+    use crate::{FormatState, FormatTag, VecBuffer, format_args, group, write};
 
+    /// Format nested arguments and verify the output structure.
     #[test]
     fn test_nesting() {
         let mut context = FormatState::new(SimpleFormatContext::default());

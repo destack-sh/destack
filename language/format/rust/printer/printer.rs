@@ -1,6 +1,6 @@
 use crate::sizing::CharWidth;
 
-use dyst_language_source::{Source, SourceId, Span};
+use dyst_language_source::{Source, Span};
 
 use super::bomb::DebugDropBomb;
 use crate::printer::call_stack::{
@@ -56,14 +56,12 @@ impl<'a> Printer<'a> {
         loop {
             if let Some(element) = queue.pop() {
                 self.print_element(&mut stack, &mut queue, element)?;
-            } else {
-                if !self.flush_line_suffixes(&mut queue, &mut stack, None) {
-                    break;
-                }
+            } else if !self.flush_line_suffixes(&mut queue, &mut stack, None) {
+                break;
             }
         }
 
-        // Push any pending marker
+        // push any pending marker
         self.push_marker();
 
         Ok(Printed::new(
@@ -110,13 +108,13 @@ impl<'a> Printer<'a> {
                 } else if self.state.line_suffixes.has_pending() {
                     self.flush_line_suffixes(queue, stack, Some(element));
                 } else {
-                    // Only print a newline if the current line isn't already empty
+                    // only print a newline if the current line isn't already empty
                     if !self.state.buffer[self.state.line_start..].is_empty() {
                         self.push_marker();
                         self.print_char('\n');
                     }
 
-                    // Print a second line break if this is an empty line
+                    // print a second line break if this is an empty line
                     if line_mode == &LineMode::Empty {
                         self.push_marker();
                         self.print_char('\n');
@@ -127,10 +125,10 @@ impl<'a> Printer<'a> {
             }
 
             FormatElement::ExpandParent => {
-                // Handled in `Document::propagate_expands()
+                // handled in `Document::propagate_expands()
             }
 
-            FormatElement::LineBoundary => {
+            FormatElement::LineSuffixBoundary => {
                 const HARD_BREAK: &FormatElement = &FormatElement::Line(LineMode::Hard);
                 self.flush_line_suffixes(queue, stack, Some(HARD_BREAK));
             }
@@ -178,7 +176,7 @@ impl<'a> Printer<'a> {
                 let print_mode = if fits_flat {
                     PrintMode::Flat
                 } else {
-                    // Test if the content fits in expanded mode. If not, prefer avoiding the parentheses
+                    // test if the content fits in expanded mode. If not, prefer avoiding the parentheses
                     // over parenthesizing the expression.
                     if let Some(id) = id {
                         self.state
@@ -208,7 +206,7 @@ impl<'a> Printer<'a> {
                 }
 
                 if print_mode.is_expanded() {
-                    // Parenthesize the content. The `EndIndent` is handled inside of the `EndBestFitParenthesize`
+                    // parenthesize the content. The `EndIndent` is handled inside of the `EndBestFitParenthesize`
                     queue.extend_back(&[OPEN_PAREN, INDENT, HARD_LINE_BREAK]);
                 }
 
@@ -223,7 +221,7 @@ impl<'a> Printer<'a> {
                     const HARD_LINE_BREAK: FormatElement = FormatElement::Line(LineMode::Hard);
                     const CLOSE_PAREN: FormatElement = FormatElement::Token { text: ")" };
 
-                    // Finish the indent and print the hardline break and closing parentheses.
+                    // finish the indent and print the hardline break and closing parentheses.
                     stack.pop(FormatTagKind::Indent)?;
                     queue.extend_back(&[HARD_LINE_BREAK, CLOSE_PAREN]);
                 }
@@ -255,7 +253,7 @@ impl<'a> Printer<'a> {
                         args.with_print_mode(print_mode),
                     );
                 } else {
-                    // Condition isn't met, render as normal content
+                    // condition isn't met, render as normal content
                     stack.push(FormatTagKind::ConditionalGroup, args);
                 }
             }
@@ -316,10 +314,9 @@ impl<'a> Printer<'a> {
 
             FormatElement::Tag(StartVerbatim(kind)) => {
                 if let VerbatimKind::Verbatim { length } = kind {
-                    // SAFETY: Ruff only supports formatting files <= 4GB
                     #[expect(clippy::cast_possible_truncation)]
                     self.state.verbatim_markers.push(Span::at(
-                        SourceId::new(0), // nocheckin: get SourceId from somewhere?
+                        self.source.id,
                         self.state.buffer.len() as u32,
                         *length,
                     ));
@@ -342,7 +339,7 @@ impl<'a> Printer<'a> {
                 };
 
                 if condition_met {
-                    // We measured the inner groups all in expanded. It now is necessary to measure if the inner groups fit as well.
+                    // we measured the inner groups all in expanded. It now is necessary to measure if the inner groups fit as well.
                     self.state.measured_group_fits = false;
                 }
 
@@ -392,11 +389,11 @@ impl<'a> Printer<'a> {
     ) -> PrintResult<PrintMode> {
         let print_mode = match args.mode() {
             PrintMode::Flat if self.state.measured_group_fits => {
-                // A parent group has already verified that this group fits on a single line
-                // Thus, just continue in flat mode
+                // a parent group has already verified that this group fits on a single line
+                // thus, just continue in flat mode
                 PrintMode::Flat
             }
-            // The printer is either in expanded mode or it's necessary to re-measure if the group fits
+            // the printer is either in expanded mode or it's necessary to re-measure if the group fits
             // because the printer printed a line break
             _ => {
                 self.state.measured_group_fits = true;
@@ -407,7 +404,7 @@ impl<'a> Printer<'a> {
                         .insert_print_mode(id, PrintMode::Flat);
                 }
 
-                // Measure to see if the group fits up on a single line. If that's the case,
+                // measure to see if the group fits up on a single line. If that's the case,
                 // print the group in "flat" mode, otherwise continue in expanded mode
                 stack.push(kind, args.with_print_mode(PrintMode::Flat));
                 let fits = self.fits(queue, stack)?;
@@ -495,7 +492,7 @@ impl<'a> Printer<'a> {
         let suffixes = self.state.line_suffixes.take_pending();
 
         if suffixes.len() > 0 {
-            // Print this line break element again once all the line suffixes have been flushed
+            // print this line break element again once all the line suffixes have been flushed
             if let Some(line_break) = line_break {
                 queue.push(line_break);
             }
@@ -540,10 +537,10 @@ impl<'a> Printer<'a> {
             let mut current = variants_iter.next().unwrap();
 
             for next in variants_iter {
-                // Test if this variant fits and if so, use it. Otherwise try the next
+                // test if this variant fits and if so, use it. Otherwise try the next
                 // variant.
 
-                // Try to fit only the first variant on a single line
+                // try to fit only the first variant on a single line
                 if !matches!(
                     current.first(),
                     Some(&FormatElement::Tag(FormatTag::StartBestFittingEntry))
@@ -551,7 +548,7 @@ impl<'a> Printer<'a> {
                     return invalid_start_tag(FormatTagKind::BestFittingEntry, current.first());
                 }
 
-                // Skip the first element because we want to override the args for the entry and the
+                // skip the first element because we want to override the args for the entry and the
                 // args must be popped from the stack as soon as it sees the matching end entry.
                 let content = &current[1..];
 
@@ -564,7 +561,7 @@ impl<'a> Printer<'a> {
                 let variant_fits = self.fits(queue, stack)?;
                 stack.pop(FormatTagKind::BestFittingEntry)?;
 
-                // Remove the content slice because printing needs the variant WITH the start entry
+                // remove the content slice because printing needs the variant WITH the start entry
                 let popped_slice = queue.pop_slice();
                 debug_assert_eq!(popped_slice, Some(content));
 
@@ -581,9 +578,9 @@ impl<'a> Printer<'a> {
                 current = next;
             }
 
-            // At this stage current is the most expanded.
+            // at this stage current is the most expanded.
 
-            // No variant fits, take the last (most expanded) as fallback
+            // no variant fits, take the last (most expanded) as fallback
             queue.extend_back(current);
             self.print_entry(
                 queue,
@@ -620,7 +617,7 @@ impl<'a> Printer<'a> {
     ) -> PrintResult<()> {
         let args = stack.top();
 
-        // It's already known that the content fit, print all items in flat mode.
+        // it's already known that the content fit, print all items in flat mode.
         if self.state.measured_group_fits && args.mode().is_flat() {
             stack.push(FormatTagKind::Fill, args.with_print_mode(PrintMode::Flat));
             return Ok(());
@@ -631,17 +628,17 @@ impl<'a> Printer<'a> {
         while matches!(queue.top(), Some(FormatElement::Tag(FormatTag::StartEntry))) {
             let mut measurer = FitsMeasurer::new_flat(queue, stack, self);
 
-            // The number of item/separator pairs that fit on the same line.
+            // the number of item/separator pairs that fit on the same line.
             let mut flat_pairs = 0usize;
             let mut item_fits = measurer.fill_item_fits()?;
 
             let last_pair_layout = if item_fits {
-                // Measure the remaining pairs until the first item or separator that does not fit (or the end of the fill element).
-                // Optimisation to avoid re-measuring the next-item twice:
-                // * Once when measuring if the *item*, *separator*, *next-item* fit
-                // * A second time when measuring if *next-item*, *separator*, *next-next-item* fit.
+                // measure the remaining pairs until the first item or separator that does not fit (or the end of the fill element).
+                // optimisation to avoid re-measuring the next-item twice:
+                // * once when measuring if the *item*, *separator*, *next-item* fit
+                // * a second time when measuring if *next-item*, *separator*, *next-next-item* fit.
                 loop {
-                    // Item that fits without a following separator.
+                    // item that fits without a following separator.
                     if !matches!(
                         measurer.queue.top(),
                         Some(FormatElement::Tag(FormatTag::StartEntry))
@@ -651,12 +648,12 @@ impl<'a> Printer<'a> {
 
                     let separator_fits = measurer.fill_separator_fits(PrintMode::Flat)?;
 
-                    // Item fits but the flat separator does not.
+                    // item fits but the flat separator does not.
                     if !separator_fits {
                         break FillPairLayout::ItemMaybeFlat;
                     }
 
-                    // Last item/separator pair that both fit
+                    // last item/separator pair that both fit
                     if !matches!(
                         measurer.queue.top(),
                         Some(FormatElement::Tag(FormatTag::StartEntry))
@@ -669,14 +666,14 @@ impl<'a> Printer<'a> {
                     if item_fits {
                         flat_pairs += 1;
                     } else {
-                        // Item and separator both fit, but the next element doesn't.
-                        // Print the separator in expanded mode and then re-measure if the item now
+                        // item and separator both fit, but the next element doesn't.
+                        // print the separator in expanded mode and then re-measure if the item now
                         // fits in the next iteration of the outer loop.
                         break FillPairLayout::ItemFlatSeparatorExpanded;
                     }
                 }
             } else {
-                // Neither item nor separator fit, print both in expanded mode.
+                // neither item nor separator fit, print both in expanded mode.
                 FillPairLayout::Expanded
             };
 
@@ -684,7 +681,7 @@ impl<'a> Printer<'a> {
 
             self.state.measured_group_fits = true;
 
-            // Print all pairs that fit in flat mode.
+            // print all pairs that fit in flat mode.
             for _ in 0..flat_pairs {
                 self.print_fill_item(queue, stack, args.with_print_mode(PrintMode::Flat))?;
                 self.print_fill_separator(queue, stack, args.with_print_mode(PrintMode::Flat))?;
@@ -695,8 +692,7 @@ impl<'a> Printer<'a> {
                 FillPairLayout::Expanded => PrintMode::Expanded,
                 FillPairLayout::ItemMaybeFlat => {
                     let mut measurer = FitsMeasurer::new_flat(queue, stack, self);
-                    // SAFETY: That the item fits is guaranteed by `ItemMaybeFlat`.
-                    // Re-measuring is required to get the measurer in the correct state for measuring the separator.
+                    // re-measuring is required to get the measurer in the correct state for measuring the separator.
                     assert!(measurer.fill_item_fits()?);
                     let separator_fits = measurer.fill_separator_fits(PrintMode::Expanded)?;
                     measurer.finish();
@@ -719,7 +715,7 @@ impl<'a> Printer<'a> {
                     | FillPairLayout::ItemMaybeFlat => PrintMode::Expanded,
                 };
 
-                // Push a new stack frame with print mode `Flat` for the case where the separator gets printed in expanded mode
+                // push a new stack frame with print mode `Flat` for the case where the separator gets printed in expanded mode
                 // but does contain a group to ensure that the group will measure "fits" with the "flat" versions of the next item/separator.
                 stack.push(FormatTagKind::Fill, args.with_print_mode(PrintMode::Flat));
                 self.print_fill_separator(queue, stack, args.with_print_mode(separator_mode))?;
@@ -787,14 +783,14 @@ impl<'a> Printer<'a> {
                     end_tag @ (FormatTag::EndEntry | FormatTag::EndBestFittingEntry),
                 ) => {
                     depth -= 1;
-                    // Reached the end entry, pop the entry from the stack and return.
+                    // reached the end entry, pop the entry from the stack and return.
                     if depth == 0 {
                         stack.pop(end_tag.kind())?;
                         return Ok(());
                     }
                 }
                 _ => {
-                    // Fall through
+                    // fall through
                 }
             }
 
@@ -813,13 +809,12 @@ impl<'a> Printer<'a> {
             self.state.line_width = 0;
             self.state.line_start = self.state.buffer.len();
 
-            // Fit's only tests if groups up to the first line break fit.
-            // The next group must re-measure if it still fits.
+            // fit's only tests if groups up to the first line break fit.
+            // the next group must re-measure if it still fits.
             self.state.measured_group_fits = false;
         } else {
             self.state.buffer.push(char);
 
-            #[expect(clippy::cast_possible_truncation)]
             let char_width = if char == '\t' {
                 self.options.indent_width as u32
             } else {
@@ -1103,7 +1098,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                     args,
                 ));
             }
-            FormatElement::LineBoundary => {
+            FormatElement::LineSuffixBoundary => {
                 if self.state.has_line_suffix {
                     return Ok(Fits::No);
                 }
@@ -1396,7 +1391,6 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                                     }
                                 }
                             }
-                            #[expect(clippy::cast_possible_truncation)]
                             c => c.width(),
                         };
                         self.state.line_width += char_width as u32;
@@ -1534,8 +1528,9 @@ mod tests {
             .expect("Document to be valid")
     }
 
+    /// Groups that fit within line width should print on one line.
     #[test]
-    fn it_prints_a_group_on_a_single_line_if_it_fits() {
+    fn test_prints_group_on_single_line_if_fits() {
         let result = format(&FormatArrayElements {
             items: vec![
                 &token("\"a\""),
@@ -1545,11 +1540,12 @@ mod tests {
             ],
         });
 
-        assert_eq!(r#"["a", "b", "c", "d"]"#, result.as_code());
+        assert_eq!(r#"["a", "b", "c", "d"]"#, result.as_str());
     }
 
+    /// Nested indentation should accumulate correctly.
     #[test]
-    fn it_tracks_the_indent_for_each_token() {
+    fn test_tracks_indent_for_each_token() {
         let formatted = format(&format_args!(
             token("a"),
             soft_block_indent(&format_args!(
@@ -1566,19 +1562,20 @@ mod tests {
 
         assert_eq!(
             "a
-  b
-    c
-      d
-      d
-    c
-  b
+    b
+        c
+            d
+            d
+        c
+    b
 a",
-            formatted.as_code()
+            formatted.as_str()
         );
     }
 
+    /// Line endings should be converted according to options.
     #[test]
-    fn it_converts_line_endings() {
+    fn test_converts_line_endings() {
         let options = PrintOptions {
             line_ending: LineEnding::CarriageReturnLineFeed,
             ..PrintOptions::default()
@@ -1595,13 +1592,14 @@ a",
         );
 
         assert_eq!(
-            "function main() {\r\n\tlet x = `This is a multiline\r\nstring`;\r\n}\r\n",
-            result.as_code()
+            "function main() {\r\n    let x = `This is a multiline\r\nstring`;\r\n}\r\n",
+            result.as_str()
         );
     }
 
+    /// Groups containing strings with newlines should break.
     #[test]
-    fn it_breaks_a_group_if_a_string_contains_a_newline() {
+    fn test_breaks_group_if_string_contains_newline() {
         let result = format(&FormatArrayElements {
             items: vec![
                 &text("`This is a string spanning\ntwo lines`"),
@@ -1611,73 +1609,83 @@ a",
 
         assert_eq!(
             r#"[
-  `This is a string spanning
+    `This is a string spanning
 two lines`,
-  "b",
+    "b",
 ]"#,
-            result.as_code()
+            result.as_str()
         );
     }
+
+    /// Groups with hard line breaks should always break.
     #[test]
-    fn it_breaks_a_group_if_it_contains_a_hard_line_break() {
+    fn test_breaks_group_if_contains_hard_line_break() {
         let result = format(&group(&format_args![token("a"), block_indent(&token("b"))]));
 
-        assert_eq!("a\n  b\n", result.as_code());
+        assert_eq!("a\n    b\n", result.as_str());
     }
 
+    /// Parent groups should break when child content doesn't fit.
     #[test]
-    fn it_breaks_parent_groups_if_they_dont_fit_on_a_single_line() {
-        let result = format(&FormatArrayElements {
-            items: vec![
-                &token("\"a\""),
-                &token("\"b\""),
-                &token("\"c\""),
-                &token("\"d\""),
-                &FormatArrayElements {
-                    items: vec![
-                        &token("\"0123456789\""),
-                        &token("\"0123456789\""),
-                        &token("\"0123456789\""),
-                        &token("\"0123456789\""),
-                        &token("\"0123456789\""),
-                    ],
-                },
-            ],
-        });
+    fn test_breaks_parent_groups_if_dont_fit_on_single_line() {
+        let options = PrintOptions {
+            line_width: 80,
+            ..PrintOptions::default()
+        };
+        let result = format_with_options(
+            &FormatArrayElements {
+                items: vec![
+                    &token("\"a\""),
+                    &token("\"b\""),
+                    &token("\"c\""),
+                    &token("\"d\""),
+                    &FormatArrayElements {
+                        items: vec![
+                            &token("\"0123456789\""),
+                            &token("\"0123456789\""),
+                            &token("\"0123456789\""),
+                            &token("\"0123456789\""),
+                            &token("\"0123456789\""),
+                        ],
+                    },
+                ],
+            },
+            options,
+        );
 
         assert_eq!(
             r#"[
-  "a",
-  "b",
-  "c",
-  "d",
-  ["0123456789", "0123456789", "0123456789", "0123456789", "0123456789"],
+    "a",
+    "b",
+    "c",
+    "d",
+    ["0123456789", "0123456789", "0123456789", "0123456789", "0123456789"],
 ]"#,
-            result.as_code()
+            result.as_str()
         );
     }
 
+    /// Indentation should use the character specified in options.
     #[test]
-    fn it_use_the_indent_character_specified_in_the_options() {
+    fn test_uses_indent_character_from_options() {
         let options = PrintOptions {
             indent_width: 4,
             line_width: 19,
             indent_style: IndentStyle::Tab,
             ..PrintOptions::default()
         };
-
         let result = format_with_options(
             &FormatArrayElements {
                 items: vec![&token("'a'"), &token("'b'"), &token("'c'"), &token("'d'")],
             },
             options,
         );
-
-        assert_eq!("[\n\t'a',\n\t\'b',\n\t\'c',\n\t'd',\n]", result.as_code());
+        assert_eq!("[\n\t'a',\n\t\'b',\n\t\'c',\n\t'd',\n]", result.as_str());
     }
 
+    /// Multiple consecutive hard line breaks should collapse to one.
     #[test]
-    fn it_prints_consecutive_hard_lines_as_one() {
+    fn test_prints_consecutive_hard_lines_as_one() {
         let result = format(&format_args![
             token("a"),
             hard_line_break(),
@@ -1686,11 +1694,12 @@ two lines`,
             token("b"),
         ]);
 
-        assert_eq!("a\nb", result.as_code());
+        assert_eq!("a\nb", result.as_str());
     }
 
+    /// Empty lines should not collapse.
     #[test]
-    fn it_prints_consecutive_empty_lines_as_many() {
+    fn test_prints_consecutive_empty_lines_as_many() {
         let result = format(&format_args![
             token("a"),
             empty_line(),
@@ -1699,11 +1708,12 @@ two lines`,
             token("b"),
         ]);
 
-        assert_eq!("a\n\n\n\nb", result.as_code());
+        assert_eq!("a\n\n\n\nb", result.as_str());
     }
 
+    /// Mixed empty lines and hard breaks should preserve empty lines.
     #[test]
-    fn it_prints_consecutive_mixed_lines_as_many() {
+    fn test_prints_consecutive_mixed_lines_as_many() {
         let result = format(&format_args![
             token("a"),
             empty_line(),
@@ -1713,9 +1723,10 @@ two lines`,
             token("b"),
         ]);
 
-        assert_eq!("a\n\n\nb", result.as_code());
+        assert_eq!("a\n\n\nb", result.as_str());
     }
 
+    /// Fill should break items optimally based on line width.
     #[test]
     fn test_fill_breaks() {
         let mut state = FormatState::new(SimpleFormatContext::default());
@@ -1773,13 +1784,14 @@ two lines`,
         .unwrap();
 
         assert_eq!(
-            printed.as_code(),
-            "1, 2, 3,\n723493294,\n[5],\n[\n\t123456789\n]"
+            printed.as_str(),
+            "1, 2, 3,\n723493294,\n[5],\n[\n    123456789\n]"
         );
     }
 
+    /// Line suffixes should appear at the end of their line.
     #[test]
-    fn line_suffix_printed_at_end() {
+    fn test_line_suffix_printed_at_end() {
         let printed = format(&format_args![
             group(&format_args![
                 token("["),
@@ -1805,11 +1817,12 @@ two lines`,
             line_suffix(&format_args![space(), token("// trailing")], 0)
         ]);
 
-        assert_eq!(printed.as_code(), "[1, 2, 3]; // trailing");
+        assert_eq!(printed.as_str(), "[1, 2, 3]; // trailing");
     }
 
+    /// Line suffixes with reserved width should affect line breaking.
     #[test]
-    fn line_suffix_with_reserved_width() {
+    fn test_line_suffix_with_reserved_width() {
         let printed = format(&format_args![
             group(&format_args![
                 token("["),
@@ -1844,13 +1857,14 @@ two lines`,
         ]);
 
         assert_eq!(
-            printed.as_code(),
-            "[\n  1, 2, 3\n]; // Using reserved width causes this content to not fit even though it's a line suffix element"
+            printed.as_str(),
+            "[\n    1, 2, 3\n]; // Using reserved width causes this content to not fit even though it's a line suffix element"
         );
     }
 
+    /// Conditional formatting should work correctly with group IDs.
     #[test]
-    fn conditional_with_group_id_in_fits() {
+    fn test_conditional_with_group_id_in_fits() {
         let content = format_with(|f| {
             let group_id = f.group_id("test");
             write!(
@@ -1874,13 +1888,19 @@ two lines`,
         let printed = format(&content);
 
         assert_eq!(
-            printed.as_code(),
+            printed.as_str(),
             "The referenced group breaks.\nThis group breaks because:\nIt measures with the 'if_group_breaks' variant because the referenced group breaks and that's just way too much text."
         );
     }
 
+    /// Group IDs should work correctly even when defined out of order.
     #[test]
-    fn out_of_order_group_ids() {
+    fn test_out_of_order_group_ids() {
+        let options = PrintOptions {
+            line_width: 80,
+            ..PrintOptions::default()
+        };
+
         let content = format_with(|f| {
             let id_1 = f.group_id("id-1");
             let id_2 = f.group_id("id-2");
@@ -1911,10 +1931,9 @@ two lines`,
             )
         });
 
-        let printed = format(&content);
-
+        let printed = format_with_options(&content, options);
         assert_eq!(
-            printed.as_code(),
+            printed.as_str(),
             "Group with id-2
 Group with id-1 does not fit on the line because it exceeds the line width of 80 characters by
 Group 2 fits
