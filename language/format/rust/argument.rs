@@ -31,8 +31,6 @@ impl<'fmt, Context> Argument<'fmt, Context> {
 
     /// Format the value stored by this argument using the given formatter.
     #[inline]
-    // NOTE @Performance: seems to only be triggered on wasm32 and looks like a false positive?
-    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub(super) fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         self.value.fmt(f)
     }
@@ -54,7 +52,7 @@ impl<'fmt, Context> Argument<'fmt, Context> {
 ///     format_args!(token("a"), space(), token("b"))
 /// ])?;
 ///
-/// assert_eq!("a b", formatted.print()?.as_code());
+/// assert_eq!("a b", formatted.print()?.as_str());
 /// # Ok(())
 /// # }
 /// ```
@@ -69,8 +67,6 @@ impl<'fmt, Context> Arguments<'fmt, Context> {
 
     /// Get the arguments.
     #[inline]
-    // NOTE @Performance: bug in Clippy? Sizeof Arguments is 16
-    #[allow(clippy::trivially_copy_pass_by_ref)]
     pub(super) fn items(&self) -> &'fmt [Argument<'fmt, Context>] {
         self.0
     }

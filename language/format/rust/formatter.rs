@@ -70,7 +70,7 @@ impl<'buf, Context> Formatter<'buf, Context> {
     ///
     /// assert_eq!(
     ///     "a + b",
-    ///     formatted.print()?.as_code()
+    ///     formatted.print()?.as_str()
     /// );
     /// # Ok(())
     /// # }
@@ -101,7 +101,7 @@ impl<'buf, Context> Formatter<'buf, Context> {
     ///
     /// assert_eq!(
     ///     "1, 2, 3, 4",
-    ///     formatted.print()?.as_code()
+    ///     formatted.print()?.as_str()
     /// );
     /// # Ok(())
     /// # }
@@ -138,7 +138,7 @@ impl<'buf, Context> Formatter<'buf, Context> {
     ///
     /// assert_eq!(
     ///     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccccccccccccccccccc dddddddddddddddddddddddddddddd",
-    ///     formatted.print()?.as_code()
+    ///     formatted.print()?.as_str()
     /// );
     /// # Ok(())
     /// # }
@@ -162,7 +162,7 @@ impl<'buf, Context> Formatter<'buf, Context> {
     ///
     /// assert_eq!(
     ///     &std::format!("<b>Important: </b>\nPlease do not commit memory bugs such as segfaults, buffer overflows, etc. otherwise you \n<em>will</em> be reprimanded"),
-    ///     formatted.print()?.as_code()
+    ///     formatted.print()?.as_str()
     /// );
     /// # Ok(())
     /// # }

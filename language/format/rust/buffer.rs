@@ -615,7 +615,7 @@ pub trait BufferExtensions: Buffer + Sized {
     ///     Ok(())
     /// })])?;
     ///
-    /// assert_eq!(formatted.print()?.as_code(), "ABCD");
+    /// assert_eq!(formatted.print()?.as_str(), "ABCD");
     /// # Ok(())
     /// # }
     /// ```

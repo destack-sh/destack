@@ -1,28 +1,11 @@
 /// Constructs the parameters for other formatting macros.
 ///
-/// This macro functions by taking a list of objects implementing [`crate::Format`]. It will canonicalize the
+/// This macro takes a list of objects implementing [`crate::Format`]. It will canonicalize the
 /// arguments into a single type.
 ///
 /// This macro produces a value of type [`crate::Arguments`]. This value can be passed to
 /// the macros within [crate]. All other formatting macros ([`format!`](crate::format!),
 /// [`write!`](crate::write!)) are proxied through this one. This macro avoids heap allocations.
-///
-/// You can use the [`Arguments`] value that `format_args!` returns in  `Format` contexts
-/// as seen below.
-///
-/// ```rust
-/// use dyst_language_format::{SimpleFormatContext, format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(SimpleFormatContext::default(), [
-///     format_args!(token("Hello World"))
-/// ])?;
-///
-/// assert_eq!("Hello World", formatted.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
 ///
 /// [`Format`]: crate::Format
 /// [`Arguments`]: crate::Arguments
@@ -42,30 +25,6 @@ macro_rules! format_args {
 /// This macro accepts a 'buffer' and a list of format arguments. Each argument will be formatted
 /// and the result will be passed to the buffer. The writer may be any value with a `write_fmt` method;
 /// generally this comes from an implementation of the [`crate::Buffer`] trait.
-///
-/// # Examples
-///
-/// ```rust
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::{Buffer, FormatState, SimpleFormatContext, VecBuffer, write};
-///
-/// # fn main() -> FormatResult<()> {
-/// let mut state = FormatState::new(SimpleFormatContext::default());
-/// let mut buffer = VecBuffer::new(&mut state);
-/// write!(&mut buffer, [token("Hello"), space()])?;
-/// write!(&mut buffer, [token("World")])?;
-///
-/// assert_eq!(
-///     buffer.into_vec(),
-///     vec![
-///         FormatElement::Token { text: "Hello" },
-///         FormatElement::Space,
-///         FormatElement::Token { text: "World" },
-///     ]
-///  );
-/// #  Ok(())
-/// # }
-/// ```
 #[macro_export]
 macro_rules! write {
     ($dst:expr, [$($arg:expr),+ $(,)?]) => {{
@@ -75,24 +34,6 @@ macro_rules! write {
 }
 
 /// Writes formatted data into the given buffer and prints all written elements for a quick and dirty debugging.
-///
-/// An example:
-///
-/// ```rust
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::{FormatState, VecBuffer};
-///
-/// # fn main() -> FormatResult<()> {
-/// let mut state = FormatState::new(SimpleFormatContext::default());
-/// let mut buffer = VecBuffer::new(&mut state);
-///
-/// dbg_write!(buffer, [token("Hello")])?;
-/// // ^-- prints: [src/main.rs:7][0] = StaticToken("Hello")
-///
-/// assert_eq!(buffer.into_vec(), vec![FormatElement::Token { text: "Hello" }]);
-/// # Ok(())
-/// # }
-/// ```
 ///
 /// NOTE: The macro is intended as debugging tool and therefore you should avoid having
 /// uses of it in version control for long periods (other than in tests and similar). Format output
@@ -118,24 +59,6 @@ macro_rules! dbg_write {
 ///
 /// The first argument `format!` receives is the [`crate::FormatContext`] that specify how elements must be formatted.
 /// Additional parameters passed get formatted by using their [`crate::Format`] implementation.
-///
-/// ## Examples
-///
-/// ```
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::format;
-///
-/// let formatted = format!(SimpleFormatContext::default(), [token("("), token("a"), token(")")]).unwrap();
-///
-/// assert_eq!(
-///     formatted.into_document(),
-///     Document::from(vec![
-///         FormatElement::Token { text: "(" },
-///         FormatElement::Token { text: "a" },
-///         FormatElement::Token { text: ")" },
-///     ])
-/// );
-/// ```
 #[macro_export]
 macro_rules! format {
     ($context:expr, [$($arg:expr),+ $(,)?]) => {{
@@ -148,160 +71,6 @@ macro_rules! format {
 /// The passed variants must be in the following order:
 /// - First: The variant that takes up most space horizontally
 /// - Last: The variant that takes up the least space horizontally by splitting the content over multiple lines.
-///
-/// ## Examples
-///
-/// ```
-/// use dyst_language_format::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(
-///     SimpleFormatContext::default(),
-///     [
-///         token("aVeryLongIdentifier"),
-///         best_fitting!(
-///             // Everything fits on a single line
-///             format_args!(
-///                 token("("),
-///                 group(&format_args![
-///                     token("["),
-///                         soft_block_indent(&format_args![
-///                         token("1,"),
-///                         soft_line_break_or_space(),
-///                         token("2,"),
-///                         soft_line_break_or_space(),
-///                         token("3"),
-///                     ]),
-///                     token("]")
-///                 ]),
-///                 token(")")
-///             ),
-///
-///             // Breaks after `[`, but prints all elements on a single line
-///             format_args!(
-///                 token("("),
-///                 token("["),
-///                 block_indent(&token("1, 2, 3")),
-///                 token("]"),
-///                 token(")"),
-///             ),
-///
-///             // Breaks after `[` and prints each element on a single line
-///             format_args!(
-///                 token("("),
-///                 block_indent(&format_args![
-///                     token("["),
-///                     block_indent(&format_args![
-///                         token("1,"),
-///                         hard_line_break(),
-///                         token("2,"),
-///                         hard_line_break(),
-///                         token("3"),
-///                     ]),
-///                     token("]"),
-///                 ]),
-///                 token(")")
-///             )
-///         )
-///     ]
-/// )?;
-///
-/// let document = formatted.into_document();
-///
-/// // Takes the first variant if everything fits on a single line
-/// assert_eq!(
-///     "aVeryLongIdentifier([1, 2, 3])",
-///     Formatted::new(document.clone(), SimpleFormatContext::default())
-///         .print()?
-///         .as_code()
-/// );
-///
-/// // It takes the second if the first variant doesn't fit on a single line. The second variant
-/// // has some additional line breaks to make sure inner groups don't break
-/// assert_eq!(
-///     "aVeryLongIdentifier([\n\t1, 2, 3\n])",
-///     Formatted::new(document.clone(), SimpleFormatContext::new(SimpleFormatOptions { line_width: 21.try_into().unwrap(), ..SimpleFormatOptions::default() }))
-///         .print()?
-///         .as_code()
-/// );
-///
-/// // Prints the last option as last resort
-/// assert_eq!(
-///     "aVeryLongIdentifier(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n)",
-///     Formatted::new(document.clone(), SimpleFormatContext::new(SimpleFormatOptions { line_width: 20.try_into().unwrap(), ..SimpleFormatOptions::default() }))
-///         .print()?
-///         .as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// ### Enclosing group with `should_expand: true`
-///
-/// ```
-/// use dyst_language_format::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(
-///     SimpleFormatContext::default(),
-///     [
-///         best_fitting!(
-///             // Prints the method call on the line but breaks the array.
-///             format_args!(
-///                 token("expect(a).toMatch("),
-///                 group(&format_args![
-///                     token("["),
-///                     soft_block_indent(&format_args![
-///                         token("1,"),
-///                         soft_line_break_or_space(),
-///                         token("2,"),
-///                         soft_line_break_or_space(),
-///                         token("3"),
-///                     ]),
-///                     token("]")
-///                 ]).should_expand(true),
-///                 token(")")
-///             ),
-///
-///             // Breaks after `(`
-///            format_args!(
-///                 token("expect(a).toMatch("),
-///                 group(&soft_block_indent(
-///                     &group(&format_args![
-///                         token("["),
-///                         soft_block_indent(&format_args![
-///                             token("1,"),
-///                             soft_line_break_or_space(),
-///                             token("2,"),
-///                             soft_line_break_or_space(),
-///                             token("3"),
-///                         ]),
-///                         token("]")
-///                     ]).should_expand(true),
-///                 )).should_expand(true),
-///                 token(")")
-///             ),
-///         )
-///     ]
-/// )?;
-///
-/// let document = formatted.into_document();
-///
-/// assert_eq!(
-///     "expect(a).toMatch([\n\t1,\n\t2,\n\t3\n])",
-///     Formatted::new(document.clone(), SimpleFormatContext::default())
-///         .print()?
-///         .as_code()
-/// );
-///
-/// # Ok(())
-/// # }
-/// ```
-///
-/// The first variant fits because all its content up to the first line break fit on the line without exceeding
-/// the configured print width.
 ///
 /// ## Complexity
 /// Be mindful of using this IR element as it has a considerable performance penalty:
@@ -334,10 +103,10 @@ macro_rules! best_fitting {
 
 #[cfg(test)]
 mod tests {
-    use dyst_language_source::Source;
-
-    use crate::prelude::*;
-    use crate::{FormatState, SimpleFormatOptions, VecBuffer, write};
+    use crate::{IndentStyle, prelude::*};
+    use crate::{
+        FormatState, Formatted, SimpleFormatOptions, VecBuffer, format, format_args, write,
+    };
 
     struct TestFormat;
 
@@ -347,6 +116,7 @@ mod tests {
         }
     }
 
+    /// Write a single format element to buffer.
     #[test]
     fn test_single_element() {
         let mut state = FormatState::new(SimpleFormatContext::default());
@@ -360,6 +130,7 @@ mod tests {
         );
     }
 
+    /// Write multiple format elements to buffer.
     #[test]
     fn test_multiple_elements() {
         let mut state = FormatState::new(SimpleFormatContext::default());
@@ -383,11 +154,343 @@ mod tests {
         );
     }
 
+    /// Format arguments can be used in Format contexts.
+    #[test]
+    fn test_format_args_basic() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [format_args!(token("Hello World"))]
+        )
+        .unwrap();
+
+        assert_eq!("Hello World", formatted.print().unwrap().as_str());
+    }
+
+    /// Write macro accepts buffer and format arguments.
+    #[test]
+    fn test_write_macro_basic() {
+        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut buffer = VecBuffer::new(&mut state);
+
+        write!(&mut buffer, [token("Hello"), space()]).unwrap();
+        write!(&mut buffer, [token("World")]).unwrap();
+
+        assert_eq!(
+            buffer.into_vec(),
+            vec![
+                FormatElement::Token { text: "Hello" },
+                FormatElement::Space,
+                FormatElement::Token { text: "World" },
+            ]
+        );
+    }
+
+    /// Debug write macro prints elements while writing.
+    #[test]
+    fn test_dbg_write_macro() {
+        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut buffer = VecBuffer::new(&mut state);
+
+        // NOTE @Testing: this will print debug output during test execution
+        dbg_write!(buffer, [token("Hello")]).unwrap();
+
+        assert_eq!(
+            buffer.into_vec(),
+            vec![FormatElement::Token { text: "Hello" }]
+        );
+    }
+
+    /// Format macro creates formatted document from arguments.
+    #[test]
+    fn test_format_macro_basic() {
+        let formatted = format!(SimpleFormatContext::default(), [token("test")]).unwrap();
+
+        assert_eq!("test", formatted.print().unwrap().as_str());
+    }
+
+    /// Format macro respects context options like line width.
+    #[test]
+    fn test_format_macro_with_options() {
+        let options = SimpleFormatOptions {
+            line_width: 10.try_into().unwrap(),
+            ..SimpleFormatOptions::default()
+        };
+        let context = SimpleFormatContext::new(options, Source::default());
+
+        let formatted = format!(
+            context,
+            [
+                token("a"),
+                soft_line_break_or_space(),
+                token("very"),
+                soft_line_break_or_space(),
+                token("long"),
+                soft_line_break_or_space(),
+                token("line")
+            ]
+        )
+        .unwrap();
+
+        let result = formatted.print().unwrap();
+        // should break due to line width constraint
+        assert!(result.as_str().contains('\n'));
+    }
+
+    /// Best fitting selects first variant that fits within line width.
+    #[test]
+    fn test_best_fitting_basic() {
+        let document = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 80,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default()
+            ),
+            [
+                token("aVeryLongIdentifier"),
+                best_fitting!(
+                    // first variant - fits on one line
+                    format_args!(token("(1, 2, 3)")),
+                    // second variant - breaks into multiple lines
+                    format_args!(
+                        token("("),
+                        soft_block_indent(&format_args!(
+                            token("1,"),
+                            soft_line_break_or_space(),
+                            token("2,"),
+                            soft_line_break_or_space(),
+                            token("3")
+                        )),
+                        token(")")
+                    )
+                )
+            ]
+        )
+        .unwrap();
+
+        // with wide line width, should use first variant
+        let wide_result = Formatted::new(
+            document.clone().into_document(),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+					indent_style: IndentStyle::Tab,
+                    line_width: 50,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+        )
+        .print()
+        .unwrap();
+
+        assert_eq!("aVeryLongIdentifier(1, 2, 3)", wide_result.as_str());
+
+        // with narrow line width, should use second variant
+        let narrow_result = Formatted::new(
+            document.into_document(),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+					indent_style: IndentStyle::Tab,
+                    line_width: 20,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+        )
+        .print()
+        .unwrap();
+
+        assert_eq!(
+            "aVeryLongIdentifier(\n\t1,\n\t2,\n\t3\n)",
+            narrow_result.as_str()
+        );
+    }
+
+    /// Best fitting handles complex multi-variant scenarios.
+    #[test]
+    fn test_best_fitting_complex_variants() {
+        let document = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 80,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+            [
+                token("aVeryLongIdentifier"),
+                best_fitting!(
+                    // first variant - everything on one line
+                    format_args!(token("([1, 2, 3])")),
+                    // second variant - break array but keep call on line
+                    format_args!(
+                        token("("),
+                        group(&format_args!(
+                            token("["),
+                            soft_block_indent(&format_args!(
+                                token("1,"),
+                                soft_line_break_or_space(),
+                                token("2,"),
+                                soft_line_break_or_space(),
+                                token("3")
+                            )),
+                            token("]")
+                        )),
+                        token(")")
+                    ),
+                    // third variant - break everything
+                    format_args!(
+                        token("("),
+                        soft_block_indent(&format_args!(
+                            token("["),
+                            soft_block_indent(&format_args!(
+                                token("1,"),
+                                soft_line_break_or_space(),
+                                token("2,"),
+                                soft_line_break_or_space(),
+                                token("3")
+                            )),
+                            token("]")
+                        )),
+                        token(")")
+                    )
+                )
+            ]
+        )
+        .unwrap();
+
+        // test different line widths select different variants
+        let very_wide = Formatted::new(
+            document.clone().into_document(),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 50,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+        )
+        .print()
+        .unwrap();
+
+        assert_eq!("aVeryLongIdentifier([1, 2, 3])", very_wide.as_str());
+
+        let medium_width = Formatted::new(
+            document.clone().into_document(),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 21,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+        )
+        .print()
+        .unwrap();
+
+        assert_eq!(
+            "aVeryLongIdentifier([\n\t1, 2, 3\n])",
+            medium_width.as_str()
+        );
+
+        let narrow_width = Formatted::new(
+            document.into_document(),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 20,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+        )
+        .print()
+        .unwrap();
+
+        assert_eq!(
+            "aVeryLongIdentifier(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n)",
+            narrow_width.as_str()
+        );
+    }
+
+    /// Best fitting works with groups that have should_expand set to true.
+    #[test]
+    fn test_best_fitting_with_should_expand() {
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 80,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+            [best_fitting!(
+                // first variant - method call on line but break array
+                format_args!(
+                    token("expect(a).toMatch("),
+                    group(&format_args!(
+                        token("["),
+                        soft_block_indent(&format_args!(
+                            token("1,"),
+                            soft_line_break_or_space(),
+                            token("2,"),
+                            soft_line_break_or_space(),
+                            token("3"),
+                        )),
+                        token("]")
+                    ))
+                    .should_expand(true),
+                    token(")")
+                ),
+                // second variant - break after opening paren
+                format_args!(
+                    token("expect(a).toMatch("),
+                    group(&soft_block_indent(
+                        &group(&format_args!(
+                            token("["),
+                            soft_block_indent(&format_args!(
+                                token("1,"),
+                                soft_line_break_or_space(),
+                                token("2,"),
+                                soft_line_break_or_space(),
+                                token("3"),
+                            )),
+                            token("]")
+                        ))
+                        .should_expand(true),
+                    ))
+                    .should_expand(true),
+                    token(")")
+                ),
+            )]
+        )
+        .unwrap();
+
+        let document = formatted.into_document();
+        let result = Formatted::new(document, SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 80,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+        )
+            .print()
+            .unwrap();
+
+        assert_eq!("expect(a).toMatch([\n\t1,\n\t2,\n\t3\n])", result.as_str());
+    }
+
+    /// Best fitting variants print identically to normal lists when selected.
     #[test]
     fn best_fitting_variants_print_as_lists() {
-        use crate::prelude::*;
-        use crate::{Formatted, format, format_args};
-
         // The second variant below should be selected when printing at a width of 30
         let formatted_best_fitting = format!(
             SimpleFormatContext::default(),
@@ -476,7 +579,8 @@ mod tests {
             formatted_best_fitting.into_document(),
             SimpleFormatContext::new(
                 SimpleFormatOptions {
-                    line_width: 30.try_into().unwrap(),
+                    indent_style: IndentStyle::Tab,
+                    line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
                 Source::default(),
@@ -491,7 +595,8 @@ mod tests {
             formatted_normal_list.into_document(),
             SimpleFormatContext::new(
                 SimpleFormatOptions {
-                    line_width: 30.try_into().unwrap(),
+                    indent_style: IndentStyle::Tab,
+                    line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
                 Source::default(),
