@@ -17,19 +17,6 @@ pub trait Buffer {
     ///
     /// # Errors
     /// This function will return an instance of [`crate::FormatError`] on error.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use dyst_language_format::{Buffer, FormatElement, FormatState, SimpleFormatContext, VecBuffer};
-    ///
-    /// let mut state = FormatState::new(SimpleFormatContext::default());
-    /// let mut buffer = VecBuffer::new(&mut state);
-    ///
-    /// buffer.write_element(FormatElement::Token { text: "test"});
-    ///
-    /// assert_eq!(buffer.into_vec(), vec![FormatElement::Token { text: "test" }]);
-    /// ```
     fn write_element(&mut self, element: FormatElement);
 
     /// Returns a slice containing all elements written into this buffer.
@@ -41,20 +28,6 @@ pub trait Buffer {
     /// Glue for usage of the [`write!`] macro with implementers of this trait.
     ///
     /// This method should generally not be invoked manually, but rather through the [`write!`] macro itself.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use dyst_language_format::prelude::*;
-    /// use dyst_language_format::{Buffer, FormatState, SimpleFormatContext, VecBuffer, format_args};
-    ///
-    /// let mut state = FormatState::new(SimpleFormatContext::default());
-    /// let mut buffer = VecBuffer::new(&mut state);
-    ///
-    /// buffer.write_fmt(format_args!(token("Hello World"))).unwrap();
-    ///
-    /// assert_eq!(buffer.into_vec(), vec![FormatElement::Token{ text: "Hello World" }]);
-    /// ```
     fn write_fmt(mut self: &mut Self, arguments: Arguments<'_, Self::Context>) -> FormatResult<()> {
         write(&mut self, arguments)
     }
@@ -302,52 +275,10 @@ where
 }
 
 /// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) elements.
-///
 /// - Removes [`lines`](FormatElement::Line) with the mode [`Soft`](LineMode::Soft).
 /// - Replaces [`lines`](FormatElement::Line) with the mode [`Soft`](LineMode::SoftOrSpace) with a [`Space`](FormatElement::Space)
 /// - Removes [`if_group_breaks`](crate::builders::if_group_breaks) and all its content.
 /// - Unwraps the content of [`if_group_fits_on_line`](crate::builders::if_group_fits_on_line) elements (but retains it).
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::{format, write};
-///
-/// # fn main() -> FormatResult<()> {
-/// use dyst_language_format::{RemoveSoftLinesBuffer, SimpleFormatContext, VecBuffer};
-/// use dyst_language_format::prelude::format_with;
-/// let formatted = format!(
-///     SimpleFormatContext::default(),
-///     [format_with(|f| {
-///         let mut buffer = RemoveSoftLinesBuffer::new(f);
-///
-///         write!(
-///             buffer,
-///             [
-///                 token("The next soft line or space gets replaced by a space"),
-///                 soft_line_break_or_space(),
-///                 token("and the line here"),
-///                 soft_line_break(),
-///                 token("is removed entirely.")
-///             ]
-///         )
-///     })]
-/// )?;
-///
-/// assert_eq!(
-///     formatted.document().as_ref(),
-///     &[
-///         FormatElement::Token { text: "The next soft line or space gets replaced by a space" },
-///         FormatElement::Space,
-///         FormatElement::Token { text: "and the line here" },
-///         FormatElement::Token { text: "is removed entirely." }
-///     ]
-/// );
-///
-/// # Ok(())
-/// # }
-/// ```
 pub struct RemoveSoftLinesBuffer<'a, Context> {
     inner: &'a mut dyn Buffer<Context = Context>,
 
@@ -584,41 +515,6 @@ pub trait BufferExtensions: Buffer + Sized {
 
     /// Starts a recording that gives you access to all elements that have been written between the start
     /// and end of the recording
-    ///
-    /// #Examples
-    ///
-    /// ```
-    /// use std::ops::Deref;
-    /// use dyst_language_format::prelude::*;
-    /// use dyst_language_format::{write, format, SimpleFormatContext};
-    ///
-    /// # fn main() -> FormatResult<()> {
-    /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-    ///     let mut recording = f.start_recording();
-    ///
-    ///     write!(recording, [token("A")])?;
-    ///     write!(recording, [token("B")])?;
-    ///
-    ///     write!(recording, [format_with(|f| write!(f, [token("C"), token("D")]))])?;
-    ///
-    ///     let recorded = recording.stop();
-    ///     assert_eq!(
-    ///         recorded.deref(),
-    ///         &[
-    ///             FormatElement::Token{ text: "A" },
-    ///             FormatElement::Token{ text: "B" },
-    ///             FormatElement::Token{ text: "C" },
-    ///             FormatElement::Token{ text: "D" }
-    ///         ]
-    ///     );
-    ///
-    ///     Ok(())
-    /// })])?;
-    ///
-    /// assert_eq!(formatted.print()?.as_str(), "ABCD");
-    /// # Ok(())
-    /// # }
-    /// ```
     #[must_use]
     fn start_recording(&mut self) -> Recording<'_, Self> {
         Recording::new(self)
@@ -687,5 +583,107 @@ impl Deref for Recorded<'_> {
 
     fn deref(&self) -> &Self::Target {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+    use crate::{SimpleFormatContext, format, format_args, write};
+
+    /// Writes a [`crate::FormatElement`] into this buffer, returning whether the write succeeded.
+    #[test]
+    fn test_buffer_write_element() {
+        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut buffer = VecBuffer::new(&mut state);
+
+        buffer.write_element(FormatElement::Token { text: "test" });
+
+        assert_eq!(
+            buffer.into_vec(),
+            vec![FormatElement::Token { text: "test" }]
+        );
+    }
+
+    /// Glue for usage of the [`write!`] macro with implementers of this trait.
+    #[test]
+    fn test_buffer_write_fmt() {
+        let mut state = FormatState::new(SimpleFormatContext::default());
+        let mut buffer = VecBuffer::new(&mut state);
+
+        buffer
+            .write_fmt(format_args!(token("Hello World")))
+            .unwrap();
+
+        assert_eq!(
+            buffer.into_vec(),
+            vec![FormatElement::Token {
+                text: "Hello World"
+            }]
+        );
+    }
+
+    /// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) elements.
+    #[test]
+    fn test_remove_soft_lines_buffer() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [format_with(|f| {
+                let mut buffer = RemoveSoftLinesBuffer::new(f);
+                write!(
+                    buffer,
+                    [
+                        token("The next soft line or space gets replaced by a space"),
+                        soft_line_break_or_space(),
+                        token("and the line here"),
+                        soft_line_break(),
+                        token("is removed entirely.")
+                    ]
+                )
+            })]
+        )
+        .unwrap();
+
+        assert_eq!(
+            formatted.print().unwrap().as_str(),
+            "The next soft line or space gets replaced by a space and the line hereis removed entirely."
+        );
+    }
+
+    /// Starts a recording that gives you access to all elements that have been written between the start
+    /// and end of the recording
+    #[test]
+    fn test_buffer_start_recording() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [format_with(|f| {
+                let mut recording = f.start_recording();
+
+                write!(recording, [token("A")])?;
+                write!(recording, [token("B")])?;
+
+                write!(
+                    recording,
+                    [format_with(|f| write!(f, [token("C"), token("D")]))]
+                )?;
+
+                let recorded = recording.stop();
+                assert_eq!(
+                    recorded.deref(),
+                    &[
+                        FormatElement::Token { text: "A" },
+                        FormatElement::Token { text: "B" },
+                        FormatElement::Token { text: "C" },
+                        FormatElement::Token { text: "D" }
+                    ]
+                );
+
+                Ok(())
+            })]
+        )
+        .unwrap();
+
+        assert_eq!(formatted.print().unwrap().as_str(), "ABCD");
     }
 }

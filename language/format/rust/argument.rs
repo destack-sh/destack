@@ -39,23 +39,8 @@ impl<'fmt, Context> Argument<'fmt, Context> {
 /// Sequence of objects that should be formatted in the specified order.
 ///
 /// The [`format_args!`] macro will safely create an instance of this structure.
-///
 /// You can use the `Arguments<a>` that [`format_args!`] return in `Format` context as seen below.
 /// It will call the `format` function for each of its objects.
-///
-/// ```rust
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::{format, format_args};
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(SimpleFormatContext::default(), [
-///     format_args!(token("a"), space(), token("b"))
-/// ])?;
-///
-/// assert_eq!("a b", formatted.print()?.as_str());
-/// # Ok(())
-/// # }
-/// ```
 pub struct Arguments<'fmt, Context>(pub &'fmt [Argument<'fmt, Context>]);
 
 impl<'fmt, Context> Arguments<'fmt, Context> {

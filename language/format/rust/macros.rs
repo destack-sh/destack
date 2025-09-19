@@ -33,28 +33,6 @@ macro_rules! write {
     }}
 }
 
-/// Writes formatted data into the given buffer and prints all written elements for a quick and dirty debugging.
-///
-/// NOTE: The macro is intended as debugging tool and therefore you should avoid having
-/// uses of it in version control for long periods (other than in tests and similar). Format output
-/// from production code is better done with `[write!]`
-#[macro_export]
-macro_rules! dbg_write {
-    ($dst:expr, [$($arg:expr),+ $(,)?]) => {{
-        use $crate::BufferExtensions;
-        let mut count = 0;
-        let mut inspect = $dst.inspect(|element: &FormatElement| {
-            std::eprintln!(
-                "[{}:{}][{}] = {element:#?}",
-                std::file!(), std::line!(), count
-            );
-            count += 1;
-        });
-        let result = inspect.write_fmt($crate::format_args!($($arg),+));
-        result
-    }}
-}
-
 /// Creates the Format IR for a value.
 ///
 /// The first argument `format!` receives is the [`crate::FormatContext`] that specify how elements must be formatted.
@@ -103,9 +81,10 @@ macro_rules! best_fitting {
 
 #[cfg(test)]
 mod tests {
-    use crate::{IndentStyle, prelude::*};
+    use crate::prelude::*;
     use crate::{
-        FormatState, Formatted, SimpleFormatOptions, VecBuffer, format, format_args, write,
+        FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer, format, format_args,
+        write,
     };
 
     struct TestFormat;
@@ -185,21 +164,6 @@ mod tests {
         );
     }
 
-    /// Debug write macro prints elements while writing.
-    #[test]
-    fn test_dbg_write_macro() {
-        let mut state = FormatState::new(SimpleFormatContext::default());
-        let mut buffer = VecBuffer::new(&mut state);
-
-        // NOTE @Testing: this will print debug output during test execution
-        dbg_write!(buffer, [token("Hello")]).unwrap();
-
-        assert_eq!(
-            buffer.into_vec(),
-            vec![FormatElement::Token { text: "Hello" }]
-        );
-    }
-
     /// Format macro creates formatted document from arguments.
     #[test]
     fn test_format_macro_basic() {
@@ -275,7 +239,7 @@ mod tests {
             document.clone().into_document(),
             SimpleFormatContext::new(
                 SimpleFormatOptions {
-					indent_style: IndentStyle::Tab,
+                    indent_style: IndentStyle::Tab,
                     line_width: 50,
                     ..SimpleFormatOptions::default()
                 },
@@ -292,7 +256,7 @@ mod tests {
             document.into_document(),
             SimpleFormatContext::new(
                 SimpleFormatOptions {
-					indent_style: IndentStyle::Tab,
+                    indent_style: IndentStyle::Tab,
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
@@ -310,7 +274,7 @@ mod tests {
 
     /// Best fitting handles complex multi-variant scenarios.
     #[test]
-    fn test_best_fitting_complex_variants() {
+    fn test_best_fitting_complex() {
         let document = format!(
             SimpleFormatContext::new(
                 SimpleFormatOptions {
@@ -323,9 +287,9 @@ mod tests {
             [
                 token("aVeryLongIdentifier"),
                 best_fitting!(
-                    // first variant - everything on one line
+                    // first variant: everything on one line
                     format_args!(token("([1, 2, 3])")),
-                    // second variant - break array but keep call on line
+                    // second variant: break array but keep call on line
                     format_args!(
                         token("("),
                         group(&format_args!(
@@ -341,7 +305,7 @@ mod tests {
                         )),
                         token(")")
                     ),
-                    // third variant - break everything
+                    // third variant: break everything
                     format_args!(
                         token("("),
                         soft_block_indent(&format_args!(
@@ -362,7 +326,7 @@ mod tests {
         )
         .unwrap();
 
-        // test different line widths select different variants
+        // everything fits on one line
         let very_wide = Formatted::new(
             document.clone().into_document(),
             SimpleFormatContext::new(
@@ -376,9 +340,9 @@ mod tests {
         )
         .print()
         .unwrap();
-
         assert_eq!("aVeryLongIdentifier([1, 2, 3])", very_wide.as_str());
 
+        // call breaks but array fits
         let medium_width = Formatted::new(
             document.clone().into_document(),
             SimpleFormatContext::new(
@@ -392,17 +356,18 @@ mod tests {
         )
         .print()
         .unwrap();
-
         assert_eq!(
             "aVeryLongIdentifier([\n\t1, 2, 3\n])",
             medium_width.as_str()
         );
 
+        // everything breaks
         let narrow_width = Formatted::new(
             document.into_document(),
             SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
+                    indent_width: 2,
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
@@ -411,7 +376,6 @@ mod tests {
         )
         .print()
         .unwrap();
-
         assert_eq!(
             "aVeryLongIdentifier(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n)",
             narrow_width.as_str()
@@ -473,7 +437,9 @@ mod tests {
         .unwrap();
 
         let document = formatted.into_document();
-        let result = Formatted::new(document, SimpleFormatContext::new(
+        let result = Formatted::new(
+            document,
+            SimpleFormatContext::new(
                 SimpleFormatOptions {
                     indent_style: IndentStyle::Tab,
                     line_width: 80,
@@ -482,8 +448,8 @@ mod tests {
                 Source::default(),
             ),
         )
-            .print()
-            .unwrap();
+        .print()
+        .unwrap();
 
         assert_eq!("expect(a).toMatch([\n\t1,\n\t2,\n\t3\n])", result.as_str());
     }

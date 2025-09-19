@@ -8,5 +8,5 @@ pub use dyst_language_source::{Source, Span};
 
 pub use crate::{
     Buffer as _, BufferExtensions, Format, Format as _, FormatResult, SimpleFormatContext,
-    best_fitting, dbg_write, format, format_args, write,
+    best_fitting, format, format_args, write,
 };

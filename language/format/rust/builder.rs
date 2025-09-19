@@ -1467,9 +1467,9 @@ mod tests {
                 token("["),
                 soft_block_indent(&format_args![
                     token("1,"),
-                    soft_line_break(),
+                    soft_line_break_or_space(),
                     token("2,"),
-                    soft_line_break(),
+                    soft_line_break_or_space(),
                     token("3"),
                     if_group_fits_on_line(&token(" "))
                 ]),
@@ -1532,7 +1532,7 @@ mod tests {
         let context = SimpleFormatContext::new(
             SimpleFormatOptions {
                 indent_style: IndentStyle::Tab,
-                line_width: 20,
+                line_width: 25,
                 ..SimpleFormatOptions::default()
             },
             Source::default(),
@@ -1550,7 +1550,7 @@ mod tests {
                     soft_block_indent(&format_args![
                         token("'A very long string that exceeds the line width',"),
                         hard_line_break(),
-                        token("'and another one'")
+                        token("'and one that doesn't'")
                     ]),
                     token("]")
                 ])
@@ -1558,9 +1558,10 @@ mod tests {
         )
         .unwrap();
 
+        let printed = formatted.print().unwrap();
         assert_eq!(
-            "a + [\n\t'A very long string that exceeds the line width',\n\t'and another one'\n]",
-            formatted.print().unwrap().as_str()
+            "a + [\n\t'A very long string that exceeds the line width',\n\t'and one that doesn't'\n]",
+            printed.as_str()
         );
     }
 
