@@ -15,56 +15,6 @@ use FormatTag::*;
 /// A line break that only gets printed if the enclosing `Group` doesn't fit on a single line.
 /// It's omitted if the enclosing `Group` fits on a single line.
 /// A soft line break is identical to a hard line break when not enclosed inside of a `Group`.
-///
-/// # Examples
-///
-/// Soft line breaks are omitted if the enclosing `Group` fits on a single line
-///
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![token("a,"), soft_line_break(), token("b")])
-/// ])?;
-///
-/// assert_eq!(
-///     "a,b",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-/// See [`soft_line_break_or_space`] if you want to insert a space between the elements if the enclosing
-/// `Group` fits on a single line.
-///
-/// Soft line breaks are emitted if the enclosing `Group` doesn't fit on a single line
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(10).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     group(&format_args![
-///         token("a long word,"),
-///         soft_line_break(),
-///         token("so that the group doesn't fit on a single line"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "a long word,\nso that the group doesn't fit on a single line",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub const fn soft_line_break() -> Line {
     Line::new(LineMode::Soft)
@@ -72,31 +22,6 @@ pub const fn soft_line_break() -> Line {
 
 /// A forced line break that are always printed. A hard line break forces any enclosing `Group`
 /// to be printed over multiple lines.
-///
-/// # Examples
-///
-/// It forces a line break, even if the enclosing `Group` would otherwise fit on a single line.
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("a,"),
-///         hard_line_break(),
-///         token("b"),
-///         hard_line_break()
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "a,\nb\n",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub const fn hard_line_break() -> Line {
     Line::new(LineMode::Hard)
@@ -104,88 +29,12 @@ pub const fn hard_line_break() -> Line {
 
 /// A forced empty line. An empty line inserts enough line breaks in the output for
 /// the previous and next element to be separated by an empty line.
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// fn main() -> FormatResult<()> {
-/// let elements = format!(
-///     SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("a,"),
-///         empty_line(),
-///         token("b"),
-///         empty_line()
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "a,\n\nb\n\n",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub const fn empty_line() -> Line {
     Line::new(LineMode::Empty)
 }
 
 /// A line break if the enclosing `Group` doesn't fit on a single line, a space otherwise.
-///
-/// # Examples
-///
-/// The line breaks are emitted as spaces if the enclosing `Group` fits on a single line:
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("a,"),
-///         soft_line_break_or_space(),
-///         token("b"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "a, b",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// The printer breaks the lines if the enclosing `Group` doesn't fit on a single line:
-/// ```
-/// use dyst_language_format::{format_args, format, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(10).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     group(&format_args![
-///         token("a long word,"),
-///         soft_line_break_or_space(),
-///         token("so that the group doesn't fit on a single line"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "a long word,\nso that the group doesn't fit on a single line",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub const fn soft_line_break_or_space() -> Line {
     Line::new(LineMode::SoftOrSpace)
@@ -217,39 +66,6 @@ impl std::fmt::Debug for Line {
 
 /// Creates a token that gets written as is to the output. A token must be ASCII only and is not allowed
 /// to contain any line breaks or tab characters.
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::format;
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [token("Hello World")])?;
-///
-/// assert_eq!(
-///     "Hello World",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Printing a string literal as a literal requires that the string literal is properly escaped and
-/// enclosed in quotes (depending on the target language).
-///
-/// ```
-/// use dyst_language_format::format;
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// // the tab must be encoded as \\t to not literally print a tab character ("Hello{tab}World" vs "Hello\tWorld")
-/// let elements = format!(SimpleFormatContext::default(), [token("\"Hello\\tWorld\"")])?;
-///
-/// assert_eq!(r#""Hello\tWorld""#, elements.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn token(text: &'static str) -> Token {
     debug_assert!(text.is_ascii(), "Token must be ASCII text only");
@@ -351,55 +167,6 @@ fn debug_assert_no_newlines(text: &str) {
 }
 
 /// Pushes some content to the end of the current line.
-///
-/// ## Examples
-///
-/// ```rust
-/// use dyst_language_format::format;
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     token("a"),
-///     line_suffix(&token("c"), 0),
-///     token("b")
-/// ])?;
-///
-/// assert_eq!("abc", elements.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Provide reserved width for the line suffix to include it during measurement.
-/// ```rust
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatContext, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(10).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     // Breaks
-///     group(&format_args![
-///         if_group_breaks(&token("(")),
-///         soft_block_indent(&format_args![token("a"), line_suffix(&token(" // a comment"), 13)]),
-///         if_group_breaks(&token(")"))
-///         ]),
-///
-///     // Fits
-///     group(&format_args![
-///         if_group_breaks(&token("(")),
-///         soft_block_indent(&format_args![token("a"), line_suffix(&token(" // a comment"), 0)]),
-///         if_group_breaks(&token(")"))
-///     ]),
-/// ])?;
-/// # assert_eq!("(\n\ta // a comment\n)a // a comment", elements.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn line_suffix<Content, Context>(
     inner: &Content,
@@ -440,30 +207,6 @@ impl<Context> std::fmt::Debug for LineSuffix<'_, Context> {
 
 /// Inserts a boundary for line suffixes that forces the printer to print all pending line suffixes.
 /// Helpful if a line suffix shouldn't pass a certain point.
-///
-/// ## Examples
-///
-/// Forces the line suffix "c" to be printed before the token `d`.
-/// ```
-/// use dyst_language_format::format;
-/// use dyst_language_format::prelude::*;
-///
-/// # fn  main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     token("a"),
-///     line_suffix(&token("c"), 0),
-///     token("b"),
-///     line_suffix_boundary(),
-///     token("d")
-/// ])?;
-///
-/// assert_eq!(
-///     "abc\nd",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 pub const fn line_suffix_boundary() -> LineSuffixBoundary {
     LineSuffixBoundary
 }
@@ -480,21 +223,6 @@ impl<Context> Format<Context> for LineSuffixBoundary {
 }
 
 /// Inserts a single space. Allows to separate different tokens.
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::format;
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// // the tab must be encoded as \\t to not literally print a tab character ("Hello{tab}World" vs "Hello\tWorld")
-/// let elements = format!(SimpleFormatContext::default(), [token("a"), space(), token("b")])?;
-///
-/// assert_eq!("a b", elements.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub const fn space() -> Space {
     Space
@@ -517,34 +245,6 @@ impl<Context> Format<Context> for Space {
 ///
 /// This helper should be used only in rare cases, instead you should rely more on
 /// [`block_indent`] and [`soft_block_indent`]
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let block = format!(SimpleFormatContext::default(), [
-///     token("switch {"),
-///     block_indent(&format_args![
-///         token("default:"),
-///         indent(&format_args![
-///             // this is where we want to use a
-///             hard_line_break(),
-///             token("break;"),
-///         ])
-///     ]),
-///     token("}"),
-/// ])?;
-///
-/// assert_eq!(
-///     "switch {\n\tdefault:\n\t\tbreak;\n}",
-///     block.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn indent<Content, Context>(content: &Content) -> Indent<'_, Context>
 where
@@ -581,41 +281,6 @@ impl<Context> std::fmt::Debug for Indent<'_, Context> {
 /// - [indent] Reduces the indentation level by one
 ///
 /// This is a No-op if the indentation level is zero.
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let block = format!(SimpleFormatContext::default(), [
-///     token("root"),
-///     align(2, &format_args![
-///         hard_line_break(),
-///         token("aligned"),
-///         dedent(&format_args![
-///             hard_line_break(),
-///             token("not aligned"),
-///         ]),
-///         dedent(&indent(&format_args![
-///             hard_line_break(),
-///             token("Indented, not aligned")
-///         ]))
-///     ]),
-///     dedent(&format_args![
-///         hard_line_break(),
-///         token("Dedent on root level is a no-op.")
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "root\n  aligned\nnot aligned\n\tIndented, not aligned\nDedent on root level is a no-op.",
-///     block.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn dedent<Content, Context>(content: &Content) -> Dedent<'_, Context>
 where
@@ -651,43 +316,6 @@ impl<Context> std::fmt::Debug for Dedent<'_, Context> {
 
 /// It resets the indent document so that the content will be printed at the start of the line.
 ///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let block = format!(SimpleFormatContext::default(), [
-///     token("root"),
-///     indent(&format_args![
-///         hard_line_break(),
-///         token("indent level 1"),
-///         indent(&format_args![
-///             hard_line_break(),
-///             token("indent level 2"),
-///             align(2, &format_args![
-///                 hard_line_break(),
-///                 token("two space align"),
-///                 dedent_to_root(&format_args![
-///                     hard_line_break(),
-///                     token("starts at the beginning of the line")
-///                 ]),
-///             ]),
-///             hard_line_break(),
-///             token("end indent level 2"),
-///         ])
-///  ]),
-/// ])?;
-///
-/// assert_eq!(
-///     "root\n\tindent level 1\n\t\tindent level 2\n\t\t  two space align\nstarts at the beginning of the line\n\t\tend indent level 2",
-///     block.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
 /// ## Prettier
 ///
 /// This resembles the behaviour of Prettier's `align(Number.NEGATIVE_INFINITY, content)` IR element.
@@ -709,103 +337,6 @@ where
 ///
 /// You should use [align] when you want to indent a content by a specific number of spaces.
 /// Using [indent] is preferred in all other situations as it respects the users preferred indent character.
-///
-/// # Examples
-///
-/// ## Tab indentation
-///
-/// ```
-/// use std::num::NonZeroU8;
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let block = format!(SimpleFormatContext::default(), [
-///     token("a"),
-///     hard_line_break(),
-///     token("?"),
-///     space(),
-///     align(2, &format_args![
-///         token("function () {"),
-///         hard_line_break(),
-///         token("}"),
-///     ]),
-///     hard_line_break(),
-///     token(":"),
-///     space(),
-///     align(2, &format_args![
-///         token("function () {"),
-///         block_indent(&token("console.log('test');")),
-///         token("}"),
-///     ]),
-///     token(";")
-/// ])?;
-///
-/// assert_eq!(
-///     "a\n? function () {\n  }\n: function () {\n\t\tconsole.log('test');\n  };",
-///     block.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// You can see that:
-///
-/// - the printer indents the function's `}` by two spaces because it is inside of an `align`.
-/// - the block `console.log` gets indented by two tabs.
-///   This is because `align` increases the indentation level by one (same as `indent`)
-///   if you nest an `indent` inside an `align`.
-///   Meaning that, `align > ... > indent` results in the same indentation as `indent > ... > indent`.
-///
-/// ## Spaces indentation
-///
-/// ```
-/// use std::num::NonZeroU8;
-/// use dyst_language_format::{format, format_args, IndentStyle, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// use dyst_language_format::IndentWidth;
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     indent_style: IndentStyle::Space,
-///     indent_width: IndentWidth::try_from(4).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let block = format!(context, [
-///     token("a"),
-///     hard_line_break(),
-///     token("?"),
-///     space(),
-///     align(2, &format_args![
-///         token("function () {"),
-///         hard_line_break(),
-///         token("}"),
-///     ]),
-///     hard_line_break(),
-///     token(":"),
-///     space(),
-///     align(2, &format_args![
-///         token("function () {"),
-///         block_indent(&token("console.log('test');")),
-///         token("}"),
-///     ]),
-///     token(";")
-/// ])?;
-///
-/// assert_eq!(
-///     "a\n? function () {\n  }\n: function () {\n      console.log('test');\n  };",
-///     block.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// The printing of `align` differs if using spaces as indentation sequence *and* it contains an `indent`.
-/// You can see the difference when comparing the indentation of the `console.log(...)` expression to the previous example:
-///
-/// - tab indentation: Printer indents the expression with two tabs because the `align` increases the indentation level.
-/// - space indentation: Printer indents the expression by 4 spaces (one indentation level) **and** 2 spaces for the align.
 pub fn align<Content, Context>(count: u8, content: &Content) -> Align<'_, Context>
 where
     Content: Format<Context>,
@@ -847,34 +378,6 @@ impl<Context> std::fmt::Debug for Align<'_, Context> {
 /// break before and after the content.
 ///
 /// Doesn't create an indentation if the passed in content is [`FormatElement.is_empty`].
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let block = format![
-///     SimpleFormatContext::default(),
-///     [
-///         token("{"),
-///         block_indent(&format_args![
-///             token("let a = 10;"),
-///             hard_line_break(),
-///             token("let c = a + 5;"),
-///         ]),
-///         token("}"),
-///     ]
-/// ]?;
-///
-/// assert_eq!(
-///     "{\n\tlet a = 10;\n\tlet c = a + 5;\n}",
-///     block.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, Context> {
     BlockIndent {
@@ -886,66 +389,6 @@ pub fn block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, 
 /// Indents the content by inserting a line break before and after the content and increasing
 /// the indentation level for the content by one if the enclosing group doesn't fit on a single line.
 /// Doesn't change the formatting if the enclosing group fits on a single line.
-///
-/// # Examples
-///
-/// Indents the content by one level and puts in new lines if the enclosing `Group` doesn't fit on a single line
-///
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(10).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("'First string',"),
-///             soft_line_break_or_space(),
-///             token("'second string',"),
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[\n\t'First string',\n\t'second string',\n]",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Doesn't change the formatting if the enclosing `Group` fits on a single line
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("5,"),
-///             soft_line_break_or_space(),
-///             token("10"),
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[5, 10]",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn soft_block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, Context> {
     BlockIndent {
@@ -959,67 +402,6 @@ pub fn soft_block_indent<Context>(content: &impl Format<Context>) -> BlockIndent
 ///
 /// Line indents are used to break a single line of code, and therefore only insert a line
 /// break before the content and not after the content.
-///
-/// # Examples
-///
-/// Indents the content by one level and puts in new lines if the enclosing `Group` doesn't
-/// fit on a single line. Otherwise, just inserts a space.
-///
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(10).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     group(&format_args![
-///         token("name"),
-///         space(),
-///         token("="),
-///         soft_line_indent_or_space(&format_args![
-///             token("firstName"),
-///             space(),
-///             token("+"),
-///             space(),
-///             token("lastName"),
-///         ]),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "name =\n\tfirstName + lastName",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Only adds a space if the enclosing `Group` fits on a single line
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("a"),
-///         space(),
-///         token("="),
-///         soft_line_indent_or_space(&token("10")),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "a = 10",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn soft_line_indent_or_space<Context>(
     content: &impl Format<Context>,
@@ -1094,68 +476,6 @@ impl<Context> std::fmt::Debug for BlockIndent<'_, Context> {
 }
 
 /// Adds spaces around the content if its enclosing group fits on a line, otherwise indents the content and separates it by line breaks.
-///
-/// # Examples
-///
-/// Adds line breaks and indents the content if the enclosing group doesn't fit on the line.
-///
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(10).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     group(&format_args![
-///         token("{"),
-///         soft_space_or_block_indent(&format_args![
-///             token("aPropertyThatExceeds"),
-///             token(":"),
-///             space(),
-///             token("'line width'"),
-///         ]),
-///         token("}")
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "{\n\taPropertyThatExceeds: 'line width'\n}",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Adds spaces around the content if the group fits on the line
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("{"),
-///         soft_space_or_block_indent(&format_args![
-///             token("a"),
-///             token(":"),
-///             space(),
-///             token("5"),
-///         ]),
-///         token("}")
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "{ a: 5 }",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 pub fn soft_space_or_block_indent<Context>(
     content: &impl Format<Context>,
 ) -> BlockIndent<'_, Context> {
@@ -1173,70 +493,6 @@ pub fn soft_space_or_block_indent<Context>(
 /// because it encountered a hard line break, or because printing the `Group` on a single line exceeds
 /// the configured line width, and thus it must print all its content on multiple lines,
 /// emitting line breaks for all line break kinds.
-///
-/// # Examples
-///
-/// `Group` that fits on a single line
-///
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("1,"),
-///             soft_line_break_or_space(),
-///             token("2,"),
-///             soft_line_break_or_space(),
-///             token("3"),
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[1, 2, 3]",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// The printer breaks the `Group` over multiple lines if its content doesn't fit on a single line
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(20).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("'Good morning! How are you today?',"),
-///             soft_line_break_or_space(),
-///             token("2,"),
-///             soft_line_break_or_space(),
-///             token("3"),
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[\n\t'Good morning! How are you today?',\n\t2,\n\t3\n]",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn group<Context>(content: &impl Format<Context>) -> Group<'_, Context> {
     Group {
@@ -1309,95 +565,7 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 /// This IR is identical to the following [`best_fitting`] layout but is implemented as custom IR for
 /// better performance.
 ///
-/// ```rust
-/// # use dyst_language_format::prelude::*;
-/// # use dyst_language_format::format_args;
-///
-/// let format_expression = format_with(|f: &mut Formatter<SimpleFormatContext>| token("A long string").fmt(f));
-/// let _ = best_fitting![
-///     // ---------------------------------------------------------------------
-///     // Variant 1:
-///     // Try to fit the expression without any parentheses
-///     group(&format_expression),
-///     // ---------------------------------------------------------------------
-///     // Variant 2:
-///     // Try to fit the expression by adding parentheses and indenting the expression.
-///     group(&format_args![
-///         token("("),
-///         soft_block_indent(&format_expression),
-///         token(")")
-///     ])
-///     .should_expand(true),
-///     // ---------------------------------------------------------------------
-///     // Variant 3: Fallback, no parentheses
-///     // Expression doesn't fit regardless of adding the parentheses. Remove the parentheses again.
-///     group(&format_expression).should_expand(true)
-/// ]
-/// // Measure all lines, to avoid that the printer decides that this fits right after hitting
-/// // the `(`.
-/// .with_mode(BestFittingMode::AllLines)        ;
-/// ```
-///
 /// The element breaks from left-to-right because it uses the unintended version as *expanded* layout, the same as the above showed best fitting example.
-///
-/// ## Examples
-///
-/// ### Content that fits into the configured line width.
-///
-/// ```rust
-/// # use dyst_language_format::prelude::*;
-/// # use dyst_language_format::{format, PrintResult, write};
-///
-/// # fn main() -> FormatResult<()> {
-///     let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-///         write!(f, [
-///             token("aLongerVariableName = "),
-///             best_fit_parenthesize(&token("'a string that fits into the configured line width'"))
-///         ])
-///     })])?;
-///
-///     assert_eq!(formatted.print()?.as_code(), "aLongerVariableName = 'a string that fits into the configured line width'");
-///     # Ok(())
-/// # }
-/// ```
-///
-/// ### Content that fits parenthesized
-///
-/// ```rust
-/// # use dyst_language_format::prelude::*;
-/// # use dyst_language_format::{format, PrintResult, write};
-///
-/// # fn main() -> FormatResult<()> {
-///     let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-///         write!(f, [
-///             token("aLongerVariableName = "),
-///             best_fit_parenthesize(&token("'a string that exceeds configured line width but fits parenthesized'"))
-///         ])
-///     })])?;
-///
-///     assert_eq!(formatted.print()?.as_code(), "aLongerVariableName = (\n\t'a string that exceeds configured line width but fits parenthesized'\n)");
-///     # Ok(())
-/// # }
-/// ```
-///
-/// ### Content that exceeds the line width, parenthesized or not
-///
-/// ```rust
-/// # use dyst_language_format::prelude::*;
-/// # use dyst_language_format::{format, PrintResult, write};
-///
-/// # fn main() -> FormatResult<()> {
-///     let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-///         write!(f, [
-///             token("aLongerVariableName = "),
-///             best_fit_parenthesize(&token("'a string that exceeds the configured line width and even parenthesizing doesn't make it fit'"))
-///         ])
-///     })])?;
-///
-///     assert_eq!(formatted.print()?.as_code(), "aLongerVariableName = 'a string that exceeds the configured line width and even parenthesizing doesn't make it fit'");
-///     # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn best_fit_parenthesize<Context>(
     content: &impl Format<Context>,
@@ -1449,94 +617,6 @@ impl<Context> std::fmt::Debug for BestFitParenthesize<'_, Context> {
 
 /// Sets the `condition` for the group. The element will behave as a regular group if `condition` is met,
 /// and as *ungrouped* content if the condition is not met.
-///
-/// ## Examples
-///
-/// Only expand before operators if the parentheses are necessary.
-///
-/// ```
-/// # use dyst_language_format::prelude::*;
-/// # use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
-///
-/// # fn main() -> FormatResult<()> {
-/// use dyst_language_format::Formatted;
-/// let content = format_with(|f| {
-///     let parentheses_id = f.group_id("parentheses");
-///     group(&format_args![
-///         if_group_breaks(&token("(")),
-///         indent_if_group_breaks(&format_args![
-///             soft_line_break(),
-///             conditional_group(&format_args![
-///                 token("'aaaaaaa'"),
-///                 soft_line_break_or_space(),
-///                 token("+"),
-///                 space(),
-///                 fits_expanded(&conditional_group(&format_args![
-///                     token("["),
-///                     soft_block_indent(&format_args![
-///                         token("'Good morning!',"),
-///                         soft_line_break_or_space(),
-///                         token("'How are you?'"),
-///                     ]),
-///                     token("]"),
-///                 ], tag::Condition::if_group_fits_on_line(parentheses_id))),
-///                 soft_line_break_or_space(),
-///                 token("+"),
-///                 space(),
-///                 conditional_group(&format_args![
-///                     token("'bbbb'"),
-///                     soft_line_break_or_space(),
-///                     token("and"),
-///                     space(),
-///                     token("'c'")
-///                 ], tag::Condition::if_group_fits_on_line(parentheses_id))
-///             ], tag::Condition::if_breaks()),
-///         ], parentheses_id),
-///         soft_line_break(),
-///         if_group_breaks(&token(")"))
-///     ])
-///     .with_id(Some(parentheses_id))
-///     .fmt(f)
-/// });
-///
-/// let formatted = format!(SimpleFormatContext::default(), [content])?;
-/// let document = formatted.into_document();
-///
-/// // All content fits
-/// let all_fits = Formatted::new(document.clone(), SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(65).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// }));
-///
-/// assert_eq!(
-///     "'aaaaaaa' + ['Good morning!', 'How are you?'] + 'bbbb' and 'c'",
-///     all_fits.print()?.as_code()
-/// );
-///
-/// // The parentheses group fits, because it can expand the list,
-/// let list_expanded = Formatted::new(document.clone(), SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(21).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// }));
-///
-/// assert_eq!(
-///     "'aaaaaaa' + [\n\t'Good morning!',\n\t'How are you?'\n] + 'bbbb' and 'c'",
-///     list_expanded.print()?.as_code()
-/// );
-///
-/// // It is necessary to split all groups to fit the content
-/// let all_expanded = Formatted::new(document, SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(11).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// }));
-///
-/// assert_eq!(
-///     "(\n\t'aaaaaaa'\n\t+ [\n\t\t'Good morning!',\n\t\t'How are you?'\n\t]\n\t+ 'bbbb'\n\tand 'c'\n)",
-///     all_expanded.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn conditional_group<Content, Context>(
     content: &Content,
@@ -1582,36 +662,6 @@ impl<Context> std::fmt::Debug for ConditionalGroup<'_, Context> {
 ///
 /// Has no effect if used outside of a group or element that introduce implicit groups (fill element).
 ///
-/// ## Examples
-///
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("'Good morning! How are you today?',"),
-///             soft_line_break_or_space(),
-///             token("2,"),
-///             expand_parent(), // Forces the parent to expand
-///             soft_line_break_or_space(),
-///             token("3"),
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[\n\t'Good morning! How are you today?',\n\t2,\n\t3\n]",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
 /// # Prettier
 /// Equivalent to Prettier's `break_parent` IR element
 pub const fn expand_parent() -> ExpandParent {
@@ -1636,71 +686,6 @@ impl<Context> Format<Context> for ExpandParent {
 /// The element has no special meaning if used outside of a `Group`. In that case, the content is always emitted.
 ///
 /// If you're looking for a way to only print something if the `Group` fits on a single line see [`self::if_group_fits_on_line`].
-///
-/// # Examples
-///
-/// Omits the trailing comma for the last array element if the `Group` fits on a single line
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let elements = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("1,"),
-///             soft_line_break_or_space(),
-///             token("2,"),
-///             soft_line_break_or_space(),
-///             token("3"),
-///             if_group_breaks(&token(","))
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[1, 2, 3]",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Prints the trailing comma for the last array element if the `Group` doesn't fit on a single line
-/// ```
-/// use dyst_language_format::{format_args, format, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(20).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let elements = format!(context, [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("'A somewhat longer string to force a line break',"),
-///             soft_line_break_or_space(),
-///             token("2,"),
-///             soft_line_break_or_space(),
-///             token("3"),
-///             if_group_breaks(&token(","))
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[\n\t'A somewhat longer string to force a line break',\n\t2,\n\t3,\n]",
-///     elements.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn if_group_breaks<Content, Context>(content: &Content) -> IfGroupBreaks<'_, Context>
 where
@@ -1717,71 +702,6 @@ where
 /// emitted for `Group`s spanning multiple lines.
 ///
 /// See [`if_group_breaks`] if you're looking for a way to print content only for groups spanning multiple lines.
-///
-/// # Examples
-///
-/// Adds the trailing comma for the last array element if the `Group` fits on a single line
-/// ```
-/// use dyst_language_format::{format, format_args};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(SimpleFormatContext::default(), [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("1,"),
-///             soft_line_break_or_space(),
-///             token("2,"),
-///             soft_line_break_or_space(),
-///             token("3"),
-///             if_group_fits_on_line(&token(","))
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[1, 2, 3,]",
-///     formatted.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Omits the trailing comma for the last array element if the `Group` doesn't fit on a single line
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(20).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let formatted = format!(context, [
-///     group(&format_args![
-///         token("["),
-///         soft_block_indent(&format_args![
-///             token("'A somewhat longer string to force a line break',"),
-///             soft_line_break_or_space(),
-///             token("2,"),
-///             soft_line_break_or_space(),
-///             token("3"),
-///             if_group_fits_on_line(&token(","))
-///         ]),
-///         token("]"),
-///     ])
-/// ])?;
-///
-/// assert_eq!(
-///     "[\n\t'A somewhat longer string to force a line break',\n\t2,\n\t3\n]",
-///     formatted.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn if_group_fits_on_line<Content, Context>(flat_content: &Content) -> IfGroupBreaks<'_, Context>
 where
@@ -1805,56 +725,6 @@ impl<Context> IfGroupBreaks<'_, Context> {
     /// Inserts some content that the printer only prints if the group with the specified `group_id`
     /// is printed in multiline mode. The referred group must appear before this element in the document
     /// but doesn't have to one of its ancestors.
-    ///
-    /// # Examples
-    ///
-    /// Prints the trailing comma if the array group doesn't fit. The `group_id` is necessary
-    /// because `fill` creates an implicit group around each item and tries to print the item in flat mode.
-    /// The item `[4]` in this example fits on a single line but the trailing comma should still be printed
-    ///
-    /// ```
-    /// use dyst_language_format::{format, format_args, write, LineWidth, SimpleFormatOptions};
-    /// use dyst_language_format::prelude::*;
-    ///
-    /// # fn main() -> FormatResult<()> {
-    /// let context = SimpleFormatContext::new(SimpleFormatOptions {
-    ///     line_width: LineWidth::try_from(20).unwrap(),
-    ///     ..SimpleFormatOptions::default()
-    /// });
-    ///
-    /// let formatted = format!(context, [format_with(|f| {
-    ///     let group_id = f.group_id("array");
-    ///
-    ///     write!(f, [
-    ///         group(
-    ///             &format_args![
-    ///                 token("["),
-    ///                 soft_block_indent(&format_with(|f| {
-    ///                     f.fill()
-    ///                         .entry(&soft_line_break_or_space(), &token("1,"))
-    ///                         .entry(&soft_line_break_or_space(), &token("234568789,"))
-    ///                         .entry(&soft_line_break_or_space(), &token("3456789,"))
-    ///                         .entry(&soft_line_break_or_space(), &format_args!(
-    ///                             token("["),
-    ///                             soft_block_indent(&token("4")),
-    ///                             token("]"),
-    ///                             if_group_breaks(&token(",")).with_group_id(Some(group_id))
-    ///                         ))
-    ///                     .finish()
-    ///                 })),
-    ///                 token("]")
-    ///             ],
-    ///         ).with_id(Some(group_id))
-    ///     ])
-    /// })])?;
-    ///
-    /// assert_eq!(
-    ///     "[\n\t1, 234568789,\n\t3456789, [4],\n]",
-    ///     formatted.print()?.as_code()
-    /// );
-    /// # Ok(())
-    /// # }
-    /// ```
     #[must_use]
     pub fn with_group_id(mut self, group_id: Option<GroupId>) -> Self {
         self.group_id = group_id;
@@ -1892,82 +762,10 @@ impl<Context> std::fmt::Debug for IfGroupBreaks<'_, Context> {
 ///
 /// This IR has the same semantics as using [`if_group_breaks`] and [`if_group_fits_on_line`] together.
 ///
-/// ```
-/// # use dyst_language_format::prelude::*;
-/// # use dyst_language_format::write;
-/// # let format = format_with(|f: &mut Formatter<SimpleFormatContext>| {
-/// let id = f.group_id("head");
-///
-/// write!(f, [
-///     group(&token("Head")).with_id(Some(id)),
-///     if_group_breaks(&indent(&token("indented"))).with_group_id(Some(id)),
-///     if_group_fits_on_line(&token("indented")).with_group_id(Some(id))
-/// ])
-///
-/// # });
-/// ```
-///
 /// If you want to indent some content if the enclosing group breaks, use [`indent`].
 ///
 /// Use [`if_group_breaks`] or [`if_group_fits_on_line`] if the fitting and breaking content differs more than just the
 /// indentation level.
-///
-/// # Examples
-///
-/// Indent the body of an arrow function if the group wrapping the signature breaks:
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions, write};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let content = format_with(|f| {
-///     let group_id = f.group_id("header");
-///
-///     write!(f, [
-///         group(&token("(aLongHeaderThatBreaksForSomeReason) =>")).with_id(Some(group_id)),
-///         indent_if_group_breaks(&format_args![hard_line_break(), token("a => b")], group_id)
-///     ])
-/// });
-///
-/// let context = SimpleFormatContext::new(SimpleFormatOptions {
-///     line_width: LineWidth::try_from(20).unwrap(),
-///     ..SimpleFormatOptions::default()
-/// });
-///
-/// let formatted = format!(context, [content])?;
-///
-/// assert_eq!(
-///     "(aLongHeaderThatBreaksForSomeReason) =>\n\ta => b",
-///     formatted.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
-///
-/// It doesn't add an indent if the group wrapping the signature doesn't break:
-/// ```
-/// use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions, write};
-/// use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let content = format_with(|f| {
-///     let group_id = f.group_id("header");
-///
-///     write!(f, [
-///         group(&token("(aLongHeaderThatBreaksForSomeReason) =>")).with_id(Some(group_id)),
-///         indent_if_group_breaks(&format_args![hard_line_break(), token("a => b")], group_id)
-///     ])
-/// });
-///
-/// let formatted = format!(SimpleFormatContext::default(), [content])?;
-///
-/// assert_eq!(
-///     "(aLongHeaderThatBreaksForSomeReason) =>\na => b",
-///     formatted.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 #[inline]
 pub fn indent_if_group_breaks<Content, Context>(
     content: &Content,
@@ -2015,46 +813,6 @@ impl<Context> std::fmt::Debug for IndentIfGroupBreaks<'_, Context> {
 /// meaning that a [`hard_line_break`] will not cause the parent group to expand.
 ///
 /// Useful in conjunction with a group with a condition.
-///
-/// ## Examples
-/// The outer group with the binary expression remains *flat* regardless of the array expression that
-/// spans multiple lines with items exceeding the configured line width.
-///
-/// ```
-/// # use dyst_language_format::{format, format_args, LineWidth, SimpleFormatOptions, write};
-/// # use dyst_language_format::prelude::*;
-///
-/// # fn main() -> FormatResult<()> {
-/// let content = format_with(|f| {
-///     let group_id = f.group_id("header");
-///
-///     write!(f, [
-///         group(&format_args![
-///             token("a"),
-///             soft_line_break_or_space(),
-///             token("+"),
-///             space(),
-///             fits_expanded(&group(&format_args![
-///                 token("["),
-///                 soft_block_indent(&format_args![
-///                     token("a,"), space(), token("# comment"), expand_parent(), soft_line_break_or_space(),
-///                     token("'A very long string that exceeds the configured line width of 80 characters but the enclosing binary expression still fits.'")
-///                 ]),
-///                 token("]")
-///             ]))
-///         ]),
-///     ])
-/// });
-///
-/// let formatted = format!(SimpleFormatContext::default(), [content])?;
-///
-/// assert_eq!(
-///     "a + [\n\ta, # comment\n\t'A very long string that exceeds the configured line width of 80 characters but the enclosing binary expression still fits.'\n]",
-///     formatted.print()?.as_code()
-/// );
-/// # Ok(())
-/// # }
-/// ```
 pub fn fits_expanded<Content, Context>(content: &Content) -> FitsExpanded<'_, Context>
 where
     Content: Format<Context>,
@@ -2117,42 +875,6 @@ impl<Context, T> std::fmt::Debug for FormatWith<Context, T> {
 }
 
 /// Creates an object implementing `Format` that calls the passed closure to perform the formatting.
-///
-/// # Examples
-///
-/// ```
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::{SimpleFormatContext, format, write};
-///
-/// struct MyFormat {
-///     items: Vec<&'static str>,
-/// }
-///
-/// impl Format<SimpleFormatContext> for MyFormat {
-///     fn fmt(&self, f: &mut Formatter<SimpleFormatContext>) -> FormatResult<()> {
-///         write!(f, [
-///             token("("),
-///             block_indent(&format_with(|f| {
-///                 let separator = space();
-///                 let mut join = f.join_with(&separator);
-///
-///                 for item in &self.items {
-///                     join.entry(&format_with(|f| write!(f, [text(item)])));
-///                 }
-///                 join.finish()
-///             })),
-///             token(")")
-///         ])
-///     }
-/// }
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(SimpleFormatContext::default(), [MyFormat { items: vec!["a", "b", "c"]}])?;
-///
-/// assert_eq!("(\n\ta b c\n)", formatted.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
 pub const fn format_with<Context, T>(formatter: T) -> FormatWith<Context, T>
 where
     T: Fn(&mut Formatter<'_, Context>) -> FormatResult<()>,
@@ -2173,62 +895,6 @@ where
 /// # Panics
 ///
 /// Panics if the object gets formatted more than once.
-///
-/// # Example
-///
-/// ```
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::{SimpleFormatContext, format, write, Buffer};
-///
-/// struct MyFormat;
-///
-/// fn generate_values() -> impl Iterator<Item=Token> {
-///     vec![token("1"), token("2"), token("3"), token("4")].into_iter()
-/// }
-///
-/// impl Format<SimpleFormatContext> for MyFormat {
-///     fn fmt(&self, f: &mut Formatter<SimpleFormatContext>) -> FormatResult<()> {
-///         let mut values = generate_values();
-///
-///         let first = values.next();
-///
-///         // Formats the first item outside of the block and all other items inside of the block,
-///         // separated by line breaks
-///         write!(f, [
-///             first,
-///             block_indent(&format_once(|f| {
-///                 // Using format_with isn't possible here because the iterator gets consumed here
-///                 f.join_with(&hard_line_break()).entries(values).finish()
-///             })),
-///         ])
-///     }
-/// }
-///
-/// # fn main() -> FormatResult<()> {
-/// let formatted = format!(SimpleFormatContext::default(), [MyFormat])?;
-///
-/// assert_eq!("1\n\t2\n\t3\n\t4\n", formatted.print()?.as_code());
-/// # Ok(())
-/// # }
-/// ```
-///
-/// Formatting the same value twice results in a panic.
-///
-/// ```should_panic
-/// use dyst_language_format::prelude::*;
-/// use dyst_language_format::{SimpleFormatContext, format, write, Buffer};
-///
-/// let mut count = 0;
-///
-/// let value = format_once(|f| {
-///     write!(f, [text(&std::format!("Formatted {count}."))])
-/// });
-///
-/// format!(SimpleFormatContext::default(), [value]).expect("Formatting once works fine");
-///
-/// // Formatting the value more than once panics
-/// format!(SimpleFormatContext::default(), [value]);
-/// ```
 pub const fn format_once<T, Context>(formatter: T) -> FormatOnce<T, Context>
 where
     T: FnOnce(&mut Formatter<'_, Context>) -> FormatResult<()>,
@@ -2430,105 +1096,6 @@ impl<'a, Context> BestFitting<'a, Context> {
     }
 
     /// Changes the mode used by this best fitting element to determine whether a variant fits.
-    ///
-    /// ## Examples
-    ///
-    /// ### All Lines
-    ///
-    /// ```
-    /// use dyst_language_format::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
-    /// use dyst_language_format::prelude::*;
-    ///
-    /// # fn main() -> FormatResult<()> {
-    /// let formatted = format!(
-    ///     SimpleFormatContext::default(),
-    ///     [
-    ///         best_fitting!(
-    ///             // Everything fits on a single line
-    ///             format_args!(
-    ///                 group(&format_args![
-    ///                     token("["),
-    ///                         soft_block_indent(&format_args![
-    ///                         token("1,"),
-    ///                         soft_line_break_or_space(),
-    ///                         token("2,"),
-    ///                         soft_line_break_or_space(),
-    ///                         token("3"),
-    ///                     ]),
-    ///                     token("]")
-    ///                 ]),
-    ///                 space(),
-    ///                 token("+"),
-    ///                 space(),
-    ///                 token("aVeryLongIdentifier")
-    ///             ),
-    ///
-    ///             // Breaks after `[` and prints each elements on a single line
-    ///             // The group is necessary because the variant, by default is printed in flat mode and a
-    ///             // hard line break indicates that the content doesn't fit.
-    ///             format_args!(
-    ///                 token("["),
-    ///                 group(&block_indent(&format_args![token("1,"), hard_line_break(), token("2,"), hard_line_break(), token("3")])).should_expand(true),
-    ///                 token("]"),
-    ///                 space(),
-    ///                 token("+"),
-    ///                 space(),
-    ///                 token("aVeryLongIdentifier")
-    ///             ),
-    ///
-    ///             // Adds parentheses and indents the body, breaks after the operator
-    ///             format_args!(
-    ///                 token("("),
-    ///                 block_indent(&format_args![
-    ///                     token("["),
-    ///                     block_indent(&format_args![
-    ///                         token("1,"),
-    ///                         hard_line_break(),
-    ///                         token("2,"),
-    ///                         hard_line_break(),
-    ///                         token("3"),
-    ///                     ]),
-    ///                     token("]"),
-    ///                     hard_line_break(),
-    ///                     token("+"),
-    ///                     space(),
-    ///                     token("aVeryLongIdentifier")
-    ///                 ]),
-    ///                 token(")")
-    ///             )
-    ///         ).with_mode(BestFittingMode::AllLines)
-    ///     ]
-    /// )?;
-    ///
-    /// let document = formatted.into_document();
-    ///
-    /// // Takes the first variant if everything fits on a single line
-    /// assert_eq!(
-    ///     "[1, 2, 3] + aVeryLongIdentifier",
-    ///     Formatted::new(document.clone(), SimpleFormatContext::default())
-    ///         .print()?
-    ///         .as_code()
-    /// );
-    ///
-    /// // It takes the second if the first variant doesn't fit on a single line. The second variant
-    /// // has some additional line breaks to make sure inner groups don't break
-    /// assert_eq!(
-    ///     "[\n\t1,\n\t2,\n\t3\n] + aVeryLongIdentifier",
-    ///     Formatted::new(document.clone(), SimpleFormatContext::new(SimpleFormatOptions { line_width: 23.try_into().unwrap(), ..SimpleFormatOptions::default() }))
-    ///         .print()?
-    ///         .as_code()
-    /// );
-    ///
-    /// // Prints the last option as last resort
-    /// assert_eq!(
-    ///     "(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n\t+ aVeryLongIdentifier\n)",
-    ///     Formatted::new(document.clone(), SimpleFormatContext::new(SimpleFormatOptions { line_width: 22.try_into().unwrap(), ..SimpleFormatOptions::default() }))
-    ///         .print()?
-    ///         .as_code()
-    /// );
-    /// # Ok(())
-    /// # }
-    /// ```
     #[must_use]
     pub fn with_mode(mut self, mode: BestFittingMode) -> Self {
         self.mode = mode;
@@ -2559,5 +1126,665 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
         f.write_element(element);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use crate::{BestFittingMode, IndentStyle};
+
+    use crate::{SimpleFormatOptions, format, format_args, write};
+
+    /// Soft line breaks are omitted if the enclosing Group fits on a single line
+    #[test]
+    fn test_soft_line_break_fits_on_single_line() {
+        let elements = format!(
+            SimpleFormatContext::default(),
+            [group(&format_args![
+                token("a,"),
+                soft_line_break(),
+                token("b")
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!("a,b", elements.print().unwrap().as_str());
+    }
+
+    /// Soft line breaks are emitted if the enclosing Group doesn't fit on a single line
+    #[test]
+    fn test_soft_line_break_breaks_when_group_doesnt_fit() {
+        let context = SimpleFormatContext::new(
+            SimpleFormatOptions {
+                line_width: 10,
+                ..SimpleFormatOptions::default()
+            },
+            Source::default(),
+        );
+
+        let elements = format!(
+            context,
+            [group(&format_args![
+                token("a long word,"),
+                soft_line_break(),
+                token("so that the group doesn't fit on a single line"),
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "a long word,\nso that the group doesn't fit on a single line",
+            elements.print().unwrap().as_str()
+        );
+    }
+
+    /// Hard line breaks are always printed, even if the enclosing Group fits on a single line
+    #[test]
+    fn test_hard_line_break_always_breaks() {
+        let elements = format!(
+            SimpleFormatContext::default(),
+            [group(&format_args![
+                token("a,"),
+                hard_line_break(),
+                token("b"),
+                hard_line_break()
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!("a,\nb\n", elements.print().unwrap().as_str());
+    }
+
+    /// Empty line inserts enough line breaks for elements to be separated by an empty line
+    #[test]
+    fn test_empty_line_separates_elements() {
+        let elements = format!(
+            SimpleFormatContext::default(),
+            [group(&format_args![
+                token("a,"),
+                empty_line(),
+                token("b"),
+                empty_line()
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!("a,\n\nb\n\n", elements.print().unwrap().as_str());
+    }
+
+    /// Soft line break or space emits spaces when group fits on single line
+    #[test]
+    fn test_soft_line_break_or_space_fits_on_line() {
+        let elements = format!(
+            SimpleFormatContext::default(),
+            [group(&format_args![
+                token("a,"),
+                soft_line_break_or_space(),
+                token("b"),
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!("a, b", elements.print().unwrap().as_str());
+    }
+
+    /// Soft line break or space breaks lines when group doesn't fit
+    #[test]
+    fn test_soft_line_break_or_space_breaks_when_group_doesnt_fit() {
+        let context = SimpleFormatContext::new(
+            SimpleFormatOptions {
+                line_width: 10,
+                ..SimpleFormatOptions::default()
+            },
+            Source::default(),
+        );
+
+        let elements = format!(
+            context,
+            [group(&format_args![
+                token("a long word,"),
+                soft_line_break_or_space(),
+                token("so that the group doesn't fit on a single line"),
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "a long word,\nso that the group doesn't fit on a single line",
+            elements.print().unwrap().as_str()
+        );
+    }
+
+    /// Token writes content as-is to output
+    #[test]
+    fn test_token_writes_content() {
+        let elements = format!(SimpleFormatContext::default(), [token("Hello World")]).unwrap();
+
+        assert_eq!("Hello World", elements.print().unwrap().as_str());
+    }
+
+    /// Token properly handles escaped string literals
+    #[test]
+    fn test_token_handles_escaped_strings() {
+        let elements =
+            format!(SimpleFormatContext::default(), [token("\"Hello\\tWorld\"")]).unwrap();
+
+        assert_eq!(r#""Hello\tWorld""#, elements.print().unwrap().as_str());
+    }
+
+    /// Line suffix pushes content to end of current line
+    #[test]
+    fn test_line_suffix_pushes_to_end() {
+        let elements = format!(
+            SimpleFormatContext::default(),
+            [token("a"), line_suffix(&token("c"), 0), token("b")]
+        )
+        .unwrap();
+
+        assert_eq!("abc", elements.print().unwrap().as_str());
+    }
+
+    /// Line suffix with reserved width affects group breaking
+    #[test]
+    fn test_line_suffix_reserved_width_affects_breaking() {
+        let context = SimpleFormatContext::new(
+            SimpleFormatOptions {
+                line_width: 10,
+                ..SimpleFormatOptions::default()
+            },
+            Source::default(),
+        );
+
+        let elements = format!(
+            context,
+            [
+                // breaks due to reserved width
+                group(&format_args![
+                    if_group_breaks(&token("(")),
+                    soft_block_indent(&format_args![
+                        token("a"),
+                        line_suffix(&token(" // a comment"), 13)
+                    ]),
+                    if_group_breaks(&token(")"))
+                ]),
+                // fits without reserved width
+                group(&format_args![
+                    if_group_breaks(&token("(")),
+                    soft_block_indent(&format_args![
+                        token("a"),
+                        line_suffix(&token(" // a comment"), 0)
+                    ]),
+                    if_group_breaks(&token(")"))
+                ]),
+            ]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "(\n    a // a comment\n)a // a comment",
+            elements.print().unwrap().as_str()
+        );
+    }
+
+    /// Line suffix boundary forces printing of pending line suffixes
+    #[test]
+    fn test_line_suffix_boundary_forces_printing() {
+        let elements = format!(
+            SimpleFormatContext::default(),
+            [
+                token("a"),
+                line_suffix(&token("c"), 0),
+                token("b"),
+                line_suffix_boundary(),
+                token("d")
+            ]
+        )
+        .unwrap();
+
+        assert_eq!("abc\nd", elements.print().unwrap().as_str());
+    }
+
+    /// Space inserts single space between tokens
+    #[test]
+    fn test_space_separates_tokens() {
+        let elements = format!(
+            SimpleFormatContext::default(),
+            [token("a"), space(), token("b")]
+        )
+        .unwrap();
+
+        assert_eq!("a b", elements.print().unwrap().as_str());
+    }
+
+    /// Indent adds level of indentation to content
+    #[test]
+    fn test_indent_adds_indentation_level() {
+        let block = format!(
+            SimpleFormatContext::default(),
+            [
+                token("switch {"),
+                block_indent(&format_args![
+                    token("default:"),
+                    indent(&format_args![hard_line_break(), token("break;"),])
+                ]),
+                token("}"),
+            ]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "switch {\n    default:\n        break;\n}",
+            block.print().unwrap().as_str()
+        );
+    }
+
+    /// Block indent adds indentation and line breaks around content
+    #[test]
+    fn test_block_indent_adds_indentation_and_breaks() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [
+                token("switch {"),
+                block_indent(&format_args![
+                    token("default:"),
+                    block_indent(&token("break;"))
+                ]),
+                token("}"),
+            ]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "switch {\n    default:\n        break;\n}",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// Soft block indent adds indentation and soft line breaks
+    #[test]
+    fn test_soft_block_indent_adds_soft_breaks() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [
+                token("switch {"),
+                soft_block_indent(&format_args![
+                    token("default:"),
+                    soft_block_indent(&token("break;"))
+                ]),
+                token("}"),
+            ]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "switch {\n    default:\n        break;\n}",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// If group breaks shows content only when group breaks
+    #[test]
+    fn test_if_group_breaks_shows_when_breaking() {
+        let context = SimpleFormatContext::new(
+            SimpleFormatOptions {
+                indent_style: IndentStyle::Tab,
+                line_width: 10,
+                ..SimpleFormatOptions::default()
+            },
+            Source::default(),
+        );
+
+        let formatted = format!(
+            context,
+            [group(&format_args![
+                token("["),
+                soft_block_indent(&format_args![
+                    token("'A somewhat longer string to force a line break',"),
+                    soft_line_break(),
+                    token("2,"),
+                    soft_line_break(),
+                    token("3"),
+                    if_group_breaks(&token(","))
+                ]),
+                token("]")
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "[\n\t'A somewhat longer string to force a line break',\n\t2,\n\t3,\n]",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// If group fits on line shows content only when group fits
+    #[test]
+    fn test_if_group_fits_on_line_shows_when_fitting() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [group(&format_args![
+                token("["),
+                soft_block_indent(&format_args![
+                    token("1,"),
+                    soft_line_break(),
+                    token("2,"),
+                    soft_line_break(),
+                    token("3"),
+                    if_group_fits_on_line(&token(" "))
+                ]),
+                token("]")
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!("[1, 2, 3 ]", formatted.print().unwrap().as_str());
+    }
+
+    /// Indent if group breaks adds indentation when specific group breaks
+    #[test]
+    fn test_indent_if_group_breaks() {
+        let content = format_with(|f| {
+            let group_id = f.group_id("header");
+            write!(
+                f,
+                [
+                    group(&format_args![
+                        token("const fn = ("),
+                        soft_block_indent(&format_args![
+                            token("param1,"),
+                            soft_line_break(),
+                            token("param2")
+                        ]),
+                        token(")")
+                    ])
+                    .with_id(Some(group_id)),
+                    space(),
+                    token("=>"),
+                    indent_if_group_breaks(
+                        &format_args![hard_line_break(), token("body")],
+                        group_id
+                    )
+                ]
+            )
+        });
+
+        let context = SimpleFormatContext::new(
+            SimpleFormatOptions {
+                indent_style: IndentStyle::Tab,
+                line_width: 20,
+                ..SimpleFormatOptions::default()
+            },
+            Source::default(),
+        );
+
+        let formatted = format!(context, [content]).unwrap();
+
+        assert_eq!(
+            "const fn = (\n\tparam1,\n\tparam2\n) =>\n\tbody",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// Fits expanded allows content to exceed line width
+    #[test]
+    fn test_fits_expanded_allows_exceeding_line_width() {
+        let context = SimpleFormatContext::new(
+            SimpleFormatOptions {
+                indent_style: IndentStyle::Tab,
+                line_width: 20,
+                ..SimpleFormatOptions::default()
+            },
+            Source::default(),
+        );
+
+        let formatted = format!(
+            context,
+            [group(&format_args![
+                token("a"),
+                space(),
+                token("+"),
+                space(),
+                fits_expanded(&format_args![
+                    token("["),
+                    soft_block_indent(&format_args![
+                        token("'A very long string that exceeds the line width',"),
+                        hard_line_break(),
+                        token("'and another one'")
+                    ]),
+                    token("]")
+                ])
+            ])]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "a + [\n\t'A very long string that exceeds the line width',\n\t'and another one'\n]",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// Text creates dynamic text content
+    #[test]
+    fn test_text_creates_dynamic_content() {
+        let dynamic_text = "Hello World";
+        let elements = format!(SimpleFormatContext::default(), [text(dynamic_text)]).unwrap();
+
+        assert_eq!("Hello World", elements.print().unwrap().as_str());
+    }
+
+    /// Best fitting chooses first variant that fits
+    #[test]
+    fn test_best_fitting_chooses_first_variant_that_fits() {
+        let document = format_with(|f| {
+            write!(
+                f,
+                [best_fitting![
+                    format_args![token("["), token("1, 2, 3"), token("]")],
+                    format_args![
+                        token("["),
+                        soft_block_indent(&format_args![
+                            token("1,"),
+                            soft_line_break(),
+                            token("2,"),
+                            soft_line_break(),
+                            token("3")
+                        ]),
+                        token("]")
+                    ]
+                ]]
+            )
+        });
+
+        // First variant fits
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 20,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default()
+            ),
+            [document.clone()]
+        )
+        .unwrap();
+
+        assert_eq!("[1, 2, 3]", formatted.print().unwrap().as_str());
+
+        // First variant doesn't fit, use second
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 8,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default()
+            ),
+            [document]
+        )
+        .unwrap();
+
+        assert_eq!("[\n\t1,\n\t2,\n\t3\n]", formatted.print().unwrap().as_str());
+    }
+
+    /// Best fit parenthesize keeps content flat when it fits
+    #[test]
+    fn test_best_fit_parenthesize_content_fits() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [format_with(|f| {
+                write!(
+                    f,
+                    [
+                        token("aLongerVariableName = "),
+                        best_fit_parenthesize(&token("'a string'"))
+                    ]
+                )
+            })]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "aLongerVariableName = 'a string'",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// Best fit parenthesize adds parentheses when content exceeds line width but fits parenthesized
+    #[test]
+    fn test_best_fit_parenthesize_content_fits_parenthesized() {
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions::default().with_line_width(80),
+                Source::default()
+            ),
+            [format_with(|f| {
+                write!(
+                    f,
+                    [
+                        token("aLongerVariableName = "),
+                        best_fit_parenthesize(&token(
+                            "'a string that exceeds configured line width but fits parenthesized'"
+                        ))
+                    ]
+                )
+            })]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "aLongerVariableName = (\n    'a string that exceeds configured line width but fits parenthesized'\n)",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// Best fit parenthesize keeps content flat when even parenthesizing doesn't help
+    #[test]
+    fn test_best_fit_parenthesize_content_exceeds_even_parenthesized() {
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions::default().with_line_width(80),
+                Source::default()
+            ),
+            [format_with(|f| {
+                write!(
+                    f,
+                    [
+                        token("aLongerVariableName = "),
+                        best_fit_parenthesize(&token(
+                            "'a string that exceeds the configured line width and even parenthesizing doesn't make it fit'"
+                        ))
+                    ]
+                )
+            })]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "aLongerVariableName = 'a string that exceeds the configured line width and even parenthesizing doesn't make it fit'",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// Best fitting with mode all variants tries all options
+    #[test]
+    fn test_best_fitting_with_mode_all_variants() {
+        let document = format_with(|f| {
+            write!(
+                f,
+                [
+                    token("("),
+                    best_fitting![
+                        format_args![token("[1, 2, 3] + aVeryLongIdentifier")],
+                        format_args![
+                            token("["),
+                            soft_block_indent(&format_args![
+                                token("1,"),
+                                soft_line_break(),
+                                token("2,"),
+                                soft_line_break(),
+                                token("3")
+                            ]),
+                            token("]"),
+                            space(),
+                            token("+ aVeryLongIdentifier")
+                        ],
+                        format_args![soft_block_indent(&format_args![
+                            token("["),
+                            soft_block_indent(&format_args![
+                                token("1,"),
+                                soft_line_break(),
+                                token("2,"),
+                                soft_line_break(),
+                                token("3")
+                            ]),
+                            token("]"),
+                            soft_line_break(),
+                            token("+ aVeryLongIdentifier")
+                        ]),]
+                    ]
+                    .with_mode(BestFittingMode::AllLines),
+                    token(")")
+                ]
+            )
+        });
+
+        // First variant fits
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 40,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default()
+            ),
+            [document.clone()]
+        )
+        .unwrap();
+        assert_eq!(
+            "([1, 2, 3] + aVeryLongIdentifier)",
+            formatted.print().unwrap().as_str()
+        );
+
+        // Second variant fits
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 23,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default()
+            ),
+            [document.clone()]
+        )
+        .unwrap();
+        assert_eq!(
+            "(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n\t+ aVeryLongIdentifier\n)",
+            formatted.print().unwrap().as_str()
+        );
     }
 }

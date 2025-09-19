@@ -30,7 +30,7 @@ use crate::{
 /// let paragraph = Paragraph(String::from("test"));
 /// let formatted = format!(SimpleFormatContext::default(), [paragraph])?;
 ///
-/// assert_eq!("test\n", formatted.print()?.as_code());
+/// assert_eq!("test\n", formatted.print()?.as_str());
 /// # Ok(())
 /// # }
 /// ```
@@ -146,7 +146,7 @@ where
 ///
 /// let formatted = Formatted::new(Document::from(buffer.into_vec()), SimpleFormatContext::default());
 ///
-/// assert_eq!("Hello World", formatted.print()?.as_code());
+/// assert_eq!("Hello World", formatted.print()?.as_str());
 /// # Ok(())
 /// # }
 /// ```
@@ -165,7 +165,7 @@ where
 ///
 /// let formatted = Formatted::new(Document::from(buffer.into_vec()), SimpleFormatContext::default());
 ///
-/// assert_eq!("Hello World", formatted.print()?.as_code());
+/// assert_eq!("Hello World", formatted.print()?.as_str());
 /// # Ok(())
 /// # }
 /// ```
@@ -193,7 +193,7 @@ pub fn write<Context>(
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(SimpleFormatContext::default(), [&format_args!(token("test"))])?;
-/// assert_eq!("test", formatted.print()?.as_code());
+/// assert_eq!("test", formatted.print()?.as_str());
 /// # Ok(())
 /// # }
 /// ```
@@ -206,7 +206,7 @@ pub fn write<Context>(
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(SimpleFormatContext::default(), [token("test")])?;
-/// assert_eq!("test", formatted.print()?.as_code());
+/// assert_eq!("test", formatted.print()?.as_str());
 /// # Ok(())
 /// # }
 /// ```

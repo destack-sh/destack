@@ -43,10 +43,8 @@ pub enum LineEnding {
     /// Line Feed only (\n), common on Linux and macOS as well as inside git repos.
     #[default]
     LineFeed,
-
     /// Carriage Return + Line Feed characters (\r\n), common on Windows.
     CarriageReturnLineFeed,
-
     /// Carriage Return character only (\r), used very rarely.
     CarriageReturn,
 }

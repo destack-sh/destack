@@ -193,12 +193,12 @@ impl PrintedSpan {
     }
 
     /// Get the formatted code as a string slice.
-    pub fn as_code(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.code
     }
 
     /// Take the formatted code, consuming the result.
-    pub fn into_code(self) -> String {
+    pub fn into_str(self) -> String {
         self.code
     }
 
