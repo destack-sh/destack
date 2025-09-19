@@ -5,7 +5,7 @@ use dyst_language_source::Source;
 
 use crate::{GroupId, IndentStyle, PrintOptions};
 
-/// This structure stores the state that is relevant for the formatting of the whole document.
+/// Stores the state that is relevant for the formatting of the whole document.
 ///
 /// This structure is different from [`crate::Formatter`] in that the formatting infrastructure
 /// creates a new [`crate::Formatter`] for every [`crate::write`!] call, whereas this structure stays alive
@@ -17,7 +17,7 @@ pub struct FormatState<Context> {
 }
 
 impl<Context> FormatState<Context> {
-    /// Creates a new state with the given language specific context
+    /// Create a new state with the given language specific context.
     pub fn new(context: Context) -> Self {
         Self {
             context,
@@ -25,22 +25,24 @@ impl<Context> FormatState<Context> {
         }
     }
 
+    /// Convert this state into its inner context.
     pub fn into_context(self) -> Context {
         self.context
     }
 
-    /// Returns the context specifying how to format the current CST
+    /// Get the context specifying how to format the current AST.
     pub fn context(&self) -> &Context {
         &self.context
     }
 
-    /// Returns a mutable reference to the context
+    /// Get a mutable reference to the context.
     pub fn context_mut(&mut self) -> &mut Context {
         &mut self.context
     }
 
-    /// Creates a new group id that is unique to this document. The passed debug name is used in the
-    /// [`std::fmt::Debug`] of the document if this is a debug build.
+    /// Create a new group id that is unique to this document.
+    ///
+    /// The passed debug name is used in the [`std::fmt::Debug`] of the document if this is a debug build.
     /// The name is unused for production builds and has no meaning on the equality of two group ids.
     pub fn group_id(&self, debug_name: &'static str) -> GroupId {
         let id = self.next_group_id.fetch_add(1, Ordering::Relaxed);
@@ -53,24 +55,26 @@ impl<Context> FormatState<Context> {
 pub trait FormatContext {
     type Options: FormatOptions;
 
-    /// Returns the formatting options
+    /// Get the formatting options.
     fn options(&self) -> &Self::Options;
 
-    /// Returns the source code from the document that gets formatted.
+    /// Get the source code from the document that gets formatted.
     fn source(&self) -> &Source;
 }
 
 pub trait FormatOptions {
-    /// The indent style.
+    /// Get the indent style.
     fn indent_style(&self) -> IndentStyle;
 
-    /// The visual width of an indent
+    /// Get the visual width of an indent.
     fn indent_width(&self) -> u8;
 
-    /// What's the max width of a line. Defaults to 80.
+    /// Get the max width of a line.
+    ///
+    /// Defaults to 80.
     fn line_width(&self) -> u8;
 
-    /// Derives the print options from these format options
+    /// Derive the print options from these format options.
     fn as_print_options(&self) -> PrintOptions;
 }
 
@@ -111,6 +115,7 @@ pub struct SimpleFormatContext {
 }
 
 impl SimpleFormatContext {
+    /// Create a new SimpleFormatContext with the given options and source.
     pub fn new(options: SimpleFormatOptions, source: Source) -> Self {
         Self { options, source }
     }

@@ -52,7 +52,6 @@ pub(crate) fn find_byte(hay: &[u8], needle: u8) -> Option<usize> {
     let align = ((ptr as usize) & mask) ^ mask; // bytes until next alignment-1
     let head = core::cmp::min(align + 1, n);
     while i < head {
-        // SAFETY: i < n
         if unsafe { *ptr.add(i) } == needle {
             return Some(i);
         }
@@ -62,7 +61,6 @@ pub(crate) fn find_byte(hay: &[u8], needle: u8) -> Option<usize> {
     // word scanning
     let needle_word = repeat_byte(needle);
     while i + usize_bytes <= n {
-        // SAFETY: unaligned read is OK with read_unaligned
         let w = unsafe { (ptr.add(i) as *const usize).read_unaligned() };
         let x = w ^ needle_word;
         if has_zero_byte(x) {

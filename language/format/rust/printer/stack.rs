@@ -1,12 +1,13 @@
-/// A school book stack. Allows adding, removing, and inspecting elements at the back.
+/// A school book stack.
+/// Allows adding, removing, and inspecting elements at the back.
 pub(crate) trait Stack<T> {
-    /// Removes the last element if any and returns it
+    /// Removes the last element if any and gets it.
     fn pop(&mut self) -> Option<T>;
 
-    /// Pushes a new element at the back
+    /// Pushes a new element at the back.
     fn push(&mut self, value: T);
 
-    /// Returns the last element if any
+    /// Gets the last element if any.
     fn top(&self) -> Option<&T>;
 }
 
@@ -27,7 +28,8 @@ impl<T> Stack<T> for Vec<T> {
     }
 }
 
-/// A Stack that is stacked on top of another stack. Guarantees that the underlying stack remains unchanged.
+/// A Stack that is stacked on top of another stack.
+/// Guarantees that the underlying stack remains unchanged.
 #[derive(Debug, Clone)]
 pub(crate) struct StackedStack<'a, T> {
     /// The content of the original stack.
@@ -39,20 +41,20 @@ pub(crate) struct StackedStack<'a, T> {
 
 impl<'a, T> StackedStack<'a, T> {
     #[cfg(test)]
-    pub fn new(original: &'a [T]) -> Self {
+    pub(crate) fn new(original: &'a [T]) -> Self {
         Self::with_vec(original, Vec::new())
     }
 
     /// Creates a new stack that uses `stack` for storing its elements.
-    pub fn with_vec(original: &'a [T], stack: Vec<T>) -> Self {
+    pub(crate) fn with_vec(original: &'a [T], stack: Vec<T>) -> Self {
         Self {
             original: original.iter(),
             stack,
         }
     }
 
-    /// Returns the underlying `stack` vector.
-    pub fn into_vec(self) -> Vec<T> {
+    /// Gets the underlying `stack` vector.
+    pub(crate) fn into_vec(self) -> Vec<T> {
         self.stack
     }
 }
@@ -83,7 +85,8 @@ mod tests {
     use crate::printer::stack::{Stack, StackedStack};
 
     #[test]
-    fn restore_consumed_stack() {
+    fn test_restore_consumed_stack() {
+        // consume entire stack and verify original remains unchanged
         let original = vec![1, 2, 3];
         let mut restorable = StackedStack::new(&original);
 
@@ -99,7 +102,8 @@ mod tests {
     }
 
     #[test]
-    fn restore_partially_consumed_stack() {
+    fn test_restore_partially_consumed_stack() {
+        // partially consume stack then add more elements
         let original = vec![1, 2, 3];
         let mut restorable = StackedStack::new(&original);
 
@@ -116,7 +120,8 @@ mod tests {
     }
 
     #[test]
-    fn restore_stack() {
+    fn test_restore_stack() {
+        // add multiple elements then pop some of them
         let original = vec![1, 2, 3];
         let mut restorable = StackedStack::new(&original);
 

@@ -11,8 +11,8 @@
 /// as seen below.
 ///
 /// ```rust
-/// use ruff_formatter::{SimpleFormatContext, format, format_args};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{SimpleFormatContext, format, format_args};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(SimpleFormatContext::default(), [
@@ -46,8 +46,8 @@ macro_rules! format_args {
 /// # Examples
 ///
 /// ```rust
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{Buffer, FormatState, SimpleFormatContext, VecBuffer, write};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{Buffer, FormatState, SimpleFormatContext, VecBuffer, write};
 ///
 /// # fn main() -> FormatResult<()> {
 /// let mut state = FormatState::new(SimpleFormatContext::default());
@@ -79,8 +79,8 @@ macro_rules! write {
 /// An example:
 ///
 /// ```rust
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{FormatState, VecBuffer};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{FormatState, VecBuffer};
 ///
 /// # fn main() -> FormatResult<()> {
 /// let mut state = FormatState::new(SimpleFormatContext::default());
@@ -94,7 +94,7 @@ macro_rules! write {
 /// # }
 /// ```
 ///
-/// Note that the macro is intended as debugging tool and therefore you should avoid having
+/// NOTE: The macro is intended as debugging tool and therefore you should avoid having
 /// uses of it in version control for long periods (other than in tests and similar). Format output
 /// from production code is better done with `[write!]`
 #[macro_export]
@@ -119,12 +119,11 @@ macro_rules! dbg_write {
 /// The first argument `format!` receives is the [`crate::FormatContext`] that specify how elements must be formatted.
 /// Additional parameters passed get formatted by using their [`crate::Format`] implementation.
 ///
-///
 /// ## Examples
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::format;
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::format;
 ///
 /// let formatted = format!(SimpleFormatContext::default(), [token("("), token("a"), token(")")]).unwrap();
 ///
@@ -153,8 +152,8 @@ macro_rules! format {
 /// ## Examples
 ///
 /// ```
-/// use ruff_formatter::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(
@@ -241,8 +240,8 @@ macro_rules! format {
 /// ### Enclosing group with `should_expand: true`
 ///
 /// ```
-/// use ruff_formatter::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
-/// use ruff_formatter::prelude::*;
+/// use dyst_language_format::{Formatted, LineWidth, format, format_args, SimpleFormatOptions};
+/// use dyst_language_format::prelude::*;
 ///
 /// # fn main() -> FormatResult<()> {
 /// let formatted = format!(
@@ -321,7 +320,6 @@ macro_rules! format {
 /// This definition differs from groups as that non-soft line breaks make group expand.
 ///
 /// [`crate::BestFitting`] acts as a "break" boundary, meaning that it is considered to fit
-///
 ///
 /// [`Flat`]: crate::format_element::PrintMode::Flat
 /// [`Expanded`]: crate::format_element::PrintMode::Expanded
@@ -486,7 +484,7 @@ mod tests {
         )
         .print()
         .expect("Document to be valid")
-        .as_code()
+        .as_str()
         .to_string();
 
         let normal_list_code = Formatted::new(
@@ -501,7 +499,7 @@ mod tests {
         )
         .print()
         .expect("Document to be valid")
-        .as_code()
+        .as_str()
         .to_string();
 
         // The variant that "fits" will print its contents as if it were a normal list

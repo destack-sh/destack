@@ -1,7 +1,7 @@
 pub use crate::builder::*;
+pub use crate::context::FormatOptions;
 pub use crate::element::*;
 pub use crate::formatter::Formatter;
-pub use crate::context::FormatOptions;
 pub use crate::tag::{FormatTag, FormatTagKind};
 
 pub use crate::{

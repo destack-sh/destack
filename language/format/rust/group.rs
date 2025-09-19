@@ -9,7 +9,7 @@ pub enum GroupMode {
     /// Print group in flat mode.
     #[default]
     Flat,
-    /// The group should be printed in expanded mode
+    /// The group should be printed in expanded mode.
     Expand,
     /// Expand mode has been propagated from an enclosing group to this group.
     Propagated,
@@ -22,7 +22,7 @@ impl GroupMode {
 }
 
 /// Logical group of elements.
-/// (The elements are implicit in the element stream surrounded by group delimiters.)
+/// The elements are implicit in the element stream surrounded by group delimiters.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct Group {
     id: Option<GroupId>,
@@ -53,6 +53,7 @@ impl Group {
         self.mode.get()
     }
 
+    /// Propagate expand mode to this group if it's currently flat.
     pub fn propagate_expand(&self) {
         if self.mode.get() == GroupMode::Flat {
             self.mode.set(GroupMode::Propagated);
@@ -82,6 +83,7 @@ impl ConditionalGroup {
         self.condition
     }
 
+    /// Propagate expand mode to this conditional group.
     pub fn propagate_expand(&self) {
         self.mode.set(GroupMode::Propagated);
     }
@@ -91,7 +93,7 @@ impl ConditionalGroup {
     }
 }
 
-/// Unique identification for a group (with a name, for debugging).
+/// Unique identification for a group with a name for debugging.
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DebugGroupId {
     value: NonZeroU32,
@@ -122,7 +124,8 @@ pub struct ReleaseGroupId {
 }
 
 impl ReleaseGroupId {
-    /// Creates a new unique group id with the given debug name (only stored in debug builds)
+    /// Create a new unique group id with the given debug name.
+    /// The debug name is only stored in debug builds.
     #[allow(unused)]
     pub(crate) fn new(value: NonZeroU32, _: &'static str) -> Self {
         Self { value }

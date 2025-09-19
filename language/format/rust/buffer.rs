@@ -1,6 +1,6 @@
 use super::{Arguments, FormatElement, write};
 use crate::element::Interned;
-use crate::prelude::{LineMode, FormatTag};
+use crate::prelude::{FormatTag, LineMode};
 use crate::{FormatResult, FormatState};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ pub trait Buffer {
     /// # Examples
     ///
     /// ```
-    /// use ruff_formatter::{Buffer, FormatElement, FormatState, SimpleFormatContext, VecBuffer};
+    /// use dyst_language_format::{Buffer, FormatElement, FormatState, SimpleFormatContext, VecBuffer};
     ///
     /// let mut state = FormatState::new(SimpleFormatContext::default());
     /// let mut buffer = VecBuffer::new(&mut state);
@@ -45,8 +45,8 @@ pub trait Buffer {
     /// # Examples
     ///
     /// ```
-    /// use ruff_formatter::prelude::*;
-    /// use ruff_formatter::{Buffer, FormatState, SimpleFormatContext, VecBuffer, format_args};
+    /// use dyst_language_format::prelude::*;
+    /// use dyst_language_format::{Buffer, FormatState, SimpleFormatContext, VecBuffer, format_args};
     ///
     /// let mut state = FormatState::new(SimpleFormatContext::default());
     /// let mut buffer = VecBuffer::new(&mut state);
@@ -263,6 +263,12 @@ impl<'inner, Context, Inspector> Inspect<'inner, Context, Inspector> {
     }
 }
 
+impl<Context, Inspector> Debug for Inspect<'_, Context, Inspector> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Inspect").finish()
+    }
+}
+
 impl<Context, Inspector> Buffer for Inspect<'_, Context, Inspector>
 where
     Inspector: FnMut(&FormatElement),
@@ -305,12 +311,12 @@ where
 /// # Examples
 ///
 /// ```
-/// use ruff_formatter::prelude::*;
-/// use ruff_formatter::{format, write};
+/// use dyst_language_format::prelude::*;
+/// use dyst_language_format::{format, write};
 ///
 /// # fn main() -> FormatResult<()> {
-/// use ruff_formatter::{RemoveSoftLinesBuffer, SimpleFormatContext, VecBuffer};
-/// use ruff_formatter::prelude::format_with;
+/// use dyst_language_format::{RemoveSoftLinesBuffer, SimpleFormatContext, VecBuffer};
+/// use dyst_language_format::prelude::format_with;
 /// let formatted = format!(
 ///     SimpleFormatContext::default(),
 ///     [format_with(|f| {
@@ -373,7 +379,14 @@ impl<'a, Context> RemoveSoftLinesBuffer<'a, Context> {
     }
 }
 
+impl<Context> Debug for RemoveSoftLinesBuffer<'_, Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RemoveSoftLinesBuffer").finish()
+    }
+}
+
 // Extracted to function to avoid monomorphization
+#[allow(clippy::mutable_key_type)]
 fn clean_interned(
     interned: &Interned,
     interned_cache: &mut HashMap<Interned, Interned>,
@@ -576,8 +589,8 @@ pub trait BufferExtensions: Buffer + Sized {
     ///
     /// ```
     /// use std::ops::Deref;
-    /// use ruff_formatter::prelude::*;
-    /// use ruff_formatter::{write, format, SimpleFormatContext};
+    /// use dyst_language_format::prelude::*;
+    /// use dyst_language_format::{write, format, SimpleFormatContext};
     ///
     /// # fn main() -> FormatResult<()> {
     /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {

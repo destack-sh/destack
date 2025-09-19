@@ -2,19 +2,20 @@ use std::error::Error;
 
 use dyst_language_source::Span;
 
-use crate::{GroupId, FormatTagKind};
+use crate::{FormatTagKind, GroupId};
 
+/// Series of errors encountered during formatting.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-/// Series of errors encountered during formatting
 pub enum FormatError {
-    /// In case a node can't be formatted because it either misses a require child element or
-    /// a child is present that should not (e.g. a trailing comma after a rest element).
+    /// Node can't be formatted because it either misses a required child element or
+    /// a child is present that should not be (e.g. a trailing comma after a rest element).
     SyntaxError { message: &'static str },
-    /// In case range formatting failed because the provided range was larger
-    /// than the formatted syntax tree
+
+    /// Range formatting failed because the provided range was larger
+    /// than the formatted syntax tree.
     RangeError { input: Span, tree: Span },
 
-    /// In case printing the document failed because it has an invalid structure.
+    /// Printing the document failed because it has an invalid structure.
     InvalidDocument(InvalidDocumentError),
 
     /// Formatting failed because some content encountered a situation where a layout
@@ -159,7 +160,7 @@ pub enum ActualStart {
     /// The actual element is an end tag instead of a start tag.
     End(FormatTagKind),
 
-    /// Reached the end of the document
+    /// Reached the end of the document.
     EndOfDocument,
 }
 

@@ -199,7 +199,6 @@ impl<'a> Parser<'a> {
         }
 
         let end = self.i;
-        // SAFETY: slice is within original &str, utf8 boundary is fine since it's ascii digits/sign/dot
         let s = unsafe { std::str::from_utf8_unchecked(&self.s[start..end]) };
         s.parse::<f64>().map_err(|_| JsonParseError::InvalidNumber)
     }

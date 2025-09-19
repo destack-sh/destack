@@ -8,37 +8,33 @@ use crate::{FormatElement, FormatTag, FormatTagKind, LabelId};
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub enum BestFittingMode {
-    /// The variant fits if the content up to the first hard or a soft line break inside a [`Group`] with
-    /// [`PrintMode::Expanded`] fits on the line. The default mode.
+    /// The variant fits if the content up to the first hard or a soft line break inside a [`Group`] with [`PrintMode::Expanded`] fits on the line.
+    /// The default mode.
     ///
     /// [`Group`]: tag::Group
     #[default]
     FirstLine,
 
-    /// A variant fits if all lines fit into the configured print width. A line ends if by any
-    /// hard or a soft line break inside a [`Group`] with [`PrintMode::Expanded`].
-    /// The content doesn't fit if there's any hard line break  outside a [`Group`] with [`PrintMode::Expanded`]
-    /// (a hard line break in content that should be considered in [`PrintMode::Flat`].
+    /// A variant fits if all lines fit into the configured print width.
+    /// A line ends if by any hard or a soft line break inside a [`Group`] with [`PrintMode::Expanded`].
+    /// The content doesn't fit if there's any hard line break outside a [`Group`] with [`PrintMode::Expanded`] (a hard line break in content that should be considered in [`PrintMode::Flat`].
     ///
-    /// Use this mode with caution as it requires measuring all content of the variant which is more
-    /// expensive than using [`BestFittingMode::FirstLine`].
+    /// Use this mode with caution as it requires measuring all content of the variant which is more expensive than using [`BestFittingMode::FirstLine`].
     ///
     /// [`Group`]: tag::Group
     AllLines,
 }
 
 /// The different variants for this element.
-/// The first element is the one that takes up the most space horizontally (the most flat),
+/// The first element is the one that takes up the most space horizontally (the most flat).
 /// The last element takes up the least space horizontally (but most horizontal space).
 #[derive(Clone, PartialEq, Debug)]
 pub struct BestFittingVariants(Box<[FormatElement]>);
 
 impl BestFittingVariants {
-    /// Creates a new best fitting IR with the given variants.
+    /// Create a new best fitting IR with the given variants.
     ///
-    /// Callers are required to ensure that the number of variants given
-    /// is at least 2 when using `most_expanded` or `most_flag`.
-    ///
+    /// Callers are required to ensure that the number of variants given is at least 2 when using `most_expanded` or `most_flag`.
     /// You're looking for a way to create a `BestFitting` object, use the `best_fitting![least_expanded, most_expanded]` macro.
     #[doc(hidden)]
     pub fn from_vec_unchecked(variants: Vec<FormatElement>) -> Self {
@@ -56,7 +52,7 @@ impl BestFittingVariants {
         Self(variants.into_boxed_slice())
     }
 
-    /// Returns the most expanded variant
+    /// Get the most expanded variant.
     ///
     /// # Panics
     ///
@@ -80,7 +76,7 @@ impl BestFittingVariants {
         &self.0
     }
 
-    /// Returns the least expanded variant
+    /// Get the least expanded variant.
     ///
     /// # Panics
     ///
@@ -109,6 +105,7 @@ impl Deref for BestFittingVariants {
     }
 }
 
+#[derive(Debug)]
 pub struct BestFittingVariantsIter<'a> {
     elements: &'a [FormatElement],
 }
@@ -128,6 +125,7 @@ impl<'a> Iterator for BestFittingVariantsIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.elements.first()? {
             FormatElement::Tag(FormatTag::StartBestFittingEntry) => {
+                // find the end of this variant
                 let end = self
                     .elements
                     .iter()
@@ -155,6 +153,7 @@ impl<'a> Iterator for BestFittingVariantsIter<'a> {
 
 impl DoubleEndedIterator for BestFittingVariantsIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
+        // find the start of the last variant
         let start_position = self.elements.iter().rposition(|element| {
             matches!(
                 element,
@@ -171,31 +170,30 @@ impl DoubleEndedIterator for BestFittingVariantsIter<'_> {
 impl FusedIterator for BestFittingVariantsIter<'_> {}
 
 pub trait FormatElements {
-    /// Returns true if this [`FormatElement`] is guaranteed to break across multiple lines by the printer.
+    /// Check if this [`FormatElement`] is guaranteed to break across multiple lines by the printer.
     /// This is the case if this format element recursively contains a:
     /// - [`crate::builders::empty_line`] or [`crate::builders::hard_line_break`]
     /// - A token containing '\n'
     ///
-    /// Use this with caution, this is only a heuristic and the printer may print the element over multiple
-    /// lines if this element is part of a group and the group doesn't fit on a single line.
+    /// Use this with caution, this is only a heuristic and the printer may print the element over multiple lines if this element is part of a group and the group doesn't fit on a single line.
     fn will_break(&self) -> bool;
 
-    /// Returns true if the element has the given label.
+    /// Check if the element has the given label.
     fn has_label(&self, label: LabelId) -> bool;
 
-    /// Returns the start tag of `kind` if:
+    /// Get the start tag of `kind` if:
     /// - the last element is an end tag of `kind`.
     /// - there's a matching start tag in this document (may not be true if this slice is an interned element and the `start` is in the document storing the interned element).
     fn start_tag(&self, kind: FormatTagKind) -> Option<&FormatTag>;
 
-    /// Returns the end tag if:
+    /// Get the end tag if:
     /// - the last element is an end tag of `kind`
     fn end_tag(&self, kind: FormatTagKind) -> Option<&FormatTag>;
 }
 
 /// Primitives with a textual length that can be passed to [`TextSize::of`].
 pub trait TextLen: Copy {
-    /// The textual length of this primitive.
+    /// Get the textual length of this primitive.
     fn text_len(self) -> u32;
 }
 
@@ -217,7 +215,7 @@ impl TextLen for char {
     #[inline]
     #[expect(clippy::cast_possible_truncation)]
     fn text_len(self) -> u32 {
-        (self.len_utf8() as u32).into()
+        self.len_utf8() as u32
     }
 }
 
@@ -227,7 +225,8 @@ pub(crate) trait CharWidth {
 
 impl CharWidth for char {
     fn width(self) -> u8 {
-        self.len_utf8() as u8 // nocheckin
+        // nocheckin @Broken: this is incorrect for unicode width calculation
+        self.len_utf8() as u8
     }
 }
 
@@ -236,12 +235,10 @@ impl CharWidth for char {
 ///
 /// ## Representation
 ///
-/// Represents the width by adding 1 to the actual width so that the width can be represented by a [`NonZeroU32`],
-/// allowing [`TextWidth`] or [`Option<Width>`] fit in 4 bytes rather than 8.
+/// Represents the width by adding 1 to the actual width so that the width can be represented by a [`NonZeroU32`], allowing [`TextWidth`] or [`Option<Width>`] fit in 4 bytes rather than 8.
 ///
 /// This means that 2^32 can not be precisely represented and instead has the same value as 2^32-1.
-/// This imprecision shouldn't matter in practice because either text are longer than any configured line width
-/// and thus, the text should break.
+/// This imprecision shouldn't matter in practice because either text are longer than any configured line width and thus, the text should break.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Width(NonZeroU32);
 
@@ -255,8 +252,7 @@ impl Width {
     }
 }
 
-/// The pre-computed unicode width of a text if it is a single-line text or a marker
-/// that it is a multiline text if it contains a line feed.
+/// The pre-computed unicode width of a text if it is a single-line text or a marker that it is a multiline text if it contains a line feed.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TextWidth {
     Width(Width),
@@ -266,6 +262,7 @@ pub enum TextWidth {
 impl TextWidth {
     pub fn from_text(text: &str, indent_width: u8) -> TextWidth {
         let mut width = 0u32;
+
         for c in text.chars() {
             let char_width = match c {
                 '\t' => indent_width,

@@ -1,3 +1,4 @@
+/// Unique identifier for a label in the formatting system.
 #[derive(Debug, Eq, Copy, Clone)]
 pub struct LabelId {
     value: u64,
@@ -24,6 +25,7 @@ impl PartialEq for LabelId {
 }
 
 impl LabelId {
+    /// Create a LabelId from a LabelDefinition.
     #[expect(clippy::needless_pass_by_value)]
     pub fn of<T: LabelDefinition>(label: T) -> Self {
         Self {
@@ -34,12 +36,12 @@ impl LabelId {
     }
 }
 
-/// Defines the valid labels of a language. You want to have at most one implementation per formatter
-/// project.
+/// Defines the valid labels of a language.
+/// You want to have at most one implementation per formatter project.
 pub trait LabelDefinition {
-    /// Returns the `u64` uniquely identifying this specific label.
+    /// Gets the `u64` uniquely identifying this specific label.
     fn value(&self) -> u64;
 
-    /// Returns the name of the label that is shown in debug builds.
+    /// Gets the name of the label that is shown in debug builds.
     fn name(&self) -> &'static str;
 }
