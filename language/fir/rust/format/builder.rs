@@ -29,7 +29,7 @@ pub const fn hard_line_break() -> Line {
 }
 
 /// A forced empty line. An empty line inserts enough line breaks in the output for
-/// the previous and next element to be separated by an empty line.
+/// the previous and next node to be separated by an empty line.
 #[inline]
 pub const fn empty_line() -> Line {
     Line::new(LineMode::Empty)
@@ -41,6 +41,7 @@ pub const fn soft_line_break_or_space() -> Line {
     Line::new(LineMode::SoftOrSpace)
 }
 
+/// A line break.
 #[derive(Copy, Clone, PartialEq)]
 pub struct Line {
     mode: LineMode,
@@ -54,7 +55,7 @@ impl Line {
 
 impl<Context> Format<Context> for Line {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Line(self.mode));
+        f.write_node(FormatNode::Line(self.mode));
         Ok(())
     }
 }
@@ -85,7 +86,7 @@ pub struct Token {
 
 impl<Context> Format<Context> for Token {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Token { text: self.text });
+        f.write_node(FormatNode::Token { text: self.text });
         Ok(())
     }
 }
@@ -115,9 +116,9 @@ where
     Context: FormatContext,
 {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Text {
+        f.write_node(FormatNode::Text {
             text: self.text.to_string().into_boxed_str(),
-            text_width: TextWidth::from_text(self.text, f.options().indent_width()),
+            width: TextWidth::from_text(self.text, f.options().indent_width()),
         });
 
         Ok(())
@@ -151,9 +152,9 @@ where
         let text_width =
             TextWidth::from_text(self.span.text(source), f.context().options().indent_width());
 
-        f.write_element(FormatElement::SourceSlice {
+        f.write_node(FormatNode::SourceSlice {
             slice: self.span,
-            text_width,
+            width: text_width,
         });
 
         Ok(())
@@ -190,11 +191,11 @@ pub struct LineSuffix<'a, Context> {
 
 impl<Context> Format<Context> for LineSuffix<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartLineSuffix {
+        f.write_node(FormatNode::Tag(StartLineSuffix {
             reserved_width: self.reserved_width,
         }));
         Arguments::from(&self.content).fmt(f)?;
-        f.write_element(FormatElement::Tag(EndLineSuffix));
+        f.write_node(FormatNode::Tag(EndLineSuffix));
 
         Ok(())
     }
@@ -217,7 +218,7 @@ pub struct LineSuffixBoundary;
 
 impl<Context> Format<Context> for LineSuffixBoundary {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::LineSuffixBoundary);
+        f.write_node(FormatNode::LineSuffixBoundary);
 
         Ok(())
     }
@@ -234,7 +235,7 @@ pub struct Space;
 
 impl<Context> Format<Context> for Space {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Space);
+        f.write_node(FormatNode::Space);
         Ok(())
     }
 }
@@ -263,9 +264,9 @@ pub struct Indent<'a, Context> {
 
 impl<Context> Format<Context> for Indent<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartIndent));
+        f.write_node(FormatNode::Tag(StartIndent));
         Arguments::from(&self.content).fmt(f)?;
-        f.write_element(FormatElement::Tag(EndIndent));
+        f.write_node(FormatNode::Tag(EndIndent));
 
         Ok(())
     }
@@ -277,7 +278,7 @@ impl<Context> std::fmt::Debug for Indent<'_, Context> {
     }
 }
 
-/// It reduces the indentation for the given content depending on the closest [indent] or [align] parent element.
+/// It reduces the indentation for the given content depending on the closest [indent] or [align] parent node.
 /// - [align] Undoes the spaces added by [align]
 /// - [indent] Reduces the indentation level by one
 ///
@@ -301,9 +302,9 @@ pub struct Dedent<'a, Context> {
 
 impl<Context> Format<Context> for Dedent<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartDedent(self.mode)));
+        f.write_node(FormatNode::Tag(StartDedent(self.mode)));
         Arguments::from(&self.content).fmt(f)?;
-        f.write_element(FormatElement::Tag(EndDedent));
+        f.write_node(FormatNode::Tag(EndDedent));
 
         Ok(())
     }
@@ -319,7 +320,7 @@ impl<Context> std::fmt::Debug for Dedent<'_, Context> {
 ///
 /// ## Prettier
 ///
-/// This resembles the behaviour of Prettier's `align(Number.NEGATIVE_INFINITY, content)` IR element.
+/// This resembles the behaviour of Prettier's `align(Number.NEGATIVE_INFINITY, content)` IR node.
 #[inline]
 pub fn dedent_to_root<Content, Context>(content: &Content) -> Dedent<'_, Context>
 where
@@ -356,9 +357,9 @@ pub struct Align<'a, Context> {
 
 impl<Context> Format<Context> for Align<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartAlign(self.count)));
+        f.write_node(FormatNode::Tag(StartAlign(self.count)));
         Arguments::from(&self.content).fmt(f)?;
-        f.write_element(FormatElement::Tag(EndAlign));
+        f.write_node(FormatNode::Tag(EndAlign));
 
         Ok(())
     }
@@ -378,7 +379,7 @@ impl<Context> std::fmt::Debug for Align<'_, Context> {
 /// Block indents indent a block of code, such as in a function body, and therefore insert a line
 /// break before and after the content.
 ///
-/// Doesn't create an indentation if the passed in content is [`FormatElement.is_empty`].
+/// Doesn't create an indentation if the passed in content is [`FormatNode.is_empty`].
 #[inline]
 pub fn block_indent<Context>(content: &impl Format<Context>) -> BlockIndent<'_, Context> {
     BlockIndent {
@@ -431,7 +432,7 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let snapshot = f.snapshot();
 
-        f.write_element(FormatElement::Tag(StartIndent));
+        f.write_node(FormatNode::Tag(StartIndent));
 
         match self.mode {
             IndentMode::Soft => write!(f, [soft_line_break()])?,
@@ -452,7 +453,7 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
             return Ok(());
         }
 
-        f.write_element(FormatElement::Tag(EndIndent));
+        f.write_node(FormatNode::Tag(EndIndent));
 
         match self.mode {
             IndentMode::Soft => write!(f, [soft_line_break()]),
@@ -520,7 +521,7 @@ impl<Context> Group<'_, Context> {
     /// Changes the [`PrintMode`] of the group from [`Flat`](PrintMode::Flat) to [`Expanded`](PrintMode::Expanded).
     /// The result is that any soft-line break gets printed as a regular line break.
     ///
-    /// This is useful for content rendered inside of a [`FormatElement::BestFitting`] that prints each variant
+    /// This is useful for content rendered inside of a [`FormatNode::BestFitting`] that prints each variant
     /// in [`PrintMode::Flat`] to change some content to be printed in [`Expanded`](PrintMode::Expanded) regardless.
     /// See the documentation of the [`best_fitting`] macro for an example.
     #[must_use]
@@ -538,13 +539,13 @@ impl<Context> Format<Context> for Group<'_, Context> {
             GroupMode::Flat
         };
 
-        f.write_element(FormatElement::Tag(StartGroup(
+        f.write_node(FormatNode::Tag(StartGroup(
             crate::format::Group::new().with_id(self.id).with_mode(mode),
         )));
 
         Arguments::from(&self.content).fmt(f)?;
 
-        f.write_element(FormatElement::Tag(EndGroup));
+        f.write_node(FormatNode::Tag(EndGroup));
 
         Ok(())
     }
@@ -566,7 +567,7 @@ impl<Context> std::fmt::Debug for Group<'_, Context> {
 /// This IR is identical to the following [`best_fitting`] layout but is implemented as custom IR for
 /// better performance.
 ///
-/// The element breaks from left-to-right because it uses the unintended version as *expanded* layout, the same as the above showed best fitting example.
+/// The node breaks from left-to-right because it uses the unintended version as *expanded* layout, the same as the above showed best fitting example.
 #[inline]
 pub fn best_fit_parenthesize<Context>(
     content: &impl Format<Context>,
@@ -595,13 +596,13 @@ impl<Context> BestFitParenthesize<'_, Context> {
 
 impl<Context> Format<Context> for BestFitParenthesize<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartBestFitParenthesize {
+        f.write_node(FormatNode::Tag(StartBestFitParenthesize {
             id: self.group_id,
         }));
 
         Arguments::from(&self.content).fmt(f)?;
 
-        f.write_element(FormatElement::Tag(EndBestFitParenthesize));
+        f.write_node(FormatNode::Tag(EndBestFitParenthesize));
 
         Ok(())
     }
@@ -616,7 +617,7 @@ impl<Context> std::fmt::Debug for BestFitParenthesize<'_, Context> {
     }
 }
 
-/// Sets the `condition` for the group. The element will behave as a regular group if `condition` is met,
+/// Sets the `condition` for the group. The node will behave as a regular group if `condition` is met,
 /// and as *ungrouped* content if the condition is not met.
 #[inline]
 pub fn conditional_group<Content, Context>(
@@ -640,11 +641,11 @@ pub struct ConditionalGroup<'content, Context> {
 
 impl<Context> Format<Context> for ConditionalGroup<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartConditionalGroup(
+        f.write_node(FormatNode::Tag(StartConditionalGroup(
             crate::format::group::ConditionalGroup::new(self.condition),
         )));
         f.write_fmt(Arguments::from(&self.content))?;
-        f.write_element(FormatElement::Tag(EndConditionalGroup));
+        f.write_node(FormatNode::Tag(EndConditionalGroup));
 
         Ok(())
     }
@@ -659,12 +660,12 @@ impl<Context> std::fmt::Debug for ConditionalGroup<'_, Context> {
     }
 }
 
-/// IR element that forces the parent group to print in expanded mode.
+/// IR node that forces the parent group to print in expanded mode.
 ///
-/// Has no effect if used outside of a group or element that introduce implicit groups (fill element).
+/// Has no effect if used outside of a group or node that introduce implicit groups (fill node).
 ///
 /// # Prettier
-/// Equivalent to Prettier's `break_parent` IR element
+/// Equivalent to Prettier's `break_parent` IR node
 pub const fn expand_parent() -> ExpandParent {
     ExpandParent
 }
@@ -674,17 +675,17 @@ pub struct ExpandParent;
 
 impl<Context> Format<Context> for ExpandParent {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::ExpandParent);
+        f.write_node(FormatNode::ExpandParent);
 
         Ok(())
     }
 }
 
 /// Adds a conditional content that is emitted only if it isn't inside an enclosing `Group` that
-/// is printed on a single line. The element allows, for example, to insert a trailing comma after the last
-/// array element only if the array doesn't fit on a single line.
+/// is printed on a single line. The node allows, for example, to insert a trailing comma after the last
+/// array node only if the array doesn't fit on a single line.
 ///
-/// The element has no special meaning if used outside of a `Group`. In that case, the content is always emitted.
+/// The node has no special meaning if used outside of a `Group`. In that case, the content is always emitted.
 ///
 /// If you're looking for a way to only print something if the `Group` fits on a single line see [`self::if_group_fits_on_line`].
 #[inline]
@@ -724,7 +725,7 @@ pub struct IfGroupBreaks<'a, Context> {
 
 impl<Context> IfGroupBreaks<'_, Context> {
     /// Inserts some content that the printer only prints if the group with the specified `group_id`
-    /// is printed in multiline mode. The referred group must appear before this element in the document
+    /// is printed in multiline mode. The referred group must appear before this node in the document
     /// but doesn't have to one of its ancestors.
     #[must_use]
     pub fn with_group_id(mut self, group_id: Option<GroupId>) -> Self {
@@ -735,11 +736,11 @@ impl<Context> IfGroupBreaks<'_, Context> {
 
 impl<Context> Format<Context> for IfGroupBreaks<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartConditionalContent(
+        f.write_node(FormatNode::Tag(StartConditionalContent(
             Condition::new(self.mode).with_group_id(self.group_id),
         )));
         Arguments::from(&self.content).fmt(f)?;
-        f.write_element(FormatElement::Tag(EndConditionalContent));
+        f.write_node(FormatNode::Tag(EndConditionalContent));
 
         Ok(())
     }
@@ -789,9 +790,9 @@ pub struct IndentIfGroupBreaks<'a, Context> {
 
 impl<Context> Format<Context> for IndentIfGroupBreaks<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartIndentIfGroupBreaks(self.group_id)));
+        f.write_node(FormatNode::Tag(StartIndentIfGroupBreaks(self.group_id)));
         Arguments::from(&self.content).fmt(f)?;
-        f.write_element(FormatElement::Tag(EndIndentIfGroupBreaks));
+        f.write_node(FormatNode::Tag(EndIndentIfGroupBreaks));
 
         Ok(())
     }
@@ -842,11 +843,11 @@ impl<Context> FitsExpanded<'_, Context> {
 
 impl<Context> Format<Context> for FitsExpanded<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        f.write_element(FormatElement::Tag(StartFitsExpanded(
+        f.write_node(FormatNode::Tag(StartFitsExpanded(
             tag::FitsExpanded::new().with_condition(self.condition),
         )));
         f.write_fmt(Arguments::from(&self.content))?;
-        f.write_element(FormatElement::Tag(EndFitsExpanded));
+        f.write_node(FormatNode::Tag(EndFitsExpanded));
 
         Ok(())
     }
@@ -890,7 +891,7 @@ where
 ///
 /// This can be useful in situation where the borrow checker doesn't allow you to use [`format_with`]
 /// because the code formatting the content consumes the value and cloning the value is too expensive.
-/// An example of this is if you want to nest a `FormatElement` or non-cloneable `Iterator` inside of a
+/// An example of this is if you want to nest a `FormatNode` or non-cloneable `Iterator` inside of a
 /// `block_indent` as shown can see in the examples section.
 ///
 /// # Panics
@@ -937,19 +938,19 @@ pub struct JoinBuilder<'fmt, 'buf, Separator, Context> {
     result: FormatResult<()>,
     fmt: &'fmt mut Formatter<'buf, Context>,
     with: Option<Separator>,
-    has_elements: bool,
+    has_nodes: bool,
 }
 
 impl<'fmt, 'buf, Separator, Context> JoinBuilder<'fmt, 'buf, Separator, Context>
 where
     Separator: Format<Context>,
 {
-    /// Creates a new instance that joins the elements without a separator
+    /// Creates a new instance that joins the nodes without a separator
     pub(super) fn new(fmt: &'fmt mut Formatter<'buf, Context>) -> Self {
         Self {
             result: Ok(()),
             fmt,
-            has_elements: false,
+            has_nodes: false,
             with: None,
         }
     }
@@ -959,7 +960,7 @@ where
         Self {
             result: Ok(()),
             fmt,
-            has_elements: false,
+            has_nodes: false,
             with: Some(with),
         }
     }
@@ -968,11 +969,11 @@ where
     pub fn entry(&mut self, entry: &dyn Format<Context>) -> &mut Self {
         self.result = self.result.and_then(|()| {
             if let Some(with) = &self.with
-                && self.has_elements
+                && self.has_nodes
             {
                 with.fmt(self.fmt)?;
             }
-            self.has_elements = true;
+            self.has_nodes = true;
 
             entry.fmt(self.fmt)
         });
@@ -999,7 +1000,7 @@ where
     }
 }
 
-/// Builder to fill as many elements as possible on a single line.
+/// Builder to fill as many nodes as possible on a single line.
 #[must_use = "must eventually call `finish()` on Format builders"]
 #[derive(Debug)]
 pub struct FillBuilder<'fmt, 'buf, Context> {
@@ -1010,7 +1011,7 @@ pub struct FillBuilder<'fmt, 'buf, Context> {
 
 impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
     pub(crate) fn new(fmt: &'a mut Formatter<'buf, Context>) -> Self {
-        fmt.write_element(FormatElement::Tag(StartFill));
+        fmt.write_node(FormatNode::Tag(StartFill));
 
         Self {
             result: Ok(()),
@@ -1032,7 +1033,7 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
         self
     }
 
-    /// Adds a new entry to the fill output. The `separator` isn't written if this is the first element in the list.
+    /// Adds a new entry to the fill output. The `separator` isn't written if this is the first node in the list.
     pub fn entry(
         &mut self,
         separator: &dyn Format<Context>,
@@ -1042,14 +1043,14 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
             if self.empty {
                 self.empty = false;
             } else {
-                self.fmt.write_element(FormatElement::Tag(StartEntry));
+                self.fmt.write_node(FormatNode::Tag(StartEntry));
                 separator.fmt(self.fmt)?;
-                self.fmt.write_element(FormatElement::Tag(EndEntry));
+                self.fmt.write_node(FormatNode::Tag(EndEntry));
             }
 
-            self.fmt.write_element(FormatElement::Tag(StartEntry));
+            self.fmt.write_node(FormatNode::Tag(StartEntry));
             entry.fmt(self.fmt)?;
-            self.fmt.write_element(FormatElement::Tag(EndEntry));
+            self.fmt.write_node(FormatNode::Tag(EndEntry));
             Ok(())
         });
 
@@ -1059,7 +1060,7 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
     /// Finishes the output and returns any error encountered
     pub fn finish(&mut self) -> FormatResult<()> {
         if self.result.is_ok() {
-            self.fmt.write_element(FormatElement::Tag(EndFill));
+            self.fmt.write_node(FormatNode::Tag(EndFill));
         }
         self.result
     }
@@ -1096,7 +1097,7 @@ impl<'a, Context> BestFitting<'a, Context> {
         }
     }
 
-    /// Changes the mode used by this best fitting element to determine whether a variant fits.
+    /// Changes the mode used by this best fitting node to determine whether a variant fits.
     #[must_use]
     pub fn with_mode(mut self, mode: BestFittingMode) -> Self {
         self.mode = mode;
@@ -1111,20 +1112,20 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
         let mut buffer = VecBuffer::with_capacity(variants.len() * 8, f.state_mut());
 
         for variant in variants {
-            buffer.write_element(FormatElement::Tag(StartBestFittingEntry));
+            buffer.write_node(FormatNode::Tag(StartBestFittingEntry));
             buffer.write_fmt(Arguments::from(variant))?;
-            buffer.write_element(FormatElement::Tag(EndBestFittingEntry));
+            buffer.write_node(FormatNode::Tag(EndBestFittingEntry));
         }
 
         // OK because the constructor guarantees that there are always at
         // least two variants.
         let variants = BestFittingVariants::from_vec_unchecked(buffer.into_vec());
-        let element = FormatElement::BestFitting {
+        let node = FormatNode::BestFitting {
             variants,
             mode: self.mode,
         };
 
-        f.write_element(element);
+        f.write_node(node);
 
         Ok(())
     }
@@ -1139,7 +1140,7 @@ mod tests {
     /// Soft line breaks are omitted if the enclosing Group fits on a single line
     #[test]
     fn test_soft_line_break_fits_on_single_line() {
-        let elements = format!(
+        let nodes = format!(
             SimpleFormatContext::default(),
             [group(&format_args![
                 token("a,"),
@@ -1149,7 +1150,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!("a,b", elements.print().unwrap().as_str());
+        assert_eq!("a,b", nodes.print().unwrap().as_str());
     }
 
     /// Soft line breaks are emitted if the enclosing Group doesn't fit on a single line
@@ -1163,7 +1164,7 @@ mod tests {
             Source::default(),
         );
 
-        let elements = format!(
+        let nodes = format!(
             context,
             [group(&format_args![
                 token("a long word,"),
@@ -1175,14 +1176,14 @@ mod tests {
 
         assert_eq!(
             "a long word,\nso that the group doesn't fit on a single line",
-            elements.print().unwrap().as_str()
+            nodes.print().unwrap().as_str()
         );
     }
 
     /// Hard line breaks are always printed, even if the enclosing Group fits on a single line
     #[test]
     fn test_hard_line_break_always_breaks() {
-        let elements = format!(
+        let nodes = format!(
             SimpleFormatContext::default(),
             [group(&format_args![
                 token("a,"),
@@ -1193,13 +1194,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!("a,\nb\n", elements.print().unwrap().as_str());
+        assert_eq!("a,\nb\n", nodes.print().unwrap().as_str());
     }
 
-    /// Empty line inserts enough line breaks for elements to be separated by an empty line
+    /// Empty line inserts enough line breaks for nodes to be separated by an empty line
     #[test]
-    fn test_empty_line_separates_elements() {
-        let elements = format!(
+    fn test_empty_line_separates_nodes() {
+        let nodes = format!(
             SimpleFormatContext::default(),
             [group(&format_args![
                 token("a,"),
@@ -1210,13 +1211,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!("a,\n\nb\n\n", elements.print().unwrap().as_str());
+        assert_eq!("a,\n\nb\n\n", nodes.print().unwrap().as_str());
     }
 
     /// Soft line break or space emits spaces when group fits on single line
     #[test]
     fn test_soft_line_break_or_space_fits_on_line() {
-        let elements = format!(
+        let nodes = format!(
             SimpleFormatContext::default(),
             [group(&format_args![
                 token("a,"),
@@ -1226,7 +1227,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!("a, b", elements.print().unwrap().as_str());
+        assert_eq!("a, b", nodes.print().unwrap().as_str());
     }
 
     /// Soft line break or space breaks lines when group doesn't fit
@@ -1240,7 +1241,7 @@ mod tests {
             Source::default(),
         );
 
-        let elements = format!(
+        let nodes = format!(
             context,
             [group(&format_args![
                 token("a long word,"),
@@ -1252,37 +1253,36 @@ mod tests {
 
         assert_eq!(
             "a long word,\nso that the group doesn't fit on a single line",
-            elements.print().unwrap().as_str()
+            nodes.print().unwrap().as_str()
         );
     }
 
     /// Token writes content as-is to output
     #[test]
     fn test_token_writes_content() {
-        let elements = format!(SimpleFormatContext::default(), [token("Hello World")]).unwrap();
+        let nodes = format!(SimpleFormatContext::default(), [token("Hello World")]).unwrap();
 
-        assert_eq!("Hello World", elements.print().unwrap().as_str());
+        assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
 
     /// Token properly handles escaped string literals
     #[test]
     fn test_token_handles_escaped_strings() {
-        let elements =
-            format!(SimpleFormatContext::default(), [token("\"Hello\\tWorld\"")]).unwrap();
+        let nodes = format!(SimpleFormatContext::default(), [token("\"Hello\\tWorld\"")]).unwrap();
 
-        assert_eq!(r#""Hello\tWorld""#, elements.print().unwrap().as_str());
+        assert_eq!(r#""Hello\tWorld""#, nodes.print().unwrap().as_str());
     }
 
     /// Line suffix pushes content to end of current line
     #[test]
     fn test_line_suffix_pushes_to_end() {
-        let elements = format!(
+        let nodes = format!(
             SimpleFormatContext::default(),
             [token("a"), line_suffix(&token("c"), 0), token("b")]
         )
         .unwrap();
 
-        assert_eq!("abc", elements.print().unwrap().as_str());
+        assert_eq!("abc", nodes.print().unwrap().as_str());
     }
 
     /// Line suffix with reserved width affects group breaking
@@ -1296,7 +1296,7 @@ mod tests {
             Source::default(),
         );
 
-        let elements = format!(
+        let nodes = format!(
             context,
             [
                 // breaks due to reserved width
@@ -1323,14 +1323,14 @@ mod tests {
 
         assert_eq!(
             "(\n    a // a comment\n)a // a comment",
-            elements.print().unwrap().as_str()
+            nodes.print().unwrap().as_str()
         );
     }
 
     /// Line suffix boundary forces printing of pending line suffixes
     #[test]
     fn test_line_suffix_boundary_forces_printing() {
-        let elements = format!(
+        let nodes = format!(
             SimpleFormatContext::default(),
             [
                 token("a"),
@@ -1342,19 +1342,19 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!("abc\nd", elements.print().unwrap().as_str());
+        assert_eq!("abc\nd", nodes.print().unwrap().as_str());
     }
 
     /// Space inserts single space between tokens
     #[test]
     fn test_space_separates_tokens() {
-        let elements = format!(
+        let nodes = format!(
             SimpleFormatContext::default(),
             [token("a"), space(), token("b")]
         )
         .unwrap();
 
-        assert_eq!("a b", elements.print().unwrap().as_str());
+        assert_eq!("a b", nodes.print().unwrap().as_str());
     }
 
     /// Indent adds level of indentation to content
@@ -1579,9 +1579,9 @@ mod tests {
     #[test]
     fn test_text_creates_dynamic_content() {
         let dynamic_text = "Hello World";
-        let elements = format!(SimpleFormatContext::default(), [text(dynamic_text)]).unwrap();
+        let nodes = format!(SimpleFormatContext::default(), [text(dynamic_text)]).unwrap();
 
-        assert_eq!("Hello World", elements.print().unwrap().as_str());
+        assert_eq!("Hello World", nodes.print().unwrap().as_str());
     }
 
     /// Best fitting chooses first variant that fits

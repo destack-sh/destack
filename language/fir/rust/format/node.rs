@@ -8,64 +8,54 @@ use crate::format::{BestFittingMode, BestFittingVariants, FormatTag, FormatTagKi
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LineMode {
+    /// Linebreak only if the enclosing group doesn't fit on a single line.
     Soft,
+    /// Linebreak only if the enclosing group doesn't fit on a single line, a space otherwise.
     SoftOrSpace,
+    /// Linebreak (forced).
     Hard,
+    /// Empty line (forced).
     Empty,
 }
 
 /// Language agnostic IR for formatting source code.
 ///
-/// Use the helper functions like [`crate::builders::space`], [`crate::builders::soft_line_break`] etc. defined in this file to create elements.
+/// Use the helper functions like [`crate::builders::space`], [`crate::builders::soft_line_break`] etc. defined in this file to create nodes.
 #[derive(Clone, PartialEq)]
-pub enum FormatElement {
+pub enum FormatNode {
     /// A space token, see [`crate::builders::space`] for documentation.
     Space,
-
-    /// A new line, see [`crate::builders::soft_line_break`], [`crate::builders::hard_line_break`], and [`crate::builders::soft_line_break_or_space`] for documentation.
+    /// Newline, see [`crate::builders::soft_line_break`], [`crate::builders::hard_line_break`], and [`crate::builders::soft_line_break_or_space`] for documentation.
     Line(LineMode),
-
     /// Forces the parent group to print in expanded mode.
     ExpandParent,
-
-    /// A ASCII only Token that contains no line breaks or tab characters.
+    /// An ASCII Token that contains no line breaks or tab characters.
     Token { text: &'static str },
-
     /// An arbitrary text that can contain tabs, newlines, and unicode characters.
-    Text {
-        /// There's no need for the text to be mutable, using `Box<str>` safes 8 bytes over `String`.
-        text: Box<str>,
-        text_width: TextWidth,
-    },
-
+    Text { text: Box<str>, width: TextWidth },
     /// Text that gets emitted as it is in the source code.
-    /// Optimized to avoid any allocations.
-    SourceSlice { slice: Span, text_width: TextWidth },
-
+    SourceSlice { slice: Span, width: TextWidth },
     /// Prevents that line suffixes move past this boundary.
     /// Forces the printer to print any pending line suffixes, potentially by inserting a hard line break.
     LineSuffixBoundary,
-
-    /// An interned format element.
+    /// Interned format node.
     /// Useful when the same content must be emitted multiple times to avoid deep cloning the IR when using the `best_fitting!` macro or `if_group_fits_on_line` and `if_group_breaks`.
     Interned(Interned),
-
-    /// A list of different variants representing the same content.
+    /// List of different variants representing the same content.
     /// The printer picks the best fitting content.
     /// Line breaks inside of a best fitting don't propagate to parent groups.
     BestFitting {
         variants: BestFittingVariants,
         mode: BestFittingMode,
     },
-
-    /// A [Tag] that marks the start/end of some content to which some special formatting is applied.
+    /// [Tag]s mark the start/end of some content to which some special formatting is applied.
     Tag(FormatTag),
 }
 
-impl FormatElement {
-    /// Gets the tag kind if this element is a Tag.
+impl FormatNode {
+    /// Gets the tag kind if this node is a Tag.
     pub fn tag_kind(&self) -> Option<FormatTagKind> {
-        if let FormatElement::Tag(tag) = self {
+        if let FormatNode::Tag(tag) = self {
             Some(tag.kind())
         } else {
             None
@@ -73,38 +63,41 @@ impl FormatElement {
     }
 }
 
-impl std::fmt::Debug for FormatElement {
+impl std::fmt::Debug for FormatNode {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FormatElement::Space => write!(fmt, "Space"),
-            FormatElement::Line(mode) => fmt.debug_tuple("Line").field(mode).finish(),
-            FormatElement::ExpandParent => write!(fmt, "ExpandParent"),
-            FormatElement::Token { text } => fmt.debug_tuple("Token").field(text).finish(),
-            FormatElement::Text { text, .. } => fmt.debug_tuple("DynamicText").field(text).finish(),
-            FormatElement::SourceSlice { slice, text_width } => fmt
+            FormatNode::Space => write!(fmt, "Space"),
+            FormatNode::Line(mode) => fmt.debug_tuple("Line").field(mode).finish(),
+            FormatNode::ExpandParent => write!(fmt, "ExpandParent"),
+            FormatNode::Token { text } => fmt.debug_tuple("Token").field(text).finish(),
+            FormatNode::Text { text, .. } => fmt.debug_tuple("DynamicText").field(text).finish(),
+            FormatNode::SourceSlice {
+                slice,
+                width: text_width,
+            } => fmt
                 .debug_tuple("Text")
                 .field(slice)
                 .field(text_width)
                 .finish(),
-            FormatElement::LineSuffixBoundary => write!(fmt, "LineSuffixBoundary"),
-            FormatElement::BestFitting { variants, mode } => fmt
+            FormatNode::LineSuffixBoundary => write!(fmt, "LineSuffixBoundary"),
+            FormatNode::BestFitting { variants, mode } => fmt
                 .debug_struct("BestFitting")
                 .field("variants", variants)
                 .field("mode", &mode)
                 .finish(),
-            FormatElement::Interned(interned) => fmt.debug_list().entries(&**interned).finish(),
-            FormatElement::Tag(tag) => fmt.debug_tuple("Tag").field(tag).finish(),
+            FormatNode::Interned(interned) => fmt.debug_list().entries(&**interned).finish(),
+            FormatNode::Tag(tag) => fmt.debug_tuple("Tag").field(tag).finish(),
         }
     }
 }
 
-/// Interned format element.
+/// Interned format node.
 #[derive(Clone)]
-pub struct Interned(Rc<[FormatElement]>);
+pub struct Interned(Rc<[FormatNode]>);
 
 impl Interned {
-    /// Creates a new Interned from a vector of FormatElements.
-    pub(super) fn new(content: Vec<FormatElement>) -> Self {
+    /// Creates a new Interned from a vector of FormatNodes.
+    pub(super) fn new(content: Vec<FormatNode>) -> Self {
         Self(content.into())
     }
 }
@@ -133,7 +126,7 @@ impl std::fmt::Debug for Interned {
 }
 
 impl Deref for Interned {
-    type Target = [FormatElement];
+    type Target = [FormatNode];
 
     fn deref(&self) -> &Self::Target {
         &self.0

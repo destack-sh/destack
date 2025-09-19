@@ -125,7 +125,7 @@ where
     Context: FormatContext,
 {
     let source_length = context.source().content.len();
-    // Use a simple heuristic to guess the number of expected format elements.
+    // Use a simple heuristic to guess the number of expected format nodes.
     // See [#6612](https://github.com/astral-sh/ruff/pull/6612) for more details on how the formula was determined. Changes to our formatter, or supporting
     // more languages may require fine tuning the formula.
     let estimated_buffer_size = source_length / 2;
@@ -201,28 +201,28 @@ impl<'buf, Context> Formatter<'buf, Context> {
     }
 
     /// Concatenate a list of [`crate::Format`] objects with spaces and line breaks to fit them on as few lines as possible.
-    /// Each element introduces a conceptual group.
+    /// Each node introduces a conceptual group.
     /// The printer first tries to print the item in flat mode but then prints it in expanded mode if it doesn't fit.
     pub fn fill<'a>(&'a mut self) -> FillBuilder<'a, 'buf, Context> {
         FillBuilder::new(self)
     }
 
-    /// Format `content` into an interned element without writing it to the formatter's buffer.
-    pub fn intern(&mut self, content: &dyn Format<Context>) -> FormatResult<Option<FormatElement>> {
+    /// Format `content` into an interned node without writing it to the formatter's buffer.
+    pub fn intern(&mut self, content: &dyn Format<Context>) -> FormatResult<Option<FormatNode>> {
         let mut buffer = VecBuffer::new(self.state_mut());
         crate::write!(&mut buffer, [content])?;
-        let elements = buffer.into_vec();
+        let nodes = buffer.into_vec();
 
-        Ok(self.intern_vec(elements))
+        Ok(self.intern_vec(nodes))
     }
 
-    /// Intern a vector of elements into a single element.
-    pub fn intern_vec(&mut self, mut elements: Vec<FormatElement>) -> Option<FormatElement> {
-        match elements.len() {
+    /// Intern a vector of nodes into a single node.
+    pub fn intern_vec(&mut self, mut nodes: Vec<FormatNode>) -> Option<FormatNode> {
+        match nodes.len() {
             0 => None,
-            // doesn't get cheaper than calling clone, use the element directly
-            1 => Some(elements.pop().unwrap()),
-            _ => Some(FormatElement::Interned(Interned::new(elements))),
+            // doesn't get cheaper than calling clone, use the node directly
+            1 => Some(nodes.pop().unwrap()),
+            _ => Some(FormatNode::Interned(Interned::new(nodes))),
         }
     }
 }
@@ -250,12 +250,12 @@ impl<Context> Buffer for Formatter<'_, Context> {
     type Context = Context;
 
     #[inline]
-    fn write_element(&mut self, element: FormatElement) {
-        self.buffer.write_element(element);
+    fn write_node(&mut self, node: FormatNode) {
+        self.buffer.write_node(node);
     }
 
-    fn elements(&self) -> &[FormatElement] {
-        self.buffer.elements()
+    fn nodes(&self) -> &[FormatNode] {
+        self.buffer.nodes()
     }
 
     #[inline]

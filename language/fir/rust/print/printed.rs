@@ -90,7 +90,7 @@ impl Printed {
     ///
     /// The implementation uses the source map generated during formatting to find the closest range
     /// in the formatted document that covers `source_span` or more.
-    /// The returned slice matches the `source_span` exactly (except indent, see below) if the formatter emits FormatElement::SourcePosition for the range's offsets.
+    /// The returned slice matches the `source_span` exactly (except indent, see below) if the formatter emits FormatNode::SourcePosition for the range's offsets.
     ///
     /// ## Indentation
     /// The indentation before `source_span.start` is replaced with the indentation returned by the formatter to fix up incorrectly intended code.

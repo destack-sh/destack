@@ -110,15 +110,15 @@ mod tests {
         assert_eq!(
             buffer.into_vec(),
             vec![
-                FormatElement::Token { text: "function" },
-                FormatElement::Space,
-                FormatElement::Token { text: "a" },
-                FormatElement::Space,
+                FormatNode::Token { text: "function" },
+                FormatNode::Space,
+                FormatNode::Token { text: "a" },
+                FormatNode::Space,
                 // Group
-                FormatElement::Tag(FormatTag::StartGroup(group::Group::new())),
-                FormatElement::Token { text: "(" },
-                FormatElement::Token { text: ")" },
-                FormatElement::Tag(FormatTag::EndGroup)
+                FormatNode::Tag(FormatTag::StartGroup(group::Group::new())),
+                FormatNode::Token { text: "(" },
+                FormatNode::Token { text: ")" },
+                FormatNode::Tag(FormatTag::EndGroup)
             ]
         );
     }

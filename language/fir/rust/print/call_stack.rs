@@ -1,9 +1,9 @@
-use crate::print::mode::MeasureMode;
-use crate::print::stack::{Stack, StackedStack};
 use crate::format::{
     FormatTagKind, IndentStyle, Indentation, InvalidDocumentError, PrintError, PrintMode,
     PrintResult,
 };
+use crate::print::mode::MeasureMode;
+use crate::print::stack::{Stack, StackedStack};
 use std::fmt::Debug;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -15,23 +15,23 @@ pub(crate) enum StackFrameKind {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) struct StackFrame {
     kind: StackFrameKind,
-    args: PrintElementArgs,
+    args: PrintNodeArgs,
 }
 
-/// Store arguments passed to `print_element` call, holding the state specific to printing an element.
+/// Store arguments passed to `print_node` call, holding the state specific to printing an node.
 ///
 /// E.g. the `indent` depends on the token the Printer's currently processing.
-/// That's why it must be stored outside of the [`PrinterState`] that stores the state common to all elements.
+/// That's why it must be stored outside of the [`PrinterState`] that stores the state common to all nodes.
 /// The state is passed by value, which is why it's important that it isn't storing any heavy data structures.
 /// Such structures should be stored on the [`PrinterState`] instead.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) struct PrintElementArgs {
+pub(crate) struct PrintNodeArgs {
     indent: Indentation,
     mode: PrintMode,
     measure_mode: MeasureMode,
 }
 
-impl PrintElementArgs {
+impl PrintNodeArgs {
     pub(crate) fn new(indent: Indentation) -> Self {
         Self {
             indent,
@@ -82,7 +82,7 @@ impl PrintElementArgs {
     }
 }
 
-impl Default for PrintElementArgs {
+impl Default for PrintNodeArgs {
     fn default() -> Self {
         Self {
             indent: Indentation::Level(0),
@@ -92,10 +92,10 @@ impl Default for PrintElementArgs {
     }
 }
 
-/// Call stack that stores the [`PrintElementCallArgs`].
+/// Call stack that stores the [`PrintNodeCallArgs`].
 ///
-/// New [`PrintElementCallArgs`] are pushed onto the stack for every [`start`](Tag::is_start) [`Tag`](FormatElement::Tag)
-/// and popped when reaching the corresponding [`end`](Tag::is_end) [`Tag`](FormatElement::Tag).
+/// New [`PrintNodeCallArgs`] are pushed onto the stack for every [`start`](Tag::is_start) [`Tag`](FormatNode::Tag)
+/// and popped when reaching the corresponding [`end`](Tag::is_end) [`Tag`](FormatNode::Tag).
 pub(crate) trait CallStack {
     type Stack: Stack<StackFrame> + Debug;
 
@@ -106,7 +106,7 @@ pub(crate) trait CallStack {
     /// Pop the call arguments at the top and assert that they correspond to a start tag of `kind`.
     ///
     /// Returns `Ok` with the arguments if the kind of the top stack frame matches `kind`, otherwise returns `Err`.
-    fn pop(&mut self, kind: FormatTagKind) -> PrintResult<PrintElementArgs> {
+    fn pop(&mut self, kind: FormatTagKind) -> PrintResult<PrintNodeArgs> {
         let last = self.stack_mut().pop();
 
         match last {
@@ -160,8 +160,8 @@ pub(crate) trait CallStack {
         }
     }
 
-    /// Get the [`PrintElementArgs`] for the current stack frame.
-    fn top(&self) -> PrintElementArgs {
+    /// Get the [`PrintNodeArgs`] for the current stack frame.
+    fn top(&self) -> PrintNodeArgs {
         self.stack()
             .top()
             .unwrap_or_else(|| panic!("expected `stack` to never be empty"))
@@ -181,8 +181,8 @@ pub(crate) trait CallStack {
         }
     }
 
-    /// Create a new stack frame for a [`FormatElement::Tag`] of `kind` with `args` as the call arguments.
-    fn push(&mut self, kind: FormatTagKind, args: PrintElementArgs) {
+    /// Create a new stack frame for a [`FormatNode::Tag`] of `kind` with `args` as the call arguments.
+    fn push(&mut self, kind: FormatTagKind, args: PrintNodeArgs) {
         self.stack_mut().push(StackFrame {
             kind: StackFrameKind::Tag(kind),
             args,
@@ -190,12 +190,12 @@ pub(crate) trait CallStack {
     }
 }
 
-/// Call stack used for printing the [`FormatElement`]s.
+/// Call stack used for printing the [`FormatNode`]s.
 #[derive(Debug, Clone)]
 pub(crate) struct PrintCallStack(Vec<StackFrame>);
 
 impl PrintCallStack {
-    pub(crate) fn new(args: PrintElementArgs) -> Self {
+    pub(crate) fn new(args: PrintNodeArgs) -> Self {
         Self(vec![StackFrame {
             kind: StackFrameKind::Root,
             args,
