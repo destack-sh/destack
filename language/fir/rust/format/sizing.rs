@@ -2,8 +2,8 @@ use std::iter::FusedIterator;
 use std::num::NonZeroU32;
 use std::ops::Deref;
 
-use super::element::FormatElement;
 use super::label::LabelId;
+use super::node::FormatNode;
 use super::tag::{FormatTag, FormatTagKind};
 
 /// Mode used to determine if any variant (except the most expanded) fits for [`BestFittingVariants`].
@@ -27,11 +27,11 @@ pub enum BestFittingMode {
     AllLines,
 }
 
-/// The different variants for this element.
-/// The first element is the one that takes up the most space horizontally (the most flat).
-/// The last element takes up the least space horizontally (but most horizontal space).
+/// The different variants for this format node.
+/// The first node is the one that takes up the most space horizontally (the most flat).
+/// The last node takes up the least space horizontally (but most horizontal space).
 #[derive(Clone, PartialEq, Debug)]
-pub struct BestFittingVariants(Box<[FormatElement]>);
+pub struct BestFittingVariants(Box<[FormatNode]>);
 
 impl BestFittingVariants {
     /// Create a new best fitting IR with the given variants.
@@ -39,14 +39,11 @@ impl BestFittingVariants {
     /// Callers are required to ensure that the number of variants given is at least 2 when using `most_expanded` or `most_flag`.
     /// You're looking for a way to create a `BestFitting` object, use the `best_fitting![least_expanded, most_expanded]` macro.
     #[doc(hidden)]
-    pub fn from_vec_unchecked(variants: Vec<FormatElement>) -> Self {
+    pub fn from_vec_unchecked(variants: Vec<FormatNode>) -> Self {
         debug_assert!(
             variants
                 .iter()
-                .filter(|element| matches!(
-                    element,
-                    FormatElement::Tag(FormatTag::StartBestFittingEntry)
-                ))
+                .filter(|node| matches!(node, FormatNode::Tag(FormatTag::StartBestFittingEntry)))
                 .count()
                 >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -59,14 +56,11 @@ impl BestFittingVariants {
     /// # Panics
     ///
     /// When the number of variants is less than two.
-    pub fn most_expanded(&self) -> &[FormatElement] {
+    pub fn most_expanded(&self) -> &[FormatNode] {
         assert!(
             self.as_slice()
                 .iter()
-                .filter(|element| matches!(
-                    element,
-                    FormatElement::Tag(FormatTag::StartBestFittingEntry)
-                ))
+                .filter(|node| matches!(node, FormatNode::Tag(FormatTag::StartBestFittingEntry)))
                 .count()
                 >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -74,7 +68,7 @@ impl BestFittingVariants {
         self.into_iter().last().unwrap()
     }
 
-    pub fn as_slice(&self) -> &[FormatElement] {
+    pub fn as_slice(&self) -> &[FormatNode] {
         &self.0
     }
 
@@ -83,14 +77,11 @@ impl BestFittingVariants {
     /// # Panics
     ///
     /// When the number of variants is less than two.
-    pub fn most_flat(&self) -> &[FormatElement] {
+    pub fn most_flat(&self) -> &[FormatNode] {
         assert!(
             self.as_slice()
                 .iter()
-                .filter(|element| matches!(
-                    element,
-                    FormatElement::Tag(FormatTag::StartBestFittingEntry)
-                ))
+                .filter(|node| matches!(node, FormatNode::Tag(FormatTag::StartBestFittingEntry)))
                 .count()
                 >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -100,7 +91,7 @@ impl BestFittingVariants {
 }
 
 impl Deref for BestFittingVariants {
-    type Target = [FormatElement];
+    type Target = [FormatNode];
 
     fn deref(&self) -> &Self::Target {
         self.as_slice()
@@ -109,35 +100,35 @@ impl Deref for BestFittingVariants {
 
 #[derive(Debug)]
 pub struct BestFittingVariantsIter<'a> {
-    elements: &'a [FormatElement],
+    nodes: &'a [FormatNode],
 }
 
 impl<'a> IntoIterator for &'a BestFittingVariants {
-    type Item = &'a [FormatElement];
+    type Item = &'a [FormatNode];
     type IntoIter = BestFittingVariantsIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        BestFittingVariantsIter { elements: &self.0 }
+        BestFittingVariantsIter { nodes: &self.0 }
     }
 }
 
 impl<'a> Iterator for BestFittingVariantsIter<'a> {
-    type Item = &'a [FormatElement];
+    type Item = &'a [FormatNode];
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.elements.first()? {
-            FormatElement::Tag(FormatTag::StartBestFittingEntry) => {
+        match self.nodes.first()? {
+            FormatNode::Tag(FormatTag::StartBestFittingEntry) => {
                 // find the end of this variant
                 let end = self
-                    .elements
+                    .nodes
                     .iter()
-                    .position(|element| {
-                        matches!(element, FormatElement::Tag(FormatTag::EndBestFittingEntry))
+                    .position(|node| {
+                        matches!(node, FormatNode::Tag(FormatTag::EndBestFittingEntry))
                     })
-                    .map_or(self.elements.len(), |position| position + 1);
+                    .map_or(self.nodes.len(), |position| position + 1);
 
-                let (variant, rest) = self.elements.split_at(end);
-                self.elements = rest;
+                let (variant, rest) = self.nodes.split_at(end);
+                self.nodes = rest;
 
                 Some(variant)
             }
@@ -156,40 +147,38 @@ impl<'a> Iterator for BestFittingVariantsIter<'a> {
 impl DoubleEndedIterator for BestFittingVariantsIter<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         // find the start of the last variant
-        let start_position = self.elements.iter().rposition(|element| {
-            matches!(
-                element,
-                FormatElement::Tag(FormatTag::StartBestFittingEntry)
-            )
-        })?;
+        let start_position = self
+            .nodes
+            .iter()
+            .rposition(|node| matches!(node, FormatNode::Tag(FormatTag::StartBestFittingEntry)))?;
 
-        let (rest, variant) = self.elements.split_at(start_position);
-        self.elements = rest;
+        let (rest, variant) = self.nodes.split_at(start_position);
+        self.nodes = rest;
         Some(variant)
     }
 }
 
 impl FusedIterator for BestFittingVariantsIter<'_> {}
 
-pub trait FormatElements {
-    /// Check if this [`FormatElement`] is guaranteed to break across multiple lines by the printer.
-    /// This is the case if this format element recursively contains a:
+pub trait FormatNodes {
+    /// Check if this [`FormatNode`] is guaranteed to break across multiple lines by the printer.
+    /// This is the case if this format node recursively contains a:
     /// - [`crate::builders::empty_line`] or [`crate::builders::hard_line_break`]
     /// - A token containing '\n'
     ///
-    /// Use this with caution, this is only a heuristic and the printer may print the element over multiple lines if this element is part of a group and the group doesn't fit on a single line.
+    /// Use this with caution, this is only a heuristic and the printer may print the node over multiple lines if this node is part of a group and the group doesn't fit on a single line.
     fn will_break(&self) -> bool;
 
-    /// Check if the element has the given label.
+    /// Check if the node has the given label.
     fn has_label(&self, label: LabelId) -> bool;
 
     /// Get the start tag of `kind` if:
-    /// - the last element is an end tag of `kind`.
-    /// - there's a matching start tag in this document (may not be true if this slice is an interned element and the `start` is in the document storing the interned element).
+    /// - the last node is an end tag of `kind`.
+    /// - there's a matching start tag in this document (may not be true if this slice is an interned node and the `start` is in the document storing the interned node).
     fn start_tag(&self, kind: FormatTagKind) -> Option<&FormatTag>;
 
     /// Get the end tag if:
-    /// - the last element is an end tag of `kind`
+    /// - the last node is an end tag of `kind`
     fn end_tag(&self, kind: FormatTagKind) -> Option<&FormatTag>;
 }
 

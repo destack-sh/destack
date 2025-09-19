@@ -1,5 +1,5 @@
-use crate::format::FormatElement;
-use crate::print::call_stack::PrintElementArgs;
+use crate::format::FormatNode;
+use crate::print::call_stack::PrintNodeArgs;
 
 /// Stores the queued line suffixes.
 #[derive(Debug, Default)]
@@ -8,13 +8,13 @@ pub(super) struct LineSuffixes<'a> {
 }
 
 impl<'a> LineSuffixes<'a> {
-    /// Extend the line suffixes with `elements`, storing their call stack arguments with them.
-    pub(super) fn extend<I>(&mut self, args: PrintElementArgs, elements: I)
+    /// Extend the line suffixes with `nodes`, storing their call stack arguments with them.
+    pub(super) fn extend<I>(&mut self, args: PrintNodeArgs, nodes: I)
     where
-        I: IntoIterator<Item = &'a FormatElement>,
+        I: IntoIterator<Item = &'a FormatNode>,
     {
         self.suffixes
-            .extend(elements.into_iter().map(LineSuffixEntry::Suffix));
+            .extend(nodes.into_iter().map(LineSuffixEntry::Suffix));
         self.suffixes.push(LineSuffixEntry::Args(args));
     }
 
@@ -34,8 +34,8 @@ impl<'a> LineSuffixes<'a> {
 #[derive(Debug, Copy, Clone)]
 pub(super) enum LineSuffixEntry<'a> {
     /// Line suffix to print.
-    Suffix(&'a FormatElement),
+    Suffix(&'a FormatNode),
 
     /// Potentially changed call arguments that should be used to format any following items.
-    Args(PrintElementArgs),
+    Args(PrintNodeArgs),
 }

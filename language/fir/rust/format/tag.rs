@@ -5,7 +5,7 @@ use super::group::{ConditionalGroup, Group, GroupId, GroupMode};
 /// A Tag marking the start and end of some content to which some special formatting should be applied.
 ///
 /// Tags always come in pairs of a start and an end tag and the styling defined by this tag
-/// will be applied to all elements in between the start/end tags.
+/// will be applied to all nodes in between the start/end tags.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FormatTag {
     /// Indents the content one level deeper, see `crate::builders::indent` for documentation and examples.
@@ -53,9 +53,9 @@ pub enum FormatTag {
     StartIndentIfGroupBreaks(GroupId),
     EndIndentIfGroupBreaks,
 
-    /// Concatenates multiple elements together with a given separator printed in either
+    /// Concatenates multiple nodes together with a given separator printed in either
     /// flat or expanded mode to fill the print width.
-    /// Expect that the content is a list of alternating [element, separator] See [`crate::Formatter::fill`].
+    /// Expect that the content is a list of alternating [node, separator] See [`crate::Formatter::fill`].
     StartFill,
     EndFill,
 

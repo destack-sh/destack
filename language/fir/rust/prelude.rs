@@ -9,10 +9,10 @@ pub use crate::format::builder::{
     soft_line_break_or_space, soft_line_indent_or_space, soft_space_or_block_indent,
     source_text_slice, space, text, token,
 };
-pub use crate::format::context::FormatOptions;
 pub use crate::format::document::*;
-pub use crate::format::element::*;
 pub use crate::format::formatter::Formatter;
+pub use crate::format::node::*;
+pub use crate::format::options::FormatOptions;
 pub use crate::format::tag::{FormatTag, FormatTagKind};
 pub use dyst_language_source::{Source, Span};
 

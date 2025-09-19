@@ -1,13 +1,13 @@
 /// A school book stack.
-/// Allows adding, removing, and inspecting elements at the back.
+/// Allows adding, removing, and inspecting nodes at the back.
 pub(crate) trait Stack<T> {
-    /// Removes the last element if any and gets it.
+    /// Removes the last node if any and gets it.
     fn pop(&mut self) -> Option<T>;
 
-    /// Pushes a new element at the back.
+    /// Pushes a new node at the back.
     fn push(&mut self, value: T);
 
-    /// Gets the last element if any.
+    /// Gets the last node if any.
     fn top(&self) -> Option<&T>;
 }
 
@@ -45,7 +45,7 @@ impl<'a, T> StackedStack<'a, T> {
         Self::with_vec(original, Vec::new())
     }
 
-    /// Creates a new stack that uses `stack` for storing its elements.
+    /// Creates a new stack that uses `stack` for storing its nodes.
     pub(crate) fn with_vec(original: &'a [T], stack: Vec<T>) -> Self {
         Self {
             original: original.iter(),
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_restore_partially_consumed_stack() {
-        // partially consume stack then add more elements
+        // partially consume stack then add more nodes
         let original = vec![1, 2, 3];
         let mut restorable = StackedStack::new(&original);
 
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_restore_stack() {
-        // add multiple elements then pop some of them
+        // add multiple nodes then pop some of them
         let original = vec![1, 2, 3];
         let mut restorable = StackedStack::new(&original);
 

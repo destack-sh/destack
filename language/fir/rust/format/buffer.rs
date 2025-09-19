@@ -1,5 +1,5 @@
 use crate::format::{
-    Arguments, FormatElement, FormatResult, FormatState, FormatTag, Interned, LineMode, write,
+    Arguments, FormatNode, FormatResult, FormatState, FormatTag, Interned, LineMode, write,
 };
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -7,22 +7,22 @@ use std::fmt::Debug;
 use std::num::NonZeroUsize;
 use std::ops::{Deref, DerefMut};
 
-/// A trait for writing or formatting into [`FormatElement`]-accepting buffers or streams.
+/// A trait for writing or formatting into [`FormatNode`]-accepting buffers or streams.
 pub trait Buffer {
     /// The context used during formatting
     type Context;
 
-    /// Writes a [`crate::FormatElement`] into this buffer, returning whether the write succeeded.
+    /// Writes a [`crate::FormatNode`] into this buffer, returning whether the write succeeded.
     ///
     /// # Errors
     /// This function will return an instance of [`crate::FormatError`] on error.
-    fn write_element(&mut self, element: FormatElement);
+    fn write_node(&mut self, node: FormatNode);
 
-    /// Returns a slice containing all elements written into this buffer.
+    /// Returns a slice containing all nodes written into this buffer.
     ///
-    /// Prefer using [BufferExtensions::start_recording] over accessing [Buffer::elements] directly.
+    /// Prefer using [BufferExtensions::start_recording] over accessing [Buffer::nodes] directly.
     #[doc(hidden)]
-    fn elements(&self) -> &[FormatElement];
+    fn nodes(&self) -> &[FormatNode];
 
     /// Glue for usage of the [`write!`] macro with implementers of this trait.
     ///
@@ -54,7 +54,7 @@ pub trait Buffer {
 /// strategy on how to format the object that might succeed.
 #[derive(Debug)]
 pub enum BufferSnapshot {
-    /// Stores an absolute position of a buffers state, for example, the offset of the last written element.
+    /// Stores an absolute position of a buffers state, for example, the offset of the last written node.
     Position(usize),
 
     /// Generic structure for custom buffers that need to store more complex data. Slightly more
@@ -108,12 +108,12 @@ impl BufferSnapshot {
 impl<W: Buffer<Context = Context> + ?Sized, Context> Buffer for &mut W {
     type Context = Context;
 
-    fn write_element(&mut self, element: FormatElement) {
-        (**self).write_element(element);
+    fn write_node(&mut self, node: FormatNode) {
+        (**self).write_node(node);
     }
 
-    fn elements(&self) -> &[FormatElement] {
-        (**self).elements()
+    fn nodes(&self) -> &[FormatNode] {
+        (**self).nodes()
     }
 
     fn write_fmt(&mut self, args: Arguments<'_, Context>) -> FormatResult<()> {
@@ -139,11 +139,11 @@ impl<W: Buffer<Context = Context> + ?Sized, Context> Buffer for &mut W {
 
 /// Vector backed [`Buffer`] implementation.
 ///
-/// The buffer writes all elements into the internal elements buffer.
+/// The buffer writes all nodes into the internal nodes buffer.
 #[derive(Debug)]
 pub struct VecBuffer<'a, Context> {
     state: &'a mut FormatState<Context>,
-    elements: Vec<FormatElement>,
+    nodes: Vec<FormatNode>,
 }
 
 impl<'a, Context> VecBuffer<'a, Context> {
@@ -151,51 +151,51 @@ impl<'a, Context> VecBuffer<'a, Context> {
         Self::new_with_vec(state, Vec::new())
     }
 
-    pub fn new_with_vec(state: &'a mut FormatState<Context>, elements: Vec<FormatElement>) -> Self {
-        Self { state, elements }
+    pub fn new_with_vec(state: &'a mut FormatState<Context>, nodes: Vec<FormatNode>) -> Self {
+        Self { state, nodes }
     }
 
     /// Creates a buffer with the specified capacity
     pub fn with_capacity(capacity: usize, state: &'a mut FormatState<Context>) -> Self {
         Self {
             state,
-            elements: Vec::with_capacity(capacity),
+            nodes: Vec::with_capacity(capacity),
         }
     }
 
-    /// Consumes the buffer and returns the written [`FormatElement]`s as a vector.
-    pub fn into_vec(self) -> Vec<FormatElement> {
-        self.elements
+    /// Consumes the buffer and returns the written [`FormatNode]`s as a vector.
+    pub fn into_vec(self) -> Vec<FormatNode> {
+        self.nodes
     }
 
-    /// Takes the elements without consuming self
-    pub fn take_vec(&mut self) -> Vec<FormatElement> {
-        std::mem::take(&mut self.elements)
+    /// Takes the nodes without consuming self
+    pub fn take_vec(&mut self) -> Vec<FormatNode> {
+        std::mem::take(&mut self.nodes)
     }
 }
 
 impl<Context> Deref for VecBuffer<'_, Context> {
-    type Target = [FormatElement];
+    type Target = [FormatNode];
 
     fn deref(&self) -> &Self::Target {
-        &self.elements
+        &self.nodes
     }
 }
 
 impl<Context> DerefMut for VecBuffer<'_, Context> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.elements
+        &mut self.nodes
     }
 }
 
 impl<Context> Buffer for VecBuffer<'_, Context> {
     type Context = Context;
 
-    fn write_element(&mut self, element: FormatElement) {
-        self.elements.push(element);
+    fn write_node(&mut self, node: FormatNode) {
+        self.nodes.push(node);
     }
 
-    fn elements(&self) -> &[FormatElement] {
+    fn nodes(&self) -> &[FormatNode] {
         self
     }
 
@@ -208,22 +208,22 @@ impl<Context> Buffer for VecBuffer<'_, Context> {
     }
 
     fn snapshot(&self) -> BufferSnapshot {
-        BufferSnapshot::position(self.elements.len())
+        BufferSnapshot::position(self.nodes.len())
     }
 
     fn restore_snapshot(&mut self, snapshot: BufferSnapshot) {
         let position = snapshot.unwrap_position();
         assert!(
-            self.elements.len() >= position,
-            r#"Outdated snapshot. This buffer contains fewer elements than at the time the snapshot was taken.
+            self.nodes.len() >= position,
+            r#"Outdated snapshot. This buffer contains fewer nodes than at the time the snapshot was taken.
 Make sure that you take and restore the snapshot in order and that this snapshot belongs to the current buffer."#
         );
 
-        self.elements.truncate(position);
+        self.nodes.truncate(position);
     }
 }
 
-/// Buffer that allows you inspecting elements as they get written to the formatter.
+/// Buffer that allows you inspecting nodes as they get written to the formatter.
 pub struct Inspect<'inner, Context, Inspector> {
     inner: &'inner mut dyn Buffer<Context = Context>,
     inspector: Inspector,
@@ -243,17 +243,17 @@ impl<Context, Inspector> Debug for Inspect<'_, Context, Inspector> {
 
 impl<Context, Inspector> Buffer for Inspect<'_, Context, Inspector>
 where
-    Inspector: FnMut(&FormatElement),
+    Inspector: FnMut(&FormatNode),
 {
     type Context = Context;
 
-    fn write_element(&mut self, element: FormatElement) {
-        (self.inspector)(&element);
-        self.inner.write_element(element);
+    fn write_node(&mut self, node: FormatNode) {
+        (self.inspector)(&node);
+        self.inner.write_node(node);
     }
 
-    fn elements(&self) -> &[FormatElement] {
-        self.inner.elements()
+    fn nodes(&self) -> &[FormatNode] {
+        self.inner.nodes()
     }
 
     fn state(&self) -> &FormatState<Self::Context> {
@@ -273,20 +273,20 @@ where
     }
 }
 
-/// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) elements.
-/// - Removes [`lines`](FormatElement::Line) with the mode [`Soft`](LineMode::Soft).
-/// - Replaces [`lines`](FormatElement::Line) with the mode [`Soft`](LineMode::SoftOrSpace) with a [`Space`](FormatElement::Space)
+/// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) nodes.
+/// - Removes [`lines`](FormatNode::Line) with the mode [`Soft`](LineMode::Soft).
+/// - Replaces [`lines`](FormatNode::Line) with the mode [`Soft`](LineMode::SoftOrSpace) with a [`Space`](FormatNode::Space)
 /// - Removes [`if_group_breaks`](crate::builders::if_group_breaks) and all its content.
-/// - Unwraps the content of [`if_group_fits_on_line`](crate::builders::if_group_fits_on_line) elements (but retains it).
+/// - Unwraps the content of [`if_group_fits_on_line`](crate::builders::if_group_fits_on_line) nodes (but retains it).
 pub struct RemoveSoftLinesBuffer<'a, Context> {
     inner: &'a mut dyn Buffer<Context = Context>,
 
-    /// Caches the interned elements after the soft line breaks have been removed.
+    /// Caches the interned nodes after the soft line breaks have been removed.
     ///
-    /// The `key` is the [Interned] element as it has been passed to [`Self::write_element`] or the child of another
-    /// [Interned] element. The `value` is the matching document of the key where all soft line breaks have been removed.
+    /// The `key` is the [Interned] node as it has been passed to [`Self::write_node`] or the child of another
+    /// [Interned] node. The `value` is the matching document of the key where all soft line breaks have been removed.
     ///
-    /// It's fine to not snapshot the cache. The worst that can happen is that it holds on interned elements
+    /// It's fine to not snapshot the cache. The worst that can happen is that it holds on interned nodes
     /// that are now unused. But there's little harm in that and the cache is cleaned when dropping the buffer.
     interned_cache: HashMap<Interned, Interned>,
 
@@ -303,7 +303,7 @@ impl<'a, Context> RemoveSoftLinesBuffer<'a, Context> {
         }
     }
 
-    /// Removes the soft line breaks from an interned element.
+    /// Removes the soft line breaks from an interned node.
     fn clean_interned(&mut self, interned: &Interned) -> Interned {
         clean_interned(interned, &mut self.interned_cache)
     }
@@ -326,18 +326,18 @@ fn clean_interned(
     } else {
         let mut state = RemoveSoftLineBreaksState::default();
 
-        // Find the first soft line break element or interned element that must be changed
+        // Find the first soft line break node or interned node that must be changed
         let result = interned
             .iter()
             .enumerate()
-            .find_map(|(index, element)| match element {
-                FormatElement::Line(LineMode::SoftOrSpace) => {
+            .find_map(|(index, node)| match node {
+                FormatNode::Line(LineMode::SoftOrSpace) => {
                     let mut cleaned = Vec::new();
                     let (before, after) = interned.split_at(index);
                     cleaned.extend_from_slice(before);
                     Some((cleaned, &after[1..]))
                 }
-                FormatElement::Interned(inner) => {
+                FormatNode::Interned(inner) => {
                     let cleaned_inner = clean_interned(inner, interned_cache);
 
                     if &cleaned_inner == inner {
@@ -345,13 +345,13 @@ fn clean_interned(
                     } else {
                         let mut cleaned = Vec::with_capacity(interned.len());
                         cleaned.extend_from_slice(&interned[..index]);
-                        cleaned.push(FormatElement::Interned(cleaned_inner));
+                        cleaned.push(FormatNode::Interned(cleaned_inner));
                         Some((cleaned, &interned[index + 1..]))
                     }
                 }
 
-                element => {
-                    if state.should_drop(element) {
+                node => {
+                    if state.should_drop(node) {
                         let mut cleaned = Vec::new();
                         let (before, after) = interned.split_at(index);
                         cleaned.extend_from_slice(before);
@@ -363,27 +363,27 @@ fn clean_interned(
             });
 
         let result = match result {
-            // Copy the whole interned buffer so that becomes possible to change the necessary elements.
+            // Copy the whole interned buffer so that becomes possible to change the necessary nodes.
             Some((mut cleaned, rest)) => {
-                for element in rest {
-                    if state.should_drop(element) {
+                for node in rest {
+                    if state.should_drop(node) {
                         continue;
                     }
 
-                    let element = match element {
-                        FormatElement::Line(LineMode::SoftOrSpace) => FormatElement::Space,
-                        FormatElement::Interned(interned) => {
-                            FormatElement::Interned(clean_interned(interned, interned_cache))
+                    let node = match node {
+                        FormatNode::Line(LineMode::SoftOrSpace) => FormatNode::Space,
+                        FormatNode::Interned(interned) => {
+                            FormatNode::Interned(clean_interned(interned, interned_cache))
                         }
 
-                        element => element.clone(),
+                        node => node.clone(),
                     };
-                    cleaned.push(element);
+                    cleaned.push(node);
                 }
 
                 Interned::new(cleaned)
             }
-            // No change necessary, return existing interned element
+            // No change necessary, return existing interned node
             None => interned.clone(),
         };
 
@@ -395,25 +395,23 @@ fn clean_interned(
 impl<Context> Buffer for RemoveSoftLinesBuffer<'_, Context> {
     type Context = Context;
 
-    fn write_element(&mut self, element: FormatElement) {
-        if self.state.should_drop(&element) {
+    fn write_node(&mut self, node: FormatNode) {
+        if self.state.should_drop(&node) {
             return;
         }
 
-        let element = match element {
-            FormatElement::Line(LineMode::SoftOrSpace) => FormatElement::Space,
-            FormatElement::Interned(interned) => {
-                FormatElement::Interned(self.clean_interned(&interned))
-            }
+        let node = match node {
+            FormatNode::Line(LineMode::SoftOrSpace) => FormatNode::Space,
+            FormatNode::Interned(interned) => FormatNode::Interned(self.clean_interned(&interned)),
 
-            element => element,
+            node => node,
         };
 
-        self.inner.write_element(element);
+        self.inner.write_node(node);
     }
 
-    fn elements(&self) -> &[FormatElement] {
-        self.inner.elements()
+    fn nodes(&self) -> &[FormatNode] {
+        self.inner.nodes()
     }
 
     fn state(&self) -> &FormatState<Self::Context> {
@@ -448,17 +446,17 @@ enum RemoveSoftLineBreaksState {
 }
 
 impl RemoveSoftLineBreaksState {
-    fn should_drop(&mut self, element: &FormatElement) -> bool {
+    fn should_drop(&mut self, node: &FormatNode) -> bool {
         match self {
-            Self::Default => match element {
-                FormatElement::Line(LineMode::Soft) => true,
+            Self::Default => match node {
+                FormatNode::Line(LineMode::Soft) => true,
 
                 // Entered the start of an `if_group_breaks` or `if_group_fits`
                 // For `if_group_breaks`: Remove the start and end tag and all content in between.
                 // For `if_group_fits_on_line`: Unwrap the content. This is important because the enclosing group
                 // might still *expand* if the content exceeds the line width limit, in which case the
                 // `if_group_fits_on_line` content would be removed.
-                FormatElement::Tag(FormatTag::StartConditionalContent(condition)) => {
+                FormatNode::Tag(FormatTag::StartConditionalContent(condition)) => {
                     if condition.mode.is_expanded() {
                         *self = Self::InIfGroupBreaks {
                             conditional_content_level: NonZeroUsize::new(1).unwrap(),
@@ -466,25 +464,25 @@ impl RemoveSoftLineBreaksState {
                     }
                     true
                 }
-                FormatElement::Tag(FormatTag::EndConditionalContent) => true,
+                FormatNode::Tag(FormatTag::EndConditionalContent) => true,
                 _ => false,
             },
             Self::InIfGroupBreaks {
                 conditional_content_level,
             } => {
-                match element {
+                match node {
                     // A nested `if_group_breaks` or `if_group_fits_on_line`
-                    FormatElement::Tag(FormatTag::StartConditionalContent(_)) => {
+                    FormatNode::Tag(FormatTag::StartConditionalContent(_)) => {
                         *conditional_content_level = conditional_content_level.saturating_add(1);
                     }
                     // The end of an `if_group_breaks` or `if_group_fits_on_line`.
-                    FormatElement::Tag(FormatTag::EndConditionalContent) => {
+                    FormatNode::Tag(FormatTag::EndConditionalContent) => {
                         if let Some(level) = NonZeroUsize::new(conditional_content_level.get() - 1)
                         {
                             *conditional_content_level = level;
                         } else {
-                            // Found the end tag of the initial `if_group_breaks`. Skip this element but retain
-                            // the elements coming after
+                            // Found the end tag of the initial `if_group_breaks`. Skip this node but retain
+                            // the nodes coming after
                             *self = RemoveSoftLineBreaksState::Default;
                         }
                     }
@@ -503,29 +501,29 @@ struct RemoveSoftLinebreaksSnapshot {
 }
 
 pub trait BufferExtensions: Buffer + Sized {
-    /// Returns a new buffer that calls the passed inspector for every element that gets written to the output
+    /// Returns a new buffer that calls the passed inspector for every node that gets written to the output
     #[must_use]
     fn inspect<F>(&mut self, inspector: F) -> Inspect<'_, Self::Context, F>
     where
-        F: FnMut(&FormatElement),
+        F: FnMut(&FormatNode),
     {
         Inspect::new(self, inspector)
     }
 
-    /// Starts a recording that gives you access to all elements that have been written between the start
+    /// Starts a recording that gives you access to all nodes that have been written between the start
     /// and end of the recording
     #[must_use]
     fn start_recording(&mut self) -> Recording<'_, Self> {
         Recording::new(self)
     }
 
-    /// Writes a sequence of elements into this buffer.
-    fn write_elements<I>(&mut self, elements: I)
+    /// Writes a sequence of nodes into this buffer.
+    fn write_nodes<I>(&mut self, nodes: I)
     where
-        I: IntoIterator<Item = FormatElement>,
+        I: IntoIterator<Item = FormatNode>,
     {
-        for element in elements {
-            self.write_element(element);
+        for node in nodes {
+            self.write_node(node);
         }
     }
 }
@@ -544,7 +542,7 @@ where
 {
     fn new(buffer: &'buf mut B) -> Self {
         Self {
-            start: buffer.elements().len(),
+            start: buffer.nodes().len(),
             buffer,
         }
     }
@@ -555,19 +553,19 @@ where
     }
 
     #[inline]
-    pub fn write_element(&mut self, element: FormatElement) {
-        self.buffer.write_element(element);
+    pub fn write_node(&mut self, node: FormatNode) {
+        self.buffer.write_node(node);
     }
 
     pub fn stop(self) -> Recorded<'buf> {
         let buffer: &'buf B = self.buffer;
-        let elements = buffer.elements();
+        let nodes = buffer.nodes();
 
-        let recorded = if self.start > elements.len() {
+        let recorded = if self.start > nodes.len() {
             // May happen if buffer was rewound.
             &[]
         } else {
-            &elements[self.start..]
+            &nodes[self.start..]
         };
 
         Recorded(recorded)
@@ -575,10 +573,10 @@ where
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Recorded<'a>(&'a [FormatElement]);
+pub struct Recorded<'a>(&'a [FormatNode]);
 
 impl Deref for Recorded<'_> {
-    type Target = [FormatElement];
+    type Target = [FormatNode];
 
     fn deref(&self) -> &Self::Target {
         self.0
@@ -592,18 +590,15 @@ mod tests {
     use crate::prelude::*;
     use crate::{format, format_args, write};
 
-    /// Writes a [`crate::FormatElement`] into this buffer, returning whether the write succeeded.
+    /// Writes a [`crate::FormatNode`] into this buffer, returning whether the write succeeded.
     #[test]
-    fn test_buffer_write_element() {
+    fn test_buffer_write_node() {
         let mut state = FormatState::new(SimpleFormatContext::default());
         let mut buffer = VecBuffer::new(&mut state);
 
-        buffer.write_element(FormatElement::Token { text: "test" });
+        buffer.write_node(FormatNode::Token { text: "test" });
 
-        assert_eq!(
-            buffer.into_vec(),
-            vec![FormatElement::Token { text: "test" }]
-        );
+        assert_eq!(buffer.into_vec(), vec![FormatNode::Token { text: "test" }]);
     }
 
     /// Glue for usage of the [`write!`] macro with implementers of this trait.
@@ -618,13 +613,13 @@ mod tests {
 
         assert_eq!(
             buffer.into_vec(),
-            vec![FormatElement::Token {
+            vec![FormatNode::Token {
                 text: "Hello World"
             }]
         );
     }
 
-    /// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) elements.
+    /// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) nodes.
     #[test]
     fn test_remove_soft_lines_buffer() {
         let formatted = format!(
@@ -651,7 +646,7 @@ mod tests {
         );
     }
 
-    /// Starts a recording that gives you access to all elements that have been written between the start
+    /// Starts a recording that gives you access to all nodes that have been written between the start
     /// and end of the recording
     #[test]
     fn test_buffer_start_recording() {
@@ -672,10 +667,10 @@ mod tests {
                 assert_eq!(
                     recorded.deref(),
                     &[
-                        FormatElement::Token { text: "A" },
-                        FormatElement::Token { text: "B" },
-                        FormatElement::Token { text: "C" },
-                        FormatElement::Token { text: "D" }
+                        FormatNode::Token { text: "A" },
+                        FormatNode::Token { text: "B" },
+                        FormatNode::Token { text: "C" },
+                        FormatNode::Token { text: "D" }
                     ]
                 );
 

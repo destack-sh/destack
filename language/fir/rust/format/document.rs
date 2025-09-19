@@ -1,24 +1,24 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use crate::format::{FitsExpanded, FormatElement, FormatTag, Interned, LineMode, group};
+use crate::format::{FitsExpanded, FormatNode, FormatTag, Interned, LineMode, group};
 
 /// A formatted document.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Document {
-    elements: Vec<FormatElement>,
+    nodes: Vec<FormatNode>,
 }
 
 impl Document {
     /// Sets [`expand`](tag::Group::expand) to [`GroupMode::Propagated`] if the group contains any of:
     /// - a group with [`expand`](tag::Group::expand) set to [`GroupMode::Propagated`] or [`GroupMode::Expand`].
-    /// - a non-soft [line break](FormatElement::Line) with mode [`LineMode::Hard`], [`LineMode::Empty`], or [`LineMode::Literal`].
-    /// - a [`FormatElement::ExpandParent`]
+    /// - a non-soft [line break](FormatNode::Line) with mode [`LineMode::Hard`], [`LineMode::Empty`], or [`LineMode::Literal`].
+    /// - a [`FormatNode::ExpandParent`]
     ///
-    /// [`BestFitting`] elements act as expand boundaries, meaning that the fact that a
-    /// [`BestFitting`]'s content expands is not propagated past the [`BestFitting`] element.
+    /// [`BestFitting`] nodes act as expand boundaries, meaning that the fact that a
+    /// [`BestFitting`]'s content expands is not propagated past the [`BestFitting`] node.
     ///
-    /// [`BestFitting`]: FormatElement::BestFitting
+    /// [`BestFitting`]: FormatNode::BestFitting
     #[allow(clippy::mutable_key_type)]
     pub(crate) fn propagate_expand(&mut self) {
         #[derive(Debug)]
@@ -45,42 +45,42 @@ impl Document {
         }
 
         fn propagate_expands<'a>(
-            elements: &'a [FormatElement],
+            nodes: &'a [FormatNode],
             enclosing: &mut Vec<Enclosing<'a>>,
             checked_interned: &mut HashMap<&'a Interned, bool>,
         ) -> bool {
             let mut expands = false;
-            for element in elements {
-                let element_expands = match element {
-                    FormatElement::Tag(FormatTag::StartGroup(group)) => {
+            for node in nodes {
+                let node_expands = match node {
+                    FormatNode::Tag(FormatTag::StartGroup(group)) => {
                         enclosing.push(Enclosing::Group(group));
                         false
                     }
-                    FormatElement::Tag(FormatTag::EndGroup) => match enclosing.pop() {
+                    FormatNode::Tag(FormatTag::EndGroup) => match enclosing.pop() {
                         Some(Enclosing::Group(group)) => !group.mode().is_flat(),
                         _ => false,
                     },
-                    FormatElement::Tag(FormatTag::StartBestFitParenthesize { .. }) => {
+                    FormatNode::Tag(FormatTag::StartBestFitParenthesize { .. }) => {
                         enclosing.push(Enclosing::BestFitParenthesize { expanded: expands });
                         expands = false;
                         continue;
                     }
 
-                    FormatElement::Tag(FormatTag::EndBestFitParenthesize) => {
+                    FormatNode::Tag(FormatTag::EndBestFitParenthesize) => {
                         if let Some(Enclosing::BestFitParenthesize { expanded }) = enclosing.pop() {
                             expands = expanded;
                         }
                         continue;
                     }
-                    FormatElement::Tag(FormatTag::StartConditionalGroup(group)) => {
+                    FormatNode::Tag(FormatTag::StartConditionalGroup(group)) => {
                         enclosing.push(Enclosing::ConditionalGroup(group));
                         false
                     }
-                    FormatElement::Tag(FormatTag::EndConditionalGroup) => match enclosing.pop() {
+                    FormatNode::Tag(FormatTag::EndConditionalGroup) => match enclosing.pop() {
                         Some(Enclosing::ConditionalGroup(group)) => !group.mode().is_flat(),
                         _ => false,
                     },
-                    FormatElement::Interned(interned) => {
+                    FormatNode::Interned(interned) => {
                         if let Some(interned_expands) = checked_interned.get(interned) {
                             *interned_expands
                         } else {
@@ -90,21 +90,21 @@ impl Document {
                             interned_expands
                         }
                     }
-                    FormatElement::BestFitting { variants, mode: _ } => {
+                    FormatNode::BestFitting { variants, mode: _ } => {
                         enclosing.push(Enclosing::BestFitting);
 
                         propagate_expands(variants, enclosing, checked_interned);
                         enclosing.pop();
                         continue;
                     }
-                    FormatElement::Tag(FormatTag::StartFitsExpanded(fits_expanded)) => {
+                    FormatNode::Tag(FormatTag::StartFitsExpanded(fits_expanded)) => {
                         enclosing.push(Enclosing::FitsExpanded {
                             tag: fits_expanded,
                             expands_before: expands,
                         });
                         false
                     }
-                    FormatElement::Tag(FormatTag::EndFitsExpanded) => {
+                    FormatNode::Tag(FormatTag::EndFitsExpanded) => {
                         if let Some(Enclosing::FitsExpanded { expands_before, .. }) =
                             enclosing.pop()
                         {
@@ -113,17 +113,19 @@ impl Document {
 
                         continue;
                     }
-                    FormatElement::Text {
+                    FormatNode::Text {
                         text: _,
-                        text_width,
+                        width: text_width,
                     } => text_width.is_multiline(),
-                    FormatElement::SourceSlice { text_width, .. } => text_width.is_multiline(),
-                    FormatElement::ExpandParent
-                    | FormatElement::Line(LineMode::Hard | LineMode::Empty) => true,
+                    FormatNode::SourceSlice {
+                        width: text_width, ..
+                    } => text_width.is_multiline(),
+                    FormatNode::ExpandParent
+                    | FormatNode::Line(LineMode::Hard | LineMode::Empty) => true,
                     _ => false,
                 };
 
-                if element_expands {
+                if node_expands {
                     expands = true;
                     expand_parent(enclosing);
                 }
@@ -142,16 +144,16 @@ impl Document {
     }
 }
 
-impl From<Vec<FormatElement>> for Document {
-    fn from(elements: Vec<FormatElement>) -> Self {
-        Self { elements }
+impl From<Vec<FormatNode>> for Document {
+    fn from(nodes: Vec<FormatNode>) -> Self {
+        Self { nodes }
     }
 }
 
 impl Deref for Document {
-    type Target = [FormatElement];
+    type Target = [FormatNode];
 
     fn deref(&self) -> &Self::Target {
-        self.elements.as_slice()
+        self.nodes.as_slice()
     }
 }

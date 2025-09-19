@@ -35,7 +35,7 @@ macro_rules! write {
 
 /// Creates the Format IR for a value.
 ///
-/// The first argument `format!` receives is the [`crate::FormatContext`] that specify how elements must be formatted.
+/// The first argument `format!` receives is the [`crate::FormatContext`] that specify how nodes must be formatted.
 /// Additional parameters passed get formatted by using their [`crate::Format`] implementation.
 #[macro_export]
 macro_rules! format {
@@ -51,7 +51,7 @@ macro_rules! format {
 /// - Last: The variant that takes up the least space horizontally by splitting the content over multiple lines.
 ///
 /// ## Complexity
-/// Be mindful of using this IR element as it has a considerable performance penalty:
+/// Be mindful of using this IR node as it has a considerable performance penalty:
 /// - There are multiple representation for the same content. This results in increased memory usage
 ///   and traversal time in the printer.
 /// - The worst case complexity is that the printer tires each variant. This can result in quadratic
@@ -68,9 +68,9 @@ macro_rules! format {
 ///
 /// [`crate::BestFitting`] acts as a "break" boundary, meaning that it is considered to fit
 ///
-/// [`Flat`]: crate::format_element::PrintMode::Flat
-/// [`Expanded`]: crate::format_element::PrintMode::Expanded
-/// [`MostExpanded`]: crate::format_element::BestFittingVariants::most_expanded
+/// [`Flat`]: crate::format_node::PrintMode::Flat
+/// [`Expanded`]: crate::format_node::PrintMode::Expanded
+/// [`MostExpanded`]: crate::format_node::BestFittingVariants::most_expanded
 #[macro_export]
 macro_rules! best_fitting {
     ($least_expanded:expr, $($tail:expr),+ $(,)?) => {
@@ -92,23 +92,20 @@ mod tests {
         }
     }
 
-    /// Write a single format element to buffer.
+    /// Write a single format node to buffer.
     #[test]
-    fn test_single_element() {
+    fn test_single_node() {
         let mut state = FormatState::new(SimpleFormatContext::default());
         let mut buffer = VecBuffer::new(&mut state);
 
         write![&mut buffer, [TestFormat]].unwrap();
 
-        assert_eq!(
-            buffer.into_vec(),
-            vec![FormatElement::Token { text: "test" }]
-        );
+        assert_eq!(buffer.into_vec(), vec![FormatNode::Token { text: "test" }]);
     }
 
-    /// Write multiple format elements to buffer.
+    /// Write multiple format nodes to buffer.
     #[test]
-    fn test_multiple_elements() {
+    fn test_multiple_nodes() {
         let mut state = FormatState::new(SimpleFormatContext::default());
         let mut buffer = VecBuffer::new(&mut state);
 
@@ -121,11 +118,11 @@ mod tests {
         assert_eq!(
             buffer.into_vec(),
             vec![
-                FormatElement::Token { text: "a" },
-                FormatElement::Space,
-                FormatElement::Token { text: "simple" },
-                FormatElement::Space,
-                FormatElement::Token { text: "test" }
+                FormatNode::Token { text: "a" },
+                FormatNode::Space,
+                FormatNode::Token { text: "simple" },
+                FormatNode::Space,
+                FormatNode::Token { text: "test" }
             ]
         );
     }
@@ -154,9 +151,9 @@ mod tests {
         assert_eq!(
             buffer.into_vec(),
             vec![
-                FormatElement::Token { text: "Hello" },
-                FormatElement::Space,
-                FormatElement::Token { text: "World" },
+                FormatNode::Token { text: "Hello" },
+                FormatNode::Space,
+                FormatNode::Token { text: "World" },
             ]
         );
     }
@@ -245,7 +242,6 @@ mod tests {
         )
         .print()
         .unwrap();
-
         assert_eq!("aVeryLongIdentifier(1, 2, 3)", wide_result.as_str());
 
         // with narrow line width, should use second variant
@@ -262,7 +258,6 @@ mod tests {
         )
         .print()
         .unwrap();
-
         assert_eq!(
             "aVeryLongIdentifier(\n\t1,\n\t2,\n\t3\n)",
             narrow_result.as_str()
@@ -293,7 +288,7 @@ mod tests {
                         ]),
                         token(")")
                     ),
-                    // Breaks after `[`, but prints all elements on a single line
+                    // Breaks after `[`, but prints all nodes on a single line
                     format_args!(
                         token("("),
                         token("["),
@@ -301,7 +296,7 @@ mod tests {
                         token("]"),
                         token(")"),
                     ),
-                    // Breaks after `[` and prints each element on a single line
+                    // Breaks after `[` and prints each node on a single line
                     format_args!(
                         token("("),
                         block_indent(&format_args![
@@ -646,7 +641,7 @@ mod tests {
         .to_string();
 
         // the variant that "fits" will print its contents as if it were a normal list
-        // outside of a BestFitting element
+        // outside of a BestFitting node
         assert_eq!(best_fitting_code, normal_list_code);
     }
 }

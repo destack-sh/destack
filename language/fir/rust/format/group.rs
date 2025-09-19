@@ -21,8 +21,8 @@ impl GroupMode {
     }
 }
 
-/// Logical group of elements.
-/// The elements are implicit in the element stream surrounded by group delimiters.
+/// Logical group of nodes.
+/// The nodes are implicit in the node stream surrounded by group delimiters.
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct Group {
     id: Option<GroupId>,
