@@ -31,7 +31,7 @@ impl<'fmt, Context> Argument<'fmt, Context> {
     /// Format the value stored by this argument using the given formatter.
     #[inline]
     pub(super) fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        self.value.fmt(f)
+        self.value.format(f)
     }
 }
 
@@ -66,8 +66,8 @@ impl<Context> Clone for Arguments<'_, Context> {
 
 impl<Context> Format<Context> for Arguments<'_, Context> {
     #[inline]
-    fn fmt(&self, formatter: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        formatter.write_fmt(*self)
+    fn format(&self, formatter: &mut Formatter<'_, Context>) -> FormatResult<()> {
+        formatter.write_format(*self)
     }
 }
 

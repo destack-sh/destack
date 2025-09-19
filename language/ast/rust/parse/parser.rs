@@ -22,9 +22,9 @@ pub(crate) struct ParserOptions {
 ///
 /// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
 /// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
-pub struct Parser<'a> {
+pub struct Parser<'ast> {
     /// The source we're parsing.
-    pub source: &'a Source,
+    pub source: &'ast Source,
     /// The source ID.
     pub source_id: SourceId,
     /// The semantic tokens parsed from the source.
@@ -42,7 +42,7 @@ pub struct Parser<'a> {
     /// The Node AST tree.
     pub tree: NodeTree,
     /// The session.
-    pub session: &'a mut Session,
+    pub session: &'ast mut Session,
     /// The errors encountered so far.
     pub errors: Vec<ParseError>,
 }

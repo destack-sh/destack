@@ -1956,7 +1956,7 @@ Group 1 breaks"
     }
 
     impl Format<SimpleFormatContext> for FormatArrayNodes<'_> {
-        fn fmt(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
+        fn format(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
             write!(
                 f,
                 [group(&format_args!(

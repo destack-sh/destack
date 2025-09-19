@@ -1,10 +1,12 @@
-use dyst_language_fir::format::{FormatContext, FormatOptions, IndentStyle, LineEnding};
+use dyst_language_fir::format::{FormatContext, FormatOptions, Formatter, IndentStyle, LineEnding};
 use dyst_language_fir::print::PrintOptions;
 use dyst_language_session::Session;
 use dyst_language_source::{Path, PathId, Source, Span, StringId};
 use dyst_language_token::TokenSpan;
 
 use crate::{Node, NodeId, NodeTree, NodeTreeStore};
+
+pub(crate) type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
 
 /// Dyst format options (mostly for testing).
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -70,27 +72,27 @@ impl FormatOptions for DystFormatOptions {
 
 /// Dyst format context.
 #[derive(Debug, Clone)]
-pub struct DystFormatContext<'a> {
+pub struct DystFormatContext<'ast> {
     /// The format options.
-    options: DystFormatOptions,
+    pub options: DystFormatOptions,
     /// The source.
-    source: &'a Source,
+    pub source: &'ast Source,
     /// The tree.
-    tree: &'a NodeTree,
+    pub tree: &'ast NodeTree,
     /// The session.
-    session: &'a Session,
+    pub session: &'ast Session,
 }
 
-impl<'a> DystFormatContext<'a> {
+impl<'ast> DystFormatContext<'ast> {
     /// Gets the str source backing a Span.
     #[inline]
-    pub fn get_span_str(&self, span: Span) -> &'a str {
+    pub fn get_span_str(&self, span: Span) -> &'ast str {
         &self.source.content[span.start as usize..span.end as usize]
     }
 
     /// Gets the str source backing a TokenSpan.
     #[inline]
-    pub fn get_token_str(&self, token: TokenSpan) -> &'a str {
+    pub fn get_token_str(&self, token: TokenSpan) -> &'ast str {
         &self.source.content[token.span.start as usize..token.span.end as usize]
     }
 

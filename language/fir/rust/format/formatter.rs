@@ -11,7 +11,7 @@ use crate::print::{Printed, Printer};
 /// to [`std::fmt::Display`].
 pub trait Format<Context> {
     /// Formats the object using the given formatter.
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()>;
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()>;
 }
 
 impl<T, Context> Format<Context> for &T
@@ -19,8 +19,8 @@ where
     T: ?Sized + Format<Context>,
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        Format::fmt(&**self, f)
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+        Format::format(&**self, f)
     }
 }
 
@@ -29,8 +29,8 @@ where
     T: ?Sized + Format<Context>,
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        Format::fmt(&**self, f)
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+        Format::format(&**self, f)
     }
 }
 
@@ -38,9 +38,9 @@ impl<T, Context> Format<Context> for Option<T>
 where
     T: Format<Context>,
 {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         match self {
-            Some(value) => value.fmt(f),
+            Some(value) => value.format(f),
             None => Ok(()),
         }
     }
@@ -48,8 +48,8 @@ where
 
 impl<Context> Format<Context> for () {
     #[inline]
-    fn fmt(&self, _: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        // Intentionally left empty
+    fn format(&self, _: &mut Formatter<'_, Context>) -> FormatResult<()> {
+        // nothing to do
         Ok(())
     }
 }
@@ -112,7 +112,7 @@ pub fn write<Context>(
 ) -> FormatResult<()> {
     let mut f = Formatter::new(output);
 
-    f.write_fmt(args)
+    f.write_format(args)
 }
 
 /// The `format` function takes an [`Arguments`] struct and returns the resulting formatting IR.
@@ -132,7 +132,7 @@ where
     let mut state = FormatState::new(context);
     let mut buffer = VecBuffer::with_capacity(estimated_buffer_size, &mut state);
 
-    buffer.write_fmt(arguments)?;
+    buffer.write_format(arguments)?;
 
     let mut document = Document::from(buffer.into_vec());
     document.propagate_expand();
@@ -259,7 +259,7 @@ impl<Context> Buffer for Formatter<'_, Context> {
     }
 
     #[inline]
-    fn write_fmt(&mut self, arguments: Arguments<'_, Self::Context>) -> FormatResult<()> {
+    fn write_format(&mut self, arguments: Arguments<'_, Self::Context>) -> FormatResult<()> {
         for argument in arguments.items() {
             argument.format(self)?;
         }
@@ -419,7 +419,7 @@ mod tests {
         struct Paragraph(String);
 
         impl Format<SimpleFormatContext> for Paragraph {
-            fn fmt(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
+            fn format(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
                 write!(f, [text(&self.0), hard_line_break(),])
             }
         }

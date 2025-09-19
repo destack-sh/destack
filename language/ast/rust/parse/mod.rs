@@ -34,4 +34,4 @@ pub use expression::ExpressionParserOptions;
 pub use parser::*;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
