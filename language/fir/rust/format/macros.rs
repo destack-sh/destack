@@ -23,13 +23,12 @@ macro_rules! format_args {
 /// Writes formatted data into a buffer.
 ///
 /// This macro accepts a 'buffer' and a list of format arguments. Each argument will be formatted
-/// and the result will be passed to the buffer. The writer may be any value with a `write_fmt` method;
+/// and the result will be passed to the buffer. The writer may be any value with a `write_format` method;
 /// generally this comes from an implementation of the [`crate::Buffer`] trait.
 #[macro_export]
 macro_rules! write {
     ($dst:expr, [$($arg:expr),+ $(,)?]) => {{
-        let result = $dst.write_fmt($crate::format_args!($($arg),+));
-        result
+        $dst.write_format($crate::format_args!($($arg),+))
     }}
 }
 
@@ -87,7 +86,7 @@ mod tests {
     struct TestFormat;
 
     impl Format<SimpleFormatContext> for TestFormat {
-        fn fmt(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
+        fn format(&self, f: &mut Formatter<'_, SimpleFormatContext>) -> FormatResult<()> {
             write!(f, [token("test")])
         }
     }
@@ -170,7 +169,8 @@ mod tests {
     #[test]
     fn test_format_macro_with_options() {
         let options = SimpleFormatOptions {
-            line_width: 10.try_into().unwrap(),
+            indent_style: IndentStyle::Tab,
+            line_width: 10,
             ..SimpleFormatOptions::default()
         };
         let context = SimpleFormatContext::new(options, Source::default());

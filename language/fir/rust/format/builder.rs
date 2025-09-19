@@ -54,7 +54,7 @@ impl Line {
 }
 
 impl<Context> Format<Context> for Line {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Line(self.mode));
         Ok(())
     }
@@ -85,7 +85,7 @@ pub struct Token {
 }
 
 impl<Context> Format<Context> for Token {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Token { text: self.text });
         Ok(())
     }
@@ -102,7 +102,6 @@ impl std::fmt::Debug for Token {
 /// This is done by allocating a new string internally.
 pub fn text(text: &str) -> Text<'_> {
     debug_assert_no_newlines(text);
-
     Text { text }
 }
 
@@ -115,7 +114,7 @@ impl<Context> Format<Context> for Text<'_>
 where
     Context: FormatContext,
 {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Text {
             text: self.text.to_string().into_boxed_str(),
             width: TextWidth::from_text(self.text, f.options().indent_width()),
@@ -145,7 +144,7 @@ impl<Context> Format<Context> for SourceSliceBuilder
 where
     Context: FormatContext,
 {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let source = f.context().source();
         debug_assert_no_newlines(self.span.text(source));
 
@@ -190,11 +189,11 @@ pub struct LineSuffix<'a, Context> {
 }
 
 impl<Context> Format<Context> for LineSuffix<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartLineSuffix {
             reserved_width: self.reserved_width,
         }));
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndLineSuffix));
 
         Ok(())
@@ -217,7 +216,7 @@ pub const fn line_suffix_boundary() -> LineSuffixBoundary {
 pub struct LineSuffixBoundary;
 
 impl<Context> Format<Context> for LineSuffixBoundary {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::LineSuffixBoundary);
 
         Ok(())
@@ -234,7 +233,7 @@ pub const fn space() -> Space {
 pub struct Space;
 
 impl<Context> Format<Context> for Space {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Space);
         Ok(())
     }
@@ -263,9 +262,9 @@ pub struct Indent<'a, Context> {
 }
 
 impl<Context> Format<Context> for Indent<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartIndent));
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndIndent));
 
         Ok(())
@@ -301,9 +300,9 @@ pub struct Dedent<'a, Context> {
 }
 
 impl<Context> Format<Context> for Dedent<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartDedent(self.mode)));
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndDedent));
 
         Ok(())
@@ -356,9 +355,9 @@ pub struct Align<'a, Context> {
 }
 
 impl<Context> Format<Context> for Align<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartAlign(self.count)));
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndAlign));
 
         Ok(())
@@ -429,7 +428,7 @@ enum IndentMode {
 }
 
 impl<Context> Format<Context> for BlockIndent<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let snapshot = f.snapshot();
 
         f.write_node(FormatNode::Tag(StartIndent));
@@ -444,7 +443,7 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
 
         let is_empty = {
             let mut recording = f.start_recording();
-            recording.write_fmt(Arguments::from(&self.content))?;
+            recording.write_format(Arguments::from(&self.content))?;
             recording.stop().is_empty()
         };
 
@@ -532,7 +531,7 @@ impl<Context> Group<'_, Context> {
 }
 
 impl<Context> Format<Context> for Group<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let mode = if self.should_expand {
             GroupMode::Expand
         } else {
@@ -543,7 +542,7 @@ impl<Context> Format<Context> for Group<'_, Context> {
             crate::format::Group::new().with_id(self.id).with_mode(mode),
         )));
 
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
 
         f.write_node(FormatNode::Tag(EndGroup));
 
@@ -595,12 +594,12 @@ impl<Context> BestFitParenthesize<'_, Context> {
 }
 
 impl<Context> Format<Context> for BestFitParenthesize<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartBestFitParenthesize {
             id: self.group_id,
         }));
 
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
 
         f.write_node(FormatNode::Tag(EndBestFitParenthesize));
 
@@ -640,11 +639,11 @@ pub struct ConditionalGroup<'content, Context> {
 }
 
 impl<Context> Format<Context> for ConditionalGroup<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartConditionalGroup(
             crate::format::group::ConditionalGroup::new(self.condition),
         )));
-        f.write_fmt(Arguments::from(&self.content))?;
+        f.write_format(Arguments::from(&self.content))?;
         f.write_node(FormatNode::Tag(EndConditionalGroup));
 
         Ok(())
@@ -674,7 +673,7 @@ pub const fn expand_parent() -> ExpandParent {
 pub struct ExpandParent;
 
 impl<Context> Format<Context> for ExpandParent {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::ExpandParent);
 
         Ok(())
@@ -735,11 +734,11 @@ impl<Context> IfGroupBreaks<'_, Context> {
 }
 
 impl<Context> Format<Context> for IfGroupBreaks<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartConditionalContent(
             Condition::new(self.mode).with_group_id(self.group_id),
         )));
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndConditionalContent));
 
         Ok(())
@@ -789,9 +788,9 @@ pub struct IndentIfGroupBreaks<'a, Context> {
 }
 
 impl<Context> Format<Context> for IndentIfGroupBreaks<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartIndentIfGroupBreaks(self.group_id)));
-        Arguments::from(&self.content).fmt(f)?;
+        Arguments::from(&self.content).format(f)?;
         f.write_node(FormatNode::Tag(EndIndentIfGroupBreaks));
 
         Ok(())
@@ -842,11 +841,11 @@ impl<Context> FitsExpanded<'_, Context> {
 }
 
 impl<Context> Format<Context> for FitsExpanded<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_node(FormatNode::Tag(StartFitsExpanded(
             tag::FitsExpanded::new().with_condition(self.condition),
         )));
-        f.write_fmt(Arguments::from(&self.content))?;
+        f.write_format(Arguments::from(&self.content))?;
         f.write_node(FormatNode::Tag(EndFitsExpanded));
 
         Ok(())
@@ -865,7 +864,7 @@ where
     T: Fn(&mut Formatter<'_, Context>) -> FormatResult<()>,
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         (self.formatter)(f)
     }
 }
@@ -917,7 +916,7 @@ where
     T: FnOnce(&mut Formatter<'_, Context>) -> FormatResult<()>,
 {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let formatter = self.formatter.take().unwrap_or_else(|| panic!("tried to format a `format_once` at least twice. This is not allowed. You may want to use `format_with` or `format.memoized` instead."));
 
         (formatter)(f)
@@ -971,11 +970,11 @@ where
             if let Some(with) = &self.with
                 && self.has_nodes
             {
-                with.fmt(self.fmt)?;
+                with.format(self.fmt)?;
             }
             self.has_nodes = true;
 
-            entry.fmt(self.fmt)
+            entry.format(self.fmt)
         });
 
         self
@@ -1044,12 +1043,12 @@ impl<'a, 'buf, Context> FillBuilder<'a, 'buf, Context> {
                 self.empty = false;
             } else {
                 self.fmt.write_node(FormatNode::Tag(StartEntry));
-                separator.fmt(self.fmt)?;
+                separator.format(self.fmt)?;
                 self.fmt.write_node(FormatNode::Tag(EndEntry));
             }
 
             self.fmt.write_node(FormatNode::Tag(StartEntry));
-            entry.fmt(self.fmt)?;
+            entry.format(self.fmt)?;
             self.fmt.write_node(FormatNode::Tag(EndEntry));
             Ok(())
         });
@@ -1106,14 +1105,14 @@ impl<'a, Context> BestFitting<'a, Context> {
 }
 
 impl<Context> Format<Context> for BestFitting<'_, Context> {
-    fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let variants = self.variants.items();
 
         let mut buffer = VecBuffer::with_capacity(variants.len() * 8, f.state_mut());
 
         for variant in variants {
             buffer.write_node(FormatNode::Tag(StartBestFittingEntry));
-            buffer.write_fmt(Arguments::from(variant))?;
+            buffer.write_format(Arguments::from(variant))?;
             buffer.write_node(FormatNode::Tag(EndBestFittingEntry));
         }
 

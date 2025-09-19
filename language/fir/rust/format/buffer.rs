@@ -27,7 +27,10 @@ pub trait Buffer {
     /// Glue for usage of the [`write!`] macro with implementers of this trait.
     ///
     /// This method should generally not be invoked manually, but rather through the [`write!`] macro itself.
-    fn write_fmt(mut self: &mut Self, arguments: Arguments<'_, Self::Context>) -> FormatResult<()> {
+    fn write_format(
+        mut self: &mut Self,
+        arguments: Arguments<'_, Self::Context>,
+    ) -> FormatResult<()> {
         write(&mut self, arguments)
     }
 
@@ -116,8 +119,8 @@ impl<W: Buffer<Context = Context> + ?Sized, Context> Buffer for &mut W {
         (**self).nodes()
     }
 
-    fn write_fmt(&mut self, args: Arguments<'_, Context>) -> FormatResult<()> {
-        (**self).write_fmt(args)
+    fn write_format(&mut self, args: Arguments<'_, Context>) -> FormatResult<()> {
+        (**self).write_format(args)
     }
 
     fn state(&self) -> &FormatState<Self::Context> {
@@ -548,8 +551,8 @@ where
     }
 
     #[inline]
-    pub fn write_fmt(&mut self, arguments: Arguments<'_, B::Context>) -> FormatResult<()> {
-        self.buffer.write_fmt(arguments)
+    pub fn write_format(&mut self, arguments: Arguments<'_, B::Context>) -> FormatResult<()> {
+        self.buffer.write_format(arguments)
     }
 
     #[inline]
@@ -603,12 +606,12 @@ mod tests {
 
     /// Glue for usage of the [`write!`] macro with implementers of this trait.
     #[test]
-    fn test_buffer_write_fmt() {
+    fn test_buffer_write_format() {
         let mut state = FormatState::new(SimpleFormatContext::default());
         let mut buffer = VecBuffer::new(&mut state);
 
         buffer
-            .write_fmt(format_args!(token("Hello World")))
+            .write_format(format_args!(token("Hello World")))
             .unwrap();
 
         assert_eq!(

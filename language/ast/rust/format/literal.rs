@@ -1,8 +1,8 @@
-use crate::{DystFormatContext, ScalarLiteral};
-use dyst_language_fir::format::{Format, FormatResult, Formatter};
+use crate::{DystFormatContext, DystFormatter, ScalarLiteral};
+use dyst_language_fir::format::{Format, FormatResult};
 
 impl Format<DystFormatContext<'_>> for ScalarLiteral {
-    fn fmt(&self, f: &mut Formatter<'_, DystFormatContext<'_>>) -> FormatResult<()> {
+    fn format(&self, f: &mut DystFormatter<'_, '_>) -> FormatResult<()> {
         Ok(())
     }
 }
