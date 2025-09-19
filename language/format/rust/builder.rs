@@ -1529,39 +1529,49 @@ mod tests {
     /// Fits expanded allows content to exceed line width
     #[test]
     fn test_fits_expanded_allows_exceeding_line_width() {
-        let context = SimpleFormatContext::new(
-            SimpleFormatOptions {
-                indent_style: IndentStyle::Tab,
-                line_width: 25,
-                ..SimpleFormatOptions::default()
-            },
-            Source::default(),
-        );
+        let content = format_with(|f| {
+            f.group_id("header");
+            write!(
+                f,
+                [group(&format_args![
+                    token("a"),
+                    soft_line_break_or_space(),
+                    token("+"),
+                    space(),
+                    fits_expanded(&group(&format_args![
+                        token("["),
+                        soft_block_indent(&format_args![
+                            token("a,"),
+                            space(),
+                            token("# comment"),
+                            expand_parent(),
+                            soft_line_break_or_space(),
+                            token(
+                                "'A very long string that exceeds the configured line width of 80 characters but the enclosing binary expression still fits.'"
+                            )
+                        ]),
+                        token("]")
+                    ]))
+                ]),]
+            )
+        });
 
         let formatted = format!(
-            context,
-            [group(&format_args![
-                token("a"),
-                space(),
-                token("+"),
-                space(),
-                fits_expanded(&format_args![
-                    token("["),
-                    soft_block_indent(&format_args![
-                        token("'A very long string that exceeds the line width',"),
-                        hard_line_break(),
-                        token("'and one that doesn't'")
-                    ]),
-                    token("]")
-                ])
-            ])]
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 21,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+            [content]
         )
         .unwrap();
 
-        let printed = formatted.print().unwrap();
         assert_eq!(
-            "a + [\n\t'A very long string that exceeds the line width',\n\t'and one that doesn't'\n]",
-            printed.as_str()
+            "a + [\n\ta, # comment\n\t'A very long string that exceeds the configured line width of 80 characters but the enclosing binary expression still fits.'\n]",
+            formatted.print().unwrap().as_str()
         );
     }
 

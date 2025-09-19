@@ -275,50 +275,49 @@ mod tests {
     /// Best fitting handles complex multi-variant scenarios.
     #[test]
     fn test_best_fitting_complex() {
-        let document = format!(
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 80,
-                    ..SimpleFormatOptions::default()
-                },
-                Source::default(),
-            ),
+        let formatted = format!(
+            SimpleFormatContext::default(),
             [
                 token("aVeryLongIdentifier"),
                 best_fitting!(
-                    // first variant: everything on one line
-                    format_args!(token("([1, 2, 3])")),
-                    // second variant: break array but keep call on line
+                    // Everything fits on a single line
                     format_args!(
                         token("("),
-                        group(&format_args!(
+                        group(&format_args![
                             token("["),
-                            soft_block_indent(&format_args!(
+                            soft_block_indent(&format_args![
                                 token("1,"),
                                 soft_line_break_or_space(),
                                 token("2,"),
                                 soft_line_break_or_space(),
-                                token("3")
-                            )),
+                                token("3"),
+                            ]),
                             token("]")
-                        )),
+                        ]),
                         token(")")
                     ),
-                    // third variant: break everything
+                    // Breaks after `[`, but prints all elements on a single line
                     format_args!(
                         token("("),
-                        soft_block_indent(&format_args!(
+                        token("["),
+                        block_indent(&token("1, 2, 3")),
+                        token("]"),
+                        token(")"),
+                    ),
+                    // Breaks after `[` and prints each element on a single line
+                    format_args!(
+                        token("("),
+                        block_indent(&format_args![
                             token("["),
-                            soft_block_indent(&format_args!(
+                            block_indent(&format_args![
                                 token("1,"),
-                                soft_line_break_or_space(),
+                                hard_line_break(),
                                 token("2,"),
-                                soft_line_break_or_space(),
-                                token("3")
-                            )),
-                            token("]")
-                        )),
+                                hard_line_break(),
+                                token("3"),
+                            ]),
+                            token("]"),
+                        ]),
                         token(")")
                     )
                 )
@@ -326,59 +325,64 @@ mod tests {
         )
         .unwrap();
 
-        // everything fits on one line
-        let very_wide = Formatted::new(
-            document.clone().into_document(),
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 50,
-                    ..SimpleFormatOptions::default()
-                },
-                Source::default(),
-            ),
-        )
-        .print()
-        .unwrap();
-        assert_eq!("aVeryLongIdentifier([1, 2, 3])", very_wide.as_str());
+        let document = formatted.into_document();
 
-        // call breaks but array fits
-        let medium_width = Formatted::new(
-            document.clone().into_document(),
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    line_width: 21,
-                    ..SimpleFormatOptions::default()
-                },
-                Source::default(),
-            ),
-        )
-        .print()
-        .unwrap();
+        // takes the first variant if everything fits on a single line
         assert_eq!(
-            "aVeryLongIdentifier([\n\t1, 2, 3\n])",
-            medium_width.as_str()
+            "aVeryLongIdentifier([1, 2, 3])",
+            Formatted::new(
+                document.clone(),
+                SimpleFormatContext::new(
+                    SimpleFormatOptions {
+                        indent_style: IndentStyle::Tab,
+                        line_width: 80,
+                        ..SimpleFormatOptions::default()
+                    },
+                    Source::default()
+                )
+            )
+            .print()
+            .unwrap()
+            .as_str()
         );
 
-        // everything breaks
-        let narrow_width = Formatted::new(
-            document.into_document(),
-            SimpleFormatContext::new(
-                SimpleFormatOptions {
-                    indent_style: IndentStyle::Tab,
-                    indent_width: 2,
-                    line_width: 20,
-                    ..SimpleFormatOptions::default()
-                },
-                Source::default(),
-            ),
-        )
-        .print()
-        .unwrap();
+        // takes the second if the first variant doesn't fit on a single line
+        // the second variant has some additional line breaks to make sure inner groups don't break
+        assert_eq!(
+            "aVeryLongIdentifier([\n\t1, 2, 3\n])",
+            Formatted::new(
+                document.clone(),
+                SimpleFormatContext::new(
+                    SimpleFormatOptions {
+                        indent_style: IndentStyle::Tab,
+                        line_width: 21,
+                        ..SimpleFormatOptions::default()
+                    },
+                    Source::default()
+                )
+            )
+            .print()
+            .unwrap()
+            .as_str()
+        );
+
+        // prints the last option as last resort
         assert_eq!(
             "aVeryLongIdentifier(\n\t[\n\t\t1,\n\t\t2,\n\t\t3\n\t]\n)",
-            narrow_width.as_str()
+            Formatted::new(
+                document.clone(),
+                SimpleFormatContext::new(
+                    SimpleFormatOptions {
+                        indent_style: IndentStyle::Tab,
+                        line_width: 20,
+                        ..SimpleFormatOptions::default()
+                    },
+                    Source::default()
+                )
+            )
+            .print()
+            .unwrap()
+            .as_str()
         );
     }
 
@@ -457,7 +461,7 @@ mod tests {
     /// Best fitting variants print identically to normal lists when selected.
     #[test]
     fn best_fitting_variants_print_as_lists() {
-        // The second variant below should be selected when printing at a width of 30
+        // the second variant below should be selected when printing at a width of 30
         let formatted_best_fitting = format!(
             SimpleFormatContext::default(),
             [
@@ -503,8 +507,8 @@ mod tests {
         )
         .unwrap();
 
-        // This matches the IR above except that the `best_fitting` was replaced with
-        // the contents of its second variant.
+        // this matches the IR above except that the `best_fitting` was replaced with
+        // the contents of its second variant
         let formatted_normal_list = format!(
             SimpleFormatContext::default(),
             [
@@ -573,8 +577,8 @@ mod tests {
         .as_str()
         .to_string();
 
-        // The variant that "fits" will print its contents as if it were a normal list
-        // outside of a BestFitting element.
+        // the variant that "fits" will print its contents as if it were a normal list
+        // outside of a BestFitting element
         assert_eq!(best_fitting_code, normal_list_code);
     }
 }
