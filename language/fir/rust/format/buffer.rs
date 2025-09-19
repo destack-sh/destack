@@ -1,7 +1,6 @@
-use super::{Arguments, FormatElement, write};
-use crate::element::Interned;
-use crate::prelude::{FormatTag, LineMode};
-use crate::{FormatResult, FormatState};
+use crate::format::{
+    Arguments, FormatElement, FormatResult, FormatState, FormatTag, Interned, LineMode, write,
+};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -589,8 +588,9 @@ impl Deref for Recorded<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::format::SimpleFormatContext;
     use crate::prelude::*;
-    use crate::{SimpleFormatContext, format, format_args, write};
+    use crate::{format, format_args, write};
 
     /// Writes a [`crate::FormatElement`] into this buffer, returning whether the write succeeded.
     #[test]

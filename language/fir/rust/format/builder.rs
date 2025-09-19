@@ -2,12 +2,13 @@ use dyst_language_source::Span;
 use std::cell::Cell;
 use std::marker::PhantomData;
 
-use crate::prelude::*;
-use crate::tag::{Condition, FormatTag};
-use crate::{
-    Argument, Arguments, BestFittingMode, BestFittingVariants, Buffer, DedentMode, FormatContext,
-    FormatOptions, GroupId, GroupMode, PrintMode, TextWidth, VecBuffer, tag, write,
+use crate::format::{
+    Argument, Arguments, BestFittingMode, BestFittingVariants, Buffer, Condition, DedentMode,
+    FormatContext, FormatOptions, FormatTag, GroupId, GroupMode, PrintMode, TextWidth, VecBuffer,
+    tag,
 };
+use crate::prelude::*;
+use crate::write;
 
 #[allow(clippy::enum_glob_use)]
 use FormatTag::*;
@@ -538,7 +539,7 @@ impl<Context> Format<Context> for Group<'_, Context> {
         };
 
         f.write_element(FormatElement::Tag(StartGroup(
-            crate::group::Group::new().with_id(self.id).with_mode(mode),
+            crate::format::Group::new().with_id(self.id).with_mode(mode),
         )));
 
         Arguments::from(&self.content).fmt(f)?;
@@ -640,7 +641,7 @@ pub struct ConditionalGroup<'content, Context> {
 impl<Context> Format<Context> for ConditionalGroup<'_, Context> {
     fn fmt(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         f.write_element(FormatElement::Tag(StartConditionalGroup(
-            crate::group::ConditionalGroup::new(self.condition),
+            crate::format::group::ConditionalGroup::new(self.condition),
         )));
         f.write_fmt(Arguments::from(&self.content))?;
         f.write_element(FormatElement::Tag(EndConditionalGroup));
@@ -1131,10 +1132,9 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
 
 #[cfg(test)]
 mod tests {
+    use crate::format::{BestFittingMode, IndentStyle, SimpleFormatContext, SimpleFormatOptions};
     use crate::prelude::*;
-    use crate::{BestFittingMode, IndentStyle};
-
-    use crate::{SimpleFormatOptions, format, format_args, write};
+    use crate::{best_fitting, format, format_args, write};
 
     /// Soft line breaks are omitted if the enclosing Group fits on a single line
     #[test]

@@ -1,21 +1,22 @@
-use crate::sizing::CharWidth;
+use crate::format::sizing::CharWidth;
+use crate::print::{PrintOptions, Printed};
 
 use dyst_language_source::{Source, Span};
 
 use super::bomb::DebugDropBomb;
-use crate::printer::call_stack::{
-    CallStack, FitsCallStack, PrintCallStack, PrintElementArgs, StackFrame,
-};
-use crate::printer::line_suffixes::{LineSuffixEntry, LineSuffixes};
-use crate::printer::mode::MeasureMode;
-use crate::printer::queue::{
-    AllPredicate, FitsEndPredicate, FitsQueue, PrintQueue, Queue, SingleEntryPredicate,
-};
-use crate::{
+use crate::format::{
     ActualStart, BestFittingMode, BestFittingVariants, Condition, DedentMode, Document,
     FormatElement, FormatTag, FormatTagKind, GroupId, GroupMode, IndentStyle, Indentation,
-    InvalidDocumentError, LineMode, PrintError, PrintMode, PrintOptions, PrintResult, Printed,
-    SourceMarker, TextWidth, VerbatimKind, tag,
+    InvalidDocumentError, LineMode, PrintError, PrintMode, PrintResult, SourceMarker, TextWidth,
+    VerbatimKind, tag,
+};
+use crate::print::call_stack::{
+    CallStack, FitsCallStack, PrintCallStack, PrintElementArgs, StackFrame,
+};
+use crate::print::line_suffixes::{LineSuffixEntry, LineSuffixes};
+use crate::print::mode::MeasureMode;
+use crate::print::queue::{
+    AllPredicate, FitsEndPredicate, FitsQueue, PrintQueue, Queue, SingleEntryPredicate,
 };
 
 /// Prints the format elements into a string
@@ -161,7 +162,7 @@ impl<'a> Printer<'a> {
             }
 
             FormatElement::Tag(StartBestFitParenthesize { id }) => {
-                const OPEN_PAREN: FormatElement = FormatElement::Token { text: "(" };
+                const OPEN_PARENTHESIS: FormatElement = FormatElement::Token { text: "(" };
                 const INDENT: FormatElement = FormatElement::Tag(FormatTag::StartIndent);
                 const HARD_LINE_BREAK: FormatElement = FormatElement::Line(LineMode::Hard);
 
@@ -189,7 +190,7 @@ impl<'a> Printer<'a> {
                         args.with_measure_mode(MeasureMode::AllLines),
                     );
 
-                    queue.extend_back(&[OPEN_PAREN, INDENT, HARD_LINE_BREAK]);
+                    queue.extend_back(&[OPEN_PARENTHESIS, INDENT, HARD_LINE_BREAK]);
                     let fits_expanded = self.fits(queue, stack)?;
                     queue.pop_slice();
                     stack.pop(FormatTagKind::BestFitParenthesize)?;
@@ -207,7 +208,7 @@ impl<'a> Printer<'a> {
 
                 if print_mode.is_expanded() {
                     // parenthesize the content. The `EndIndent` is handled inside of the `EndBestFitParenthesize`
-                    queue.extend_back(&[OPEN_PAREN, INDENT, HARD_LINE_BREAK]);
+                    queue.extend_back(&[OPEN_PARENTHESIS, INDENT, HARD_LINE_BREAK]);
                 }
 
                 stack.push(
@@ -1509,9 +1510,10 @@ enum Text<'a> {
 mod tests {
     use dyst_language_source::Source;
 
+    use crate::format::{Document, FormatState, IndentStyle, LineEnding, VecBuffer};
     use crate::prelude::*;
-    use crate::printer::{LineEnding, PrintOptions, Printer};
-    use crate::{Document, FormatState, IndentStyle, Printed, VecBuffer, format_args, write};
+    use crate::print::{PrintOptions, Printed, Printer};
+    use crate::{format_args, write};
 
     fn format(root: &dyn Format<SimpleFormatContext>) -> Printed {
         format_with_options(root, PrintOptions::default())

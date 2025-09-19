@@ -1,4 +1,4 @@
-use crate::BestFittingMode;
+use crate::format::BestFittingMode;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum MeasureMode {

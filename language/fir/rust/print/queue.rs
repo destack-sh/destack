@@ -1,5 +1,5 @@
-use crate::printer::{invalid_end_tag, invalid_start_tag};
-use crate::{FormatElement, FormatTag, FormatTagKind, PrintResult};
+use crate::format::{FormatElement, FormatTag, FormatTagKind, PrintResult};
+use crate::print::{invalid_end_tag, invalid_start_tag};
 use std::fmt::Debug;
 use std::iter::FusedIterator;
 use std::marker::PhantomData;
@@ -322,8 +322,8 @@ impl FitsEndPredicate for SingleEntryPredicate {
 
 #[cfg(test)]
 mod tests {
-    use crate::printer::queue::{PrintQueue, Queue};
-    use crate::{FormatElement, FormatTag, LineMode};
+    use crate::format::{FormatElement, FormatTag, LineMode};
+    use crate::print::queue::{PrintQueue, Queue};
 
     #[test]
     fn test_extend_back_pop_last() {

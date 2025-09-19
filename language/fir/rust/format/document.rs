@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
-use crate::{FitsExpanded, FormatElement, FormatTag, Interned, LineMode, group};
+use crate::format::{FitsExpanded, FormatElement, FormatTag, Interned, LineMode, group};
 
 /// A formatted document.
 #[derive(Debug, Clone, PartialEq, Default)]

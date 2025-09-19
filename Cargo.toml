@@ -7,7 +7,7 @@ members = [
 	"language/cranelift",
 	"language/diagnostic",
 	"language/dir",
-	"language/format",
+	"language/fir",
 	"language/llvm",
 	"language/mir",
 	"language/rust",
@@ -72,7 +72,7 @@ dyst_language_ast = { path = "language/ast" }
 dyst_language_cranelift = { path = "language/cranelift" }
 dyst_language_diagnostic = { path = "language/diagnostic" }
 dyst_language_dir = { path = "language/dir" }
-dyst_language_format = { path = "language/format" }
+dyst_language_fir = { path = "language/fir" }
 dyst_language_llvm = { path = "language/llvm" }
 dyst_language_mir = { path = "language/mir" }
 dyst_language_rust = { path = "language/rust" }
