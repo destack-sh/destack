@@ -50,62 +50,11 @@ impl<'buf, Context> Formatter<'buf, Context> {
     }
 
     /// Join multiple [Format] together without any separator.
-    ///
-    /// ## Examples
-    ///
-    /// ```rust
-    /// use dyst_language_format::format;
-    /// use dyst_language_format::prelude::*;
-    ///
-    /// # fn main() -> FormatResult<()> {
-    /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-    ///     f.join()
-    ///         .entry(&token("a"))
-    ///         .entry(&space())
-    ///         .entry(&token("+"))
-    ///         .entry(&space())
-    ///         .entry(&token("b"))
-    ///         .finish()
-    /// })])?;
-    ///
-    /// assert_eq!(
-    ///     "a + b",
-    ///     formatted.print()?.as_str()
-    /// );
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn join<'a>(&'a mut self) -> JoinBuilder<'a, 'buf, (), Context> {
         JoinBuilder::new(self)
     }
 
     /// Join the objects by placing the specified separator between every two items.
-    ///
-    /// ## Examples
-    ///
-    /// Joining different tokens by separating them with a comma and a space.
-    ///
-    /// ```
-    /// use dyst_language_format::{format, format_args};
-    /// use dyst_language_format::prelude::*;
-    ///
-    /// # fn main() -> FormatResult<()> {
-    /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-    ///     f.join_with(&format_args!(token(","), space()))
-    ///         .entry(&token("1"))
-    ///         .entry(&token("2"))
-    ///         .entry(&token("3"))
-    ///         .entry(&token("4"))
-    ///         .finish()
-    /// })])?;
-    ///
-    /// assert_eq!(
-    ///     "1, 2, 3, 4",
-    ///     formatted.print()?.as_str()
-    /// );
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn join_with<'a, Joiner>(
         &'a mut self,
         joiner: Joiner,
@@ -119,54 +68,6 @@ impl<'buf, Context> Formatter<'buf, Context> {
     /// Concatenate a list of [`crate::Format`] objects with spaces and line breaks to fit them on as few lines as possible.
     /// Each element introduces a conceptual group.
     /// The printer first tries to print the item in flat mode but then prints it in expanded mode if it doesn't fit.
-    ///
-    /// ## Examples
-    ///
-    /// ```rust
-    /// use dyst_language_format::prelude::*;
-    /// use dyst_language_format::{format, format_args};
-    ///
-    /// # fn main() -> FormatResult<()> {
-    /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-    ///     f.fill()
-    ///         .entry(&soft_line_break_or_space(), &token("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
-    ///         .entry(&soft_line_break_or_space(), &token("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"))
-    ///         .entry(&soft_line_break_or_space(), &token("cccccccccccccccccccccccccccccc"))
-    ///         .entry(&soft_line_break_or_space(), &token("dddddddddddddddddddddddddddddd"))
-    ///         .finish()
-    /// })])?;
-    ///
-    /// assert_eq!(
-    ///     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccccccccccccccccccc dddddddddddddddddddddddddddddd",
-    ///     formatted.print()?.as_str()
-    /// );
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// ```rust
-    /// use dyst_language_format::prelude::*;
-    /// use dyst_language_format::{format, format_args};
-    ///
-    /// # fn main() -> FormatResult<()> {
-    /// let entries = vec![
-    ///     token("<b>Important: </b>"),
-    ///     token("Please do not commit memory bugs such as segfaults, buffer overflows, etc. otherwise you "),
-    ///     token("<em>will</em>"),
-    ///     token(" be reprimanded")
-    /// ];
-    ///
-    /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
-    ///     f.fill().entries(&soft_line_break(), entries.iter()).finish()
-    /// })])?;
-    ///
-    /// assert_eq!(
-    ///     &std::format!("<b>Important: </b>\nPlease do not commit memory bugs such as segfaults, buffer overflows, etc. otherwise you \n<em>will</em> be reprimanded"),
-    ///     formatted.print()?.as_str()
-    /// );
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn fill<'a>(&'a mut self) -> FillBuilder<'a, 'buf, Context> {
         FillBuilder::new(self)
     }
@@ -252,4 +153,125 @@ impl<Context> Buffer for Formatter<'_, Context> {
 #[derive(Debug)]
 pub struct FormatterSnapshot {
     buffer: BufferSnapshot,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{IndentStyle, SimpleFormatContext, SimpleFormatOptions, format, format_args};
+
+    /// Join multiple [Format] together without any separator.
+    #[test]
+    fn test_join_multiple_format_together_without_any_separator() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [format_with(|f| {
+                f.join()
+                    .entry(&token("a"))
+                    .entry(&space())
+                    .entry(&token("+"))
+                    .entry(&space())
+                    .entry(&token("b"))
+                    .finish()
+            })]
+        )
+        .unwrap();
+
+        assert_eq!("a + b", formatted.print().unwrap().as_str());
+    }
+
+    /// Join the objects by placing the specified separator between every two items.
+    #[test]
+    fn test_join_with_separator() {
+        let formatted = format!(
+            SimpleFormatContext::default(),
+            [format_with(|f| {
+                f.join_with(&format_args!(token(","), space()))
+                    .entry(&token("1"))
+                    .entry(&token("2"))
+                    .entry(&token("3"))
+                    .entry(&token("4"))
+                    .finish()
+            })]
+        )
+        .unwrap();
+
+        assert_eq!("1, 2, 3, 4", formatted.print().unwrap().as_str());
+    }
+
+    /// Concatenate a list of [`crate::Format`] objects with spaces and line breaks to fit them on as few lines as possible.
+    #[test]
+    fn test_fill_with_line_breaks() {
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 80,
+                    ..Default::default()
+                },
+                Source::default()
+            ),
+            [format_with(|f| {
+                f.fill()
+                    .entry(
+                        &soft_line_break_or_space(),
+                        &token("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+                    )
+                    .entry(
+                        &soft_line_break_or_space(),
+                        &token("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                    )
+                    .entry(
+                        &soft_line_break_or_space(),
+                        &token("cccccccccccccccccccccccccccccc"),
+                    )
+                    .entry(
+                        &soft_line_break_or_space(),
+                        &token("dddddddddddddddddddddddddddddd"),
+                    )
+                    .finish()
+            })]
+        )
+        .unwrap();
+
+        assert_eq!(
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\ncccccccccccccccccccccccccccccc dddddddddddddddddddddddddddddd",
+            formatted.print().unwrap().as_str()
+        );
+    }
+
+    /// Fill with entries from iterator
+    #[test]
+    fn test_fill_with_entries_from_iterator() {
+        let entries = [
+            token("<b>Important: </b>"),
+            token(
+                "Please do not commit memory bugs such as segfaults, buffer overflows, etc. otherwise you ",
+            ),
+            token("<em>will</em>"),
+            token(" be reprimanded"),
+        ];
+
+        let formatted = format!(
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 80,
+                    ..Default::default()
+                },
+                Source::default()
+            ),
+            [format_with(|f| {
+                f.fill()
+                    .entries(&soft_line_break(), entries.iter())
+                    .finish()
+            })]
+        )
+        .unwrap();
+
+        assert_eq!(
+            &"<b>Important: </b>\nPlease do not commit memory bugs such as segfaults, buffer overflows, etc. otherwise you \n<em>will</em> be reprimanded".to_string(),
+            formatted.print().unwrap().as_str()
+        );
+    }
 }
