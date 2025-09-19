@@ -1,5 +1,3 @@
-#![feature(default_field_values)]
-
 pub mod argument;
 pub mod buffer;
 pub mod builder;
@@ -7,13 +5,10 @@ pub mod context;
 pub mod document;
 pub mod element;
 pub mod error;
-pub mod format;
 pub mod formatter;
 pub mod group;
 pub mod label;
 pub mod macros;
-pub mod prelude;
-pub mod printer;
 pub mod sizing;
 pub mod source;
 pub mod spacing;
@@ -42,17 +37,15 @@ pub use element::{FormatElement, Interned, LineMode};
 pub use error::{
     ActualStart, FormatError, FormatResult, InvalidDocumentError, PrintError, PrintResult,
 };
-pub use format::{Format, Formatted, format, write};
-pub use formatter::{Formatter, FormatterSnapshot};
+pub use formatter::{Format, Formatted, Formatter, FormatterSnapshot, format, write};
 pub use group::{ConditionalGroup, DebugGroupId, Group, GroupId, GroupMode, ReleaseGroupId};
 pub use label::{LabelDefinition, LabelId};
-pub use printer::{LineEnding, PrintOptions, Printed, PrintedSpan, Printer};
 pub use sizing::{
     BestFittingMode, BestFittingVariants, BestFittingVariantsIter, FormatElements, TextLen,
     TextWidth, Width,
 };
 pub use source::{LINE_TERMINATORS, SourceMarker, normalize_newlines};
-pub use spacing::{IndentStyle, Indentation};
+pub use spacing::{IndentStyle, Indentation, LineEnding};
 pub use tag::{
     Condition, DedentMode, FitsExpanded, FormatTag, FormatTagKind, PrintMode, VerbatimKind,
 };

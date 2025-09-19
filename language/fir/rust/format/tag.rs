@@ -1,7 +1,6 @@
 use std::cell::Cell;
 
-use crate::group::{ConditionalGroup, Group};
-use crate::{GroupId, GroupMode};
+use super::group::{ConditionalGroup, Group, GroupId, GroupMode};
 
 /// A Tag marking the start and end of some content to which some special formatting should be applied.
 ///

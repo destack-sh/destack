@@ -3,7 +3,8 @@ use std::sync::atomic::Ordering;
 
 use dyst_language_source::Source;
 
-use crate::{GroupId, IndentStyle, LineEnding, PrintOptions};
+use crate::format::{GroupId, IndentStyle, LineEnding};
+use crate::print::PrintOptions;
 
 /// Stores the state that is relevant for the formatting of the whole document.
 ///

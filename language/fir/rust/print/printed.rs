@@ -1,6 +1,6 @@
 use dyst_language_source::{SourceId, Span};
 
-use crate::{SourceMarker, TextLen};
+use crate::format::{SourceMarker, TextLen};
 
 /// The result of printing with the printer.
 #[derive(Debug, Clone, Eq, PartialEq)]

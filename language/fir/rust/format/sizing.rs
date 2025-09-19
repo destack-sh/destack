@@ -2,7 +2,9 @@ use std::iter::FusedIterator;
 use std::num::NonZeroU32;
 use std::ops::Deref;
 
-use crate::{FormatElement, FormatTag, FormatTagKind, LabelId};
+use super::element::FormatElement;
+use super::label::LabelId;
+use super::tag::{FormatTag, FormatTagKind};
 
 /// Mode used to determine if any variant (except the most expanded) fits for [`BestFittingVariants`].
 #[repr(u8)]

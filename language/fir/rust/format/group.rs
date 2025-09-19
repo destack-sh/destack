@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::fmt::{Debug, Formatter};
 use std::num::NonZeroU32;
 
-use crate::Condition;
+use super::tag::Condition;
 
 #[derive(Debug, Copy, Default, Clone, Eq, PartialEq)]
 pub enum GroupMode {

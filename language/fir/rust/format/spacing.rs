@@ -128,3 +128,38 @@ impl std::fmt::Display for IndentStyle {
         f.write_str(self.as_str())
     }
 }
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
+pub enum LineEnding {
+    /// Line Feed only (\n), common on Linux and macOS as well as inside git repos.
+    #[default]
+    LineFeed,
+    /// Carriage Return + Line Feed characters (\r\n), common on Windows.
+    CarriageReturnLineFeed,
+    /// Carriage Return character only (\r), used very rarely.
+    CarriageReturn,
+}
+
+impl LineEnding {
+    /// Get the string representation of this line ending.
+    #[inline]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            LineEnding::LineFeed => "\n",
+            LineEnding::CarriageReturnLineFeed => "\r\n",
+            LineEnding::CarriageReturn => "\r",
+        }
+    }
+
+    /// Get the string used to configure this line ending.
+    ///
+    /// See [`LineEnding::as_str`] for the actual string representation of the line ending.
+    #[inline]
+    pub const fn as_setting_str(&self) -> &'static str {
+        match self {
+            LineEnding::LineFeed => "lf",
+            LineEnding::CarriageReturnLineFeed => "crlf",
+            LineEnding::CarriageReturn => "cr",
+        }
+    }
+}

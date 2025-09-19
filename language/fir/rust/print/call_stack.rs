@@ -1,6 +1,6 @@
-use crate::printer::mode::MeasureMode;
-use crate::printer::stack::{Stack, StackedStack};
-use crate::{
+use crate::print::mode::MeasureMode;
+use crate::print::stack::{Stack, StackedStack};
+use crate::format::{
     FormatTagKind, IndentStyle, Indentation, InvalidDocumentError, PrintError, PrintMode,
     PrintResult,
 };

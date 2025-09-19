@@ -639,6 +639,7 @@ dependencies = [
  "criterion",
  "destack_library_file",
  "dyst_language_diagnostic",
+ "dyst_language_fir",
  "dyst_language_session",
  "dyst_language_source",
  "dyst_language_token",
@@ -669,7 +670,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dyst_language_format"
+name = "dyst_language_fir"
 version = "2025.9.18-0"
 dependencies = [
  "destack_library_unicode",

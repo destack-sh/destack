@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
-use super::{Buffer, Format, Formatter};
-use crate::FormatResult;
+use super::{Buffer, Format, FormatResult, Formatter};
 
 /// A convenience wrapper for representing a formattable argument.
 pub struct Argument<'fmt, Context> {
@@ -22,7 +21,7 @@ impl<Context> Clone for Argument<'_, Context> {
 impl<Context> Copy for Argument<'_, Context> {}
 
 impl<'fmt, Context> Argument<'fmt, Context> {
-    /// Called by the [dyst_language_format::format_args] macro.
+    /// Called by the [dyst_language_fir::format_args] macro.
     #[doc(hidden)]
     #[inline]
     pub const fn new<F: Format<Context>>(value: &'fmt F) -> Self {
@@ -86,8 +85,9 @@ impl<'fmt, Context> From<&'fmt Argument<'fmt, Context>> for Arguments<'fmt, Cont
 
 #[cfg(test)]
 mod tests {
+    use crate::format::{FormatState, FormatTag, VecBuffer, group};
     use crate::prelude::*;
-    use crate::{FormatState, FormatTag, VecBuffer, format_args, group, write};
+    use crate::{format_args, write};
 
     /// Format nested arguments and verify the output structure.
     #[test]

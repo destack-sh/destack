@@ -2,7 +2,7 @@ use std::error::Error;
 
 use dyst_language_source::Span;
 
-use crate::{FormatTagKind, GroupId};
+use crate::format::{FormatTagKind, GroupId};
 
 /// Series of errors encountered during formatting.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

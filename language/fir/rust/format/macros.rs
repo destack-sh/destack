@@ -12,9 +12,9 @@
 #[macro_export]
 macro_rules! format_args {
     ($($value:expr),+ $(,)?) => {
-        $crate::Arguments::new(&[
+        $crate::format::Arguments::new(&[
             $(
-                $crate::Argument::new(&$value)
+                $crate::format::Argument::new(&$value)
             ),+
         ])
     }
@@ -40,7 +40,7 @@ macro_rules! write {
 #[macro_export]
 macro_rules! format {
     ($context:expr, [$($arg:expr),+ $(,)?]) => {{
-        ($crate::format($context, $crate::format_args!($($arg),+)))
+        ($crate::format::format($context, $crate::format_args!($($arg),+)))
     }}
 }
 
@@ -75,17 +75,14 @@ macro_rules! format {
 macro_rules! best_fitting {
     ($least_expanded:expr, $($tail:expr),+ $(,)?) => {
         // OK because the macro syntax requires at least two variants.
-        $crate::BestFitting::from_arguments_unchecked($crate::format_args!($least_expanded, $($tail),+))
+        $crate::format::BestFitting::from_arguments_unchecked($crate::format_args!($least_expanded, $($tail),+))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::format::{FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer};
     use crate::prelude::*;
-    use crate::{
-        FormatState, Formatted, IndentStyle, SimpleFormatOptions, VecBuffer, format, format_args,
-        write,
-    };
 
     struct TestFormat;
 
@@ -458,10 +455,81 @@ mod tests {
         assert_eq!("expect(a).toMatch([\n\t1,\n\t2,\n\t3\n])", result.as_str());
     }
 
-    /// Best fitting variants print identically to normal lists when selected.
+    /// Best fitting selects the appropriate variant based on line width.
     #[test]
-    fn best_fitting_variants_print_as_lists() {
+    fn test_best_fitting_selects_variant_by_width() {
         // the second variant below should be selected when printing at a width of 30
+        let formatted_best_fitting = format!(
+            SimpleFormatContext::default(),
+            [
+                token("aVeryLongIdentifier"),
+                soft_line_break_or_space(),
+                best_fitting![
+                    format_args![token(
+                        "Something that will not fit on a line with 30 character print width."
+                    )],
+                    format_args![
+                        group(&format_args![
+                            token("Start"),
+                            soft_line_break(),
+                            group(&soft_block_indent(&format_args![
+                                token("1,"),
+                                soft_line_break_or_space(),
+                                token("2,"),
+                                soft_line_break_or_space(),
+                                token("3"),
+                            ])),
+                            soft_line_break_or_space(),
+                            soft_block_indent(&format_args![
+                                token("1,"),
+                                soft_line_break_or_space(),
+                                token("2,"),
+                                soft_line_break_or_space(),
+                                group(&format_args!(
+                                    token("A,"),
+                                    soft_line_break_or_space(),
+                                    token("B")
+                                )),
+                                soft_line_break_or_space(),
+                                token("3")
+                            ]),
+                            soft_line_break_or_space(),
+                            token("End")
+                        ])
+                        .should_expand(true)
+                    ],
+                    format_args!(token("Most"), hard_line_break(), token("Expanded"))
+                ]
+            ]
+        )
+        .unwrap();
+
+        let best_fitting_code = Formatted::new(
+            formatted_best_fitting.into_document(),
+            SimpleFormatContext::new(
+                SimpleFormatOptions {
+                    indent_style: IndentStyle::Tab,
+                    line_width: 30,
+                    ..SimpleFormatOptions::default()
+                },
+                Source::default(),
+            ),
+        )
+        .print()
+        .expect("Document to be valid")
+        .as_str()
+        .to_string();
+
+        // verify the second variant was selected and formatted correctly
+        assert!(best_fitting_code.contains("Start"));
+        assert!(best_fitting_code.contains("End"));
+        assert!(!best_fitting_code.contains("Something that will not fit"));
+    }
+
+    /// Best fitting variants print identically to equivalent normal format args.
+    #[test]
+    fn test_best_fitting_prints_like_normal_format_args() {
+        // create a best fitting with multiple variants
         let formatted_best_fitting = format!(
             SimpleFormatContext::default(),
             [

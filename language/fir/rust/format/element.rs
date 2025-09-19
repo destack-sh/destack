@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use dyst_language_source::Span;
 
-use crate::{BestFittingMode, BestFittingVariants, FormatTag, FormatTagKind, TextWidth};
+use crate::format::{BestFittingMode, BestFittingVariants, FormatTag, FormatTagKind, TextWidth};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LineMode {
