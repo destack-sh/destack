@@ -1,11 +1,14 @@
-use destack_library_cli::cli::{lsp, parse, tokei, version};
+use destack_library_cli::cli::{ast, format, lsp, tokei, token, version};
 use destack_library_cli::console::CommandApp;
 
 fn main() {
     // build cli
     let app = CommandApp::new("destack")
         .help("Destack CLI")
-        .sub_app("parse", parse::app())
+        .command("ast", ast::run, Some(ast::HELP.to_string()))
+        .command("token", token::run, Some(token::HELP.to_string()))
+        .command("format", format::run, Some(format::HELP.to_string()))
+        .command("fmt", format::run, None)
         .sub_app("version", version::app())
         .sub_app("lsp", lsp::app())
         .sub_app("tokei", tokei::app());

@@ -381,6 +381,7 @@ dependencies = [
  "destack_library_tokei",
  "dyst_language_ast",
  "dyst_language_diagnostic",
+ "dyst_language_fir",
  "dyst_language_session",
  "dyst_language_source",
  "dyst_language_token",

@@ -1,6 +1,6 @@
 use dyst_language_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, NodeId, Call};
+use crate::{Call, DystFormatter, FormatNode, NodeId};
 use dyst_language_fir::prelude::*;
 
 impl<'ast> FormatNode<'ast, Call> for Call {

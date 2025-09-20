@@ -1,6 +1,6 @@
 use dyst_language_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, NodeId, Loop};
+use crate::{DystFormatter, FormatNode, Loop, NodeId};
 use dyst_language_fir::prelude::*;
 
 impl<'ast> FormatNode<'ast, Loop> for Loop {
