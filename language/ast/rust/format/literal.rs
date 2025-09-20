@@ -48,7 +48,6 @@ impl<'ast> FormatNode<'ast, TupleLiteral> for TupleLiteral {
                 soft_block_indent(&format_with(|f| f
                     .join_with(&format_args![
                         // only use comma separator if the group fits on a single line
-                        //  (otherwise, we have the newline)
                         if_group_fits_on_line(&token(",")),
                         soft_line_break_or_space()
                     ])
@@ -74,6 +73,7 @@ impl<'ast> FormatNode<'ast, ArrayLiteral> for ArrayLiteral {
                         token("["),
                         soft_block_indent(&format_with(|f| f
                             .join_with(&format_args![
+                                // only use comma separator if the group fits on a single line
                                 if_group_fits_on_line(&token(",")),
                                 soft_line_break_or_space()
                             ])
