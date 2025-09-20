@@ -10,15 +10,21 @@ use dyst_language_session::Session;
 use dyst_language_source::{AnnotateOptions, Color, annotate_source};
 use dyst_language_token::TokenType;
 
-use crate::cli::source::read_source;
+use crate::cli::source::{read_source, render_semantic_spans, semantic_spans_from_text};
 use crate::console::console;
 use crate::console::parse::CommandArguments;
 
-pub const HELP: &str = "Format Dyst source code.\n\t--file <path>        Read input from file\n\t--string <string>    Read input from provided string\n\t--line-width <n>     Set maximum line width (default 100)\n\t--indent-style <s>   Choose indent style: space or tab\n\t--indent-width <n>   Set spaces per indent (default 4)\n\t--line-ending <e>    Choose line ending: lf, crlf, cr";
+pub const HELP: &str = r"Format Dyst source code.
+	--file <path>        Read input from file
+	--string <string>    Read input from provided string
+	--line-width <n>     Set maximum line width (default 100)
+	--indent-style <s>   Choose indent style: space or tab
+	--indent-width <n>   Set spaces per indent (default 4)
+	--line-ending <e>    Choose line ending: lf, crlf, cr";
 
 /// Format input source and print the formatted output.
 pub fn run(ctx: CommandArguments) -> i32 {
-    // read input source
+    // read and validate input source
     let source = match read_source(&ctx) {
         Ok(source) => source,
         Err(error) => {
@@ -27,7 +33,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
-    // parse formatting options from command arguments
+    // parse command line options
     let options = match parse_options(&ctx) {
         Ok(options) => options,
         Err(error) => {
@@ -36,7 +42,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
-    // parse source into AST statements
+    // parse source into AST
     let mut session = Session::new();
     let mut parser = Parser::from_source(&source, &mut session);
     let statements = parser.with_recovery(
@@ -47,7 +53,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     );
     parser.process_annotations();
 
-    // create format context with options and parsed tree
+    // create format context
     let tree = parser.tree;
     let context = DystFormatContext {
         options,
@@ -56,10 +62,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
         tree: &tree,
     };
 
-    // convert statements to format arguments
+    // format the AST
     let arguments: Vec<_> = statements.iter().map(FormatArgument::new).collect();
-
-    // format the document
     let formatted = match format_document(context, FormatArguments::new(&arguments)) {
         Ok(formatted) => formatted,
         Err(error) => {
@@ -68,16 +72,27 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
-    // print formatted output
-    match formatted.print() {
-        Ok(printed) => console::write_line(printed.as_str()),
+    // print formatted document
+    let printed = match formatted.print() {
+        Ok(printed) => printed,
         Err(error) => {
             console::error(&format!("print error: {error}"));
             return 1;
         }
-    }
+    };
 
-    // print diagnostics
+    // apply syntax highlighting and output
+    let formatted_text = printed.into_str();
+    let colored_output = match semantic_spans_from_text("<formatted>", &formatted_text) {
+        Ok(spans) => render_semantic_spans(&spans),
+        Err(error) => {
+            console::warn(&format!("semantic highlighting error: {error}"));
+            formatted_text.clone()
+        }
+    };
+    console::write_line(&colored_output);
+
+    // display any diagnostics
     for diagnostic in &session.diagnostics {
         let annotated = annotate_source(
             &source,
@@ -94,7 +109,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         console::info(&annotated);
     }
 
-    // return error if any error diagnostics
+    // return error code if any errors occurred
     let has_errors = session
         .diagnostics
         .iter()
@@ -105,7 +120,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
     0
 }
 
-/// Parse formatting options from command arguments.
+/// Parse command line options into DystFormatOptions.
 fn parse_options(ctx: &CommandArguments) -> Result<DystFormatOptions, String> {
     let mut options = DystFormatOptions::default();
 
