@@ -1,4 +1,4 @@
-use dyst_language_ast::{BlockFormat, Module, NodeId, NodeTree, Parser};
+use dyst_language_ast::{Module, ModuleFormat, NodeId, NodeTree, Parser};
 use dyst_language_session::Session;
 use dyst_language_source::Source;
 use dyst_language_token::{TokenSpan, TokenType};
@@ -32,7 +32,7 @@ impl Document {
             parser.mark(),
             |parser| {
                 parser
-                    .eat_module_body(None, Some(module_name), BlockFormat::Implicit)
+                    .eat_module_body(None, Some(module_name), ModuleFormat::Implicit)
                     .map(Some)
             },
             None,
