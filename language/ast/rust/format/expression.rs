@@ -25,7 +25,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::ArrayLiteral(node) => node.format(f),
             Expression::StructLiteral(node) => node.format(f),
 
-            _ => todo!(),
+            _ => todo!("{self:?}"),
         }
     }
 }

@@ -27,6 +27,7 @@ pub trait Buffer {
     /// Glue for usage of the [`write!`] macro with implementers of this trait.
     ///
     /// This method should generally not be invoked manually, but rather through the [`write!`] macro itself.
+    #[inline]
     fn write_format(
         mut self: &mut Self,
         arguments: Arguments<'_, Self::Context>,

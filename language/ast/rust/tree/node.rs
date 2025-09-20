@@ -331,6 +331,17 @@ impl Node for Expression {
 // Declarations
 // ----------------------------------------------------------------------------
 
+/// The style of a module.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ModuleFormat {
+    /// Implicit module in a source (e.g., whole file).
+    Implicit,
+    /// Forward declaration for a module (e.g., `module x;`)
+    Forward,
+    /// Inline module with explicit braces (e.g., `module x { ... }`).
+    Inline,
+}
+
 /// A Module is a module declaration.
 /// Modules may be whole directories, single files, or nested within a file.
 ///
@@ -343,7 +354,7 @@ impl Node for Expression {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
     /// The module format.
-    pub format: BlockFormat,
+    pub format: ModuleFormat,
     /// The name of the module.
     pub name: Option<StringId>,
     /// The visibility of the module.
