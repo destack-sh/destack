@@ -22,6 +22,8 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::ScalarLiteral(node) => node.format(f),
             Expression::RangeLiteral(node) => node.format(f),
             Expression::TupleLiteral(node) => node.format(f),
+            Expression::ArrayLiteral(node) => node.format(f),
+            Expression::StructLiteral(node) => node.format(f),
 
             _ => todo!(),
         }
