@@ -173,6 +173,18 @@ impl UnaryOperator {
             _ => None,
         }
     }
+
+    /// Convert a UnaryOperator to a TokenType (if a direct mapping exists).
+    #[inline]
+    pub fn as_token_type(&self) -> TokenType {
+        match self {
+            UnaryOperator::Not => TokenType::Not,
+            UnaryOperator::Negate => TokenType::Subtract,
+            UnaryOperator::WrappingNegate => TokenType::WrappingSubtract,
+            UnaryOperator::BitwiseNot => TokenType::BitwiseNot,
+            UnaryOperator::Dereference => TokenType::Multiply,
+        }
+    }
 }
 
 impl AssignOperator {
