@@ -11,6 +11,7 @@ pub mod implement;
 pub mod r#let;
 pub mod literal;
 pub mod r#loop;
+pub mod r#match;
 pub mod module;
 pub mod path;
 pub mod pattern;

@@ -11,7 +11,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// { ... }
-    /// block: { ... }
+    /// label: { ... }
     /// ```
     pub fn peek_block(&self) -> ParseResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
@@ -106,7 +106,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Break)?;
         // label
         let label = if self.peek_token(TokenType::Colon).is_ok() {
-            self.eat_colon()?;
+            self.bump(); // eat colon
             Some(self.eat_identifier()?)
         } else {
             None
@@ -141,7 +141,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Continue)?;
         // label
         let label = if self.peek_token(TokenType::Colon).is_ok() {
-            self.eat_colon()?;
+            self.bump(); // eat colon
             Some(self.eat_identifier()?)
         } else {
             None
