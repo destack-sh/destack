@@ -1,7 +1,9 @@
 use dyst_language_fir::format::FormatResult;
 use dyst_language_fir::format_args;
 
-use crate::{DystFormatter, FormatNode, Keyword, NodeId, Struct, StructField};
+use crate::{
+    DystFormatter, FormatNode, Keyword, NodeId, Struct, StructField, StructStyle, Visibility,
+};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::write;
 
@@ -11,44 +13,140 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
         _node_id: NodeId<Struct>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // header
+        // split tuple vs struct fields once so we can reuse slices below
+        let tuple_fields: &[NodeId<StructField>] = if self.style == StructStyle::Tuple {
+            &self.fields
+        } else {
+            &[]
+        };
+        let struct_fields: &[NodeId<StructField>] = if self.style == StructStyle::Struct {
+            &self.fields
+        } else {
+            &[]
+        };
+
+        // visibility prefix
+        if let Some(visibility) = self.visibility {
+            let keyword = match visibility {
+                Visibility::Public => Keyword::Public,
+                Visibility::Private => Keyword::Private,
+            };
+            write!(f, [keyword, space()])?;
+        }
+
+        // keyword and optional representation type
         write!(f, [Keyword::Struct])?;
         if let Some(representation_type) = self.representation_type {
-            write!(f, [token("("), representation_type, token(")"), space()])?;
-        } else {
-            write!(f, [space()])?;
+            write!(f, [token("("), representation_type, token(")")])?;
         }
+        // name and generics / tuple header
         if let Some(name) = self.name {
-            write!(f, [name, space()])?;
+            write!(f, [space()])?;
+            write!(f, [name])?;
+
+            // static parameters
+            if let Some(static_parameters) = &self.static_parameters {
+                if static_parameters.is_empty() {
+                    write!(f, [token("<>")])?;
+                } else {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            token("<"),
+                            soft_block_indent(&format_with(|f| f
+                                .join_with(&format_args![
+                                    if_group_fits_on_line(&token(",")),
+                                    soft_line_break_or_space()
+                                ])
+                                .entries(static_parameters)
+                                .finish())),
+                            token(">")
+                        ])]
+                    )?;
+                }
+            }
         }
-        if self.fields.is_empty() && self.statements.is_empty() {
+
+        // tuple header
+        if self.style == StructStyle::Tuple {
+            if tuple_fields.is_empty() {
+                write!(f, [token("("), token(")")])?;
+            } else {
+                write!(
+                    f,
+                    [group(&format_args![
+                        token("("),
+                        soft_block_indent(&format_with(|f| f
+                            .join_with(&format_args![
+                                if_group_fits_on_line(&token(",")),
+                                soft_line_break_or_space()
+                            ])
+                            .entries(tuple_fields)
+                            .finish())),
+                        token(")")
+                    ])]
+                )?;
+            }
+        }
+
+        // super types
+        if let Some(super_types) = &self.super_types
+            && !super_types.is_empty()
+        {
+            write!(
+                f,
+                [group(&format_args![
+                    token(": "),
+                    soft_block_indent(&format_with(|f| f
+                        .join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(super_types)
+                        .finish()))
+                ])]
+            )?;
+        }
+
+        write!(f, [space()])?;
+
+        // body
+        let body_is_empty = struct_fields.is_empty() && self.statements.is_empty();
+        if body_is_empty {
             write!(f, [token("{ }")])?;
             return Ok(());
         }
+
         write!(f, [token("{"), hard_line_break()])?;
-        // body
+
         // fields
-        write!(
-            f,
-            [group(&format_args![block_indent(&format_with(|f| f
-                .join_with(hard_line_break())
-                .entries(&self.fields)
-                .finish())),])]
-        )?;
-        // blank line
-        if !self.fields.is_empty() && !self.statements.is_empty() {
+        if !struct_fields.is_empty() {
+            write!(
+                f,
+                [group(&format_args![block_indent(&format_with(|f| f
+                    .join_with(hard_line_break())
+                    .entries(struct_fields)
+                    .finish())),])]
+            )?;
+        }
+
+        // blank line between fields and statements
+        if !struct_fields.is_empty() && !self.statements.is_empty() {
             write!(f, [hard_line_break()])?;
         }
+
         // statements
-        write!(
-            f,
-            [group(&format_args![block_indent(&format_with(|f| f
-                .join_with(hard_line_break())
-                .entries(&self.statements)
-                .finish())),])]
-        )?;
-        write!(f, [hard_line_break(), token("}")])?;
-        Ok(())
+        if !self.statements.is_empty() {
+            write!(
+                f,
+                [group(&format_args![block_indent(&format_with(|f| f
+                    .join_with(hard_line_break())
+                    .entries(&self.statements)
+                    .finish())),])]
+            )?;
+        }
+
+        write!(f, [hard_line_break(), token("}")])
     }
 }
 
@@ -125,6 +223,16 @@ mod tests {
     }
 
     #[test]
+    fn test_format_struct_with_tuple_body_statements() {
+        assert_format!(
+            "struct Foo(int32) { let X = 2 }",
+            "struct Foo(int32) {\n\tlet X = 2\n}",
+            |p| p.eat_struct(None),
+            DystFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
     fn test_format_struct_with_fields_and_defaults() {
         assert_format!(
             "struct { a: int32 = 42, b: boolean }",
@@ -153,6 +261,16 @@ mod tests {
             "struct {\n\ta: int32\n\n\tlet X = 1\n}",
             |p| p.eat_struct(None),
             DystFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_struct_with_static_parameters_and_super_types() {
+        assert_format!(
+            "struct Foo<T: Numeric>: Bar, Baz { }",
+            "struct Foo<T: Numeric>: Bar, Baz { }",
+            |p| p.eat_struct(None),
+            DystFormatOptions::default()
         );
     }
 }
