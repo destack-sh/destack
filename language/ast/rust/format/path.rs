@@ -35,7 +35,6 @@ mod tests {
             "destack",
             "destack",
             |p| p.eat_path(),
-            |_, n| n,
             DystFormatOptions::default()
         );
     }
@@ -46,7 +45,6 @@ mod tests {
             "destack.geometry.math",
             "destack.geometry.math",
             |p| p.eat_path(),
-            |_, n| n,
             DystFormatOptions::default()
         );
     }
@@ -57,7 +55,6 @@ mod tests {
             "destack.geometry.math.vector.point",
             "destack.geometry.math.vector.point",
             |p| p.eat_path(),
-            |_, n| n,
             DystFormatOptions::default().with_line_width(20)
         );
     }
