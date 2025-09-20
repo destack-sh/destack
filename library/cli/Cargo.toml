@@ -21,6 +21,7 @@ dyst_language_diagnostic = { workspace = true }
 dyst_language_source = { workspace = true }
 dyst_language_token = { workspace = true }
 dyst_language_session = { workspace = true }
+dyst_language_fir = { workspace = true }
 
 destack_library_tokei = { workspace = true }
 destack_extension_lsp = { workspace = true }

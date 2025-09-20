@@ -9,14 +9,14 @@
             "stopOnEntry": true
         },
         {
-            "name": "dyst_language_ast",
+            "name": "destack_library_cli",
             "type": "lldb",
             "request": "launch",
             "cargo": {
                 "args": ["run", "--bin", "destack_library_cli"],
                 "filter": { "kind": "bin", "name": "destack_library_cli" }
             },
-            "args": ["parse", "ast", "--string", "let x = "],
+            "args": ["fmt", "--string", "1"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

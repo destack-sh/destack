@@ -39,6 +39,13 @@ pub fn write(text: &str) {
     let _ = io::stdout().flush();
 }
 
+/// Print text with newline to stdout.
+pub fn write_line(text: &str) {
+    let _ = io::stdout().write_all(text.as_bytes());
+    let _ = io::stdout().write_all(b"\n");
+    let _ = io::stdout().flush();
+}
+
 /// Create a header rendered with an underline.
 pub fn header(text: &str, underline: char) -> String {
     let line = underline.to_string().repeat(text.len());
