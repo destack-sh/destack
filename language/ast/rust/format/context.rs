@@ -1,4 +1,6 @@
-use dyst_language_fir::format::{FormatContext, FormatOptions, Formatter, IndentStyle, LineEnding};
+use dyst_language_fir::format::{
+    Format, FormatContext, FormatOptions, FormatResult, Formatter, IndentStyle, LineEnding,
+};
 use dyst_language_fir::print::PrintOptions;
 use dyst_language_session::Session;
 use dyst_language_source::{Path, PathId, Source, Span, StringId};
@@ -114,6 +116,15 @@ impl<'ast> DystFormatContext<'ast> {
     {
         self.tree.get(node_id)
     }
+
+    /// Get a Span from the tree.
+    pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.tree.get_span(node_id)
+    }
 }
 
 impl FormatContext for DystFormatContext<'_> {
@@ -125,5 +136,33 @@ impl FormatContext for DystFormatContext<'_> {
 
     fn source(&self) -> &Source {
         self.source
+    }
+}
+
+/// Format Nodes with more information.
+pub(crate) trait FormatNode<'ast, T: Node>
+where
+    DystFormatContext<'ast>: FormatContext,
+{
+    /// Format a node.
+    fn format_node(
+        &self,
+        node_id: NodeId<T>,
+        f: &mut DystFormatter<'ast, '_>,
+    ) -> FormatResult<()>;
+}
+
+/// Implement Format for FormatNode via context.
+impl<'ast, T: Node> Format<DystFormatContext<'ast>> for NodeId<T>
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeStore<T>,
+    T: FormatNode<'ast, T>,
+{
+    #[inline]
+    fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
+        let context = f.context();
+        let node = context.get_node(*self).clone(); // nocheckin: don't clone
+        node.format_node(*self, f)
     }
 }

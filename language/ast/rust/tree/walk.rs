@@ -896,14 +896,10 @@ pub fn walk_range_literal<V: NodeVisitor + ?Sized>(
     range_literal: &RangeLiteral,
 ) {
     visitor.visit_any(tree, NodeType::RangeLiteral, id.id);
-    if let Some(start) = &range_literal.start {
-        let start_expr = tree.get(*start);
-        visitor.visit_expression(tree, *start, start_expr);
-    }
-    if let Some(end) = &range_literal.end {
-        let end_expr = tree.get(*end);
-        visitor.visit_expression(tree, *end, end_expr);
-    }
+    let start_expr = tree.get(range_literal.start);
+    visitor.visit_expression(tree, range_literal.start, start_expr);
+    let end_expr = tree.get(range_literal.end);
+    visitor.visit_expression(tree, range_literal.end, end_expr);
 }
 
 /// Walk the ArrayLiteral.

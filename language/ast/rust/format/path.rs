@@ -16,7 +16,7 @@ impl<'ast> Format<DystFormatContext<'ast>> for Path {
         // a.b.c
         write!(
             f,
-            [format_with(|f: &mut DystFormatter<'ast, '_>| f
+            [format_with(|f| f
                 .join_with(token("."))
                 .entries(&self.segments)
                 .finish())]
@@ -26,14 +26,39 @@ impl<'ast> Format<DystFormatContext<'ast>> for Path {
 
 #[cfg(test)]
 mod tests {
-    use crate::DystFormatOptions;
     use crate::format::tests::TestFormatter;
+    use crate::{DystFormatOptions, assert_format};
 
     #[test]
-    fn test_format_path() {
-        let (test, path_id) =
-            TestFormatter::new("destack.geometry.math", |p| p.eat_path()).unwrap();
-        let printed = test.format(&path_id, DystFormatOptions::default());
-        assert_eq!(printed, "destack.geometry.math");
+    fn test_format_path_short() {
+        assert_format!(
+            "destack",
+            "destack",
+            |p| p.eat_path(),
+            |_, n| n,
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_path_multiple_segments() {
+        assert_format!(
+            "destack.geometry.math",
+            "destack.geometry.math",
+            |p| p.eat_path(),
+            |_, n| n,
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_path_with_overlong_line() {
+        assert_format!(
+            "destack.geometry.math.vector.point",
+            "destack.geometry.math.vector.point",
+            |p| p.eat_path(),
+            |_, n| n,
+            DystFormatOptions::default().with_line_width(20)
+        );
     }
 }
