@@ -168,11 +168,13 @@ impl<'buf, Context> Formatter<'buf, Context> {
     }
 
     /// Get the Context specifying how to format the current AST.
+    #[inline]
     pub fn context(&self) -> &Context {
         self.state().context()
     }
 
     /// Get a mutable reference to the context.
+    #[inline]
     pub fn context_mut(&mut self) -> &mut Context {
         self.state_mut().context_mut()
     }
@@ -180,6 +182,7 @@ impl<'buf, Context> Formatter<'buf, Context> {
     /// Create a new group id that is unique to this document.
     /// The passed debug name is used in the [`std::fmt::Debug`] of the document if this is a debug build.
     /// The name is unused for production builds and has no meaning on the equality of two group ids.
+    #[inline]
     pub fn group_id(&self, debug_name: &'static str) -> GroupId {
         self.state().group_id(debug_name)
     }

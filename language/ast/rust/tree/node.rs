@@ -55,8 +55,8 @@ pub enum NodeType {
     // Literals
     ScalarLiteral,
     RangeLiteral,
-    ArrayLiteral,
     TupleLiteral,
+    ArrayLiteral,
     StructLiteral,
     FieldLiteral,
     // Calls
@@ -1509,13 +1509,29 @@ impl Node for ScalarLiteral {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct RangeLiteral {
-    pub start: Option<NodeId<Expression>>,
-    pub end: Option<NodeId<Expression>>,
+    pub start: NodeId<Expression>,
+    pub end: NodeId<Expression>,
     pub is_inclusive: bool,
 }
 
 impl Node for RangeLiteral {
     const KIND: NodeType = NodeType::RangeLiteral;
+}
+
+/// A TupleLiteral is literal tuple of heterogeneous elements node in the AST.
+///
+/// Examples:
+/// ```
+/// (1, 2, 3)
+/// (1.0, 2.0, 3.0)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct TupleLiteral {
+    pub elements: Vec<NodeId<Expression>>,
+}
+
+impl Node for TupleLiteral {
+    const KIND: NodeType = NodeType::TupleLiteral;
 }
 
 /// An ArrayLiteral is literal array of homogeneous elements node in the AST.
@@ -1533,28 +1549,11 @@ impl Node for RangeLiteral {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArrayLiteral {
-    /// A fixed-size array.
     Fixed { elements: Vec<NodeId<Expression>> },
 }
 
 impl Node for ArrayLiteral {
     const KIND: NodeType = NodeType::ArrayLiteral;
-}
-
-/// A TupleLiteral is literal tuple of heterogeneous elements node in the AST.
-///
-/// Examples:
-/// ```
-/// (1, 2, 3)
-/// (1.0, 2.0, 3.0)
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct TupleLiteral {
-    pub elements: Vec<NodeId<Expression>>,
-}
-
-impl Node for TupleLiteral {
-    const KIND: NodeType = NodeType::TupleLiteral;
 }
 
 /// A StructLiteral is literal struct of heterogeneous fields node in the AST.

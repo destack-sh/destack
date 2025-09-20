@@ -2,7 +2,6 @@ mod annotation;
 mod argument;
 mod block;
 mod call;
-mod context;
 mod r#enum;
 mod error;
 mod expression;
@@ -27,7 +26,9 @@ mod r#trait;
 mod r#tuple;
 mod r#type;
 mod union;
+mod r#use;
 mod visibility;
+mod with;
 
 pub use error::*;
 pub use expression::ExpressionParserOptions;

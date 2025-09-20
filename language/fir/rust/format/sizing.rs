@@ -216,7 +216,7 @@ pub(crate) trait CharWidth {
 
 impl CharWidth for char {
     fn width(self) -> u8 {
-        // nocheckin @Broken: this is incorrect for unicode width calculation
+        // todo! @Broken: this is incorrect for unicode width calculation
         self.len_utf8() as u8
     }
 }
