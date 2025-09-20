@@ -24,26 +24,56 @@ pub struct DystFormatOptions {
 }
 
 impl DystFormatOptions {
+    /// Default options with a given line width.
+    pub fn default_with_line_width(line_width: u8) -> Self {
+        Self {
+            line_width,
+            ..Self::default()
+        }
+    }
+
+    /// Default options with tab indent style.
+    pub fn default_tab() -> Self {
+        Self {
+            indent_style: IndentStyle::Tab,
+            ..Self::default()
+        }
+    }
+
+    /// Default options with tab indent style and a given line width.
+    pub fn default_tab_with_line_width(line_width: u8) -> Self {
+        Self {
+            indent_style: IndentStyle::Tab,
+            line_width,
+            ..Self::default()
+        }
+    }
+
+    /// Set the line ending.
     pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
         self.line_ending = line_ending;
         self
     }
 
+    /// Set the indent style.
     pub fn with_indent_style(mut self, indent_style: IndentStyle) -> Self {
         self.indent_style = indent_style;
         self
     }
 
+    /// Set the indent width.
     pub fn with_indent_width(mut self, indent_width: u8) -> Self {
         self.indent_width = indent_width;
         self
     }
 
+    /// Set the line width.
     pub fn with_line_width(mut self, line_width: u8) -> Self {
         self.line_width = line_width;
         self
     }
 
+    /// Convert to print options.
     pub fn as_print_options(&self) -> PrintOptions {
         PrintOptions {
             line_ending: self.line_ending,
@@ -145,11 +175,7 @@ where
     DystFormatContext<'ast>: FormatContext,
 {
     /// Format a node.
-    fn format_node(
-        &self,
-        node_id: NodeId<T>,
-        f: &mut DystFormatter<'ast, '_>,
-    ) -> FormatResult<()>;
+    fn format_node(&self, node_id: NodeId<T>, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()>;
 }
 
 /// Implement Format for FormatNode via context.
