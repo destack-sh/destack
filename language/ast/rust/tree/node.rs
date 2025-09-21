@@ -7,8 +7,6 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use dyst_language_token::TokenType;
-
 use crate::{PathId, StringId};
 
 /// The type of a node in the AST.
@@ -2085,11 +2083,13 @@ impl Node for MatchCase {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AnnotationPosition {
-    /// Annotation before the node on a previous line.
+    /// Annotation inside the node (without next node to attach to, like in an empty block.)
+    BlockInfix,
+    /// Annotation preceding the node on previous lines (most common).
     BlockPrefix,
-    /// Annotation after the node on a new line.
+    /// Annotation after the node on a new line (only if prefix and infix are not possible).
     BlockPostfix,
-    /// Annotation after the node on the same line.
+    /// Annotation after the node on the same line (like infix comments).
     LineSuffix,
 }
 

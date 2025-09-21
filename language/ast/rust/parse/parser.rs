@@ -57,7 +57,7 @@ impl<'a> Parser<'a> {
     /// Create a new parser from source.
     /// Tokenizes immediately.
     pub fn from_source(source: &'a Source, session: &'a mut Session) -> Self {
-        let (tokens, trivia_tokens) = tokenize_with_spans(source.id, &source.content);
+        let (tokens, trivia_tokens) = tokenize_with_spans(source.id, &source.content, is_semantic);
         let eof_token = *tokens.last().unwrap_or(&TokenSpan {
             span: Span {
                 source: source.id,
@@ -416,7 +416,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if two spans are on the same line.
-    pub fn is_same_line(&self, left: Span, right: Span) -> bool {
+    pub fn is_span_same_line(&self, left: Span, right: Span) -> bool {
         let left_line = self.source.get_position(left.start).map(|(line, _)| line);
         let right_line = self.source.get_position(right.start).map(|(line, _)| line);
         match (left_line, right_line) {
