@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// { ... }
-    /// block: { ...
+    /// block: { ... }
     pub fn eat_block(&mut self) -> ParseResult<NodeId<Block>> {
         let start = self.mark();
         // label

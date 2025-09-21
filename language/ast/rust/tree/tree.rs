@@ -4,12 +4,12 @@ use std::fmt::{Debug, Formatter};
 use dyst_language_source::Span;
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
-    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
-    Match, MatchCase, Module, Node, NodeId, NodeMap, NodeType, Parameter, Pattern, PatternField,
-    RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try,
-    Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With,
-    WithClause,
+    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
+    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement,
+    Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeMap, NodeType, Parameter,
+    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
+    StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
+    UseClause, UseItem, While, With, WithClause,
 };
 
 /// The Node tree.
@@ -21,10 +21,8 @@ pub struct NodeTree {
     pub(crate) local_id_by_node: Vec<u32>,
     /// The types of all nodes in the AST. Index is the global node id.
     pub(crate) type_by_node: Vec<NodeType>,
-    /// The documentation attached nodes in the AST.
-    pub(crate) docs_per_node: HashMap<u32, Vec<NodeId<Doc>>>,
-    /// The comments attached to nodes in the AST .
-    pub(crate) comments_per_node: HashMap<u32, Vec<NodeId<Comment>>>,
+    /// The annotations attached to nodes in the AST.
+    pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
 
     /// The mapping between spans and nodes.
     pub map: NodeMap,
@@ -86,6 +84,8 @@ pub struct NodeTree {
     pattern_fields: NodeArena<PatternField>,
     match_cases: NodeArena<MatchCase>,
     // annotations
+    annotations: NodeArena<Annotation>,
+    blanks: NodeArena<Blank>,
     docs: NodeArena<Doc>,
     comments: NodeArena<Comment>,
 }
@@ -114,8 +114,7 @@ impl NodeTree {
             next_id: 0,
             local_id_by_node: Vec::with_capacity(capacity),
             type_by_node: Vec::with_capacity(capacity),
-            docs_per_node: HashMap::new(),
-            comments_per_node: HashMap::new(),
+            annotations_per_node: HashMap::new(),
             map: NodeMap::new(),
             // groupings
             blocks: NodeArena::new(),
@@ -173,15 +172,17 @@ impl NodeTree {
             pattern_fields: NodeArena::new(),
             match_cases: NodeArena::new(),
             // annotations
-            comments: NodeArena::new(),
+            annotations: NodeArena::new(),
+            blanks: NodeArena::new(),
             docs: NodeArena::new(),
+            comments: NodeArena::new(),
         }
     }
 
     /// Allocate a new node in the tree.
     ///
     /// Returns a stable NodeId that can be used to retrieve the node later.
-    pub(crate) fn allocate<T>(&mut self, node: T, span: Span) -> NodeId<T>
+    pub fn allocate<T>(&mut self, node: T, span: Span) -> NodeId<T>
     where
         T: Node,
         Self: NodeTreeStore<T>,
@@ -214,7 +215,7 @@ impl NodeTree {
 
     /// Get a mutable reference to the node with the given NodeId.
     #[inline]
-    pub(crate) fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
+    pub fn get_mut<T>(&mut self, id: NodeId<T>) -> &mut T
     where
         T: Node,
         Self: NodeTreeStore<T>,
@@ -243,37 +244,57 @@ impl NodeTree {
 
     /// Append a doc to a node by its global id.
     #[inline]
-    pub fn append_doc(&mut self, global_id: u32, doc: NodeId<Doc>) {
+    pub fn append_annotation(&mut self, global_id: u32, annotation: NodeId<Annotation>) {
         debug_assert!(global_id < self.next_id);
-        self.docs_per_node.entry(global_id).or_default().push(doc);
-    }
-
-    /// Append a comment to a node by its global id.
-    #[inline]
-    pub fn append_comment(&mut self, global_id: u32, comment: NodeId<Comment>) {
-        debug_assert!(global_id < self.next_id);
-        self.comments_per_node
+        self.annotations_per_node
             .entry(global_id)
             .or_default()
-            .push(comment);
+            .push(annotation);
     }
 
-    /// Get docs attached to a node, cloned as a Vec.
+    /// Get annotations attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_docs_for(&self, node_id: u32) -> Vec<NodeId<Doc>> {
-        self.docs_per_node
+    pub fn get_annotations_for(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
+        self.annotations_per_node
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
     }
 
-    /// Get comments attached to a node, cloned as a Vec.
+    /// Get comment annotations attached to a node, cloned as a Vec.
     #[inline]
     pub fn get_comments_for(&self, node_id: u32) -> Vec<NodeId<Comment>> {
-        self.comments_per_node
-            .get(&node_id)
-            .cloned()
-            .unwrap_or_else(Vec::new)
+        self.get_annotations_for(node_id)
+            .into_iter()
+            .filter_map(|id| match self.get(id) {
+                Annotation::Comment(id) => Some(*id),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Get doc annotation attached to a node, cloned as a Vec.
+    #[inline]
+    pub fn get_docs_for(&self, node_id: u32) -> Vec<NodeId<Doc>> {
+        self.get_annotations_for(node_id)
+            .into_iter()
+            .filter_map(|id| match self.get(id) {
+                Annotation::Doc(id) => Some(*id),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Get blank annotation attached to a node, cloned as a Vec.
+    #[inline]
+    pub fn get_blanks_for(&self, node_id: u32) -> Vec<NodeId<Blank>> {
+        self.get_annotations_for(node_id)
+            .into_iter()
+            .filter_map(|id| match self.get(id) {
+                Annotation::Blank(id) => Some(*id),
+                _ => None,
+            })
+            .collect()
     }
 }
 
@@ -441,6 +462,8 @@ impl_node_tree_stores! {
     PatternField => pattern_fields,
     MatchCase => match_cases,
     // annotations
-    Comment => comments,
+    Annotation => annotations,
+    Blank => blanks,
     Doc => docs,
+    Comment => comments,
 }

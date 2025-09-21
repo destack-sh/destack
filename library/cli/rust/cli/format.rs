@@ -1,11 +1,11 @@
 //! Format subcommand for Dyst source code.
 
-use dyst_language_ast::{BlockFormat, DystFormatContext, DystFormatOptions, Parser};
-use dyst_language_diagnostic::Severity;
-use dyst_language_fir::format::{
-    Argument as FormatArgument, Arguments as FormatArguments, IndentStyle, LineEnding,
-    format as format_document,
+use dyst_language_ast::{
+    BlockFormat, DystFormatContext, DystFormatOptions, Module, ModuleFormat, Parser,
 };
+use dyst_language_diagnostic::Severity;
+use dyst_language_fir::format::{IndentStyle, LineEnding, format as format_document};
+use dyst_language_fir::format_args;
 use dyst_language_session::Session;
 use dyst_language_source::{AnnotateOptions, Color, annotate_source};
 use dyst_language_token::TokenType;
@@ -45,15 +45,25 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // parse source into AST
     let mut session = Session::new();
     let mut parser = Parser::from_source(&source, &mut session);
+    let start = parser.mark();
     let statements = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),
         Vec::new(),
         TokenType::End,
     );
+    let module = parser.tree.allocate(
+        Module {
+            format: ModuleFormat::Implicit,
+            name: None,
+            visibility: None,
+            statements,
+        },
+        parser.get_span_from(start),
+    );
     parser.process_annotations();
 
-    // create format context
+    // format the AST node
     let tree = parser.tree;
     let context = DystFormatContext {
         options,
@@ -61,10 +71,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         session: &session,
         tree: &tree,
     };
-
-    // format the AST
-    let arguments: Vec<_> = statements.iter().map(FormatArgument::new).collect();
-    let formatted = match format_document(context, FormatArguments::new(&arguments)) {
+    let formatted = match format_document(context, format_args![module]) {
         Ok(formatted) => formatted,
         Err(error) => {
             console::error(&format!("format error: {error}"));
