@@ -174,7 +174,7 @@ mod tests {
     fn test_format_function_with_with_clause_overflow() {
         assert_format!(
             "function foo() with Time, Place, Something, Foo, Baz {}",
-            "function foo() with (\n\t\tTime\n\t\tPlace\n\t\tSomething\n\t\tFoo\n\t\tBaz\n) { }",
+            "function foo() with (\n\tTime\n\tPlace\n\tSomething\n\tFoo\n\tBaz\n) { }",
             |p| p.eat_function(None),
             DystFormatOptions::default_tab_with_line_width(40)
         );

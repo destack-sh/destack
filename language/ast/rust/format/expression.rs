@@ -54,7 +54,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Call(node) => node.format(f),
             Expression::Cast(node) => {
                 let node = f.context().get_node(*node).clone();
-                write!(f, [node.receiver, space(), token("as"), space(), node.r#type])
+                write!(
+                    f,
+                    [node.receiver, space(), token("as"), space(), node.r#type]
+                )
             }
             Expression::Unwrap(expr) => write!(f, [expr, token("?")]),
             Expression::UnwrapOrPanic(expr) => write!(f, [expr, token("!")]),

@@ -107,7 +107,7 @@ mod tests {
             r"enum { 
 				let X = 1
 			}",
-            r"enum {\n\tlet X = 1\n}",
+            "enum {\n\tlet X = 1\n}",
             |p| p.eat_enum(None),
             DystFormatOptions::default_tab()
         );

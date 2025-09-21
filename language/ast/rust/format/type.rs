@@ -33,7 +33,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                                 token("<"),
                                 soft_block_indent(&format_with(|f| f
                                     .join_with(&format_args![
-                                                        if_group_fits_on_line(&token(",")),
+                                        if_group_fits_on_line(&token(",")),
                                         soft_line_break_or_space()
                                     ])
                                     .entries(arguments)
