@@ -4,7 +4,7 @@ use crate::{DystFormatter, FormatNode, If, Keyword, NodeId};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::write;
 
-// nocheckin: multiline ifs
+// nocheckin: multiline ifs (try to fit if it's an expr, for statements always break)
 
 impl<'ast> FormatNode<'ast, If> for If {
     fn format_node(

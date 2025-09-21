@@ -76,16 +76,6 @@ pub enum NodeType {
     Comment,
 }
 
-pub const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
-    // TokenType::Newline, // nocheckin: blank/newline annotations
-    TokenType::LineComment,
-    TokenType::DocLineComment,
-    TokenType::BlockComment,
-    TokenType::DocBlockComment,
-];
-
-pub const ANNOTATED_NODE_TYPES: [NodeType; 2] = [NodeType::Doc, NodeType::Comment];
-
 /// Unique identifier for nodes in an arena, parameterized by node type.
 #[repr(transparent)]
 #[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]

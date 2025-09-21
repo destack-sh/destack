@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use dyst_language_source::{Path, PathId, Source, SourceId, Span, StringId};
 use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
-use crate::{Dumper, DumperOptions, NodeTree, ParseError, ParseResult};
+use crate::{Dumper, DumperOptions, EnclosingSpan, NodeTree, ParseError, ParseResult};
 use dyst_language_session::Session;
 
 /// Configure Parser behavior.
@@ -374,6 +374,55 @@ impl<'a> Parser<'a> {
         let error = ParseError::unexpected(self.get_span_from(start));
         self.handle_error(&error);
         Err(error)
+    }
+
+    /// Get the main (i.e. "biggest") node starting at a token.
+    pub fn find_node_starting_at(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
+        let mut enclosing_spans = self
+            .tree
+            .map
+            .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1))
+            .into_iter()
+            .filter(|span| span.span.start == token.span.start)
+            .collect::<Vec<_>>();
+        enclosing_spans.sort_by_key(|span| -(span.length as i64));
+        enclosing_spans.into_iter().next()
+    }
+
+    /// Get the main (i.e. "biggest") node ending at a token.
+    pub fn find_node_ending_at(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
+        let mut enclosing_spans = self
+            .tree
+            .map
+            .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1))
+            .into_iter()
+            .filter(|span| span.span.end == token.span.end)
+            .collect::<Vec<_>>();
+        enclosing_spans.sort_by_key(|span| -(span.length as i64));
+        enclosing_spans.into_iter().next()
+    }
+
+    /// Get the smallest node enclosing a token.
+    pub fn find_node_enclosing(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
+        let mut enclosing_spans = self
+            .tree
+            .map
+            .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1));
+        if enclosing_spans.is_empty() {
+            return None;
+        }
+        enclosing_spans.sort_by_key(|span| span.length);
+        enclosing_spans.into_iter().next()
+    }
+
+    /// Check if two spans are on the same line.
+    pub fn is_same_line(&self, left: Span, right: Span) -> bool {
+        let left_line = self.source.get_position(left.start).map(|(line, _)| line);
+        let right_line = self.source.get_position(right.start).map(|(line, _)| line);
+        match (left_line, right_line) {
+            (Some(lhs), Some(rhs)) => lhs == rhs,
+            _ => false,
+        }
     }
 }
 
