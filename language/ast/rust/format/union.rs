@@ -15,10 +15,16 @@ impl<'ast> FormatNode<'ast, Union> for Union {
     ) -> FormatResult<()> {
         match self.style {
             UnionStyle::Implicit => {
+                let context = f.context();
+                let union_types: Vec<NodeId<Type>> = self
+                    .fields
+                    .iter()
+                    .map(|field| context.get_node(*field).r#type.unwrap())
+                    .collect::<Vec<_>>();
                 write!(
                     f,
                     [format_with(|f| {
-                        f.join_with(token(" | ")).entries(&self.fields).finish()
+                        f.join_with(token(" | ")).entries(&union_types).finish()
                     })]
                 )
             }

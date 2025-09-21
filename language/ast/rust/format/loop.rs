@@ -30,8 +30,8 @@ impl<'ast> FormatNode<'ast, For> for For {
                 space(),
                 self.pattern,
                 space(),
-				Keyword::In,
-				space(),
+                Keyword::In,
+                space(),
                 self.iterator,
                 space(),
                 self.body

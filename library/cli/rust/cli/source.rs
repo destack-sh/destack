@@ -43,9 +43,7 @@ pub(crate) fn semantic_spans_from_text(
 }
 
 /// Compute semantic spans directly from a Source value.
-pub(crate) fn semantic_spans_from_source(
-    source: &Source,
-) -> Result<Vec<SemanticSpan>, String> {
+pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<SemanticSpan>, String> {
     let mut session = Session::new();
     let mut parser = Parser::from_source(source, &mut session);
     let statements = parser.with_recovery(

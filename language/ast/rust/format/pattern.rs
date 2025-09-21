@@ -25,9 +25,9 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::Path(path) => write!(f, [path]),
             Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,]),
             Pattern::Tuple { path, fields } => {
-				if let Some(path) = path {
-					write!(f, [path])?;
-				}
+                if let Some(path) = path {
+                    write!(f, [path])?;
+                }
                 write!(
                     f,
                     [group(&format_args![

@@ -15,10 +15,10 @@ impl<'ast> FormatNode<'ast, Block> for Block {
             write!(f, [label, token(": ")])?;
         }
         // statements
-		if self.statements.is_empty() {
-			write!(f, [token("{ }")])?;
-			return Ok(());
-		}
+        if self.statements.is_empty() {
+            write!(f, [token("{ }")])?;
+            return Ok(());
+        }
         write!(
             f,
             [group(&format_args![
