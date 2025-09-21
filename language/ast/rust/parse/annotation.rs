@@ -5,7 +5,9 @@ use std::borrow::Cow;
 use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
-use crate::{Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, Parser};
+use crate::{
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, NodeId, Parser,
+};
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Newline,
@@ -70,7 +72,7 @@ impl<'a> Parser<'a> {
         token_type: TokenType,
         tokens: &[TokenSpan],
         group: &[TokenSpan],
-    ) {
+    ) -> Option<NodeId<Annotation>> {
         debug_assert!(ANNOTATION_TOKEN_TYPES.contains(&token_type));
         debug_assert!(!group.is_empty());
 
@@ -88,7 +90,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let is_line_suffix = self.is_same_line(start_token.span, end_token.span)
+        let is_line_suffix = self.is_span_same_line(start_token.span, end_token.span)
             && prev_token.is_some()
             && prev_token.unwrap().token.r#type != TokenType::Newline;
         let (target_token, target_node) = {
@@ -102,9 +104,7 @@ impl<'a> Parser<'a> {
                 (target_token, target_node)
             }
         };
-        let Some(target_node) = target_node else {
-            return;
-        };
+        let target_node = target_node?;
 
         // create the annotation
         let annotation_id = match token_type {
@@ -170,7 +170,10 @@ impl<'a> Parser<'a> {
             _ => panic!("unexpected token type: {token_type:?}"),
         };
 
-        // nocheckin
+        // attach the annotation to the target node
+        self.tree.append_annotation(target_node.idx, annotation_id);
+
+        Some(annotation_id)
     }
 
     /// Clean a group of annotation tokens into their inner string.
@@ -236,41 +239,31 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        AnnotationPosition, Blank, BlockFormat, Comment, CommentStyle, Doc, DocStyle, Enum,
-        EnumField, Expression, Statement, Struct, StructField, assert_node, assert_string,
+        Annotation, AnnotationPosition, Blank, Block, BlockFormat, Comment, CommentStyle, Doc,
+        DocStyle, Function, Statement, Struct, StructField, Type, assert_node, assert_string,
     };
 
+    /// Blanks (>2 successive newlines) are annotations and should be attached to the next node.
+    /// Like any other annotation, if no next or containing node is found, attach to previous node as suffix.
     #[test]
-    fn test_attach_blanks_between_statements() {
-        let mut test = TestParser::new(
-            r"
-
-
-let A = 1
-
-let B = 2
-
-        ",
-        );
+    fn test_attach_blanks_to_lets() {
+        let mut test = TestParser::new("\n\nlet A = 1\nlet B = 2\n\n");
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
 
         assert_eq!(statements.len(), 2);
 
-        // A has two prefix block blanks
+        // A has one prefix block blank
         let a_blanks = parser.tree.get_blanks_for(statements[0].id);
-        assert_eq!(a_blanks.len(), 2);
+        assert_eq!(a_blanks.len(), 1);
         assert_node!(parser.tree, a_blanks[0], Blank { position, lines } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_eq!(*lines, 1);
-        });
-        assert_node!(parser.tree, a_blanks[1], Blank { position, lines } => {
-            assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_eq!(*lines, 1);
+            assert_eq!(*lines, 2);
         });
 
         // B has one prefix block blank and one postfix block blank
+        // (the postfix blank after B because there is nothing else to attach to)
         let b_blanks = parser.tree.get_blanks_for(statements[1].id);
         assert_eq!(b_blanks.len(), 2);
         assert_node!(parser.tree, b_blanks[0], Blank { position, lines } => {
@@ -285,8 +278,40 @@ let B = 2
         });
     }
 
+    /// Annotations inside an empty node should be treated as infix within the containing node.
     #[test]
-    fn test_attach_docs_to_struct_mixed_block_prefix() {
+    fn test_attach_comments_infix_in_block() {
+        let mut test = TestParser::new("function main() {\n\t// block comment, infix\n}");
+        let mut parser = test.parser();
+
+        let function = parser.eat_function(None).unwrap();
+        parser.process_annotations();
+
+        // function main
+        assert_node!(parser.tree, function, Function { body, .. } => {
+            assert_node!(parser.tree, body.unwrap(), Block { statements, .. } => {
+                assert_eq!(statements.len(), 0);
+                // doc block infix
+                // comment, infix
+                let annotations = parser.tree.get_annotations_for(function.id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(parser.tree, annotations[0], Annotation::Comment(node) => {
+                    assert_node!(parser.tree, *node, Comment { string, position, style } => {
+                        assert_eq!(parser.get_string(*string), "block comment, infix");
+                        assert_eq!(*position, AnnotationPosition::BlockInfix);
+                        assert_eq!(*style, CommentStyle::Line);
+                    });
+                });
+            });
+        });
+    }
+
+    /// Mixed annotations should also be attached to the node they are attached to.
+    /// Successive annotations of the same type should be merged as relevant.
+    /// Within a containing node (like the struct), the comment at the end should be treated as infix
+    ///  since we don't have a following node to attach to (but do have a containing node).
+    #[test]
+    fn test_attach_mixed_annotations_to_struct() {
         let mut test = TestParser::new(
             r"
 /// doc, floating
@@ -296,7 +321,9 @@ let B = 2
 struct Floof {
     /// doc, struct field
     /// doc, struct field continued
-    a: int32
+    a: int32 // doc, struct field infix
+
+    /// random doc
 }
         ",
         );
@@ -307,285 +334,71 @@ struct Floof {
         // struct Floof
         assert_eq!(statements.len(), 1);
         assert_node!(parser.tree, statements[0], Statement::Struct(node) => {
-            let docs = parser.tree.get_docs_for(node.id);
-            assert_eq!(docs.len(), 1);
-
-            // doc, struct + doc, struct continued
-            assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
-                let string = parser.get_string(*string);
-                assert_eq!(string, "doc, struct\ndoc, struct continued");
-                assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                assert_eq!(*style, DocStyle::Line);
-            });
-
-            // struct Floof
             assert_node!(parser.tree, *node, Struct { fields, .. } => {
-                assert_eq!(fields.len(), 1);
+                let annotations = parser.tree.get_annotations_for(node.id);
+                assert_eq!(annotations.len(), 4);
+                // doc block prefix, floating
+                assert_node!(parser.tree, annotations[0], Annotation::Doc(node) => {
+                    assert_node!(parser.tree, *node, Doc { string, position, style } => {
+                        assert_eq!(parser.get_string(*string), "doc, floating");
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*style, DocStyle::Line);
+                    });
+                });
+                // blank block prefix
+                assert_node!(parser.tree, annotations[1], Annotation::Blank(node) => {
+                    assert_node!(parser.tree, *node, Blank { position, lines } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*lines, 1);
+                    });
+                });
+                // doc block prefix
+                // struct\ndoc, struct continued
+                assert_node!(parser.tree, annotations[2], Annotation::Doc(node) => {
+                    assert_node!(parser.tree, *node, Doc { string, position, style } => {
+                        assert_eq!(parser.get_string(*string), "doc, struct");
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*style, DocStyle::Line);
+                    });
+                });
 
                 // a: int32
-                assert_node!(parser.tree, fields[0], StructField { name, .. } => {
-                    assert_eq!(parser.get_string(name.unwrap()), "a");
-
-                    // doc, struct field + doc, struct field continued
-                    let docs = parser.tree.get_docs_for(fields[0].id);
-                    assert_eq!(docs.len(), 1);
-                    // doc, struct field + doc, struct field continued
-                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
-                        let string = parser.get_string(*string);
-                        assert_eq!(string, "doc, struct field\ndoc, struct field continued");
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_eq!(*style, DocStyle::Line);
-                    });
-                });
-            });
-
-        })
-    }
-
-    #[test]
-    fn test_attach_docs_to_enum_mixed_block_prefix() {
-        let mut test = TestParser::new(
-            r"
-enum Floof {
-    /// A
-    A
-}
-        ",
-        );
-        let mut parser = test.parser();
-        parser.eat_newline().unwrap();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
-
-        // enum Floof
-        assert_eq!(statements.len(), 1);
-        assert_node!(parser.tree, statements[0], Statement::Enum(node) => {
-            // enum Floof
-            assert_node!(parser.tree, *node, Enum { fields, .. } => {
                 assert_eq!(fields.len(), 1);
-                // A
-                assert_node!(parser.tree, fields[0], EnumField { name, .. } => {
-                    assert_string!(parser.session, *name, "A");
-                    let docs = parser.tree.get_docs_for(fields[0].id);
-                    assert_eq!(docs.len(), 1);
-                    // A + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
-                        let string = parser.get_string(*string);
-                        assert_eq!(string, "A");
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, fields[0], StructField { name, .. } => {
+                    assert_string!(parser.session, name.unwrap(), "a");
+                    let annotations = parser.tree.get_annotations_for(fields[0].id);
+                    assert_eq!(annotations.len(), 2);
+
+                    // doc block prefix
+                    // struct field\ndoc, struct field continued
+                    assert_node!(parser.tree, annotations[0], Annotation::Doc(node) => {
+                        assert_node!(parser.tree, *node, Doc { string, position, style } => {
+                            assert_eq!(parser.get_string(*string), "doc, struct field\ndoc, struct field continued");
+                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                            assert_eq!(*style, DocStyle::Line);
+                        });
+                    });
+
+                    // doc line suffix
+                    // doc, struct field infix
+                    assert_node!(parser.tree, annotations[1], Annotation::Doc(node) => {
+                        assert_node!(parser.tree, *node, Doc { string, position, style } => {
+                            assert_eq!(parser.get_string(*string), "doc, struct field infix");
+                            assert_eq!(*position, AnnotationPosition::LineSuffix);
+                            assert_eq!(*style, DocStyle::Line);
+                        });
+                    });
+                });
+
+                // doc block infix
+                assert_node!(parser.tree, annotations[3], Annotation::Doc(node) => {
+                    assert_node!(parser.tree, *node, Doc { string, position, style } => {
+                        assert_eq!(parser.get_string(*string), "random doc");
+                        assert_eq!(*position, AnnotationPosition::BlockInfix);
                         assert_eq!(*style, DocStyle::Line);
                     });
                 });
             });
         })
-    }
-
-    #[test]
-    fn test_attach_docs_to_enum_with_values_mixed_block_prefix() {
-        let mut test = TestParser::new(
-            r"
-/// doc, enum
-/// doc, enum continued
-enum Floof {
-    /// A
-    /// doc, enum field
-    A = 1
-    
-    /// B
-    /// doc, enum field
-    B = 2
-
-    C
-
-    /// D
-    D = 3
-}
-        ",
-        );
-        let mut parser = test.parser();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
-
-        // enum Floof
-        assert_eq!(statements.len(), 1);
-        assert_node!(parser.tree, statements[0], Statement::Enum(node) => {
-            // enum Floof
-            assert_node!(parser.tree, *node, Enum { fields, .. } => {
-                assert_eq!(fields.len(), 4);
-
-                // A
-                assert_node!(parser.tree, fields[0], EnumField { name, .. } => {
-                    assert_string!(parser.session, *name, "A");
-                    let docs = parser.tree.get_docs_for(fields[0].id);
-                    assert_eq!(docs.len(), 1);
-                    // A + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
-                        let string = parser.get_string(*string);
-                        assert_eq!(string, "A\ndoc, enum field");
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_eq!(*style, DocStyle::Line);
-                    });
-                });
-
-                // B
-                assert_node!(parser.tree, fields[1], EnumField { name, .. } => {
-                    assert_string!(parser.session, *name, "B");
-                    let docs = parser.tree.get_docs_for(fields[1].id);
-                    assert_eq!(docs.len(), 1);
-                    // B + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
-                        let string = parser.get_string(*string);
-                        assert_eq!(string, "B\ndoc, enum field");
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_eq!(*style, DocStyle::Line);
-                    });
-                });
-
-                // C
-                assert_node!(parser.tree, fields[2], EnumField { name, .. } => {
-                    assert_string!(parser.session, *name, "C");
-                    // <nothing>
-                    let docs = parser.tree.get_docs_for(fields[2].id);
-                    assert_eq!(docs.len(), 0);
-                });
-
-                // D
-                assert_node!(parser.tree, fields[3], EnumField { name, .. } => {
-                    assert_string!(parser.session, *name, "D");
-                    let docs = parser.tree.get_docs_for(fields[3].id);
-                    assert_eq!(docs.len(), 1);
-                    // D + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
-                        let string = parser.get_string(*string);
-                        assert_eq!(string, "D");
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_eq!(*style, DocStyle::Line);
-                    });
-                });
-            });
-        })
-    }
-
-    #[test]
-    fn test_attach_comments_mixed_block_prefix() {
-        let mut test = TestParser::new(
-            r"
-// comment, floating
-
-// comment 1
-// comment 1.1
-let x = 1 + 1
-        ",
-        );
-        let mut parser = test.parser();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
-
-        // let x = 1 + 1 (let node)
-        assert_eq!(statements.len(), 1);
-        assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
-            // let x = 1 + 1
-            assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
-                let comments = parser.tree.get_comments_for(let_node.id);
-                assert_eq!(comments.len(), 1);
-                // comment 1 + comment 1.1
-                assert_node!(parser.tree, comments[0], Comment { string, position, style } => {
-                    let string = parser.get_string(*string);
-                    assert_eq!(string, "comment 1\ncomment 1.1");
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_eq!(*style, CommentStyle::Line);
-                });
-            });
-
-        });
-    }
-
-    #[test]
-    fn test_attach_comments_mixed_block_prefix_and_line_suffix() {
-        let mut test = TestParser::new(
-            r"
-// comment 2
-func() /* comment 3, detached */
-        ",
-        );
-        let mut parser = test.parser();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
-
-        // func() (expression node)
-        assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
-            // comments should be on the biggest, "lowest" next node
-            let comments = parser.tree.get_comments_for(expr_node.id);
-            assert_eq!(comments.len(), 1);
-
-            // comment 2 (comment 3 should not be attached)
-            assert_node!(parser.tree, comments[0], Comment { string, position, style } => {
-                let string = parser.get_string(*string);
-                assert_eq!(string, "comment 2");
-                assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                assert_eq!(*style, CommentStyle::Line);
-            });
-        });
-    }
-
-    #[test]
-    fn test_attach_postfix_comment_same_line() {
-        let mut test = TestParser::new(
-            r"
-let value = 42 // trailing comment
-        ",
-        );
-        let mut parser = test.parser();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
-
-        assert_eq!(statements.len(), 1);
-        assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
-            assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
-                let comments = parser.tree.get_comments_for(let_node.id);
-                assert_eq!(comments.len(), 1);
-                assert_node!(parser.tree, comments[0], Comment { string, position, style } => {
-                    let string = parser.get_string(*string);
-                    assert_eq!(string, "trailing comment");
-                    assert_eq!(*position, AnnotationPosition::LineSuffix);
-                    assert_eq!(*style, CommentStyle::Line);
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_collect_blank_annotations_between_statements() {
-        let mut test = TestParser::new(
-            r"
-
-let a = 1
-
-let b = 2
-        ",
-        );
-        let mut parser = test.parser();
-        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
-
-        assert_eq!(statements.len(), 2);
-
-        assert_node!(parser.tree, statements[0], Statement::Expression(expr_node) => {
-            assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
-                let blanks = parser.tree.get_blanks_for(let_node.id);
-                assert!(blanks.is_empty());
-            });
-        });
-
-        assert_node!(parser.tree, statements[1], Statement::Expression(expr_node) => {
-            assert_node!(parser.tree, *expr_node, Expression::Let(let_node) => {
-                let blanks = parser.tree.get_blanks_for(let_node.id);
-                assert_eq!(blanks.len(), 1);
-                assert_node!(parser.tree, blanks[0], Blank { position, lines } => {
-                    assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                    assert_eq!(*lines, 1);
-                });
-            });
-        });
     }
 }

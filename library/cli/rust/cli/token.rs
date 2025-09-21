@@ -1,4 +1,4 @@
-use dyst_language_token::{TokenType, tokenize_with_spans};
+use dyst_language_token::{TokenType, is_semantic, tokenize_with_spans};
 
 use crate::cli::source::read_source;
 use crate::console::parse::CommandArguments;
@@ -6,7 +6,13 @@ use crate::console::{console, table};
 
 const DEFAULT_MAX_LEXEME_LEN: usize = 80;
 
-pub const HELP: &str = "Tokenize source with spans.\n\t--file <path>      Read input from file\n\t--string <string>  Read input from provided string\n\t--no-color         Disable ANSI colors\n\t--no-pager         Print directly instead of use less -R\n\t--max-lexeme <n>   Truncate lexeme preview to n chars";
+pub const HELP: &str = r"Tokenize source with spans.
+	--file <path>      Read input from file
+	--string <string>  Read input from provided string
+	--no-color         Disable ANSI colors
+	--no-pager         Print directly instead of use less -R
+    --only-semantic    Only show semantic tokens
+	--max-lexeme <n>   Truncate lexeme preview to n chars";
 
 /// Tokenize input and show a colored table with locations.
 pub fn run(ctx: CommandArguments) -> i32 {
@@ -24,6 +30,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         .option("max-lexeme")
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(DEFAULT_MAX_LEXEME_LEN);
+    let only_semantic = ctx.flag("only-semantic");
 
     let headers = vec![
         "Index".to_string(),
@@ -34,7 +41,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
         "Length".to_string(),
     ];
     let mut rows: Vec<Vec<String>> = Vec::new();
-    let (tokens, _) = tokenize_with_spans(source.id, &source.content);
+    let filter = if only_semantic { is_semantic } else { |_| true };
+    let (tokens, _) = tokenize_with_spans(source.id, &source.content, filter);
 
     for (index, token) in tokens.iter().enumerate() {
         let start_offset = token.span.start as usize;
