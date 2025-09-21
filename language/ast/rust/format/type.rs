@@ -18,7 +18,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             Type::Maybe(type_) => write!(f, [token("?"), type_]),
             Type::Not(type_) => write!(f, [token("!"), type_]),
             Type::Never => write!(f, [token("!")]),
-            Type::This => write!(f, [token("Self")]),
+            Type::Self_ => write!(f, [token("Self")]),
             Type::Primitive(primitive) => write!(f, [primitive]),
             Type::Path {
                 path,

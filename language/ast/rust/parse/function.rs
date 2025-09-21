@@ -53,12 +53,6 @@ impl<'a> Parser<'a> {
     /// ) {
     ///    ...
     /// }
-    ///
-    /// // lambda style
-    ///
-    /// () => 0
-    /// (x) => x + 1
-    /// (x: int32) => x + 1
     /// ```
     pub fn eat_function(
         &mut self,

@@ -18,13 +18,14 @@ impl<'ast> FormatNode<'ast, Let> for Let {
                 Keyword::Let
             }]
         )?;
-		write!(f, [self.pattern])?;
-		if let Some(r#type) = self.r#type {
-			write!(f, [token(": "), r#type])?;
-		}
-		if let Some(value) = self.value {
-			write!(f, [token(" = "), value])?;
-		}
-		Ok(())
+        // emit pattern with optional type and value
+        write!(f, [space(), self.pattern])?;
+        if let Some(r#type) = self.r#type {
+            write!(f, [token(": "), r#type])?;
+        }
+        if let Some(value) = self.value {
+            write!(f, [token(" = "), value])?;
+        }
+        Ok(())
     }
 }

@@ -13,7 +13,7 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
         _node_id: NodeId<Struct>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // split tuple vs struct fields once so we can reuse slices below
+        // split tuple vs struct fields
         let tuple_fields: &[NodeId<StructField>] = if self.style == StructStyle::Tuple {
             &self.fields
         } else {
@@ -25,7 +25,7 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
             &[]
         };
 
-        // visibility prefix
+        // visibility
         if let Some(visibility) = self.visibility {
             let keyword = match visibility {
                 Visibility::Public => Keyword::Public,
@@ -34,12 +34,13 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
             write!(f, [keyword, space()])?;
         }
 
-        // keyword and optional representation type
+        // keyword
         write!(f, [Keyword::Struct])?;
         if let Some(representation_type) = self.representation_type {
             write!(f, [token("("), representation_type, token(")")])?;
         }
-        // name and generics / tuple header
+
+        // name
         if let Some(name) = self.name {
             write!(f, [space()])?;
             write!(f, [name])?;
@@ -67,7 +68,7 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
             }
         }
 
-        // tuple header
+        // tuple
         if self.style == StructStyle::Tuple {
             if tuple_fields.is_empty() {
                 write!(f, [token("("), token(")")])?;
@@ -110,13 +111,13 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
 
         write!(f, [space()])?;
 
-        // body
-        let body_is_empty = struct_fields.is_empty() && self.statements.is_empty();
-        if body_is_empty {
+        // empty body (same line)
+        if struct_fields.is_empty() && self.statements.is_empty() {
             write!(f, [token("{ }")])?;
             return Ok(());
         }
 
+        // body
         write!(f, [token("{"), hard_line_break()])?;
 
         // fields
@@ -132,7 +133,7 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
 
         // blank line between fields and statements
         if !struct_fields.is_empty() && !self.statements.is_empty() {
-            write!(f, [hard_line_break()])?;
+            write!(f, [hard_line_break(), empty_line()])?;
         }
 
         // statements

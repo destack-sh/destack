@@ -919,7 +919,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Never => {
                 self.node("Type::Never", _id.id).end();
             }
-            Type::This => {
+            Type::Self_ => {
                 self.node("Type::Self", _id.id).end();
             }
             Type::Primitive(primitive) => {
