@@ -763,12 +763,6 @@ pub enum FunctionStyle {
 /// ) {
 ///    ...
 /// }
-///
-/// // lambda style
-///
-/// () => 0
-/// (x) => x + 1
-/// (x: int32) => x + 1
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
@@ -945,7 +939,7 @@ pub enum Type {
     /// Never `!`.
     Never,
     /// Self type (only inside associated scopes for types).
-    This,
+    Self_,
     /// Primitive type.
     Primitive(PrimitiveType),
     /// Path to a type like `MyModule.MyType` or `MyModule.MyType<T1, T2, ...>`.

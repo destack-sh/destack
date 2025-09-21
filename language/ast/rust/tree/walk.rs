@@ -479,7 +479,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             visitor.visit_type(tree, *inner, inner_type);
         }
         Type::Never => {}
-        Type::This => {}
+        Type::Self_ => {}
         Type::Primitive(_) => {}
         Type::Path {
             path: _,
