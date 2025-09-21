@@ -70,11 +70,14 @@ pub enum NodeType {
     Pattern,
     PatternField,
     // Annotations
+    Annotation,
+    Blank, // quasi-annotation
     Doc,
     Comment,
 }
 
 pub const ANNOTATION_TOKEN_TYPES: [TokenType; 4] = [
+    // TokenType::Newline, // nocheckin: blank/newline annotations
     TokenType::LineComment,
     TokenType::DocLineComment,
     TokenType::BlockComment,
@@ -798,8 +801,8 @@ impl Node for Function {
 /// ```
 /// self
 /// var self
-/// *self
-/// *var self
+/// &self
+/// &var self
 /// $self
 /// $var self
 /// ```
@@ -2091,22 +2094,52 @@ impl Node for MatchCase {
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum AnnotationStyle {
-    /// Line style.
-    Line,
-    /// Block style.
-    Block,
+pub enum AnnotationPosition {
+    /// Annotation before the node on a previous line.
+    BlockPrefix,
+    /// Annotation after the node on a new line.
+    BlockPostfix,
+    /// Annotation after the node on the same line.
+    LineSuffix,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum AnnotationPosition {
-    /// Annotation before the node.
-    Prefix,
-    /// Annotation after the node (on same line).
-    Suffix,
+pub enum Annotation {
+    /// A blank annotation.
+    Blank(NodeId<Blank>),
+    /// A doc annotation.
+    Doc(NodeId<Doc>),
+    /// A comment annotation.
+    Comment(NodeId<Comment>),
+}
+
+impl Node for Annotation {
+    const KIND: NodeType = NodeType::Annotation;
+}
+
+/// A Blank is a newline or special whitespace.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Blank {
+    /// The position of the blank.
+    pub position: AnnotationPosition,
+    /// The number of blank lines.
+    pub lines: u32,
+}
+
+impl Node for Blank {
+    const KIND: NodeType = NodeType::Blank;
 }
 
 // NOTE @Incomplete: parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
+
+/// A DocStyle is the style of a documentation comment.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DocStyle {
+    /// Line comment.
+    Line,
+    /// Block comment.
+    Block,
+}
 
 /// A Doc is a full documentation comment string.
 /// Like comments, Docs are attached in a side tree outside of the main parse / tree.
@@ -2124,14 +2157,23 @@ pub struct Doc {
     /// The clean documentation comment string.
     /// Newlines preserved, leading/trailing whitespace stripped.
     pub string: StringId,
-    /// The style of the documentation comment.
-    pub style: AnnotationStyle,
     /// The position of the documentation comment.
     pub position: AnnotationPosition,
+    /// The style of the documentation comment.
+    pub style: DocStyle,
 }
 
 impl Node for Doc {
     const KIND: NodeType = NodeType::Doc;
+}
+
+/// A CommentStyle is the style of a comment.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum CommentStyle {
+    /// Line comment.
+    Line,
+    /// Block comment.
+    Block,
 }
 
 /// A Comment is a free-floating comment.
@@ -2146,10 +2188,10 @@ impl Node for Doc {
 pub struct Comment {
     /// The clean comment string.
     pub string: StringId,
-    /// The style of the comment.
-    pub style: AnnotationStyle,
     /// The position of the comment.
     pub position: AnnotationPosition,
+    /// The style of the comment.
+    pub style: CommentStyle,
 }
 
 impl Node for Comment {

@@ -3,7 +3,7 @@
 use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{
-    AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, Mutability, NodeId,
+    AssignOperator, BinaryOperator, Call, Expression, InfixOperator, Keyword, Mutability, NodeId,
     OperatorPrecedence, ParseError, ParseResult, Parser, ParserMark, Runtime, TupleLiteral,
     UnaryOperator, Visibility,
 };
@@ -530,7 +530,7 @@ impl<'a> Parser<'a> {
         };
 
         // runtime
-        let runtime = if self.peek_token(TokenType::At).is_ok() {
+        let mut runtime = if self.peek_token(TokenType::At).is_ok() {
             self.bump(); // eat @
             Some(Runtime::Static)
         } else {
@@ -755,6 +755,27 @@ impl<'a> Parser<'a> {
         // Postfix operations
         // ------------------------------------------------------------
         //
+
+        // implicitly call static functions without arguments (e.g., `@entity`)
+        let left_expression = self.tree.get(left_expression_id);
+        if runtime.is_some()
+            && let Expression::Path(..) = left_expression
+            && self.peek_token(TokenType::OpenParenthesis).is_err()
+        {
+            let call_id = self.tree.allocate(
+                Call {
+                    runtime: runtime.unwrap(),
+                    receiver: left_expression_id,
+                    static_arguments: None,
+                    dynamic_arguments: vec![],
+                },
+                self.get_span_from(start),
+            );
+            left_expression_id = self
+                .tree
+                .allocate(Expression::Call(call_id), self.get_span_from(start));
+            runtime = None;
+        }
 
         // eat all postfix operations
         loop {

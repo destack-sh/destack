@@ -5,7 +5,10 @@ use std::borrow::Cow;
 use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
-use crate::{ANNOTATION_TOKEN_TYPES, AnnotationPosition, AnnotationStyle, Comment, Doc, Parser};
+use crate::{
+    ANNOTATION_TOKEN_TYPES, Annotation, AnnotationPosition, Comment, CommentStyle, Doc, DocStyle,
+    Parser,
+};
 
 impl<'a> Parser<'a> {
     /// Attach annotations to respective AST nodes.
@@ -98,48 +101,62 @@ impl<'a> Parser<'a> {
             // append annotation node
             match group_type {
                 TokenType::LineComment => {
-                    let annotation_node_id = self.tree.allocate(
+                    let comment_id = self.tree.allocate(
                         Comment {
                             string: string_id,
-                            style: AnnotationStyle::Line,
-                            position: AnnotationPosition::Prefix,
+                            position: AnnotationPosition::LineSuffix,
+                            style: CommentStyle::Line,
                         },
                         merged_span,
                     );
-                    self.tree.append_comment(target_node_id, annotation_node_id);
+                    let annotation_node_id = self
+                        .tree
+                        .allocate(Annotation::Comment(comment_id), merged_span);
+                    self.tree
+                        .append_annotation(target_node_id, annotation_node_id);
                 }
                 TokenType::DocLineComment => {
-                    let annotation_node_id = self.tree.allocate(
+                    let doc_id = self.tree.allocate(
                         Doc {
                             string: string_id,
-                            style: AnnotationStyle::Line,
-                            position: AnnotationPosition::Prefix,
+                            position: AnnotationPosition::LineSuffix,
+                            style: DocStyle::Line,
                         },
                         merged_span,
                     );
-                    self.tree.append_doc(target_node_id, annotation_node_id);
+                    let annotation_node_id =
+                        self.tree.allocate(Annotation::Doc(doc_id), merged_span);
+                    self.tree
+                        .append_annotation(target_node_id, annotation_node_id);
                 }
                 TokenType::BlockComment => {
-                    let annotation_node_id = self.tree.allocate(
+                    let comment_id = self.tree.allocate(
                         Comment {
                             string: string_id,
-                            style: AnnotationStyle::Block,
-                            position: AnnotationPosition::Prefix,
+                            position: AnnotationPosition::BlockPrefix,
+                            style: CommentStyle::Block,
                         },
                         merged_span,
                     );
-                    self.tree.append_comment(target_node_id, annotation_node_id);
+                    let annotation_node_id = self
+                        .tree
+                        .allocate(Annotation::Comment(comment_id), merged_span);
+                    self.tree
+                        .append_annotation(target_node_id, annotation_node_id);
                 }
                 TokenType::DocBlockComment => {
-                    let annotation_node_id = self.tree.allocate(
+                    let doc_id = self.tree.allocate(
                         Doc {
                             string: string_id,
-                            style: AnnotationStyle::Block,
-                            position: AnnotationPosition::Prefix,
+                            position: AnnotationPosition::BlockPrefix,
+                            style: DocStyle::Block,
                         },
                         merged_span,
                     );
-                    self.tree.append_doc(target_node_id, annotation_node_id);
+                    let annotation_node_id =
+                        self.tree.allocate(Annotation::Doc(doc_id), merged_span);
+                    self.tree
+                        .append_annotation(target_node_id, annotation_node_id);
                 }
                 _ => panic!("unexpected token type: {group_type:?}"),
             }
@@ -226,7 +243,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        AnnotationPosition, AnnotationStyle, BlockFormat, Comment, Doc, Enum, EnumField,
+        AnnotationPosition, BlockFormat, Comment, CommentStyle, Doc, DocStyle, Enum, EnumField,
         Expression, Statement, Struct, StructField, assert_node, assert_string,
     };
 
@@ -256,11 +273,11 @@ struct Floof {
             assert_eq!(docs.len(), 1);
 
             // doc, struct + doc, struct continued
-            assert_node!(parser.tree, docs[0], Doc { string, style, position } => {
+            assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
                 let string = parser.get_string(*string);
                 assert_eq!(string, "doc, struct\ndoc, struct continued");
-                assert_eq!(*style, AnnotationStyle::Line);
-                assert_eq!(*position, AnnotationPosition::Prefix);
+                assert_eq!(*position, AnnotationPosition::LineSuffix);
+                assert_eq!(*style, DocStyle::Line);
             });
 
             // struct Floof
@@ -275,11 +292,11 @@ struct Floof {
                     let docs = parser.tree.get_docs_for(fields[0].id);
                     assert_eq!(docs.len(), 1);
                     // doc, struct field + doc, struct field continued
-                    assert_node!(parser.tree, docs[0], Doc { string, style, position } => {
+                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
                         let string = parser.get_string(*string);
                         assert_eq!(string, "doc, struct field\ndoc, struct field continued");
-                        assert_eq!(*style, AnnotationStyle::Line);
-                        assert_eq!(*position, AnnotationPosition::Prefix);
+                        assert_eq!(*position, AnnotationPosition::LineSuffix);
+                        assert_eq!(*style, DocStyle::Line);
                     });
                 });
             });
@@ -314,9 +331,11 @@ enum Floof {
                     let docs = parser.tree.get_docs_for(fields[0].id);
                     assert_eq!(docs.len(), 1);
                     // A + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
                         let string = parser.get_string(*string);
                         assert_eq!(string, "A");
+                        assert_eq!(*position, AnnotationPosition::LineSuffix);
+                        assert_eq!(*style, DocStyle::Line);
                     });
                 });
             });
@@ -362,9 +381,11 @@ enum Floof {
                     let docs = parser.tree.get_docs_for(fields[0].id);
                     assert_eq!(docs.len(), 1);
                     // A + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
                         let string = parser.get_string(*string);
                         assert_eq!(string, "A\ndoc, enum field");
+                        assert_eq!(*position, AnnotationPosition::LineSuffix);
+                        assert_eq!(*style, DocStyle::Line);
                     });
                 });
 
@@ -374,9 +395,11 @@ enum Floof {
                     let docs = parser.tree.get_docs_for(fields[1].id);
                     assert_eq!(docs.len(), 1);
                     // B + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
                         let string = parser.get_string(*string);
                         assert_eq!(string, "B\ndoc, enum field");
+                        assert_eq!(*position, AnnotationPosition::LineSuffix);
+                        assert_eq!(*style, DocStyle::Line);
                     });
                 });
 
@@ -394,9 +417,11 @@ enum Floof {
                     let docs = parser.tree.get_docs_for(fields[3].id);
                     assert_eq!(docs.len(), 1);
                     // D + doc, enum field
-                    assert_node!(parser.tree, docs[0], Doc { string, .. } => {
+                    assert_node!(parser.tree, docs[0], Doc { string, position, style } => {
                         let string = parser.get_string(*string);
                         assert_eq!(string, "D");
+                        assert_eq!(*position, AnnotationPosition::LineSuffix);
+                        assert_eq!(*style, DocStyle::Line);
                     });
                 });
             });
@@ -426,11 +451,11 @@ let x = 1 + 1
                 let comments = parser.tree.get_comments_for(let_node.id);
                 assert_eq!(comments.len(), 1);
                 // comment 1 + comment 1.1
-                assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
+                assert_node!(parser.tree, comments[0], Comment { string, position, style } => {
                     let string = parser.get_string(*string);
                     assert_eq!(string, "comment 1\ncomment 1.1");
-                    assert_eq!(*style, AnnotationStyle::Line);
-                    assert_eq!(*position, AnnotationPosition::Prefix);
+                    assert_eq!(*position, AnnotationPosition::LineSuffix);
+                    assert_eq!(*style, CommentStyle::Line);
                 });
             });
 
@@ -456,11 +481,11 @@ func() /* comment 3, detached */
             assert_eq!(comments.len(), 1);
 
             // comment 2 (comment 3 should not be attached)
-            assert_node!(parser.tree, comments[0], Comment { string, style, position } => {
+            assert_node!(parser.tree, comments[0], Comment { string, position, style } => {
                 let string = parser.get_string(*string);
                 assert_eq!(string, "comment 2");
-                assert_eq!(*style, AnnotationStyle::Line);
-                assert_eq!(*position, AnnotationPosition::Prefix);
+                assert_eq!(*position, AnnotationPosition::LineSuffix);
+                assert_eq!(*style, CommentStyle::Line);
             });
         });
     }
