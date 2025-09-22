@@ -188,10 +188,10 @@ impl<'ast> DystFormatContext<'ast> {
             .collect()
     }
 
-    /// Get the container type of a node (block, statement, or expression).
+    /// Get the container of a node (block, statement, or expression).
     /// Excludes the node_id itself.
     #[inline]
-    pub fn get_container_type<T>(&self, node_id: NodeId<T>) -> Option<NodeType>
+    pub fn get_container<T>(&self, node_id: NodeId<T>) -> Option<(u32, NodeType)>
     where
         T: Node,
         NodeTree: NodeTreeStore<T>,
@@ -210,12 +210,12 @@ impl<'ast> DystFormatContext<'ast> {
                     if let Some(parent_parent_id) = parent_parent_id {
                         let parent_parent_type = self.tree.get_type(parent_parent_id);
                         if parent_parent_type == NodeType::Statement {
-                            return Some(NodeType::Statement);
+                            return Some((parent_parent_id, parent_parent_type));
                         }
                     }
                 }
 
-                return Some(parent_type);
+                return Some((parent_id, parent_type));
             }
             current_id = parent_id;
         }
@@ -230,6 +230,12 @@ impl<'ast> DystFormatContext<'ast> {
         NodeTree: NodeTreeStore<T>,
     {
         self.tree.get_span(node_id)
+    }
+
+    /// Get a Span from the tree.
+    #[inline]
+    pub fn get_span_by_id(&self, node_id: u32) -> Span {
+        self.spans.get_by_id(node_id)
     }
 
     /// Get annotations for a node.
