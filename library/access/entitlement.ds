@@ -2,17 +2,17 @@ use dyst
 
 /// A type of Entitlement.
 enum EntitlementType {
-    Permission = 1,
-    Role = 2,
+    Permission = 1
+    Role = 2
 }
 
 /// Base event regarding an Entitlement.
 @event
 struct EntitlementEvent: Event {
     /// The Entitlement self event pertains to.
-    entitlement: Reference<Entitlement>,
+    entitlement: Reference<Entitlement>
     /// The Entitled target Entity.
-    target: Entity,
+    target: Entity
 }
 
 /// Entitlement was requested.
@@ -35,11 +35,10 @@ struct EntitlementExpiredEvent: EntitlementEvent { }
 @entity
 struct Entitlement: Entity {
     /// The Entitlement type.
-    type: EntitlementType,
+    type: EntitlementType
     /// When the Entitlement expires.
-    expiresAt: ?Timestamp,
+    expiresAt: ?Timestamp
     /// The target Entity of the Entitlement.
-    target: Reference<Entity>,
+    target: Reference<Entity>
 }
-
 

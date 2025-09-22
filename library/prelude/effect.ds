@@ -1,3 +1,2 @@
-
 /// Marker trait for external side Effects.
-trait Effect {}
+trait Effect { }

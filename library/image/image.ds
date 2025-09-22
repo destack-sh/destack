@@ -2,10 +2,8 @@ use dyst
 
 /// An Image File
 @entity
-struct Image: File { 
-
-    width: uint32,
-    height: uint32,
+struct Image: File {
+    width: uint32
+    height: uint32
 }
-
 

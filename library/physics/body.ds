@@ -2,14 +2,13 @@ use dyst
 
 /// A Body in 2D space
 @entity
-struct Body2D { 
- use Entity2D 
- }
+struct Body2D {
+    use Entity2D
+}
 
 /// A Body in 3D space
 @entity
-struct Body3D { 
- use Entity3D 
- }
-
+struct Body3D {
+    use Entity3D
+}
 

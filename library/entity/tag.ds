@@ -3,20 +3,19 @@ use dyst
 /// Definition of a builtin Tag to associate builtin definitions to.
 struct TagDefinition {
     /// The Tag id.
-    id: uint8,
+    id: uint8
     /// The Tag name.
-    name: String,
+    name: String
     /// The Tag description.
-    description: ?String,
+    description: ?String
     /// Whether self Tag is internal.
-    isInternal: boolean,
+    isInternal: boolean
 }
 
 /// A Tag to tag an Entity with.
 @entity
 struct Tag {
     /// The designated Type for Values associated with self Tag. Any if unset.
-    type: ?Type,
+    type: ?Type
 }
-
 

@@ -3,42 +3,29 @@ use dyst
 /// An Entity Epoch.
 struct Epoch(uint64) {
     let Zero = Epoch(0)
-} 
-
+}
 /// The materialization level of an Entity.
 enum(uint2) Materialization {
-    /// The Entity is virtual.
     Virtual
-    /// The Entity is partial.
     Partial
-    /// The Entity is full.
     Full
-    /// The Entity is root.
     Root
 }
 
 /// How an Entity should be treated for processing by the system.
-@flag 
+@flag
 enum(uint4) ProcessFlag {
-    /// The default process flag (no special processing).
     Default = 0
-    /// The Entity is deleted.
     Deleted
-    /// The Entity is inactive.
     Inactive
-    /// The Entity is inactive and input is not processed.
     InactiveInput
-    /// The Entity is sleeping and processed differently.
     Sleeping
 }
 
-@flag 
+@flag
 enum(uint4) ExtensionFlag {
-    /// The default extension flag (no special processing).
     Default = 0
-    /// The Entity is instantiable.
     Instantiable
-    /// The Entity is extensible.
     Extensible
 }
 
@@ -53,19 +40,15 @@ struct Reference<T: Entity> {
 }
 
 implement<T: Entity> Dereference for Reference<&T> {
-    function dereference(&self) with (
-        GraphContext as graph
-    ) => ?&T {
+    function dereference(&self) with GraphContext as graph => ?&T {
         graph.get(self)
-    } 
+    }
 }
 
 implement<T: Entity> Dereference for Reference<&var T> {
-    function dereference(&self) with (
-        GraphContext as graph
-    ) => ?&var T {
+    function dereference(&self) with GraphContext as graph => ?&var T {
         graph.get(self)
-    } 
+    }
 }
 
 /// An Identity is globally unique identifier for an Entity.
@@ -81,8 +64,6 @@ struct Identity {
 /// A named, versioned, mutable object in the system.
 @entity
 struct Entity {
-    /// The identity of the `Entity`.
-    use Identity as identity
     /// The Snapshot the `Entity` is part of (in its `Space` and `Branch`).
     snapshot: Reference<Snapshot>
     /// The materialization level of the `Entity`.
@@ -91,7 +72,6 @@ struct Entity {
     definition: ?Reference<Entity>
     /// The (root) `Entity` that is being instantiated.
     instance: ?Reference<Entity>
-    
     /// The logical time the `Entity` was created.
     createdEpoch: Epoch
     /// The logical time the `Entity` was last updated.
@@ -114,4 +94,7 @@ struct Entity {
     extensibility: ExtensionFlag
     /// The Script of the `Entity`.
     script: ?Reference<Script>
+
+    /// The identity of the `Entity`.
+    use Identity as identity
 }

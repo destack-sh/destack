@@ -1,5 +1,2 @@
-
 /// Marks a Type as an error.
-trait Error {
-
-}
+trait Error { }

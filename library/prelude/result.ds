@@ -1,7 +1,7 @@
 /// A Result value which may hold Success(T) or Error(E).
 union Result<T, E> {
-    Success(T),
-    Failure(E),
+    Success(T)
+    Failure(E)
 }
 
 implement Result {

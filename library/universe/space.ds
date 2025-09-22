@@ -3,24 +3,23 @@ use dyst
 /// The result of creating a new Space.
 struct CreateSpaceResult {
     /// The created Space.
-    space: Space,
+    space: Space
     /// The meta Branch.
-    metaBranch: Branch,
+    metaBranch: Branch
     /// The meta Snapshot.
-    metaSnapshot: Snapshot,
+    metaSnapshot: Snapshot
     /// The root Branch.
-    rootBranch: Branch,
+    rootBranch: Branch
     /// The head Snapshot.
-    headSnapshot: Snapshot,
+    headSnapshot: Snapshot
 }
 
 /// A Space is the root of an isolated workspace in the Destack computational universe.
 @entity
 struct Space {
     /// The URL-friendly slug of the Space.
-    slug: String,
+    slug: String
     /// The hosting region for the Space.
-    region: Region,
+    region: Region
 }
-
 

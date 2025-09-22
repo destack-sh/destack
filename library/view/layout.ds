@@ -3,29 +3,29 @@ use dyst
 /// Layout properties for a 2D view.
 struct LayoutComponent2D {
     /// How to layout the children of self View.
-    layout: ?Layout,
+    layout: ?Layout
     /// The direction in which the children of self View are laid out.
-    direction: ?Direction,
+    direction: ?Direction
     /// How to distribute the children of self View.
-    distribute: ?Distribute,
+    distribute: ?Distribute
     /// How to align the children of self View.
-    align: ?Align,
+    align: ?Align
     /// The gap between the children of self View.
-    gap: ?Axis2,
+    gap: ?Axis2
     /// The padding around the children of self View.
-    padding: ?Inset2,
+    padding: ?Inset2
     /// The grid in which the children of self View are laid out.
-    grid: ?Grid2,
+    grid: ?Grid2
     /// The span of self View in the grid.
-    gridSpan: ?GridSpan2,
+    gridSpan: ?GridSpan2
     /// The aspect ratio of self View.
-    aspectRatio: ?float32,
+    aspectRatio: ?float32
     /// Whether the children of self View are wrapped in the grid.
-    isWrap: ?boolean,
+    isWrap: ?boolean
 }
 
 /// A 2D layout View defines how its children are laid out.
 @entity
-struct LayoutView2D: View2D { 
-    use LayoutComponent2D 
+struct LayoutView2D: View2D {
+    use LayoutComponent2D
 }

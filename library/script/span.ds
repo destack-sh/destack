@@ -4,17 +4,16 @@ use dyst
 @event
 struct SpanEvent {
     /// The span name.
-    name: String,
+    name: String
     /// Start time of the span.
-    startTime: Timestamp,
+    startTime: Timestamp
     /// End time of the span.
-    endTime: Timestamp,
+    endTime: Timestamp
     /// Duration of the span.
-    duration: Duration,
+    duration: Duration
     /// Optional parent Span.
-    parentSpan: ?SpanEvent,
+    parentSpan: ?SpanEvent
     /// Optional Action associated with the Span.
-    action: ?Action,
+    action: ?Action
 }
-
 

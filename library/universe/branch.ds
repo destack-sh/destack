@@ -2,16 +2,15 @@ use dyst
 
 /// The type of a Branch.
 enum BranchType {
-    Partial = 2,
-    Full = 10,
-    Root = 11,
+    Partial = 2
+    Full = 10
+    Root = 11
 }
 
 /// A Branch is a version of a Snapshot.
 @entity
 struct Branch {
     /// The Branch type.
-    type: BranchType,
+    type: BranchType
 }
-
 

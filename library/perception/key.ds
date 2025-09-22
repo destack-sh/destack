@@ -9,30 +9,28 @@ enum KeyModifier {
 
 /// Keyboard base event
 @event
-struct KeyEvent: InputEvent { 
-
+struct KeyEvent: InputEvent {
     /// The character pressed (e.g. 'a', 'B', '1', 'Enter')
-    key: String,
+    key: String
     /// The unaltered code (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter')
-    code: String,
+    code: String
     /// Whether the key is being held down
-    isRepeat: boolean,
+    isRepeat: boolean
     /// Whether the key was masked (security/privacy)
-    isRedacted: boolean,
+    isRedacted: boolean
     /// Modifiers
-    modifiers: KeyModifier,
+    modifiers: KeyModifier
 }
 
 /// Key pressed down
 @event
-struct KeyDownEvent: KeyEvent {}
+struct KeyDownEvent: KeyEvent { }
 
 /// Key released
 @event
-struct KeyUpEvent: KeyEvent {}
+struct KeyUpEvent: KeyEvent { }
 
 /// Key pressed
 @event
-struct KeyPressEvent: KeyEvent {}
-
+struct KeyPressEvent: KeyEvent { }
 

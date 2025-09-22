@@ -2,11 +2,12 @@ use dyst
 
 /// A Capsule2D is a segment with rounded ends with a common radius.
 struct Capsule2D {
-    use Form2D
 
-    centerAOffset: Vector2,
-    centerBOffset: Vector2,
-    radius: float32,
+    centerAOffset: Vector2
+    centerBOffset: Vector2
+    radius: float32
+
+    use Form2D
 }
 
 /// A CapsuleShape is a shape that represents a capsule.
@@ -18,11 +19,12 @@ struct CapsuleShape2D {
 
 /// A Capsule3D is a segment with rounded ends in 3D with a common radius.
 struct Capsule3D {
-    use Form3D
 
-    centerAOffset: Vector3,
-    centerBOffset: Vector3,
-    radius: float32,
+    centerAOffset: Vector3
+    centerBOffset: Vector3
+    radius: float32
+
+    use Form3D
 }
 
 /// A CapsuleShape3D is a shape that represents a capsule in 3D.

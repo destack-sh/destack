@@ -2,38 +2,32 @@ use dyst
 
 /// The consensus status of an Event.
 enum EventStatus {
-    /// Event is pending consensus.
-    Pending,
-    /// Event is staged for consensus.
-    Staged,
-    /// Event has been approved by consensus.
-    Approved,
-    /// Event was skipped during consensus.
-    Skipped,
-    /// Event failed during consensus.
-    Failed,
-    /// Event was rejected by consensus.
-    Rejected,
+    Pending
+    Staged
+    Approved
+    Skipped
+    Failed
+    Rejected
 }
 
 /// An immutable datum of something happening to an Entity.
 struct Event {
-    use Identity as identity
-
     /// The logical time self Event was created (system).
-    createdEpoch: uint64,
+    createdEpoch: uint64
     /// The exclusive owner of self Entity (the root on access).
-    owner: Reference<Entity>,
+    owner: Reference<Entity>
     /// The Client that created self Event (client, but verified).
-    client: Reference<Client>,
+    client: Reference<Client>
     /// The nonce of the Client that created self Event (client).
-    clientNonce: uint8,
+    clientNonce: uint8
     /// The logical time last seen from the system in the Client for self space (client).
-    clientRemoteEpoch: uint64,
+    clientRemoteEpoch: uint64
     /// The logical time in the Client when it created self Event (client).
-    clientLocalEpoch: uint64,
+    clientLocalEpoch: uint64
     /// The status of the Event (system).
-    status: EventStatus = EventStatus.Pending,
+    status: EventStatus = EventStatus.Pending
     /// The Event that caused self Event (if any).
-    causedBy: ?Reference<Event>,
+    causedBy: ?Reference<Event>
+
+    use Identity as identity
 }

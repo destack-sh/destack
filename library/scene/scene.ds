@@ -2,14 +2,14 @@ use dyst
 
 /// Base type for scene events.
 @event
-struct SceneEvent : Event {
+struct SceneEvent: Event {
     /// The Scene the event pertains to.
-    scene: Reference<Scene>,
+    scene: Reference<Scene>
 }
 
 /// A Scene contains some interactive part of a Stage.
 @entity
 struct Scene {
     /// The root View of the Scene.
-    rootView: ?Reference<LayoutView2D>,
+    rootView: ?Reference<LayoutView2D>
 }

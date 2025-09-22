@@ -2,11 +2,9 @@ use dyst
 
 /// A Video File
 @entity
-struct Video: File { 
-
-    width: uint32,
-    height: uint32,
-    duration: Duration,
+struct Video: File {
+    width: uint32
+    height: uint32
+    duration: Duration
 }
-
 

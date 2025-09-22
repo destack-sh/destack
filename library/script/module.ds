@@ -1,6 +1,5 @@
 /// Basics Script Module.
 
-
 use action
 use environment
 use function
@@ -12,5 +11,4 @@ use script
 use span
 use timer
 use trigger
-
 

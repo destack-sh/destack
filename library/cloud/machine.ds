@@ -2,36 +2,35 @@ use dyst
 
 /// Types of machines that provide compute.
 enum MachineType {
-    Runtime = 10,
-    Ubuntu = 1000,
-    Mac = 1100,
-    Windows = 1200,
-    Custom = 9000,
+    Runtime = 10
+    Ubuntu = 1000
+    Mac = 1100
+    Windows = 1200
+    Custom = 9000
 }
 
 /// A Machine provides physical compute.
 @entity
 struct Machine {
     /// Machine type.
-    type: MachineType = MachineType.Runtime,
+    type: MachineType = MachineType.Runtime
     /// Runtime version string.
-    version: String,
+    version: String
     /// External provider name.
-    externalName: ?String,
+    externalName: ?String
     /// External provider id.
-    externalId: ?String,
+    externalId: ?String
     /// Image id in provider.
-    imageId: ?String,
+    imageId: ?String
     /// vCPU count.
-    cpu: float32 = 1.0,
+    cpu: float32 = 1.0
     /// RAM in GB.
-    ram: float32 = 1.0,
+    ram: float32 = 1.0
     /// Virtual display width.
-    width: uint32 = 1280,
+    width: uint32 = 1280
     /// Virtual display height.
-    height: uint32 = 960,
+    height: uint32 = 960
     /// Whether to run headless.
-    isHeadless: boolean = false,
+    isHeadless: boolean = false
 }
-
 

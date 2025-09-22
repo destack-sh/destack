@@ -2,6 +2,5 @@ use dyst
 
 /// A Locale is a language and a region
 @entity
-struct Locale {}
-
+struct Locale { }
 
