@@ -2,15 +2,14 @@ use dyst
 
 /// A ConvexShape2D represents a convex polygon.
 @entity
-struct ConvexShape2D: Shape2D { 
-
-    vertices: List<Vector2>,
+struct ConvexShape2D: Shape2D {
+    vertices: List<Vector2>
 }
 
 /// A ConvexShape3D represents a convex hull.
 @entity
-struct ConvexShape3D: Shape3D { 
-    use ConvexShape2D 
+struct ConvexShape3D: Shape3D {
+    vertices: List<Vector3>
 
-    vertices: List<Vector3>,
+    use ConvexShape2D
 }

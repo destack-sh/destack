@@ -19,9 +19,7 @@ struct TetrisGame {
     use TetrisComponent
 }
 
-implement Context for TetrisGame {
-
-}
+implement Context for TetrisGame { }
 
 enum TetrisPieceShape {
     I
@@ -57,13 +55,9 @@ implement TetrisPiece {
 }
 
 implement Tick for TetrisGame {
-    function tick(*var self) with Time, Random {
-        
-    }
+    function tick(&var self) with Time, Random { }
 }
 
 implement Draw for TetrisGame {
-    function draw(self) {
-        // ...
-    }
+    function draw(self) { }
 }

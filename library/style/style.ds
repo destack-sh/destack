@@ -2,6 +2,5 @@ use dyst
 
 /// A Style defines a base visual appearance in some context
 @entity
-struct Style {}
-
+struct Style { }
 

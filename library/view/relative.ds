@@ -2,162 +2,138 @@ use dyst
 
 /// The layout of elements
 enum Layout {
-    /// Stack elements in a single direction
-    Stack = 1,
-    /// Arrange elements in a grid pattern
-    Grid = 2,
+    Stack = 1
+    Grid = 2
 }
 
 /// The overflow behavior of elements
 enum Overflow {
-    /// Hide content that exceeds container bounds
-    Hidden = 2,
-    /// Show content that exceeds container bounds
-    Visible = 3,
-    /// Allow scrolling for content that exceeds container bounds
-    Scroll = 4,
+    Hidden = 2
+    Visible = 3
+    Scroll = 4
 }
 
 /// The direction of elements
 enum Direction {
-    /// Arrange elements horizontally
-    Horizontal = 1,
-    /// Arrange elements vertically
-    Vertical = 2,
+    Horizontal = 1
+    Vertical = 2
 }
 
 /// The distribution of elements
 enum Distribute {
-    /// Align elements to the start
-    Start = 1,
-    /// Center elements
-    Center = 2,
-    /// Align elements to the end
-    End = 3,
-    /// Distribute elements with space between them
-    SpaceBetween = 4,
-    /// Distribute elements with space around them
-    SpaceAround = 5,
-    /// Distribute elements with equal space between them
-    SpaceEvenly = 6,
+    Start = 1
+    Center = 2
+    End = 3
+    SpaceBetween = 4
+    SpaceAround = 5
+    SpaceEvenly = 6
 }
 
 /// The alignment of elements
 enum Align {
-    /// Align to the start
-    Start = 1,
-    /// Align to the center
-    Center = 2,
-    /// Align to the end
-    End = 3,
+    Start = 1
+    Center = 2
+    End = 3
 }
 
 /// The position of elements
 enum Anchor {
-    /// Position relative to normal document flow
-    Relative = 1,
-    /// Position absolutely within containing block
-    Absolute = 2,
-    /// Position fixed relative to viewport
-    Fixed = 3,
-    /// Position sticky based on scroll position
-    Sticky = 4,
+    Relative = 1
+    Absolute = 2
+    Fixed = 3
+    Sticky = 4
 }
 
 /// The unit of a length value
 enum LengthType {
-    /// Fixed pixel value
-    Pixel = 1,
-    /// Percentage of container
-    Percent = 2,
-    /// Fit content size
-    Fit = 3,
-    /// Fill available space
-    Fill = 4,
+    Pixel = 1
+    Percent = 2
+    Fit = 3
+    Fill = 4
 }
 
 /// An absolute or relative length value
-struct Length { 
+struct Length {
     /// The unit type for self length
-    unit: LengthType, 
+    unit: LengthType
     /// The numeric value in the specified unit
-    value: int16 
+    value: int16
 }
 
 /// A 2-dimensional position value (relative or absolute)
 struct Offset2 {
     /// The positioning type (relative, absolute, etc.)
-    type: Anchor,
+    type: Anchor
     /// Distance from top edge
-    top: Length,
+    top: Length
     /// Distance from left edge
-    left: Length,
+    left: Length
     /// Width dimension
-    width: Length,
+    width: Length
     /// Height dimension
-    height: Length,
+    height: Length
 }
 
 /// A 2-dimensional insets value (base + side overrides)
-struct Inset2 { 
+struct Inset2 {
     /// Top inset value
-    top: int16, 
+    top: int16
     /// Left inset value
-    left: int16, 
+    left: int16
     /// Right inset value
-    right: int16, 
+    right: int16
     /// Bottom inset value
-    bottom: int16 
+    bottom: int16
 }
 
 /// A 2-dimensional corners value (base + corner overrides)
-struct Corner2 { 
+struct Corner2 {
     /// Top-left corner radius
-    topLeft: int16, 
+    topLeft: int16
     /// Top-right corner radius
-    topRight: int16, 
+    topRight: int16
     /// Bottom-left corner radius
-    bottomLeft: int16, 
+    bottomLeft: int16
     /// Bottom-right corner radius
-    bottomRight: int16 
+    bottomRight: int16
 }
 
 /// A 2-dimensional axis value (base + x/y overrides)
-struct Axis2 { 
+struct Axis2 {
     /// X-axis value
-    x: int16, 
+    x: int16
     /// Y-axis value
-    y: int16 
+    y: int16
 }
 
 /// A 3-dimensional axis value (base + x/y/z overrides)
-struct Axis3 { 
+struct Axis3 {
     /// X-axis value
-    x: int16, 
+    x: int16
     /// Y-axis value
-    y: int16, 
+    y: int16
     /// Z-axis value
-    z: int16 
+    z: int16
 }
 
 /// A 2-dimensional grid configuration value
 struct Grid2 {
     /// Number of columns in the grid
-    columns: int16,
+    columns: int16
     /// Number of rows in the grid
-    rows: int16,
+    rows: int16
     /// Fixed width for columns
-    columnWidth: ?Length,
+    columnWidth: ?Length
     /// Minimum width for columns
-    columnMinWidth: ?Length,
+    columnMinWidth: ?Length
     /// Fixed height for rows
-    rowHeight: ?Length,
+    rowHeight: ?Length
 }
 
 /// A 2-dimensional grid span value
-struct GridSpan2 { 
+struct GridSpan2 {
     /// Number of columns to span
-    columns: int16, 
+    columns: int16
     /// Number of rows to span
-    rows: int16 
+    rows: int16
 }

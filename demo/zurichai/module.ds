@@ -2,10 +2,8 @@ use dyst
 
 @entity
 struct MeetupSeries {
-    name: String,
+    name: String
 }
 
 @entity
-struct Meetup {
-
-}
+struct Meetup { }

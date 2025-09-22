@@ -3,20 +3,19 @@ use dyst
 /// Definition of a builtin Function.
 struct FunctionDefinition {
     /// The Function id.
-    id: u16,
+    id: u16
     /// Whether the Function is asynchronous.
-    isAsync: boolean,
+    isAsync: boolean
     /// Whether the Function is managed by the system.
-    isManaged: boolean,
+    isManaged: boolean
 }
 
 /// Base Function entity.
 @entity
 struct Function {
     /// The Method type.
-    type: MethodType,
+    type: MethodType
     /// Optional textual body.
-    text: ?Text,
+    text: ?Text
 }
-
 

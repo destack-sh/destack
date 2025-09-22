@@ -2,16 +2,15 @@ use dyst
 
 /// Base focus event
 @event
-struct FocusEvent: InputEvent {}
+struct FocusEvent: InputEvent { }
 
 /// Focus gained
 @event
-struct FocusInEvent: FocusEvent {}
+struct FocusInEvent: FocusEvent { }
 
 /// Focus lost
 @event
-struct FocusOutEvent: FocusEvent {}
-
+struct FocusOutEvent: FocusEvent { }
 
 // union FocusEvent: Event {
 //     @event

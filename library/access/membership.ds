@@ -4,39 +4,38 @@ use dyst
 @event
 struct MembershipEvent {
     /// The Membership self event pertains to.
-    membership: Reference<Membership>,
+    membership: Reference<Membership>
     /// The Joinable Entity of the Membership.
-    joinable: Reference<Joinable>,
+    joinable: Reference<Joinable>
     /// The member Entity.
-    member: Reference<Actor>,
+    member: Reference<Actor>
 }
 
 /// Membership was joined.
 @event
-struct MembershipJoinedEvent { 
-    use MembershipEvent 
-
+struct MembershipJoinedEvent {
     /// The Role assigned by the Membership.
-    role: Reference<Role>,
+    role: Reference<Role>
     /// The type of the Role.
-    roleType: RoleType,
+    roleType: RoleType
+
+    use MembershipEvent
 }
 
 /// Membership was left.
 @event
-struct MembershipLeftEvent { 
- use MembershipEvent 
- }
+struct MembershipLeftEvent {
+    use MembershipEvent
+}
 
 /// A Membership of an Actor in a Joinable.
 @entity
 struct Membership {
     /// The member Entity.
-    member: Reference<Actor>,
+    member: Reference<Actor>
     /// The Role assigned to the member.
-    role: ?Role,
+    role: ?Role
     /// The type of the Role assigned to the member.
-    roleType: ?RoleType,
+    roleType: ?RoleType
 }
-
 

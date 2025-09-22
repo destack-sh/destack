@@ -2,9 +2,7 @@ use dyst
 
 /// An Audio File
 @entity
-struct Audio: File { 
-
-    duration: Duration,
+struct Audio: File {
+    duration: Duration
 }
-
 

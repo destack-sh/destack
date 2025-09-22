@@ -2,13 +2,12 @@ use dyst
 
 /// An Entity that represents a Metric.
 @entity
-struct Metric {}
+struct Metric { }
 
 /// An Event that represents a Measurement.
 @event
 struct MeasurementEvent: Event {
     /// The metric definition self measurement is for.
-    definition: Reference<Metric>,
+    definition: Reference<Metric>
 }
-
 

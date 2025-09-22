@@ -2,46 +2,35 @@ use dyst
 
 /// Text span types.
 enum TextSpanType {
-    /// Text span.
-    Text,
-    /// Hard break span.
-    HardBreak,
-    /// Node span.
-    Node,
-    /// Link span.
-    Link,
-    /// Equation span.
-    Equation,
+    Text
+    HardBreak
+    Node
+    Link
+    Equation
 }
 
 /// Flags that can be applied to a TextSpan.
 enum TextStyleFlag {
-    /// Default style flag.
-    Default = 0,
-    /// Bold style flag.
-    Bold,
-    /// Italic style flag.
-    Italic,
-    /// Strikethrough style flag.
-    Strikethrough,
-    /// Underline style flag.
-    Underline,
-    /// Code style flag.
-    Code,
+    Default = 0
+    Bold
+    Italic
+    Strikethrough
+    Underline
+    Code
 }
 
 /// Span of text with optional styling.
 struct TextSpan {
     /// The span type.
-    type: TextSpanType = TextSpanType.Text,
+    type: TextSpanType = TextSpanType.Text
     /// Optional textual content.
-    content: ?String,
+    content: ?String
     /// Optional reference to a Node.
-    node: ?Reference<Entity>,
+    node: ?Reference<Entity>
     /// Optional hyperlink URL.
-    url: ?String,
+    url: ?String
     /// Styling flags for self span.
-    style: TextStyleFlag = TextStyleFlag.Default,
+    style: TextStyleFlag = TextStyleFlag.Default
 }
 
 /// A single paragraph composed of TextSpans with inline styling.
@@ -51,5 +40,4 @@ struct Text {
     /// Styling flags for the whole paragraph.
     style: TextStyleFlag = TextStyleFlag.Default
 }
-
 

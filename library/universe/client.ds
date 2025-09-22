@@ -4,23 +4,22 @@ use dyst
 @entity
 struct Client {
     /// The client type.
-    type: ClientType,
+    type: ClientType
     /// The access token, if any.
-    accessToken: ?String,
+    accessToken: ?String
     /// When the client was last seen.
-    seenAt: ?Timestamp,
+    seenAt: ?Timestamp
     /// When the client last logged in.
-    loggedInAt: ?Timestamp,
+    loggedInAt: ?Timestamp
     /// The device type.
-    deviceType: ?String,
+    deviceType: ?String
     /// The device name.
-    deviceName: ?String,
+    deviceName: ?String
     /// The operating system name.
-    operatingSystem: ?String,
+    operatingSystem: ?String
     /// The browser name.
-    browserName: ?String,
+    browserName: ?String
     /// The browser version.
-    browserVersion: ?String,
+    browserVersion: ?String
 }
-
 

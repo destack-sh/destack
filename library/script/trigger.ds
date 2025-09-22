@@ -1,26 +1,27 @@
 use dyst
 
 /// Trigger types.
-enum TriggerType { Event = 1 }
+enum TriggerType {
+    Event = 1
+}
 
 /// Base Trigger event.
 @event
 struct TriggerEvent {
     /// The Trigger self event pertains to.
-    trigger: Trigger,
+    trigger: Trigger
 }
 
 /// A Trigger is a dynamic event to run something.
 @entity
 struct Trigger {
     /// The Event type to react to.
-    event: ?NodeType,
+    event: ?NodeType
     /// The optional filter Condition for the Event payload.
-    where: ?Condition,
+    where: ?Condition
     /// The target Entity to invoke.
-    target: ?Entity,
+    target: ?Entity
     /// Arguments to pass to the target.
-    arguments: Map<Uuid, Value>,
+    arguments: Map<Uuid, Value>
 }
-
 

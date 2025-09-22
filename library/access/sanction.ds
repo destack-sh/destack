@@ -2,52 +2,51 @@ use dyst
 
 /// A type of Sanction.
 enum SanctionType {
-    Ban = 1,
-    Mute = 2,
+    Ban = 1
+    Mute = 2
 }
 
 /// Base event regarding a Sanction.
 @event
 struct SanctionEvent {
     /// The Sanction self event pertains to.
-    sanction: Sanction,
+    sanction: Sanction
     /// The sanctioned target Entity.
-    target: Entity,
+    target: Entity
 }
 
 /// Sanction was requested.
 @event
-struct SanctionRequestedEvent { 
- use SanctionEvent 
- }
+struct SanctionRequestedEvent {
+    use SanctionEvent
+}
 
 /// Sanction was granted.
 @event
-struct SanctionGrantedEvent { 
- use SanctionEvent 
- }
+struct SanctionGrantedEvent {
+    use SanctionEvent
+}
 
 /// Sanction was revoked.
 @event
-struct SanctionRevokedEvent { 
- use SanctionEvent 
- }
+struct SanctionRevokedEvent {
+    use SanctionEvent
+}
 
 /// Sanction has expired.
 @event
-struct SanctionExpiredEvent { 
- use SanctionEvent 
- }
+struct SanctionExpiredEvent {
+    use SanctionEvent
+}
 
 /// A Sanction on some Actor.
 @entity
 struct Sanction {
     /// The Sanction type.
-    type: SanctionType,
+    type: SanctionType
     /// When the Sanction expires.
-    expiresAt: ?Timestamp,
+    expiresAt: ?Timestamp
     /// The target Entity of the Sanction.
-    target: Entity,
+    target: Entity
 }
-
 

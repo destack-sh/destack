@@ -2,14 +2,12 @@ use dyst
 
 /// A Histogram Metric.
 @entity
-struct HistogramMetric: Metric {}
+struct HistogramMetric: Metric { }
 
 /// A Histogram Measurement.
 @event
-struct HistogramMeasurementEvent: MeasurementEvent { 
-
+struct HistogramMeasurementEvent: MeasurementEvent {
     /// The Histogram metric definition.
-    definition: Reference<HistogramMetric>,
+    definition: Reference<HistogramMetric>
 }
-
 

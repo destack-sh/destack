@@ -3,64 +3,63 @@ use dyst
 /// Universe signup request.
 struct UniverseSignupRequest {
     /// The desired user name.
-    name: String,
+    name: String
     /// The email address.
-    email: String,
+    email: String
     /// The password.
-    password: String,
+    password: String
 }
 
 /// Universe signup response.
 struct UniverseSignupResponse {
     /// The created User.
-    user: User,
+    user: User
 }
 
 /// Universe spawn request.
 struct UniverseSpawnRequest {
     /// The Space name.
-    name: String,
+    name: String
     /// The desired hosting region.
-    region: Region,
+    region: Region
     /// The Space slug.
-    slug: String,
+    slug: String
 }
 
 /// Universe spawn response.
 struct UniverseSpawnResponse {
     /// The created Space.
-    space: Space,
+    space: Space
 }
 
 /// The Destack computational universe.
 @entity
 struct Universe {
     /// The current version of Destack.
-    VERSION: String,
+    VERSION: String
     /// The float epsilon used for floating point comparisons.
-    EPSILON: float64,
+    EPSILON: float64
     /// The exponent of the epsilon used for floating point comparisons.
-    EPISLON_EXPONENT: int32,
+    EPISLON_EXPONENT: int32
     /// The beginning of time (1 AD, 00:00:00 UTC).
-    BEGINNING_OF_DATETIME: Datetime,
+    BEGINNING_OF_DATETIME: Datetime
     /// The system Universe ID.
-    UNIVERSE_ID: Uuid,
+    UNIVERSE_ID: Uuid
     /// The system Space ID.
-    SPACE_ID: Uuid,
+    SPACE_ID: Uuid
     /// The system Space reference.
-    SPACE: NodeSpatialReference,
+    SPACE: NodeSpatialReference
     /// The 'meta' Snapshot id containing time-related Entities.
-    META_SNAPSHOT_ID: Uuid,
+    META_SNAPSHOT_ID: Uuid
     /// The 'meta' Branch id containing time-related Entities.
-    META_BRANCH_ID: Uuid,
+    META_BRANCH_ID: Uuid
     /// The 'root' Branch id all other Branches originate from.
-    ROOT_BRANCH_ID: Uuid,
+    ROOT_BRANCH_ID: Uuid
     /// The 'head' Snapshot id representing the current active Snapshot.
-    HEAD_SNAPSHOT_ID: Uuid,
+    HEAD_SNAPSHOT_ID: Uuid
     /// God Himself, the creator of the Universe.
-    GOD: NodeSpatialReference,
+    GOD: NodeSpatialReference
     /// God's terminal, for when He needs to do something.
-    GOD_HANDSET: NodeSpatialReference,
+    GOD_HANDSET: NodeSpatialReference
 }
-
 

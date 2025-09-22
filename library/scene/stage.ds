@@ -2,6 +2,5 @@ use dyst
 
 /// A Stage for someone to interact with a Space
 @entity
-struct Stage {}
-
+struct Stage { }
 
