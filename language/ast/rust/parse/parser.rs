@@ -385,7 +385,7 @@ impl<'a> Parser<'a> {
             .into_iter()
             .filter(|span| span.span.start == token.span.start)
             .collect::<Vec<_>>();
-        enclosing_spans.sort_by_key(|span| -(span.length as i64));
+        enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
         enclosing_spans.into_iter().next()
     }
 
@@ -398,20 +398,26 @@ impl<'a> Parser<'a> {
             .into_iter()
             .filter(|span| span.span.end == token.span.end)
             .collect::<Vec<_>>();
-        enclosing_spans.sort_by_key(|span| -(span.length as i64));
+        enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
         enclosing_spans.into_iter().next()
     }
 
-    /// Get the smallest node enclosing a token.
-    pub fn find_node_enclosing(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
+    /// Get the smallest, "highest" nodes enclosing a token.
+    pub fn find_nodes_enclosing(&self, token: &TokenSpan) -> Vec<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
             .map
             .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1));
         if enclosing_spans.is_empty() {
-            return None;
+            return Vec::new();
         }
-        enclosing_spans.sort_by_key(|span| span.length);
+        enclosing_spans.sort_by_key(|span| (span.length, -(span.idx as i64)));
+        enclosing_spans
+    }
+
+    /// Get the smallest, "highest" node enclosing a token.
+    pub fn find_node_enclosing(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
+        let enclosing_spans = self.find_nodes_enclosing(token);
         enclosing_spans.into_iter().next()
     }
 

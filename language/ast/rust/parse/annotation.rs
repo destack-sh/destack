@@ -38,6 +38,17 @@ impl<'a> Parser<'a> {
         let mut current_token_group: Vec<TokenSpan> = Vec::new();
         for (i, token) in tokens.iter().enumerate() {
             if token.token.r#type != current_token_type {
+                // skip up to one newline in-between non-blank annotations
+                //  (so we can merge them)
+                if token.token.r#type == TokenType::Newline
+                    && current_token_type != TokenType::Newline
+                    && let Some(next_token) = tokens.get(i + 1)
+                    && next_token.token.r#type == current_token_type
+                {
+                    continue;
+                }
+
+                // flush group before different annotation type
                 if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
                     && (current_token_type != TokenType::Newline || current_token_group.len() > 1)
                 {
@@ -53,6 +64,8 @@ impl<'a> Parser<'a> {
             }
             current_token_group.push(*token);
         }
+
+        // flush group at the end
         if ANNOTATION_TOKEN_TYPES.contains(&current_token_type)
             && (current_token_type != TokenType::Newline || current_token_group.len() > 1)
         {
@@ -65,7 +78,97 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Attach an annotation group to the AST.
+    /// Find the annotation position for a given token index and group.
+    fn find_annotation_position(
+        &self,
+        token_idx: u32,
+        tokens: &[TokenSpan],
+        group: &[TokenSpan],
+    ) -> Option<(AnnotationPosition, u32)> {
+        debug_assert!(!group.is_empty());
+
+        let start_token = group[0];
+        let end_token = group[group.len() - 1];
+        let prev_token = if token_idx > 0 {
+            Some(tokens[token_idx as usize - 1])
+        } else {
+            None
+        };
+
+        // line suffix
+        // entire span must be on one line together with the previous token
+        if self.is_span_same_line(start_token.span, end_token.span)
+            && let Some(prev_token) = prev_token
+            && prev_token.token.r#type != TokenType::Newline
+            && self.is_span_same_line(prev_token.span, end_token.span)
+        {
+            // have directly preceding node
+            if let Some(target_node_id) = self.find_node_ending_at(&prev_token).map(|span| span.idx)
+            {
+                return Some((AnnotationPosition::LineSuffix, target_node_id));
+            }
+            // no directly preceding node, but have enclosing node
+            else if let Some(target_node_id) =
+                self.find_node_enclosing(&prev_token).map(|span| span.idx)
+            {
+                return Some((AnnotationPosition::BlockInfix, target_node_id));
+            }
+            // no directly preceding node, no enclosing node, floating
+            else {
+                return None;
+            }
+        }
+
+        // find the next targetable token
+        let next_targetable_token = {
+            let mut next_token_idx = token_idx as usize + group.len();
+            loop {
+                let Some(next_token) = tokens.get(next_token_idx) else {
+                    break None;
+                };
+                if !ANNOTATION_TOKEN_TYPES.contains(&next_token.token.r#type) {
+                    break Some(next_token);
+                } else {
+                    next_token_idx += 1;
+                }
+            }
+        };
+        if let Some(next_targetable_token) = next_targetable_token
+            && let Some(next_node) = self.find_node_starting_at(next_targetable_token)
+        {
+            return Some((AnnotationPosition::BlockPrefix, next_node.idx));
+        }
+
+        // find the previous targetable token
+        let prev_targetable_token = {
+            let mut prev_token_idx = token_idx as usize - 1;
+            loop {
+                let Some(prev_token) = tokens.get(prev_token_idx) else {
+                    break None;
+                };
+                if !ANNOTATION_TOKEN_TYPES.contains(&prev_token.token.r#type) {
+                    break Some(prev_token);
+                } else {
+                    prev_token_idx -= 1;
+                }
+            }
+        };
+        if let Some(prev_targetable_token) = prev_targetable_token
+            && let Some(prev_node) = self.find_node_ending_at(prev_targetable_token)
+        {
+            return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
+        }
+
+        // find enclosing node
+        if let Some(enclosing_node) = self.find_node_enclosing(&start_token) {
+            return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
+        }
+
+        // nothing to attach to
+        None
+    }
+
+    /// Make and attach an annotation group.
     fn attach_annotation_group(
         &mut self,
         token_idx: u32,
@@ -84,99 +187,105 @@ impl<'a> Parser<'a> {
             end_token.span.end,
         );
 
-        // find the target to attach to
-        let prev_token = if token_idx > 0 {
-            tokens.get(token_idx as usize - 1)
-        } else {
-            None
+        // find the node to attach to
+        let Some((position, target_node_id)) =
+            self.find_annotation_position(token_idx, tokens, group)
+        else {
+            return None; // could not find a position
         };
-        let is_line_suffix = self.is_span_same_line(start_token.span, end_token.span)
-            && prev_token.is_some()
-            && prev_token.unwrap().token.r#type != TokenType::Newline;
-        let (target_token, target_node) = {
-            if is_line_suffix {
-                let target_token = prev_token.unwrap();
-                let target_node = self.find_node_ending_at(target_token);
-                (target_token, target_node)
-            } else {
-                let target_token = tokens.get(token_idx as usize + group.len()).unwrap();
-                let target_node = self.find_node_starting_at(target_token);
-                (target_token, target_node)
-            }
-        };
-        let target_node = target_node?;
 
         // create the annotation
         let annotation_id = match token_type {
             TokenType::Newline => {
                 let lines = group.len() as u32 - 1;
-                let blank = self.tree.allocate(
-                    Blank {
-                        position: AnnotationPosition::BlockPrefix,
-                        lines,
+                let blank = self.tree.allocate(Blank { lines }, span);
+                self.tree.allocate(
+                    Annotation::Blank {
+                        node: blank,
+                        position,
                     },
                     span,
-                );
-                self.tree.allocate(Annotation::Blank(blank), span)
+                )
             }
             TokenType::LineComment => {
                 let string = self.intern_string(self.clean_annotation_string_group(group));
                 let comment = self.tree.allocate(
                     Comment {
                         string,
-                        position: AnnotationPosition::BlockPrefix,
                         style: CommentStyle::Line,
                     },
                     span,
                 );
-                self.tree.allocate(Annotation::Comment(comment), span)
+                self.tree.allocate(
+                    Annotation::Comment {
+                        node: comment,
+                        position,
+                    },
+                    span,
+                )
             }
             TokenType::BlockComment => {
                 let string = self.intern_string(self.clean_annotation_string_group(group));
                 let comment = self.tree.allocate(
                     Comment {
                         string,
-                        position: AnnotationPosition::BlockPrefix,
                         style: CommentStyle::Block,
                     },
                     span,
                 );
-                self.tree.allocate(Annotation::Comment(comment), span)
+                self.tree.allocate(
+                    Annotation::Comment {
+                        node: comment,
+                        position,
+                    },
+                    span,
+                )
             }
             TokenType::DocLineComment => {
                 let string = self.intern_string(self.clean_annotation_string_group(group));
                 let doc = self.tree.allocate(
                     Doc {
                         string,
-                        position: AnnotationPosition::BlockPrefix,
                         style: DocStyle::Line,
                     },
                     span,
                 );
-                self.tree.allocate(Annotation::Doc(doc), span)
+                self.tree.allocate(
+                    Annotation::Doc {
+                        node: doc,
+                        position,
+                    },
+                    span,
+                )
             }
             TokenType::DocBlockComment => {
                 let string = self.intern_string(self.clean_annotation_string_group(group));
                 let doc = self.tree.allocate(
                     Doc {
                         string,
-                        position: AnnotationPosition::BlockPrefix,
                         style: DocStyle::Block,
                     },
                     span,
                 );
-                self.tree.allocate(Annotation::Doc(doc), span)
+                self.tree.allocate(
+                    Annotation::Doc {
+                        node: doc,
+                        position,
+                    },
+                    span,
+                )
             }
             _ => panic!("unexpected token type: {token_type:?}"),
         };
 
-        // attach the annotation to the target node
-        self.tree.append_annotation(target_node.idx, annotation_id);
+        // attach the annotation to the node
+        self.tree.append_annotation(target_node_id, annotation_id);
 
         Some(annotation_id)
     }
 
     /// Clean a group of annotation tokens into their inner string.
+    #[inline]
     fn clean_annotation_string_group(&self, group: &[TokenSpan]) -> String {
         group
             .iter()
@@ -239,68 +348,95 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Annotation, AnnotationPosition, Blank, Block, BlockFormat, Comment, CommentStyle, Doc,
-        DocStyle, Function, Statement, Struct, StructField, Type, assert_node, assert_string,
+        Annotation, AnnotationPosition, Blank, BlockFormat, Comment, CommentStyle, Doc, DocStyle,
+        Function, Statement, Struct, StructField, assert_node, assert_string,
     };
 
-    /// Blanks (>2 successive newlines) are annotations and should be attached to the next node.
-    /// Like any other annotation, if no next or containing node is found, attach to previous node as suffix.
+    /// Line suffix is attached to the previous node on the same line.
     #[test]
-    fn test_attach_blanks_to_lets() {
-        let mut test = TestParser::new("\n\nlet A = 1\nlet B = 2\n\n");
+    fn test_attach_line_suffix_to_previous_node() {
+        let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
 
+        // let A = 1
+        assert_eq!(statements.len(), 1);
+        // line comment, suffix
+        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LineSuffix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(parser.get_string(*string), "line comment");
+                assert_eq!(*style, CommentStyle::Line);
+            });
+        });
+    }
+
+    /// Blanks (>2 successive newlines) are just annotations and should be attached to the next node.
+    /// Like any other annotation, if no next or containing node is found, attach to previous node as suffix.
+    #[test]
+    fn test_attach_blanks_to_lets() {
+        let mut test = TestParser::new("\n\nlet A = 1\n\nlet B = 2\n\n");
+        let mut parser = test.parser();
+        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.process_annotations();
         assert_eq!(statements.len(), 2);
 
         // A has one prefix block blank
-        let a_blanks = parser.tree.get_blanks_for(statements[0].id);
-        assert_eq!(a_blanks.len(), 1);
-        assert_node!(parser.tree, a_blanks[0], Blank { position, lines } => {
+        let a_annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(a_annotations.len(), 1);
+        assert_node!(parser.tree, a_annotations[0], Annotation::Blank { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_eq!(*lines, 2);
+            assert_node!(parser.tree, *node, Blank { lines } => {
+                assert_eq!(*lines, 1);
+            });
         });
 
         // B has one prefix block blank and one postfix block blank
         // (the postfix blank after B because there is nothing else to attach to)
-        let b_blanks = parser.tree.get_blanks_for(statements[1].id);
-        assert_eq!(b_blanks.len(), 2);
-        assert_node!(parser.tree, b_blanks[0], Blank { position, lines } => {
+        let b_annotations = parser.tree.get_annotations_for(statements[1].id);
+        assert_eq!(b_annotations.len(), 2);
+        assert_node!(parser.tree, b_annotations[0], Annotation::Blank { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_eq!(*lines, 1);
+            assert_node!(parser.tree, *node, Blank { lines } => {
+                assert_eq!(*lines, 1);
+            });
         });
-        let b_blanks = parser.tree.get_blanks_for(statements[1].id);
-        assert_eq!(b_blanks.len(), 1);
-        assert_node!(parser.tree, b_blanks[0], Blank { position, lines } => {
+        assert_node!(parser.tree, b_annotations[1], Annotation::Blank { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
-            assert_eq!(*lines, 1);
+            assert_node!(parser.tree, *node, Blank { lines } => {
+                assert_eq!(*lines, 1);
+            });
         });
     }
 
     /// Annotations inside an empty node should be treated as infix within the containing node.
     #[test]
     fn test_attach_comments_infix_in_block() {
-        let mut test = TestParser::new("function main() {\n\t// block comment, infix\n}");
+        let mut test = TestParser::new(
+            r"
+function main() {
+    // block comment, infix
+}",
+        );
         let mut parser = test.parser();
+        parser.eat_newline().unwrap();
 
         let function = parser.eat_function(None).unwrap();
         parser.process_annotations();
 
-        // function main
         assert_node!(parser.tree, function, Function { body, .. } => {
-            assert_node!(parser.tree, body.unwrap(), Block { statements, .. } => {
-                assert_eq!(statements.len(), 0);
-                // doc block infix
-                // comment, infix
-                let annotations = parser.tree.get_annotations_for(function.id);
-                assert_eq!(annotations.len(), 1);
-                assert_node!(parser.tree, annotations[0], Annotation::Comment(node) => {
-                    assert_node!(parser.tree, *node, Comment { string, position, style } => {
-                        assert_eq!(parser.get_string(*string), "block comment, infix");
-                        assert_eq!(*position, AnnotationPosition::BlockInfix);
-                        assert_eq!(*style, CommentStyle::Line);
-                    });
+            // doc block infix
+            // comment, infix
+            let annotations = parser.tree.get_annotations_for(body.unwrap().id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_eq!(parser.get_string(*string), "block comment, infix");
+                    assert_eq!(*style, CommentStyle::Line);
                 });
             });
         });
@@ -323,81 +459,91 @@ struct Floof {
     /// doc, struct field continued
     a: int32 // doc, struct field infix
 
-    /// random doc
-}
-        ",
+    // random comment
+}",
         );
         let mut parser = test.parser();
+        parser.eat_newline().unwrap();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.process_annotations();
 
         // struct Floof
         assert_eq!(statements.len(), 1);
+        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(annotations.len(), 3);
+        // doc block prefix, floating
+        assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Doc { string, style } => {
+                assert_eq!(parser.get_string(*string), "doc, floating");
+                assert_eq!(*style, DocStyle::Line);
+            });
+        });
+        // blank block prefix
+        assert_node!(parser.tree, annotations[1], Annotation::Blank { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Blank { lines } => {
+                assert_eq!(*lines, 1);
+            });
+        });
+        // doc block prefix
+        // struct\ndoc, struct continued
+        assert_node!(parser.tree, annotations[2], Annotation::Doc { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Doc { string, style } => {
+                assert_eq!(parser.get_string(*string), "doc, struct\ndoc, struct continued");
+                assert_eq!(*style, DocStyle::Line);
+            });
+        });
+
+        // struct Floof
         assert_node!(parser.tree, statements[0], Statement::Struct(node) => {
             assert_node!(parser.tree, *node, Struct { fields, .. } => {
-                let annotations = parser.tree.get_annotations_for(node.id);
-                assert_eq!(annotations.len(), 4);
-                // doc block prefix, floating
-                assert_node!(parser.tree, annotations[0], Annotation::Doc(node) => {
-                    assert_node!(parser.tree, *node, Doc { string, position, style } => {
-                        assert_eq!(parser.get_string(*string), "doc, floating");
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_eq!(*style, DocStyle::Line);
-                    });
-                });
-                // blank block prefix
-                assert_node!(parser.tree, annotations[1], Annotation::Blank(node) => {
-                    assert_node!(parser.tree, *node, Blank { position, lines } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_eq!(*lines, 1);
-                    });
-                });
-                // doc block prefix
-                // struct\ndoc, struct continued
-                assert_node!(parser.tree, annotations[2], Annotation::Doc(node) => {
-                    assert_node!(parser.tree, *node, Doc { string, position, style } => {
-                        assert_eq!(parser.get_string(*string), "doc, struct");
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
-                        assert_eq!(*style, DocStyle::Line);
-                    });
-                });
-
                 // a: int32
                 assert_eq!(fields.len(), 1);
                 assert_node!(parser.tree, fields[0], StructField { name, .. } => {
                     assert_string!(parser.session, name.unwrap(), "a");
                     let annotations = parser.tree.get_annotations_for(fields[0].id);
-                    assert_eq!(annotations.len(), 2);
+                    assert_eq!(annotations.len(), 4);
 
                     // doc block prefix
                     // struct field\ndoc, struct field continued
-                    assert_node!(parser.tree, annotations[0], Annotation::Doc(node) => {
-                        assert_node!(parser.tree, *node, Doc { string, position, style } => {
+                    assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Doc { string, style } => {
                             assert_eq!(parser.get_string(*string), "doc, struct field\ndoc, struct field continued");
-                            assert_eq!(*position, AnnotationPosition::BlockPrefix);
                             assert_eq!(*style, DocStyle::Line);
                         });
                     });
 
                     // doc line suffix
                     // doc, struct field infix
-                    assert_node!(parser.tree, annotations[1], Annotation::Doc(node) => {
-                        assert_node!(parser.tree, *node, Doc { string, position, style } => {
+                    assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LineSuffix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(parser.get_string(*string), "doc, struct field infix");
-                            assert_eq!(*position, AnnotationPosition::LineSuffix);
-                            assert_eq!(*style, DocStyle::Line);
+                            assert_eq!(*style, CommentStyle::Line);
+                        });
+                    });
+
+                    // blank block postfix
+                    assert_node!(parser.tree, annotations[2], Annotation::Blank { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Blank { lines } => {
+                            assert_eq!(*lines, 1);
+                        });
+                    });
+
+                    // doc block postfix
+                    assert_node!(parser.tree, annotations[3], Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPostfix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_eq!(parser.get_string(*string), "random comment");
+                            assert_eq!(*style, CommentStyle::Line);
                         });
                     });
                 });
 
-                // doc block infix
-                assert_node!(parser.tree, annotations[3], Annotation::Doc(node) => {
-                    assert_node!(parser.tree, *node, Doc { string, position, style } => {
-                        assert_eq!(parser.get_string(*string), "random doc");
-                        assert_eq!(*position, AnnotationPosition::BlockInfix);
-                        assert_eq!(*style, DocStyle::Line);
-                    });
-                });
             });
         })
     }
