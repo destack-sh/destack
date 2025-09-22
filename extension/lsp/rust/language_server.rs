@@ -442,6 +442,13 @@ impl LanguageServer for DestackLanguageServer {
             result_id: None,
             data: semantic_tokens,
         };
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.semantic_tokens_full uri={}", uri.as_str()),
+            )
+            .await;
         Ok(Some(lsp::SemanticTokensResult::Tokens(semantic_tokens)))
     }
 
@@ -465,6 +472,13 @@ impl LanguageServer for DestackLanguageServer {
             result_id: None,
             data: semantic_tokens,
         };
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.semantic_tokens_range uri={}", uri.as_str()),
+            )
+            .await;
         Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
             semantic_tokens,
         )))
@@ -489,7 +503,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         // NOTE @Incomplete: format LSP partial range
-        let formatted = workspace.format_document(&document);
+        let formatted = workspace.format_document(document);
         let Some((end_line, end_character)) = document.source.get_position(document.source.len)
         else {
             return Ok(None);
@@ -507,6 +521,13 @@ impl LanguageServer for DestackLanguageServer {
             },
             new_text: formatted,
         };
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.formatting uri={}", uri.as_str()),
+            )
+            .await;
         Ok(Some(vec![full_edit]))
     }
 }

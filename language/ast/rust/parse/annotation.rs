@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // find the next targetable token
+        // find the following targetable token (block postfix)
         let next_targetable_token = {
             let mut next_token_idx = token_idx as usize + group.len();
             loop {
@@ -139,7 +139,7 @@ impl<'a> Parser<'a> {
             return Some((AnnotationPosition::BlockPrefix, next_node.idx));
         }
 
-        // find the previous targetable token
+        // find the preceding targetable token (block prefix)
         let prev_targetable_token = {
             let mut prev_token_idx = token_idx as usize - 1;
             loop {
@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
             return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
         }
 
-        // find enclosing node
+        // find enclosing node (block infix)
         if let Some(enclosing_node) = self.find_node_enclosing(&start_token) {
             return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
         }

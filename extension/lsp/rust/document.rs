@@ -38,6 +38,7 @@ impl Document {
             None,
             TokenType::End,
         );
+        parser.finalize();
 
         // turn into document
         let tokens = parser.tokens;

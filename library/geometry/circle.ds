@@ -2,10 +2,10 @@ use dyst
 
 /// A Circle is centered at a point with a radius.
 struct Circle2D {
+    radius: float32
+
     use Shape3D
     use Sphere3D
-
-    radius: float32,
 }
 
 /// A CircleShape is a shape that represents a circle.
@@ -16,9 +16,9 @@ struct CircleShape2D: Shape2D {
 
 /// A Sphere is centered at a point with a radius.
 struct Sphere3D {
+    radius: float32
+
     use Form3D
-    
-    radius: float32,
 }
 
 /// A SphereShape3D is a shape that represents a sphere.
