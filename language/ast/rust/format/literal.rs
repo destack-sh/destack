@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     ArrayLiteral, DystFormatter, FieldLiteral, FormatNode, NodeId, RangeLiteral, ScalarLiteral,
     StructLiteral, TupleLiteral,
@@ -9,18 +11,38 @@ use dyst_language_fir::{format_args, write};
 impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
     fn format_node(
         &self,
-        _node_id: NodeId<ScalarLiteral>,
+        node_id: NodeId<ScalarLiteral>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        match *self {
+        let span = f.context().tree.get_span(node_id);
+        let span_str = f.context().source.get_span_str(span);
+        match self {
             ScalarLiteral::Void => token("void").format(f),
             ScalarLiteral::Null => token("null").format(f),
-            ScalarLiteral::Boolean(value) => token(if value { "true" } else { "false" }).format(f),
-            ScalarLiteral::Byte(value) => text(&value.to_string()).format(f),
-            ScalarLiteral::Integer(value, _) => text(&value.to_string()).format(f),
-            ScalarLiteral::Float(value, _) => text(&value.to_string()).format(f),
-            ScalarLiteral::Character(value) => text(&value.to_string()).format(f),
-            _ => todo!("strings!"),
+            ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f),
+            ScalarLiteral::Integer(_, _) => {
+                let normalized = normalize_integer(span_str);
+                text(&normalized).format(f)
+            }
+            ScalarLiteral::Float(_, _) => {
+                let normalized = normalize_floating_number(span_str);
+                text(&normalized).format(f)
+            }
+            ScalarLiteral::Character(value) => {
+                write!(
+                    f,
+                    [token("'"), text(value.to_string().as_str()), token("'")]
+                )
+            }
+            ScalarLiteral::Byte(value) => {
+                write!(f, [token("b'"), text(&value.to_string()), token("'")])
+            }
+            ScalarLiteral::String(_) => {
+                write!(f, [text(span_str)])
+            }
+            ScalarLiteral::ByteString(_) => {
+                write!(f, [text(span_str)])
+            }
         }
     }
 }
@@ -129,6 +151,122 @@ impl<'ast> FormatNode<'ast, FieldLiteral> for FieldLiteral {
     }
 }
 
+/// Normalize an integer string to canonical form.
+///
+/// Lowercases prefixes (0b, 0o, 0x) and uppercases hex digits.
+fn normalize_integer(input: &str) -> Cow<'_, str> {
+    // normalized string if input is not yet normalized
+    // output must remain empty if input is already normalized
+    let mut output = String::new();
+    // tracks the last index of input that has been written to output
+    // if last_index is 0 at the end, then the input is already normalized and can be returned as is
+    let mut last_index = 0;
+    let mut is_hex = false;
+    let mut chars = input.char_indices();
+
+    // check if the input starts with a 0 and is followed by a B, O, or X
+    if let Some((_, '0')) = chars.next()
+        && let Some((index, c)) = chars.next()
+    {
+        is_hex = matches!(c, 'x' | 'X');
+        if matches!(c, 'B' | 'O' | 'X' | 'b' | 'o' | 'x') {
+            output.push('0');
+            output.push(c.to_ascii_lowercase());
+            last_index = index + c.len_utf8();
+        }
+    }
+
+    // skip the rest if input is not a hex integer because there are only digits
+    if is_hex {
+        for (index, c) in chars {
+            // uppercase hex digits
+            if matches!(c, 'a'..='f') {
+                output.push_str(&input[last_index..index]);
+                output.push(c.to_ascii_uppercase());
+                last_index = index + c.len_utf8();
+            }
+        }
+    }
+
+    if last_index == 0 {
+        Cow::Borrowed(input)
+    } else {
+        output.push_str(&input[last_index..]);
+        Cow::Owned(output)
+    }
+}
+
+/// Normalize a floating point number string to canonical form.
+///
+/// Adds leading/trailing zeros where needed, lowercases exponent, removes plus sign.
+fn normalize_floating_number(input: &str) -> Cow<'_, str> {
+    // normalized string if input is not yet normalized
+    // output must remain empty if input is already normalized
+    let mut output = String::new();
+    // tracks the last index of input that has been written to output
+    // if last_index is 0 at the end, then the input is already normalized and can be returned as is
+    let mut last_index = 0;
+    let mut chars = input.char_indices();
+    let mut prev_char_is_dot = if let Some((index, '.')) = chars.next() {
+        // add a leading 0 if input starts with .
+        output.push('0');
+        output.push('.');
+        last_index = index + '.'.len_utf8();
+        true
+    } else {
+        false
+    };
+
+    loop {
+        match chars.next() {
+            Some((index, c @ ('e' | 'E'))) => {
+                // add 0 if the e immediately follows a . (e.g., 1.e1)
+                if prev_char_is_dot {
+                    output.push_str(&input[last_index..index]);
+                    output.push('0');
+                    last_index = index;
+                }
+
+                // lowercase exponent part
+                if c == 'E' {
+                    output.push_str(&input[last_index..index]);
+                    output.push('e');
+                    last_index = index + 'E'.len_utf8();
+                }
+
+                // remove + in exponent part
+                if let Some((index, '+')) = chars.next() {
+                    output.push_str(&input[last_index..index]);
+                    last_index = index + '+'.len_utf8();
+                }
+
+                break;
+            }
+            Some((_index, c)) => {
+                prev_char_is_dot = c == '.';
+                continue;
+            }
+            None => {
+                if prev_char_is_dot {
+                    // add 0 if fraction part ends with .
+                    output.push_str(&input[last_index..]);
+                    output.push('0');
+                    last_index = input.len();
+                }
+
+                break;
+            }
+        }
+    }
+
+    if last_index == 0 {
+        Cow::Borrowed(input)
+    } else {
+        output.push_str(&input[last_index..]);
+        Cow::Owned(output)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::format::tests::TestFormatter;
@@ -160,7 +298,85 @@ mod tests {
         );
     }
 
-    // todo!: test more literals
+    #[test]
+    fn test_format_integer_long() {
+        assert_format!(
+            "1_000_000",
+            "1_000_000",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_integer_hex() {
+        assert_format!(
+            "0x1234",
+            "0x1234",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_integer_hex_long() {
+        assert_format!(
+            "0x1234_5678",
+            "0x1234_5678",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_integer_binary() {
+        assert_format!(
+            "0b1010",
+            "0b1010",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_float() {
+        assert_format!(
+            "1.0",
+            "1.0",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_float_long() {
+        assert_format!(
+            "1.0e38",
+            "1.0e38",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_string() {
+        assert_format!(
+            "\"Hello, world!\"",
+            "\"Hello, world!\"",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_string_multiline() {
+        assert_format!(
+            "\"Hello, world!\nHello, world!\"",
+            "\"Hello, world!\nHello, world!\"",
+            |p| p.eat_scalar_literal(),
+            DystFormatOptions::default()
+        );
+    }
 
     /// If the tuple fits on a single line, it should print on a single line.
     #[test]
