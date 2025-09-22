@@ -152,7 +152,7 @@ fn run_for_all(options: &DystFormatOptions, dry_run: bool) -> i32 {
 /// Format the provided list of files.
 fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) -> i32 {
     let mut exit_code = 0;
-    
+
     // process each file and track overall success
     for path in paths {
         match process_file(path, options, dry_run, true) {
@@ -199,14 +199,14 @@ fn run_with_inline_string(body: &str, options: &DystFormatOptions) -> i32 {
 /// Collect all .ds files under the given root using the shared glob walker.
 fn collect_ds_files(root: &Path) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
-    
+
     // configure walker to find .ds files while ignoring common directories
     let walk_options = WalkOptions {
         root: root.to_path_buf(),
         ignore: Some(DEFAULT_IGNORE_PATHS.iter().map(|s| s.to_string()).collect()),
         glob: Some(vec!["**/*.ds".to_string()]),
     };
-    
+
     // collect all matching files
     walk(&walk_options, |path| files.push(path.to_path_buf()));
     files.sort();
@@ -221,7 +221,7 @@ fn process_file(
     emit_output: bool,
 ) -> Result<FileProcessOutcome, String> {
     let path_buf = path.to_path_buf();
-    
+
     // read original file content
     let original_text = fs::read_to_string(&path_buf)
         .map_err(|error| format!("failed to read {}: {error}", path_buf.display()))?;
@@ -263,7 +263,7 @@ fn process_file(
 /// Format the provided source into a string along with diagnostics.
 fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatOutcome, String> {
     let mut session = Session::new();
-    
+
     // parse the source into an AST
     let mut parser = Parser::from_source(source, &mut session);
     let start = parser.mark();

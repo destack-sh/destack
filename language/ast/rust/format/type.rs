@@ -71,8 +71,18 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             Type::Slice { element } => {
                 write!(f, [token("[]"), element])
             }
-
-            _ => todo!("format type"),
+            Type::Tuple(tuple) => write!(f, [tuple]),
+            Type::Struct(struct_) => write!(f, [struct_]),
+            Type::Enum(enum_) => write!(f, [enum_]),
+            Type::Union(union) => write!(f, [union]),
+            Type::Intersection(intersections) => write!(
+                f,
+                [format_with(|f| f
+                    .join_with(&token(" | "))
+                    .entries(intersections)
+                    .finish())]
+            ),
+            Type::Function(function) => write!(f, [function]),
         }
     }
 }
