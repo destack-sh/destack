@@ -1,29 +1,27 @@
 use dyst
 
 /// A Point is a zero-area shape with an optional local offset.
-struct Point2D { 
-    use Form2D 
+struct Point2D {
+    position: Vector2
 
-    position: Vector2,
+    use Form2D
 }
 
 /// A PointShape represents a zero-area shape with an optional local offset.
 @entity
-struct PointShape2D: Shape2D { 
-    use Point2D 
-
+struct PointShape2D: Shape2D {
+    use Point2D
 }
 
 /// A Point3D is a zero-volume shape with an optional local offset.
-struct Point3D { 
-    use Form3D 
+struct Point3D {
+    position: Vector3
 
-    position: Vector3,
+    use Form3D
 }
 
 /// A PointShape3D represents a zero-volume shape with an optional local offset.
 @entity
-struct PointShape3D: Shape3D { 
-    use Point3D 
-
+struct PointShape3D: Shape3D {
+    use Point3D
 }

@@ -98,9 +98,8 @@ impl<'ast> FormatNode<'ast, Blank> for Blank {
         _node_id: NodeId<Blank>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        for _ in 0..self.lines {
-            write!(f, [empty_line()])?;
-        }
+        // reduce any number of blank lines to a single one
+        write!(f, [empty_line()])?;
         Ok(())
     }
 }

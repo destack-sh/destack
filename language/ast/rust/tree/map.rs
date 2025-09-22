@@ -95,7 +95,10 @@ impl NodeParentIndex {
             capturing_visitor.reset();
             walk_any(&mut capturing_visitor, tree, *node_type, parent_id as u32);
             for node_id in capturing_visitor.visited() {
-                parent_by_node.insert(*node_id, parent_id as u32);
+                if *node_id != parent_id as u32 {
+                    // ignore self
+                    parent_by_node.insert(*node_id, parent_id as u32);
+                }
             }
         }
 
@@ -126,8 +129,7 @@ impl NodeParentIndex {
 
     /// Walk all parents to the root.
     #[inline]
-    pub fn walk_parents_by_id(&self, node_id: u32) -> Vec<u32>
-    {
+    pub fn walk_parents_by_id(&self, node_id: u32) -> Vec<u32> {
         let mut parents: Vec<u32> = Vec::new();
         let mut current_id = node_id;
         while let Some(parent_id) = self.get_by_id(current_id) {

@@ -25,8 +25,10 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
             write!(f, [token("{ }")])?;
             return Ok(());
         }
-        write!(f, [token("{"), hard_line_break()])?;
+
         // body
+        write!(f, [token("{"), hard_line_break()])?;
+
         // fields
         write!(
             f,
@@ -35,10 +37,15 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
                 .entries(&self.fields)
                 .finish())),])]
         )?;
+
         // blank line
         if !self.fields.is_empty() && !self.statements.is_empty() {
             write!(f, [hard_line_break()])?;
+            if !f.context().has_blank_prefix_annotation(self.statements[0]) {
+                write!(f, [empty_line()])?;
+            }
         }
+
         // statements
         write!(
             f,
