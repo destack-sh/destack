@@ -74,11 +74,20 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     #[inline]
     fn format_node(
         &self,
-        _node_id: NodeId<Annotation>,
+        node_id: NodeId<Annotation>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
             Annotation::Blank { node, .. } => {
+                // skip blanks at the end of the source
+                let container = f.context().get_container(node_id);
+                if let Some((container_id, _)) = container {
+                    let container_span = f.context().get_span_by_id(container_id);
+                    if container_span.end >= f.context().source.len - 1 {
+                        return Ok(()); 
+                    }
+                }
+                
                 write!(f, [node])
             }
             Annotation::Doc { node, .. } => {

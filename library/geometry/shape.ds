@@ -21,3 +21,4 @@ struct Shape2D {
 struct Shape3D {
     use Entity3D
 }
+

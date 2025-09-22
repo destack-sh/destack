@@ -12,8 +12,8 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         node_id: NodeId<Block>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let container_type = f.context().get_container_type(node_id);
-        let is_in_expression = container_type == Some(NodeType::Expression);
+        let container = f.context().get_container(node_id);
+        let is_in_expression = matches!(container, Some((_, NodeType::Expression)));
 
         write!(f, [f.context().prefix_annotations(node_id)])?;
         // label
