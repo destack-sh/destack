@@ -1905,8 +1905,8 @@ impl Node for Index {
 /// ```
 /// foo()
 /// @foo(1, 2, 3)
-/// foo[int32](1, 2, 3)
-/// foo[Validate: false](1, 2, 3)
+/// foo<int32>(1, 2, 3)
+/// foo<Validate: false>(1, 2, 3)
 /// @foo(Vector2 {x: 1, y: 2}, (true, 3))
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -1915,7 +1915,7 @@ pub struct Call {
     pub runtime: Option<Runtime>,
     /// The receiver of the call (including function name).
     pub receiver: NodeId<Expression>,
-    /// The static arguments to the call `[Arg1, Arg2, ...]`.
+    /// The static arguments to the call `<Arg1, Arg2, ...>`.
     pub static_arguments: Option<Vec<NodeId<Argument>>>,
     /// The dynamic arguments to the call `(arg1, arg2, ...)`.
     pub dynamic_arguments: Vec<NodeId<Argument>>,
