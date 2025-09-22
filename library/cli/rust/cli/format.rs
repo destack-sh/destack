@@ -1,7 +1,8 @@
 //! Format subcommand for Dyst source code.
 
 use dyst_language_ast::{
-    BlockFormat, DystFormatContext, DystFormatOptions, Module, ModuleFormat, Parser,
+    BlockFormat, DystFormatContext, DystFormatOptions, Module, ModuleFormat, NodeParentIndex,
+    Parser,
 };
 use dyst_language_diagnostic::Severity;
 use dyst_language_fir::format::{IndentStyle, LineEnding, format as format_document};
@@ -70,6 +71,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
         source: &source,
         session: &session,
         tree: &tree,
+        spans: &tree.spans,
+        parents: NodeParentIndex::from_tree(&tree),
     };
     let formatted = match format_document(context, format_args![module]) {
         Ok(formatted) => formatted,

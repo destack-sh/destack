@@ -6,7 +6,9 @@ use dyst_language_session::Session;
 use dyst_language_source::{Path, PathId, Source, Span, StringId};
 use dyst_language_token::TokenSpan;
 
-use crate::{Annotation, Node, NodeId, NodeTree, NodeTreeStore};
+use crate::{
+    Annotation, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree, NodeTreeStore, NodeType,
+};
 
 pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
 
@@ -111,6 +113,10 @@ pub struct DystFormatContext<'ast> {
     pub source: &'ast Source,
     /// The tree.
     pub tree: &'ast NodeTree,
+    /// The span index.
+    pub spans: &'ast NodeSpanIndex,
+    /// The parent index.
+    pub parents: NodeParentIndex,
     /// The session.
     pub session: &'ast Session,
 }
@@ -146,6 +152,22 @@ impl<'ast> DystFormatContext<'ast> {
         NodeTree: NodeTreeStore<T>,
     {
         self.tree.get(node_id)
+    }
+
+    /// Get a parent node id and its type from the tree.
+    #[inline]
+    pub fn get_parent<T>(&self, node_id: NodeId<T>) -> Option<(u32, NodeType)>
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        let parent_id = self.parents.get(node_id);
+        if let Some(parent_id) = parent_id {
+            let parent_type = self.tree.get_type(parent_id);
+            Some((parent_id, parent_type))
+        } else {
+            None
+        }
     }
 
     /// Get a Span from the tree.

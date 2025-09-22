@@ -6,10 +6,10 @@ use dyst_language_source::Span;
 use crate::{
     Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast,
     Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For,
-    Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeMap,
-    NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement,
-    Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
-    UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
+    NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
+    Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral,
+    Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// The Node tree.
@@ -24,70 +24,70 @@ pub struct NodeTree {
     /// The annotations attached to nodes in the AST.
     pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
 
-    /// The map of the NodeTree.
-    pub map: NodeMap,
+    /// The spans of the NodeTree.
+    pub spans: NodeSpanIndex,
 
     // per-node arenas
     // groupings
-    blocks: NodeArena<Block>,
-    statements: NodeArena<Statement>,
-    expressions: NodeArena<Expression>,
+    pub(crate) blocks: NodeArena<Block>,
+    pub(crate) statements: NodeArena<Statement>,
+    pub(crate) expressions: NodeArena<Expression>,
     // declarations
-    modules: NodeArena<Module>,
-    structs: NodeArena<Struct>,
-    struct_fields: NodeArena<StructField>,
-    enums: NodeArena<Enum>,
-    enum_fields: NodeArena<EnumField>,
-    unions: NodeArena<Union>,
-    union_fields: NodeArena<UnionField>,
-    traits: NodeArena<Trait>,
-    implements: NodeArena<Implement>,
-    types: NodeArena<Type>,
-    tuples: NodeArena<Tuple>,
-    tuple_fields: NodeArena<TupleField>,
-    functions: NodeArena<Function>,
+    pub(crate) modules: NodeArena<Module>,
+    pub(crate) structs: NodeArena<Struct>,
+    pub(crate) struct_fields: NodeArena<StructField>,
+    pub(crate) enums: NodeArena<Enum>,
+    pub(crate) enum_fields: NodeArena<EnumField>,
+    pub(crate) unions: NodeArena<Union>,
+    pub(crate) union_fields: NodeArena<UnionField>,
+    pub(crate) traits: NodeArena<Trait>,
+    pub(crate) implements: NodeArena<Implement>,
+    pub(crate) types: NodeArena<Type>,
+    pub(crate) tuples: NodeArena<Tuple>,
+    pub(crate) tuple_fields: NodeArena<TupleField>,
+    pub(crate) functions: NodeArena<Function>,
     // context
-    withs: NodeArena<With>,
-    with_clauses: NodeArena<WithClause>,
-    uses: NodeArena<Use>,
-    use_clauses: NodeArena<UseClause>,
-    use_items: NodeArena<UseItem>,
+    pub(crate) withs: NodeArena<With>,
+    pub(crate) with_clauses: NodeArena<WithClause>,
+    pub(crate) uses: NodeArena<Use>,
+    pub(crate) use_clauses: NodeArena<UseClause>,
+    pub(crate) use_items: NodeArena<UseItem>,
     // control
-    ifs: NodeArena<If>,
-    whiles: NodeArena<While>,
-    fors: NodeArena<For>,
-    loops: NodeArena<Loop>,
-    breaks: NodeArena<Break>,
-    continues: NodeArena<Continue>,
-    defers: NodeArena<Defer>,
-    returns: NodeArena<Return>,
-    trys: NodeArena<Try>,
+    pub(crate) ifs: NodeArena<If>,
+    pub(crate) whiles: NodeArena<While>,
+    pub(crate) fors: NodeArena<For>,
+    pub(crate) loops: NodeArena<Loop>,
+    pub(crate) breaks: NodeArena<Break>,
+    pub(crate) continues: NodeArena<Continue>,
+    pub(crate) defers: NodeArena<Defer>,
+    pub(crate) returns: NodeArena<Return>,
+    pub(crate) trys: NodeArena<Try>,
     // bindings
-    lets: NodeArena<Let>,
-    parameters: NodeArena<Parameter>,
-    arguments: NodeArena<Argument>,
+    pub(crate) lets: NodeArena<Let>,
+    pub(crate) parameters: NodeArena<Parameter>,
+    pub(crate) arguments: NodeArena<Argument>,
     // literals
-    scalar_literals: NodeArena<ScalarLiteral>,
-    range_literals: NodeArena<RangeLiteral>,
-    array_literals: NodeArena<ArrayLiteral>,
-    tuple_literals: NodeArena<TupleLiteral>,
-    struct_literals: NodeArena<StructLiteral>,
-    field_literals: NodeArena<FieldLiteral>,
+    pub(crate) scalar_literals: NodeArena<ScalarLiteral>,
+    pub(crate) range_literals: NodeArena<RangeLiteral>,
+    pub(crate) array_literals: NodeArena<ArrayLiteral>,
+    pub(crate) tuple_literals: NodeArena<TupleLiteral>,
+    pub(crate) struct_literals: NodeArena<StructLiteral>,
+    pub(crate) field_literals: NodeArena<FieldLiteral>,
     // calls
-    indexes: NodeArena<Index>,
-    calls: NodeArena<Call>,
-    casts: NodeArena<Cast>,
-    coalesce: NodeArena<Coalesce>,
+    pub(crate) indexes: NodeArena<Index>,
+    pub(crate) calls: NodeArena<Call>,
+    pub(crate) casts: NodeArena<Cast>,
+    pub(crate) coalesce: NodeArena<Coalesce>,
     // matching
-    matches: NodeArena<Match>,
-    patterns: NodeArena<Pattern>,
-    pattern_fields: NodeArena<PatternField>,
-    match_cases: NodeArena<MatchCase>,
+    pub(crate) matches: NodeArena<Match>,
+    pub(crate) patterns: NodeArena<Pattern>,
+    pub(crate) pattern_fields: NodeArena<PatternField>,
+    pub(crate) match_cases: NodeArena<MatchCase>,
     // annotations
-    annotations: NodeArena<Annotation>,
-    blanks: NodeArena<Blank>,
-    docs: NodeArena<Doc>,
-    comments: NodeArena<Comment>,
+    pub(crate) annotations: NodeArena<Annotation>,
+    pub(crate) blanks: NodeArena<Blank>,
+    pub(crate) docs: NodeArena<Doc>,
+    pub(crate) comments: NodeArena<Comment>,
 }
 
 impl Debug for NodeTree {
@@ -115,7 +115,7 @@ impl NodeTree {
             local_id_by_node: Vec::with_capacity(capacity),
             type_by_node: Vec::with_capacity(capacity),
             annotations_per_node: HashMap::new(),
-            map: NodeMap::new(),
+            spans: NodeSpanIndex::new(),
             // groupings
             blocks: NodeArena::new(),
             statements: NodeArena::new(),
@@ -192,7 +192,7 @@ impl NodeTree {
         self.type_by_node.push(T::KIND);
         let local_id = <Self as NodeTreeStore<T>>::push(self, node);
         self.local_id_by_node.push(local_id);
-        self.map.append_span(span);
+        self.spans.append(span);
         NodeId::new(global_id)
     }
 
@@ -230,7 +230,7 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.map.get_span(node_id)
+        self.spans.get(node_id)
     }
 
     /// Set the span for a node.
@@ -239,7 +239,7 @@ impl NodeTree {
     where
         T: Node,
     {
-        self.map.set_span(node_id, span);
+        self.spans.set(node_id, span);
     }
 
     /// Append a doc to a node by its global id.
