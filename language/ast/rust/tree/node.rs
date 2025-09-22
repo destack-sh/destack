@@ -2096,11 +2096,20 @@ pub enum AnnotationPosition {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Annotation {
     /// A blank annotation.
-    Blank(NodeId<Blank>),
+    Blank {
+        node: NodeId<Blank>,
+        position: AnnotationPosition,
+    },
     /// A doc annotation.
-    Doc(NodeId<Doc>),
+    Doc {
+        node: NodeId<Doc>,
+        position: AnnotationPosition,
+    },
     /// A comment annotation.
-    Comment(NodeId<Comment>),
+    Comment {
+        node: NodeId<Comment>,
+        position: AnnotationPosition,
+    },
 }
 
 impl Node for Annotation {
@@ -2110,8 +2119,6 @@ impl Node for Annotation {
 /// A Blank is a newline or special whitespace.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Blank {
-    /// The position of the blank.
-    pub position: AnnotationPosition,
     /// The number of blank lines.
     pub lines: u32,
 }
@@ -2147,8 +2154,6 @@ pub struct Doc {
     /// The clean documentation comment string.
     /// Newlines preserved, leading/trailing whitespace stripped.
     pub string: StringId,
-    /// The position of the documentation comment.
-    pub position: AnnotationPosition,
     /// The style of the documentation comment.
     pub style: DocStyle,
 }
@@ -2178,8 +2183,6 @@ pub enum CommentStyle {
 pub struct Comment {
     /// The clean comment string.
     pub string: StringId,
-    /// The position of the comment.
-    pub position: AnnotationPosition,
     /// The style of the comment.
     pub style: CommentStyle,
 }

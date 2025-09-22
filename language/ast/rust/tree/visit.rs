@@ -1,19 +1,20 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
-    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
-    Match, MatchCase, Module, NodeId, NodeTree, NodeType, Parameter, Pattern, PatternField,
-    RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField, StructLiteral, Trait, Try,
-    Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With,
-    WithClause, walk_argument, walk_array_literal, walk_block, walk_break, walk_call, walk_cast,
-    walk_coalesce, walk_comment, walk_continue, walk_defer, walk_doc, walk_enum, walk_enum_field,
-    walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement,
-    walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter,
-    walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal,
-    walk_statement, walk_struct, walk_struct_field, walk_struct_literal, walk_trait, walk_try,
-    walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field,
-    walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
+    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
+    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement,
+    Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
+    StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
+    UseClause, UseItem, While, With, WithClause, walk_annotation, walk_argument,
+    walk_array_literal, walk_blank, walk_block, walk_break, walk_call, walk_cast, walk_coalesce,
+    walk_comment, walk_continue, walk_defer, walk_doc, walk_enum, walk_enum_field, walk_expression,
+    walk_field_literal, walk_for, walk_function, walk_if, walk_implement, walk_index, walk_let,
+    walk_loop, walk_match, walk_match_case, walk_module, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal, walk_statement,
+    walk_struct, walk_struct_field, walk_struct_literal, walk_trait, walk_try, walk_tuple,
+    walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field, walk_use,
+    walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
 };
 
 /// A NodeVisitor is a visitor for the AST.
@@ -353,6 +354,21 @@ pub trait NodeVisitor {
     // ------------------------------------------------------------
     // Annotations
     // ------------------------------------------------------------
+
+    /// Visit an Annotation.
+    fn visit_annotation(
+        &mut self,
+        tree: &NodeTree,
+        id: NodeId<Annotation>,
+        annotation: &Annotation,
+    ) {
+        walk_annotation(self, tree, id, annotation);
+    }
+
+    /// Visit a Blank.
+    fn visit_blank(&mut self, tree: &NodeTree, id: NodeId<Blank>, blank: &Blank) {
+        walk_blank(self, tree, id, blank);
+    }
 
     /// Visit a Doc.
     fn visit_doc(&mut self, tree: &NodeTree, id: NodeId<Doc>, doc: &Doc) {

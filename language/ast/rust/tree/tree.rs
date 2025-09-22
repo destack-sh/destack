@@ -4,12 +4,12 @@ use std::fmt::{Debug, Formatter};
 use dyst_language_source::Span;
 
 use crate::{
-    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
-    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement,
-    Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeMap, NodeType, Parameter,
-    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
-    StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
-    UseClause, UseItem, While, With, WithClause,
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast,
+    Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For,
+    Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId, NodeMap,
+    NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement,
+    Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union,
+    UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// The Node tree.
@@ -261,13 +261,25 @@ impl NodeTree {
             .unwrap_or_else(Vec::new)
     }
 
-    /// Get comment annotations attached to a node, cloned as a Vec.
+    /// Get blank annotation attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_comments_for(&self, node_id: u32) -> Vec<NodeId<Comment>> {
+    pub fn get_blanks_for(&self, node_id: u32) -> Vec<(NodeId<Blank>, AnnotationPosition)> {
         self.get_annotations_for(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {
-                Annotation::Comment(id) => Some(*id),
+                Annotation::Blank { node, position } => Some((*node, *position)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Get comment annotations attached to a node, cloned as a Vec.
+    #[inline]
+    pub fn get_comments_for(&self, node_id: u32) -> Vec<(NodeId<Comment>, AnnotationPosition)> {
+        self.get_annotations_for(node_id)
+            .into_iter()
+            .filter_map(|id| match self.get(id) {
+                Annotation::Comment { node, position } => Some((*node, *position)),
                 _ => None,
             })
             .collect()
@@ -275,23 +287,11 @@ impl NodeTree {
 
     /// Get doc annotation attached to a node, cloned as a Vec.
     #[inline]
-    pub fn get_docs_for(&self, node_id: u32) -> Vec<NodeId<Doc>> {
+    pub fn get_docs_for(&self, node_id: u32) -> Vec<(NodeId<Doc>, AnnotationPosition)> {
         self.get_annotations_for(node_id)
             .into_iter()
             .filter_map(|id| match self.get(id) {
-                Annotation::Doc(id) => Some(*id),
-                _ => None,
-            })
-            .collect()
-    }
-
-    /// Get blank annotation attached to a node, cloned as a Vec.
-    #[inline]
-    pub fn get_blanks_for(&self, node_id: u32) -> Vec<NodeId<Blank>> {
-        self.get_annotations_for(node_id)
-            .into_iter()
-            .filter_map(|id| match self.get(id) {
-                Annotation::Blank(id) => Some(*id),
+                Annotation::Doc { node, position } => Some((*node, *position)),
                 _ => None,
             })
             .collect()

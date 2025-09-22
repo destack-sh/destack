@@ -1,8 +1,8 @@
 use crate::{
-    Argument, ArrayLiteral, Block, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc,
-    Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement, Index, Let, Loop,
-    Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
+    Annotation, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast, Coalesce, Comment,
+    Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement,
+    Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
+    Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
     StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
     UseClause, UseItem, While, With, WithClause,
 };
@@ -1178,6 +1178,37 @@ pub fn walk_match_case<V: NodeVisitor + ?Sized>(
 // ----------------------------------------------------------------------------
 // Annotations
 // ----------------------------------------------------------------------------
+
+/// Walk the Annotation.
+pub fn walk_annotation<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Annotation>,
+    annotation: &Annotation,
+) {
+    visitor.visit_any(tree, NodeType::Annotation, id.id);
+    match annotation {
+        Annotation::Blank { node, .. } => {
+            visitor.visit_blank(tree, *node, tree.get(*node));
+        }
+        Annotation::Doc { node, .. } => {
+            visitor.visit_doc(tree, *node, tree.get(*node));
+        }
+        Annotation::Comment { node, .. } => {
+            visitor.visit_comment(tree, *node, tree.get(*node));
+        }
+    }
+}
+
+/// Walk the Blank.
+pub fn walk_blank<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Blank>,
+    _blank: &Blank,
+) {
+    visitor.visit_any(tree, NodeType::Blank, id.id);
+}
 
 /// Walk the Doc.
 pub fn walk_doc<V: NodeVisitor + ?Sized>(

@@ -23,22 +23,22 @@
 use std::borrow::Cow;
 
 use crate::{
-    Argument, ArrayLiteral, AssignOperator, BinaryOperator, Block, BlockFormat, Break, Call, Cast,
-    Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, FloatType,
-    For, Function, FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match, MatchCase,
-    Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter,
-    PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime,
-    ScalarLiteral, Statement, StringId, StringPool, Struct, StructField, StructLiteral, Trait, Try,
-    Tuple, TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause,
-    UseItem, Visibility, While, With, WithClause, walk_argument, walk_array_literal, walk_block,
-    walk_break, walk_call, walk_cast, walk_coalesce, walk_continue, walk_defer, walk_enum,
-    walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if,
-    walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module,
-    walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return,
-    walk_scalar_literal, walk_statement, walk_struct, walk_struct_field, walk_struct_literal,
-    walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union,
-    walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with,
-    walk_with_clause,
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank,
+    Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, Continue, Defer, Doc, Enum,
+    EnumField, Expression, FieldLiteral, FloatType, For, Function, FunctionStyle, If, Implement,
+    Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree,
+    NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern, PatternField,
+    PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, Statement, StringId, StringPool,
+    Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type,
+    UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause,
+    walk_annotation, walk_argument, walk_array_literal, walk_block, walk_break, walk_call,
+    walk_cast, walk_coalesce, walk_continue, walk_defer, walk_enum, walk_enum_field,
+    walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement,
+    walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal,
+    walk_statement, walk_struct, walk_struct_field, walk_struct_literal, walk_trait, walk_try,
+    walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field,
+    walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause,
 };
 
 /// The console colors.
@@ -419,6 +419,13 @@ impl Dump for u16 {
     }
 }
 
+/// Dump a u32 as a string.
+impl Dump for u32 {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(&self.to_string(), None)
+    }
+}
+
 /// Dump an i64 as a string.
 impl Dump for i64 {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -537,6 +544,13 @@ impl Dump for BlockFormat {
     }
 }
 
+/// Dump an AnnotationPosition as a string.
+impl Dump for AnnotationPosition {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}").as_str(), Some(Color::Yellow));
+    }
+}
+
 /// Dump an IntType as a structured representation.
 impl Dump for IntType {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -594,13 +608,9 @@ impl Dump for PrimitiveType {
 
 impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_any(&mut self, tree: &NodeTree, _ty: NodeType, id: u32) {
-        let docs = tree.get_docs_for(id);
-        for doc in docs {
-            self.visit_doc(tree, doc, tree.get(doc));
-        }
-        let comments = tree.get_comments_for(id);
-        for comment in comments {
-            self.visit_comment(tree, comment, tree.get(comment));
+        let annotations = tree.get_annotations_for(id);
+        for annotation in annotations {
+            self.visit_annotation(tree, annotation, tree.get(annotation));
         }
     }
 
@@ -1527,6 +1537,40 @@ impl<'a> NodeVisitor for Dumper<'a> {
     // ------------------------------------------------------------
     // Annotations
     // ------------------------------------------------------------
+
+    fn visit_annotation(
+        &mut self,
+        _tree: &NodeTree,
+        _id: NodeId<Annotation>,
+        annotation: &Annotation,
+    ) {
+        match annotation {
+            Annotation::Blank { position, .. } => {
+                self.node("Annotation::Blank", _id.id)
+                    .field("position", position)
+                    .end();
+            }
+            Annotation::Doc { position, .. } => {
+                self.node("Annotation::Doc", _id.id)
+                    .field("position", position)
+                    .end();
+            }
+            Annotation::Comment { position, .. } => {
+                self.node("Annotation::Comment", _id.id)
+                    .field("position", position)
+                    .end();
+            }
+        };
+        self.with_depth(|dumper| {
+            walk_annotation(dumper, _tree, _id, annotation);
+        });
+    }
+
+    fn visit_blank(&mut self, _tree: &NodeTree, _id: NodeId<Blank>, blank: &Blank) {
+        self.node("Blank", _id.id)
+            .field("lines", &blank.lines)
+            .end();
+    }
 
     fn visit_doc(&mut self, _tree: &NodeTree, _id: NodeId<Doc>, doc: &Doc) {
         let string = truncate_string(self.strings.get(doc.string), 40, "...");
