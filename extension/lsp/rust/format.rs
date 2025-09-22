@@ -1,5 +1,5 @@
 use crate::{Document, Workspace};
-use dyst_language_ast::{DystFormatContext, DystFormatOptions};
+use dyst_language_ast::{DystFormatContext, DystFormatOptions, NodeParentIndex};
 use dyst_language_diagnostic::Severity;
 use dyst_language_fir::format;
 
@@ -24,6 +24,8 @@ impl Workspace {
             source: &document.source,
             session: &self.session,
             tree: &document.ast,
+            spans: &document.ast.spans,
+            parents: NodeParentIndex::from_tree(&document.ast),
         };
         let formatted = format!(context, [document.module_id]).unwrap();
         let printed = formatted.print();

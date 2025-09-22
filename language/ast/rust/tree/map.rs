@@ -1,15 +1,17 @@
+use std::collections::HashMap;
+
 use dyst_language_source::Span;
 
-use crate::{Node, NodeId};
+use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, walk_any};
 
-/// The NodeMap is a side index into a NodeTree.
+/// The NodeSpanIndex is a side index of Spans into a NodeTree.
 #[derive(Debug, Clone)]
-pub struct NodeMap {
+pub struct NodeSpanIndex {
     /// The spans of all nodes in the AST. Index is the global node id.
     spans_per_node: Vec<Span>,
 }
 
-impl Default for NodeMap {
+impl Default for NodeSpanIndex {
     fn default() -> Self {
         Self::new()
     }
@@ -27,7 +29,7 @@ pub struct EnclosingSpan {
     pub span: Span,
 }
 
-impl NodeMap {
+impl NodeSpanIndex {
     pub fn new() -> Self {
         Self {
             spans_per_node: Vec::new(),
@@ -36,25 +38,25 @@ impl NodeMap {
 
     /// Append a span to the map.
     #[inline]
-    pub(crate) fn append_span(&mut self, span: Span) {
+    pub(crate) fn append(&mut self, span: Span) {
         self.spans_per_node.push(span);
     }
 
     /// Set the span for a node.
     #[inline]
-    pub(crate) fn set_span<T: Node>(&mut self, node_id: NodeId<T>, span: Span) {
+    pub(crate) fn set<T: Node>(&mut self, node_id: NodeId<T>, span: Span) {
         self.spans_per_node[node_id.id as usize] = span;
     }
 
     /// Get the span for a node.
     #[inline]
-    pub fn get_span<T: Node>(&self, node_id: NodeId<T>) -> Span {
+    pub fn get<T: Node>(&self, node_id: NodeId<T>) -> Span {
         self.spans_per_node[node_id.id as usize]
     }
 
     /// Get the span for a node by its id.
     #[inline]
-    pub fn get_span_by_id(&self, node_id: u32) -> Span {
+    pub fn get_by_id(&self, node_id: u32) -> Span {
         self.spans_per_node[node_id as usize]
     }
 
@@ -74,5 +76,44 @@ impl NodeMap {
             }
         }
         spans
+    }
+}
+
+/// The NodeParentIndex is a side index of parent nodes into a NodeTree.
+#[derive(Debug, Clone)]
+pub struct NodeParentIndex {
+    parents_per_node: Vec<Option<u32>>,
+}
+
+impl NodeParentIndex {
+    pub fn from_tree(tree: &NodeTree) -> Self {
+        let mut capturing_visitor = CapturingNodeVisitor::default();
+        let mut parent_by_node: HashMap<u32, u32> = HashMap::new();
+
+        // capture the parents of each node
+        for (parent_id, node_type) in tree.type_by_node.iter().enumerate() {
+            capturing_visitor.reset();
+            walk_any(&mut capturing_visitor, tree, *node_type, parent_id as u32);
+            for node_id in capturing_visitor.visited() {
+                parent_by_node.insert(*node_id, parent_id as u32);
+            }
+        }
+
+        // put into linear map
+        let mut parents_per_node: Vec<Option<u32>> = Vec::new();
+        for i in 0..tree.type_by_node.len() {
+            parents_per_node.push(parent_by_node.get(&(i as u32)).cloned());
+        }
+
+        Self { parents_per_node }
+    }
+
+    /// Get the parent for a node.
+    #[inline]
+    pub fn get<T>(&self, node_id: NodeId<T>) -> Option<u32>
+    where
+        T: Node,
+    {
+        self.parents_per_node[node_id.id as usize]
     }
 }

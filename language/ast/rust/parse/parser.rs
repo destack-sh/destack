@@ -394,7 +394,7 @@ impl<'a> Parser<'a> {
     pub fn find_node_starting_at(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
-            .map
+            .spans
             .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1))
             .into_iter()
             .filter(|span| span.span.start == token.span.start)
@@ -407,7 +407,7 @@ impl<'a> Parser<'a> {
     pub fn find_node_ending_at(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
-            .map
+            .spans
             .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1))
             .into_iter()
             .filter(|span| span.span.end == token.span.end)
@@ -420,7 +420,7 @@ impl<'a> Parser<'a> {
     pub fn find_nodes_enclosing(&self, token: &TokenSpan) -> Vec<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
-            .map
+            .spans
             .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1));
         if enclosing_spans.is_empty() {
             return Vec::new();

@@ -3,7 +3,7 @@ use dyst_language_fir::format::Format;
 use dyst_language_session::Session;
 use dyst_language_source::{Source, SourceId, Uri};
 
-use crate::{DystFormatContext, DystFormatOptions, NodeTree, ParseResult, Parser};
+use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, ParseResult, Parser};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -46,6 +46,8 @@ impl TestFormatter {
             source: &self.source,
             session: &self.session,
             tree: &self.tree,
+            spans: &self.tree.spans,
+            parents: NodeParentIndex::from_tree(&self.tree),
         };
         let formatted = format!(context, [n]).unwrap();
         let printed = formatted.print();

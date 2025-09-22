@@ -1232,3 +1232,242 @@ pub fn walk_comment<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Comment, id.id);
 }
+
+// ----------------------------------------------------------------------------
+// Traversal functions
+// ----------------------------------------------------------------------------
+
+pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeType, node_id: u32) {
+    let local_idx = tree.local_id_by_node[node_id as usize];
+    match node_type {
+        // --------------------------------------------------------------------
+        // Groupings
+        // --------------------------------------------------------------------
+        NodeType::Block => {
+            let block = tree.blocks.get(local_idx);
+            walk_block(visitor, tree, NodeId::new(node_id), block);
+        }
+        NodeType::Statement => {
+            let statement = tree.statements.get(local_idx);
+            walk_statement(visitor, tree, NodeId::new(node_id), statement);
+        }
+        NodeType::Expression => {
+            let expression = tree.expressions.get(local_idx);
+            walk_expression(visitor, tree, NodeId::new(node_id), expression);
+        }
+        // --------------------------------------------------------------------
+        // Declarations
+        // --------------------------------------------------------------------
+        NodeType::Module => {
+            let module = tree.modules.get(local_idx);
+            walk_module(visitor, tree, NodeId::new(node_id), module);
+        }
+        NodeType::Struct => {
+            let struct_node = tree.structs.get(local_idx);
+            walk_struct(visitor, tree, NodeId::new(node_id), struct_node);
+        }
+        NodeType::StructField => {
+            let struct_field = tree.struct_fields.get(local_idx);
+            walk_struct_field(visitor, tree, NodeId::new(node_id), struct_field);
+        }
+        NodeType::Enum => {
+            let enum_node = tree.enums.get(local_idx);
+            walk_enum(visitor, tree, NodeId::new(node_id), enum_node);
+        }
+        NodeType::EnumField => {
+            let enum_field = tree.enum_fields.get(local_idx);
+            walk_enum_field(visitor, tree, NodeId::new(node_id), enum_field);
+        }
+        NodeType::Union => {
+            let union_node = tree.unions.get(local_idx);
+            walk_union(visitor, tree, NodeId::new(node_id), union_node);
+        }
+        NodeType::UnionField => {
+            let union_field = tree.union_fields.get(local_idx);
+            walk_union_field(visitor, tree, NodeId::new(node_id), union_field);
+        }
+        NodeType::Trait => {
+            let trait_node = tree.traits.get(local_idx);
+            walk_trait(visitor, tree, NodeId::new(node_id), trait_node);
+        }
+        NodeType::Implement => {
+            let implement = tree.implements.get(local_idx);
+            walk_implement(visitor, tree, NodeId::new(node_id), implement);
+        }
+        NodeType::Type => {
+            let type_node = tree.types.get(local_idx);
+            walk_type(visitor, tree, NodeId::new(node_id), type_node);
+        }
+        NodeType::Tuple => {
+            let tuple = tree.tuples.get(local_idx);
+            walk_tuple(visitor, tree, NodeId::new(node_id), tuple);
+        }
+        NodeType::TupleField => {
+            let tuple_field = tree.tuple_fields.get(local_idx);
+            walk_tuple_field(visitor, tree, NodeId::new(node_id), tuple_field);
+        }
+        NodeType::Function => {
+            let function = tree.functions.get(local_idx);
+            walk_function(visitor, tree, NodeId::new(node_id), function);
+        }
+        // --------------------------------------------------------------------
+        // Context
+        // --------------------------------------------------------------------
+        NodeType::With => {
+            let with = tree.withs.get(local_idx);
+            walk_with(visitor, tree, NodeId::new(node_id), with);
+        }
+        NodeType::WithClause => {
+            let with_clause = tree.with_clauses.get(local_idx);
+            walk_with_clause(visitor, tree, NodeId::new(node_id), with_clause);
+        }
+        NodeType::Use => {
+            let use_node = tree.uses.get(local_idx);
+            walk_use(visitor, tree, NodeId::new(node_id), use_node);
+        }
+        NodeType::UseClause => {
+            let use_clause = tree.use_clauses.get(local_idx);
+            walk_use_clause(visitor, tree, NodeId::new(node_id), use_clause);
+        }
+        NodeType::UseItem => {
+            let use_item = tree.use_items.get(local_idx);
+            walk_use_item(visitor, tree, NodeId::new(node_id), use_item);
+        }
+        // --------------------------------------------------------------------
+        // Control
+        // --------------------------------------------------------------------
+        NodeType::If => {
+            let if_node = tree.ifs.get(local_idx);
+            walk_if(visitor, tree, NodeId::new(node_id), if_node);
+        }
+        NodeType::While => {
+            let while_node = tree.whiles.get(local_idx);
+            walk_while(visitor, tree, NodeId::new(node_id), while_node);
+        }
+        NodeType::For => {
+            let for_node = tree.fors.get(local_idx);
+            walk_for(visitor, tree, NodeId::new(node_id), for_node);
+        }
+        NodeType::Loop => {
+            let loop_node = tree.loops.get(local_idx);
+            walk_loop(visitor, tree, NodeId::new(node_id), loop_node);
+        }
+        NodeType::Break => {
+            let break_node = tree.breaks.get(local_idx);
+            walk_break(visitor, tree, NodeId::new(node_id), break_node);
+        }
+        NodeType::Continue => {
+            let continue_node = tree.continues.get(local_idx);
+            walk_continue(visitor, tree, NodeId::new(node_id), continue_node);
+        }
+        NodeType::Defer => {
+            let defer = tree.defers.get(local_idx);
+            walk_defer(visitor, tree, NodeId::new(node_id), defer);
+        }
+        NodeType::Return => {
+            let return_node = tree.returns.get(local_idx);
+            walk_return(visitor, tree, NodeId::new(node_id), return_node);
+        }
+        NodeType::Try => {
+            let try_node = tree.trys.get(local_idx);
+            walk_try(visitor, tree, NodeId::new(node_id), try_node);
+        }
+        // --------------------------------------------------------------------
+        // Bindings
+        // --------------------------------------------------------------------
+        NodeType::Let => {
+            let let_node = tree.lets.get(local_idx);
+            walk_let(visitor, tree, NodeId::new(node_id), let_node);
+        }
+        NodeType::Parameter => {
+            let parameter = tree.parameters.get(local_idx);
+            walk_parameter(visitor, tree, NodeId::new(node_id), parameter);
+        }
+        NodeType::Argument => {
+            let argument = tree.arguments.get(local_idx);
+            walk_argument(visitor, tree, NodeId::new(node_id), argument);
+        }
+        // Literals
+        NodeType::ScalarLiteral => {
+            let scalar_literal = tree.scalar_literals.get(local_idx);
+            walk_scalar_literal(visitor, tree, NodeId::new(node_id), scalar_literal);
+        }
+        NodeType::RangeLiteral => {
+            let range_literal = tree.range_literals.get(local_idx);
+            walk_range_literal(visitor, tree, NodeId::new(node_id), range_literal);
+        }
+        NodeType::TupleLiteral => {
+            let tuple_literal = tree.tuple_literals.get(local_idx);
+            walk_tuple_literal(visitor, tree, NodeId::new(node_id), tuple_literal);
+        }
+        NodeType::ArrayLiteral => {
+            let array_literal = tree.array_literals.get(local_idx);
+            walk_array_literal(visitor, tree, NodeId::new(node_id), array_literal);
+        }
+        NodeType::StructLiteral => {
+            let struct_literal = tree.struct_literals.get(local_idx);
+            walk_struct_literal(visitor, tree, NodeId::new(node_id), struct_literal);
+        }
+        NodeType::FieldLiteral => {
+            let field_literal = tree.field_literals.get(local_idx);
+            walk_field_literal(visitor, tree, NodeId::new(node_id), field_literal);
+        }
+        // --------------------------------------------------------------------
+        // Calls
+        // --------------------------------------------------------------------
+        NodeType::Index => {
+            let index = tree.indexes.get(local_idx);
+            walk_index(visitor, tree, NodeId::new(node_id), index);
+        }
+        NodeType::Call => {
+            let call = tree.calls.get(local_idx);
+            walk_call(visitor, tree, NodeId::new(node_id), call);
+        }
+        NodeType::Cast => {
+            let cast = tree.casts.get(local_idx);
+            walk_cast(visitor, tree, NodeId::new(node_id), cast);
+        }
+        NodeType::Coalesce => {
+            let coalesce = tree.coalesce.get(local_idx);
+            walk_coalesce(visitor, tree, NodeId::new(node_id), coalesce);
+        }
+        // --------------------------------------------------------------------
+        // Matching
+        // --------------------------------------------------------------------
+        NodeType::Match => {
+            let match_node = tree.matches.get(local_idx);
+            walk_match(visitor, tree, NodeId::new(node_id), match_node);
+        }
+        NodeType::Pattern => {
+            let pattern = tree.patterns.get(local_idx);
+            walk_pattern(visitor, tree, NodeId::new(node_id), pattern);
+        }
+        NodeType::PatternField => {
+            let pattern_field = tree.pattern_fields.get(local_idx);
+            walk_pattern_field(visitor, tree, NodeId::new(node_id), pattern_field);
+        }
+        NodeType::MatchCase => {
+            let match_case = tree.match_cases.get(local_idx);
+            walk_match_case(visitor, tree, NodeId::new(node_id), match_case);
+        }
+        // --------------------------------------------------------------------
+        // Annotations
+        // --------------------------------------------------------------------
+        NodeType::Annotation => {
+            let annotation = tree.annotations.get(local_idx);
+            walk_annotation(visitor, tree, NodeId::new(node_id), annotation);
+        }
+        NodeType::Blank => {
+            let blank = tree.blanks.get(local_idx);
+            walk_blank(visitor, tree, NodeId::new(node_id), blank);
+        }
+        NodeType::Doc => {
+            let doc = tree.docs.get(local_idx);
+            walk_doc(visitor, tree, NodeId::new(node_id), doc);
+        }
+        NodeType::Comment => {
+            let comment = tree.comments.get(local_idx);
+            walk_comment(visitor, tree, NodeId::new(node_id), comment);
+        }
+    }
+}
