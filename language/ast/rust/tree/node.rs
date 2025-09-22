@@ -1129,7 +1129,7 @@ impl Node for UseItem {
 /// Examples:
 /// ```
 /// // if
-/// if x > 0 {
+/// @if x > 0 {
 ///     print("positive")
 /// }
 ///
@@ -1153,17 +1153,20 @@ impl Node for UseItem {
 pub enum If {
     // `if` with then block.
     If {
+        runtime: Option<Runtime>,
         condition: NodeId<Expression>,
         then_block: NodeId<Block>,
     },
     // `if` with then block and else block.
     IfElse {
+        runtime: Option<Runtime>,
         condition: NodeId<Expression>,
         then_block: NodeId<Block>,
         else_block: NodeId<Block>,
     },
     // `if` with then block and else if block.
     IfElseIf {
+        runtime: Option<Runtime>,
         condition: NodeId<Expression>,
         then_block: NodeId<Block>,
         else_if: NodeId<If>,
@@ -1178,7 +1181,7 @@ impl Node for If {
 ///
 /// Examples:
 /// ```
-/// while x > 1 {
+/// @while x > 1 {
 ///     y = 2
 /// }
 ///
@@ -1189,7 +1192,11 @@ impl Node for If {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct While {
+    /// The runtime of the while loop.
+    pub runtime: Option<Runtime>,
+    /// The condition of the while loop.
     pub condition: NodeId<Expression>,
+    /// The body of the while loop.
     pub body: NodeId<Block>,
 }
 
@@ -1201,7 +1208,7 @@ impl Node for While {
 ///
 /// Examples:
 /// ```
-/// for x in 1..10 {
+/// @for x in 1..10 {
 ///     y = 2
 /// }
 ///
@@ -1214,6 +1221,8 @@ impl Node for While {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct For {
+    /// The runtime of the for loop.
+    pub runtime: Option<Runtime>,
     /// The pattern to match the iterator with (e.g., `x`).
     pub pattern: NodeId<Pattern>,
     /// The iterator to iterate over (e.g., `1..10`).
@@ -1239,6 +1248,8 @@ impl Node for For {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Loop {
+    /// The runtime of the loop.
+    pub runtime: Option<Runtime>,
     /// The body of the loop.
     pub body: NodeId<Block>,
 }
@@ -1901,7 +1912,7 @@ impl Node for Index {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     /// The runtime of the call (static or dynamic).
-    pub runtime: Runtime,
+    pub runtime: Option<Runtime>,
     /// The receiver of the call (including function name).
     pub receiver: NodeId<Expression>,
     /// The static arguments to the call `[Arg1, Arg2, ...]`.

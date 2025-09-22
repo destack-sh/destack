@@ -1,6 +1,6 @@
 use dyst_language_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, If, Keyword, NodeId};
+use crate::{DystFormatter, FormatNode, If, Keyword, NodeId, Runtime};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::write;
 
@@ -14,27 +14,45 @@ impl<'ast> FormatNode<'ast, If> for If {
     ) -> FormatResult<()> {
         match self {
             If::If {
+                runtime,
                 condition,
                 then_block,
             } => {
                 // if <condition> { <block> }
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
                 write!(f, [Keyword::If, space(), *condition, space(), *then_block])
             }
             If::IfElse {
+                runtime,
                 condition,
                 then_block,
                 else_block,
             } => {
                 // if <condition> { <block> } else { <block> }
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
                 write!(f, [Keyword::If, space(), *condition, space(), *then_block])?;
                 write!(f, [space(), Keyword::Else, space(), *else_block])
             }
             If::IfElseIf {
+                runtime,
                 condition,
                 then_block,
                 else_if,
             } => {
                 // if <condition> { <block> } else if { <block> }
+                if let Some(runtime) = runtime
+                    && *runtime == Runtime::Static
+                {
+                    write!(f, [token("@")])?;
+                }
                 write!(f, [Keyword::If, space(), *condition, space(), *then_block])?;
                 write!(f, [space(), Keyword::Else, space(), *else_if])
             }
@@ -52,7 +70,7 @@ mod tests {
         assert_format!(
             "if true {}",
             "if true { }",
-            |p| p.eat_if(),
+            |p| p.eat_if(None),
             DystFormatOptions::default()
         );
     }
@@ -62,7 +80,7 @@ mod tests {
         assert_format!(
             "if true {} else {}",
             "if true { } else { }",
-            |p| p.eat_if(),
+            |p| p.eat_if(None),
             DystFormatOptions::default()
         );
     }
@@ -72,7 +90,7 @@ mod tests {
         assert_format!(
             "if true {} else if false {}",
             "if true { } else if false { }",
-            |p| p.eat_if(),
+            |p| p.eat_if(None),
             DystFormatOptions::default()
         );
     }
@@ -82,7 +100,7 @@ mod tests {
         assert_format!(
             "if cond { let X = 1 } else { let Y = 2 }",
             "if cond {\n\tlet X = 1\n} else {\n\tlet Y = 2\n}",
-            |p| p.eat_if(),
+            |p| p.eat_if(None),
             DystFormatOptions::default_tab()
         );
     }
