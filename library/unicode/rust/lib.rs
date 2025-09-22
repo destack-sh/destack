@@ -12,11 +12,14 @@ mod table_gen;
 #[cfg(test)]
 mod tests;
 
+mod width;
+
 pub mod xid;
 
 pub use emoji::{EmojiStatus, UnicodeEmoji};
 pub use general_category::{GeneralCategory, GeneralCategoryGroup, UnicodeGeneralCategory};
 pub use table_gen::UNICODE_VERSION;
+pub use width::UnicodeWidthChar;
 
 /// Query the emoji character properties of a character.
 pub mod emoji {
