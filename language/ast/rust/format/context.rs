@@ -170,6 +170,57 @@ impl<'ast> DystFormatContext<'ast> {
         }
     }
 
+    /// Get all ancestors of a node.
+    #[inline]
+    pub fn get_ancestors<T>(&self, node_id: NodeId<T>) -> Vec<(u32, NodeType)>
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.parents
+            .get_ancestors(node_id)
+            .into_iter()
+            .map(|parent_id| {
+                let parent_type = self.tree.get_type(parent_id);
+                (parent_id, parent_type)
+            })
+            .collect()
+    }
+
+    /// Get the container type of a node (block, statement, or expression).
+    /// Excludes the node_id itself.
+    #[inline]
+    pub fn get_container_type<T>(&self, node_id: NodeId<T>) -> Option<NodeType>
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        let mut current_id = self.parents.get_by_id(node_id.id)?;
+        while let Some(parent_id) = self.parents.get_by_id(current_id) {
+            let parent_type = self.tree.get_type(parent_id);
+            if parent_type == NodeType::Block
+                || parent_type == NodeType::Statement
+                || parent_type == NodeType::Expression
+            {
+                // expression direct parent may be statement wrapping it
+                //  (in which case it's really a statement, not an expression)
+                if parent_type == NodeType::Expression {
+                    let parent_parent_id = self.parents.get_by_id(parent_id);
+                    if let Some(parent_parent_id) = parent_parent_id {
+                        let parent_parent_type = self.tree.get_type(parent_parent_id);
+                        if parent_parent_type == NodeType::Statement {
+                            return Some(NodeType::Statement);
+                        }
+                    }
+                }
+
+                return Some(parent_type);
+            }
+            current_id = parent_id;
+        }
+        None
+    }
+
     /// Get a Span from the tree.
     #[inline]
     pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span

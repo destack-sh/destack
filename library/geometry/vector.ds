@@ -5,6 +5,8 @@ struct Vector2 {
     x: float32
     y: float32
 
+
+
     /// Construct a Vector2 from x and y components.
     function new(x: float32, y: float32) => Vector2 {
         Vector2 { x, y }
@@ -33,14 +35,13 @@ implement Vector2 {
 
     /// Returns the length of the Vector.
     function length(self) => float32 {
-        (self.x * self.x + self.y * self.y).sqrt()
+        self.x * self.x + self.y * self.y.sqrt()
     }
 
     /// Returns the squared length of the Vector.
     function lengthSquared(self) => float32 {
         self.x * self.x + self.y * self.y
     }
- 
     /// Returns the dot product of the two Vectors.
     function dot(self, other: Vector2) => float32 {
         self.x * other.x + self.y * other.y
@@ -54,24 +55,27 @@ implement Vector2 {
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
     function normalized(self) => Vector2 {
         let len = self.length()
-        if len == 0.0 { self } else { self / len }
+        if len == 0.0 {
+            self
+        } else {
+            self / len
+        }
     }
 
     /// Compute Euclidean distance to another Vector2.
     function distance(self, other: Vector2) => float32 {
-        (self - other).length()
+        self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector2.
     function distanceSquared(self, other: Vector2) => float32 {
-        (self - other).lengthSquared()
+        self - other.lengthSquared()
     }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
     function lerp(self, other: Vector2, t: float32) => Vector2 {
-        self + (other - self) * t
+        self + other - self * t
     }
-
     /// Component-wise absolute value.
     function abs(self) => Vector2 {
         Vector2 { x: self.x.abs(), y: self.y.abs() }
@@ -80,28 +84,31 @@ implement Vector2 {
     /// Component-wise minimum.
     function min(self, other: Vector2) => Vector2 {
         Vector2 {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
+            x: if self.x < other.x { self.x } else { other.x }
+            y: if self.y < other.y { self.y } else { other.y }
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector2) => Vector2 {
         Vector2 {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
+            x: if self.x > other.x { self.x } else { other.x }
+            y: if self.y > other.y { self.y } else { other.y }
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector2, max: Vector2) => Vector2 {
         let clampScalar = function (v: float32, lo: float32, hi: float32) => float32 {
-            if v < lo { lo } else { if v > hi { hi } else { v } }
+            if v < lo {
+                lo
+            } else if v > hi {
+                hi
+            } else {
+                v
+            }
         }
-        Vector2 {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y), 
-        } 
+        Vector2 { x: clampScalar(self.x, min.x, max.x), y: clampScalar(self.y, min.y, max.y) }
     }
 
     /// Create a copy with a different x component.
@@ -193,7 +200,7 @@ implement Vector3 {
 
     /// Returns the length of the Vector.
     function length(self) => float32 {
-        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+        self.x * self.x + self.y * self.y + self.z * self.z.sqrt()
     }
 
     /// Returns the squared length of the Vector.
@@ -209,31 +216,35 @@ implement Vector3 {
     /// Returns the cross product of the two Vectors.
     function cross(self, other: Vector3) => Vector3 {
         Vector3 {
-            x: self.y * other.z - self.z * other.y,
-            y: self.z * other.x - self.x * other.z,
-            z: self.x * other.y - self.y * other.x,
+            x: self.y * other.z - self.z * other.y
+            y: self.z * other.x - self.x * other.z
+            z: self.x * other.y - self.y * other.x
         }
     }
 
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
     function normalized(self) => Vector3 {
         let len = self.length()
-        if len == 0.0 { self } else { self / len }
+        if len == 0.0 {
+            self
+        } else {
+            self / len
+        }
     }
 
     /// Compute Euclidean distance to another Vector3.
     function distance(self, other: Vector3) => float32 {
-        (self - other).length()
+        self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector3.
     function distanceSquared(self, other: Vector3) => float32 {
-        (self - other).lengthSquared()
+        self - other.lengthSquared()
     }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
     function lerp(self, other: Vector3, t: float32) => Vector3 {
-        self + (other - self) * t
+        self + other - self * t
     }
 
     /// Component-wise absolute value.
@@ -244,32 +255,36 @@ implement Vector3 {
     /// Component-wise minimum.
     function min(self, other: Vector3) => Vector3 {
         Vector3 {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
+            x: if self.x < other.x { self.x } else { other.x }
+            y: if self.y < other.y { self.y } else { other.y }
+            z: if self.z < other.z { self.z } else { other.z }
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector3) => Vector3 {
         Vector3 {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
+            x: if self.x > other.x { self.x } else { other.x }
+            y: if self.y > other.y { self.y } else { other.y }
+            z: if self.z > other.z { self.z } else { other.z }
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector3, max: Vector3) => Vector3 {
         let clampScalar = function (v: float32, lo: float32, hi: float32) => float32 {
-            if v < lo { lo } 
-            else if v > hi { hi }
-            else { v }
+            if v < lo {
+                lo
+            } else if v > hi {
+                hi
+            } else {
+                v
+            }
         }
         Vector3 {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
+            x: clampScalar(self.x, min.x, max.x)
+            y: clampScalar(self.y, min.y, max.y)
+            z: clampScalar(self.z, min.z, max.z)
         }
     }
 
@@ -373,7 +388,7 @@ implement Vector4 {
 
     /// Returns the length of the Vector.
     function length(self) => float32 {
-        (self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w).sqrt()
+        self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w.sqrt()
     }
 
     /// Returns the squared length of the Vector.
@@ -389,22 +404,26 @@ implement Vector4 {
     /// Compute a normalized Vector with length 1.0. Returns self if length is 0.
     function normalized(self) => Vector4 {
         let len = self.length()
-        if len == 0.0 { self } else { self / len }
+        if len == 0.0 {
+            self
+        } else {
+            self / len
+        }
     }
 
     /// Compute Euclidean distance to another Vector4.
     function distance(self, other: Vector4) => float32 {
-        (self - other).length()
+        self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector4.
     function distanceSquared(self, other: Vector4) => float32 {
-        (self - other).lengthSquared()
+        self - other.lengthSquared()
     }
 
     /// Linearly interpolate towards `other` by factor `t` in [0, 1].
     function lerp(self, other: Vector4, t: float32) => Vector4 {
-        self + (other - self) * t
+        self + other - self * t
     }
 
     /// Component-wise absolute value.
@@ -415,35 +434,39 @@ implement Vector4 {
     /// Component-wise minimum.
     function min(self, other: Vector4) => Vector4 {
         Vector4 {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
-            w: if self.w < other.w { self.w } else { other.w },
+            x: if self.x < other.x { self.x } else { other.x }
+            y: if self.y < other.y { self.y } else { other.y }
+            z: if self.z < other.z { self.z } else { other.z }
+            w: if self.w < other.w { self.w } else { other.w }
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector4) => Vector4 {
         Vector4 {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
-            w: if self.w > other.w { self.w } else { other.w },
+            x: if self.x > other.x { self.x } else { other.x }
+            y: if self.y > other.y { self.y } else { other.y }
+            z: if self.z > other.z { self.z } else { other.z }
+            w: if self.w > other.w { self.w } else { other.w }
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector4, max: Vector4) => Vector4 {
         let clampScalar = function (v: float32, lo: float32, hi: float32) => float32 {
-            if v < lo { lo } 
-            else if v > hi { hi }
-            else { v }
+            if v < lo {
+                lo
+            } else if v > hi {
+                hi
+            } else {
+                v
+            }
         }
         Vector4 {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
-            w: clampScalar(self.w, min.w, max.w),
+            x: clampScalar(self.x, min.x, max.x)
+            y: clampScalar(self.y, min.y, max.y)
+            z: clampScalar(self.z, min.z, max.z)
+            w: clampScalar(self.w, min.w, max.w)
         }
     }
 
@@ -476,7 +499,12 @@ implement Add<float32> for Vector4 {
 
 implement Add<Vector4> for Vector4 {
     function add(self, other: Vector4) => Vector4 {
-        Vector4 { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z, w: self.w + other.w }
+        Vector4 {
+            x: self.x + other.x
+            y: self.y + other.y
+            z: self.z + other.z
+            w: self.w + other.w
+        }
     }
 }
 
@@ -488,7 +516,12 @@ implement Subtract<float32> for Vector4 {
 
 implement Subtract<Vector4> for Vector4 {
     function subtract(self, other: Vector4) => Vector4 {
-        Vector4 { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z, w: self.w - other.w }
+        Vector4 {
+            x: self.x - other.x
+            y: self.y - other.y
+            z: self.z - other.z
+            w: self.w - other.w
+        }
     }
 }
 
@@ -500,7 +533,12 @@ implement Multiply<float32> for Vector4 {
 
 implement Multiply<Vector4> for Vector4 {
     function multiply(self, other: Vector4) => Vector4 {
-        Vector4 { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z, w: self.w * other.w }
+        Vector4 {
+            x: self.x * other.x
+            y: self.y * other.y
+            z: self.z * other.z
+            w: self.w * other.w
+        }
     }
 }
 
@@ -512,8 +550,8 @@ implement Divide<float32> for Vector4 {
 
 /// A 2-dimensional vector with int32 components.
 struct Vector2i {
-    x: int32,
-    y: int32,
+    x: int32
+    y: int32
 }
 
 implement Vector2i {
@@ -544,7 +582,7 @@ implement Vector2i {
     function length(self) => float32 {
         let fx = self.x as float32
         let fy = self.y as float32
-        (fx * fx + fy * fy).sqrt()
+        fx * fx + fy * fy.sqrt()
     }
 
     /// Returns the squared length of the Vector as int32.
@@ -559,12 +597,12 @@ implement Vector2i {
 
     /// Compute Euclidean distance to another Vector2i as float32.
     function distance(self, other: Vector2i) => float32 {
-        (self - other).length()
+        self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector2i as int32.
     function distanceSquared(self, other: Vector2i) => int32 {
-        (self - other).lengthSquared()
+        self - other.lengthSquared()
     }
 
     /// Component-wise absolute value.
@@ -575,30 +613,31 @@ implement Vector2i {
     /// Component-wise minimum.
     function min(self, other: Vector2i) => Vector2i {
         Vector2i {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
+            x: if self.x < other.x { self.x } else { other.x }
+            y: if self.y < other.y { self.y } else { other.y }
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector2i) => Vector2i {
         Vector2i {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
+            x: if self.x > other.x { self.x } else { other.x }
+            y: if self.y > other.y { self.y } else { other.y }
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector2i, max: Vector2i) => Vector2i {
         let clampScalar = function (v: int32, lo: int32, hi: int32) => int32 {
-            if v < lo { lo } 
-            else if v > hi { hi }
-            else { v }
+            if v < lo {
+                lo
+            } else if v > hi {
+                hi
+            } else {
+                v
+            }
         }
-        Vector2i {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-        }
+        Vector2i { x: clampScalar(self.x, min.x, max.x), y: clampScalar(self.y, min.y, max.y) }
     }
 
     /// Create a copy with a different x component.
@@ -694,7 +733,7 @@ implement Vector3i {
         let fx = self.x as float32
         let fy = self.y as float32
         let fz = self.z as float32
-        (fx * fx + fy * fy + fz * fz).sqrt()
+        fx * fx + fy * fy + fz * fz.sqrt()
     }
 
     /// Returns the squared length of the Vector as int32.
@@ -709,12 +748,12 @@ implement Vector3i {
 
     /// Compute Euclidean distance to another Vector3i as float32.
     function distance(self, other: Vector3i) => float32 {
-        (self - other).length()
+        self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector3i as int32.
     function distanceSquared(self, other: Vector3i) => int32 {
-        (self - other).lengthSquared()
+        self - other.lengthSquared()
     }
 
     /// Component-wise absolute value.
@@ -725,32 +764,36 @@ implement Vector3i {
     /// Component-wise minimum.
     function min(self, other: Vector3i) => Vector3i {
         Vector3i {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
+            x: if self.x < other.x { self.x } else { other.x }
+            y: if self.y < other.y { self.y } else { other.y }
+            z: if self.z < other.z { self.z } else { other.z }
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector3i) => Vector3i {
         Vector3i {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
+            x: if self.x > other.x { self.x } else { other.x }
+            y: if self.y > other.y { self.y } else { other.y }
+            z: if self.z > other.z { self.z } else { other.z }
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector3i, max: Vector3i) => Vector3i {
         let clampScalar = function (v: int32, lo: int32, hi: int32) => int32 {
-            if v < lo { lo } 
-            else if v > hi { hi }
-            else { v }
+            if v < lo {
+                lo
+            } else if v > hi {
+                hi
+            } else {
+                v
+            }
         }
         Vector3i {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
+            x: clampScalar(self.x, min.x, max.x)
+            y: clampScalar(self.y, min.y, max.y)
+            z: clampScalar(self.z, min.z, max.z)
         }
     }
 
@@ -823,6 +866,8 @@ struct Vector4i {
     /// The w component of the Vector.
     w: int32
 
+
+
     /// The zero Vector4i (0, 0, 0, 0).
     let Zero: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 0 }
     /// The one Vector4i (1, 1, 1, 1).
@@ -862,7 +907,7 @@ implement Vector4i {
         let fy = self.y as float32
         let fz = self.z as float32
         let fw = self.w as float32
-        (fx * fx + fy * fy + fz * fz + fw * fw).sqrt()
+        fx * fx + fy * fy + fz * fz + fw * fw.sqrt()
     }
 
     /// Returns the squared length of the Vector as int32.
@@ -877,12 +922,12 @@ implement Vector4i {
 
     /// Compute Euclidean distance to another Vector4i as float32.
     function distance(self, other: Vector4i) => float32 {
-        (self - other).length()
+        self - other.length()
     }
 
     /// Compute squared Euclidean distance to another Vector4i as int32.
     function distanceSquared(self, other: Vector4i) => int32 {
-        (self - other).lengthSquared()
+        self - other.lengthSquared()
     }
 
     /// Component-wise absolute value.
@@ -893,35 +938,39 @@ implement Vector4i {
     /// Component-wise minimum.
     function min(self, other: Vector4i) => Vector4i {
         Vector4i {
-            x: if self.x < other.x { self.x } else { other.x },
-            y: if self.y < other.y { self.y } else { other.y },
-            z: if self.z < other.z { self.z } else { other.z },
-            w: if self.w < other.w { self.w } else { other.w },
+            x: if self.x < other.x { self.x } else { other.x }
+            y: if self.y < other.y { self.y } else { other.y }
+            z: if self.z < other.z { self.z } else { other.z }
+            w: if self.w < other.w { self.w } else { other.w }
         }
     }
 
     /// Component-wise maximum.
     function max(self, other: Vector4i) => Vector4i {
         Vector4i {
-            x: if self.x > other.x { self.x } else { other.x },
-            y: if self.y > other.y { self.y } else { other.y },
-            z: if self.z > other.z { self.z } else { other.z },
-            w: if self.w > other.w { self.w } else { other.w },
+            x: if self.x > other.x { self.x } else { other.x }
+            y: if self.y > other.y { self.y } else { other.y }
+            z: if self.z > other.z { self.z } else { other.z }
+            w: if self.w > other.w { self.w } else { other.w }
         }
     }
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector4i, max: Vector4i) => Vector4i {
         let clampScalar = function (v: int32, lo: int32, hi: int32) => int32 {
-            if v < lo { lo } 
-            else if v > hi { hi }
-            else { v }
+            if v < lo {
+                lo
+            } else if v > hi {
+                hi
+            } else {
+                v
+            }
         }
         Vector4i {
-            x: clampScalar(self.x, min.x, max.x),
-            y: clampScalar(self.y, min.y, max.y),
-            z: clampScalar(self.z, min.z, max.z),
-            w: clampScalar(self.w, min.w, max.w),
+            x: clampScalar(self.x, min.x, max.x)
+            y: clampScalar(self.y, min.y, max.y)
+            z: clampScalar(self.z, min.z, max.z)
+            w: clampScalar(self.w, min.w, max.w)
         }
     }
 
@@ -954,7 +1003,12 @@ implement Add<int32> for Vector4i {
 
 implement Add<Vector4i> for Vector4i {
     function add(self, other: Vector4i) => Vector4i {
-        Vector4i { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z, w: self.w + other.w }
+        Vector4i {
+            x: self.x + other.x
+            y: self.y + other.y
+            z: self.z + other.z
+            w: self.w + other.w
+        }
     }
 }
 
@@ -966,7 +1020,12 @@ implement Subtract<int32> for Vector4i {
 
 implement Subtract<Vector4i> for Vector4i {
     function subtract(self, other: Vector4i) => Vector4i {
-        Vector4i { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z, w: self.w - other.w }
+        Vector4i {
+            x: self.x - other.x
+            y: self.y - other.y
+            z: self.z - other.z
+            w: self.w - other.w
+        }
     }
 }
 
@@ -978,7 +1037,12 @@ implement Multiply<int32> for Vector4i {
 
 implement Multiply<Vector4i> for Vector4i {
     function multiply(self, other: Vector4i) => Vector4i {
-        Vector4i { x: self.x * other.x, y: self.y * other.y, z: self.z * other.z, w: self.w * other.w }
+        Vector4i {
+            x: self.x * other.x
+            y: self.y * other.y
+            z: self.z * other.z
+            w: self.w * other.w
+        }
     }
 }
 

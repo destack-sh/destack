@@ -1,24 +1,15 @@
 use dyst_language_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, If, Keyword, NodeId, NodeType, Runtime};
+use crate::{DystFormatter, FormatNode, If, Keyword, NodeId, Runtime};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::write;
-
-// nocheckin todo!: multiline ifs (try to fit if it's an expr, for statements always break)
-//  (todo!: also multiline lets, assignments, binary operations, ..?)
 
 impl<'ast> FormatNode<'ast, If> for If {
     fn format_node(
         &self,
-        node_id: NodeId<If>,
+        _node_id: NodeId<If>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let parent = f.context().get_parent(node_id);
-        let parent_is_expression = if let Some((_, parent_type)) = parent {
-            parent_type == NodeType::Expression
-        } else {
-            false
-        };
         match self {
             If::If {
                 runtime,

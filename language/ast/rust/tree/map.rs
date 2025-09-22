@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use dyst_language_source::Span;
 
-use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, walk_any};
+use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, NodeTreeStore, walk_any};
 
 /// The NodeSpanIndex is a side index of Spans into a NodeTree.
 #[derive(Debug, Clone)]
@@ -113,7 +113,37 @@ impl NodeParentIndex {
     pub fn get<T>(&self, node_id: NodeId<T>) -> Option<u32>
     where
         T: Node,
+        NodeTree: NodeTreeStore<T>,
     {
         self.parents_per_node[node_id.id as usize]
+    }
+
+    /// Get the parent for a node by its id.
+    #[inline]
+    pub fn get_by_id(&self, node_id: u32) -> Option<u32> {
+        self.parents_per_node[node_id as usize]
+    }
+
+    /// Walk all parents to the root.
+    #[inline]
+    pub fn walk_parents_by_id(&self, node_id: u32) -> Vec<u32>
+    {
+        let mut parents: Vec<u32> = Vec::new();
+        let mut current_id = node_id;
+        while let Some(parent_id) = self.get_by_id(current_id) {
+            parents.push(parent_id);
+            current_id = parent_id;
+        }
+        parents
+    }
+
+    /// Walk all parents to the root.
+    #[inline]
+    pub fn get_ancestors<T>(&self, node_id: NodeId<T>) -> Vec<u32>
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.walk_parents_by_id(node_id.id)
     }
 }
