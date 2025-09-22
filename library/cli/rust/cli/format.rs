@@ -1,5 +1,9 @@
 //! Format subcommand for Dyst source code.
 
+use std::path::{Path, PathBuf};
+use std::{env, fs};
+
+use destack_library_file::walk::{WalkOptions, walk};
 use dyst_language_ast::{
     BlockFormat, DystFormatContext, DystFormatOptions, Module, ModuleFormat, NodeParentIndex,
     Parser,
@@ -8,33 +12,72 @@ use dyst_language_diagnostic::Severity;
 use dyst_language_fir::format::{IndentStyle, LineEnding, format as format_document};
 use dyst_language_fir::format_args;
 use dyst_language_session::Session;
-use dyst_language_source::{AnnotateOptions, Color, annotate_source};
+use dyst_language_source::{AnnotateOptions, Color, Source, SourceId, Uri, annotate_source};
 use dyst_language_token::TokenType;
 
-use crate::cli::source::{read_source, render_semantic_spans, semantic_spans_from_text};
+use crate::cli::source::{render_semantic_spans, semantic_spans_from_text};
 use crate::console::console;
 use crate::console::parse::CommandArguments;
 
 pub const HELP: &str = r"Format Dyst source code.
-	--file <path>        Read input from file
-	--string <string>    Read input from provided string
 	--line-width <n>     Set maximum line width (default 100)
 	--indent-style <s>   Choose indent style: space or tab
 	--indent-width <n>   Set spaces per indent (default 4)
-	--line-ending <e>    Choose line ending: lf, crlf, cr";
+	--line-ending <e>    Choose line ending: lf, crlf, cr
+	--dry-run            Preview formatting without writing files
+	<path>               Format the provided file (omit to format all .ds files)";
 
-/// Format input source and print the formatted output.
+const DEFAULT_IGNORE_PATHS: &[&str] = &[
+    ".git",
+    "target",
+    "node_modules",
+    ".venv",
+    "venv",
+    "env",
+    "ENV",
+    "env.bak",
+    "venv.bak",
+    "dist",
+    "build",
+    ".idea",
+    ".vscode",
+    ".vscode-test",
+    "out",
+    ".next",
+    ".nuxt",
+    "coverage",
+    "htmlcov",
+    ".cache",
+    ".parcel-cache",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+    ".nox",
+    ".hypothesis",
+    ".yarn",
+    ".temp",
+    "hfuzz_target",
+    "fuzz",
+];
+/// Outcome of formatting a source file.
+#[derive(Debug)]
+struct FormatOutcome {
+    formatted_text: String,
+    session: Session,
+}
+
+/// Result of processing a single file.
+#[derive(Debug)]
+struct FileProcessOutcome {
+    changed: bool,
+    had_errors: bool,
+}
+
+/// Run the format command using parsed CLI arguments.
 pub fn run(ctx: CommandArguments) -> i32 {
-    // read and validate input source
-    let source = match read_source(&ctx) {
-        Ok(source) => source,
-        Err(error) => {
-            console::error(&format!("Read input error: {error}"));
-            return 1;
-        }
-    };
+    let dry_run = ctx.flag("dry-run");
 
-    // parse command line options
+    // parse formatting options
     let options = match parse_options(&ctx) {
         Ok(options) => options,
         Err(error) => {
@@ -43,9 +86,186 @@ pub fn run(ctx: CommandArguments) -> i32 {
         }
     };
 
-    // parse source into AST
+    // handle inline string formatting first
+    if let Some(body) = ctx.option("string") {
+        return run_with_inline_string(body, &options);
+    }
+
+    // collect explicit file arguments from --file and positionals
+    let mut file_arguments: Vec<PathBuf> = Vec::new();
+    if let Some(file_flag) = ctx.option("file") {
+        file_arguments.push(PathBuf::from(file_flag));
+    }
+    if !ctx.positionals.is_empty() {
+        file_arguments.extend(ctx.positionals.iter().map(PathBuf::from));
+    }
+
+    // route to appropriate handler based on file arguments
+    if !file_arguments.is_empty() {
+        return run_for_files(&file_arguments, &options, dry_run);
+    }
+
+    run_for_all(&options, dry_run)
+}
+
+/// Format all .ds files in the current directory tree.
+fn run_for_all(options: &DystFormatOptions, dry_run: bool) -> i32 {
+    // get current working directory
+    let root = match env::current_dir() {
+        Ok(dir) => dir,
+        Err(error) => {
+            console::error(&format!("failed to read current directory: {error}"));
+            return 1;
+        }
+    };
+    let files = collect_ds_files(&root);
+
+    // process each file and track overall success
+    let mut exit_code = 0;
+    for path in &files {
+        if dry_run {
+            console::write_line(&canonical_display(path));
+        }
+
+        match process_file(path, options, dry_run, false) {
+            Ok(FileProcessOutcome {
+                changed,
+                had_errors,
+            }) => {
+                if !dry_run && changed {
+                    console::write_line(&canonical_display(path));
+                }
+                if had_errors {
+                    exit_code = 1;
+                }
+            }
+            Err(message) => {
+                console::error(&message);
+                exit_code = 1;
+            }
+        }
+    }
+
+    exit_code
+}
+
+/// Format the provided list of files.
+fn run_for_files(paths: &[PathBuf], options: &DystFormatOptions, dry_run: bool) -> i32 {
+    let mut exit_code = 0;
+    
+    // process each file and track overall success
+    for path in paths {
+        match process_file(path, options, dry_run, true) {
+            Ok(FileProcessOutcome { had_errors, .. }) => {
+                if had_errors {
+                    exit_code = 1;
+                }
+            }
+            Err(message) => {
+                console::error(&message);
+                exit_code = 1;
+            }
+        }
+    }
+    exit_code
+}
+
+/// Format inline source provided via --string.
+fn run_with_inline_string(body: &str, options: &DystFormatOptions) -> i32 {
+    // create source from string input
+    let source = Source::from_string(
+        SourceId::new(0),
+        Uri::from_string("<string>"),
+        body.to_string(),
+    );
+
+    // format and output result
+    match format_source(&source, options) {
+        Ok(FormatOutcome {
+            formatted_text,
+            session,
+        }) => {
+            print_formatted_output("<formatted>", &formatted_text);
+            print_diagnostics(&source, &session);
+            if has_errors(&session) { 1 } else { 0 }
+        }
+        Err(message) => {
+            console::error(&message);
+            1
+        }
+    }
+}
+
+/// Collect all .ds files under the given root using the shared glob walker.
+fn collect_ds_files(root: &Path) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = Vec::new();
+    
+    // configure walker to find .ds files while ignoring common directories
+    let walk_options = WalkOptions {
+        root: root.to_path_buf(),
+        ignore: Some(DEFAULT_IGNORE_PATHS.iter().map(|s| s.to_string()).collect()),
+        glob: Some(vec!["**/*.ds".to_string()]),
+    };
+    
+    // collect all matching files
+    walk(&walk_options, |path| files.push(path.to_path_buf()));
+    files.sort();
+    files
+}
+
+/// Format a single file, optionally writing it back to disk.
+fn process_file(
+    path: &Path,
+    options: &DystFormatOptions,
+    dry_run: bool,
+    emit_output: bool,
+) -> Result<FileProcessOutcome, String> {
+    let path_buf = path.to_path_buf();
+    
+    // read original file content
+    let original_text = fs::read_to_string(&path_buf)
+        .map_err(|error| format!("failed to read {}: {error}", path_buf.display()))?;
+
+    // create source and format it
+    let source = Source::from_string(
+        SourceId::new(0),
+        Uri::from(&path_buf),
+        original_text.clone(),
+    );
+    let FormatOutcome {
+        formatted_text,
+        session,
+    } = format_source(&source, options)
+        .map_err(|error| format!("{error} ({})", path_buf.display()))?;
+
+    // output formatted result if requested
+    if emit_output {
+        print_formatted_output(&canonical_display(&path_buf), &formatted_text);
+    }
+    print_diagnostics(&source, &session);
+
+    // check if formatting changed the file or had errors
+    let had_errors = has_errors(&session);
+    let changed = formatted_text != original_text;
+
+    // write back to disk if not dry run and content changed
+    if !dry_run && changed {
+        fs::write(&path_buf, formatted_text)
+            .map_err(|error| format!("failed to write {}: {error}", path_buf.display()))?;
+    }
+
+    Ok(FileProcessOutcome {
+        changed,
+        had_errors,
+    })
+}
+
+/// Format the provided source into a string along with diagnostics.
+fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatOutcome, String> {
     let mut session = Session::new();
-    let mut parser = Parser::from_source(&source, &mut session);
+    
+    // parse the source into an AST
+    let mut parser = Parser::from_source(source, &mut session);
     let start = parser.mark();
     let statements = parser.with_recovery(
         parser.mark(),
@@ -64,48 +284,47 @@ pub fn run(ctx: CommandArguments) -> i32 {
     );
     parser.finalize();
 
-    // format the AST node
+    // create format context and format the AST
     let tree = parser.tree;
     let context = DystFormatContext {
-        options,
-        source: &source,
+        options: options.clone(),
+        source,
         session: &session,
         tree: &tree,
         spans: &tree.spans,
         parents: NodeParentIndex::from_tree(&tree),
     };
-    let formatted = match format_document(context, format_args![module]) {
-        Ok(formatted) => formatted,
-        Err(error) => {
-            console::error(&format!("format error: {error}"));
-            return 1;
-        }
-    };
 
-    // print formatted document
-    let printed = match formatted.print() {
-        Ok(printed) => printed,
-        Err(error) => {
-            console::error(&format!("print error: {error}"));
-            return 1;
-        }
-    };
+    // format and print the document
+    let formatted = format_document(context, format_args![module])
+        .map_err(|error| format!("format error: {error}"))?;
+    let printed = formatted
+        .print()
+        .map_err(|error| format!("print error: {error}"))?;
 
-    // apply syntax highlighting and output
-    let formatted_text = printed.into_str();
-    let colored_output = match semantic_spans_from_text("<formatted>", &formatted_text) {
+    Ok(FormatOutcome {
+        formatted_text: printed.into_str(),
+        session,
+    })
+}
+
+/// Print formatted output with syntax highlighting if available.
+fn print_formatted_output(label: &str, formatted_text: &str) {
+    let colored_output = match semantic_spans_from_text(label, formatted_text) {
         Ok(spans) => render_semantic_spans(&spans),
         Err(error) => {
             console::warn(&format!("semantic highlighting error: {error}"));
-            formatted_text.clone()
+            formatted_text.to_string()
         }
     };
     console::write_line(&colored_output);
+}
 
-    // display any diagnostics
+/// Print diagnostics collected during formatting.
+fn print_diagnostics(source: &Source, session: &Session) {
     for diagnostic in &session.diagnostics {
         let annotated = annotate_source(
-            &source,
+            source,
             &diagnostic.primary_span,
             AnnotateOptions {
                 max_line_width: 100,
@@ -118,16 +337,22 @@ pub fn run(ctx: CommandArguments) -> i32 {
         console::error(&header);
         console::info(&annotated);
     }
+}
 
-    // return error code if any errors occurred
-    let has_errors = session
+/// Test whether any diagnostics are errors.
+fn has_errors(session: &Session) -> bool {
+    session
         .diagnostics
         .iter()
-        .any(|diagnostic| diagnostic.severity == Severity::Error);
-    if has_errors {
-        return 1;
+        .any(|diagnostic| diagnostic.severity == Severity::Error)
+}
+
+/// Compute a display string for a path.
+fn canonical_display(path: &Path) -> String {
+    match fs::canonicalize(path) {
+        Ok(full) => full.to_string_lossy().to_string(),
+        Err(_) => path.to_string_lossy().to_string(),
     }
-    0
 }
 
 /// Parse command line options into DystFormatOptions.
