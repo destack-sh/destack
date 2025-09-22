@@ -2,6 +2,8 @@ use std::iter::FusedIterator;
 use std::num::NonZeroU32;
 use std::ops::Deref;
 
+use destack_library_unicode::UnicodeWidthChar;
+
 use super::label::LabelId;
 use super::node::FormatNode;
 use super::tag::{FormatTag, FormatTagKind};
@@ -215,9 +217,9 @@ pub(crate) trait CharWidth {
 }
 
 impl CharWidth for char {
+    #[inline]
     fn width(self) -> u8 {
-        // todo! @Broken: this is incorrect for unicode width calculation
-        self.len_utf8() as u8
+        self.terminal_display_width()
     }
 }
 

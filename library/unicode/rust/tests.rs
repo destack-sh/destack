@@ -1,3 +1,4 @@
+use crate::UnicodeWidthChar;
 use crate::xid::UnicodeXID;
 
 #[test]
@@ -49,6 +50,16 @@ fn test_general_category_properties() {
     assert_eq!('🦀'.general_category(), GeneralCategory::OtherSymbol);
     assert_eq!('🦀'.general_category_group(), GeneralCategoryGroup::Symbol);
     assert!(!('🦀'.is_letter_cased()));
+}
+
+#[test]
+fn test_display_width_estimates() {
+    assert_eq!('a'.terminal_display_width(), 1);
+    assert_eq!('é'.terminal_display_width(), 1);
+    assert_eq!('🦀'.terminal_display_width(), 2);
+    assert_eq!('界'.terminal_display_width(), 2);
+    assert_eq!('\u{0301}'.terminal_display_width(), 0);
+    assert_eq!('\u{200D}'.terminal_display_width(), 0);
 }
 
 /// Generates all valid Unicode scalar values (excluding surrogates).
