@@ -10,13 +10,13 @@ impl<'ast> FormatNode<'ast, Call> for Call {
         _node_id: NodeId<Call>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        if self.runtime == Runtime::Static {
+        if self.runtime == Some(Runtime::Static) {
             write!(f, [token("@")])?;
         }
         write!(f, [self.receiver])?;
         // todo!: static arguments
         // omit () for static calls without arguments
-        if self.runtime == Runtime::Static && self.dynamic_arguments.is_empty() {
+        if self.runtime == Some(Runtime::Static) && self.dynamic_arguments.is_empty() {
             return Ok(()); // 
         }
         // dynamic arguments

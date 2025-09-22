@@ -1,5 +1,5 @@
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{If, Keyword, NodeId, ParseResult, Parser};
+use crate::{If, Keyword, NodeId, ParseResult, Parser, Runtime};
 
 impl<'a> Parser<'a> {
     /// Parse an if / else statement.
@@ -7,7 +7,7 @@ impl<'a> Parser<'a> {
     /// Examples:
     /// ```
     /// // if
-    /// if x > 0 {
+    /// @if x > 0 {
     ///     print("positive")
     /// }
     ///
@@ -27,7 +27,7 @@ impl<'a> Parser<'a> {
     ///     print("negative")
     /// }
     /// ```
-    pub fn eat_if(&mut self) -> ParseResult<NodeId<If>> {
+    pub fn eat_if(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<If>> {
         let start = self.mark();
         self.eat_keyword(Keyword::If)?;
         let condition_id = self.eat_expression(ExpressionParserOptions {
@@ -41,8 +41,9 @@ impl<'a> Parser<'a> {
             self.eat_newlines_maybe()?;
             if self.peek_keyword(Keyword::If).is_ok() {
                 // if ... else if ...
-                let else_if_id = self.eat_if()?;
+                let else_if_id = self.eat_if(runtime)?;
                 If::IfElseIf {
+                    runtime,
                     condition: condition_id,
                     then_block: then_block_id,
                     else_if: else_if_id,
@@ -51,6 +52,7 @@ impl<'a> Parser<'a> {
                 // if ... else ...
                 let else_block_id = self.eat_block()?;
                 If::IfElse {
+                    runtime,
                     condition: condition_id,
                     then_block: then_block_id,
                     else_block: else_block_id,
@@ -59,6 +61,7 @@ impl<'a> Parser<'a> {
         } else {
             // if ...
             If::If {
+                runtime,
                 condition: condition_id,
                 then_block: then_block_id,
             }
@@ -82,8 +85,8 @@ mod tests {
         let mut test = TestParser::new("if true {}");
         let mut parser = test.parser();
 
-        let if_id = parser.eat_if().unwrap();
-        assert_node!(parser.tree, if_id, If::If { condition, then_block } => {
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, If::If { condition, then_block, .. } => {
             // condition is boolean true
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
                 assert_bool!(parser.tree, *lit_id, true);
@@ -101,8 +104,8 @@ mod tests {
         let mut test = TestParser::new("if false {} else {}");
         let mut parser = test.parser();
 
-        let if_id = parser.eat_if().unwrap();
-        assert_node!(parser.tree, if_id, If::IfElse { condition, then_block, else_block } => {
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, If::IfElse { condition, then_block, else_block, .. } => {
             // condition is boolean false
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
                 assert_bool!(parser.tree, *lit_id, false);
@@ -125,8 +128,8 @@ mod tests {
         let mut test = TestParser::new("if true {} else if false {}");
         let mut parser = test.parser();
 
-        let if_id = parser.eat_if().unwrap();
-        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if, .. } => {
             // condition is boolean true
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
                 assert_bool!(parser.tree, *lit_id, true);
@@ -137,7 +140,7 @@ mod tests {
                 assert!(statements.is_empty());
             });
             // nested else-if should be simple If
-            assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then } => {
+            assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then, .. } => {
                 assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
                     assert_bool!(parser.tree, *lit_id, false);
                 });
@@ -164,8 +167,8 @@ if x > y {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let if_id = parser.eat_if().unwrap();
-        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if, .. } => {
             // if x > y
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -180,7 +183,7 @@ if x > y {
                 assert_eq!(statements.len(), 1);
             });
             // else if y == z
-            assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then } => {
+            assert_node!(parser.tree, *else_if, If::If { condition: inner_condition, then_block: inner_then, .. } => {
                 // y == z
                 assert_node!(parser.tree, *inner_condition, Expression::Binary { left, operator, right } => {
                     assert_eq!(*operator, BinaryOperator::Equal);
@@ -203,8 +206,8 @@ if x > y {
         let mut test = TestParser::new("if true {} else if false {} else {}");
         let mut parser = test.parser();
 
-        let if_id = parser.eat_if().unwrap();
-        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if, .. } => {
             // if true
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(lit_id) => {
                 assert_bool!(parser.tree, *lit_id, true);
@@ -215,7 +218,7 @@ if x > y {
                 assert!(statements.is_empty());
             });
             // else if false { } else { }
-            assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else } => {
+            assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else, .. } => {
                 // else if false
                 assert_node!(parser.tree, *inner_condition, Expression::ScalarLiteral(lit_id) => {
                     assert_bool!(parser.tree, *lit_id, false);
@@ -246,8 +249,8 @@ else { v }
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let if_id = parser.eat_if().unwrap();
-        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if } => {
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if, .. } => {
             // if v < lo
             assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
                 assert_eq!(*operator, BinaryOperator::LessThan);
@@ -262,7 +265,7 @@ else { v }
                 assert_eq!(statements.len(), 1);
             });
             // else if v > hi { hi } else { v }
-            assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else } => {
+            assert_node!(parser.tree, *else_if, If::IfElse { condition: inner_condition, then_block: inner_then, else_block: inner_else, .. } => {
                 // else if v > hi
                 assert_node!(parser.tree, *inner_condition, Expression::Binary { left, operator, right } => {
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
@@ -297,8 +300,8 @@ if x > 0 {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
 
-        let if_id = parser.eat_if().unwrap();
-        assert_node!(parser.tree, if_id, If::If { condition, then_block } => {
+        let if_id = parser.eat_if(None).unwrap();
+        assert_node!(parser.tree, if_id, If::If { condition, then_block, .. } => {
             // condition is binary expression x > 0
             assert_node!(parser.tree, *condition, Expression::Binary { left: _, operator: _, right: _ });
             // then block has one statement

@@ -1086,24 +1086,33 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_if(&mut self, _tree: &NodeTree, _id: NodeId<If>, if_node: &If) {
         match if_node {
             If::If {
+                runtime,
                 condition: _,
                 then_block: _,
             } => {
-                self.node("If::If", _id.id).end();
+                self.node("If::If", _id.id)
+                    .field_optional("runtime", runtime)
+                    .end();
             }
             If::IfElse {
+                runtime,
                 condition: _,
                 then_block: _,
                 else_block: _,
             } => {
-                self.node("If::IfElse", _id.id).end();
+                self.node("If::IfElse", _id.id)
+                    .field_optional("runtime", runtime)
+                    .end();
             }
             If::IfElseIf {
+                runtime,
                 condition: _,
                 then_block: _,
                 else_if: _,
             } => {
-                self.node("If::IfElseIf", _id.id).end();
+                self.node("If::IfElseIf", _id.id)
+                    .field_optional("runtime", runtime)
+                    .end();
             }
         }
         self.with_depth(|dumper| {
@@ -1111,24 +1120,30 @@ impl<'a> NodeVisitor for Dumper<'a> {
         });
     }
 
-    fn visit_while(&mut self, _tree: &NodeTree, _id: NodeId<While>, _while_node: &While) {
-        self.node("While", _id.id).end();
+    fn visit_while(&mut self, _tree: &NodeTree, _id: NodeId<While>, while_node: &While) {
+        self.node("While", _id.id)
+            .field_optional("runtime", &while_node.runtime)
+            .end();
         self.with_depth(|dumper| {
-            walk_while(dumper, _tree, _id, _while_node);
+            walk_while(dumper, _tree, _id, while_node);
         });
     }
 
-    fn visit_for(&mut self, _tree: &NodeTree, _id: NodeId<For>, _for_node: &For) {
-        self.node("For", _id.id).end();
+    fn visit_for(&mut self, _tree: &NodeTree, _id: NodeId<For>, for_node: &For) {
+        self.node("For", _id.id)
+            .field_optional("runtime", &for_node.runtime)
+            .end();
         self.with_depth(|dumper| {
-            walk_for(dumper, _tree, _id, _for_node);
+            walk_for(dumper, _tree, _id, for_node);
         });
     }
 
-    fn visit_loop(&mut self, _tree: &NodeTree, _id: NodeId<Loop>, _loop_node: &Loop) {
-        self.node("Loop", _id.id).end();
+    fn visit_loop(&mut self, _tree: &NodeTree, _id: NodeId<Loop>, loop_node: &Loop) {
+        self.node("Loop", _id.id)
+            .field_optional("runtime", &loop_node.runtime)
+            .end();
         self.with_depth(|dumper| {
-            walk_loop(dumper, _tree, _id, _loop_node);
+            walk_loop(dumper, _tree, _id, loop_node);
         });
     }
 

@@ -76,7 +76,7 @@ impl<'a> Parser<'a> {
     pub fn eat_call_postfix(
         &mut self,
         receiver_id: NodeId<Expression>,
-        runtime: Runtime,
+        runtime: Option<Runtime>,
     ) -> ParseResult<NodeId<Call>> {
         let start = self.mark();
         // static arguments (may not exist or be empty)
@@ -216,10 +216,12 @@ mod tests {
             .tree
             .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
 
-        let call_id = parser.eat_call_postfix(recv, Runtime::Dynamic).unwrap();
+        let call_id = parser
+            .eat_call_postfix(recv, Some(Runtime::Dynamic))
+            .unwrap();
         assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
             assert_eq!(*receiver, recv);
-            assert_eq!(*runtime, Runtime::Dynamic);
+            assert_eq!(*runtime, Some(Runtime::Dynamic));
 
             // [Validate: false]
             let static_args = static_arguments.as_ref().expect("expected static args");
@@ -262,10 +264,12 @@ mod tests {
             .tree
             .allocate(Expression::Path(self_path), parser.peek().unwrap().span);
 
-        let call_id = parser.eat_call_postfix(recv, Runtime::Dynamic).unwrap();
+        let call_id = parser
+            .eat_call_postfix(recv, Some(Runtime::Dynamic))
+            .unwrap();
         assert_node!(parser.tree, call_id, crate::Call { receiver, runtime, static_arguments, dynamic_arguments } => {
             assert_eq!(*receiver, recv);
-            assert_eq!(*runtime, Runtime::Dynamic);
+            assert_eq!(*runtime, Some(Runtime::Dynamic));
             assert!(static_arguments.is_none());
             assert_eq!(dynamic_arguments.len(), 0);
         });

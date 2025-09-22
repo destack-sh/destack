@@ -647,25 +647,25 @@ impl<'a> Parser<'a> {
             //
             // if
             else if keyword == Some(Keyword::If) {
-                let if_id = self.eat_if()?;
+                let if_id = self.eat_if(runtime)?;
                 let expression = Expression::If(if_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // while
             else if keyword == Some(Keyword::While) {
-                let while_id = self.eat_while()?;
+                let while_id = self.eat_while(runtime)?;
                 let expression = Expression::While(while_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // for
             else if keyword == Some(Keyword::For) {
-                let for_id = self.eat_for()?;
+                let for_id = self.eat_for(runtime)?;
                 let expression = Expression::For(for_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
             // loop
             else if keyword == Some(Keyword::Loop) {
-                let loop_id = self.eat_loop()?;
+                let loop_id = self.eat_loop(runtime)?;
                 let expression = Expression::Loop(loop_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -764,7 +764,7 @@ impl<'a> Parser<'a> {
         {
             let call_id = self.tree.allocate(
                 Call {
-                    runtime: runtime.unwrap(),
+                    runtime,
                     receiver: left_expression_id,
                     static_arguments: None,
                     dynamic_arguments: vec![],
@@ -813,8 +813,7 @@ impl<'a> Parser<'a> {
             }
             // call
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                let call_id =
-                    self.eat_call_postfix(left_expression_id, runtime.unwrap_or(Runtime::Dynamic))?;
+                let call_id = self.eat_call_postfix(left_expression_id, runtime)?;
                 let expression = Expression::Call(call_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
@@ -1147,7 +1146,7 @@ geom.Mesh<2, Dims: 4> {
                             parser.tree,
                             *call_id,
                             Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
-                                assert_eq!(*runtime, Runtime::Dynamic);
+                                assert_eq!(*runtime, None);
                                 // self.foo
                                 assert_node!(
                                     parser.tree,
@@ -1226,7 +1225,7 @@ let x =
                                                     parser.tree,
                                                     *call_id,
                                                     Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
-                                                        assert_eq!(*runtime, Runtime::Dynamic);
+                                                        assert_eq!(*runtime, None);
                                                         // foo.parse
                                                         assert_node!(
                                                             parser.tree,
@@ -1316,7 +1315,7 @@ self
                     parser.tree,
                     *call_id,
                     Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
-                        assert_eq!(*runtime, Runtime::Dynamic);
+                        assert_eq!(*runtime, None);
                         // self.foo().baz
                         assert_node!(
                             parser.tree,
@@ -1331,7 +1330,7 @@ self
                                             parser.tree,
                                             *call_id,
                                             Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
-                                                assert_eq!(*runtime, Runtime::Dynamic);
+                                                assert_eq!(*runtime, None);
                                                 // self.foo
                                                 assert_node!(
                                                     parser.tree,
@@ -1711,7 +1710,7 @@ self
                             parser.tree,
                             *call_id,
                             Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
-                                assert_eq!(*runtime, Runtime::Dynamic);
+                                assert_eq!(*runtime, None);
                                 // a
                                 assert_expr_path!(parser.session, parser.tree.get(*receiver), "a");
                             }
@@ -1734,7 +1733,7 @@ self
                                     parser.tree,
                                     *call_id,
                                     Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
-                                        assert_eq!(*runtime, Runtime::Static);
+                                        assert_eq!(*runtime, Some(Runtime::Static));
                                         // b
                                         assert_expr_path!(parser.session, parser.tree.get(*receiver), "b");
                                     }

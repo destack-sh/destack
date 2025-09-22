@@ -649,6 +649,7 @@ pub fn walk_if<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::If, id.id);
     match if_node {
         If::If {
+            runtime: _,
             condition,
             then_block,
         } => {
@@ -658,6 +659,7 @@ pub fn walk_if<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *then_block, then_block_node);
         }
         If::IfElse {
+            runtime: _,
             condition,
             then_block,
             else_block,
@@ -670,6 +672,7 @@ pub fn walk_if<V: NodeVisitor + ?Sized>(
             visitor.visit_block(tree, *else_block, else_block_node);
         }
         If::IfElseIf {
+            runtime: _,
             condition,
             then_block,
             else_if,
