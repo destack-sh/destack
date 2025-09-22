@@ -161,14 +161,14 @@ fn get_semantic_type_index(semantic_type: SemanticType) -> Option<u32> {
 
 impl Workspace {
     /// Compute semantic tokens for a document.
-    pub fn semantic_tokens_full(&self, uri: &Uri) -> Option<Vec<lsp::SemanticToken>> {
+    pub fn get_semantic_tokens_full(&self, uri: &Uri) -> Option<Vec<lsp::SemanticToken>> {
         let doc = self.get_document(uri)?;
         let tree = doc.module_id.map(|root| (&doc.ast, root));
         collect_semantic_tokens(&doc.source, &doc.combined_tokens, tree, None)
     }
 
     /// Compute semantic tokens for a document within a range.
-    pub fn semantic_tokens_range(
+    pub fn get_semantic_tokens_range(
         &self,
         uri: &Uri,
         range: &lsp::Range,

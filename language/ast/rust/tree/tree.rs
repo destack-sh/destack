@@ -24,7 +24,7 @@ pub struct NodeTree {
     /// The annotations attached to nodes in the AST.
     pub(crate) annotations_per_node: HashMap<u32, Vec<NodeId<Annotation>>>,
 
-    /// The mapping between spans and nodes.
+    /// The map of the NodeTree.
     pub map: NodeMap,
 
     // per-node arenas

@@ -5,7 +5,9 @@
 
 pub mod diagnostic;
 pub mod document;
+pub mod format;
 pub mod language_server;
+pub mod lifecycle;
 pub mod semantic;
 pub mod server;
 pub mod source;

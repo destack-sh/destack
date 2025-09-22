@@ -34,7 +34,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         Vec::new(),
         TokenType::End,
     );
-    parser.process_annotations();
+    parser.finalize();
 
     // dump AST statements to output
     let dump_options = DumperOptions::default();

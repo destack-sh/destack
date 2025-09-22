@@ -52,22 +52,10 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Member { receiver, path } => write!(f, [receiver, token("."), path]),
             Expression::Index(node) => node.format(f),
             Expression::Call(node) => node.format(f),
-            Expression::Cast(node) => {
-                let node = f.context().get_node(*node).clone();
-                write!(
-                    f,
-                    [node.receiver, space(), token("as"), space(), node.r#type]
-                )
-            }
+            Expression::Cast(node) => node.format(f),
             Expression::Unwrap(expr) => write!(f, [expr, token("?")]),
             Expression::UnwrapOrPanic(expr) => write!(f, [expr, token("!")]),
-            Expression::Coalesce(node) => {
-                let node = f.context().get_node(*node).clone();
-                write!(
-                    f,
-                    [node.receiver, space(), token("??"), space(), node.default]
-                )
-            }
+            Expression::Coalesce(node) => node.format(f),
             Expression::Binary {
                 left,
                 operator,

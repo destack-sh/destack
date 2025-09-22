@@ -1,0 +1,419 @@
+//! Async language server implementation built on tower-lsp-server.
+
+use std::collections::hash_map::Entry;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+
+use tokio::sync::RwLock;
+use tower_lsp_server::{UriExt, jsonrpc, lsp_types as lsp};
+
+use crate::DestackLanguageServer;
+use crate::diagnostic::diagnostic_to_lsp_diagnostic;
+use crate::workspace::{Workspace, lsp_uri_to_uri, uri_to_lsp_uri};
+
+pub const DYST_FILE_GLOB: &str = "**/*.ds";
+pub const DYST_FILE_EXTENSION: &str = "ds";
+
+impl DestackLanguageServer {
+    /// Register file watchers for all existing workspaces.
+    pub(crate) async fn register_all_file_watches(&self) {
+        let workspace_handles: Vec<_> = {
+            let guard = self.workspaces.read().await;
+            guard.values().cloned().collect()
+        };
+        let num_workspaces = workspace_handles.len();
+        for workspace_handle in workspace_handles {
+            if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
+                self.client
+                    .log_message(
+                        lsp::MessageType::ERROR,
+                        format!("destack.register_all_watches.register_watch error={error}"),
+                    )
+                    .await;
+            }
+        }
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.register_all_watches workspaces={}", num_workspaces),
+            )
+            .await;
+    }
+
+    /// Register a file watcher for the given Workspace.
+    pub(crate) async fn register_file_watch(
+        &self,
+        workspace_handle: Arc<RwLock<Workspace>>,
+    ) -> jsonrpc::Result<()> {
+        let mut workspace = workspace_handle.write().await;
+        if workspace.watch_registration_id.is_some() {
+            return Ok(());
+        }
+
+        let registration_id = format!(
+            "destack-watch-{}",
+            self.next_watch_id.fetch_add(1, Ordering::Relaxed)
+        );
+
+        // create file watcher for .ds files in workspace
+        let pattern = lsp::RelativePattern {
+            base_uri: lsp::OneOf::Right(uri_to_lsp_uri(&workspace.root)),
+            pattern: DYST_FILE_GLOB.to_string(),
+        };
+        let watchers = vec![lsp::FileSystemWatcher {
+            glob_pattern: lsp::GlobPattern::Relative(pattern),
+            kind: Some(lsp::WatchKind::all()),
+        }];
+        let options = lsp::DidChangeWatchedFilesRegistrationOptions { watchers };
+        let register_options = serde_json::to_value(options)
+            .map_err(|error| jsonrpc::Error::invalid_params(error.to_string()))?;
+        let registration = lsp::Registration {
+            id: registration_id.clone(),
+            method: "workspace/didChangeWatchedFiles".to_string(),
+            register_options: Some(register_options),
+        };
+
+        self.client.register_capability(vec![registration]).await?;
+        workspace.watch_registration_id = Some(registration_id.clone());
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.register_file_watch registration_id={}",
+                    registration_id
+                ),
+            )
+            .await;
+
+        Ok(())
+    }
+
+    /// Unregister the file watcher for the given Workspace.
+    pub(crate) async fn unregister_file_watch(
+        &self,
+        workspace_handle: Arc<RwLock<Workspace>>,
+    ) -> jsonrpc::Result<()> {
+        let mut workspace = workspace_handle.write().await;
+        let Some(registration_id) = workspace
+            .watch_registration_id
+            .clone()
+            .as_deref()
+            .map(ToOwned::to_owned)
+        else {
+            return Ok(());
+        };
+
+        workspace.watch_registration_id = None;
+        self.client
+            .unregister_capability(vec![lsp::Unregistration {
+                id: registration_id,
+                method: "workspace/didChangeWatchedFiles".to_string(),
+            }])
+            .await?;
+        Ok(())
+    }
+
+    /// Get or create a Workspace for the given document URI.
+    pub(crate) async fn get_or_create_workspace_for_document(
+        &self,
+        uri: &lsp::Uri,
+    ) -> Arc<RwLock<Workspace>> {
+        // bail if the workspace already exists
+        if let Some(workspace_handle) = self.find_workspace_for_document(uri).await {
+            return workspace_handle;
+        }
+
+        // insert workspace
+        let created_root = self
+            .derive_workspace_root(uri)
+            .unwrap_or_else(|| uri.clone());
+        let (workspace_handle, inserted) = self.insert_workspace(created_root).await;
+
+        // index if it was newly inserted (race condition)
+        if inserted {
+            if let Err(error) = self.register_file_watch(workspace_handle.clone()).await {
+                self.client
+                    .log_message(
+                        lsp::MessageType::ERROR,
+                        format!(
+                            "destack.get_or_create_workspace_for_document.register_watch error={error}"
+                        ),
+                    )
+                    .await;
+            }
+
+            self.index_workspace(workspace_handle.clone()).await;
+        }
+
+        workspace_handle
+    }
+
+    /// Find the Workspace that contains the given document URI.
+    pub(crate) async fn find_workspace_for_document(
+        &self,
+        uri: &lsp::Uri,
+    ) -> Option<Arc<RwLock<Workspace>>> {
+        let key = uri.as_str();
+        let guard = self.workspaces.read().await;
+        guard
+            .iter()
+            .filter(|(root, _)| key.starts_with(root.as_str()))
+            .max_by_key(|(root, _)| root.len())
+            .map(|(_, workspace_handle)| workspace_handle.clone())
+    }
+
+    /// Insert a new Workspace or get existing one for the given root URI.
+    /// Returns the Workspace handle and whether it was newly inserted.
+    pub(crate) async fn insert_workspace(&self, root: lsp::Uri) -> (Arc<RwLock<Workspace>>, bool) {
+        let key = Self::get_workspace_key(&root);
+        {
+            let workspace = self.workspaces.read().await;
+            if let Some(existing) = workspace.get(&key) {
+                return (existing.clone(), false);
+            }
+        }
+
+        let mut guard = self.workspaces.write().await;
+        let (workspace_handle, inserted) = match guard.entry(key.clone()) {
+            Entry::Vacant(vacant) => {
+                let workspace = Workspace::new(lsp_uri_to_uri(&root));
+                let workspace_handle = Arc::new(RwLock::new(workspace));
+                vacant.insert(workspace_handle.clone());
+                (workspace_handle, true)
+            }
+            Entry::Occupied(occupied) => (occupied.get().clone(), false),
+        };
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.workspace.insert key={key}"),
+            )
+            .await;
+
+        (workspace_handle, inserted)
+    }
+
+    /// Remove and return the Workspace for the given root URI.
+    pub(crate) async fn remove_workspace(&self, root: &lsp::Uri) -> Option<Arc<RwLock<Workspace>>> {
+        let key = Self::get_workspace_key(root);
+        let mut guard = self.workspaces.write().await;
+        guard.remove(&key)
+    }
+
+    /// Generate a normalized key for workspace storage from URI.
+    pub(crate) fn get_workspace_key(uri: &lsp::Uri) -> String {
+        let mut value = uri.as_str().to_string();
+        if !value.ends_with('/') {
+            value.push('/');
+        }
+        value
+    }
+
+    /// Derive workspace root URI from document URI by going up one directory.
+    pub(crate) fn derive_workspace_root(&self, uri: &lsp::Uri) -> Option<lsp::Uri> {
+        let path = uri.to_file_path()?.into_owned();
+        let mut path = path;
+        if !path.pop() {
+            return None;
+        }
+        lsp::Uri::from_file_path(&path)
+    }
+
+    /// Collect diagnostics for a URI and encode them for the client.
+    pub(crate) fn get_diagnostics_for_uri(
+        workspace: &Workspace,
+        uri: &dyst_language_source::Uri,
+    ) -> Vec<lsp::Diagnostic> {
+        let Some(document) = workspace.get_document(uri) else {
+            return Vec::new();
+        };
+        workspace
+            .get_diagnostics_for_source(document.source.id)
+            .into_iter()
+            .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &document.source))
+            .collect()
+    }
+
+    /// Update an open document's content in the appropriate Workspace.
+    pub(crate) async fn update_open_document(&self, lsp_uri: &lsp::Uri, content: String) {
+        // update the document
+        let workspace_handle = self.get_or_create_workspace_for_document(lsp_uri).await;
+        let mut workspace = workspace_handle.write().await;
+        let uri = lsp_uri_to_uri(lsp_uri);
+        workspace.upsert_document(&uri, content, true);
+        drop(workspace);
+
+        // re-analyze the workspace
+        self.analyze_workspace(workspace_handle.clone(), Some(vec![uri]))
+            .await;
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.update_open_document uri={}", lsp_uri.as_str(),),
+            )
+            .await;
+    }
+
+    /// Re-analyze (part of) a workspace.
+    pub(crate) async fn analyze_workspace(
+        &self,
+        workspace_handle: Arc<RwLock<Workspace>>,
+        uris: Option<Vec<dyst_language_source::Uri>>,
+    ) {
+        // TODO: re-analyze in background (we just have the new AST-level diagnostics here)
+
+        // read the workspace once
+        let workspace = workspace_handle.read().await;
+        let uris = uris.unwrap_or_else(|| workspace.document_uris());
+        for uri in &uris {
+            let lsp_uri = uri_to_lsp_uri(uri);
+            let diagnostics = Self::get_diagnostics_for_uri(&workspace, uri);
+            self.client
+                .publish_diagnostics(lsp_uri, diagnostics, None)
+                .await;
+        }
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.analyze_workspace uris={} diagnostics={}",
+                    uris.len(),
+                    workspace.diagnostics().len()
+                ),
+            )
+            .await;
+    }
+
+    /// Refresh a workspace from disk and publish updated diagnostics.
+    pub(crate) async fn index_workspace(&self, workspace_handle: Arc<RwLock<Workspace>>) {
+        let mut workspace = workspace_handle.write().await;
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.index_workspace.start root={}", workspace.root),
+            )
+            .await;
+
+        // reindex the workspace
+        let uris = match workspace.index_from_disk() {
+            Ok(outcome) => {
+                // merge updates and removals so diagnostics clear for former files
+                let mut combined = outcome.updated;
+                combined.extend(outcome.removed);
+                combined
+            }
+            Err(error) => {
+                let root_display = workspace.root.as_ref().to_string();
+                self.client
+                    .log_message(
+                        lsp::MessageType::ERROR,
+                        format!("destack.index_workspace root={root_display} error={error}"),
+                    )
+                    .await;
+                return;
+            }
+        };
+        let root = workspace.root.clone();
+        let num_diagnostics = workspace.diagnostics().len();
+        drop(workspace);
+
+        let num_uris = uris.len();
+        self.analyze_workspace(workspace_handle.clone(), Some(uris))
+            .await;
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.index_workspace root={} uris={} diagnostics={}",
+                    root, num_diagnostics, num_uris
+                ),
+            )
+            .await;
+    }
+
+    /// Index every known workspace.
+    pub(crate) async fn index_all_workspaces(&self) {
+        let workspace_handles: Vec<_> = {
+            let guard = self.workspaces.read().await;
+            guard.values().cloned().collect()
+        };
+        for workspace_handle in &workspace_handles {
+            self.index_workspace(workspace_handle.clone()).await;
+        }
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!(
+                    "destack.index_all_workspaces workspaces={}",
+                    workspace_handles.len()
+                ),
+            )
+            .await;
+    }
+
+    /// Remove document from its Workspace.
+    pub(crate) async fn close_document(&self, lsp_uri: &lsp::Uri) {
+        let Some(workspace_handle) = self.find_workspace_for_document(lsp_uri).await else {
+            return;
+        };
+
+        let mut workspace = workspace_handle.write().await;
+        let uri = lsp_uri_to_uri(lsp_uri);
+
+        // resync the document
+        match workspace.sync_document_from_disk(&uri) {
+            Ok(_) => {
+                let diagnostics = Self::get_diagnostics_for_uri(&workspace, &uri);
+                self.client
+                    .publish_diagnostics(lsp_uri.clone(), diagnostics, None)
+                    .await;
+            }
+            Err(error) => {
+                workspace.remove_document(&uri);
+                self.client
+                    .log_message(
+                        lsp::MessageType::WARNING,
+                        format!(
+                            "destack.close_document.sync_failed uri={} error={error}",
+                            lsp_uri.as_str()
+                        ),
+                    )
+                    .await;
+                return;
+            }
+        }
+
+        self.client
+            .log_message(
+                lsp::MessageType::INFO,
+                format!("destack.close_document uri={}", lsp_uri.as_str()),
+            )
+            .await;
+    }
+
+    /// Add initial workspaces from initialization parameters.
+    pub(crate) async fn add_initial_workspaces(&self, params: &lsp::InitializeParams) {
+        let Some(folders) = &params.workspace_folders else {
+            return;
+        };
+
+        // insert workspaces
+        let mut workspace_handles = Vec::with_capacity(folders.len());
+        for folder in folders {
+            let (workspace_handle, _) = self.insert_workspace(folder.uri.clone()).await;
+            workspace_handles.push(workspace_handle);
+        }
+
+        // reindex workspaces
+        for workspace_handle in workspace_handles {
+            self.index_workspace(workspace_handle.clone()).await;
+        }
+    }
+}
