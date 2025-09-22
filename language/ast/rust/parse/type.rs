@@ -275,9 +275,9 @@ impl<'a> Parser<'a> {
                 .tree
                 .allocate(Type::Maybe(inner_type), self.get_span_from(start));
             Ok(ty_id)
-
+        }
         // not or never with `!`
-        } else if next.token.r#type == TokenType::Not {
+        else if next.token.r#type == TokenType::Not {
             self.bump();
             if self.peek_token(TokenType::Identifier).is_ok() {
                 let inner_type = self.eat_type()?;
@@ -289,9 +289,9 @@ impl<'a> Parser<'a> {
                 let ty_id = self.tree.allocate(Type::Never, self.get_span_from(start));
                 Ok(ty_id)
             }
-
+        }
         // pointer with `*` (also accept `&`)
-        } else if next.token.r#type == TokenType::Multiply
+        else if next.token.r#type == TokenType::Multiply
             || next.token.r#type == TokenType::BitwiseAnd
         {
             self.bump();
@@ -312,41 +312,41 @@ impl<'a> Parser<'a> {
                 self.get_span_from(start),
             );
             Ok(ty_id)
-
+        }
         // virtual with `$`
-        } else if next.token.r#type == TokenType::Virtual {
+        else if next.token.r#type == TokenType::Virtual {
             self.bump();
             let inner_type = self.eat_type()?;
             let ty_id = self
                 .tree
                 .allocate(Type::Virtual(inner_type), self.get_span_from(start));
             Ok(ty_id)
-
+        }
         // variadic with `..`
-        } else if next.token.r#type == TokenType::Range {
+        else if next.token.r#type == TokenType::Range {
             self.bump(); // eat range
             let inner_type = self.eat_type()?;
             let ty_id = self
                 .tree
                 .allocate(Type::Variadic(inner_type), self.get_span_from(start));
             Ok(ty_id)
-
+        }
         // infer with `_`
-        } else if next.token.r#type == TokenType::Wildcard {
+        else if next.token.r#type == TokenType::Wildcard {
             self.bump();
             let ty_id = self.tree.allocate(Type::Infer, self.get_span_from(start));
             Ok(ty_id)
-
+        }
         // primitive
-        } else if let Ok(primitive_type) = self.peek_primitive_type() {
+        else if let Ok(primitive_type) = self.peek_primitive_type() {
             self.bump();
             let ty_id = self
                 .tree
                 .allocate(Type::Primitive(primitive_type), self.get_span_from(start));
             Ok(ty_id)
-
+        }
         // identifier
-        } else if next.token.r#type == TokenType::Identifier {
+        else if next.token.r#type == TokenType::Identifier {
             let path = self.eat_path()?;
             // eat static arguments if present
             let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {

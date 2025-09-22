@@ -17,9 +17,10 @@ path = "rust/main.rs"
 [dependencies]
 dyst_language_ast = { workspace = true }
 dyst_language_diagnostic = { workspace = true }
-dyst_language_token = { workspace = true }
+dyst_language_fir = { workspace = true }
 dyst_language_session = { workspace = true }
 dyst_language_source = { workspace = true }
+dyst_language_token = { workspace = true }
 destack_library_file = { workspace = true }
 
 serde = { version = "1.0", features = ["derive"] }

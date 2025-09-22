@@ -52,7 +52,7 @@ pub(crate) fn semantic_spans_from_source(source: &Source) -> Result<Vec<Semantic
         Vec::new(),
         TokenType::End,
     );
-    parser.process_annotations();
+    parser.finalize();
 
     let mut all_tokens: Vec<TokenSpan> = parser.tokens.clone();
     all_tokens.extend_from_slice(&parser.trivia_tokens);

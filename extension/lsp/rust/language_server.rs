@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use tower_lsp_server::{LanguageServer, jsonrpc};
 
-use crate::server::DYST_FILE_GLOB;
+use crate::lifecycle::DYST_FILE_GLOB;
 use crate::workspace::lsp_uri_to_uri;
 use crate::{DestackLanguageServer, semantic};
 use tower_lsp_server::lsp_types as lsp;
@@ -429,13 +429,20 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::SemanticTokensParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensResult>> {
-        match self
-            .compute_semantic_tokens(&params.text_document.uri, None)
-            .await
-        {
-            Some(tokens) => Ok(Some(lsp::SemanticTokensResult::Tokens(tokens))),
-            None => Ok(None),
-        }
+        let uri = params.text_document.uri;
+        let Some(workspace_handle) = self.find_workspace_for_document(&uri).await else {
+            return Ok(None);
+        };
+        let workspace = workspace_handle.read().await;
+        let Some(semantic_tokens) = workspace.get_semantic_tokens_full(&lsp_uri_to_uri(&uri))
+        else {
+            return Ok(None);
+        };
+        let semantic_tokens = lsp::SemanticTokens {
+            result_id: None,
+            data: semantic_tokens,
+        };
+        Ok(Some(lsp::SemanticTokensResult::Tokens(semantic_tokens)))
     }
 
     /// The [`textDocument/semanticTokens/range`] request is sent from the client to the server to
@@ -444,13 +451,23 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::SemanticTokensRangeParams,
     ) -> jsonrpc::Result<Option<lsp::SemanticTokensRangeResult>> {
-        match self
-            .compute_semantic_tokens(&params.text_document.uri, Some(params.range))
-            .await
-        {
-            Some(tokens) => Ok(Some(lsp::SemanticTokensRangeResult::Tokens(tokens))),
-            None => Ok(None),
-        }
+        let uri = params.text_document.uri;
+        let Some(workspace_handle) = self.find_workspace_for_document(&uri).await else {
+            return Ok(None);
+        };
+        let workspace = workspace_handle.read().await;
+        let Some(semantic_tokens) =
+            workspace.get_semantic_tokens_range(&lsp_uri_to_uri(&uri), &params.range)
+        else {
+            return Ok(None);
+        };
+        let semantic_tokens = lsp::SemanticTokens {
+            result_id: None,
+            data: semantic_tokens,
+        };
+        Ok(Some(lsp::SemanticTokensRangeResult::Tokens(
+            semantic_tokens,
+        )))
     }
 
     // ------------------------------------------------------------
@@ -461,8 +478,35 @@ impl LanguageServer for DestackLanguageServer {
     /// format a given text document.
     async fn formatting(
         &self,
-        _: lsp::DocumentFormattingParams,
+        params: lsp::DocumentFormattingParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TextEdit>>> {
-        Ok(None)
+        let uri = params.text_document.uri;
+        let Some(workspace_handle) = self.find_workspace_for_document(&uri).await else {
+            return Ok(None);
+        };
+        let workspace = workspace_handle.read().await;
+        let Some(document) = workspace.get_document(&lsp_uri_to_uri(&uri)) else {
+            return Ok(None);
+        };
+        // NOTE @Incomplete: format LSP partial range
+        let formatted = workspace.format_document(&document);
+        let Some((end_line, end_character)) = document.source.get_position(document.source.len)
+        else {
+            return Ok(None);
+        };
+        let full_edit = lsp::TextEdit {
+            range: lsp::Range {
+                start: lsp::Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: lsp::Position {
+                    line: end_line,
+                    character: end_character,
+                },
+            },
+            new_text: formatted,
+        };
+        Ok(Some(vec![full_edit]))
     }
 }

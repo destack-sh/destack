@@ -61,7 +61,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         },
         parser.get_span_from(start),
     );
-    parser.process_annotations();
+    parser.finalize();
 
     // format the AST node
     let tree = parser.tree;

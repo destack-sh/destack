@@ -20,7 +20,7 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
 impl<'a> Parser<'a> {
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
-    pub fn process_annotations(&mut self) {
+    pub(crate) fn process_annotations(&mut self) {
         let mut tokens = Vec::with_capacity(self.tokens.len());
         tokens.extend(self.tokens.clone());
         tokens.extend(
@@ -358,7 +358,7 @@ mod tests {
         let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
+        parser.finalize();
 
         // let A = 1
         assert_eq!(statements.len(), 1);
@@ -381,7 +381,7 @@ mod tests {
         let mut test = TestParser::new("\n\nlet A = 1\n\nlet B = 2\n\n");
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
+        parser.finalize();
         assert_eq!(statements.len(), 2);
 
         // A has one prefix block blank
@@ -425,7 +425,7 @@ function main() {
         parser.eat_newline().unwrap();
 
         let function = parser.eat_function(None).unwrap();
-        parser.process_annotations();
+        parser.finalize();
 
         assert_node!(parser.tree, function, Function { body, .. } => {
             // doc block infix
@@ -465,7 +465,7 @@ struct Floof {
         let mut parser = test.parser();
         parser.eat_newline().unwrap();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
-        parser.process_annotations();
+        parser.finalize();
 
         // struct Floof
         assert_eq!(statements.len(), 1);

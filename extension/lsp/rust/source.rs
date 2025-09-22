@@ -74,12 +74,10 @@ pub fn byte_to_utf16_position(source: &Source, byte_index: u32) -> Option<(u32, 
         return None;
     }
 
-    // find which line contains this byte offset
     let line_index = match source.line_start_offsets.binary_search(&byte_index) {
         Ok(idx) => idx as u32,
         Err(idx) => idx.saturating_sub(1) as u32,
     };
-
     let line_start = source.line_start_offsets[line_index as usize];
     let next_start = source
         .line_start_offsets

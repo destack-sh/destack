@@ -38,6 +38,8 @@ pub struct Parser<'ast> {
     pos: usize,
     /// The parser options.
     pub(crate) options: ParserOptions,
+    /// Whether the Parser has been finalized.
+    pub(crate) is_finalized: bool,
 
     /// The Node AST tree.
     pub tree: NodeTree,
@@ -68,15 +70,19 @@ impl<'a> Parser<'a> {
         });
         let tree = NodeTree::new();
         Self {
+            // source
             source,
             source_id: source.id,
             tokens,
             trivia_tokens,
+            // state
+            pos: 0,
+            options: ParserOptions::default(),
+            is_finalized: false,
+            // result
             tree,
             session,
-            pos: 0,
             eof_token,
-            options: ParserOptions::default(),
             errors: Vec::new(),
         }
     }
@@ -89,6 +95,13 @@ impl<'a> Parser<'a> {
             &self.tree,
             options,
         )
+    }
+
+    /// Finalize the parser.
+    pub fn finalize(&mut self) {
+        assert!(!self.is_finalized, "already finalized");
+        self.is_finalized = true;
+        self.process_annotations();
     }
 
     /// Get the current position.
@@ -235,6 +248,7 @@ impl<'a> Parser<'a> {
     #[inline]
     pub fn bump(&mut self) {
         debug_assert!(self.pos < self.tokens.len(), "bump past end of tokens");
+        debug_assert!(!self.is_finalized, "bump after parser is finalized");
         self.pos += 1;
     }
 

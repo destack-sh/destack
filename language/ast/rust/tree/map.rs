@@ -2,7 +2,7 @@ use dyst_language_source::Span;
 
 use crate::{Node, NodeId};
 
-/// The NodeMap between Spans and Nodes.
+/// The NodeMap is a side index into a NodeTree.
 #[derive(Debug, Clone)]
 pub struct NodeMap {
     /// The spans of all nodes in the AST. Index is the global node id.
@@ -34,27 +34,32 @@ impl NodeMap {
         }
     }
 
+    /// Append a span to the map.
     #[inline]
-    pub fn append_span(&mut self, span: Span) {
+    pub(crate) fn append_span(&mut self, span: Span) {
         self.spans_per_node.push(span);
     }
 
+    /// Set the span for a node.
     #[inline]
-    pub fn set_span<T: Node>(&mut self, node_id: NodeId<T>, span: Span) {
+    pub(crate) fn set_span<T: Node>(&mut self, node_id: NodeId<T>, span: Span) {
         self.spans_per_node[node_id.id as usize] = span;
     }
 
+    /// Get the span for a node.
     #[inline]
     pub fn get_span<T: Node>(&self, node_id: NodeId<T>) -> Span {
         self.spans_per_node[node_id.id as usize]
     }
 
+    /// Get the span for a node by its id.
     #[inline]
     pub fn get_span_by_id(&self, node_id: u32) -> Span {
         self.spans_per_node[node_id as usize]
     }
 
     /// Gets all enclosing spans in the given range (including index).
+    #[inline]
     pub fn get_enclosing_spans(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
         let mut spans: Vec<EnclosingSpan> = Vec::new();
         for (i, span) in self.spans_per_node.iter().enumerate() {

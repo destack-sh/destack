@@ -8,7 +8,7 @@ use dyst_language_token::TokenSpan;
 
 use crate::{Node, NodeId, NodeTree, NodeTreeStore};
 
-pub(crate) type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
+pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
 
 /// Dyst format options (mostly for testing).
 #[derive(Debug, Default, PartialEq, Clone)]

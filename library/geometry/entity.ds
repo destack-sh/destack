@@ -23,11 +23,11 @@ struct Transform3D {
 /// An Entity2D is a 2D geometric Entity.
 @entity
 struct Entity2D {
-    use Transform2D
+    use Transform2D as transform
 }
 
 /// An Entity3D is a 3D geometric Entity.
 @entity
 struct Entity3D {
-    use Transform3D
+    use Transform3D as transform
 }
