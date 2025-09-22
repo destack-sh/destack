@@ -2,14 +2,14 @@ use dyst
 
 /// A quaternion.
 struct Quaternion {
-    x: float32,
-    y: float32,
-    z: float32,
-    w: float32,
+    x: float32
+    y: float32
+    z: float32
+    w: float32
 }
 
 implement Quaternion {
-    let Zero: Quaternion = Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
-    let One: Quaternion = Quaternion { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
-    let Identity: Quaternion = Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+    let Zero: Quaternion = Quaternion { x: 0, y: 0, z: 0, w: 0 }
+    let One: Quaternion = Quaternion { x: 1, y: 1, z: 1, w: 1 }
+    let Identity: Quaternion = Quaternion { x: 0, y: 0, z: 0, w: 1 }
 }

@@ -10,13 +10,18 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
         _node_id: NodeId<Parameter>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().prefix_annotations(_node_id)])?;
+        // name
         write!(f, [self.name])?;
+        // type
         if let Some(r#type) = self.r#type {
             write!(f, [token(": "), r#type])?;
         }
+        // default
         if let Some(default) = self.default {
             write!(f, [token(" = "), default])?;
         }
+        write!(f, [f.context().postfix_annotations(_node_id)])?;
         Ok(())
     }
 }
@@ -27,17 +32,20 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         _node_id: NodeId<Argument>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().prefix_annotations(_node_id)])?;
         match self {
             Argument::Named { name, value } => {
-                write!(f, [name, token(": "), value])
+                write!(f, [name, token(": "), value])?;
             }
             Argument::NamedShorthand { name } => {
-                write!(f, [name])
+                write!(f, [name])?;
             }
             Argument::Positional { value } => {
-                write!(f, [value])
+                write!(f, [value])?;
             }
         }
+        write!(f, [f.context().postfix_annotations(_node_id)])?;
+        Ok(())
     }
 }
 

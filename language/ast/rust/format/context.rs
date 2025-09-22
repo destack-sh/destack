@@ -6,7 +6,7 @@ use dyst_language_session::Session;
 use dyst_language_source::{Path, PathId, Source, Span, StringId};
 use dyst_language_token::TokenSpan;
 
-use crate::{Node, NodeId, NodeTree, NodeTreeStore};
+use crate::{Annotation, Node, NodeId, NodeTree, NodeTreeStore};
 
 pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
 
@@ -139,6 +139,7 @@ impl<'ast> DystFormatContext<'ast> {
     }
 
     /// Get a Node from the tree.
+    #[inline]
     pub fn get_node<T>(&self, node_id: NodeId<T>) -> &T
     where
         T: Node,
@@ -148,6 +149,7 @@ impl<'ast> DystFormatContext<'ast> {
     }
 
     /// Get a Span from the tree.
+    #[inline]
     pub fn get_span<T>(&self, node_id: NodeId<T>) -> Span
     where
         T: Node,
@@ -155,15 +157,30 @@ impl<'ast> DystFormatContext<'ast> {
     {
         self.tree.get_span(node_id)
     }
+
+    /// Get annotations for a node.
+    #[inline]
+    pub fn get_annotations<T>(&self, node_id: NodeId<T>) -> Option<Vec<NodeId<Annotation>>>
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        if !self.tree.has_annotations_for(node_id.id) {
+            return None;
+        }
+        Some(self.tree.get_annotations_for(node_id.id).to_vec())
+    }
 }
 
 impl FormatContext for DystFormatContext<'_> {
     type Options = DystFormatOptions;
 
+    #[inline]
     fn options(&self) -> &Self::Options {
         &self.options
     }
 
+    #[inline]
     fn source(&self) -> &Source {
         self.source
     }
@@ -188,7 +205,7 @@ where
     #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let context = f.context();
-        let node = context.get_node(*self).clone(); // todo!: don't clone
+        let node = context.tree.get(*self);
         node.format_node(*self, f)
     }
 }

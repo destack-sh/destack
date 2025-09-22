@@ -7,9 +7,10 @@ use dyst_language_fir::{format_args, write};
 impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
-        _node_id: NodeId<Block>,
+        node_id: NodeId<Block>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().prefix_annotations(node_id)])?;
         // label
         if let Some(label) = &self.label {
             write!(f, [label, token(": ")])?;
@@ -29,9 +30,11 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                     .entries(&self.statements)
                     .finish())),
                 hard_line_break(),
-                token("}")
             ])]
         )?;
+        write!(f, [f.context().infix_annotations(node_id)])?;
+        write!(f, [token("}")])?;
+        write!(f, [f.context().postfix_annotations(node_id)])?;
         Ok(())
     }
 }
