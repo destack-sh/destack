@@ -130,6 +130,9 @@ impl<'ast> FormatNode<'ast, Union> for Union {
                 // blank line between fields and statements
                 if !self.fields.is_empty() && !self.statements.is_empty() {
                     write!(f, [hard_line_break()])?;
+                    if !f.context().has_blank_prefix_annotation(self.statements[0]) {
+                        write!(f, [empty_line()])?;
+                    }
                 }
 
                 // statements

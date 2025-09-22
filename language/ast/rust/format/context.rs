@@ -7,7 +7,8 @@ use dyst_language_source::{Path, PathId, Source, Span, StringId};
 use dyst_language_token::TokenSpan;
 
 use crate::{
-    Annotation, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree, NodeTreeStore, NodeType,
+    Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree,
+    NodeTreeStore, NodeType,
 };
 
 pub type DystFormatter<'ast, 'buf> = Formatter<'buf, DystFormatContext<'ast>>;
@@ -242,6 +243,25 @@ impl<'ast> DystFormatContext<'ast> {
             return None;
         }
         Some(self.tree.get_annotations_for(node_id.id).to_vec())
+    }
+
+    /// Check if a node has a blank block prefix annotation.
+    #[inline]
+    pub fn has_blank_prefix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.get_annotations(node_id).is_some_and(|annotations| {
+            annotations.iter().any(
+                |annotation| match self.tree.get::<Annotation>(*annotation) {
+                    Annotation::Blank { position, .. } => {
+                        *position == AnnotationPosition::BlockPrefix
+                    }
+                    _ => false,
+                },
+            )
+        })
     }
 }
 

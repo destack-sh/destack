@@ -134,7 +134,10 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
 
         // blank line between fields and statements
         if !struct_fields.is_empty() && !self.statements.is_empty() {
-            write!(f, [hard_line_break(), empty_line()])?;
+            write!(f, [hard_line_break()])?;
+            if !f.context().has_blank_prefix_annotation(self.statements[0]) {
+                write!(f, [empty_line()])?;
+            }
         }
 
         // statements

@@ -5,8 +5,6 @@ struct Vector2 {
     x: float32
     y: float32
 
-
-
     /// Construct a Vector2 from x and y components.
     function new(x: float32, y: float32) => Vector2 {
         Vector2 { x, y }
@@ -865,8 +863,6 @@ struct Vector4i {
     z: int32
     /// The w component of the Vector.
     w: int32
-
-
 
     /// The zero Vector4i (0, 0, 0, 0).
     let Zero: Vector4i = Vector4i { x: 0, y: 0, z: 0, w: 0 }

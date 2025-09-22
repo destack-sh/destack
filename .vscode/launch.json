@@ -16,7 +16,7 @@
                 "args": ["run", "--bin", "destack_library_cli"],
                 "filter": { "kind": "bin", "name": "destack_library_cli" }
             },
-            "args": ["fmt", "--string", "1"],
+            "args": ["fmt", "--file", "library/geometry/path.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

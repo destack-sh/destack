@@ -377,7 +377,9 @@ pub trait Dump {
 /// Dump a &str as a string.
 impl Dump for &str {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_char('"', Some(Color::White));
         dumper.write_str(self.as_ref(), Some(Color::BrightYellow));
+        dumper.write_char('"', Some(Color::White));
     }
 }
 

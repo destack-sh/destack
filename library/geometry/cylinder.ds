@@ -1,15 +1,15 @@
 use dyst
 
 /// A Cylinder is aligned with the local z axis with a radius and height.
-struct Cylinder3D { 
-    use Form3D 
-
+struct Cylinder3D {
     radius: float32
     height: float32
+
+    use Form3D
 }
 
 /// A CylinderShape3D is a shape that represents a cylinder.
 @entity
-struct CylinderShape3D: Shape3D { 
-    use Cylinder3D 
+struct CylinderShape3D: Shape3D {
+    use Cylinder3D
 }
