@@ -216,20 +216,22 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
         _node_id: NodeId<Doc>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let string = f.context().session.strings.get(self.string);
+        let is_multi_line = string.contains('\n');
         match self.style {
-            DocStyle::Line => {
-                // prefix every line with `///`
-                let string = f.context().session.strings.get(self.string);
-                for line in string.lines() {
-                    write!(f, [token("///"), space(), text(line), hard_line_break()])?;
-                }
-            }
-            DocStyle::Block => {
+            DocStyle::Block if !is_multi_line => {
                 // block doc comment with `/**` and `*/`
+                //  (unless multiline, we auto-convert to line comments)
                 write!(
                     f,
                     [token("/**"), space(), self.string, space(), token("*/")]
                 )?;
+            }
+            _ => {
+                // prefix every line with `///`
+                for line in string.lines() {
+                    write!(f, [token("///"), space(), text(line), hard_line_break()])?;
+                }
             }
         }
         Ok(())
@@ -243,17 +245,20 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         _node_id: NodeId<Comment>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        let string = f.context().session.strings.get(self.string);
+        let is_multi_line = string.contains('\n');
         match self.style {
-            CommentStyle::Line => {
+            CommentStyle::Block if !is_multi_line => {
+                // block comment with `/*` and `*/`
+                //  (unless multiline, we auto-convert to line comments)
+                write!(f, [token("/*"), space(), self.string, space(), token("*/")])?;
+            }
+            _ => {
                 // prefix every line with `//`
                 let string = f.context().session.strings.get(self.string);
                 for line in string.lines() {
                     write!(f, [token("//"), space(), text(line), hard_line_break()])?;
                 }
-            }
-            CommentStyle::Block => {
-                // block comment with `/*` and `*/`
-                write!(f, [token("/*"), space(), self.string, space(), token("*/")])?;
             }
         }
         Ok(())
@@ -298,13 +303,34 @@ mod tests {
         );
     }
 
+    /// Convert multiline block doc comments to doc line comments.
+    #[test]
+    fn test_format_multine_block_doc_comment_to_line_comment() {
+        assert_format!(
+            "{
+    /** some multiline
+     * doc comment
+     * over multiple lines */
+    let X = 1 
+}",
+            "{
+    /// some multiline
+    /// doc comment
+    /// over multiple lines
+    let X = 1
+}",
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
+
     /// Suffix multiline annotation should be pushed to the next line *and* converted to line comments.
     #[test]
     fn test_format_multine_block_comment_push_and_convert_to_line_comment() {
         assert_format!(
             "{
     let X = 1 /* some comment
-    over multiple lines yo       */
+    * over multiple lines yo       */
 }",
             "{
     let X = 1
