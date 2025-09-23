@@ -902,15 +902,15 @@ impl Node for TupleField {
 /// int32
 /// boolean
 /// boolean | *int32
-/// []float32
-/// [3]float64
+/// float32[]
+/// float64[3]
 /// (int32, int32)
-/// &T // reference to T
-/// &var T // mutable reference to T
-/// &?T // reference to Maybe<T>
-/// ?&T // Maybe pointer to T
-/// ?&?T // Maybe pointer to Maybe<T>
-/// $T // virtual type T
+/// T& // reference to T
+/// T&var // mutable reference to T
+/// T?& // reference to Maybe<T>
+/// T&? // Maybe pointer to T
+/// T?&? // Maybe pointer to Maybe<T>
+/// T$ // virtual type T
 /// T<int32>
 /// T<Validate: false>
 /// MyEnum

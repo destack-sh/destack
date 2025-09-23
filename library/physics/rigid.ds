@@ -26,7 +26,7 @@ struct Mass2D {
     /// Mass of the Body
     mass: float32 = 1.0
     /// Center of mass of the Body
-    centerOfMass: ?Vector2 = None
+    centerOfMass: ?Vector2 = null
     /// Inertia of the Body
     inertia: float32 = 0.0
 }
@@ -62,7 +62,7 @@ struct Mass3D {
     /// Mass of the Body
     mass: float32 = 1.0
     /// Center of mass of the Body
-    centerOfMass: ?Vector3 = None
+    centerOfMass: ?Vector3 = null
     /// Inertia of the Body
     inertia: Vector3
 }
