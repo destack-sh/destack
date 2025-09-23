@@ -22,9 +22,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::Trait(node) => node.format(f)?,
             Expression::Implement(node) => node.format(f)?,
             Expression::Function(node) => node.format(f)?,
+            Expression::Block(node) => node.format(f)?,
 
             Expression::Let(node) => node.format(f)?,
-            Expression::Block(node) => node.format(f)?,
             Expression::If(node) => node.format(f)?,
             Expression::While(node) => node.format(f)?,
             Expression::For(node) => node.format(f)?,

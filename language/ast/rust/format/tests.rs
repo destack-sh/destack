@@ -25,6 +25,7 @@ impl TestFormatter {
 
         let mut parser = Parser::from_source(&source, &mut session);
         let n = parse_fn(&mut parser)?;
+        parser.finalize();
         let tree = parser.tree;
 
         let formatter = Self {

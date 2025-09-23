@@ -181,10 +181,6 @@ impl Node for Block {
 /// (Though not every Expression is a *meaningful* Statement, so we lint this later.)
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    /// Expression (see Expression).
-    /// Catch-all for any Expression used as a "top-level" statement.
-    Expression(NodeId<Expression>),
-
     /// Module definition (as a Statement, see Module).
     Module(NodeId<Module>),
     /// Struct definition (as a Statement, see Struct).
@@ -199,11 +195,17 @@ pub enum Statement {
     Implement(NodeId<Implement>),
     /// Function definition (as a Statement, see Function).
     Function(NodeId<Function>),
+    /// Block of Statements (as a Statement, see Block).
+    Block(NodeId<Block>),
 
     /// With declaration for context management (see With).
     With(NodeId<With>),
     /// Use declaration for dependency management (see Use).
     Use(NodeId<Use>),
+
+    /// Expression (see Expression).
+    /// Catch-all for any Expression used as a "top-level" statement.
+    Expression(NodeId<Expression>),
 }
 
 impl Node for Statement {
@@ -231,11 +233,11 @@ pub enum Expression {
     Implement(NodeId<Implement>),
     /// Function definition (used as an Expression, see Function).
     Function(NodeId<Function>),
+    /// Block of Statements (as an Expression, see Block).
+    Block(NodeId<Block>),
 
     /// Let or var binding (as an Expression, see Let).
     Let(NodeId<Let>),
-    /// A Block is a block of statements (used as an Expression, see Block).
-    Block(NodeId<Block>),
     /// An If is an if/then/else expression (as an Expression, see If).
     If(NodeId<If>),
     /// A While is a while loop (as an Expression, see While).
@@ -887,6 +889,7 @@ impl Node for TupleField {
 }
 
 /// An (unresolved) Type declaration node in the AST.
+/// TODO!: invert Type prefixes/postfixes? accept both? like T*? instead of *?T
 ///
 /// Type references don't support static evaluation directly for simplicity.
 /// They can refer to Paths that are themselves any static Expressions

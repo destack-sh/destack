@@ -74,6 +74,11 @@ impl<'a> Parser<'a> {
                 let function_id = self.eat_function(visibility)?;
                 Statement::Function(function_id)
             }
+            // block
+            else if self.peek_block().is_ok() {
+                let block_id = self.eat_block()?;
+                Statement::Block(block_id)
+            }
             //
             // ------------------------------------------------------------
             // Context

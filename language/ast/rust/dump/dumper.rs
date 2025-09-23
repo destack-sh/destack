@@ -623,7 +623,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
     fn visit_block(&mut self, _tree: &NodeTree, _id: NodeId<Block>, block: &Block) {
         self.node("Block", _id.id)
             .field("format", &block.format)
-            .field("label", &block.label)
+            .field_optional("label", &block.label)
             .end();
         self.with_depth(|dumper| {
             walk_block(dumper, _tree, _id, block);
@@ -632,9 +632,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_statement(&mut self, _tree: &NodeTree, _id: NodeId<Statement>, statement: &Statement) {
         match statement {
-            Statement::Expression(_node) => {
-                self.node("Statement::Expression", _id.id).end();
-            }
             Statement::Module(_node) => {
                 self.node("Statement::Module", _id.id).end();
             }
@@ -656,11 +653,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Statement::Function(_node) => {
                 self.node("Statement::Function", _id.id).end();
             }
+            Statement::Block(_node) => {
+                self.node("Statement::Block", _id.id).end();
+            }
             Statement::With(_node) => {
                 self.node("Statement::With", _id.id).end();
             }
             Statement::Use(_node) => {
                 self.node("Statement::Use", _id.id).end();
+            }
+            Statement::Expression(_node) => {
+                self.node("Statement::Expression", _id.id).end();
             }
         }
         self.with_depth(|dumper| {
@@ -696,12 +699,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Function(_node) => {
                 self.node("Expression::Function", _id.id).end();
             }
+            Expression::Block(_node) => {
+                self.node("Expression::Block", _id.id).end();
+            }
 
             Expression::Let(_node) => {
                 self.node("Expression::Let", _id.id).end();
-            }
-            Expression::Block(_node) => {
-                self.node("Expression::Block", _id.id).end();
             }
             Expression::If(_node) => {
                 self.node("Expression::If", _id.id).end();

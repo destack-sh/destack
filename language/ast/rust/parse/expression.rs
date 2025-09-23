@@ -640,6 +640,12 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Function(function_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
+            // block
+            else if self.peek_block().is_ok() {
+                let block_id = self.eat_block()?;
+                let expression = Expression::Block(block_id);
+                self.tree.allocate(expression, self.get_span_from(start))
+            }
             //
             // ------------------------------------------------------------
             // Control flow

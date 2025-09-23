@@ -34,7 +34,6 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Statement, id.id);
     match statement {
-        Statement::Expression(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
         Statement::Module(node) => visitor.visit_module(tree, *node, tree.get(*node)),
         Statement::Struct(node) => visitor.visit_struct(tree, *node, tree.get(*node)),
         Statement::Enum(node) => visitor.visit_enum(tree, *node, tree.get(*node)),
@@ -42,8 +41,10 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         Statement::Trait(node) => visitor.visit_trait(tree, *node, tree.get(*node)),
         Statement::Implement(node) => visitor.visit_implement(tree, *node, tree.get(*node)),
         Statement::Function(node) => visitor.visit_function(tree, *node, tree.get(*node)),
+        Statement::Block(node) => visitor.visit_block(tree, *node, tree.get(*node)),
         Statement::With(node) => visitor.visit_with(tree, *node, tree.get(*node)),
         Statement::Use(node) => visitor.visit_use(tree, *node, tree.get(*node)),
+        Statement::Expression(node) => visitor.visit_expression(tree, *node, tree.get(*node)),
     }
 }
 /// Walk the Expression.
@@ -62,9 +63,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Trait(node) => visitor.visit_trait(tree, *node, tree.get(*node)),
         Expression::Implement(node) => visitor.visit_implement(tree, *node, tree.get(*node)),
         Expression::Function(node) => visitor.visit_function(tree, *node, tree.get(*node)),
+        Expression::Block(node) => visitor.visit_block(tree, *node, tree.get(*node)),
 
         Expression::Let(node) => visitor.visit_let(tree, *node, tree.get(*node)),
-        Expression::Block(node) => visitor.visit_block(tree, *node, tree.get(*node)),
         Expression::If(node) => visitor.visit_if(tree, *node, tree.get(*node)),
         Expression::While(node) => visitor.visit_while(tree, *node, tree.get(*node)),
         Expression::For(node) => visitor.visit_for(tree, *node, tree.get(*node)),

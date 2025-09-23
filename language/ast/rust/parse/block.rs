@@ -13,6 +13,7 @@ impl<'a> Parser<'a> {
     /// { ... }
     /// label: { ... }
     /// ```
+    #[inline]
     pub fn peek_block(&self) -> ParseResult<()> {
         if self.peek_token(TokenType::OpenBrace).is_ok()
             || self.peek_token(TokenType::Identifier).is_ok()
