@@ -27,6 +27,3 @@ struct Segment3D {
 struct SegmentShape3D: Shape3D {
     use Segment3D
 }
-
-// nocheckin
-let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */;

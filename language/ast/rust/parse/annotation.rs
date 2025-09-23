@@ -1,7 +1,5 @@
 //! Annotation parsing.
 
-use std::borrow::Cow;
-
 use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
@@ -256,7 +254,7 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::LineComment => {
-                let string = self.intern_string(self.clean_annotation_string_group(group));
+                let string = self.intern_string(self.clean_annotation_string(token_type, group));
                 let comment = self.tree.allocate(
                     Comment {
                         string,
@@ -273,7 +271,7 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::BlockComment => {
-                let string = self.intern_string(self.clean_annotation_string_group(group));
+                let string = self.intern_string(self.clean_annotation_string(token_type, group));
                 let comment = self.tree.allocate(
                     Comment {
                         string,
@@ -290,7 +288,7 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::DocLineComment => {
-                let string = self.intern_string(self.clean_annotation_string_group(group));
+                let string = self.intern_string(self.clean_annotation_string(token_type, group));
                 let doc = self.tree.allocate(
                     Doc {
                         string,
@@ -307,7 +305,7 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::DocBlockComment => {
-                let string = self.intern_string(self.clean_annotation_string_group(group));
+                let string = self.intern_string(self.clean_annotation_string(token_type, group));
                 let doc = self.tree.allocate(
                     Doc {
                         string,
@@ -332,65 +330,79 @@ impl<'a> Parser<'a> {
         Some(annotation_id)
     }
 
-    /// Clean a group of annotation tokens into their inner string.
-    #[inline]
-    fn clean_annotation_string_group(&self, group: &[TokenSpan]) -> String {
-        group
-            .iter()
-            .map(|token| self.clean_annotation_string(*token))
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
+    /// Clean annotation tokens into their inner string, preserving intentional spacing.
+    fn clean_annotation_string(&self, token_type: TokenType, group: &[TokenSpan]) -> String {
+        debug_assert!(!group.is_empty());
 
-    /// Clean an annotation token into its inner string
-    /// Newlines are preserved, first leading space is stripped.
-    fn clean_annotation_string(&self, token: TokenSpan) -> Cow<'_, str> {
-        let string = self.source.get_span_str(token.span);
+        let mut cleaned_tokens = Vec::with_capacity(group.len());
 
-        let annotation = match token.token.r#type {
-            // line comments
-            TokenType::LineComment => {
-                // strip leading `//`
-                string.strip_prefix("//").unwrap_or(string)
-            }
-            TokenType::DocLineComment => {
-                // strip leading `///`
-                string.strip_prefix("///").unwrap_or(string)
-            }
-            // block comments
-            TokenType::BlockComment => {
-                // strip leading `/*` and trailing `*/`
-                string
+        for token in group {
+            let raw = self.source.get_span_str(token.span);
+
+            // strip comment prefixes and suffixes
+            let inner = match token_type {
+                TokenType::LineComment => raw.strip_prefix("//").unwrap_or(raw),
+                TokenType::DocLineComment => raw.strip_prefix("///").unwrap_or(raw),
+                TokenType::BlockComment => raw
                     .strip_prefix("/*")
-                    .unwrap_or(string)
+                    .unwrap_or(raw)
                     .strip_suffix("*/")
-                    .unwrap_or(string)
-                    .trim_matches(' ')
-            }
-            TokenType::DocBlockComment => {
-                // strip leading `/**` and trailing `*/`
-                string
+                    .unwrap_or(raw),
+                TokenType::DocBlockComment => raw
                     .strip_prefix("/**")
-                    .unwrap_or(string)
+                    .unwrap_or(raw)
                     .strip_suffix("*/")
-                    .unwrap_or(string)
-                    .trim_matches(' ')
-            }
-            _ => panic!("unexpected token type: {:?}", token.token.r#type),
-        };
+                    .unwrap_or(raw),
+                _ => panic!("unexpected token type: {token_type:?}"),
+            };
 
-        // strip leading space on every line
-        if annotation.contains('\n') {
-            // only allocate for multiline strings
-            let cleaned: String = annotation
-                .lines()
-                .map(|line| line.strip_prefix(' ').unwrap_or(line))
-                .collect::<Vec<_>>()
-                .join("\n");
-            Cow::Owned(cleaned)
-        } else {
-            Cow::Borrowed(annotation.strip_prefix(' ').unwrap_or(annotation))
+            // clean up whitespace and formatting characters
+            let cleaned = match token_type {
+                TokenType::LineComment | TokenType::DocLineComment => {
+                    if inner.contains('\n') {
+                        // handle multiline comments by stripping leading space from each line
+                        inner
+                            .lines()
+                            .map(|line| line.strip_prefix(' ').unwrap_or(line).to_owned())
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    } else {
+                        // single line, just strip leading space
+                        inner.strip_prefix(' ').unwrap_or(inner).to_owned()
+                    }
+                }
+                TokenType::BlockComment | TokenType::DocBlockComment => {
+                    let trimmed = inner.trim();
+                    if trimmed.is_empty() {
+                        String::new()
+                    } else {
+                        // handle block comment formatting with optional asterisk prefixes
+                        trimmed
+                            .lines()
+                            .map(|line| {
+                                let trimmed_star = line.trim_start_matches(' ');
+                                if let Some(after_star) = trimmed_star.strip_prefix('*') {
+                                    // line has asterisk prefix, strip it and following space
+                                    after_star
+                                        .strip_prefix(' ')
+                                        .unwrap_or(after_star)
+                                        .to_owned()
+                                } else {
+                                    // no asterisk, just strip leading space
+                                    line.strip_prefix(' ').unwrap_or(line).to_owned()
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    }
+                }
+                _ => unreachable!(),
+            };
+
+            cleaned_tokens.push(cleaned);
         }
+
+        cleaned_tokens.join("\n")
     }
 }
 
@@ -398,9 +410,9 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Annotation, AnnotationPosition, BinaryOperator, Blank, BlockFormat, Comment, CommentStyle,
-        Doc, DocStyle, Expression, Function, Let, Statement, Struct, StructField, assert_node,
-        assert_path, assert_string,
+        Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat, Comment,
+        CommentStyle, Doc, DocStyle, Expression, Function, Let, Statement, Struct, StructField,
+        assert_node, assert_path, assert_string,
     };
 
     /// Line suffix is attached to the previous node on the same line.
@@ -446,6 +458,35 @@ over multiple lines with trailing space    */",
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(parser.get_string(*string), "line comment\nover multiple lines with trailing space");
                 assert_eq!(*style, CommentStyle::Block);
+            });
+        });
+    }
+
+    /// Multiline block comments are cleaned up properly.
+    #[test]
+    fn test_clean_multiline_block_comment() {
+        let mut test = TestParser::new(
+            "{
+    /** some multiline
+     * block comment
+     * over multiple lines */
+    let X = 1
+}",
+        );
+        let mut parser = test.parser();
+        let block = parser.eat_block().unwrap();
+        parser.finalize();
+
+        assert_node!(parser.tree, block, Block { statements, .. } => {
+            assert_eq!(statements.len(), 1);
+            let annotations = parser.tree.get_annotations_for(statements[0].id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Doc { string, style } => {
+                    assert_eq!(parser.get_string(*string), "some multiline\nblock comment\nover multiple lines");
+                    assert_eq!(*style, DocStyle::Block);
+                });
             });
         });
     }
