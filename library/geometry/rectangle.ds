@@ -15,12 +15,10 @@ struct RectangleShape2D: Shape2D {
 }
 
 /// A Box is an axis-aligned box defined by width, height and depth.
-struct Box3D {
+struct Box3D: Form3D {
     width: float32
     height: float32
     depth: float32
-
-    use Form3D
 }
 
 /// A BoxShape3D is a shape that represents an axis-aligned box.

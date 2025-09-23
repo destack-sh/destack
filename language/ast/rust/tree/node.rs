@@ -793,8 +793,6 @@ impl Node for Function {
 /// var self
 /// &self
 /// &var self
-/// $self
-/// $var self
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
@@ -890,6 +888,8 @@ impl Node for TupleField {
 
 /// An (unresolved) Type declaration node in the AST.
 /// TODO!: invert Type prefixes/postfixes? accept both? like T*? instead of *?T
+///  (it works better for arrays.. not sure about Maybe/Not/Virtual/...?)
+///  (.. what if we just support both and then format it appropriately?)
 ///
 /// Type references don't support static evaluation directly for simplicity.
 /// They can refer to Paths that are themselves any static Expressions
@@ -906,6 +906,7 @@ impl Node for TupleField {
 /// [3]float64
 /// (int32, int32)
 /// &T // reference to T
+/// &var T // mutable reference to T
 /// &?T // reference to Maybe<T>
 /// ?&T // Maybe pointer to T
 /// ?&?T // Maybe pointer to Maybe<T>
@@ -926,7 +927,7 @@ impl Node for TupleField {
 pub enum Type {
     /// Infer placeholder `_`.
     Infer,
-    /// Maybe '?T'. Desugars to `Maybe<T>`.
+    /// Maybe '?T'.
     Maybe(NodeId<Type>),
     /// Not `!T`.
     Not(NodeId<Type>),
