@@ -266,22 +266,20 @@ impl<'a> Parser<'a> {
             // character
             "character" => Ok(PrimitiveType::Character),
             // int_
-            int_str if int_str.starts_with("int") => {
-                let width = int_str
-                    .trim_start_matches("int")
-                    .parse::<u16>()
-                    .unwrap_or(0);
+            int_str if int_str.starts_with("int") && int_str.len() > 3 => {
+                let Ok(width) = int_str.trim_start_matches("int").parse::<u16>() else {
+                    return Err(ParseError::expected(next.span, TokenType::Literal));
+                };
                 Ok(PrimitiveType::Int(IntType {
                     width,
                     is_signed: true,
                 }))
             }
             // uint_
-            uint_str if uint_str.starts_with("uint") => {
-                let width = uint_str
-                    .trim_start_matches("uint")
-                    .parse::<u16>()
-                    .unwrap_or(0);
+            uint_str if uint_str.starts_with("uint") && uint_str.len() > 4 => {
+                let Ok(width) = uint_str.trim_start_matches("uint").parse::<u16>() else {
+                    return Err(ParseError::expected(next.span, TokenType::Literal));
+                };
                 Ok(PrimitiveType::Int(IntType {
                     width,
                     is_signed: false,
