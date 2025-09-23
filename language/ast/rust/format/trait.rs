@@ -1,13 +1,16 @@
 use dyst_language_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, Keyword, NodeId, Trait, Visibility};
+use crate::{
+    DystFormatter, FormatNode, Keyword, NodeId, Trait, Visibility,
+    empty_block_with_infix_annotations,
+};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, Trait> for Trait {
     fn format_node(
         &self,
-        _node_id: NodeId<Trait>,
+        node_id: NodeId<Trait>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // visibility
@@ -83,7 +86,7 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
 
         // empty trait body (same line)
         if self.statements.is_empty() {
-            write!(f, [token("{ }")])?;
+            write!(f, [empty_block_with_infix_annotations(node_id)])?;
             return Ok(());
         }
 

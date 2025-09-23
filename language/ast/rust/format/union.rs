@@ -2,7 +2,7 @@ use dyst_language_fir::format::FormatResult;
 
 use crate::{
     DystFormatter, FormatNode, Keyword, NodeId, StructStyle, Type, Union, UnionField, UnionStyle,
-    Visibility,
+    Visibility, empty_block_with_infix_annotations,
 };
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
@@ -10,7 +10,7 @@ use dyst_language_fir::{format_args, write};
 impl<'ast> FormatNode<'ast, Union> for Union {
     fn format_node(
         &self,
-        _node_id: NodeId<Union>,
+        node_id: NodeId<Union>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self.style {
@@ -109,7 +109,7 @@ impl<'ast> FormatNode<'ast, Union> for Union {
 
                 // empty body (same line)
                 if self.fields.is_empty() && self.statements.is_empty() {
-                    write!(f, [token("{ }")])?;
+                    write!(f, [empty_block_with_infix_annotations(node_id)])?;
                     return Ok(());
                 }
 

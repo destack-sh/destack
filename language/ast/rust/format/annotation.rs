@@ -4,43 +4,75 @@ use dyst_language_fir::write;
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, DystFormatContext,
-    DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore,
+    DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
 };
 
 impl<'ast> DystFormatContext<'ast> {
-    /// Format the preceding annotations for a node.
-    #[inline]
-    pub fn prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
-        Annotations {
-            position: AnnotationPosition::BlockPrefix,
-            node_id,
-        }
-    }
-
-    /// Format the following annotations for a node.
-    #[inline]
-    pub fn postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
-        Annotations {
-            position: AnnotationPosition::BlockPostfix,
-            node_id,
-        }
-    }
-
     /// Format the infix annotations for a node.
     #[inline]
     pub fn infix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
         Annotations {
-            position: AnnotationPosition::BlockInfix,
+            position: AnnotationCapture::BlockInfix,
             node_id,
         }
     }
+
+    /// Format the prefix annotations for a node.
+    #[inline]
+    pub fn prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::BlockPrefix,
+            node_id,
+        }
+    }
+
+    /// Format the postfix annotations for a node.
+    #[inline]
+    pub fn postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::BlockPostfix,
+            node_id,
+        }
+    }
+
+    /// Format the line suffix annotations for a node.
+    #[inline]
+    pub fn suffix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::LineSuffix,
+            node_id,
+        }
+    }
+
+    /// Format the postfix and line suffix annotations for a node.
+    #[inline]
+    pub fn suffix_and_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::BlockPostfixAndLineSuffix,
+            node_id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AnnotationCapture {
+    /// Annotations inside the node (without next node to attach to, like in an empty block.)
+    BlockInfix,
+    /// Annotation preceding the node on previous lines (most common).
+    BlockPrefix,
+    /// Annotation after the node on a new line (only if prefix and infix are not possible).
+    BlockPostfix,
+    /// Annotation after the node on the same line (like infix comments).
+    LineSuffix,
+    /// Annotation after the node on a new line (only if prefix and infix are not possible).
+    BlockPostfixAndLineSuffix,
 }
 
 /// Annotations for a node.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotations<T: Node> {
     /// The position of the annotations.
-    position: AnnotationPosition,
+    position: AnnotationCapture,
     /// The node ID.
     node_id: NodeId<T>,
 }
@@ -55,14 +87,38 @@ where
         let Some(annotations) = f.context().get_annotations(self.node_id) else {
             return Ok(());
         };
+        let mut first_node_type: Option<NodeType> = None;
         for annotation_id in annotations {
             let annotation = f.context().tree.get::<Annotation>(annotation_id);
-            let position = match annotation {
-                Annotation::Blank { position, .. } => *position,
-                Annotation::Doc { position, .. } => *position,
-                Annotation::Comment { position, .. } => *position,
+            let (node_type, position) = match annotation {
+                Annotation::Blank { position, .. } => (NodeType::Blank, *position),
+                Annotation::Doc { position, .. } => (NodeType::Doc, *position),
+                Annotation::Comment { position, .. } => (NodeType::Comment, *position),
             };
-            if position == self.position {
+            let is_included = match position {
+                AnnotationPosition::BlockInfix => self.position == AnnotationCapture::BlockInfix,
+                AnnotationPosition::BlockPrefix => self.position == AnnotationCapture::BlockPrefix,
+                AnnotationPosition::BlockPostfix => {
+                    self.position == AnnotationCapture::BlockPostfix
+                        || self.position == AnnotationCapture::BlockPostfixAndLineSuffix
+                }
+                AnnotationPosition::LineSuffix => {
+                    self.position == AnnotationCapture::LineSuffix
+                        || self.position == AnnotationCapture::BlockPostfixAndLineSuffix
+                }
+            };
+            if is_included {
+                // insert space/newline for first annotation in group
+                if first_node_type.is_none() {
+                    first_node_type = Some(node_type);
+                    if position == AnnotationPosition::LineSuffix {
+                        write!(f, [space()])?;
+                    } else {
+                        write!(f, [hard_line_break()])?;
+                    }
+                }
+
+                // format annotation itself
                 annotation.format_node(annotation_id, f)?;
             }
         }

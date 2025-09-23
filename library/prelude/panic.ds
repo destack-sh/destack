@@ -1,5 +1,0 @@
-
-/// /// Panics with a message.
-/// It is used to panic the program.
-@intrinsic
-@panic(message: string)

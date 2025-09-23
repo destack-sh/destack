@@ -1,13 +1,16 @@
 use dyst_language_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, Keyword, Match, MatchCase, NodeId};
+use crate::{
+    DystFormatter, FormatNode, Keyword, Match, MatchCase, NodeId,
+    empty_block_with_infix_annotations,
+};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, Match> for Match {
     fn format_node(
         &self,
-        _node_id: NodeId<Match>,
+        node_id: NodeId<Match>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // match <expression>
@@ -15,7 +18,7 @@ impl<'ast> FormatNode<'ast, Match> for Match {
 
         // empty match body
         if self.cases.is_empty() {
-            write!(f, [space(), token("{ }")])?;
+            write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
             return Ok(());
         }
 

@@ -110,8 +110,12 @@ mod tests {
     let X = 1
 }
 // comment before cond2
-else if cond2 { 
+ else if cond2 {
     let Y = 2 // comment trailing Y
+}
+// comment before else
+ else {
+    let Z = 3 // comment trailing Z
 }";
         assert_format!(
             source,

@@ -26,6 +26,7 @@ pub mod union;
 pub mod r#use;
 pub mod with;
 
+pub use block::{EmptyBlockWithInfixAnnotations, empty_block_with_infix_annotations};
 pub use context::*;
 
 #[cfg(test)]

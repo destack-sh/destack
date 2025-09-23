@@ -1,10 +1,52 @@
 use dyst_language_fir::format::FormatResult;
 
 use crate::{
-    Block, Break, Continue, Defer, DystFormatter, FormatNode, Keyword, NodeId, NodeType, Return,
+    Block, Break, Continue, Defer, DystFormatContext, DystFormatter, FormatNode, Keyword, Node,
+    NodeId, NodeTree, NodeTreeStore, NodeType, Return,
 };
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
+
+/// Empty block with infix annotations.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EmptyBlockWithInfixAnnotations<T: Node> {
+    node_id: NodeId<T>,
+}
+
+impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeStore<T>,
+{
+    #[inline]
+    fn format(&self, f: &mut Formatter<'_, DystFormatContext<'ast>>) -> FormatResult<()> {
+        write!(
+            f,
+            [group(&format_args![
+                token("{"),
+                soft_block_indent(&format_args![
+                    if_group_fits_on_line(&space()),
+                    &f.context().infix_annotations(self.node_id)
+                ]),
+                token("}")
+            ])]
+        )
+    }
+}
+
+/// Format an empty block with infix annotations.
+///
+/// Example:
+/// ```
+/// {
+///     // infix comment
+/// }
+/// ```
+pub fn empty_block_with_infix_annotations<T: Node>(
+    node_id: NodeId<T>,
+) -> EmptyBlockWithInfixAnnotations<T> {
+    EmptyBlockWithInfixAnnotations { node_id }
+}
 
 impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
@@ -22,7 +64,13 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         }
         // statements
         if self.statements.is_empty() {
-            write!(f, [token("{ }")])?;
+            write!(
+                f,
+                [
+                    empty_block_with_infix_annotations(node_id),
+                    f.context().suffix_and_postfix_annotations(node_id)
+                ]
+            )?;
         }
         // single-statement block is inline if it's an expression and doesn't overflow
         else if self.statements.len() == 1 && is_in_expression {
@@ -34,6 +82,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                     soft_block_indent(&self.statements[0]),
                     soft_line_break_or_space(),
                     token("}"),
+                    f.context().suffix_and_postfix_annotations(node_id),
                 ])]
             )?;
         }
@@ -53,7 +102,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
             )?;
             write!(f, [f.context().infix_annotations(node_id)])?;
             write!(f, [token("}")])?;
-            write!(f, [f.context().postfix_annotations(node_id)])?;
+            write!(f, [f.context().suffix_and_postfix_annotations(node_id)])?;
         }
 
         Ok(())
@@ -150,8 +199,23 @@ mod tests {
     fn test_format_mixed_block_with_prefix_postfix_comment() {
         let source = "{
     // prefix comment
-    let X = 1
+    let X = 1 // suffix comment
     // postfix comment
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_mixed_block_with_suffix_comment() {
+        let source = "{
+    let X = 1 // this is my X
+    let Y = 2 // this is my Y
+    let Z = 3 // this is my Z
 }";
         assert_format!(
             source,
