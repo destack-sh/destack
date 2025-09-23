@@ -1,8 +1,9 @@
 //! Parse use and with declarations.
 use dyst_language_token::TokenType;
 
+use crate::parse::prelude::*;
 use crate::{
-    Expression, Keyword, NodeId, ParseResult, Parser, Use, UseClause, UseItem, Visibility,
+    Expression, Keyword, NodeId, NodeType, ParseResult, Parser, Use, UseClause, UseItem, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -19,7 +20,9 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_use(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Use>> {
         self.eat_keyword(Keyword::Use)?;
-        let using = self.eat_use_header(visibility)?;
+        let using = self
+            .eat_use_header(visibility)
+            .for_node_type(NodeType::Use)?;
         Ok(using)
     }
 
@@ -39,7 +42,7 @@ impl<'a> Parser<'a> {
 
         // parse one or more clauses separated by commas
         let mut clauses: Vec<NodeId<UseClause>> = Vec::new();
-        let clause = self.eat_use_clause()?;
+        let clause = self.eat_use_clause().for_node_type(NodeType::UseClause)?;
         clauses.push(clause);
         loop {
             if self.peek_token(TokenType::Comma).is_ok() {
@@ -48,7 +51,7 @@ impl<'a> Parser<'a> {
                 if self.peek_statement_stop().is_ok() {
                     break;
                 }
-                let next_clause = self.eat_use_clause()?;
+                let next_clause = self.eat_use_clause().for_node_type(NodeType::UseClause)?;
                 clauses.push(next_clause);
                 continue;
             }
@@ -76,7 +79,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_use_clause(&mut self) -> ParseResult<NodeId<UseClause>> {
         let start = self.mark();
-        let path = self.eat_path()?;
+        let path = self.eat_path().for_node_type(NodeType::Expression)?;
 
         // try grouped items first: `. { ... }`
         let items = if self.peek_token(TokenType::Dot).is_ok() {
@@ -88,7 +91,7 @@ impl<'a> Parser<'a> {
             let mut items: Vec<NodeId<UseItem>> = Vec::new();
             if self.peek_token(TokenType::CloseBrace).is_err() {
                 loop {
-                    let item = self.eat_use_item()?;
+                    let item = self.eat_use_item().for_node_type(NodeType::UseItem)?;
                     items.push(item);
                     if self.peek_token(TokenType::Comma).is_ok() {
                         self.eat_token(TokenType::Comma)?;

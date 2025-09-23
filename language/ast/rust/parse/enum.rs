@@ -3,8 +3,9 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
+use crate::parse::prelude::*;
 use crate::{
-    Enum, EnumField, Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Type,
+    Enum, EnumField, Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Statement, Type,
     TypeParserOptions, Visibility,
 };
 
@@ -40,7 +41,9 @@ impl<'a> Parser<'a> {
         let explicit_type: Option<NodeId<Type>> =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.eat_token(TokenType::OpenParenthesis)?;
-                let ty = self.eat_type(TypeParserOptions::default())?;
+                let ty = self
+                    .eat_type(TypeParserOptions::default())
+                    .for_node_type(NodeType::Enum)?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Some(ty)
             } else {
@@ -65,7 +68,9 @@ impl<'a> Parser<'a> {
                 }
                 // keep eating super types
                 else {
-                    let super_type = self.eat_type(TypeParserOptions::default())?;
+                    let super_type = self
+                        .eat_type(TypeParserOptions::default())
+                        .for_node_type(NodeType::Enum)?;
                     super_types.push(super_type);
                 }
             }
@@ -77,7 +82,9 @@ impl<'a> Parser<'a> {
         // body
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
-        let enum_id = self.eat_enum_body(visibility)?;
+        let enum_id = self
+            .eat_enum_body(visibility)
+            .for_node_type(NodeType::Enum)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // fill header data
@@ -108,7 +115,7 @@ impl<'a> Parser<'a> {
             }
             // enum field
             else if self.peek_enum_field().is_ok() {
-                let field = self.eat_enum_field()?;
+                let field = self.eat_enum_field().for_node_type(NodeType::Enum)?;
                 fields.push(field);
             }
             // eat statements
@@ -152,12 +159,15 @@ impl<'a> Parser<'a> {
     /// Eat a single enum field and return it as a UnionField node id.
     fn eat_enum_field(&mut self) -> ParseResult<NodeId<EnumField>> {
         let start = self.mark();
-        let name = self.eat_identifier()?;
+        let name = self.eat_identifier().for_node_type(NodeType::EnumField)?;
 
         // optional `= <expr>` value
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
-            Some(self.eat_expression(ExpressionParserOptions::default())?)
+            Some(
+                self.eat_expression(ExpressionParserOptions::default())
+                    .for_node_type(NodeType::EnumField)?,
+            )
         } else {
             None
         };

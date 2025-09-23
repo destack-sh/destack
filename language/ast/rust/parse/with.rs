@@ -1,7 +1,8 @@
 //! Parse use and with declarations.
 use dyst_language_token::TokenType;
 
-use crate::{Keyword, NodeId, ParseResult, Parser, TypeParserOptions, With, WithClause};
+use crate::parse::prelude::*;
+use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, TypeParserOptions, With, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with declaration.
@@ -35,30 +36,34 @@ impl<'a> Parser<'a> {
 
         // parenthesized list with newlines
         if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            self.eat_token(TokenType::OpenParenthesis)?;
+            self.eat_token(TokenType::OpenParenthesis)
+                .for_node_type(NodeType::With)?;
             self.eat_newlines_maybe()?;
             loop {
                 self.eat_newlines_maybe()?;
                 if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                     break;
                 }
-                let next_clause = self.eat_with_clause()?;
+                let next_clause = self.eat_with_clause().for_node_type(NodeType::With)?;
                 clauses.push(next_clause);
                 // optional comma with newlines
                 if self.peek_token(TokenType::Comma).is_ok() {
-                    self.eat_token(TokenType::Comma)?;
+                    self.eat_token(TokenType::Comma)
+                        .for_node_type(NodeType::With)?;
                 }
             }
-            self.eat_token(TokenType::CloseParenthesis)?;
+            self.eat_token(TokenType::CloseParenthesis)
+                .for_node_type(NodeType::With)?;
         }
         // plain list separated by commas
         else {
             loop {
-                let clause = self.eat_with_clause()?;
+                let clause = self.eat_with_clause().for_node_type(NodeType::With)?;
                 clauses.push(clause);
                 // required comma
                 if self.peek_token(TokenType::Comma).is_ok() {
-                    self.eat_token(TokenType::Comma)?;
+                    self.eat_token(TokenType::Comma)
+                        .for_node_type(NodeType::With)?;
                 } else {
                     break;
                 }
@@ -79,12 +84,16 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // first parse the left-hand side type target
-        let left = self.eat_type(TypeParserOptions::default())?;
+        let left = self
+            .eat_type(TypeParserOptions::default())
+            .for_node_type(NodeType::WithClause)?;
 
         // assertion: `T: SomeType`
         if self.peek_colon().is_ok() {
-            self.eat_colon()?;
-            let right = self.eat_type(TypeParserOptions::default())?;
+            self.bump(); // eat colon
+            let right = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::WithClause)?;
             let clause = self.tree.allocate(
                 WithClause::Assertion {
                     target: left,
@@ -99,7 +108,7 @@ impl<'a> Parser<'a> {
             let alias = if let Ok(next) = self.peek_token(TokenType::Identifier) {
                 if self.get_token_str(*next) == Keyword::As.as_str() {
                     self.bump(); // eat as keyword
-                    Some(self.eat_identifier()?)
+                    Some(self.eat_identifier().for_node_type(NodeType::WithClause)?)
                 } else {
                     None
                 }

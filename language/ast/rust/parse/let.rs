@@ -1,9 +1,10 @@
+use crate::parse::prelude::*;
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Keyword, Let, LetInitialization, Mutability, NodeId, ParseResult, Parser, TypeParserOptions,
-    Visibility,
+    Keyword, Let, LetInitialization, Mutability, NodeId, NodeType, ParseResult, Parser,
+    TypeParserOptions, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -25,24 +26,31 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // mutability
         let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
-            self.eat_keyword(Keyword::Var)?;
+            self.eat_keyword(Keyword::Var)
+                .for_node_type(NodeType::Let)?;
             Mutability::Mutable
         } else {
-            self.eat_keyword(Keyword::Let)?;
+            self.eat_keyword(Keyword::Let)
+                .for_node_type(NodeType::Let)?;
             Mutability::Immutable
         };
         // pattern
-        let pattern = self.eat_pattern(ExpressionParserOptions::default())?;
+        let pattern = self
+            .eat_pattern(ExpressionParserOptions::default())
+            .for_node_type(NodeType::Let)?;
         // type
         let r#type = if self.peek_colon().is_ok() {
-            self.eat_colon()?;
-            Some(self.eat_type(TypeParserOptions::default())?)
+            self.bump(); // eat colon
+            let r#type = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::Let)?;
+            Some(r#type)
         } else {
             None
         };
         // value
         let (value, initialization) = if self.peek_token(TokenType::Assign).is_ok() {
-            self.eat_token(TokenType::Assign)?;
+            self.bump(); // eat assign
             // explicitly uninitialized
             if self.peek_token(TokenType::Empty).is_ok() {
                 (None, LetInitialization::Explicit)
@@ -50,7 +58,10 @@ impl<'a> Parser<'a> {
             // explicitly initialized
             else {
                 (
-                    Some(self.eat_expression(ExpressionParserOptions::default())?),
+                    Some(
+                        self.eat_expression(ExpressionParserOptions::default())
+                            .for_node_type(NodeType::Let)?,
+                    ),
                     LetInitialization::Explicit,
                 )
             }

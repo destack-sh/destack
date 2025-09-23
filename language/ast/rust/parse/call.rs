@@ -1,11 +1,12 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
+use crate::parse::prelude::*;
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, ParseError, ParseResult, Parser,
-    ParserOptions, Runtime, ScalarLiteral, TypeParserOptions,
+    Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, NodeType, ParseError, ParseResult,
+    Parser, ParserOptions, Runtime, ScalarLiteral, TypeParserOptions,
 };
 
 impl<'a> Parser<'a> {
@@ -24,7 +25,9 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Index>> {
         let start = self.mark();
         self.eat_token(TokenType::OpenBracket)?;
-        let index = self.eat_expression(ExpressionParserOptions::default())?;
+        let index = self
+            .eat_expression(ExpressionParserOptions::default())
+            .for_node_type(NodeType::Index)?;
         self.eat_token(TokenType::CloseBracket)?;
         let index_id = self.tree.allocate(
             Index::Explicit {
@@ -48,7 +51,7 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Index>> {
         let start = self.mark();
         self.eat_token(TokenType::Dot)?;
-        let literal_id = self.eat_scalar_literal()?;
+        let literal_id = self.eat_scalar_literal().for_node_type(NodeType::Index)?;
         let index = match self.tree.get(literal_id) {
             ScalarLiteral::Integer(index, _) => *index,
             _ => return Err(ParseError::unexpected(self.peek()?.span)),
@@ -86,13 +89,15 @@ impl<'a> Parser<'a> {
                 self.bump(); // eat greater than
                 None
             } else {
-                let static_arguments = self.with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_arguments_body(),
-                )?;
+                let static_arguments = self
+                    .with_options(
+                        ParserOptions {
+                            in_static_type: true,
+                            ..self.options
+                        },
+                        |parser| parser.eat_arguments_body(),
+                    )
+                    .for_node_type(NodeType::Call)?;
                 self.eat_token(TokenType::GreaterThan)?;
                 Some(static_arguments)
             }
@@ -104,7 +109,7 @@ impl<'a> Parser<'a> {
         let dynamic_arguments = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
             vec![]
         } else {
-            self.eat_arguments_body()?
+            self.eat_arguments_body().for_node_type(NodeType::Call)?
         };
         self.eat_token(TokenType::CloseParenthesis)?;
         // call
@@ -131,7 +136,9 @@ impl<'a> Parser<'a> {
     pub fn eat_as_postfix(&mut self, receiver_id: NodeId<Expression>) -> ParseResult<NodeId<Cast>> {
         let start = self.mark();
         self.eat_keyword(Keyword::As)?;
-        let r#type = self.eat_type(TypeParserOptions::default())?;
+        let r#type = self
+            .eat_type(TypeParserOptions::default())
+            .for_node_type(NodeType::Cast)?;
         let cast_id = self.tree.allocate(
             Cast {
                 receiver: receiver_id,
@@ -154,7 +161,9 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<NodeId<Coalesce>> {
         let start = self.mark();
         self.eat_token(TokenType::Coalesce)?;
-        let default = self.eat_expression(ExpressionParserOptions::default())?;
+        let default = self
+            .eat_expression(ExpressionParserOptions::default())
+            .for_node_type(NodeType::Coalesce)?;
         let coalesce_id = self.tree.allocate(
             Coalesce {
                 receiver: receiver_id,

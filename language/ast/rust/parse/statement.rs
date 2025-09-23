@@ -2,8 +2,8 @@
 
 use dyst_language_token::TokenType;
 
-use crate::parse::expression::ExpressionParserOptions;
-use crate::{Keyword, NodeId, ParseResult, Parser, ParserMark, Statement};
+use crate::parse::prelude::*;
+use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, ParserMark, Statement};
 
 impl<'a> Parser<'a> {
     /// Eat a statement with recovery (return None if error and recovery is possible).
@@ -12,6 +12,7 @@ impl<'a> Parser<'a> {
         match self.eat_statement() {
             Ok(statement_id) => Ok(Some(statement_id)),
             Err(err) => {
+                let err = err.for_node_type(NodeType::Statement);
                 let span = err.leaf_span();
                 let start = ParserMark::new(span.start as usize);
                 self.try_recover(start, TokenType::Newline, Some(err))?;
@@ -41,42 +42,48 @@ impl<'a> Parser<'a> {
             //
             // module
             if keyword == Some(Keyword::Module) {
-                let module_id = self.eat_module(visibility)?;
+                let module_id = self
+                    .eat_module(visibility)
+                    .for_node_type(NodeType::Module)?;
                 Statement::Module(module_id)
             }
             // struct
             else if keyword == Some(Keyword::Struct) {
-                let struct_id = self.eat_struct(visibility)?;
+                let struct_id = self
+                    .eat_struct(visibility)
+                    .for_node_type(NodeType::Struct)?;
                 Statement::Struct(struct_id)
             }
             // enum
             else if keyword == Some(Keyword::Enum) {
-                let enum_id = self.eat_enum(visibility)?;
+                let enum_id = self.eat_enum(visibility).for_node_type(NodeType::Enum)?;
                 Statement::Enum(enum_id)
             }
             // union
             else if keyword == Some(Keyword::Union) {
-                let union_id = self.eat_union(visibility)?;
+                let union_id = self.eat_union(visibility).for_node_type(NodeType::Union)?;
                 Statement::Union(union_id)
             }
             // trait
             else if keyword == Some(Keyword::Trait) {
-                let trait_id = self.eat_trait(visibility)?;
+                let trait_id = self.eat_trait(visibility).for_node_type(NodeType::Trait)?;
                 Statement::Trait(trait_id)
             }
             // implement
             else if keyword == Some(Keyword::Implement) {
-                let implement_id = self.eat_implement()?;
+                let implement_id = self.eat_implement().for_node_type(NodeType::Implement)?;
                 Statement::Implement(implement_id)
             }
             // function
             else if keyword == Some(Keyword::Function) {
-                let function_id = self.eat_function(visibility)?;
+                let function_id = self
+                    .eat_function(visibility)
+                    .for_node_type(NodeType::Function)?;
                 Statement::Function(function_id)
             }
             // block
             else if self.peek_block().is_ok() {
-                let block_id = self.eat_block()?;
+                let block_id = self.eat_block().for_node_type(NodeType::Block)?;
                 Statement::Block(block_id)
             }
             //
@@ -86,12 +93,12 @@ impl<'a> Parser<'a> {
             //
             // with
             else if keyword == Some(Keyword::With) {
-                let with_id = self.eat_with()?;
+                let with_id = self.eat_with().for_node_type(NodeType::With)?;
                 Statement::With(with_id)
             }
             // use
             else if keyword == Some(Keyword::Use) {
-                let use_id = self.eat_use(visibility)?;
+                let use_id = self.eat_use(visibility).for_node_type(NodeType::Use)?;
                 Statement::Use(use_id)
             }
             //
@@ -101,10 +108,12 @@ impl<'a> Parser<'a> {
             //
             // anything else is an expression
             else {
-                let expression_id = self.eat_expression(ExpressionParserOptions {
-                    visibility,
-                    ..ExpressionParserOptions::default()
-                })?;
+                let expression_id = self
+                    .eat_expression(ExpressionParserOptions {
+                        visibility,
+                        ..ExpressionParserOptions::default()
+                    })
+                    .for_node_type(NodeType::Expression)?;
                 Statement::Expression(expression_id)
             }
         };

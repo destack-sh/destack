@@ -1,7 +1,7 @@
-use crate::parse::expression::ExpressionParserOptions;
+use crate::parse::prelude::*;
 use crate::{
-    Block, BlockFormat, Break, Continue, Defer, Keyword, NodeId, ParseError, ParseResult, Parser,
-    Return, Statement,
+    Block, BlockFormat, Break, Continue, Defer, Keyword, NodeId, NodeType, ParseError, ParseResult,
+    Parser, Return, Statement,
 };
 use dyst_language_token::TokenType;
 
@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
         let label = if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()
         {
-            let label = self.eat_identifier()?;
+            let label = self.eat_identifier().for_node_type(NodeType::Block)?;
             self.eat_colon()?;
             Some(label)
         } else {
@@ -50,7 +50,9 @@ impl<'a> Parser<'a> {
 
         // body
         self.eat_token(TokenType::OpenBrace)?;
-        let statements = self.eat_block_body(BlockFormat::Explicit)?;
+        let statements = self
+            .eat_block_body(BlockFormat::Explicit)
+            .for_node_type(NodeType::Block)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // block
@@ -82,7 +84,8 @@ impl<'a> Parser<'a> {
             }
             // consume any statement stops (semicolon or newline)
             else if self.peek_statement_stop().is_ok() {
-                self.eat_statement_stop_with_newlines()?;
+                self.eat_statement_stop_with_newlines()
+                    .for_node_type(NodeType::Statement)?;
             }
             // eat statements
             else if let Some(statement_id) = self.try_eat_statement()? {
@@ -108,13 +111,15 @@ impl<'a> Parser<'a> {
         // label
         let label = if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
-            Some(self.eat_identifier()?)
+            Some(self.eat_identifier().for_node_type(NodeType::Break)?)
         } else {
             None
         };
         // value (if not at a statement stop)
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression(ExpressionParserOptions::default())?;
+            let value_id = self
+                .eat_expression(ExpressionParserOptions::default())
+                .for_node_type(NodeType::Break)?;
             Some(value_id)
         } else {
             None
@@ -143,7 +148,8 @@ impl<'a> Parser<'a> {
         // label
         let label = if self.peek_token(TokenType::Colon).is_ok() {
             self.bump(); // eat colon
-            Some(self.eat_identifier()?)
+            let label = self.eat_identifier().for_node_type(NodeType::Continue)?;
+            Some(label)
         } else {
             None
         };
@@ -166,7 +172,9 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Return)?;
         // value
         let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
-            let value_id = self.eat_expression(ExpressionParserOptions::default())?;
+            let value_id = self
+                .eat_expression(ExpressionParserOptions::default())
+                .for_node_type(NodeType::Return)?;
             Some(value_id)
         } else {
             None
@@ -198,7 +206,7 @@ impl<'a> Parser<'a> {
         self.eat_keyword(Keyword::Defer)?;
         // block
         if self.peek_block().is_ok() {
-            let block_id = self.eat_block()?;
+            let block_id = self.eat_block().for_node_type(NodeType::Defer)?;
             let defer_id = self
                 .tree
                 .allocate(Defer::Block(block_id), self.get_span_from(start));
@@ -206,7 +214,9 @@ impl<'a> Parser<'a> {
         }
         // statement
         else {
-            let expression_id = self.eat_expression(ExpressionParserOptions::default())?;
+            let expression_id = self
+                .eat_expression(ExpressionParserOptions::default())
+                .for_node_type(NodeType::Defer)?;
             let defer_id = self
                 .tree
                 .allocate(Defer::Expression(expression_id), self.get_span_from(start));

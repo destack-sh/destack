@@ -59,18 +59,18 @@ struct Identity {
 /// A named, versioned, mutable object in the system.
 @entity
 struct Entity {
-    /// The Snapshot the `Entity` is part of (in its `Space` and `Branch`).
-    snapshot: Reference<Snapshot>
     /// The materialization level of the `Entity`.
     materialization: Materialization = Materialization.Root
+    /// The Snapshot the `Entity` is part of (in its `Space` and `Branch`).
+    snapshot: Reference<Snapshot>
     /// The definition the `Entity` is an instance of.
     definition: Reference<Entity>?
     /// The (root) `Entity` that is being instantiated.
     instance: Reference<Entity>?
     /// The logical time the `Entity` was created.
-    createdEpoch: Epoch
+    createdAt: Epoch
     /// The logical time the `Entity` was last updated.
-    updatedEpoch: Epoch
+    updatedAt: Epoch
     /// The exclusive owner of the `Entity` (the authority on access).
     owner: Reference<Entity>
     /// The exclusive controller of the `Entity` (the authority on changes).

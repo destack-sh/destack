@@ -1,0 +1,9 @@
+use dyst
+
+struct Path {
+    segments: List<PathSegment>
+}
+
+struct PathSegment {
+    name: String
+}

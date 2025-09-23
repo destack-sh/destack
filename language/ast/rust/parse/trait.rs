@@ -1,9 +1,10 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
+use crate::parse::prelude::*;
 use crate::{
-    BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, TypeParserOptions, Visibility,
-    With,
+    BlockFormat, Keyword, NodeId, NodeType, ParseResult, Parser, Trait, Type, TypeParserOptions,
+    Visibility, With,
 };
 
 impl<'a> Parser<'a> {
@@ -37,7 +38,8 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // keyword
-        self.eat_keyword(Keyword::Trait)?;
+        self.eat_keyword(Keyword::Trait)
+            .for_node_type(NodeType::Trait)?;
 
         // optional name
         let name = self.eat_identifier_or_wildcard_maybe()?;
@@ -45,14 +47,17 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
-            let params = self.with_options(
-                ParserOptions {
-                    in_static_type: true,
-                    ..self.options
-                },
-                |parser| parser.eat_parameters_body(),
-            )?;
-            self.eat_token(TokenType::GreaterThan)?;
+            let params = self
+                .with_options(
+                    ParserOptions {
+                        in_static_type: true,
+                        ..self.options
+                    },
+                    |parser| parser.eat_parameters_body(),
+                )
+                .for_node_type(NodeType::Trait)?;
+            self.eat_token(TokenType::GreaterThan)
+                .for_node_type(NodeType::Trait)?;
             Some(params)
         } else {
             None
@@ -73,7 +78,9 @@ impl<'a> Parser<'a> {
                 }
                 // keep eating super types
                 else {
-                    let super_type = self.eat_type(TypeParserOptions::default())?;
+                    let super_type = self
+                        .eat_type(TypeParserOptions::default())
+                        .for_node_type(NodeType::Trait)?;
                     super_types.push(super_type);
                 }
             }
@@ -86,15 +93,19 @@ impl<'a> Parser<'a> {
         let mut withs: Vec<NodeId<With>> = Vec::new();
         if self.peek_keyword(Keyword::With).is_ok() {
             self.bump(); // eat with
-            let with = self.eat_with_body()?;
+            let with = self.eat_with_body().for_node_type(NodeType::Trait)?;
             withs.push(with);
         }
 
         // body
-        self.eat_token(TokenType::OpenBrace)?;
+        self.eat_token(TokenType::OpenBrace)
+            .for_node_type(NodeType::Trait)?;
         self.eat_newlines_maybe()?;
-        let statements = self.eat_block_body(BlockFormat::Explicit)?;
-        self.eat_token(TokenType::CloseBrace)?;
+        let statements = self
+            .eat_block_body(BlockFormat::Explicit)
+            .for_node_type(NodeType::Block)?;
+        self.eat_token(TokenType::CloseBrace)
+            .for_node_type(NodeType::Trait)?;
 
         let trait_id = self.tree.allocate(
             Trait {

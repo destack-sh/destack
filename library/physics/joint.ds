@@ -19,7 +19,6 @@ struct JointMotor {
     maxImpulse: float32
     /// Optional target coordinate for servo mode (meters or radians)
     targetPosition: float32? = null
-    /// Optional servo stiffness for position tracking
     stiffness: float32? = null
     /// Optional servo damping for position tracking
     damping: float32? = null

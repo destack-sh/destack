@@ -1,5 +1,5 @@
-use crate::parse::expression::ExpressionParserOptions;
-use crate::{Argument, NodeId, Parameter, ParseResult, Parser, TypeParserOptions};
+use crate::parse::prelude::*;
+use crate::{Argument, NodeId, NodeType, Parameter, ParseResult, Parser, TypeParserOptions};
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -22,7 +22,9 @@ impl<'a> Parser<'a> {
         // : type
         let r#type = if self.peek_colon().is_ok() {
             self.eat_colon()?;
-            let r#type = self.eat_type(TypeParserOptions::default())?;
+            let r#type = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::Parameter)?;
             Some(r#type)
         } else {
             None
@@ -32,7 +34,9 @@ impl<'a> Parser<'a> {
         let parameter = if self.peek_token(TokenType::Assign).is_ok() {
             // has default value
             self.eat_token(TokenType::Assign)?;
-            let value = self.eat_expression(ExpressionParserOptions::default())?;
+            let value = self
+                .eat_expression(ExpressionParserOptions::default())
+                .for_node_type(NodeType::Parameter)?;
             Parameter {
                 name,
                 r#type,
@@ -61,7 +65,7 @@ impl<'a> Parser<'a> {
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<NodeId<Parameter>>> {
         let mut parameters: Vec<NodeId<Parameter>> = Vec::new();
         while self.peek_identifier().is_ok() {
-            let parameter = self.eat_parameter()?;
+            let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);
             if self.peek_item_stop().is_ok() {
                 self.eat_item_stop_with_newlines()?;
@@ -88,9 +92,11 @@ impl<'a> Parser<'a> {
         if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()
         {
-            let name = self.eat_identifier()?;
+            let name = self.eat_identifier().for_node_type(NodeType::Argument)?;
             self.eat_colon()?;
-            let value = self.eat_expression(ExpressionParserOptions::default())?;
+            let value = self
+                .eat_expression(ExpressionParserOptions::default())
+                .for_node_type(NodeType::Argument)?;
             let argument_id = self
                 .tree
                 .allocate(Argument::Named { name, value }, self.get_span_from(start));
