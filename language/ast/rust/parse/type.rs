@@ -385,7 +385,7 @@ impl<'a> Parser<'a> {
     /// (int32)
     /// (int32, int32)
     /// ```
-    pub fn eat_tuple_type(&mut self) -> ParseResult<NodeId<Type>> {
+    fn eat_tuple_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
         let tuple_id = self.eat_tuple()?;
         let ty_id = self
@@ -401,7 +401,7 @@ impl<'a> Parser<'a> {
     /// []int32 // slice
     /// [5]int32 // array (fixed size)
     /// ```
-    pub fn eat_array_or_slice_type(&mut self) -> ParseResult<NodeId<Type>> {
+    fn eat_array_or_slice_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
         self.eat_token(TokenType::OpenBracket)?;
 
