@@ -2,7 +2,7 @@ use dyst
 
 /// Base event regarding an Invite.
 @event
-struct InviteEvent {
+struct InviteEvent: Event {
     /// The Invite self event pertains to.
     invite: Reference<Invite>
     /// The Joinable Entity the Invite is for.
@@ -13,7 +13,7 @@ struct InviteEvent {
 
 /// Invite was sent.
 @event
-struct InviteSentEvent {
+struct InviteSentEvent: Event {
     /// The Role assigned by the Invite.
     role: Reference<Role>
     /// The type of the Role.
@@ -24,13 +24,13 @@ struct InviteSentEvent {
 
 /// Invite was rescinded.
 @event
-struct InviteRescindedEvent {
+struct InviteRescindedEvent: Event {
     use InviteEvent
 }
 
 /// Invite was accepted.
 @event
-struct InviteAcceptedEvent {
+struct InviteAcceptedEvent: Event {
     /// The Role accepted by the member.
     role: Reference<Role>
     /// The type of the Role.
@@ -41,7 +41,7 @@ struct InviteAcceptedEvent {
 
 /// Invite was rejected.
 @event
-struct InviteRejectedEvent {
+struct InviteRejectedEvent: Event {
     use InviteEvent
 }
 

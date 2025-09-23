@@ -23,50 +23,41 @@ struct RunEvent {
 
 /// A Run was started.
 @event
-struct RunStartedEvent {
-    use RunEvent
-}
+struct RunStartedEvent: RunEvent { }
+
 /// A Run pause was requested.
 @event
-struct RunPauseRequestedEvent {
-    use RunEvent
-}
+struct RunPauseRequestedEvent: RunEvent { }
+
 /// A Run was paused.
 @event
-struct RunPausedEvent {
-    use RunEvent
-}
+struct RunPausedEvent: RunEvent { }
+
 /// A Run resume was requested.
 @event
-struct RunResumeRequestedEvent {
-    use RunEvent
-}
+struct RunResumeRequestedEvent: RunEvent { }
+
 /// A Run was resumed.
 @event
-struct RunResumedEvent {
-    use RunEvent
-}
+struct RunResumedEvent: RunEvent { }
+
 /// A Run stop was requested.
 @event
-struct RunStopRequestedEvent {
-    use RunEvent
-}
+struct RunStopRequestedEvent: RunEvent { }
+
 /// A Run failed.
 @event
-struct RunFailedEvent {
-    use RunEvent
-}
+struct RunFailedEvent: RunEvent { }
+
 /// A Run completed.
 @event
-struct RunCompletedEvent {
-    use RunEvent
-}
+struct RunCompletedEvent: RunEvent { }
 
 /// Run of an Action.
 @entity
 struct Run {
     /// The Action being run.
-    action: Action
+    action: Reference<Action>
     /// The current Run status.
     status: RunStatus
     /// Duration from first attempt start to last attempt termination.

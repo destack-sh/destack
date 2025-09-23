@@ -12,7 +12,7 @@ enum LogLevel {
 
 /// A log message.
 @event
-struct LogEvent {
+struct LogEvent: Event {
     /// The log name.
     name: String
     /// The log level.

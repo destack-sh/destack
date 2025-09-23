@@ -18,7 +18,7 @@ impl<'a> Parser<'a> {
     /// with !Bar
     /// with (
     ///    !Bar,
-    ///    Time[float32] // optional comma
+    ///    Time<float32> // optional comma
     ///    F: Numeric
     /// )
     /// ```

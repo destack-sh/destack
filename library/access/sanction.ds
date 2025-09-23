@@ -8,7 +8,7 @@ enum SanctionType {
 
 /// Base event regarding a Sanction.
 @event
-struct SanctionEvent {
+struct SanctionEvent: Event {
     /// The Sanction self event pertains to.
     sanction: Sanction
     /// The sanctioned target Entity.
@@ -17,25 +17,25 @@ struct SanctionEvent {
 
 /// Sanction was requested.
 @event
-struct SanctionRequestedEvent {
+struct SanctionRequestedEvent: Event {
     use SanctionEvent
 }
 
 /// Sanction was granted.
 @event
-struct SanctionGrantedEvent {
+struct SanctionGrantedEvent: Event {
     use SanctionEvent
 }
 
 /// Sanction was revoked.
 @event
-struct SanctionRevokedEvent {
+struct SanctionRevokedEvent: Event {
     use SanctionEvent
 }
 
 /// Sanction has expired.
 @event
-struct SanctionExpiredEvent {
+struct SanctionExpiredEvent: Event {
     use SanctionEvent
 }
 

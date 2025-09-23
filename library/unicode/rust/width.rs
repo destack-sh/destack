@@ -21,9 +21,9 @@ impl UnicodeWidthChar for char {
     #[inline]
     fn terminal_display_width(self) -> u8 {
         if is_zero_width(self) {
-            return 0;
+            0
         } else if is_wide(self) {
-            return 2;
+            2
         } else {
             1
         }

@@ -847,7 +847,7 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Coalesce(coalesce_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // tuple (maybe)
+            // tuple
             else if options.is_parenthesized && self.peek_token(TokenType::Comma).is_ok() {
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
