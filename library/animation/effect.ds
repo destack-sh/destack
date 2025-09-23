@@ -37,35 +37,35 @@ struct Effect {
     /// When the effect is applied.
     type: EffectType
     /// Optional template reference to inherit values from.
-    template: ?EffectTemplate
+    template: EffectTemplate?
     /// Optional opacity multiplier.
-    opacity: ?float32
+    opacity: float32?
     /// Optional positional offset in 2D.
-    offset: ?Vector2
+    offset: Vector2?
     /// Optional uniform scale factor.
-    scale: ?float32
+    scale: float32?
     /// Optional 3D axis rotation.
-    rotate: ?Axis3
+    rotate: Axis3?
     /// Optional 2D skew.
-    skew: ?Vector2
+    skew: Vector2?
     /// Optional perspective amount.
-    perspective: ?float32
+    perspective: float32?
     /// Optional start delay.
-    delay: ?Duration
+    delay: Duration?
     /// Optional playback duration.
-    duration: ?float32
+    duration: float32?
     /// Optional intersection threshold for visibility-driven effects.
-    threshold: ?float32
+    threshold: float32?
     /// Whether to apply only once.
-    once: ?boolean
+    once: boolean?
     /// Optional repeat behavior.
-    repeat: ?RepeatType
+    repeat: RepeatType?
     /// Optional text split behavior.
-    split: ?TextSplitType
+    split: TextSplitType?
     /// Offscreen behavior.
-    offscreen: ?OffscreenBehavior
+    offscreen: OffscreenBehavior?
     /// Optional transition configuration.
-    transition: ?Transition
+    transition: Transition?
 }
 
 /// An effect template.
@@ -74,32 +74,32 @@ struct EffectTemplate {
     /// When the effect is applied.
     type: EffectType
     /// Optional opacity multiplier.
-    opacity: ?float32
+    opacity: float32?
     /// Optional positional offset in 2D.
-    offset: ?Vector2
+    offset: Vector2?
     /// Optional uniform scale factor.
-    scale: ?float32
+    scale: float32?
     /// Optional 3D axis rotation.
-    rotate: ?Axis3
+    rotate: Axis3?
     /// Optional 2D skew.
-    skew: ?Vector2
+    skew: Vector2?
     /// Optional perspective amount.
-    perspective: ?float32
+    perspective: float32?
     /// Optional start delay.
-    delay: ?Duration
+    delay: Duration?
     /// Optional playback duration.
-    duration: ?float32
+    duration: float32?
     /// Optional intersection threshold for visibility-driven effects.
-    threshold: ?float32
+    threshold: float32?
     /// Whether to apply only once.
-    once: ?boolean
+    once: boolean?
     /// Optional repeat behavior.
-    repeat: ?RepeatType
+    repeat: RepeatType?
     /// Optional text split behavior.
-    split: ?TextSplitType
+    split: TextSplitType?
     /// Offscreen behavior.
-    offscreen: ?OffscreenBehavior
+    offscreen: OffscreenBehavior?
     /// Optional transition configuration.
-    transition: ?Transition
+    transition: Transition?
 }
 

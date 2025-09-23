@@ -56,6 +56,15 @@ impl Span {
         }
     }
 
+    /// Enlarge the Span to include the given position.
+    pub fn extend(self, position: u32) -> Self {
+        Self {
+            source: self.source,
+            start: self.start.min(position),
+            end: self.end.max(position),
+        }
+    }
+
     /// Check if the Span is empty.
     #[inline]
     pub fn is_empty(self) -> bool {

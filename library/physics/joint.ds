@@ -21,11 +21,11 @@ struct JointMotor {
     /// Maximum impulse the motor may apply in a single step (N·s or N·m·s)
     maxImpulse: float32
     /// Optional target coordinate for servo mode (meters or radians)
-    targetPosition: ?float32 = null
+    targetPosition: float32? = null
     /// Optional servo stiffness for position tracking
-    stiffness: ?float32 = null
+    stiffness: float32? = null
     /// Optional servo damping for position tracking
-    damping: ?float32 = null
+    damping: float32? = null
 }
 
 /// Scalar (1D) limit for linear or angular coordinates
@@ -84,7 +84,7 @@ struct Joint2D {
     /// Joint frame on Body B (local anchor position and orientation)
     frameB: JointFrame2D
     /// Optional break thresholds for the Joint
-    breakLimit: ?JointBreakLimit = null
+    breakLimit: JointBreakLimit? = null
     /// Joint behavior flags
     flags: JointFlag = JointFlag.Default
 
@@ -103,11 +103,11 @@ struct JointFrame2D {
 @entity
 struct HingeJoint2D {
     /// Optional angular limit around the hinge axis (radians)
-    limit: ?JointScalarLimit = null
+    limit: JointScalarLimit? = null
     /// Optional angular motor around the hinge axis (rad/s)
-    motor: ?JointMotor = null
+    motor: JointMotor? = null
     /// Optional soft constraint on hinge angle (spring-damper)
-    angularSpring: ?JointSpring = null
+    angularSpring: JointSpring? = null
 
     use Joint2D
 }
@@ -118,11 +118,11 @@ struct PrismaticJoint2D {
     /// Slide axis expressed in Body A local space (unit vector)
     axisA: Vector2
     /// Optional linear limit along the slide axis (meters)
-    limit: ?JointScalarLimit = null
+    limit: JointScalarLimit? = null
     /// Optional linear motor along the slide axis (m/s)
-    motor: ?JointMotor = null
+    motor: JointMotor? = null
     /// Optional linear spring along the slide axis (suspension)
-    spring: ?JointSpring = null
+    spring: JointSpring? = null
 
     use Joint2D
 }
@@ -131,9 +131,9 @@ struct PrismaticJoint2D {
 @entity
 struct FixedJoint2D {
     /// Optional softening for locked translation (spring-damper)
-    linearSpring: ?JointSpring = null
+    linearSpring: JointSpring? = null
     /// Optional softening for locked rotation (spring-damper)
-    angularSpring: ?JointSpring = null
+    angularSpring: JointSpring? = null
 
     use Joint2D
 }
@@ -142,9 +142,9 @@ struct FixedJoint2D {
 @entity
 struct RopeJoint2D {
     /// Distance range between anchors (meters)
-    distanceLimit: JointScalarLimit
+    distanceLimit: JointScalarLimit?
     /// Optional spring to model a compliant rope/rod
-    spring: ?JointSpring = null
+    spring: JointSpring? = null
 
     use Joint2D
 }
@@ -157,9 +157,9 @@ struct WheelJoint2D {
     /// Suspension spring-damper along the suspension axis
     suspension: JointSpring
     /// Optional travel limit along the suspension axis (meters)
-    linearLimit: ?JointScalarLimit = null
+    linearLimit: JointScalarLimit? = null
     /// Optional angular motor for wheel spin about Z (rad/s)
-    wheelMotor: ?JointMotor = null
+    wheelMotor: JointMotor? = null
 
     use Joint2D
 }
@@ -176,7 +176,7 @@ struct Joint3D {
     /// Joint frame on Body B (local anchor position and orientation)
     frameB: JointFrame3D
     /// Optional break thresholds for the Joint
-    breakLimit: ?JointBreakLimit = null
+    breakLimit: JointBreakLimit? = null
     /// Joint behavior flags
     flags: JointFlag = JointFlag.Default
 
@@ -195,11 +195,11 @@ struct JointFrame3D {
 @entity
 struct SphericalJoint3D {
     /// Swing (cone) limit around local Y/Z axes (radians)
-    coneLimit: ?JointConeLimit = null
+    coneLimit: JointConeLimit? = null
     /// Twist limit around the local X axis (radians)
-    twistLimit: ?JointTwistLimit = null
+    twistLimit: JointTwistLimit? = null
     /// Soft constraint on relative orientation (spring-damper)
-    angularSpring: ?JointSpring = null
+    angularSpring: JointSpring? = null
 
     use Joint3D
 }
@@ -210,11 +210,11 @@ struct HingeJoint3D {
     /// Hinge axis expressed in Body A local space (unit vector)
     axisA: Vector3
     /// Optional angular limit around the hinge axis (radians)
-    limit: ?JointTwistLimit = null
+    limit: JointTwistLimit? = null
     /// Optional angular motor around the hinge axis (rad/s)
-    motor: ?JointMotor = null
+    motor: JointMotor? = null
     /// Optional soft constraint on hinge angle (spring-damper)
-    angularSpring: ?JointSpring = null
+    angularSpring: JointSpring? = null
 
     use Joint3D
 }
@@ -225,11 +225,11 @@ struct PrismaticJoint3D {
     /// Slide axis expressed in Body A local space (unit vector)
     axisA: Vector3
     /// Optional linear limit along the slide axis (meters)
-    limit: ?JointScalarLimit = null
+    limit: JointScalarLimit? = null
     /// Optional linear motor along the slide axis (m/s)
-    motor: ?JointMotor = null
+    motor: JointMotor? = null
     /// Optional linear spring along the slide axis (suspension)
-    spring: ?JointSpring = null
+    spring: JointSpring? = null
 
     use Joint3D
 }
@@ -238,9 +238,9 @@ struct PrismaticJoint3D {
 @entity
 struct FixedJoint3D {
     /// Optional softening for locked translation (spring-damper)
-    linearSpring: ?JointSpring = null
+    linearSpring: JointSpring? = null
     /// Optional softening for locked rotation (spring-damper)
-    angularSpring: ?JointSpring = null
+    angularSpring: JointSpring? = null
 
     use Joint3D
 }
@@ -251,7 +251,7 @@ struct RopeJoint3D {
     /// Distance range between anchors (meters)
     distanceLimit: JointScalarLimit
     /// Optional spring to model a compliant rope/rod
-    spring: ?JointSpring = null
+    spring: JointSpring? = null
 
     use Joint3D
 }
@@ -264,9 +264,9 @@ struct WheelJoint3D {
     /// Suspension spring-damper along the suspension axis
     suspension: JointSpring
     /// Optional travel limit along the suspension axis (meters)
-    linearLimit: ?JointScalarLimit = null
+    linearLimit: JointScalarLimit? = null
     /// Optional angular motor for wheel spin about the hinge axis (rad/s)
-    wheelMotor: ?JointMotor = null
+    wheelMotor: JointMotor? = null
 
     use Joint3D
 }

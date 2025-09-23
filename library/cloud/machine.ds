@@ -17,11 +17,11 @@ struct Machine {
     /// Runtime version string.
     version: String
     /// External provider name.
-    externalName: ?String
+    externalName: String?
     /// External provider id.
-    externalId: ?String
+    externalId: String?
     /// Image id in provider.
-    imageId: ?String
+    imageId: String?
     /// vCPU count.
     cpu: float32 = 1.0
     /// RAM in GB.

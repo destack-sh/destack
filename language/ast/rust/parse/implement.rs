@@ -1,5 +1,5 @@
 use crate::parse::ParserOptions;
-use crate::{BlockFormat, Implement, Keyword, NodeId, ParseResult, Parser};
+use crate::{BlockFormat, Implement, Keyword, NodeId, ParseResult, Parser, TypeParserOptions};
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -44,12 +44,12 @@ impl<'a> Parser<'a> {
         };
 
         // target
-        let receiver = self.eat_type()?;
+        let receiver = self.eat_type(TypeParserOptions::default())?;
 
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.eat_keyword(Keyword::For)?;
-            Some(self.eat_type()?)
+            Some(self.eat_type(TypeParserOptions::default())?)
         } else {
             None
         };

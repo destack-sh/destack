@@ -1,7 +1,10 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{Keyword, Let, LetInitialization, Mutability, NodeId, ParseResult, Parser, Visibility};
+use crate::{
+    Keyword, Let, LetInitialization, Mutability, NodeId, ParseResult, Parser, TypeParserOptions,
+    Visibility,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a let or var binding (incl. `let` or `var` keyword).
@@ -33,7 +36,7 @@ impl<'a> Parser<'a> {
         // type
         let r#type = if self.peek_colon().is_ok() {
             self.eat_colon()?;
-            Some(self.eat_type()?)
+            Some(self.eat_type(TypeParserOptions::default())?)
         } else {
             None
         };

@@ -1,6 +1,6 @@
 {
     "name": "destack_monorepo",
-    "version": "2025.09.23.3",
+    "version": "2025.09.23.4",
     "license": "proprietary",
     "private": true,
     "type": "module",

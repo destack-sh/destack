@@ -293,4 +293,14 @@ mod tests {
             DystFormatOptions::default()
         );
     }
+
+    #[test]
+    fn test_format_union_implicit_postfix_input() {
+        assert_format!(
+            "boolean | int32&",
+            "boolean | &int32",
+            |p| p.eat_implicit_union(None),
+            DystFormatOptions::default()
+        );
+    }
 }

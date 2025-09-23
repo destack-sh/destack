@@ -2,14 +2,14 @@ use dyst
 
 /// A Mesh2D is defined by vertices and triangle indices.
 struct Mesh2D {
-    vertices: []Vector2
-    triangles: []uint32
+    vertices: Vector2[]
+    triangles: uint32[]
 }
 
 /// A Mesh3D is defined by vertices and triangle indices.
 struct Mesh3D {
-    vertices: []Vector3
-    triangles: []uint32
+    vertices: Vector3[]
+    triangles: uint32[]
 }
 
 /// A MeshShape2D represents a triangle mesh.

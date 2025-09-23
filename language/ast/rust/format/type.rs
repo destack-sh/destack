@@ -15,7 +15,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
     ) -> FormatResult<()> {
         match self {
             Type::Infer => write!(f, [token("_")]),
-            Type::Maybe(type_) => write!(f, [token("?"), type_]),
+            Type::Maybe(type_) => write!(f, [type_, token("?")]),
             Type::Not(type_) => write!(f, [token("!"), type_]),
             Type::Never => write!(f, [token("!")]),
             Type::Self_ => write!(f, [token("Self")]),
@@ -51,11 +51,11 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     f,
                     [
                         if *mutability == Mutability::Mutable {
-                            token("&var ")
+                            token("&var")
                         } else {
                             token("&")
                         },
-                        target
+                        target,
                     ]
                 )
             }
@@ -66,10 +66,10 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 write!(f, [token(".."), target])
             }
             Type::Array { element, count } => {
-                write!(f, [token("["), count, token("]"), element])
+                write!(f, [element, token("["), count, token("]")])
             }
             Type::Slice { element } => {
-                write!(f, [token("[]"), element])
+                write!(f, [element, token("[]")])
             }
             Type::Tuple(tuple) => write!(f, [tuple]),
             Type::Struct(struct_) => write!(f, [struct_]),
@@ -122,14 +122,14 @@ impl<'ast> Format<DystFormatContext<'ast>> for FloatType {
 #[cfg(test)]
 mod tests {
     use crate::format::tests::TestFormatter;
-    use crate::{DystFormatOptions, assert_format};
+    use crate::{DystFormatOptions, TypeParserOptions, assert_format};
 
     #[test]
     fn test_format_primitive_integer_type() {
         assert_format!(
             "int7",
             "int7",
-            |p| p.eat_type(),
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -139,7 +139,7 @@ mod tests {
         assert_format!(
             "float32",
             "float32",
-            |p| p.eat_type(),
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -149,7 +149,7 @@ mod tests {
         assert_format!(
             "void",
             "void",
-            |p| p.eat_type(),
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -159,7 +159,7 @@ mod tests {
         assert_format!(
             "null",
             "null",
-            |p| p.eat_type(),
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -168,23 +168,28 @@ mod tests {
     fn test_format_primitive_maybe_reference_type() {
         assert_format!(
             "?&int32",
-            "?&int32",
-            |p| p.eat_type(),
+            "&int32?",
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
 
     #[test]
     fn test_format_primitive_never_type() {
-        assert_format!("!", "!", |p| p.eat_type(), DystFormatOptions::default());
+        assert_format!(
+            "!",
+            "!",
+            |p| p.eat_type(TypeParserOptions::default()),
+            DystFormatOptions::default()
+        );
     }
 
     #[test]
     fn test_format_array_type() {
         assert_format!(
             "[7]int32",
-            "[7]int32",
-            |p| p.eat_type(),
+            "int32[7]",
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -193,8 +198,38 @@ mod tests {
     fn test_format_slice_type() {
         assert_format!(
             "[]int32",
-            "[]int32",
-            |p| p.eat_type(),
+            "int32[]",
+            |p| p.eat_type(TypeParserOptions::default()),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_reference_type_postfix_input() {
+        assert_format!(
+            "?int32&",
+            "&int32?",
+            |p| p.eat_type(TypeParserOptions::default()),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_array_type_postfix_input() {
+        assert_format!(
+            "int32[7]",
+            "int32[7]",
+            |p| p.eat_type(TypeParserOptions::default()),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_slice_type_postfix_input() {
+        assert_format!(
+            "int32[]",
+            "int32[]",
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -204,7 +239,7 @@ mod tests {
         assert_format!(
             "geom.Vector",
             "geom.Vector",
-            |p| p.eat_type(),
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }
@@ -214,7 +249,7 @@ mod tests {
         assert_format!(
             "geom.Vector<Dims: 2, float32>",
             "geom.Vector<Dims: 2, float32>",
-            |p| p.eat_type(),
+            |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
     }

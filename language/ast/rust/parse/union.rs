@@ -5,8 +5,8 @@ use dyst_language_token::{TokenType, clean_identifier};
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructStyle, Type, Union,
-    UnionField, UnionStyle, Visibility,
+    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructStyle, Type,
+    TypeParserOptions, Union, UnionField, UnionStyle, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -51,11 +51,11 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 // tag type
-                let ty = self.eat_type()?;
+                let ty = self.eat_type(TypeParserOptions::default())?;
                 if self.peek_token(TokenType::Comma).is_ok() {
                     self.bump(); // eat comma
                     // representation type
-                    let representation_type = self.eat_type()?;
+                    let representation_type = self.eat_type(TypeParserOptions::default())?;
                     self.eat_token(TokenType::CloseParenthesis)?;
                     (Some(ty), Some(representation_type))
                 } else {
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
                 }
                 // keep eating super types
                 else {
-                    let super_type = self.eat_type()?;
+                    let super_type = self.eat_type(TypeParserOptions::default())?;
                     super_types.push(super_type);
                 }
             }
@@ -281,7 +281,9 @@ impl<'a> Parser<'a> {
         // collect all types separated with `|`
         let mut types: Vec<NodeId<Type>> = first_type.into_iter().collect();
         loop {
-            let type_id = self.eat_scalar_type()?;
+            let type_id = self.eat_type(TypeParserOptions {
+                in_implicit_union: true,
+            })?;
             types.push(type_id);
             if self.peek_token(TokenType::BitwiseOr).is_err() {
                 break;

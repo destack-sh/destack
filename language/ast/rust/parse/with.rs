@@ -1,7 +1,7 @@
 //! Parse use and with declarations.
 use dyst_language_token::TokenType;
 
-use crate::{Keyword, NodeId, ParseResult, Parser, With, WithClause};
+use crate::{Keyword, NodeId, ParseResult, Parser, TypeParserOptions, With, WithClause};
 
 impl<'a> Parser<'a> {
     /// Eat a with declaration.
@@ -79,12 +79,12 @@ impl<'a> Parser<'a> {
         let start = self.mark();
 
         // first parse the left-hand side type target
-        let left = self.eat_type()?;
+        let left = self.eat_type(TypeParserOptions::default())?;
 
         // assertion: `T: SomeType`
         if self.peek_colon().is_ok() {
             self.eat_colon()?;
-            let right = self.eat_type()?;
+            let right = self.eat_type(TypeParserOptions::default())?;
             let clause = self.tree.allocate(
                 WithClause::Assertion {
                     target: left,

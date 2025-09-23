@@ -10,7 +10,7 @@ struct Pointer2D {
 @event
 struct PointerEvent: InputEvent {
     position: Vector2
-    pressure: ?float32
+    pressure: float32?
     shiftKey: boolean
     altKey: boolean
     ctrlKey: boolean
