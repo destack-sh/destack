@@ -12,6 +12,7 @@ pub const HELP: &str = r"Tokenize source with spans.
 	--no-color         Disable ANSI colors
 	--no-pager         Print directly instead of use less -R
     --only-semantic    Only show semantic tokens
+    --no-whitespace    Don't show whitespace tokens
 	--max-lexeme <n>   Truncate lexeme preview to n chars";
 
 /// Tokenize input and show a colored table with locations.
@@ -31,6 +32,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(DEFAULT_MAX_LEXEME_LEN);
     let only_semantic = ctx.flag("only-semantic");
+    let no_whitespace = ctx.flag("no-whitespace");
 
     let headers = vec![
         "Index".to_string(),
@@ -41,7 +43,13 @@ pub fn run(ctx: CommandArguments) -> i32 {
         "Length".to_string(),
     ];
     let mut rows: Vec<Vec<String>> = Vec::new();
-    let filter = if only_semantic { is_semantic } else { |_| true };
+    let filter = if only_semantic {
+        is_semantic
+    } else if no_whitespace {
+        |t| t != TokenType::Whitespace
+    } else {
+        |_| true
+    };
     let (tokens, _) = tokenize_with_spans(source.id, &source.content, filter);
 
     for (index, token) in tokens.iter().enumerate() {

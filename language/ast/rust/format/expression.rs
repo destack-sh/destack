@@ -13,7 +13,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: NodeId<Expression>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().prefix_annotations(node_id)])?;
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         match self {
             Expression::Module(node) => node.format(f)?,
             Expression::Struct(node) => node.format(f)?,
@@ -68,7 +68,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
             Expression::Error => panic!("invalid expression: {self:?}"),
         };
-        write!(f, [f.context().suffix_and_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
         Ok(())
     }
 }

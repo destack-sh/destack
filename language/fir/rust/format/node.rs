@@ -37,7 +37,7 @@ pub enum FormatNode {
     SourceSlice { slice: Span, width: TextWidth },
     /// Prevents that line suffixes move past this boundary.
     /// Forces the printer to print any pending line suffixes, potentially by inserting a hard line break.
-    LineSuffixBoundary,
+    LinePostfixBoundary,
     /// Interned format node.
     /// Useful when the same content must be emitted multiple times to avoid deep cloning the IR when using the `best_fitting!` macro or `if_group_fits_on_line` and `if_group_breaks`.
     Interned(Interned),
@@ -79,7 +79,7 @@ impl std::fmt::Debug for FormatNode {
                 .field(slice)
                 .field(text_width)
                 .finish(),
-            FormatNode::LineSuffixBoundary => write!(fmt, "LineSuffixBoundary"),
+            FormatNode::LinePostfixBoundary => write!(fmt, "LinePostfixBoundary"),
             FormatNode::BestFitting { variants, mode } => fmt
                 .debug_struct("BestFitting")
                 .field("variants", variants)

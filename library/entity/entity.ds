@@ -39,13 +39,13 @@ struct Reference<T: Entity> {
     branchId: Uuid
 }
 
-implement<T: Entity> Dereference for Reference<&T> {
+implement<T: Entity> Dereference<T> for Reference<&T> {
     function dereference(&self) with GraphContext as graph => ?&T {
         graph.get(self)
     }
 }
 
-implement<T: Entity> Dereference for Reference<&var T> {
+implement<T: Entity> Dereference<T> for Reference<&var T> {
     function dereference(&self) with GraphContext as graph => ?&var T {
         graph.get(self)
     }

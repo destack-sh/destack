@@ -1,27 +1,27 @@
 use crate::format::FormatNode;
-use crate::print::call_stack::PrintNodeArgs;
+use crate::print::call::PrintNodeArgs;
 
 /// Stores the queued line suffixes.
 #[derive(Debug, Default)]
-pub(super) struct LineSuffixes<'a> {
-    suffixes: Vec<LineSuffixEntry<'a>>,
+pub(super) struct LinePostfixes<'a> {
+    suffixes: Vec<LinePostfixEntry<'a>>,
 }
 
-impl<'a> LineSuffixes<'a> {
+impl<'a> LinePostfixes<'a> {
     /// Extend the line suffixes with `nodes`, storing their call stack arguments with them.
     pub(super) fn extend<I>(&mut self, args: PrintNodeArgs, nodes: I)
     where
         I: IntoIterator<Item = &'a FormatNode>,
     {
         self.suffixes
-            .extend(nodes.into_iter().map(LineSuffixEntry::Suffix));
-        self.suffixes.push(LineSuffixEntry::Args(args));
+            .extend(nodes.into_iter().map(LinePostfixEntry::Suffix));
+        self.suffixes.push(LinePostfixEntry::Args(args));
     }
 
     /// Take all the pending line suffixes.
     pub(super) fn take_pending<'l>(
         &'l mut self,
-    ) -> impl DoubleEndedIterator<Item = LineSuffixEntry<'a>> + 'l + ExactSizeIterator {
+    ) -> impl DoubleEndedIterator<Item = LinePostfixEntry<'a>> + 'l + ExactSizeIterator {
         self.suffixes.drain(..)
     }
 
@@ -32,7 +32,7 @@ impl<'a> LineSuffixes<'a> {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(super) enum LineSuffixEntry<'a> {
+pub(super) enum LinePostfixEntry<'a> {
     /// Line suffix to print.
     Suffix(&'a FormatNode),
 

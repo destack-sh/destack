@@ -4,6 +4,15 @@ use dyst_language_source::Span;
 
 use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, NodeTreeStore, walk_any};
 
+/// The type of node search to perform.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum NodeSearch {
+    /// Search for the biggest outermost node that matches.
+    BiggestOuter,
+    /// Search for the smallest innermost node that matches
+    SmallestInner,
+}
+
 /// The NodeSpanIndex is a side index of Spans into a NodeTree.
 #[derive(Debug, Clone)]
 pub struct NodeSpanIndex {

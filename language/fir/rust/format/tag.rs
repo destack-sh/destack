@@ -65,10 +65,10 @@ pub enum FormatTag {
 
     /// Delay the printing of its content until the next line break.
     /// Using reserved width will include the associated line suffix during measurement.
-    StartLineSuffix {
+    StartLinePostfix {
         reserved_width: u32,
     },
-    EndLineSuffix,
+    EndLinePostfix,
 
     /// A token that tracks tokens/nodes that are printed as verbatim.
     StartVerbatim(VerbatimKind),
@@ -105,7 +105,7 @@ impl FormatTag {
                 | FormatTag::StartIndentIfGroupBreaks(_)
                 | FormatTag::StartFill
                 | FormatTag::StartEntry
-                | FormatTag::StartLineSuffix { .. }
+                | FormatTag::StartLinePostfix { .. }
                 | FormatTag::StartVerbatim(_)
                 | FormatTag::StartFitsExpanded(_)
                 | FormatTag::StartBestFittingEntry
@@ -135,7 +135,7 @@ impl FormatTag {
             }
             StartFill | EndFill => FormatTagKind::Fill,
             StartEntry | EndEntry => FormatTagKind::Entry,
-            StartLineSuffix { reserved_width: _ } | EndLineSuffix => FormatTagKind::LineSuffix,
+            StartLinePostfix { reserved_width: _ } | EndLinePostfix => FormatTagKind::LinePostfix,
             StartVerbatim(_) | EndVerbatim => FormatTagKind::Verbatim,
             StartFitsExpanded { .. } | EndFitsExpanded => FormatTagKind::FitsExpanded,
             StartBestFittingEntry | EndBestFittingEntry => FormatTagKind::BestFittingEntry,
@@ -160,7 +160,7 @@ pub enum FormatTagKind {
     IndentIfGroupBreaks,
     Fill,
     Entry,
-    LineSuffix,
+    LinePostfix,
     Verbatim,
     Labelled,
     FitsExpanded,

@@ -2101,10 +2101,14 @@ pub enum AnnotationPosition {
     BlockInfix,
     /// Annotation preceding the node on previous lines (most common).
     BlockPrefix,
-    /// Annotation after the node on a new line (only if prefix and infix are not possible).
+    /// Annotation after the node on a following line (only if prefix and infix are not possible).
     BlockPostfix,
+    /// Annotation before the node on the same line (like infix comments).
+    LinePrefix,
     /// Annotation after the node on the same line (like infix comments).
-    LineSuffix,
+    LinePostfix,
+    /// Annotations after the node on the same line with nothing after it.
+    LinePostfixBoundary,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]

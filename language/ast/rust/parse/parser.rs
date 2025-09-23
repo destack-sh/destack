@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use dyst_language_source::{Path, PathId, Source, SourceId, Span, StringId};
 use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
-use crate::{Dumper, DumperOptions, EnclosingSpan, NodeTree, ParseError, ParseResult};
+use crate::{Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, ParseError, ParseResult};
 use dyst_language_session::Session;
 
 /// Configure Parser behavior.
@@ -390,55 +390,70 @@ impl<'a> Parser<'a> {
         Err(error)
     }
 
-    /// Get the main (i.e. "biggest") node starting at a token.
-    pub fn find_node_starting_at(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
+    /// Get the node starting at a token.
+    pub fn find_node_starting_at(&self, span: &Span, search: NodeSearch) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
             .spans
-            .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1))
+            .get_enclosing_spans(span.start, span.end.saturating_sub(1))
             .into_iter()
-            .filter(|span| span.span.start == token.span.start)
+            .filter(|s| s.span.start == span.start)
             .collect::<Vec<_>>();
-        enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
-        enclosing_spans.into_iter().next()
-    }
-
-    /// Get the main (i.e. "biggest") node ending at a token.
-    pub fn find_node_ending_at(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
-        let mut enclosing_spans = self
-            .tree
-            .spans
-            .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1))
-            .into_iter()
-            .filter(|span| span.span.end == token.span.end)
-            .collect::<Vec<_>>();
-        enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
-        enclosing_spans.into_iter().next()
-    }
-
-    /// Get the smallest, "highest" nodes enclosing a token.
-    pub fn find_nodes_enclosing(&self, token: &TokenSpan) -> Vec<EnclosingSpan> {
-        let mut enclosing_spans = self
-            .tree
-            .spans
-            .get_enclosing_spans(token.span.start, token.span.end.saturating_sub(1));
-        if enclosing_spans.is_empty() {
-            return Vec::new();
+        match search {
+            NodeSearch::BiggestOuter => {
+                enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
+            }
+            NodeSearch::SmallestInner => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, span.idx as i64));
+            }
         }
-        enclosing_spans.sort_by_key(|span| (span.length, -(span.idx as i64)));
-        enclosing_spans
+        enclosing_spans.into_iter().next()
     }
 
-    /// Get the smallest, "highest" node enclosing a token.
-    pub fn find_node_enclosing(&self, token: &TokenSpan) -> Option<EnclosingSpan> {
-        let enclosing_spans = self.find_nodes_enclosing(token);
+    /// Get the node ending at a token.
+    pub fn find_node_ending_at(&self, span: &Span, search: NodeSearch) -> Option<EnclosingSpan> {
+        let mut enclosing_spans = self
+            .tree
+            .spans
+            .get_enclosing_spans(span.start, span.end.saturating_sub(1))
+            .into_iter()
+            .filter(|s| s.span.end == span.end)
+            .collect::<Vec<_>>();
+        match search {
+            NodeSearch::BiggestOuter => {
+                enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
+            }
+            NodeSearch::SmallestInner => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, span.idx as i64));
+            }
+        }
+        enclosing_spans.into_iter().next()
+    }
+
+    /// Get the node enclosing a token.
+    pub fn find_node_enclosing(&self, span: &Span, search: NodeSearch) -> Option<EnclosingSpan> {
+        let mut enclosing_spans = self
+            .tree
+            .spans
+            .get_enclosing_spans(span.start, span.end.saturating_sub(1));
+        if enclosing_spans.is_empty() {
+            return None;
+        }
+        match search {
+            NodeSearch::BiggestOuter => {
+                enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
+            }
+            NodeSearch::SmallestInner => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, span.idx as i64));
+            }
+        }
         enclosing_spans.into_iter().next()
     }
 
     /// Check if two spans are on the same line.
-    pub fn is_span_same_line(&self, left: Span, right: Span) -> bool {
+    pub fn is_same_line(&self, left: Span, right: Span) -> bool {
         let left_line = self.source.get_position(left.start).map(|(line, _)| line);
-        let right_line = self.source.get_position(right.start).map(|(line, _)| line);
+        let right_line = self.source.get_position(right.end).map(|(line, _)| line);
         match (left_line, right_line) {
             (Some(lhs), Some(rhs)) => lhs == rhs,
             _ => false,

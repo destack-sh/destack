@@ -6,7 +6,8 @@ use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
 use crate::{
-    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, NodeId, Parser,
+    Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, NodeId,
+    NodeSearch, Parser,
 };
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
@@ -40,10 +41,10 @@ impl<'a> Parser<'a> {
             if token.token.r#type != current_token_type {
                 let start_token = current_token_group[0];
                 let prev_token = if i > 1 { Some(tokens[i - 2]) } else { None };
-                let is_line_suffix = current_token_group.len() == 1
-                    && self.is_span_same_line(start_token.span, start_token.span)
+                let is_line_postfix = current_token_group.len() == 1
+                    && self.is_same_line(start_token.span, start_token.span)
                     && prev_token.is_some()
-                    && self.is_span_same_line(start_token.span, prev_token.unwrap().span)
+                    && self.is_same_line(start_token.span, prev_token.unwrap().span)
                     && prev_token.unwrap().token.r#type != TokenType::Newline;
 
                 // skip up to one newline in-between non-blank annotations
@@ -52,7 +53,7 @@ impl<'a> Parser<'a> {
                     && current_token_type != TokenType::Newline
                     && let Some(next_token) = tokens.get(i + 1)
                     && next_token.token.r#type == current_token_type
-                    && !is_line_suffix
+                    && !is_line_postfix
                 {
                     continue;
                 }
@@ -103,22 +104,56 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+        let next_token = tokens.get(token_idx as usize + group.len());
+        let is_one_line = self.is_same_line(start_token.span, end_token.span);
+        let is_line_comment = start_token.token.r#type == TokenType::LineComment
+            || start_token.token.r#type == TokenType::DocLineComment;
 
-        // line suffix
-        // entire span must be on one line together with the previous token
-        if self.is_span_same_line(start_token.span, end_token.span)
+        // line prefix or postfix (or block infix if we have nothing)
+        // entire span must be on one line together with the previous/next token
+        if is_one_line
             && let Some(prev_token) = prev_token
             && prev_token.token.r#type != TokenType::Newline
-            && self.is_span_same_line(prev_token.span, end_token.span)
+            && self.is_same_line(prev_token.span, end_token.span)
         {
-            // have directly preceding node
-            if let Some(target_node_id) = self.find_node_ending_at(&prev_token).map(|span| span.idx)
+            // line postfix has directly preceding node that ends at the start token
+            if let Some(target_node_id) = self
+                .find_node_ending_at(
+                    &prev_token.span,
+                    if is_line_comment {
+                        NodeSearch::BiggestOuter
+                    } else {
+                        NodeSearch::SmallestInner
+                    },
+                )
+                .map(|span| span.idx)
             {
-                return Some((AnnotationPosition::LineSuffix, target_node_id));
+                // line postfix boundary if next token is newline (or end)
+                if next_token.is_none()
+                    || next_token.unwrap().token.r#type == TokenType::Newline
+                    || next_token.unwrap().token.r#type == TokenType::End
+                {
+                    return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
+                }
+                // otherwise regular line postfix
+                else {
+                    return Some((AnnotationPosition::LinePostfix, target_node_id));
+                }
             }
-            // no directly preceding node, but have enclosing node
-            else if let Some(target_node_id) =
-                self.find_node_enclosing(&prev_token).map(|span| span.idx)
+            // line prefix has directly following node that starts at the end token
+            else if let Some(next_token) = next_token
+                && next_token.token.r#type != TokenType::Newline
+                && self.is_same_line(end_token.span, next_token.span)
+                && let Some(target_node_id) = self
+                    .find_node_starting_at(&next_token.span, NodeSearch::SmallestInner)
+                    .map(|span| span.idx)
+            {
+                return Some((AnnotationPosition::LinePrefix, target_node_id));
+            }
+            // block infix has no directly preceding node, but have enclosing node
+            else if let Some(target_node_id) = self
+                .find_node_enclosing(&prev_token.span, NodeSearch::SmallestInner)
+                .map(|span| span.idx)
             {
                 return Some((AnnotationPosition::BlockInfix, target_node_id));
             }
@@ -143,7 +178,8 @@ impl<'a> Parser<'a> {
             }
         };
         if let Some(next_targetable_token) = next_targetable_token
-            && let Some(next_node) = self.find_node_starting_at(next_targetable_token)
+            && let Some(next_node) =
+                self.find_node_starting_at(&next_targetable_token.span, NodeSearch::BiggestOuter)
         {
             return Some((AnnotationPosition::BlockPrefix, next_node.idx));
         }
@@ -163,13 +199,16 @@ impl<'a> Parser<'a> {
             }
         };
         if let Some(prev_targetable_token) = prev_targetable_token
-            && let Some(prev_node) = self.find_node_ending_at(prev_targetable_token)
+            && let Some(prev_node) =
+                self.find_node_ending_at(&prev_targetable_token.span, NodeSearch::BiggestOuter)
         {
             return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
         }
 
-        // find enclosing node (block infix)
-        if let Some(enclosing_node) = self.find_node_enclosing(&start_token) {
+        // find inner enclosing node (block infix)
+        if let Some(enclosing_node) =
+            self.find_node_enclosing(&start_token.span, NodeSearch::SmallestInner)
+        {
             return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
         }
 
@@ -326,6 +365,7 @@ impl<'a> Parser<'a> {
                     .unwrap_or(string)
                     .strip_suffix("*/")
                     .unwrap_or(string)
+                    .trim_matches(' ')
             }
             TokenType::DocBlockComment => {
                 // strip leading `/**` and trailing `*/`
@@ -334,6 +374,7 @@ impl<'a> Parser<'a> {
                     .unwrap_or(string)
                     .strip_suffix("*/")
                     .unwrap_or(string)
+                    .trim_matches(' ')
             }
             _ => panic!("unexpected token type: {:?}", token.token.r#type),
         };
@@ -357,13 +398,14 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Annotation, AnnotationPosition, Blank, BlockFormat, Comment, CommentStyle, Doc, DocStyle,
-        Function, Statement, Struct, StructField, assert_node, assert_string,
+        Annotation, AnnotationPosition, BinaryOperator, Blank, BlockFormat, Comment, CommentStyle,
+        Doc, DocStyle, Expression, Function, Let, Statement, Struct, StructField, assert_node,
+        assert_path, assert_string,
     };
 
     /// Line suffix is attached to the previous node on the same line.
     #[test]
-    fn test_attach_line_suffix_to_statement() {
+    fn test_attach_line_postfix_to_statement() {
         let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
@@ -375,7 +417,7 @@ mod tests {
         let annotations = parser.tree.get_annotations_for(statements[0].id);
         assert_eq!(annotations.len(), 1);
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LineSuffix);
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(parser.get_string(*string), "line comment");
                 assert_eq!(*style, CommentStyle::Line);
@@ -383,14 +425,99 @@ mod tests {
         });
     }
 
+    /// Multi-line suffix is attached to the previous node on the same line as a block postfix.
+    #[test]
+    fn test_attach_multi_line_postfix_to_statement() {
+        let mut test = TestParser::new(
+            "let A = 1 /* line comment
+over multiple lines with trailing space    */",
+        );
+        let mut parser = test.parser();
+        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.finalize();
+
+        // let A = 1
+        assert_eq!(statements.len(), 1);
+        // block comment, postfix
+        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(parser.get_string(*string), "line comment\nover multiple lines with trailing space");
+                assert_eq!(*style, CommentStyle::Block);
+            });
+        });
+    }
+
+    /// Inline prefix, infix and suffix comments should be attached to closest inner node on the same line.
+    #[test]
+    fn test_attach_line_prefix_infix_postfix_to_statement() {
+        let mut test =
+            TestParser::new("let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */");
+        let mut parser = test.parser();
+        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.finalize();
+
+        assert_eq!(statements.len(), 1);
+
+        // A && B
+        assert_node!(parser.tree, statements[0], Statement::Expression(node) => {
+            assert_node!(parser.tree, *node, Expression::Let(node) => {
+                assert_node!(parser.tree, *node, Let { value, .. } => {
+                    assert_node!(parser.tree, value.unwrap(), Expression::Binary { left, right, operator } => {
+                        assert_eq!(*operator, BinaryOperator::And);
+                        // A
+                        assert_node!(parser.tree, *left, Expression::Path(path) => {
+                            assert_path!(parser.session, *path, "A");
+                        });
+                        let annotations = parser.tree.get_annotations_for(left.id);
+                        // line prefix, pre-A comment
+                        assert_eq!(annotations.len(), 2);
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePrefix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(parser.get_string(*string), "Pre-A comment");
+                                assert_eq!(*style, CommentStyle::Block);
+                            });
+                        });
+                        // line postfix, A comment
+                        assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfix);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(parser.get_string(*string), "A comment");
+                                assert_eq!(*style, CommentStyle::Block);
+                            });
+                        });
+
+                        // B
+                        assert_node!(parser.tree, *right, Expression::Path(path) => {
+                            assert_path!(parser.session, *path, "B");
+                        });
+                        // line postfix boundary, B comment
+                        let annotations = parser.tree.get_annotations_for(right.id);
+                        assert_eq!(annotations.len(), 1);
+                        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+                            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                            assert_node!(parser.tree, *node, Comment { string, style } => {
+                                assert_eq!(parser.get_string(*string), "B comment");
+                                assert_eq!(*style, CommentStyle::Block);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Line suffix is attached separatelyfrom other surrounding comments.
     #[test]
-    fn test_attach_line_suffix_to_statement_with_surrounding_comments() {
+    fn test_attach_line_postfix_to_statement_with_surrounding_comments() {
         let mut test = TestParser::new(
             r"
-// prefix comment
-let A = 1 // suffix comment
-// postfix comment
+// block prefix comment
+let A = 1 // line suffix comment
+// block postfix comment
 ",
         );
         let mut parser = test.parser();
@@ -403,27 +530,27 @@ let A = 1 // suffix comment
         let annotations = parser.tree.get_annotations_for(statements[0].id);
         assert_eq!(annotations.len(), 3);
 
-        // prefix comment
+        // block prefix comment
         assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.get_string(*string), "prefix comment");
+                assert_eq!(parser.get_string(*string), "block prefix comment");
                 assert_eq!(*style, CommentStyle::Line);
             });
         });
-        // suffix comment
+        // line postfix boundary comment
         assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LineSuffix);
+            assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.get_string(*string), "suffix comment");
+                assert_eq!(parser.get_string(*string), "line suffix comment");
                 assert_eq!(*style, CommentStyle::Line);
             });
         });
-        // postfix comment
+        // block postfix comment
         assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
-                assert_eq!(parser.get_string(*string), "postfix comment");
+                assert_eq!(parser.get_string(*string), "block postfix comment");
                 assert_eq!(*style, CommentStyle::Line);
             });
         });
@@ -571,10 +698,10 @@ struct Floof {
                         });
                     });
 
-                    // doc line suffix
+                    // doc line postfix boundary
                     // doc, struct field infix
                     assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LineSuffix);
+                        assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(parser.get_string(*string), "doc, struct field infix");
                             assert_eq!(*style, CommentStyle::Line);
