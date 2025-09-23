@@ -22,10 +22,10 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
 
             Statement::With(node) => node.format(f)?,
             Statement::Use(node) => node.format(f)?,
-            
+
             Statement::Expression(node) => node.format(f)?,
         }
-        write!(f, [f.context().postfix_annotations(_node_id)])?;
+        write!(f, [f.context().suffix_and_postfix_annotations(_node_id)])?;
         Ok(())
     }
 }

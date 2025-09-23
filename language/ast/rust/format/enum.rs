@@ -1,14 +1,16 @@
 use dyst_language_fir::format::FormatResult;
 use dyst_language_fir::format_args;
 
-use crate::{DystFormatter, Enum, EnumField, FormatNode, Keyword, NodeId};
+use crate::{
+    DystFormatter, Enum, EnumField, FormatNode, Keyword, NodeId, empty_block_with_infix_annotations,
+};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::write;
 
 impl<'ast> FormatNode<'ast, Enum> for Enum {
     fn format_node(
         &self,
-        _node_id: NodeId<Enum>,
+        node_id: NodeId<Enum>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // header
@@ -22,7 +24,7 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
             write!(f, [name, space()])?;
         }
         if self.fields.is_empty() && self.statements.is_empty() {
-            write!(f, [token("{ }")])?;
+            write!(f, [empty_block_with_infix_annotations(node_id)])?;
             return Ok(());
         }
 

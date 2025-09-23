@@ -20,7 +20,7 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
 impl<'a> Parser<'a> {
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
-    pub(crate) fn process_annotations(&mut self) {
+    pub(crate) fn attach_annotations(&mut self) {
         let mut tokens = Vec::with_capacity(self.tokens.len());
         tokens.extend(self.tokens.clone());
         tokens.extend(
@@ -38,12 +38,21 @@ impl<'a> Parser<'a> {
         let mut current_token_group: Vec<TokenSpan> = Vec::new();
         for (i, token) in tokens.iter().enumerate() {
             if token.token.r#type != current_token_type {
+                let start_token = current_token_group[0];
+                let prev_token = if i > 1 { Some(tokens[i - 2]) } else { None };
+                let is_line_suffix = current_token_group.len() == 1
+                    && self.is_span_same_line(start_token.span, start_token.span)
+                    && prev_token.is_some()
+                    && self.is_span_same_line(start_token.span, prev_token.unwrap().span)
+                    && prev_token.unwrap().token.r#type != TokenType::Newline;
+
                 // skip up to one newline in-between non-blank annotations
-                //  (so we can merge them)
+                //  (unless the current token is a suffix comment)
                 if token.token.r#type == TokenType::Newline
                     && current_token_type != TokenType::Newline
                     && let Some(next_token) = tokens.get(i + 1)
                     && next_token.token.r#type == current_token_type
+                    && !is_line_suffix
                 {
                     continue;
                 }
@@ -354,7 +363,7 @@ mod tests {
 
     /// Line suffix is attached to the previous node on the same line.
     #[test]
-    fn test_attach_line_suffix_to_previous_node() {
+    fn test_attach_line_suffix_to_statement() {
         let mut test = TestParser::new("let A = 1 // line comment");
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
@@ -374,10 +383,56 @@ mod tests {
         });
     }
 
+    /// Line suffix is attached separatelyfrom other surrounding comments.
+    #[test]
+    fn test_attach_line_suffix_to_statement_with_surrounding_comments() {
+        let mut test = TestParser::new(
+            r"
+// prefix comment
+let A = 1 // suffix comment
+// postfix comment
+",
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+        let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+        parser.finalize();
+
+        // let A = 1
+        assert_eq!(statements.len(), 1);
+        let annotations = parser.tree.get_annotations_for(statements[0].id);
+        assert_eq!(annotations.len(), 3);
+
+        // prefix comment
+        assert_node!(parser.tree, annotations[0], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(parser.get_string(*string), "prefix comment");
+                assert_eq!(*style, CommentStyle::Line);
+            });
+        });
+        // suffix comment
+        assert_node!(parser.tree, annotations[1], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::LineSuffix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(parser.get_string(*string), "suffix comment");
+                assert_eq!(*style, CommentStyle::Line);
+            });
+        });
+        // postfix comment
+        assert_node!(parser.tree, annotations[2], Annotation::Comment { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPostfix);
+            assert_node!(parser.tree, *node, Comment { string, style } => {
+                assert_eq!(parser.get_string(*string), "postfix comment");
+                assert_eq!(*style, CommentStyle::Line);
+            });
+        });
+    }
+
     /// Blanks (>2 successive newlines) are just annotations and should be attached to the next node.
     /// Like any other annotation, if no next or containing node is found, attach to previous node as suffix.
     #[test]
-    fn test_attach_blanks_to_lets() {
+    fn test_attach_blanks_to_statements() {
         let mut test = TestParser::new("\n\nlet A = 1\n\nlet B = 2\n\n");
         let mut parser = test.parser();
         let statements = parser.eat_block_body(BlockFormat::Implicit).unwrap();

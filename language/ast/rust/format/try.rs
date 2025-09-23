@@ -1,13 +1,13 @@
 use dyst_language_fir::format::FormatResult;
 
-use crate::{DystFormatter, FormatNode, Keyword, NodeId, Try};
+use crate::{DystFormatter, FormatNode, Keyword, NodeId, Try, empty_block_with_infix_annotations};
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, Try> for Try {
     fn format_node(
         &self,
-        _node_id: NodeId<Try>,
+        node_id: NodeId<Try>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -34,7 +34,7 @@ impl<'ast> FormatNode<'ast, Try> for Try {
 
                 // empty catch body
                 if catch.cases.is_empty() {
-                    write!(f, [space(), token("{ }")])?;
+                    write!(f, [space(), empty_block_with_infix_annotations(node_id)])?;
                     return Ok(());
                 }
 
