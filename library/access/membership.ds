@@ -34,8 +34,8 @@ struct Membership {
     /// The member Entity.
     member: Reference<Actor>
     /// The Role assigned to the member.
-    role: ?Role
+    role: Role?
     /// The type of the Role assigned to the member.
-    roleType: ?RoleType
+    roleType: RoleType?
 }
 

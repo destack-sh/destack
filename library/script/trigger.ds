@@ -16,11 +16,11 @@ struct TriggerEvent {
 @entity
 struct Trigger {
     /// The Event type to react to.
-    event: ?NodeType
+    event: NodeType?
     /// The optional filter Condition for the Event payload.
-    where: ?Condition
+    where: Condition?
     /// The target Entity to invoke.
-    target: ?Entity
+    target: Entity?
     /// Arguments to pass to the target.
     arguments: Map<Uuid, Value>
 }

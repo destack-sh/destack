@@ -40,13 +40,13 @@ struct Reference<T: Entity> {
 }
 
 implement<T: Entity> Dereference<T> for Reference<&T> {
-    function dereference(&self) with GraphContext as graph => ?&T {
+    function dereference(&self) with GraphContext as graph => &T? {
         graph.get(self)
     }
 }
 
 implement<T: Entity> Dereference<T> for Reference<&var T> {
-    function dereference(&self) with GraphContext as graph => ?&var T {
+    function dereference(&self) with GraphContext as graph => &varT? {
         graph.get(self)
     }
 }
@@ -69,9 +69,9 @@ struct Entity {
     /// The materialization level of the `Entity`.
     materialization: Materialization = Materialization.Root
     /// The definition the `Entity` is an instance of.
-    definition: ?Reference<Entity>
+    definition: Reference<Entity>?
     /// The (root) `Entity` that is being instantiated.
-    instance: ?Reference<Entity>
+    instance: Reference<Entity>?
     /// The logical time the `Entity` was created.
     createdEpoch: Epoch
     /// The logical time the `Entity` was last updated.
@@ -84,16 +84,16 @@ struct Entity {
     processing: ProcessFlag = ProcessFlag.Default
 
     /// The parent of the `Entity`. Most `Entity`s can be attached to any other `Entity`.
-    parent: ?Reference<Entity>
+    parent: Reference<Entity>?
     /// The name of the `Entity`.
     name: String
     /// The key of the `Entity` (for reconciliation and querying).
-    key: ?String
+    key: String?
 
     /// The extension flags of the `Entity`.
     extensibility: ExtensionFlag
     /// The Script of the `Entity`.
-    script: ?Reference<Script>
+    script: Reference<Script>?
 
     /// The identity of the `Entity`.
     use Identity as identity

@@ -51,8 +51,8 @@ struct Invite {
     /// The invited member.
     member: Reference<Actor>
     /// The Role offered by the Invite.
-    role: ?Reference<Role>
+    role: Reference<Role>?
     /// The type of the Role offered by the Invite.
-    roleType: ?RoleType
+    roleType: RoleType?
 }
 

@@ -33,6 +33,7 @@ mod with;
 pub use error::*;
 pub use expression::ExpressionParserOptions;
 pub use parser::*;
+pub use r#type::TypeParserOptions;
 
 #[cfg(test)]
 pub(crate) mod tests;

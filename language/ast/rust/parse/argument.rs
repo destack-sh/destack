@@ -1,5 +1,5 @@
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{Argument, NodeId, Parameter, ParseResult, Parser};
+use crate::{Argument, NodeId, Parameter, ParseResult, Parser, TypeParserOptions};
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
         // : type
         let r#type = if self.peek_colon().is_ok() {
             self.eat_colon()?;
-            let r#type = self.eat_type()?;
+            let r#type = self.eat_type(TypeParserOptions::default())?;
             Some(r#type)
         } else {
             None

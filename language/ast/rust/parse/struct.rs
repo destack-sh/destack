@@ -7,7 +7,7 @@ use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField, StructStyle,
-    Type, Visibility,
+    Type, TypeParserOptions, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
         // optional representation type: ( ... )
         let representation_type = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
-            let representation_type = self.eat_type()?;
+            let representation_type = self.eat_type(TypeParserOptions::default())?;
             self.eat_token(TokenType::CloseParenthesis)?;
             Some(representation_type)
         } else {
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
                 }
                 // keep eating super types
                 else {
-                    let super_type = self.eat_type()?;
+                    let super_type = self.eat_type(TypeParserOptions::default())?;
                     super_types.push(super_type);
                 }
             }
@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
             };
 
         // type
-        let r#type = self.eat_type()?;
+        let r#type = self.eat_type(TypeParserOptions::default())?;
 
         // optional default value: `= <expr>`
         let default = if self.peek_token(TokenType::Assign).is_ok() {

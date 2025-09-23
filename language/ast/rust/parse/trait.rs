@@ -1,7 +1,10 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
-use crate::{BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, Visibility, With};
+use crate::{
+    BlockFormat, Keyword, NodeId, ParseResult, Parser, Trait, Type, TypeParserOptions, Visibility,
+    With,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a Trait.
@@ -70,7 +73,7 @@ impl<'a> Parser<'a> {
                 }
                 // keep eating super types
                 else {
-                    let super_type = self.eat_type()?;
+                    let super_type = self.eat_type(TypeParserOptions::default())?;
                     super_types.push(super_type);
                 }
             }

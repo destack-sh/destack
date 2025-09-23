@@ -5,7 +5,7 @@ use dyst_language_token::TokenType;
 use crate::parse::ParserOptions;
 use crate::{
     ExpressionParserOptions, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser, Pattern,
-    PatternField,
+    PatternField, TypeParserOptions,
 };
 
 impl<'a> Parser<'a> {
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
             }
             // struct
             else if !options.is_before_block && self.peek_struct_literal().is_ok() {
-                let r#type = self.eat_type()?;
+                let r#type = self.eat_type(TypeParserOptions::default())?;
                 self.eat_token(TokenType::OpenBrace)?;
                 self.eat_newlines_maybe()?;
                 let fields = self.eat_pattern_field_list(

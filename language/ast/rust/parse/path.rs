@@ -12,7 +12,7 @@ impl<'a> Parser<'a> {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        let mut pos = self.pos();
+        let mut pos = self.pos() as usize;
         let start = pos;
 
         // identifier .identifier*

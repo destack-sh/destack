@@ -8,10 +8,10 @@ struct ContentView2D: View2D { }
 @entity
 struct TextView2D: ContentView2D {
     /// The text to display
-    text: ?Text
+    text: Text?
     /// The font to use for the text
-    font: ?Font
+    font: Font?
     /// The color of the text
-    color: ?Fill
+    color: Fill?
 }
 

@@ -45,6 +45,6 @@ struct Timer {
     /// The Timer type.
     type: TimerType
     /// The optional Schedule for the Timer.
-    schedule: ?Schedule
+    schedule: Schedule?
 }
 

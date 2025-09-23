@@ -2,7 +2,7 @@
 
 use dyst_language_token::TokenType;
 
-use crate::{NodeId, ParseResult, Parser, Tuple, TupleField};
+use crate::{NodeId, ParseResult, Parser, Tuple, TupleField, TypeParserOptions};
 
 impl<'a> Parser<'a> {
     /// Eat a tuple type (including the `(` and `)`).
@@ -50,7 +50,7 @@ impl<'a> Parser<'a> {
             // named tuple element
             let name = self.eat_identifier()?;
             self.eat_colon()?;
-            let r#type = self.eat_type()?;
+            let r#type = self.eat_type(TypeParserOptions::default())?;
             let tuple_element_id = self.tree.allocate(
                 TupleField::Named { name, r#type },
                 self.get_span_from(start),
@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
             Ok(tuple_element_id)
         } else {
             // positional tuple element
-            let r#type = self.eat_type()?;
+            let r#type = self.eat_type(TypeParserOptions::default())?;
             let tuple_element_id = self
                 .tree
                 .allocate(TupleField::Positional { r#type }, self.get_span_from(start));

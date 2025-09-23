@@ -887,9 +887,6 @@ impl Node for TupleField {
 }
 
 /// An (unresolved) Type declaration node in the AST.
-/// TODO!: invert Type prefixes/postfixes? accept both? like T*? instead of *?T
-///  (it works better for arrays.. not sure about Maybe/Not/Virtual/...?)
-///  (.. what if we just support both and then format it appropriately?)
 ///
 /// Type references don't support static evaluation directly for simplicity.
 /// They can refer to Paths that are themselves any static Expressions
@@ -907,9 +904,10 @@ impl Node for TupleField {
 /// (int32, int32)
 /// T& // reference to T
 /// T&var // mutable reference to T
-/// T?& // reference to Maybe<T>
-/// T&? // Maybe pointer to T
-/// T?&? // Maybe pointer to Maybe<T>
+/// T[]& // reference to slice of T
+/// T[5]& // reference to array of T
+/// T&[] // slice of references to T
+/// T&[5] // array of references to T
 /// T$ // virtual type T
 /// T<int32>
 /// T<Validate: false>

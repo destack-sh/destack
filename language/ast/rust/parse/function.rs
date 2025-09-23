@@ -4,7 +4,7 @@ use dyst_language_token::TokenType;
 
 use crate::{
     Function, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser, Runtime,
-    SelfParameter, Visibility,
+    SelfParameter, TypeParserOptions, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -174,7 +174,7 @@ impl<'a> Parser<'a> {
         // return type
         let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
-            Some(self.eat_type()?)
+            Some(self.eat_type(TypeParserOptions::default())?)
         } else {
             None
         };

@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     ArrayLiteral, Expression, FieldLiteral, FloatType, IntType, NodeId, ParseError, ParseResult,
-    Parser, ScalarLiteral, StructLiteral, TupleLiteral,
+    Parser, ScalarLiteral, StructLiteral, TupleLiteral, TypeParserOptions,
 };
 
 impl<'a> Parser<'a> {
@@ -406,7 +406,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_struct_literal(&mut self) -> ParseResult<NodeId<StructLiteral>> {
         let start = self.mark();
-        let r#type = self.eat_type()?;
+        let r#type = self.eat_type(TypeParserOptions::default())?;
         let fields = self.eat_struct_literal_body()?;
         let struct_literal = self
             .tree

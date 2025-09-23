@@ -106,8 +106,8 @@ impl<'a> Parser<'a> {
 
     /// Get the current position.
     #[inline]
-    pub fn pos(&self) -> usize {
-        self.pos
+    pub fn pos(&self) -> u32 {
+        self.pos as u32
     }
 
     /// Execute a function with a new parser options.

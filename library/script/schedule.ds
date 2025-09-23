@@ -44,32 +44,32 @@ struct Schedule {
     /// The recurrence interval (>= 1).
     interval: uint32 = 1
     /// The optional start timestamp.
-    start: ?Timestamp
+    start: Timestamp?
     /// The optional end timestamp.
-    end: ?Timestamp
+    end: Timestamp?
     /// The optional total occurrence count.
-    count: ?uint32
+    count: uint32?
     /// The optional week start day.
-    weekStart: ?DayOfWeek
+    weekStart: DayOfWeek?
     /// Positions to include in the set.
-    bySetPos: ?List<uint32>
+    bySetPos: List<uint32>?
     /// Months to include.
-    byMonth: ?List<Month>
+    byMonth: List<Month>?
     /// Month days to include.
-    byMonthDay: ?List<uint8>
+    byMonthDay: List<uint8>?
     /// Year days to include.
-    byYearDay: ?List<u16>
+    byYearDay: List<u16>?
     /// Easter offsets to include.
-    byEaster: ?List<uint8>
+    byEaster: List<uint8>?
     /// Week numbers to include.
-    byWeekNo: ?List<uint8>
+    byWeekNo: List<uint8>?
     /// Week days to include.
-    byWeekDay: ?List<DayOfWeek>
+    byWeekDay: List<DayOfWeek>?
     /// Hours to include.
-    byHour: ?List<uint8>
+    byHour: List<uint8>?
     /// Minutes to include.
-    byMinute: ?List<uint8>
+    byMinute: List<uint8>?
     /// Seconds to include.
-    bySecond: ?List<uint8>
+    bySecond: List<uint8>?
 }
 

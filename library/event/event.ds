@@ -27,7 +27,7 @@ struct Event {
     /// The status of the Event (system).
     status: EventStatus = EventStatus.Pending
     /// The Event that caused self Event (if any).
-    causedBy: ?Reference<Event>
+    causedBy: Reference<Event>?
 
     use Identity as identity
 }

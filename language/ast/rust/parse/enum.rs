@@ -4,7 +4,8 @@ use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Enum, EnumField, Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Type, Visibility,
+    Enum, EnumField, Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Type,
+    TypeParserOptions, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -39,7 +40,7 @@ impl<'a> Parser<'a> {
         let explicit_type: Option<NodeId<Type>> =
             if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.eat_token(TokenType::OpenParenthesis)?;
-                let ty = self.eat_type()?;
+                let ty = self.eat_type(TypeParserOptions::default())?;
                 self.eat_token(TokenType::CloseParenthesis)?;
                 Some(ty)
             } else {
@@ -64,7 +65,7 @@ impl<'a> Parser<'a> {
                 }
                 // keep eating super types
                 else {
-                    let super_type = self.eat_type()?;
+                    let super_type = self.eat_type(TypeParserOptions::default())?;
                     super_types.push(super_type);
                 }
             }

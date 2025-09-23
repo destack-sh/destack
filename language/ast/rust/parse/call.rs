@@ -5,7 +5,7 @@ use dyst_language_token::TokenType;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Call, Cast, Coalesce, Expression, Index, Keyword, NodeId, ParseError, ParseResult, Parser,
-    ParserOptions, Runtime, ScalarLiteral,
+    ParserOptions, Runtime, ScalarLiteral, TypeParserOptions,
 };
 
 impl<'a> Parser<'a> {
@@ -131,7 +131,7 @@ impl<'a> Parser<'a> {
     pub fn eat_as_postfix(&mut self, receiver_id: NodeId<Expression>) -> ParseResult<NodeId<Cast>> {
         let start = self.mark();
         self.eat_keyword(Keyword::As)?;
-        let r#type = self.eat_type()?;
+        let r#type = self.eat_type(TypeParserOptions::default())?;
         let cast_id = self.tree.allocate(
             Cast {
                 receiver: receiver_id,

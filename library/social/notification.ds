@@ -40,6 +40,6 @@ struct Notification {
     /// The status of the Notification.
     status: NotificationStatus
     /// Optional text content.
-    text: ?Text
+    text: Text?
 }
 
