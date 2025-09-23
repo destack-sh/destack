@@ -127,3 +127,37 @@ impl<'ast> FormatNode<'ast, Defer> for Defer {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::format::tests::TestFormatter;
+    use crate::{DystFormatOptions, assert_format};
+
+    #[test]
+    fn test_format_empty_block_with_comment() {
+        let source = "{
+    // infix comment
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_mixed_block_with_prefix_postfix_comment() {
+        let source = "{
+    // prefix comment
+    let X = 1
+    // postfix comment
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
+}

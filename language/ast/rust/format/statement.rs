@@ -11,8 +11,6 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
     ) -> FormatResult<()> {
         write!(f, [f.context().prefix_annotations(_node_id)])?;
         match self {
-            Statement::Expression(node) => node.format(f)?,
-
             Statement::Module(node) => node.format(f)?,
             Statement::Struct(node) => node.format(f)?,
             Statement::Enum(node) => node.format(f)?,
@@ -20,9 +18,12 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             Statement::Trait(node) => node.format(f)?,
             Statement::Implement(node) => node.format(f)?,
             Statement::Function(node) => node.format(f)?,
+            Statement::Block(node) => node.format(f)?,
 
             Statement::With(node) => node.format(f)?,
             Statement::Use(node) => node.format(f)?,
+            
+            Statement::Expression(node) => node.format(f)?,
         }
         write!(f, [f.context().postfix_annotations(_node_id)])?;
         Ok(())

@@ -94,12 +94,30 @@ mod tests {
     }
 
     #[test]
-    fn test_format_if_with_blocks() {
+    fn test_format_if_with_body() {
         assert_format!(
             "if cond { let X = 1 } else { let Y = 2 }",
             "if cond {\n\tlet X = 1\n} else {\n\tlet Y = 2\n}",
             |p| p.eat_if(None),
             DystFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_if_else_if_with_comments() {
+        let source = r"if cond1 {
+    // comment inside cond1
+    let X = 1
+}
+// comment before cond2
+else if cond2 { 
+    let Y = 2 // comment trailing Y
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_if(None),
+            DystFormatOptions::default()
         );
     }
 }
