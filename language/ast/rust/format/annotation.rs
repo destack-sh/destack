@@ -8,47 +8,74 @@ use crate::{
 };
 
 impl<'ast> DystFormatContext<'ast> {
-    /// Format the infix annotations for a node.
+    /// Format the block infix annotations for a node.
     #[inline]
-    pub fn infix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn block_infix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::BlockInfix,
             node_id,
         }
     }
 
-    /// Format the prefix annotations for a node.
+    /// Format the block prefix annotations for a node.
     #[inline]
-    pub fn prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn block_prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::BlockPrefix,
             node_id,
         }
     }
 
-    /// Format the postfix annotations for a node.
+    /// Format the block postfix annotations for a node.
     #[inline]
-    pub fn postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn block_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
         Annotations {
             position: AnnotationCapture::BlockPostfix,
             node_id,
         }
     }
 
-    /// Format the line suffix annotations for a node.
+    /// Format the line prefix annotations for a node.
     #[inline]
-    pub fn suffix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn line_prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
         Annotations {
-            position: AnnotationCapture::LineSuffix,
+            position: AnnotationCapture::LinePrefix,
             node_id,
         }
     }
 
-    /// Format the postfix and line suffix annotations for a node.
+    /// Format the line postfix annotations for a node.
     #[inline]
-    pub fn suffix_and_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+    pub fn line_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
         Annotations {
-            position: AnnotationCapture::BlockPostfixAndLineSuffix,
+            position: AnnotationCapture::LinePostfix,
+            node_id,
+        }
+    }
+
+    /// Format the line postfix boundary annotations for a node.
+    #[inline]
+    pub fn line_postfix_boundary_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::LinePostfixBoundary,
+            node_id,
+        }
+    }
+
+    /// Format the line and block prefix annotations for a node.
+    #[inline]
+    pub fn any_prefix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::AnyPrefix,
+            node_id,
+        }
+    }
+
+    /// Format the line and block postfix annotations for a node.
+    #[inline]
+    pub fn any_postfix_annotations<T: Node>(&self, node_id: NodeId<T>) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::AnyPostfix,
             node_id,
         }
     }
@@ -56,16 +83,14 @@ impl<'ast> DystFormatContext<'ast> {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AnnotationCapture {
-    /// Annotations inside the node (without next node to attach to, like in an empty block.)
     BlockInfix,
-    /// Annotation preceding the node on previous lines (most common).
     BlockPrefix,
-    /// Annotation after the node on a new line (only if prefix and infix are not possible).
     BlockPostfix,
-    /// Annotation after the node on the same line (like infix comments).
-    LineSuffix,
-    /// Annotation after the node on a new line (only if prefix and infix are not possible).
-    BlockPostfixAndLineSuffix,
+    LinePrefix,
+    LinePostfix,
+    LinePostfixBoundary,
+    AnyPrefix,
+    AnyPostfix,
 }
 
 /// Annotations for a node.
@@ -97,29 +122,48 @@ where
             };
             let is_included = match position {
                 AnnotationPosition::BlockInfix => self.position == AnnotationCapture::BlockInfix,
-                AnnotationPosition::BlockPrefix => self.position == AnnotationCapture::BlockPrefix,
+                AnnotationPosition::BlockPrefix => {
+                    self.position == AnnotationCapture::BlockPrefix
+                        || self.position == AnnotationCapture::AnyPrefix
+                }
                 AnnotationPosition::BlockPostfix => {
                     self.position == AnnotationCapture::BlockPostfix
-                        || self.position == AnnotationCapture::BlockPostfixAndLineSuffix
+                        || self.position == AnnotationCapture::AnyPostfix
                 }
-                AnnotationPosition::LineSuffix => {
-                    self.position == AnnotationCapture::LineSuffix
-                        || self.position == AnnotationCapture::BlockPostfixAndLineSuffix
+                AnnotationPosition::LinePrefix => {
+                    self.position == AnnotationCapture::LinePrefix
+                        || self.position == AnnotationCapture::AnyPrefix
+                }
+                AnnotationPosition::LinePostfix => {
+                    self.position == AnnotationCapture::LinePostfix
+                        || self.position == AnnotationCapture::AnyPostfix
+                }
+                AnnotationPosition::LinePostfixBoundary => {
+                    self.position == AnnotationCapture::LinePostfixBoundary
+                        || self.position == AnnotationCapture::AnyPostfix
                 }
             };
             if is_included {
                 // insert space/newline for first annotation in group
                 if first_node_type.is_none() {
                     first_node_type = Some(node_type);
-                    if position == AnnotationPosition::LineSuffix {
+
+                    if position == AnnotationPosition::LinePostfix
+                        || position == AnnotationPosition::LinePostfixBoundary
+                    {
                         write!(f, [space()])?;
-                    } else {
+                    } else if position != AnnotationPosition::LinePrefix {
                         write!(f, [hard_line_break()])?;
                     }
                 }
 
                 // format annotation itself
                 annotation.format_node(annotation_id, f)?;
+
+                // insert space after line prefix
+                if position == AnnotationPosition::LinePrefix {
+                    write!(f, [space()])?;
+                }
             }
         }
         Ok(())
@@ -144,14 +188,10 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
                     }
                 }
 
-                write!(f, [node])
+                node.format(f)
             }
-            Annotation::Doc { node, .. } => {
-                write!(f, [node, hard_line_break()])
-            }
-            Annotation::Comment { node, .. } => {
-                write!(f, [node, hard_line_break()])
-            }
+            Annotation::Doc { node, .. } => node.format(f),
+            Annotation::Comment { node, .. } => node.format(f),
         }
     }
 }
@@ -178,18 +218,10 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
     ) -> FormatResult<()> {
         match self.style {
             DocStyle::Line => {
-                // line doc comment with `///`
+                // prefix every line with `///`
                 let string = f.context().session.strings.get(self.string);
-                if string.contains('\n') {
-                    // prefix every line with `///`
-                    let string = string
-                        .lines()
-                        .map(|line| format!("/// {line}"))
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    write!(f, [token("///"), space(), text(string.as_ref())])?;
-                } else {
-                    write!(f, [token("///"), space(), text(string)])?;
+                for line in string.lines() {
+                    write!(f, [token("///"), space(), text(line), hard_line_break()])?;
                 }
             }
             DocStyle::Block => {
@@ -213,18 +245,10 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
     ) -> FormatResult<()> {
         match self.style {
             CommentStyle::Line => {
-                // line comment with `//`
+                // prefix every line with `//`
                 let string = f.context().session.strings.get(self.string);
-                if string.contains('\n') {
-                    // prefix every line with `//`
-                    let string = string
-                        .lines()
-                        .map(|line| format!("// {line}"))
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    write!(f, [text(string.as_ref())])?;
-                } else {
-                    write!(f, [token("//"), space(), text(string),])?;
+                for line in string.lines() {
+                    write!(f, [token("//"), space(), text(line), hard_line_break()])?;
                 }
             }
             CommentStyle::Block => {
@@ -233,5 +257,62 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::format::tests::TestFormatter;
+    use crate::{DystFormatOptions, assert_format};
+
+    /// Multiple comments around an expression should retain their order.
+    #[test]
+    fn test_format_multiple_comments_around_statement() {
+        let source = "{
+    // comment part 1
+    // comment part 2
+    let A = 1
+    // comment part 3
+    // comment part 4
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_statement(),
+            DystFormatOptions::default()
+        );
+    }
+
+    /// Inline block comments should be preserved.
+    #[test]
+    fn test_format_inline_block_comment() {
+        assert_format!(
+            "{
+    let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */
+}",
+            "{
+    let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */
+}",
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
+
+    /// Suffix multiline annotation should be pushed to the next line *and* converted to line comments.
+    #[test]
+    fn test_format_multine_block_comment_push_and_convert_to_line_comment() {
+        assert_format!(
+            "{
+    let X = 1 /* some comment
+    over multiple lines yo       */
+}",
+            "{
+    let X = 1
+    // some comment
+    // over multiple lines yo
+}",
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
     }
 }

@@ -105,6 +105,7 @@ mod tests {
 
     #[test]
     fn test_format_if_else_if_with_comments() {
+        // NOTE :Incomplete: would be nicer to omit the space before `else` if possible
         let source = r"if cond1 {
     // comment inside cond1
     let X = 1

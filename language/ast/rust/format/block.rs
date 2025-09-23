@@ -26,7 +26,7 @@ where
                 token("{"),
                 soft_block_indent(&format_args![
                     if_group_fits_on_line(&space()),
-                    &f.context().infix_annotations(self.node_id)
+                    &f.context().block_infix_annotations(self.node_id)
                 ]),
                 token("}")
             ])]
@@ -57,7 +57,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         let container = f.context().get_container(node_id);
         let is_in_expression = matches!(container, Some((_, NodeType::Expression)));
 
-        write!(f, [f.context().prefix_annotations(node_id)])?;
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         // label
         if let Some(label) = &self.label {
             write!(f, [label, token(": ")])?;
@@ -68,7 +68,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                 f,
                 [
                     empty_block_with_infix_annotations(node_id),
-                    f.context().suffix_and_postfix_annotations(node_id)
+                    f.context().any_postfix_annotations(node_id)
                 ]
             )?;
         }
@@ -82,7 +82,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                     soft_block_indent(&self.statements[0]),
                     soft_line_break_or_space(),
                     token("}"),
-                    f.context().suffix_and_postfix_annotations(node_id),
+                    f.context().any_postfix_annotations(node_id),
                 ])]
             )?;
         }
@@ -100,9 +100,9 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                     hard_line_break(),
                 ])]
             )?;
-            write!(f, [f.context().infix_annotations(node_id)])?;
+            write!(f, [f.context().block_infix_annotations(node_id)])?;
             write!(f, [token("}")])?;
-            write!(f, [f.context().suffix_and_postfix_annotations(node_id)])?;
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
         }
 
         Ok(())
@@ -211,7 +211,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_mixed_block_with_suffix_comment() {
+    fn test_format_mixed_block_with_postfix_comment() {
         let source = "{
     let X = 1 // this is my X
     let Y = 2 // this is my Y

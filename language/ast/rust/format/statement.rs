@@ -9,7 +9,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
         _node_id: NodeId<Statement>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().prefix_annotations(_node_id)])?;
+        write!(f, [f.context().any_prefix_annotations(_node_id)])?;
         match self {
             Statement::Module(node) => node.format(f)?,
             Statement::Struct(node) => node.format(f)?,
@@ -25,7 +25,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
 
             Statement::Expression(node) => node.format(f)?,
         }
-        write!(f, [f.context().suffix_and_postfix_annotations(_node_id)])?;
+        write!(f, [f.context().any_postfix_annotations(_node_id)])?;
         Ok(())
     }
 }

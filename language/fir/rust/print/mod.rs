@@ -1,6 +1,6 @@
 pub mod bomb;
-pub mod call_stack;
-pub mod line_suffixes;
+pub mod call;
+pub mod line;
 pub mod mode;
 pub mod options;
 pub mod printed;
