@@ -1,7 +1,8 @@
 use dyst_language_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
-use crate::{Keyword, Match, MatchCase, NodeId, ParseResult, Parser, Try};
+use crate::parse::prelude::*;
+use crate::{Keyword, Match, MatchCase, NodeId, NodeType, ParseResult, Parser, Try};
 
 impl<'a> Parser<'a> {
     /// Eat a match statement.
@@ -29,7 +30,7 @@ impl<'a> Parser<'a> {
             TokenType::OpenBrace,
         )?;
         self.eat_token(TokenType::OpenBrace)?;
-        let cases_id = self.eat_match_body()?;
+        let cases_id = self.eat_match_body().for_node_type(NodeType::Match)?;
         self.eat_token(TokenType::CloseBrace)?;
         let match_id = self.tree.allocate(
             Match {
@@ -63,7 +64,7 @@ impl<'a> Parser<'a> {
             }
             // case
             else {
-                let case = self.eat_match_case()?;
+                let case = self.eat_match_case().for_node_type(NodeType::MatchCase)?;
                 cases.push(case);
             }
         }
@@ -80,7 +81,7 @@ impl<'a> Parser<'a> {
     ///     ...
     /// }
     /// ```
-    pub fn eat_match_case(&mut self) -> ParseResult<NodeId<MatchCase>> {
+    fn eat_match_case(&mut self) -> ParseResult<NodeId<MatchCase>> {
         let start = self.mark();
         // pattern
         let pattern_id = self.eat_pattern(ExpressionParserOptions::default())?;

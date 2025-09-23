@@ -1,9 +1,10 @@
 //! Parse functions and closures.
 
+use crate::parse::prelude::*;
 use dyst_language_token::TokenType;
 
 use crate::{
-    Function, FunctionStyle, Keyword, Mutability, NodeId, ParseResult, Parser, Runtime,
+    Function, FunctionStyle, Keyword, Mutability, NodeId, NodeType, ParseResult, Parser, Runtime,
     SelfParameter, TypeParserOptions, Visibility,
 };
 
@@ -73,7 +74,7 @@ impl<'a> Parser<'a> {
 
         // name
         let name = if self.peek_identifier().is_ok() {
-            Some(self.eat_identifier()?)
+            Some(self.eat_identifier().for_node_type(NodeType::Function)?)
         } else {
             None
         };
@@ -81,7 +82,9 @@ impl<'a> Parser<'a> {
         // static parameters
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
-            let static_parameters = self.eat_parameters_body()?;
+            let static_parameters = self
+                .eat_parameters_body()
+                .for_node_type(NodeType::Function)?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(static_parameters)
         } else {
@@ -157,7 +160,8 @@ impl<'a> Parser<'a> {
         let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
             vec![]
         } else {
-            self.eat_parameters_body()?
+            self.eat_parameters_body()
+                .for_node_type(NodeType::Function)?
         };
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
@@ -165,7 +169,7 @@ impl<'a> Parser<'a> {
         // with
         let with = if self.peek_keyword(Keyword::With).is_ok() {
             self.bump(); // eat with
-            let with = self.eat_with_body()?;
+            let with = self.eat_with_body().for_node_type(NodeType::Function)?;
             Some(with)
         } else {
             None
@@ -174,14 +178,17 @@ impl<'a> Parser<'a> {
         // return type
         let return_type = if self.peek_arrow().is_ok() {
             self.bump(); // eat arrow
-            Some(self.eat_type(TypeParserOptions::default())?)
+            let return_type = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::Function)?;
+            Some(return_type)
         } else {
             None
         };
 
         // body
         let body = if self.peek_token(TokenType::OpenBrace).is_ok() {
-            Some(self.eat_block()?)
+            Some(self.eat_block().for_node_type(NodeType::Function)?)
         } else {
             None
         };

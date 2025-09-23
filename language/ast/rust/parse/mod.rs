@@ -18,6 +18,7 @@ mod module;
 mod parser;
 mod path;
 mod pattern;
+mod prelude;
 mod seperator;
 mod statement;
 mod stop;
@@ -30,10 +31,7 @@ mod r#use;
 mod visibility;
 mod with;
 
-pub use error::*;
-pub use expression::ExpressionParserOptions;
-pub use parser::*;
-pub use r#type::TypeParserOptions;
+pub use prelude::*;
 
 #[cfg(test)]
 pub(crate) mod tests;

@@ -1,5 +1,8 @@
 use crate::parse::ParserOptions;
-use crate::{BlockFormat, Implement, Keyword, NodeId, ParseResult, Parser, TypeParserOptions};
+use crate::parse::prelude::*;
+use crate::{
+    BlockFormat, Implement, Keyword, NodeId, NodeType, ParseResult, Parser, TypeParserOptions,
+};
 use dyst_language_token::TokenType;
 
 impl<'a> Parser<'a> {
@@ -30,13 +33,15 @@ impl<'a> Parser<'a> {
         // static arguments
         let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
             self.eat_token(TokenType::LessThan)?;
-            let static_arguments = self.with_options(
-                ParserOptions {
-                    in_static_type: true,
-                    ..self.options
-                },
-                |parser| parser.eat_arguments_body(),
-            )?;
+            let static_arguments = self
+                .with_options(
+                    ParserOptions {
+                        in_static_type: true,
+                        ..self.options
+                    },
+                    |parser| parser.eat_arguments_body(),
+                )
+                .for_node_type(NodeType::Implement)?;
             self.eat_token(TokenType::GreaterThan)?;
             Some(static_arguments)
         } else {
@@ -44,12 +49,17 @@ impl<'a> Parser<'a> {
         };
 
         // target
-        let receiver = self.eat_type(TypeParserOptions::default())?;
+        let receiver = self
+            .eat_type(TypeParserOptions::default())
+            .for_node_type(NodeType::Implement)?;
 
         // for
         let for_trait = if self.peek_keyword(Keyword::For).is_ok() {
             self.eat_keyword(Keyword::For)?;
-            Some(self.eat_type(TypeParserOptions::default())?)
+            let for_trait = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::Implement)?;
+            Some(for_trait)
         } else {
             None
         };
@@ -57,7 +67,9 @@ impl<'a> Parser<'a> {
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
         self.eat_newlines_maybe()?;
-        let statements = self.eat_block_body(BlockFormat::Explicit)?;
+        let statements = self
+            .eat_block_body(BlockFormat::Explicit)
+            .for_node_type(NodeType::Implement)?;
         self.eat_token(TokenType::CloseBrace)?;
 
         // implement

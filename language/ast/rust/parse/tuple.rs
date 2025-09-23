@@ -2,7 +2,8 @@
 
 use dyst_language_token::TokenType;
 
-use crate::{NodeId, ParseResult, Parser, Tuple, TupleField, TypeParserOptions};
+use crate::parse::prelude::*;
+use crate::{NodeId, NodeType, ParseResult, Parser, Tuple, TupleField, TypeParserOptions};
 
 impl<'a> Parser<'a> {
     /// Eat a tuple type (including the `(` and `)`).
@@ -13,7 +14,8 @@ impl<'a> Parser<'a> {
     /// (int32, int32)
     /// ```
     pub fn eat_tuple(&mut self) -> ParseResult<NodeId<Tuple>> {
-        self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_token(TokenType::OpenParenthesis)
+            .for_node_type(NodeType::Tuple)?;
         let start = self.mark();
         let mut elements: Vec<NodeId<TupleField>> = Vec::new();
         self.eat_newlines_maybe()?;
@@ -21,7 +23,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                 break;
             }
-            let element = self.eat_tuple_field()?;
+            let element = self.eat_tuple_field().for_node_type(NodeType::TupleField)?;
             elements.push(element);
             if self.peek_item_stop().is_ok() {
                 self.eat_item_stop_with_newlines()?;
@@ -32,7 +34,8 @@ impl<'a> Parser<'a> {
         let tuple_id = self
             .tree
             .allocate(Tuple { elements }, self.get_span_from(start));
-        self.eat_token(TokenType::CloseParenthesis)?;
+        self.eat_token(TokenType::CloseParenthesis)
+            .for_node_type(NodeType::Tuple)?;
         Ok(tuple_id)
     }
 
@@ -50,7 +53,9 @@ impl<'a> Parser<'a> {
             // named tuple element
             let name = self.eat_identifier()?;
             self.eat_colon()?;
-            let r#type = self.eat_type(TypeParserOptions::default())?;
+            let r#type = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::TupleField)?;
             let tuple_element_id = self.tree.allocate(
                 TupleField::Named { name, r#type },
                 self.get_span_from(start),
@@ -58,7 +63,9 @@ impl<'a> Parser<'a> {
             Ok(tuple_element_id)
         } else {
             // positional tuple element
-            let r#type = self.eat_type(TypeParserOptions::default())?;
+            let r#type = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::TupleField)?;
             let tuple_element_id = self
                 .tree
                 .allocate(TupleField::Positional { r#type }, self.get_span_from(start));

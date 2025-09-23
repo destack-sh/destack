@@ -1,13 +1,17 @@
+use crate::parse::prelude::*;
 use dyst_language_source::StringId;
 use dyst_language_token::TokenType;
 
-use crate::{BlockFormat, Keyword, Module, ModuleFormat, NodeId, ParseResult, Parser, Visibility};
+use crate::{
+    BlockFormat, Keyword, Module, ModuleFormat, NodeId, NodeType, ParseResult, Parser, Visibility,
+};
 
 impl<'a> Parser<'a> {
     /// Eat a module declaration (incl. `module` keyword).
     pub fn eat_module(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Module>> {
         let start = self.mark();
-        self.eat_keyword(Keyword::Module)?;
+        self.eat_keyword(Keyword::Module)
+            .for_node_type(NodeType::Module)?;
         let name = if self.peek_identifier().is_ok() {
             Some(self.eat_identifier()?)
         } else {
@@ -16,8 +20,11 @@ impl<'a> Parser<'a> {
         let module = {
             if self.peek_token(TokenType::OpenBrace).is_ok() {
                 self.bump(); // eat open brace
-                let statements = self.eat_block_body(BlockFormat::Explicit)?;
-                self.eat_token(TokenType::CloseBrace)?;
+                let statements = self
+                    .eat_block_body(BlockFormat::Explicit)
+                    .for_node_type(NodeType::Block)?;
+                self.eat_token(TokenType::CloseBrace)
+                    .for_node_type(NodeType::Module)?;
                 Module {
                     format: ModuleFormat::Inline,
                     name,
@@ -45,7 +52,9 @@ impl<'a> Parser<'a> {
         format: ModuleFormat,
     ) -> ParseResult<NodeId<Module>> {
         let start = self.mark();
-        let statements = self.eat_block_body(BlockFormat::Implicit)?;
+        let statements = self
+            .eat_block_body(BlockFormat::Implicit)
+            .for_node_type(NodeType::Block)?;
         let module = Module {
             format,
             name,

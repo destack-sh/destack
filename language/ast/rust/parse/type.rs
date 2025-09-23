@@ -2,14 +2,15 @@
 
 use std::str::FromStr;
 
+use crate::parse::prelude::*;
 use dyst_language_source::Span;
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Expression, FloatType, IntType, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser,
-    PrimitiveType, Type,
+    Expression, FloatType, IntType, Keyword, Mutability, NodeId, NodeType, ParseError, ParseResult,
+    Parser, PrimitiveType, Type,
 };
 
 impl IntType {
@@ -144,7 +145,7 @@ impl<'a> Parser<'a> {
             // ?
             if next.token.r#type == TokenType::Maybe {
                 self.bump();
-                let inner_type = self.eat_type(_options)?;
+                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
                 self.tree
                     .allocate(Type::Maybe(inner_type), self.get_span_from(start))
             }
@@ -152,7 +153,7 @@ impl<'a> Parser<'a> {
             else if next.token.r#type == TokenType::Not {
                 self.bump();
                 if self.peek_token(TokenType::Identifier).is_ok() {
-                    let inner_type = self.eat_type(_options)?;
+                    let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
                     self.tree
                         .allocate(Type::Not(inner_type), self.get_span_from(start))
                 } else {
@@ -172,7 +173,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Mutability::Immutable
                 };
-                let inner_type = self.eat_type(_options)?;
+                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
                 self.tree.allocate(
                     Type::Reference {
                         mutability,
@@ -184,56 +185,57 @@ impl<'a> Parser<'a> {
             // $
             else if next.token.r#type == TokenType::Virtual {
                 self.bump();
-                let inner_type = self.eat_type(_options)?;
+                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
                 self.tree
                     .allocate(Type::Virtual(inner_type), self.get_span_from(start))
             }
             // ..
             else if next.token.r#type == TokenType::Range {
                 self.bump();
-                let inner_type = self.eat_type(_options)?;
+                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
                 self.tree
                     .allocate(Type::Variadic(inner_type), self.get_span_from(start))
             }
             // `(`
             else if next.token.r#type == TokenType::OpenParenthesis {
-                self.eat_tuple_type()?
+                self.eat_tuple_type().for_node_type(NodeType::Type)?
             }
             // `[`
             else if next.token.r#type == TokenType::OpenBracket {
-                self.eat_array_or_slice_type()?
+                self.eat_array_or_slice_type()
+                    .for_node_type(NodeType::Type)?
             }
             // `struct`
             else if keyword == Some(Keyword::Struct) {
                 let start = self.mark();
-                let struct_id = self.eat_struct(None)?;
+                let struct_id = self.eat_struct(None).for_node_type(NodeType::Struct)?;
                 self.tree
                     .allocate(Type::Struct(struct_id), self.get_span_from(start))
             }
             // `enum`
             else if keyword == Some(Keyword::Enum) {
                 let start = self.mark();
-                let enum_id = self.eat_enum(None)?;
+                let enum_id = self.eat_enum(None).for_node_type(NodeType::Enum)?;
                 self.tree
                     .allocate(Type::Enum(enum_id), self.get_span_from(start))
             }
             // `union`
             else if keyword == Some(Keyword::Union) {
                 let start = self.mark();
-                let union_id = self.eat_union(None)?;
+                let union_id = self.eat_union(None).for_node_type(NodeType::Union)?;
                 self.tree
                     .allocate(Type::Union(union_id), self.get_span_from(start))
             }
             // `function`
             else if keyword == Some(Keyword::Function) {
                 let start = self.mark();
-                let function_id = self.eat_function(None)?;
+                let function_id = self.eat_function(None).for_node_type(NodeType::Function)?;
                 self.tree
                     .allocate(Type::Function(function_id), self.get_span_from(start))
             }
             // _
             else {
-                self.eat_scalar_type()?
+                self.eat_scalar_type().for_node_type(NodeType::Type)?
             }
         };
 
@@ -342,7 +344,9 @@ impl<'a> Parser<'a> {
                 TokenType::OpenBracket => {
                     let modifier_start = self.mark();
                     self.bump(); // eat `[`
-                    let count = self.eat_array_or_slice_suffix()?;
+                    let count = self
+                        .eat_array_or_slice_suffix()
+                        .for_node_type(NodeType::Type)?;
                     let modifier_span = self.get_span_from(modifier_start);
                     let element_span = self.tree.get_span(type_id);
                     let span = element_span.merge(modifier_span);
@@ -386,17 +390,20 @@ impl<'a> Parser<'a> {
         }
         // path
         else if next.token.r#type == TokenType::Identifier {
-            let path = self.eat_path()?;
+            let path = self.eat_path().for_node_type(NodeType::Type)?;
             let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
                 self.bump();
-                let static_arguments = self.with_options(
-                    ParserOptions {
-                        in_static_type: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_arguments_body(),
-                )?;
-                self.eat_token(TokenType::GreaterThan)?;
+                let static_arguments = self
+                    .with_options(
+                        ParserOptions {
+                            in_static_type: true,
+                            ..self.options
+                        },
+                        |parser| parser.eat_arguments_body(),
+                    )
+                    .for_node_type(NodeType::Type)?;
+                self.eat_token(TokenType::GreaterThan)
+                    .for_node_type(NodeType::Type)?;
                 Some(static_arguments)
             } else {
                 None
@@ -425,7 +432,7 @@ impl<'a> Parser<'a> {
     /// ```
     fn eat_tuple_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-        let tuple_id = self.eat_tuple()?;
+        let tuple_id = self.eat_tuple().for_node_type(NodeType::Type)?;
         let ty_id = self
             .tree
             .allocate(Type::Tuple(tuple_id), self.get_span_from(start));
@@ -435,11 +442,14 @@ impl<'a> Parser<'a> {
     /// Parse the trailing `[]` section and return an optional array count.
     fn eat_array_or_slice_suffix(&mut self) -> ParseResult<Option<NodeId<Expression>>> {
         if self.peek_token(TokenType::CloseBracket).is_ok() {
-            self.eat_token(TokenType::CloseBracket)?;
+            self.bump(); // eat `]`
             Ok(None)
         } else {
-            let count = self.eat_expression(ExpressionParserOptions::default())?;
-            self.eat_token(TokenType::CloseBracket)?;
+            let count = self
+                .eat_expression(ExpressionParserOptions::default())
+                .for_node_type(NodeType::Type)?;
+            self.eat_token(TokenType::CloseBracket)
+                .for_node_type(NodeType::Type)?;
             Ok(Some(count))
         }
     }
@@ -461,14 +471,19 @@ impl<'a> Parser<'a> {
     ///
     /// Examples:
     /// ```
-    /// []int32 // slice
-    /// [5]int32 // array (fixed size)
+    /// int32[] // slice
+    /// int32[5] // array (fixed size)
     /// ```
     fn eat_array_or_slice_type(&mut self) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
-        self.eat_token(TokenType::OpenBracket)?;
-        let count = self.eat_array_or_slice_suffix()?;
-        let element_type = self.eat_type(TypeParserOptions::default())?;
+        self.eat_token(TokenType::OpenBracket)
+            .for_node_type(NodeType::Type)?;
+        let count = self
+            .eat_array_or_slice_suffix()
+            .for_node_type(NodeType::Type)?;
+        let element_type = self
+            .eat_type(TypeParserOptions::default())
+            .for_node_type(NodeType::Type)?;
         let span = self.get_span_from(start);
         Ok(self.create_array_or_slice_type(element_type, count, span))
     }

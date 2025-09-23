@@ -1,13 +1,14 @@
 //! Parse structs.
 #![allow(clippy::type_complexity)]
 
+use crate::parse::prelude::*;
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
-    Keyword, NodeId, ParseError, ParseResult, Parser, Statement, Struct, StructField, StructStyle,
-    Type, TypeParserOptions, Visibility,
+    Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Statement, Struct, StructField,
+    StructStyle, Type, TypeParserOptions, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -58,7 +59,9 @@ impl<'a> Parser<'a> {
         // optional representation type: ( ... )
         let representation_type = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
-            let representation_type = self.eat_type(TypeParserOptions::default())?;
+            let representation_type = self
+                .eat_type(TypeParserOptions::default())
+                .for_node_type(NodeType::Struct)?;
             self.eat_token(TokenType::CloseParenthesis)?;
             Some(representation_type)
         } else {
@@ -70,9 +73,12 @@ impl<'a> Parser<'a> {
 
         // style / tuple struct
         let (style, tuple_fields) = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let tuple_fields = self.eat_struct_tuple_body()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
+            self.bump(); // eat open parenthesis
+            let tuple_fields = self
+                .eat_struct_tuple_body()
+                .for_node_type(NodeType::Struct)?;
+            self.eat_token(TokenType::CloseParenthesis)
+                .for_node_type(NodeType::Struct)?;
             (StructStyle::Tuple, Some(tuple_fields))
         } else {
             (StructStyle::Struct, None)
@@ -81,14 +87,17 @@ impl<'a> Parser<'a> {
         // optional static parameters: < ... >
         let static_parameters = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
-            let static_parameters = self.with_options(
-                ParserOptions {
-                    in_static_type: true,
-                    ..self.options
-                },
-                |parser| parser.eat_parameters_body(),
-            )?;
-            self.eat_token(TokenType::GreaterThan)?;
+            let static_parameters = self
+                .with_options(
+                    ParserOptions {
+                        in_static_type: true,
+                        ..self.options
+                    },
+                    |parser| parser.eat_parameters_body(),
+                )
+                .for_node_type(NodeType::Struct)?;
+            self.eat_token(TokenType::GreaterThan)
+                .for_node_type(NodeType::Struct)?;
             Some(static_parameters)
         } else {
             None
@@ -109,7 +118,9 @@ impl<'a> Parser<'a> {
                 }
                 // keep eating super types
                 else {
-                    let super_type = self.eat_type(TypeParserOptions::default())?;
+                    let super_type = self
+                        .eat_type(TypeParserOptions::default())
+                        .for_node_type(NodeType::Struct)?;
                     super_types.push(super_type);
                 }
             }
@@ -119,14 +130,18 @@ impl<'a> Parser<'a> {
         };
 
         // body
-        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
+        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
+            .for_node_type(NodeType::Struct)?;
         self.eat_newlines_maybe()?;
-        let (mut fields, statements) = self.eat_struct_body(style)?;
+        let (mut fields, statements) = self
+            .eat_struct_body(style)
+            .for_node_type(NodeType::Struct)?;
         if let Some(tuple_fields) = tuple_fields {
             // merge in tuple fields
             fields.extend(tuple_fields);
         }
-        self.eat_token(TokenType::CloseBrace)?;
+        self.eat_token(TokenType::CloseBrace)
+            .for_node_type(NodeType::Struct)?;
 
         // struct
         let struct_id = self.tree.allocate(
@@ -188,11 +203,14 @@ impl<'a> Parser<'a> {
             }
             // struct field
             else if style == StructStyle::Struct && self.peek_struct_field().is_ok() {
-                let field = self.eat_struct_field()?;
+                let field = self.eat_struct_field().for_node_type(NodeType::Struct)?;
                 fields.push(field);
             }
             // eat statements
-            else if let Some(statement_id) = self.try_eat_statement()? {
+            else if let Some(statement_id) = self
+                .try_eat_statement()
+                .for_node_type(NodeType::Statement)?
+            {
                 statements.push(statement_id);
             }
         }
@@ -234,12 +252,17 @@ impl<'a> Parser<'a> {
             };
 
         // type
-        let r#type = self.eat_type(TypeParserOptions::default())?;
+        let r#type = self
+            .eat_type(TypeParserOptions::default())
+            .for_node_type(NodeType::Struct)?;
 
         // optional default value: `= <expr>`
         let default = if self.peek_token(TokenType::Assign).is_ok() {
             self.eat_token(TokenType::Assign)?;
-            Some(self.eat_expression(ExpressionParserOptions::default())?)
+            Some(
+                self.eat_expression(ExpressionParserOptions::default())
+                    .for_node_type(NodeType::Struct)?,
+            )
         } else {
             None
         };

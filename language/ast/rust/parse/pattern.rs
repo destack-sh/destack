@@ -1,11 +1,12 @@
 //! Parse patterns.
 
+use crate::parse::prelude::*;
 use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
 use crate::{
-    ExpressionParserOptions, Keyword, Mutability, NodeId, ParseError, ParseResult, Parser, Pattern,
-    PatternField, TypeParserOptions,
+    ExpressionParserOptions, Keyword, Mutability, NodeId, NodeType, ParseError, ParseResult,
+    Parser, Pattern, PatternField, TypeParserOptions,
 };
 
 impl<'a> Parser<'a> {
@@ -55,7 +56,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Mutability::Immutable
                 };
-                let target_id = self.eat_pattern(options)?;
+                let target_id = self.eat_pattern(options).for_node_type(NodeType::Pattern)?;
                 self.tree.allocate(
                     Pattern::Reference {
                         mutability,
@@ -66,7 +67,8 @@ impl<'a> Parser<'a> {
             }
             // literal
             else if self.peek_scalar_literal().is_ok() {
-                let scalar_literal_id = self.eat_scalar_literal()?;
+                let scalar_literal_id =
+                    self.eat_scalar_literal().for_node_type(NodeType::Pattern)?;
                 self.tree.allocate(
                     Pattern::Literal(scalar_literal_id),
                     self.get_span_from(start),
@@ -76,11 +78,13 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
-                let fields = self.eat_pattern_field_list(
-                    TokenType::Comma,
-                    TokenType::CloseParenthesis,
-                    ExpressionParserOptions::default(),
-                )?;
+                let fields = self
+                    .eat_pattern_field_list(
+                        TokenType::Comma,
+                        TokenType::CloseParenthesis,
+                        ExpressionParserOptions::default(),
+                    )
+                    .for_node_type(NodeType::Pattern)?;
                 let pattern = Pattern::Tuple { path: None, fields };
                 self.eat_token(TokenType::CloseParenthesis)?;
                 self.tree.allocate(pattern, self.get_span_from(start))
@@ -89,11 +93,13 @@ impl<'a> Parser<'a> {
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 self.bump(); // eat open bracket
                 self.eat_newlines_maybe()?;
-                let fields = self.eat_pattern_field_list(
-                    TokenType::Comma,
-                    TokenType::CloseBracket,
-                    ExpressionParserOptions::default(),
-                )?;
+                let fields = self
+                    .eat_pattern_field_list(
+                        TokenType::Comma,
+                        TokenType::CloseBracket,
+                        ExpressionParserOptions::default(),
+                    )
+                    .for_node_type(NodeType::Pattern)?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
                 self.tree
@@ -104,11 +110,13 @@ impl<'a> Parser<'a> {
                 let r#type = self.eat_type(TypeParserOptions::default())?;
                 self.eat_token(TokenType::OpenBrace)?;
                 self.eat_newlines_maybe()?;
-                let fields = self.eat_pattern_field_list(
-                    TokenType::Comma,
-                    TokenType::CloseBrace,
-                    ExpressionParserOptions::default(),
-                )?;
+                let fields = self
+                    .eat_pattern_field_list(
+                        TokenType::Comma,
+                        TokenType::CloseBrace,
+                        ExpressionParserOptions::default(),
+                    )
+                    .for_node_type(NodeType::Pattern)?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBrace)?;
                 self.tree.allocate(
@@ -125,11 +133,13 @@ impl<'a> Parser<'a> {
                     let path = self.eat_path()?;
                     self.bump(); // eat open parenthesis
                     self.eat_newlines_maybe()?;
-                    let fields = self.eat_pattern_field_list(
-                        TokenType::Comma,
-                        TokenType::CloseParenthesis,
-                        ExpressionParserOptions::default(),
-                    )?;
+                    let fields = self
+                        .eat_pattern_field_list(
+                            TokenType::Comma,
+                            TokenType::CloseParenthesis,
+                            ExpressionParserOptions::default(),
+                        )
+                        .for_node_type(NodeType::Pattern)?;
                     let pattern = Pattern::Tuple {
                         path: Some(path),
                         fields,
@@ -139,13 +149,13 @@ impl<'a> Parser<'a> {
                 }
                 // path
                 else if len > 1 {
-                    let path = self.eat_path()?;
+                    let path = self.eat_path().for_node_type(NodeType::Pattern)?;
                     self.tree
                         .allocate(Pattern::Path(path), self.get_span_from(start))
                 }
                 // identifier
                 else {
-                    let identifier_id = self.eat_identifier()?;
+                    let identifier_id = self.eat_identifier().for_node_type(NodeType::Pattern)?;
                     self.tree.allocate(
                         Pattern::Identifier(identifier_id),
                         self.get_span_from(start),
@@ -165,7 +175,7 @@ impl<'a> Parser<'a> {
         // range
         if self.peek_token(TokenType::Range).is_ok() {
             self.bump(); // eat range
-            let end_id = self.eat_pattern(options)?;
+            let end_id = self.eat_pattern(options).for_node_type(NodeType::Pattern)?;
             let pattern = Pattern::Range {
                 start: Some(pattern_id),
                 end: Some(end_id),
@@ -180,13 +190,15 @@ impl<'a> Parser<'a> {
             let mut fields: Vec<NodeId<Pattern>> = vec![pattern_id];
             while self.peek_token(TokenType::BitwiseOr).is_ok() {
                 self.bump(); // eat '|'
-                let field_pattern_id = self.with_options(
-                    ParserOptions {
-                        in_implicit_union: true,
-                        ..self.options
-                    },
-                    |parser| parser.eat_pattern(options),
-                )?;
+                let field_pattern_id = self
+                    .with_options(
+                        ParserOptions {
+                            in_implicit_union: true,
+                            ..self.options
+                        },
+                        |parser| parser.eat_pattern(options),
+                    )
+                    .for_node_type(NodeType::Pattern)?;
                 fields.push(field_pattern_id);
             }
             let pattern = Pattern::Union { fields };
@@ -221,12 +233,13 @@ impl<'a> Parser<'a> {
                         self.bump(); // eat colon
                         // named alias
                         if self.peek_identifier().is_ok() {
-                            let alias = self.eat_identifier()?;
+                            let alias = self.eat_identifier().for_node_type(NodeType::Pattern)?;
                             PatternField::NamedAlias { name, alias }
                         }
                         // named with pattern
                         else {
-                            let pattern = self.eat_pattern(options)?;
+                            let pattern =
+                                self.eat_pattern(options).for_node_type(NodeType::Pattern)?;
                             PatternField::Named {
                                 name,
                                 pattern: Some(pattern),
@@ -243,7 +256,7 @@ impl<'a> Parser<'a> {
                 }
                 // positional
                 else {
-                    let pattern = self.eat_pattern(options)?;
+                    let pattern = self.eat_pattern(options).for_node_type(NodeType::Pattern)?;
                     PatternField::Positional { pattern }
                 }
             };
