@@ -252,6 +252,17 @@ impl<'a> Parser<'a> {
         self.pos += 1;
     }
 
+    /// Bump the Token position by a given distance.
+    #[inline]
+    pub fn bump_by(&mut self, distance: u8) {
+        debug_assert!(
+            self.pos + (distance as usize) < self.tokens.len(),
+            "bump past end of tokens"
+        );
+        debug_assert!(!self.is_finalized, "bump after parser is finalized");
+        self.pos += distance as usize;
+    }
+
     /// Peek the next token.
     #[inline]
     pub fn peek_token(&self, token_type: TokenType) -> ParseResult<&TokenSpan> {

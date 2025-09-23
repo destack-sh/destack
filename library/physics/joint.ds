@@ -10,11 +10,8 @@ enum JointFlag {
 struct JointSpring {
     /// Hooke stiffness of the spring (N/m or N·m/rad)
     stiffness: float32
-    /// Damping coefficient of the spring (N·s/m or N·m·s/rad)
     damping: float32
 }
-
-/// Motor/servo constraint for a Joint DoF
 struct JointMotor {
     /// Target velocity along the motorized DoF (m/s or rad/s)
     targetVelocity: float32

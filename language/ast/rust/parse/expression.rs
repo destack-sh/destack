@@ -511,6 +511,27 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Peek a member access of the given token type.
+    /// Returns the total distance to eat (including the newlines, dot, and token).
+    #[inline]
+    fn peek_member(&self, token_type: TokenType) -> ParseResult<u8> {
+        // immediate member access
+        if self.peek_token(TokenType::Dot).is_ok() && self.peek_next_token(token_type).is_ok() {
+            Ok(2)
+        }
+        // member access across newline
+        else if self.peek_token(TokenType::Newline).is_ok()
+            && self.peek_next_token(TokenType::Dot).is_ok()
+            && self.peek_next_next_token(token_type).is_ok()
+        {
+            Ok(3)
+        }
+        // nothing
+        else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
     /// Eat an expression.
     pub fn eat_expression(
         &mut self,
@@ -786,16 +807,8 @@ impl<'a> Parser<'a> {
         // eat all postfix operations
         loop {
             // member (also works across newline)
-            if self.peek_token(TokenType::Dot).is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
-                || self.peek_token(TokenType::Newline).is_ok()
-                    && self.peek_next_token(TokenType::Dot).is_ok()
-                    && self.peek_next_next_token(TokenType::Identifier).is_ok()
-            {
-                if self.peek_token(TokenType::Newline).is_ok() {
-                    self.bump(); // eat newline first
-                }
-                self.bump(); // eat dot
+            if let Ok(distance) = self.peek_member(TokenType::Identifier) {
+                self.bump_by(distance - 1); // keep the identifier
                 let path_id = self.eat_path()?;
                 let expression = Expression::Member {
                     receiver: left_expression_id,
@@ -803,18 +816,26 @@ impl<'a> Parser<'a> {
                 };
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // index (explicit)
+            // index (explicit with `[]`)
             else if self.peek_token(TokenType::OpenBracket).is_ok() {
                 let index_id = self.eat_index_postfix_explicit(left_expression_id)?;
                 let expression = Expression::Index(index_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // index (implicit)
-            else if self.peek_token(TokenType::Dot).is_ok()
-                && self.peek_next_token(TokenType::Literal).is_ok()
-            {
+            // index (implicit with `.0`)
+            else if let Ok(distance) = self.peek_member(TokenType::Literal) {
+                self.bump_by(distance - 2); // eat only newlines
                 let index_id = self.eat_index_postfix_implicit(left_expression_id)?;
                 let expression = Expression::Index(index_id);
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // dereference (postfix with `.*`)
+            else if let Ok(distance) = self.peek_member(TokenType::Multiply) {
+                self.bump_by(distance); // eat dereference
+                let expression = Expression::Unary {
+                    operator: UnaryOperator::Dereference,
+                    right: left_expression_id,
+                };
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // call
