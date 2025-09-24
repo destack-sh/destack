@@ -26,12 +26,10 @@ impl<'a> Parser<'a> {
         let start = self.mark();
         // mutability
         let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
-            self.eat_keyword(Keyword::Var)
-                .for_node_type(NodeType::Let)?;
+            self.bump();
             Mutability::Mutable
         } else {
-            self.eat_keyword(Keyword::Let)
-                .for_node_type(NodeType::Let)?;
+            self.bump();
             Mutability::Immutable
         };
         // pattern
@@ -108,7 +106,7 @@ let x: int32 = 1
 
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x
-            assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_eq!(*name, x);
             });
             assert_eq!(*mutability, Mutability::Immutable);
@@ -147,7 +145,7 @@ var x: [3]float64 = --
             assert_eq!(*mutability, Mutability::Mutable);
 
             // pattern: x
-            assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_eq!(*name, x);
             });
 
@@ -215,7 +213,7 @@ let (x, y) = foo()
         // let x: int32
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x
-            assert_node!(parser.tree, *pattern, Pattern::Identifier(name) => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_eq!(*name, x);
             });
             assert_eq!(*mutability, Mutability::Immutable);

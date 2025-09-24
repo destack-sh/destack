@@ -1989,6 +1989,7 @@ impl Node for Coalesce {
 /// Success(_)
 /// Vector2 { x: 0, y, z: zed }
 /// geom.Mesh<2, float32> { vertices: [2, ..] }
+/// (var x, ..)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
@@ -2003,8 +2004,8 @@ pub enum Pattern {
     },
     /// Literal value pattern (like `1`).
     Literal(NodeId<ScalarLiteral>),
-    /// Identifier pattern (like `x`).
-    Identifier(StringId),
+    /// Binding pattern (like `x`).
+    Binding { name: StringId },
     /// Path pattern (like `MyEnum.A`).
     Path(PathId),
     /// Range pattern (like `1..3`).
@@ -2042,6 +2043,8 @@ impl Node for Pattern {
 /// x: 4  // named
 /// x: y  // named alias  
 /// 4     // positional
+/// var y // named explicit mutable
+/// const z // named explicit immutable
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternField {
@@ -2049,9 +2052,14 @@ pub enum PatternField {
     Named {
         name: StringId,
         pattern: Option<NodeId<Pattern>>,
+        mutability: Option<Mutability>,
     },
     /// Named field with an alias (like `x: y`).
-    NamedAlias { name: StringId, alias: StringId },
+    NamedAlias {
+        name: StringId,
+        alias: StringId,
+        mutability: Option<Mutability>,
+    },
     /// Positional field with just a pattern (like `4`).
     Positional { pattern: NodeId<Pattern> },
 }

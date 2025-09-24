@@ -602,12 +602,16 @@ impl<'a> Parser<'a> {
                 };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
-            // reference (`&` or `&var`)
+            // todo!: mutability scopes 
+            // reference (`&` or `&var` or `&const`)
             else if self.peek_token(TokenType::BitwiseAnd).is_ok() {
                 self.bump(); // eat &
                 let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
                     self.bump(); // eat var
                     Mutability::Mutable
+                } else if self.peek_keyword(Keyword::Const).is_ok() {
+                    self.bump(); // eat const
+                    Mutability::Immutable
                 } else {
                     Mutability::Immutable
                 };
@@ -746,7 +750,10 @@ impl<'a> Parser<'a> {
             // ------------------------------------------------------------
             //
             // let
-            else if keyword == Some(Keyword::Let) || keyword == Some(Keyword::Var) {
+            else if keyword == Some(Keyword::Let)
+                || keyword == Some(Keyword::Var)
+                || keyword == Some(Keyword::Const)
+            {
                 let let_id = self
                     .eat_let_or_var(visibility)
                     .for_node_type(NodeType::Let)?;
@@ -1254,7 +1261,7 @@ let x =
                         assert_node!(
                             parser.tree,
                             *pattern,
-                            Pattern::Identifier(name) => {
+                            Pattern::Binding { name, .. } => {
                                 assert_eq!(parser.session.get_string(*name), "x");
                             }
                         );

@@ -1065,7 +1065,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let literal = tree.get(*literal_id);
             visitor.visit_scalar_literal(tree, *literal_id, literal);
         }
-        Pattern::Identifier(_) => {
+        Pattern::Binding { name: _ } => {
             // no child nodes to visit
         }
         Pattern::Path(_) => {
@@ -1123,13 +1123,13 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::PatternField, id.id);
     match pattern_field {
-        PatternField::Named { name: _, pattern } => {
+        PatternField::Named { name: _, pattern, mutability: _ } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
             }
         }
-        PatternField::NamedAlias { name: _, alias: _ } => {
+        PatternField::NamedAlias { name: _, alias: _, mutability: _ } => {
             // no child nodes to visit
         }
         PatternField::Positional { pattern } => {
