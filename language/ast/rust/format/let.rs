@@ -1,8 +1,7 @@
 use dyst_language_fir::format::FormatResult;
 
 use crate::{
-    DystFormatContext, DystFormatter, FormatNode, Keyword, Let, Mutability, NodeId,
-    ScopedMutability,
+    DystFormatContext, DystFormatter, FormatNode, Keyword, Let, LetInitialization, Mutability, NodeId, ScopedMutability
 };
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
@@ -127,7 +126,24 @@ impl<'ast> FormatNode<'ast, Let> for Let {
         }
         if let Some(value) = self.value {
             write!(f, [token(" = "), value])?;
+        } else if self.initialization == LetInitialization::Explicit {
+            write!(f, [token(" = --")])?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::format::tests::TestFormatter;
+    use crate::{DystFormatOptions, assert_format};
+
+    #[test]
+    fn test_format_let_with_scoped_mutability() {
+        assert_format!(
+            "var(x, y) pos: Vector4 = --",
+            "var(x, y) pos: Vector4 = --",
+            |p| p.eat_let(None)
+        );
     }
 }
