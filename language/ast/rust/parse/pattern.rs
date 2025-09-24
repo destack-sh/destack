@@ -153,11 +153,13 @@ impl<'a> Parser<'a> {
                     self.tree
                         .allocate(Pattern::Path(path), self.get_span_from(start))
                 }
-                // identifier
+                // identifier (without mutability)
                 else {
                     let identifier_id = self.eat_identifier().for_node_type(NodeType::Pattern)?;
                     self.tree.allocate(
-                        Pattern::Identifier(identifier_id),
+                        Pattern::Binding {
+                            name: identifier_id,
+                        },
                         self.get_span_from(start),
                     )
                 }
@@ -227,14 +229,35 @@ impl<'a> Parser<'a> {
             let field_start = self.mark();
             let pattern_field = {
                 // named or named alias
-                if self.peek_identifier().is_ok() {
+                if self.peek_identifier().is_ok()
+                    || self.peek_keyword(Keyword::Var).is_ok()
+                    || self.peek_keyword(Keyword::Const).is_ok()
+                {
+                    // mutability
+                    let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
+                        self.bump(); // eat var
+                        Some(Mutability::Mutable)
+                    } else if self.peek_keyword(Keyword::Const).is_ok() {
+                        self.bump(); // eat const
+                        Some(Mutability::Immutable)
+                    } else {
+                        None
+                    };
+
+                    // name
                     let name = self.eat_identifier()?;
+
+                    // alias or pattern
                     if self.peek_colon().is_ok() {
                         self.bump(); // eat colon
                         // named alias
                         if self.peek_identifier().is_ok() {
                             let alias = self.eat_identifier().for_node_type(NodeType::Pattern)?;
-                            PatternField::NamedAlias { name, alias }
+                            PatternField::NamedAlias {
+                                name,
+                                alias,
+                                mutability,
+                            }
                         }
                         // named with pattern
                         else {
@@ -243,6 +266,7 @@ impl<'a> Parser<'a> {
                             PatternField::Named {
                                 name,
                                 pattern: Some(pattern),
+                                mutability,
                             }
                         }
                     }
@@ -251,6 +275,7 @@ impl<'a> Parser<'a> {
                         PatternField::Named {
                             name,
                             pattern: None,
+                            mutability,
                         }
                     }
                 }
@@ -282,6 +307,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         IntType, Mutability, Pattern, PatternField, ScalarLiteral, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]
@@ -337,8 +363,8 @@ mod tests {
         let mut test = TestParser::new("x");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
-        assert_node!(parser.tree, pattern_id, Pattern::Identifier(identifier) => {
-            assert_eq!(parser.get_string(*identifier), "x");
+        assert_node!(parser.tree, pattern_id, Pattern::Binding { name } => {
+            assert_string!(parser.session, *name, "x");
         });
     }
 
@@ -354,17 +380,17 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_tuple() {
-        let mut test = TestParser::new("(x: 1, 2, ..)");
+        let mut test = TestParser::new("(x: 1, 2, var y, const z, ..)");
         let mut parser = test.parser();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
-        // (x: 1, 2, ..)
+        // (x: 1, 2, var y, const z, ..)
         assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
-            assert_eq!(fields.len(), 3);
+            assert_eq!(fields.len(), 5);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
-                assert_eq!(parser.get_string(*name), "x");
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
+                assert_string!(parser.session, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
                     assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
                 });
@@ -377,8 +403,20 @@ mod tests {
                 });
             });
 
+            // var y
+            assert_node!(parser.tree, fields[2], PatternField::Named { name, pattern: None, mutability: Some(mutability) } => {
+                assert_string!(parser.session, *name, "y");
+                assert_eq!(*mutability, Mutability::Mutable);
+            });
+
+            // const z
+            assert_node!(parser.tree, fields[3], PatternField::Named { name, pattern: None, mutability: Some(mutability) } => {
+                assert_string!(parser.session, *name, "z");
+                assert_eq!(*mutability, Mutability::Immutable);
+            });
+
             // ..
-            assert_node!(parser.tree, fields[2], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, fields[4], PatternField::Positional { pattern } => {
                 assert_node!(parser.tree, *pattern, Pattern::Rest);
             });
         });
@@ -427,8 +465,8 @@ mod tests {
             assert_eq!(fields.len(), 3);
 
             // x: 1
-            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern) } => {
-                assert_eq!(parser.get_string(*name), "x");
+            assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: Some(pattern), mutability: None } => {
+                assert_string!(parser.session, *name, "x");
                 assert_node!(parser.tree, *pattern, Pattern::Literal(literal) => {
                     assert_node!(parser.tree, *literal, ScalarLiteral::Integer(1, IntType { width: 32, is_signed: true }));
                 });

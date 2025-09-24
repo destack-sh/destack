@@ -1501,9 +1501,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Pattern::Literal(_node) => {
                 self.node("Pattern::Literal", _id.id).end();
             }
-            Pattern::Identifier(string_id) => {
-                self.node("Pattern::Identifier", _id.id)
-                    .field("identifier", string_id)
+            Pattern::Binding { name } => {
+                self.node("Pattern::Binding", _id.id)
+                    .field("name", name)
                     .end();
             }
             Pattern::Path(path) => {
@@ -1548,15 +1548,25 @@ impl<'a> NodeVisitor for Dumper<'a> {
         field: &PatternField,
     ) {
         match field {
-            PatternField::Named { name, pattern: _ } => {
+            PatternField::Named {
+                name,
+                pattern: _,
+                mutability,
+            } => {
                 self.node("PatternField::Named", _id.id)
                     .field("name", name)
+                    .field_optional("mutability", mutability)
                     .end();
             }
-            PatternField::NamedAlias { name, alias } => {
+            PatternField::NamedAlias {
+                name,
+                alias,
+                mutability,
+            } => {
                 self.node("PatternField::NamedAlias", _id.id)
                     .field("name", name)
                     .field("alias", alias)
+                    .field_optional("mutability", mutability)
                     .end();
             }
             PatternField::Positional { pattern: _ } => {

@@ -167,3 +167,12 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
         write!(f, [token])
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_format_assign_expression() {
+        
+    }
+}

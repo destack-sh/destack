@@ -21,7 +21,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 }
             }
             Pattern::Literal(literal) => write!(f, [literal]),
-            Pattern::Identifier(identifier) => write!(f, [identifier]),
+            Pattern::Binding { name } => write!(f, [name]),
             Pattern::Path(path) => write!(f, [path]),
             Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,]),
             Pattern::Tuple { path, fields } => {
@@ -90,14 +90,40 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
-            PatternField::Named { name, pattern } => {
+            PatternField::Named {
+                name,
+                pattern,
+                mutability,
+            } => {
+                if let Some(mutability) = mutability {
+                    let mutability_token = if *mutability == Mutability::Mutable {
+                        token("var")
+                    } else {
+                        token("const")
+                    };
+                    write!(f, [mutability_token, space(), name])?;
+                }
                 if let Some(pattern) = pattern {
                     write!(f, [name, token(": "), pattern])
                 } else {
                     write!(f, [name])
                 }
             }
-            PatternField::NamedAlias { name, alias } => write!(f, [name, token(": "), alias]),
+            PatternField::NamedAlias {
+                name,
+                alias,
+                mutability,
+            } => {
+                if let Some(mutability) = mutability {
+                    let mutability_token = if *mutability == Mutability::Mutable {
+                        token("var")
+                    } else {
+                        token("const")
+                    };
+                    write!(f, [mutability_token, space(), name])?;
+                }
+                write!(f, [name, token(": "), alias])
+            }
             PatternField::Positional { pattern } => write!(f, [pattern]),
         }
     }
