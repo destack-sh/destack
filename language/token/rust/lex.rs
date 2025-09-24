@@ -241,7 +241,6 @@ impl Tokenizer<'_> {
                 }
             }
             '@' => (TokenType::At, None),
-            '#' => (TokenType::Pound, None),
             '~' => (TokenType::BitwiseNot, None),
             '?' => {
                 // ??

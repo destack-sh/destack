@@ -95,7 +95,6 @@ impl SemanticType {
             | TokenType::Dot
             | TokenType::Range
             | TokenType::RangeWide
-            | TokenType::Pound
             | TokenType::Empty
             | TokenType::EmptyWide
             | TokenType::FatArrow

@@ -2164,7 +2164,8 @@ impl Node for Blank {
     const KIND: NodeType = NodeType::Blank;
 }
 
-// NOTE @Incomplete: parse doc/comment content (code reference like `Node`, tags like "NOTE", "@Performance", ...)
+// NOTE @Incomplete: parse doc/comment content (code reference like `Node`, tags like "NOTE", "#Performance", ...)
+//  use proper tags with # like in code? # for syntactic and non-syntactic regions/tags?
 
 /// A DocStyle is the style of a documentation comment.
 #[derive(Debug, Copy, Clone, PartialEq)]

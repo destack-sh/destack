@@ -258,8 +258,8 @@ impl<'a> Parser<'a> {
                 break;
             };
             match next.token.r#type {
-                // NOTE :Broken: "unglue" `??` for maybe-maybe Types (prefix and postfix, like for `>>`)
                 // `?`
+                // NOTE #Broken: unglue ?? tokens for Type #UnglueTokens
                 TokenType::Maybe => {
                     self.bump(); // eat `?`
                     let span = self.tree.get_span(type_id).extend(self.pos());
@@ -685,134 +685,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_type_path_simple() {
-        let mut test = TestParser::new("geom.Vector2");
-        let mut parser = test.parser();
-        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
-
-        assert_node!(
-            parser.tree,
-            ty_id,
-            Type::Path {
-                path,
-                static_arguments: None
-            } => {
-                assert_path!(parser.session, *path, "geom.Vector2");
-            }
-        );
-    }
-
-    #[test]
-    fn test_parse_type_path_with_static_arguments() {
-        let mut test = TestParser::new("Mesh<false, Dims: 3>");
-        let mut parser = test.parser();
-        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
-
-        assert_node!(
-            parser.tree,
-            ty_id,
-            Type::Path {
-                path,
-                static_arguments,
-            } => {
-                assert_path!(parser.session, *path, "Mesh");
-                let args = static_arguments.as_ref().expect("expected static args");
-                assert_eq!(args.len(), 2);
-
-                // false
-                let arg0 = parser.tree.get(args[0]);
-                assert_node!(
-                    arg0,
-                    Argument::Positional { value } => {
-                        assert_node!(
-                            parser.tree,
-                            *value,
-                            Expression::ScalarLiteral(lit_id) => {
-                                let lit = parser.tree.get(*lit_id);
-                                assert_eq!(*lit, crate::ScalarLiteral::Boolean(false));
-                            }
-                        );
-                    }
-                );
-
-                // Dims: 3
-                let arg1 = parser.tree.get(args[1]);
-                assert_node!(
-                    arg1,
-                    Argument::Named { name, value } => {
-                        assert_string!(parser.session, *name, "Dims");
-                        assert_node!(
-                            parser.tree,
-                            *value,
-                            Expression::ScalarLiteral(lit_id) => {
-                                let lit = parser.tree.get(*lit_id);
-                                assert_node!(
-                                    lit,
-                                    crate::ScalarLiteral::Integer(n, int_ty) => {
-                                        assert_eq!(*n, 3);
-                                        assert_eq!(*int_ty, IntType::INT32);
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
-            }
-        );
-    }
-
-    #[test]
-    #[ignore = ":Broken: unglue << and >> for static type arguments?"]
-    fn test_parse_type_path_with_nested_static_arguments() {
-        let mut test = TestParser::new("HashMap<Key<int32>, Value: List<number>>");
-        let mut parser = test.parser();
-        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
-
-        assert_node!(
-            parser.tree,
-            ty_id,
-            Type::Path {
-                path,
-                static_arguments,
-            } => {
-                assert_path!(parser.session, *path, "HashMap");
-                let args = static_arguments.as_ref().expect("expected static args");
-                assert_eq!(args.len(), 2);
-
-                // Key<int32>
-                assert_node!(
-                    parser.tree.get(args[0]),
-                    Argument::Positional { value } => {
-                        assert_node!(
-                            parser.tree,
-                            *value,
-                            Expression::Path(..) => {
-
-                            }
-                        );
-                    }
-                );
-
-
-                // Value: List<number>
-                assert_node!(
-                    parser.tree.get(args[1]),
-                    Argument::Named { name, value } => {
-                        assert_string!(parser.session, *name, "Value");
-                        assert_node!(
-                            parser.tree,
-                            *value,
-                            Expression::Path(..) => {
-                            }
-                        );
-                    }
-                );
-            }
-        );
-    }
-
-    #[test]
-    fn test_parse_type_maybe() {
+    fn test_parse_type_maybe_prefix() {
         let mut test = TestParser::new("?float32");
         let mut parser = test.parser();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
@@ -825,6 +698,47 @@ mod tests {
                     parser.tree,
                     *inner_id,
                     Type::Primitive(PrimitiveType::Float(FloatType::Float32))
+                );
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_type_maybe_postfix() {
+        let mut test = TestParser::new("float32?");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
+
+        assert_node!(
+            parser.tree,
+            ty_id,
+            Type::Maybe(inner_id) => {
+                assert_node!(
+                    parser.tree,
+                    *inner_id,
+                    Type::Primitive(PrimitiveType::Float(FloatType::Float32))
+                );
+            }
+        );
+    }
+
+    #[test]
+    #[ignore = "#Broken: unglue ?? tokens for Type #UnglueTokens"]
+    fn test_parse_type_maybe_maybe_postfix() {
+        let mut test = TestParser::new("float32??");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
+
+        assert_node!(
+            parser.tree,
+            ty_id,
+            Type::Maybe(inner_id) => {
+                assert_node!(
+                    parser.tree,
+                    *inner_id,
+                    Type::Maybe(inner_id) => {
+                        assert_node!(parser.tree, *inner_id, Type::Primitive(PrimitiveType::Float(FloatType::Float32)));
+                    }
                 );
             }
         );
@@ -1086,6 +1000,93 @@ mod tests {
                 assert_path!(parser.session, *path, "T");
             });
         });
+    }
+
+    #[test]
+    fn test_parse_type_path_simple() {
+        let mut test = TestParser::new("geom.Vector2");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
+
+        assert_node!(
+            parser.tree,
+            ty_id,
+            Type::Path {
+                path,
+                static_arguments: None
+            } => {
+                assert_path!(parser.session, *path, "geom.Vector2");
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_type_path_with_static_arguments() {
+        let mut test = TestParser::new("Mesh<false, Dims: 3>");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
+
+        assert_node!(
+            parser.tree,
+            ty_id,
+            Type::Path {
+                path,
+                static_arguments,
+            } => {
+                assert_path!(parser.session, *path, "Mesh");
+                let args = static_arguments.as_ref().expect("expected static args");
+                assert_eq!(args.len(), 2);
+
+                // false
+                let arg0 = parser.tree.get(args[0]);
+                assert_node!(
+                    arg0,
+                    Argument::Positional { value } => {
+                        assert_node!(
+                            parser.tree,
+                            *value,
+                            Expression::ScalarLiteral(lit_id) => {
+                                let lit = parser.tree.get(*lit_id);
+                                assert_eq!(*lit, crate::ScalarLiteral::Boolean(false));
+                            }
+                        );
+                    }
+                );
+
+                // Dims: 3
+                let arg1 = parser.tree.get(args[1]);
+                assert_node!(
+                    arg1,
+                    Argument::Named { name, value } => {
+                        assert_string!(parser.session, *name, "Dims");
+                        assert_node!(
+                            parser.tree,
+                            *value,
+                            Expression::ScalarLiteral(lit_id) => {
+                                let lit = parser.tree.get(*lit_id);
+                                assert_node!(
+                                    lit,
+                                    crate::ScalarLiteral::Integer(n, int_ty) => {
+                                        assert_eq!(*n, 3);
+                                        assert_eq!(*int_ty, IntType::INT32);
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    }
+
+    #[test]
+    #[ignore = "#Broken: unglue << and >> for static type arguments #UnglueTokens?"]
+    fn test_parse_type_path_with_nested_static_arguments() {
+        let mut test = TestParser::new("HashMap<Key<int32>, Value: List<number>>");
+        let mut parser = test.parser();
+        let _ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
+
+        // ...
     }
 
     #[test]
