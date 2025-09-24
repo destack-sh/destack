@@ -53,7 +53,7 @@ fn bench_parse(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("parse", "all"), &source, |b, source| {
         b.iter(|| {
-            let mut parser = Parser::from_source(source, &mut session);
+            let mut parser = Parser::prepare(source, &mut session);
             let module = parser.with_recovery(
                 parser.mark(),
                 |parser| {

@@ -1,3 +1,4 @@
+mod arena;
 mod keyword;
 mod map;
 mod node;
@@ -7,6 +8,7 @@ mod tree;
 mod visit;
 mod walk;
 
+pub use arena::*;
 pub use dyst_language_source::{PathId, PathPool, StringId, StringPool};
 pub use keyword::*;
 pub use map::*;

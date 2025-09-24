@@ -100,6 +100,7 @@ impl SemanticType {
             | TokenType::FatArrow
             | TokenType::ThinArrow
             | TokenType::At
+            | TokenType::Hash
             | TokenType::BitwiseNot
             | TokenType::Maybe
             | TokenType::Coalesce

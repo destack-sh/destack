@@ -39,16 +39,12 @@ pub fn tokenize(input: &str) -> impl Iterator<Item = Token> {
 
 /// Tokenize the input string into an Iterator of Tokens and Spans.
 /// Returns both semantic and trivia tokens.
-pub fn tokenize_with_spans(
-    source_id: SourceId,
-    input: &str,
-    filter: impl Fn(TokenType) -> bool,
-) -> (Vec<TokenSpan>, Vec<TokenSpan>) {
+pub fn tokenize_with_spans(source_id: SourceId, input: &str) -> (Vec<TokenSpan>, TokenSpan) {
     let mut cursor = Tokenizer::new(input);
-    let mut semantic_tokens: Vec<TokenSpan> = Vec::new();
-    let mut trivia_tokens: Vec<TokenSpan> = Vec::new();
+    let mut tokens: Vec<TokenSpan> = Vec::new();
     let mut pos = 0;
 
+    // tokenize with spans
     loop {
         let token = cursor.advance();
         let token_span = TokenSpan {
@@ -59,25 +55,24 @@ pub fn tokenize_with_spans(
                 end: pos + token.len,
             },
         };
-        if filter(token.r#type) {
-            semantic_tokens.push(token_span);
-        } else {
-            trivia_tokens.push(token_span);
-        }
+        tokens.push(token_span);
         pos = pos.saturating_add(token.len);
         if token.r#type == TokenType::End {
             break;
         }
     }
 
-    debug_assert!(!semantic_tokens.is_empty());
-    debug_assert_eq!(
-        semantic_tokens[semantic_tokens.len() - 1].token.r#type,
-        TokenType::End
-    );
-    debug_assert_eq!(pos, input.len() as u32);
+    // eof token
+    let eof_token = *tokens.last().unwrap_or(&TokenSpan {
+        span: Span {
+            source: source_id,
+            start: 0,
+            end: 0,
+        },
+        token: Token::eof(),
+    });
 
-    (semantic_tokens, trivia_tokens)
+    (tokens, eof_token)
 }
 
 impl Tokenizer<'_> {

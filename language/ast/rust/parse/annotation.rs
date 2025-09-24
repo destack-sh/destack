@@ -3,9 +3,10 @@
 use dyst_language_source::Span;
 use dyst_language_token::{TokenSpan, TokenType};
 
+use crate::parse::prelude::*;
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, NodeId,
-    NodeSearch, Parser,
+    NodeSearch, NodeType, ParseResult, Parser, Tag,
 };
 
 const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
@@ -17,16 +18,77 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
 ];
 
 impl<'a> Parser<'a> {
+    /// Pre-parse unattached annotations (like Tags).
+    /// We do one full pass and consume the entire Parser.
+    pub(crate) fn pre_parse_annotations(&mut self) {
+        debug_assert!(!self.is_finalized, "already finalized");
+
+        // parse out all the tags
+        while let Ok(token) = self.peek() {
+            // #
+            if token.token.r#type == TokenType::Hash {
+                let _ = self.with_recovery(
+                    self.mark(),
+                    |parser| parser.eat_tag().map(Some),
+                    None,
+                    TokenType::Newline,
+                );
+            }
+            // something else
+            else {
+                continue;
+            }
+            self.bump(); // keep going
+        }
+    }
+
+    /// Eat a tag.
+    /// Tags are basically just free-floating union-typed annotations.
+    ///
+    /// Examples:
+    /// ```
+    /// #Foo
+    /// #Foo
+    /// #Foo(x: 1)
+    /// ```
+    pub(crate) fn eat_tag(&mut self) -> ParseResult<NodeId<Tag>> {
+        let start = self.mark();
+
+        // #
+        self.eat_token(TokenType::Hash)?;
+
+        // name
+        let name = self.eat_identifier()?;
+
+        // arguments
+        let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            self.bump(); // eat open parenthesis
+            self.eat_newlines_maybe()?;
+            let arguments = self.eat_arguments_body().for_node_type(NodeType::Tag)?;
+            self.eat_token(TokenType::CloseParenthesis)
+                .for_node_type(NodeType::Tag)?;
+            Some(arguments)
+        } else {
+            None
+        };
+
+        // tag
+        let tag = self
+            .tree
+            .allocate(Tag { name, arguments }, self.get_span_from(start));
+        Ok(tag)
+    }
+
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
-    pub(crate) fn eat_annotations(&mut self) {
+    pub(crate) fn attach_annotations(&mut self) {
         debug_assert!(!self.is_finalized, "already finalized");
         debug_assert!(self.pos() > 0, "no tokens to attach annotations to");
-        
+
         let mut tokens = Vec::with_capacity(self.tokens.len());
         tokens.extend(self.tokens.clone());
         tokens.extend(
-            self.trivia_tokens
+            self.side_tokens
                 .iter()
                 .filter(|token| token.token.r#type != TokenType::Whitespace),
         );

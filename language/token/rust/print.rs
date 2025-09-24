@@ -76,6 +76,7 @@ impl Token {
             TokenType::CloseBracket => "]".to_string(),
 
             TokenType::At => "@".to_string(),
+            TokenType::Hash => "#".to_string(),
             TokenType::BitwiseNot => "~".to_string(),
             TokenType::Maybe => "?".to_string(),
             TokenType::Coalesce => "??".to_string(),

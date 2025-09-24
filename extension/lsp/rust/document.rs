@@ -27,7 +27,7 @@ impl Document {
         let module_name = session.intern_string(module_name);
 
         // parse the document AST
-        let mut parser = Parser::from_source(&source, session);
+        let mut parser = Parser::prepare(&source, session);
         let module_id = parser.with_recovery(
             parser.mark(),
             |parser| {
@@ -42,9 +42,9 @@ impl Document {
 
         // turn into document
         let tokens = parser.tokens;
-        let mut combined_tokens = Vec::with_capacity(tokens.len() + parser.trivia_tokens.len());
+        let mut combined_tokens = Vec::with_capacity(tokens.len() + parser.side_tokens.len());
         combined_tokens.extend(tokens.iter());
-        combined_tokens.extend(parser.trivia_tokens);
+        combined_tokens.extend(parser.side_tokens);
         combined_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
         Document {

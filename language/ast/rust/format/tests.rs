@@ -23,7 +23,7 @@ impl TestFormatter {
         let source = Source::from_string(source_id, Uri::from_string("<test>"), input.to_string());
         let mut session = Session::new();
 
-        let mut parser = Parser::from_source(&source, &mut session);
+        let mut parser = Parser::prepare(&source, &mut session);
         let n = parse_fn(&mut parser)?;
         parser.finalize();
         let tree = parser.tree;

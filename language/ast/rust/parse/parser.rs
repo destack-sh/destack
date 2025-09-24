@@ -1,10 +1,10 @@
 use core::fmt;
 use std::fmt::Debug;
 
-use dyst_language_source::{Path, PathId, Source, SourceId, Span, StringId};
-use dyst_language_token::{Token, TokenSpan, TokenType, is_semantic, tokenize_with_spans};
+use dyst_language_source::{MultiSpan, Path, PathId, Source, SourceId, Span, StringId};
+use dyst_language_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
-use crate::{Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, ParseError, ParseResult};
+use crate::{Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParseError, ParseResult};
 use dyst_language_session::Session;
 
 /// Configure Parser behavior.
@@ -27,10 +27,10 @@ pub struct Parser<'ast> {
     pub source: &'ast Source,
     /// The source ID.
     pub source_id: SourceId,
-    /// The semantic tokens parsed from the source.
+    /// The current main tokens to consider.
     pub tokens: Vec<TokenSpan>,
-    /// The trivia tokens parsed from the source.
-    pub trivia_tokens: Vec<TokenSpan>,
+    /// The side tokens not in the main tokens.
+    pub side_tokens: Vec<TokenSpan>,
     /// The EOF token (the actual last token or a fake placeholder one if empty).
     pub eof_token: TokenSpan,
 
@@ -56,35 +56,47 @@ impl Debug for Parser<'_> {
 }
 
 impl<'a> Parser<'a> {
-    /// Create a new parser from source.
-    /// Tokenizes immediately.
-    pub fn from_source(source: &'a Source, session: &'a mut Session) -> Self {
-        let (tokens, trivia_tokens) = tokenize_with_spans(source.id, &source.content, is_semantic);
-        let eof_token = *tokens.last().unwrap_or(&TokenSpan {
-            span: Span {
-                source: source.id,
-                start: 0,
-                end: 0,
-            },
-            token: Token::eof(),
-        });
-        let tree = NodeTree::new();
-        Self {
+    /// Create a new parser from source and tokenize it.
+    /// Also prepares the pre-annotations (like tags) in a pre-parse pass.
+    pub fn prepare(source: &'a Source, session: &'a mut Session) -> Self {
+        // tokenize
+        let (all_tokens, eof_token) = tokenize_with_spans(source.id, &source.content);
+        let (tokens, side_tokens) = all_tokens
+            .iter()
+            .partition(|token| is_semantic(token.token.r#type));
+
+        // make parser
+        let mut parser = Self {
             // source
             source,
             source_id: source.id,
-            tokens,
-            trivia_tokens,
             // state
+            tokens,
+            side_tokens,
             pos: 0,
             options: ParserOptions::default(),
             is_finalized: false,
             // result
-            tree,
+            tree: NodeTree::new(),
             session,
             eof_token,
             errors: Vec::new(),
-        }
+        };
+
+        // pre-parse annotations
+        parser.pre_parse_annotations();
+        // move all the tags' tokens to the side tokens
+        let tags_spans = MultiSpan::new(parser.tree.get_spans_for(NodeType::Tag));
+        let (tokens, side_tokens) = parser
+            .tokens
+            .iter()
+            .partition(|token| tags_spans.contains(&token.span));
+        parser.tokens = tokens;
+        parser.side_tokens = side_tokens;
+
+        // return the parser
+        parser.reset();
+        parser
     }
 
     /// Create a new Dumper.
@@ -97,11 +109,19 @@ impl<'a> Parser<'a> {
         )
     }
 
+    /// Reset the parser.
+    pub(crate) fn reset(&mut self) {
+        self.pos = 0;
+        self.options = ParserOptions::default();
+        self.is_finalized = false;
+        self.errors.clear();
+    }
+
     /// Finalize the parser.
     pub fn finalize(&mut self) {
         assert!(!self.is_finalized, "already finalized");
         self.is_finalized = true;
-        self.eat_annotations();
+        self.attach_annotations();
     }
 
     /// Get the current position.

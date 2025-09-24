@@ -22,7 +22,7 @@ impl TestParser {
 
     /// Get a Parser for this test.
     pub(crate) fn parser(&mut self) -> Parser<'_> {
-        Parser::from_source(&self.source, &mut self.session)
+        Parser::prepare(&self.source, &mut self.session)
     }
 }
 
@@ -256,7 +256,7 @@ mod tests {
                 fs::read_to_string(ds_file).unwrap(),
             );
             sources.insert(source_id, source);
-            let mut parser = Parser::from_source(sources.get(&source_id).unwrap(), &mut session);
+            let mut parser = Parser::prepare(sources.get(&source_id).unwrap(), &mut session);
             let _ = parser.with_recovery(
                 parser.mark(),
                 |parser| parser.eat_block_body(BlockFormat::Implicit),
