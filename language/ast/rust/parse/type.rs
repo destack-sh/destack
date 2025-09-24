@@ -104,8 +104,8 @@ impl FromStr for FloatType {
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct TypeParserOptions {
-    /// Whether to parse an implicit union.
-    pub in_implicit_union: bool = false,
+    /// Whether we're parsing an implicit combinator (like `A | B` or `A & B`).
+    pub in_implicit_combinator: bool = false,
 }
 
 impl<'a> Parser<'a> {
@@ -117,35 +117,40 @@ impl<'a> Parser<'a> {
     /// int32
     /// boolean
     /// boolean | &int32
-    /// []float32
-    /// [3]float64
+    /// float32[]
+    /// float64[3]
     /// (int32, int32)
     /// &T // reference to T
-    /// &?T // reference to Maybe<T>
-    /// ?&T // Maybe reference to T
-    /// ?&?T // Maybe reference to Maybe<T>
+    /// &T? // reference to Maybe<T>
+    /// &T? // Maybe reference to T
+    /// ?&T? // Maybe reference to Maybe<T>
     /// $T // virtual type T
     /// T<int32>
     /// T<Validate: false>
     /// MyEnum
     /// simulation.geometry.Vector2
     ///
+    /// A | B // implicit anonymous union
+    /// A & B // implicit anonymous intersection
     /// struct MyResponse { x: int32, y: int32 }
     /// enum { Good, Bad }
     /// union { A(int), B(float) } // explicit anonymous union
     /// function (int32) => int32
     /// function () => Result<int32, struct Error { message: string }>
     /// ```
-    pub fn eat_type(&mut self, _options: TypeParserOptions) -> ParseResult<NodeId<Type>> {
+    pub fn eat_type(&mut self, options: TypeParserOptions) -> ParseResult<NodeId<Type>> {
         let start = self.mark();
         let next = self.peek()?;
         let keyword = self.peek_any_keyword().ok();
 
-        let type_id = {
+        let mut type_id = {
+            // ------------------------------------------------------------
+            // Prefix modifiers
+            // ------------------------------------------------------------
             // ?
             if next.token.r#type == TokenType::Maybe {
                 self.bump();
-                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
+                let inner_type = self.eat_type(options).for_node_type(NodeType::Type)?;
                 self.tree
                     .allocate(Type::Maybe(inner_type), self.get_span_from(start))
             }
@@ -153,7 +158,7 @@ impl<'a> Parser<'a> {
             else if next.token.r#type == TokenType::Not {
                 self.bump();
                 if self.peek_token(TokenType::Identifier).is_ok() {
-                    let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
+                    let inner_type = self.eat_type(options).for_node_type(NodeType::Type)?;
                     self.tree
                         .allocate(Type::Not(inner_type), self.get_span_from(start))
                 } else {
@@ -174,7 +179,7 @@ impl<'a> Parser<'a> {
                         mutability: Mutability::Immutable,
                     }
                 };
-                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
+                let inner_type = self.eat_type(options).for_node_type(NodeType::Type)?;
                 self.tree.allocate(
                     Type::Reference {
                         mutability,
@@ -186,14 +191,14 @@ impl<'a> Parser<'a> {
             // $
             else if next.token.r#type == TokenType::Virtual {
                 self.bump();
-                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
+                let inner_type = self.eat_type(options).for_node_type(NodeType::Type)?;
                 self.tree
                     .allocate(Type::Virtual(inner_type), self.get_span_from(start))
             }
             // ..
             else if next.token.r#type == TokenType::Range {
                 self.bump();
-                let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
+                let inner_type = self.eat_type(options).for_node_type(NodeType::Type)?;
                 self.tree
                     .allocate(Type::Variadic(inner_type), self.get_span_from(start))
             }
@@ -206,26 +211,29 @@ impl<'a> Parser<'a> {
                 self.eat_array_or_slice_type()
                     .for_node_type(NodeType::Type)?
             }
+            // ------------------------------------------------------------
+            // Declarations
+            // ------------------------------------------------------------
             // `struct`
             else if keyword == Some(Keyword::Struct) {
                 let start = self.mark();
                 let struct_id = self.eat_struct(None).for_node_type(NodeType::Struct)?;
                 self.tree
-                    .allocate(Type::Struct(struct_id), self.get_span_from(start))
+                    .allocate(Type::InlineStruct(struct_id), self.get_span_from(start))
             }
             // `enum`
             else if keyword == Some(Keyword::Enum) {
                 let start = self.mark();
                 let enum_id = self.eat_enum(None).for_node_type(NodeType::Enum)?;
                 self.tree
-                    .allocate(Type::Enum(enum_id), self.get_span_from(start))
+                    .allocate(Type::InlineEnum(enum_id), self.get_span_from(start))
             }
             // `union`
             else if keyword == Some(Keyword::Union) {
                 let start = self.mark();
                 let union_id = self.eat_union(None).for_node_type(NodeType::Union)?;
                 self.tree
-                    .allocate(Type::Union(union_id), self.get_span_from(start))
+                    .allocate(Type::InlineUnion(union_id), self.get_span_from(start))
             }
             // `function`
             else if keyword == Some(Keyword::Function) {
@@ -240,7 +248,94 @@ impl<'a> Parser<'a> {
             }
         };
 
-        self.eat_any_type_postfix_modifiers(type_id)
+        // ------------------------------------------------------------
+        // Postfix modifiers
+        // ------------------------------------------------------------
+
+        // Apply postfix modifiers '?', `[]`, `[N]`) to an already parsed type.
+        loop {
+            let Ok(next) = self.peek() else {
+                break;
+            };
+            match next.token.r#type {
+                // NOTE :Broken: "unglue" `??` for maybe-maybe Types (prefix and postfix, like for `>>`)
+                // `?`
+                TokenType::Maybe => {
+                    self.bump(); // eat `?`
+                    let span = self.tree.get_span(type_id).extend(self.pos());
+                    type_id = self.tree.allocate(Type::Maybe(type_id), span);
+                }
+                // `[]` or `[N]`
+                TokenType::OpenBracket => {
+                    let modifier_start = self.mark();
+                    self.bump(); // eat `[`
+                    let count = self
+                        .eat_array_or_slice_suffix()
+                        .for_node_type(NodeType::Type)?;
+                    let modifier_span = self.get_span_from(modifier_start);
+                    let element_span = self.tree.get_span(type_id);
+                    let span = element_span.merge(modifier_span);
+                    type_id = self.create_array_or_slice_type(type_id, count, span);
+                }
+                // nothing
+                _ => break,
+            }
+        }
+
+        // ------------------------------------------------------------
+        // Infix operations
+        // ------------------------------------------------------------
+
+        // eat infix operations (`|` and `&`)
+        let next = self.peek();
+        if !options.in_implicit_combinator
+            && let Ok(next) = next
+        {
+            // eat `| B` until no more `|`
+            if next.token.r#type == TokenType::BitwiseOr {
+                self.bump(); // eat `|`
+                let mut types: Vec<NodeId<Type>> = vec![type_id];
+                loop {
+                    let right_type = self
+                        .eat_type(TypeParserOptions {
+                            in_implicit_combinator: true,
+                        })
+                        .for_node_type(NodeType::Type)?;
+                    types.push(right_type);
+                    if self.peek_token(TokenType::BitwiseOr).is_ok() {
+                        self.bump(); // eat `|` and keep going
+                    } else {
+                        break;
+                    }
+                }
+                type_id = self
+                    .tree
+                    .allocate(Type::Union(types), self.get_span_from(start));
+            }
+            // eat `& B` until no more `&`
+            else if next.token.r#type == TokenType::BitwiseAnd {
+                self.bump(); // eat `&`
+                let mut types: Vec<NodeId<Type>> = vec![type_id];
+                loop {
+                    let right_type = self
+                        .eat_type(TypeParserOptions {
+                            in_implicit_combinator: true,
+                        })
+                        .for_node_type(NodeType::Type)?;
+                    types.push(right_type);
+                    if self.peek_token(TokenType::BitwiseAnd).is_ok() {
+                        self.bump(); // eat `&` and keep going
+                    } else {
+                        break;
+                    }
+                }
+                type_id = self
+                    .tree
+                    .allocate(Type::Intersection(types), self.get_span_from(start));
+            }
+        }
+
+        Ok(type_id)
     }
 
     /// Peek a primitive type (e.g., `void`, `boolean`, `int32`, `uint7`, `float32`).
@@ -294,72 +389,6 @@ impl<'a> Parser<'a> {
             "float64" => Ok(PrimitiveType::Float(FloatType::Float64)),
             _ => Err(ParseError::expected(next.span, TokenType::Identifier)),
         }
-    }
-
-    /// Apply postfix modifiers (`&`, `*`, `[]`, `[N]`) to an already parsed type.
-    fn eat_any_type_postfix_modifiers(
-        &mut self,
-        mut type_id: NodeId<Type>,
-    ) -> ParseResult<NodeId<Type>> {
-        loop {
-            let Ok(next) = self.peek() else {
-                break;
-            };
-            match next.token.r#type {
-                // NOTE :Broken: "unglue" `??` for maybe-maybe Types (prefix and postfix, like for `>>`)
-                // `?`
-                TokenType::Maybe => {
-                    self.bump(); // eat `?`
-                    let span = self.tree.get_span(type_id).extend(self.pos());
-                    type_id = self.tree.allocate(Type::Maybe(type_id), span);
-                }
-                // `&` or `*`
-                TokenType::BitwiseAnd | TokenType::Multiply => {
-                    self.bump(); // eat `&` or `*`
-                    let mutability = {
-                        if self.peek_keyword(Keyword::Var).is_ok()
-                            || self.peek_keyword(Keyword::Const).is_ok()
-                        {
-                            self.eat_scoped_mutability().for_node_type(NodeType::Type)?
-                        } else {
-                            ScopedMutability::Unscoped {
-                                mutability: Mutability::Immutable,
-                            }
-                        }
-                    };
-                    let span = self.tree.get_span(type_id).extend(self.pos());
-                    type_id = self.tree.allocate(
-                        Type::Reference {
-                            mutability,
-                            target: type_id,
-                        },
-                        span,
-                    );
-                }
-                // `$`
-                TokenType::Virtual => {
-                    self.bump(); // eat `$`
-                    let span = self.tree.get_span(type_id).extend(self.pos());
-                    type_id = self.tree.allocate(Type::Virtual(type_id), span);
-                }
-                // `[]` or `[N]`
-                TokenType::OpenBracket => {
-                    let modifier_start = self.mark();
-                    self.bump(); // eat `[`
-                    let count = self
-                        .eat_array_or_slice_suffix()
-                        .for_node_type(NodeType::Type)?;
-                    let modifier_span = self.get_span_from(modifier_start);
-                    let element_span = self.tree.get_span(type_id);
-                    let span = element_span.merge(modifier_span);
-                    type_id = self.create_array_or_slice_type(type_id, count, span);
-                }
-                // nothing
-                _ => break,
-            }
-        }
-
-        Ok(type_id)
     }
 
     /// Eat the core scalar type without prefix modifiers.
@@ -926,62 +955,6 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_type_reference_ampersand_postfix() {
-        let mut test = TestParser::new("Vector2&");
-        let mut parser = test.parser();
-        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
-
-        assert_node!(
-            parser.tree,
-            ty_id,
-            Type::Reference {
-                mutability,
-                target: inner_id,
-            } => {
-                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
-                assert_node!(
-                    parser.tree,
-                    *inner_id,
-                    Type::Path {
-                        path,
-                        static_arguments: None
-                    } => {
-                        assert_path!(parser.session, *path, "Vector2");
-                    }
-                );
-            }
-        );
-    }
-
-    #[test]
-    fn test_parse_type_reference_ampersand_postfix_mutable() {
-        let mut test = TestParser::new("Vector2&var");
-        let mut parser = test.parser();
-        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
-
-        assert_node!(
-            parser.tree,
-            ty_id,
-            Type::Reference {
-                mutability,
-                target: inner_id,
-            } => {
-                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
-                assert_node!(
-                    parser.tree,
-                    *inner_id,
-                    Type::Path {
-                        path,
-                        static_arguments: None
-                    } => {
-                        assert_path!(parser.session, *path, "Vector2");
-                    }
-                );
-            }
-        );
-    }
-
-    #[test]
     fn test_parse_type_slice_prefix() {
         let mut test = TestParser::new("[]int32");
         let mut parser = test.parser();
@@ -1111,6 +1084,53 @@ mod tests {
                 static_arguments: None
             } => {
                 assert_path!(parser.session, *path, "T");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_implicit_union() {
+        let mut test = TestParser::new("A | B | C");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
+
+        // A | B | C
+        assert_node!(parser.tree, ty_id, Type::Union(types) => {
+            assert_eq!(types.len(), 3);
+            // A
+            assert_node!(parser.tree, types[0], Type::Path { path, static_arguments: None } => {
+                assert_path!(parser.session, *path, "A");
+            });
+            // B
+            assert_node!(parser.tree, types[1], Type::Path { path, static_arguments: None } => {
+                assert_path!(parser.session, *path, "B");
+            });
+            // C
+            assert_node!(parser.tree, types[2], Type::Path { path, static_arguments: None } => {
+                assert_path!(parser.session, *path, "C");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_implicit_intersection() {
+        let mut test = TestParser::new("A & B & C");
+        let mut parser = test.parser();
+        let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
+
+        assert_node!(parser.tree, ty_id, Type::Intersection(types) => {
+            assert_eq!(types.len(), 3);
+            // A
+            assert_node!(parser.tree, types[0], Type::Path { path, static_arguments: None } => {
+                assert_path!(parser.session, *path, "A");
+            });
+            // B
+            assert_node!(parser.tree, types[1], Type::Path { path, static_arguments: None } => {
+                assert_path!(parser.session, *path, "B");
+            });
+            // C
+            assert_node!(parser.tree, types[2], Type::Path { path, static_arguments: None } => {
+                assert_path!(parser.session, *path, "C");
             });
         });
     }

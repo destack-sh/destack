@@ -1,13 +1,13 @@
 //! Parse unions.
 
-use dyst_language_token::{TokenType, clean_identifier};
+use dyst_language_token::TokenType;
 
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;
 use crate::{
     Keyword, NodeId, NodeType, ParseError, ParseResult, Parser, Statement, Struct, StructStyle,
-    Type, TypeParserOptions, Union, UnionField, UnionStyle, Visibility,
+    Type, TypeParserOptions, Union, UnionField, Visibility,
 };
 
 impl<'a> Parser<'a> {
@@ -179,7 +179,6 @@ impl<'a> Parser<'a> {
                 visibility,
                 static_parameters: None,
                 super_types: None,
-                style: UnionStyle::Explicit,
                 tag_type: None,
                 representation_type: None,
                 fields,
@@ -269,7 +268,7 @@ impl<'a> Parser<'a> {
                 );
                 Some(
                     self.tree
-                        .allocate(Type::Struct(struct_id), self.get_span_from(start)),
+                        .allocate(Type::InlineStruct(struct_id), self.get_span_from(start)),
                 )
             } else {
                 None
@@ -297,85 +296,14 @@ impl<'a> Parser<'a> {
         );
         Ok(field_id)
     }
-
-    /// Eat an implicit union of scalars (like `A | B | C`).
-    /// Field names are just the literal type names.
-    pub fn eat_implicit_union(
-        &mut self,
-        first_type: Option<NodeId<Type>>,
-    ) -> ParseResult<NodeId<Union>> {
-        let start = self.mark();
-
-        // collect all types separated with `|`
-        let mut types: Vec<NodeId<Type>> = first_type.into_iter().collect();
-        loop {
-            let type_id = self
-                .eat_type(TypeParserOptions {
-                    in_implicit_union: true,
-                })
-                .for_node_type(NodeType::Union)?;
-            types.push(type_id);
-            if self.peek_token(TokenType::BitwiseOr).is_err() {
-                break;
-            }
-            self.eat_token(TokenType::BitwiseOr)
-                .for_node_type(NodeType::Union)?;
-        }
-
-        // map types to union fields
-        let mut fields = Vec::new();
-        for type_id in types {
-            // field name is just type name without prefix/fluff
-            let type_span = self.tree.get_span(type_id);
-            let mut field_str = self.get_span_str(type_span);
-            if field_str.contains(' ') {
-                // split `*var T` and such cleanly
-                field_str = field_str.split(' ').nth_back(0).unwrap()
-            }
-            if field_str.contains('.') {
-                // split `simulation.geometry.Vector2` cleanly
-                field_str = field_str.split('.').nth_back(0).unwrap()
-            }
-            let field_str_clean = clean_identifier(field_str);
-
-            // map type to union field
-            let field_str_clean_id = self.intern_string(field_str_clean);
-            let union_field = self.tree.allocate(
-                UnionField {
-                    name: field_str_clean_id,
-                    value: None,
-                    r#type: Some(type_id),
-                },
-                type_span,
-            );
-            fields.push(union_field);
-        }
-
-        let union_id = self.tree.allocate(
-            Union {
-                name: None,
-                visibility: None,
-                super_types: None,
-                style: UnionStyle::Implicit,
-                tag_type: None,
-                representation_type: None,
-                static_parameters: None,
-                fields,
-                statements: Vec::new(),
-            },
-            self.get_span_from(start),
-        );
-        Ok(union_id)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Mutability, Parameter, PrimitiveType, ScopedMutability, Statement, StructField,
-        StructStyle, Type, Union, UnionField, UnionStyle, Use, assert_int, assert_node,
-        assert_path, assert_string,
+        Expression, Parameter, PrimitiveType, Statement, StructField, StructStyle, Type, Union,
+        UnionField, Use, assert_int, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -389,10 +317,9 @@ union { A, B }
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, tag_type, style, fields, statements, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, tag_type, fields, statements, .. } => {
             assert!(name.is_none());
             assert!(tag_type.is_none());
-            assert_eq!(*style, UnionStyle::Explicit);
             assert!(statements.is_empty());
             assert_eq!(fields.len(), 2);
 
@@ -456,9 +383,8 @@ union(uint4, uint60) Foo<T>: Boz {
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, tag_type, representation_type, style, static_parameters, fields, statements, super_types, .. } => {
+        assert_node!(parser.tree, union_id, Union { name, tag_type, representation_type, static_parameters, fields, statements, super_types, .. } => {
             assert_string!(parser.session, name.unwrap(), "Foo");
-            assert_eq!(*style, UnionStyle::Explicit);
 
             // (uint4, uint60)
             assert_node!(parser.tree, tag_type.unwrap(), Type::Primitive(PrimitiveType::Int(int_ty)) => {
@@ -506,7 +432,7 @@ union(uint4, uint60) Foo<T>: Boz {
             // C(boolean)
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
                 assert_string!(parser.session, *name, "C");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
+                assert_node!(parser.tree, r#type.unwrap(), Type::InlineStruct(struct_id) => {
                     let struct_ = parser.tree.get(*struct_id);
                     assert_eq!(struct_.style, StructStyle::Tuple);
                     assert_eq!(struct_.fields.len(), 1);
@@ -525,7 +451,7 @@ union(uint4, uint60) Foo<T>: Boz {
                 assert_string!(parser.session, *name, "D");
 
                 // (boolean, count: int32)
-                assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
+                assert_node!(parser.tree, r#type.unwrap(), Type::InlineStruct(struct_id) => {
                     let struct_ = parser.tree.get(*struct_id);
                     assert_eq!(struct_.style, StructStyle::Tuple);
                     assert_eq!(struct_.fields.len(), 2);
@@ -555,7 +481,7 @@ union(uint4, uint60) Foo<T>: Boz {
             // E { x: int32, y: T }
             assert_node!(parser.tree, fields[3], UnionField { name, r#type, .. } => {
                 assert_string!(parser.session, *name, "E");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Struct(struct_id) => {
+                assert_node!(parser.tree, r#type.unwrap(), Type::InlineStruct(struct_id) => {
                     let struct_ = parser.tree.get(*struct_id);
                     assert_eq!(struct_.style, StructStyle::Struct);
                     assert_eq!(struct_.fields.len(), 2);
@@ -578,114 +504,6 @@ union(uint4, uint60) Foo<T>: Boz {
                         // T
                         assert_node!(parser.tree, *r#type, Type::Path { path, static_arguments: _ } => {
                             assert_path!(parser.session, *path, "T");
-                        });
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_implicit_union_simple() {
-        let mut test = TestParser::new("A | B");
-        let mut parser = test.parser();
-
-        let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { name, tag_type, style, fields, statements, .. } => {
-            assert!(name.is_none());
-            assert!(tag_type.is_none());
-            assert_eq!(*style, UnionStyle::Implicit);
-            assert!(statements.is_empty());
-            assert_eq!(fields.len(), 2);
-
-            // A
-            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value } => {
-                assert_string!(parser.session, *name, "A");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "A");
-                });
-                assert!(value.is_none());
-            });
-
-            // B
-            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value } => {
-                assert_string!(parser.session, *name, "B");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "B");
-                });
-                assert!(value.is_none());
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_implicit_union_with_optional() {
-        let mut test = TestParser::new("A | ?B");
-        let mut parser = test.parser();
-
-        let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { fields, .. } => {
-            assert_eq!(fields.len(), 2);
-
-            // A
-            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value: _ } => {
-                assert_string!(parser.session, *name, "A");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Path { path, static_arguments: _ } => {
-                    assert_path!(parser.session, *path, "A");
-                });
-            });
-
-            // ?B
-            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value: _ } => {
-                assert_string!(parser.session, *name, "B");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Maybe(inner_ty_id) => {
-                    assert_node!(parser.tree, *inner_ty_id, Type::Path { path, static_arguments: _ } => {
-                        assert_path!(parser.session, *path, "B");
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_implicit_union_with_pointer() {
-        let mut test = TestParser::new("A | &C");
-        let mut parser = test.parser();
-
-        let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { fields, .. } => {
-            assert_eq!(fields.len(), 2);
-
-            // &C
-            assert_node!(parser.tree, fields[1], UnionField { name, r#type, value: _ } => {
-                assert_string!(parser.session, *name, "C");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Reference { target, mutability } => {
-                    assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
-                    assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
-                        assert_path!(parser.session, *path, "C");
-                    });
-                });
-            });
-        });
-    }
-
-    #[test]
-    fn test_parse_implicit_union_complex() {
-        let mut test = TestParser::new("?&var D");
-        let mut parser = test.parser();
-
-        let union_id = parser.eat_implicit_union(None).unwrap();
-        assert_node!(parser.tree, union_id, Union { fields, .. } => {
-            assert_eq!(fields.len(), 1);
-
-            // ?&var D
-            assert_node!(parser.tree, fields[0], UnionField { name, r#type, value: _ } => {
-                assert_string!(parser.session, *name, "D");
-                assert_node!(parser.tree, r#type.unwrap(), Type::Maybe(inner_ty_id) => {
-                    assert_node!(parser.tree, *inner_ty_id, Type::Reference { target, mutability } => {
-                        assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
-                        assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
-                            assert_path!(parser.session, *path, "D");
                         });
                     });
                 });

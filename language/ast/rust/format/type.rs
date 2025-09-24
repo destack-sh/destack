@@ -74,14 +74,21 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 write!(f, [element, token("[]")])
             }
             Type::Tuple(tuple) => write!(f, [tuple]),
-            Type::Struct(struct_) => write!(f, [struct_]),
-            Type::Enum(enum_) => write!(f, [enum_]),
-            Type::Union(union) => write!(f, [union]),
-            Type::Intersection(intersections) => write!(
+            Type::InlineStruct(struct_) => write!(f, [struct_]),
+            Type::InlineEnum(enum_) => write!(f, [enum_]),
+            Type::InlineUnion(union) => write!(f, [union]),
+            Type::Union(types) => write!(
                 f,
                 [format_with(|f| f
                     .join_with(&token(" | "))
-                    .entries(intersections)
+                    .entries(types)
+                    .finish())]
+            ),
+            Type::Intersection(types) => write!(
+                f,
+                [format_with(|f| f
+                    .join_with(&token(" & "))
+                    .entries(types)
                     .finish())]
             ),
             Type::Function(function) => write!(f, [function]),
@@ -201,16 +208,6 @@ mod tests {
         assert_format!(
             "[]int32",
             "int32[]",
-            |p| p.eat_type(TypeParserOptions::default()),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_reference_type_postfix_input() {
-        assert_format!(
-            "?int32&",
-            "&int32?",
             |p| p.eat_type(TypeParserOptions::default()),
             DystFormatOptions::default()
         );
