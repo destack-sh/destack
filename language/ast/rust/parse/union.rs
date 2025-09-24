@@ -373,9 +373,9 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, Mutability, Parameter, PrimitiveType, Statement, StructField, StructStyle,
-        Type, Union, UnionField, UnionStyle, Use, assert_int, assert_node, assert_path,
-        assert_string,
+        Expression, Mutability, Parameter, PrimitiveType, ScopedMutability, Statement, StructField,
+        StructStyle, Type, Union, UnionField, UnionStyle, Use, assert_int, assert_node,
+        assert_path, assert_string,
     };
 
     #[test]
@@ -660,7 +660,7 @@ union(uint4, uint60) Foo<T>: Boz {
             assert_node!(parser.tree, fields[1], UnionField { name, r#type, value: _ } => {
                 assert_string!(parser.session, *name, "C");
                 assert_node!(parser.tree, r#type.unwrap(), Type::Reference { target, mutability } => {
-                    assert_eq!(*mutability, Mutability::Immutable);
+                    assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                     assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
                         assert_path!(parser.session, *path, "C");
                     });
@@ -683,7 +683,7 @@ union(uint4, uint60) Foo<T>: Boz {
                 assert_string!(parser.session, *name, "D");
                 assert_node!(parser.tree, r#type.unwrap(), Type::Maybe(inner_ty_id) => {
                     assert_node!(parser.tree, *inner_ty_id, Type::Reference { target, mutability } => {
-                        assert_eq!(*mutability, Mutability::Mutable);
+                        assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
                         assert_node!(parser.tree, *target, Type::Path { path, static_arguments: _ } => {
                             assert_path!(parser.session, *path, "D");
                         });

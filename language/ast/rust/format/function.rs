@@ -1,8 +1,8 @@
 use dyst_language_fir::format::FormatResult;
 
+use crate::r#let::FormatScopedMutability;
 use crate::{
-    DystFormatter, FormatNode, Function, FunctionStyle, Keyword, Mutability, NodeId, Runtime,
-    Visibility,
+    DystFormatter, FormatNode, Function, FunctionStyle, Keyword, NodeId, Runtime, Visibility,
 };
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
@@ -72,15 +72,19 @@ impl<'ast> FormatNode<'ast, Function> for Function {
                     let mut join = f.join_with(&separator);
                     if let Some(self_parameter) = self.self_parameter.as_ref() {
                         let is_pointer = self_parameter.is_pointer;
-                        let is_mutable = self_parameter.mutability == Mutability::Mutable;
+                        let mutability = &self_parameter.mutability;
                         join.entry(&format_with(move |f| {
                             // pointer
                             if is_pointer {
                                 write!(f, [token("&")])?;
                             }
                             // mutability
-                            if is_mutable {
-                                write!(f, [Keyword::Var, space()])?;
+                            write!(
+                                f,
+                                [FormatScopedMutability::implicit_const(mutability.clone())]
+                            )?;
+                            if mutability.is_mutable() {
+                                write!(f, [space()])?;
                             }
                             // self
                             write!(f, [Keyword::Self_])

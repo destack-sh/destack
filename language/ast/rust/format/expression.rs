@@ -2,9 +2,10 @@ use dyst_language_fir::format::FormatResult;
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::write;
 
+use crate::r#let::FormatScopedMutability;
 use crate::{
     AssignOperator, BinaryOperator, DystFormatContext, DystFormatter, Expression, FormatNode,
-    Mutability, NodeId, UnaryOperator,
+    Mutability, NodeId, ScopedMutability, UnaryOperator,
 };
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {
@@ -44,10 +45,24 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             Expression::StructLiteral(node) => node.format(f)?,
 
             Expression::Unary { operator, right } => write!(f, [operator, right])?,
-            Expression::Reference { mutability, right } => match mutability {
-                Mutability::Mutable => write!(f, [token("&var "), right])?,
-                Mutability::Immutable => write!(f, [token("&"), right])?,
-            },
+            Expression::Reference { mutability, right } => {
+                write!(f, [token("&")])?;
+                write!(
+                    f,
+                    [FormatScopedMutability::implicit_const(mutability.clone()),]
+                )?;
+                match mutability {
+                    ScopedMutability::Unscoped { mutability } => {
+                        if *mutability != Mutability::Immutable {
+                            write!(f, [space()])?;
+                        }
+                    }
+                    ScopedMutability::Scoped { .. } => {
+                        write!(f, [space()])?;
+                    }
+                }
+                right.format(f)?;
+            }
             Expression::Member { receiver, path } => write!(f, [receiver, token("."), path])?,
             Expression::Index(node) => node.format(f)?,
             Expression::Call(node) => node.format(f)?,
@@ -168,11 +183,8 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_format_assign_expression() {
-        
-    }
+    fn test_format_assign_expression() {}
 }

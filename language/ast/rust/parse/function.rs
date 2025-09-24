@@ -1,5 +1,6 @@
 //! Parse functions and closures.
 
+use crate::ScopedMutability;
 use crate::parse::prelude::*;
 use dyst_language_token::TokenType;
 
@@ -9,6 +10,27 @@ use crate::{
 };
 
 impl<'a> Parser<'a> {
+    /// Peek a self keyword (also accepts `this`).
+    fn peek_self_keyword(&mut self) -> ParseResult<Keyword> {
+        let keyword = self.peek_any_keyword()?;
+        if keyword == Keyword::Self_ || keyword == Keyword::This {
+            Ok(keyword)
+        } else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Eat a self keyword (also accepts `this`).
+    fn eat_self_keyword(&mut self) -> ParseResult<Keyword> {
+        let keyword = self.peek_any_keyword()?;
+        if keyword == Keyword::Self_ || keyword == Keyword::This {
+            self.bump(); // eat self
+            Ok(keyword)
+        } else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
     /// Eat a Function or "lambda" definition or declaration.
     /// If no body is provided, it is a declaration for a function defined elsewhere.
     ///
@@ -94,55 +116,56 @@ impl<'a> Parser<'a> {
         // dynamic parameters
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
+        // self parameter as first parameter
         // self, *self, *var self parameter
         // (also accept `this` and `&`)
         let self_parameter: Option<SelfParameter> = {
+            // var_ self
+            if self.peek_keyword(Keyword::Var).is_ok() {
+                let mutability = self
+                    .eat_scoped_mutability()
+                    .for_node_type(NodeType::Function)?;
+                self.eat_self_keyword().for_node_type(NodeType::Function)?; // eat self
+                Some(SelfParameter {
+                    mutability,
+                    is_pointer: false,
+                })
+            }
             // self
-            if self.peek_keyword(Keyword::Self_).is_ok() || self.peek_keyword(Keyword::This).is_ok()
-            {
+            else if self.peek_self_keyword().is_ok() {
                 self.bump(); // eat self
                 Some(SelfParameter {
-                    mutability: Mutability::Immutable,
+                    mutability: ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    },
                     is_pointer: false,
                 })
             }
-            // var self
-            else if self.peek_keyword(Keyword::Var).is_ok()
-                && (self.peek_next_keyword(Keyword::Self_).is_ok()
-                    || self.peek_next_keyword(Keyword::This).is_ok())
-            {
-                self.bump(); // eat var
-                self.bump(); // eat self
-                Some(SelfParameter {
-                    mutability: Mutability::Mutable,
-                    is_pointer: false,
-                })
-            }
-            // &self
-            else if (self.peek_token(TokenType::Multiply).is_ok()
-                || self.peek_token(TokenType::BitwiseAnd).is_ok())
-                && (self.peek_next_keyword(Keyword::Self_).is_ok()
-                    || self.peek_next_keyword(Keyword::This).is_ok())
-            {
-                self.bump(); // eat &
-                self.bump(); // eat self
-                Some(SelfParameter {
-                    mutability: Mutability::Immutable,
-                    is_pointer: true,
-                })
-            }
-            // &var self
+            // &var_ self
             else if (self.peek_token(TokenType::Multiply).is_ok()
                 || self.peek_token(TokenType::BitwiseAnd).is_ok())
                 && self.peek_next_keyword(Keyword::Var).is_ok()
-                && (self.peek_next_next_keyword(Keyword::Self_).is_ok()
-                    || self.peek_next_next_keyword(Keyword::This).is_ok())
             {
                 self.bump(); // eat &
-                self.bump(); // eat var
-                self.bump(); // eat self
+                let mutability = self
+                    .eat_scoped_mutability()
+                    .for_node_type(NodeType::Function)?;
+                self.eat_self_keyword().for_node_type(NodeType::Function)?; // eat self
                 Some(SelfParameter {
-                    mutability: Mutability::Mutable,
+                    mutability,
+                    is_pointer: true,
+                })
+            }
+            // &self
+            else if self.peek_token(TokenType::Multiply).is_ok()
+                || self.peek_token(TokenType::BitwiseAnd).is_ok()
+            {
+                self.bump(); // eat &
+                self.eat_self_keyword().for_node_type(NodeType::Function)?; // eat self
+                Some(SelfParameter {
+                    mutability: ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    },
                     is_pointer: true,
                 })
             }
@@ -218,8 +241,8 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Function, IntType, Mutability, PrimitiveType, Type, WithClause, assert_node, assert_path,
-        assert_string,
+        Function, IntType, Mutability, PrimitiveType, ScopedMutability, Type, WithClause,
+        assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -294,7 +317,7 @@ function foo() with (
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(!self_param.is_pointer);
-            assert_eq!(self_param.mutability, Mutability::Immutable);
+            assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert!(dynamic_parameters.is_empty());
         });
@@ -319,7 +342,7 @@ function b(
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);
-            assert_eq!(self_param.mutability, Mutability::Immutable);
+            assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
             assert_eq!(dynamic_parameters.len(), 1);
             let param = parser.tree.get(dynamic_parameters[0]);
@@ -344,7 +367,7 @@ function b(
 
             let self_param = self_parameter.as_ref().expect("expected self param");
             assert!(self_param.is_pointer);
-            assert_eq!(self_param.mutability, Mutability::Mutable);
+            assert_eq!(self_param.mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
 
             assert!(dynamic_parameters.is_empty());
         });
