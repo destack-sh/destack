@@ -123,6 +123,11 @@ impl MultiSpan {
     pub fn new(spans: Vec<Span>) -> Self {
         Self { spans }
     }
+
+    /// Check if the MultiSpan contains the given Span.
+    pub fn contains(&self, span: &Span) -> bool {
+        self.spans.iter().any(|s| s.contains(span.start) && s.contains(span.end))
+    }
 }
 
 /// A Span with a message.

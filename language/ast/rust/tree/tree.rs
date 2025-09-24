@@ -3,6 +3,7 @@ use std::fmt::{Debug, Formatter};
 
 use dyst_language_source::Span;
 
+use crate::tree::arena::NodeArena;
 use crate::{
     Annotation, AnnotationPosition, Argument, ArrayLiteral, Blank, Block, Break, Call, Cast,
     Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For,
@@ -244,6 +245,19 @@ impl NodeTree {
         self.spans.set(node_id, span);
     }
 
+    /// Get the spans for all nodes of a given type.
+    #[inline]
+    pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span>
+    {
+        let mut spans = Vec::new();
+        for node_id in self.local_id_by_node.iter() {
+            if self.type_by_node[*node_id as usize] == node_type {
+                spans.push(self.spans.get_by_id(*node_id));
+            }
+        }
+        spans
+    }
+
     /// Append a doc to a node by its global id.
     #[inline]
     pub fn append_annotation(&mut self, global_id: u32, annotation: NodeId<Annotation>) {
@@ -303,75 +317,6 @@ impl NodeTree {
                 _ => None,
             })
             .collect()
-    }
-}
-
-/// NodeArena for storing AST nodes.
-///
-/// Provides stable NodeId handles for nodes and efficient access to both
-/// node data and source location information.
-#[derive(Clone)]
-pub struct NodeArena<T> {
-    /// The nodes in the arena.
-    nodes: Vec<T>,
-}
-
-impl<T> Debug for NodeArena<T>
-where
-    T: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Arena").field("nodes", &self.nodes).finish()
-    }
-}
-
-impl<T> Default for NodeArena<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T> NodeArena<T> {
-    /// Create a new empty Arena.
-    #[inline]
-    pub fn new() -> Self {
-        Self { nodes: Vec::new() }
-    }
-
-    /// Create a new Arena with the given capacity.
-    #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            nodes: Vec::with_capacity(capacity),
-        }
-    }
-
-    /// Allocate a new node in the tree.
-    ///
-    /// Returns a stable NodeId that can be used to retrieve the node later.
-    #[inline]
-    pub fn push(&mut self, node: T) -> u32 {
-        let local_id = self.nodes.len() as u32;
-        self.nodes.push(node);
-        local_id
-    }
-
-    /// Get an immutable reference to the node with the given NodeId.
-    #[inline]
-    pub fn get(&self, local_id: u32) -> &T {
-        &self.nodes[local_id as usize]
-    }
-
-    /// Get a mutable reference to the node with the given NodeId.
-    #[inline]
-    pub fn get_mut(&mut self, local_id: u32) -> &mut T {
-        &mut self.nodes[local_id as usize]
-    }
-
-    /// Reserve capacity for at least n additional nodes.
-    #[inline]
-    pub fn reserve(&mut self, n: usize) {
-        self.nodes.reserve(n);
     }
 }
 

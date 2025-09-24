@@ -93,6 +93,8 @@ pub enum TokenType {
     ThinArrow,
     /// `@`
     At,
+    /// `#`
+    Hash,
     /// `~`
     BitwiseNot,
     /// `?`
@@ -267,6 +269,7 @@ impl Display for TokenType {
             TokenType::FatArrow => write!(f, "=>"),
             TokenType::ThinArrow => write!(f, "->"),
             TokenType::At => write!(f, "@"),
+            TokenType::Hash => write!(f, "#"),
             TokenType::BitwiseNot => write!(f, "~"),
             TokenType::Maybe => write!(f, "?"),
             TokenType::Coalesce => write!(f, "??"),

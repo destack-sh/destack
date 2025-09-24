@@ -424,8 +424,6 @@ impl<'a> Parser<'a> {
     pub fn peek_struct_literal(&self) -> ParseResult<()> {
         let (_, mut pos, _) = self.peek_path()?;
 
-        let len = self.tokens.len();
-
         // {
         // like in `geom.Mesh { ... }`
         if let Some(token) = self.tokens.get(pos)
@@ -439,10 +437,8 @@ impl<'a> Parser<'a> {
         {
             pos += 1;
             // scan until '>'
-            while pos < len {
-                if let Some(token) = self.tokens.get(pos)
-                    && token.token.r#type == TokenType::GreaterThan
-                {
+            while let Some(token) = self.tokens.get(pos) {
+                if token.token.r#type == TokenType::GreaterThan {
                     // if next token is '{', we have a struct literal
                     if let Some(token) = self.tokens.get(pos + 1)
                         && token.token.r#type == TokenType::OpenBrace

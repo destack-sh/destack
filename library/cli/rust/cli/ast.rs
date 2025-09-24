@@ -27,7 +27,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
 
     // parse as implicit block of statements
     let mut session = Session::new();
-    let mut parser = Parser::from_source(&source, &mut session);
+    let mut parser = Parser::prepare(&source, &mut session);
     let statements = parser.with_recovery(
         parser.mark(),
         |parser| parser.eat_block_body(BlockFormat::Implicit),

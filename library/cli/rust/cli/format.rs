@@ -265,7 +265,7 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatO
     let mut session = Session::new();
 
     // parse the source into an AST
-    let mut parser = Parser::from_source(source, &mut session);
+    let mut parser = Parser::prepare(source, &mut session);
     let start = parser.mark();
     let statements = parser.with_recovery(
         parser.mark(),

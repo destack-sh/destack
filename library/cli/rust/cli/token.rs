@@ -50,7 +50,11 @@ pub fn run(ctx: CommandArguments) -> i32 {
     } else {
         |_| true
     };
-    let (tokens, _) = tokenize_with_spans(source.id, &source.content, filter);
+    let (tokens, _) = tokenize_with_spans(source.id, &source.content);
+    let tokens = tokens
+        .into_iter()
+        .filter(|token| filter(token.token.r#type))
+        .collect();
 
     for (index, token) in tokens.iter().enumerate() {
         let start_offset = token.span.start as usize;
@@ -169,6 +173,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::OpenBracket => "33",
         TokenType::CloseBracket => "33",
         TokenType::At => "95",
+        TokenType::Hash => "95",
         TokenType::BitwiseNot => "96",
         TokenType::Maybe => "95",
         TokenType::Coalesce => "95",

@@ -1,7 +1,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use destack_library_file::glob;
 use dyst_language_source::SourceId;
-use dyst_language_token::{is_semantic, tokenize_with_spans};
+use dyst_language_token::tokenize_with_spans;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
@@ -49,7 +49,7 @@ fn bench_parse(c: &mut Criterion) {
     group.throughput(Throughput::Elements(line_count));
     group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
         b.iter(|| {
-            let tokens = tokenize_with_spans(SourceId::new(0), input, is_semantic);
+            let (tokens, _) = tokenize_with_spans(SourceId::new(0), input);
             black_box(tokens);
         });
     });
