@@ -69,9 +69,10 @@ pub enum NodeType {
     PatternField,
     // Annotations
     Annotation,
-    Blank, // quasi-annotation
+    Blank,
     Doc,
     Comment,
+    Tag,
 }
 
 /// Unique identifier for nodes in an arena, parameterized by node type.
@@ -2147,6 +2148,11 @@ pub enum Annotation {
         node: NodeId<Comment>,
         position: AnnotationPosition,
     },
+    /// A tag annotation.
+    Tag {
+        node: NodeId<Tag>,
+        position: AnnotationPosition,
+    },
 }
 
 impl Node for Annotation {
@@ -2227,4 +2233,17 @@ pub struct Comment {
 
 impl Node for Comment {
     const KIND: NodeType = NodeType::Comment;
+}
+
+/// A Tag is a tag annotation.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tag {
+    /// The tag string.
+    pub name: StringId,
+    /// The arguments (if any).
+    pub arguments: Option<Vec<NodeId<Argument>>>,
+}
+
+impl Node for Tag {
+    const KIND: NodeType = NodeType::Tag;
 }

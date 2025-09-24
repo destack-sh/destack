@@ -1,10 +1,10 @@
 use dyst_language_fir::format::{Format, FormatResult, hard_line_break};
 use dyst_language_fir::prelude::*;
-use dyst_language_fir::write;
+use dyst_language_fir::{format_args, write};
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, DystFormatContext,
-    DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType,
+    DystFormatter, FormatNode, Node, NodeId, NodeTree, NodeTreeStore, NodeType, Tag,
 };
 
 impl<'ast> DystFormatContext<'ast> {
@@ -107,7 +107,6 @@ where
     T: Node + Clone,
     NodeTree: NodeTreeStore<T>,
 {
-    #[inline]
     fn format(&self, f: &mut DystFormatter<'ast, '_>) -> FormatResult<()> {
         let Some(annotations) = f.context().get_annotations(self.node_id) else {
             return Ok(());
@@ -119,6 +118,7 @@ where
                 Annotation::Blank { position, .. } => (NodeType::Blank, *position),
                 Annotation::Doc { position, .. } => (NodeType::Doc, *position),
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
+                Annotation::Tag { position, .. } => (NodeType::Tag, *position),
             };
             let is_included = match position {
                 AnnotationPosition::BlockInfix => self.position == AnnotationCapture::BlockInfix,
@@ -171,7 +171,6 @@ where
 }
 
 impl<'ast> FormatNode<'ast, Annotation> for Annotation {
-    #[inline]
     fn format_node(
         &self,
         node_id: NodeId<Annotation>,
@@ -192,12 +191,12 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
             }
             Annotation::Doc { node, .. } => node.format(f),
             Annotation::Comment { node, .. } => node.format(f),
+            Annotation::Tag { node, .. } => node.format(f),
         }
     }
 }
 
 impl<'ast> FormatNode<'ast, Blank> for Blank {
-    #[inline]
     fn format_node(
         &self,
         _node_id: NodeId<Blank>,
@@ -210,7 +209,6 @@ impl<'ast> FormatNode<'ast, Blank> for Blank {
 }
 
 impl<'ast> FormatNode<'ast, Doc> for Doc {
-    #[inline]
     fn format_node(
         &self,
         _node_id: NodeId<Doc>,
@@ -239,7 +237,6 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
 }
 
 impl<'ast> FormatNode<'ast, Comment> for Comment {
-    #[inline]
     fn format_node(
         &self,
         _node_id: NodeId<Comment>,
@@ -260,6 +257,34 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
                     write!(f, [token("//"), space(), text(line), hard_line_break()])?;
                 }
             }
+        }
+        Ok(())
+    }
+}
+
+impl<'ast> FormatNode<'ast, Tag> for Tag {
+    fn format_node(
+        &self,
+        _node_id: NodeId<Tag>,
+        f: &mut DystFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        let string = f.context().session.strings.get(self.name);
+        write!(f, [token("#"), text(string)])?;
+        if let Some(arguments) = &self.arguments {
+            write!(
+                f,
+                [
+                    token("("),
+                    soft_block_indent(&format_with(|f| f
+                        .join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(arguments)
+                        .finish())),
+                    token(")")
+                ]
+            )?;
         }
         Ok(())
     }

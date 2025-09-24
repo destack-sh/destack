@@ -9,7 +9,7 @@ use crate::{
     Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
     NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
     Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral,
-    Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
+    Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause, Tag,
 };
 
 /// The Node tree.
@@ -88,6 +88,7 @@ pub struct NodeTree {
     pub(crate) blanks: NodeArena<Blank>,
     pub(crate) docs: NodeArena<Doc>,
     pub(crate) comments: NodeArena<Comment>,
+    pub(crate) tags: NodeArena<Tag>,
 }
 
 impl Debug for NodeTree {
@@ -176,6 +177,7 @@ impl NodeTree {
             blanks: NodeArena::new(),
             docs: NodeArena::new(),
             comments: NodeArena::new(),
+            tags: NodeArena::new(),
         }
     }
 
@@ -472,4 +474,5 @@ impl_node_tree_stores! {
     Blank => blanks,
     Doc => docs,
     Comment => comments,
+    Tag => tags,
 }

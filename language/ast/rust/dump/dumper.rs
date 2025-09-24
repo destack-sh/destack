@@ -1629,6 +1629,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("position", position)
                     .end();
             }
+            Annotation::Tag { position, .. } => {
+                self.node("Annotation::Tag", _id.id)
+                    .field("position", position)
+                    .end();
+            }
         };
         self.with_depth(|dumper| {
             walk_annotation(dumper, _tree, _id, annotation);

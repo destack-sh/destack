@@ -3,7 +3,7 @@ use crate::{
     Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For, Function, If, Implement,
     Index, Let, Loop, Match, MatchCase, Module, NodeId, NodeTree, NodeType, NodeVisitor, Parameter,
     Pattern, PatternField, RangeLiteral, Return, ScalarLiteral, Statement, Struct, StructField,
-    StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
+    StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, Union, UnionField, Use,
     UseClause, UseItem, While, With, WithClause,
 };
 
@@ -1214,6 +1214,9 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         Annotation::Comment { node, .. } => {
             visitor.visit_comment(tree, *node, tree.get(*node));
         }
+        Annotation::Tag { node, .. } => {
+            visitor.visit_tag(tree, *node, tree.get(*node));
+        }
     }
 }
 
@@ -1245,6 +1248,22 @@ pub fn walk_comment<V: NodeVisitor + ?Sized>(
     _comment: &Comment,
 ) {
     visitor.visit_any(tree, NodeType::Comment, id.id);
+}
+
+/// Walk the Tag.
+pub fn walk_tag<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: NodeId<Tag>,
+    tag: &Tag,
+) {
+    visitor.visit_any(tree, NodeType::Tag, id.id);
+    if let Some(arguments) = &tag.arguments {
+        for argument in arguments {
+            let argument_node = tree.get(*argument);
+            visitor.visit_argument(tree, *argument, argument_node);
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1482,6 +1501,10 @@ pub fn walk_any(visitor: &mut dyn NodeVisitor, tree: &NodeTree, node_type: NodeT
         NodeType::Comment => {
             let comment = tree.comments.get(local_idx);
             walk_comment(visitor, tree, NodeId::new(node_id), comment);
+        }
+        NodeType::Tag => {
+            let tag = tree.tags.get(local_idx);
+            walk_tag(visitor, tree, NodeId::new(node_id), tag);
         }
     }
 }

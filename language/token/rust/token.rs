@@ -56,6 +56,7 @@ pub enum TokenType {
     DocLineComment,
     /// Doc block comment, e.g. `/** doc comment *//`
     DocBlockComment,
+    // (tags are not parsed as tokens)
 
     // identifiers / literals
     /// Identifier or keyword, e.g. `identifier` or `continue`.
