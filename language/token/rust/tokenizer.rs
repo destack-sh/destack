@@ -116,7 +116,7 @@ impl<'a> Tokenizer<'a> {
 
     /// Eats symbols while predicate returns true or until the end of file is reached.
     pub fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
-        // NOTE: @Performance: rustc tried making optimized version of this for
+        // NOTE: #Performance: rustc tried making optimized version of this for
         //  e.g., line comments, but apparently LLVM inlines all this to fast iteration over bytes.
         while predicate(self.peek()) && !self.is_end() {
             self.bump();

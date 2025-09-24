@@ -1,7 +1,8 @@
 use dyst_language_fir::format::FormatResult;
 
 use crate::{
-    DystFormatContext, DystFormatter, FormatNode, Keyword, Let, LetInitialization, Mutability, NodeId, ScopedMutability
+    DystFormatContext, DystFormatter, FormatNode, Keyword, Let, LetInitialization, Mutability,
+    NodeId, ScopedMutability,
 };
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};

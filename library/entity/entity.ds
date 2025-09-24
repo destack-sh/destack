@@ -57,8 +57,8 @@ struct Identity {
 }
 
 /// A named, versioned, mutable object in the system.
-@entity
 struct Entity {
+    #BeginGroup("main")
     /// The materialization level of the `Entity`.
     materialization: Materialization = Materialization.Root
     /// The Snapshot the `Entity` is part of (in its `Space` and `Branch`).
@@ -77,18 +77,23 @@ struct Entity {
     controller: Reference<Entity>
     /// The process flags of the `Entity`.
     processing: ProcessFlag = ProcessFlag.Default
+    #EndGroup
 
+    #BeginGroup("tree")
     /// The parent of the `Entity`. Most `Entity`s can be attached to any other `Entity`.
     parent: Reference<Entity>?
     /// The name of the `Entity`.
     name: String
     /// The key of the `Entity` (for reconciliation and querying).
     key: String?
+    #EndGroup
 
+    #BeginGroup("extension")
     /// The extension flags of the `Entity`.
     extensibility: ExtensionFlag
     /// The Script of the `Entity`.
     script: Reference<Script>?
+    #EndGroup
 
     /// The identity of the `Entity`.
     use Identity as identity

@@ -19,7 +19,10 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
 impl<'a> Parser<'a> {
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
-    pub(crate) fn attach_annotations(&mut self) {
+    pub(crate) fn eat_annotations(&mut self) {
+        debug_assert!(!self.is_finalized, "already finalized");
+        debug_assert!(self.pos() > 0, "no tokens to attach annotations to");
+        
         let mut tokens = Vec::with_capacity(self.tokens.len());
         tokens.extend(self.tokens.clone());
         tokens.extend(

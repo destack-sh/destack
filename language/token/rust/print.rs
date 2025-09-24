@@ -62,7 +62,6 @@ impl Token {
             TokenType::Dot => ".".to_string(),
             TokenType::Range => "..".to_string(),
             TokenType::RangeWide => "...".to_string(),
-            TokenType::Pound => "#".to_string(),
             TokenType::Empty => "--".to_string(),
             TokenType::EmptyWide => "---".to_string(),
             TokenType::FatArrow => "=>".to_string(),

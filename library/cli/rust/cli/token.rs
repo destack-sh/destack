@@ -158,7 +158,6 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::Dot => "37",
         TokenType::Range => "37",
         TokenType::RangeWide => "37",
-        TokenType::Pound => "95",
         TokenType::Empty => "95",
         TokenType::EmptyWide => "95",
         TokenType::FatArrow => "95",

@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
     pub fn finalize(&mut self) {
         assert!(!self.is_finalized, "already finalized");
         self.is_finalized = true;
-        self.attach_annotations();
+        self.eat_annotations();
     }
 
     /// Get the current position.
