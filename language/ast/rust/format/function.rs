@@ -166,10 +166,10 @@ mod tests {
     }
 
     #[test]
-    fn test_format_function_with_mutable_self() {
+    fn test_format_function_with_mutable_self_reference() {
         assert_format!(
-            "function mutate(&var self) {}",
-            "function mutate(&var self) { }",
+            "function mutate(&var(x, y) self) {}",
+            "function mutate(&var(x, y) self) { }",
             |p| p.eat_function(None)
         );
     }

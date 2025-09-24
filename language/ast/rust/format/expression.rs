@@ -184,7 +184,4 @@ impl<'ast> Format<DystFormatContext<'ast>> for AssignOperator {
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn test_format_assign_expression() {}
-}
+mod tests {}

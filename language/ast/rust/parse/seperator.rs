@@ -90,4 +90,26 @@ impl<'a> Parser<'a> {
             Err(ParseError::expected(token.span, TokenType::FatArrow))
         }
     }
+
+    /// Peek an empty.
+    #[inline]
+    pub fn peek_empty(&self) -> ParseResult<&TokenSpan> {
+        let token = self.peek()?;
+        if token.token.r#type == TokenType::Empty || token.token.r#type == TokenType::EmptyWide {
+            Ok(token)
+        } else {
+            Err(ParseError::expected(token.span, TokenType::Empty))
+        }
+    }
+
+    /// Eat an empty.
+    #[inline]
+    pub fn eat_empty(&mut self) -> ParseResult<&TokenSpan> {
+        let token = self.eat()?;
+        if token.token.r#type == TokenType::Empty || token.token.r#type == TokenType::EmptyWide {
+            Ok(token)
+        } else {
+            Err(ParseError::expected(token.span, TokenType::Empty))
+        }
+    }
 }

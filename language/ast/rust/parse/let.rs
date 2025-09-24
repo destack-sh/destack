@@ -139,7 +139,8 @@ impl<'a> Parser<'a> {
         let (value, initialization) = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
             // explicitly uninitialized
-            if self.peek_token(TokenType::Empty).is_ok() {
+            if self.peek_empty().is_ok() {
+                self.bump();
                 (None, LetInitialization::Explicit)
             }
             // explicitly initialized
@@ -177,8 +178,46 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         Expression, FloatType, Let, LetInitialization, Mutability, Pattern, PatternField,
-        PrimitiveType, ScopedMutability, Type, assert_int, assert_node,
+        PrimitiveType, ScopedMutability, Type, assert_int, assert_node, assert_path, assert_string,
     };
+
+    #[test]
+    fn test_parse_var_with_scoped_mutability() {
+        let mut test = TestParser::new(
+            r###"
+var(x, y) pos: Vector4 = --
+"###,
+        );
+        let mut parser = test.parser();
+        parser.eat_newline().unwrap();
+        let let_id = parser.eat_let(None).unwrap();
+
+        // var(x, y) pos: Vector2 = --
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type: ty, value, initialization, .. } => {
+            // var(x, y)
+            match mutability {
+                ScopedMutability::Scoped { mutability, scopes } => {
+                    assert_eq!(*mutability, Mutability::Mutable);
+                    assert_eq!(scopes.len(), 2);
+                    assert_path!(parser.session, scopes[0], "x");
+                    assert_path!(parser.session, scopes[1], "y");
+                }
+                _ => panic!("expected ScopedMutability::Scoped"),
+            }
+
+            // pos: Vector4
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                assert_string!(parser.session, *name, "pos");
+            });
+            assert_node!(parser.tree, ty.unwrap(), Type::Path { path, .. } => {
+                assert_path!(parser.session, *path, "Vector4");
+            });
+
+            // = --
+            assert!(value.is_none());
+            assert_eq!(*initialization, LetInitialization::Explicit);
+        });
+    }
 
     #[test]
     fn test_parse_let_scalar() {
@@ -191,12 +230,11 @@ let x: int32 = 1
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let(None).unwrap();
-        let x = parser.intern_string("x");
 
         assert_node!(parser.tree, let_id, Let { pattern, mutability, r#type, value, initialization, .. } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                assert_eq!(*name, x);
+                assert_string!(parser.session, *name, "x");
             });
             assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
 
