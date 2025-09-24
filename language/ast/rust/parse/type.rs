@@ -10,7 +10,7 @@ use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{
     Expression, FloatType, IntType, Keyword, Mutability, NodeId, NodeType, ParseError, ParseResult,
-    Parser, PrimitiveType, Type,
+    Parser, PrimitiveType, ScopedMutability, Type,
 };
 
 impl IntType {
@@ -165,13 +165,14 @@ impl<'a> Parser<'a> {
                 || next.token.r#type == TokenType::BitwiseAnd
             {
                 self.bump(); // eat `*` or `&`
-                let mutability = if let Ok(identifier) = self.peek_token(TokenType::Identifier)
-                    && self.get_token_str(*identifier) == "var"
+                let mutability = if self.peek_keyword(Keyword::Var).is_ok()
+                    || self.peek_keyword(Keyword::Const).is_ok()
                 {
-                    self.bump(); // eat `var`
-                    Mutability::Mutable
+                    self.eat_scoped_mutability().for_node_type(NodeType::Type)?
                 } else {
-                    Mutability::Immutable
+                    ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    }
                 };
                 let inner_type = self.eat_type(_options).for_node_type(NodeType::Type)?;
                 self.tree.allocate(
@@ -316,13 +317,14 @@ impl<'a> Parser<'a> {
                 TokenType::BitwiseAnd | TokenType::Multiply => {
                     self.bump(); // eat `&` or `*`
                     let mutability = {
-                        if let Ok(identifier) = self.peek_token(TokenType::Identifier)
-                            && self.get_token_str(*identifier) == "var"
+                        if self.peek_keyword(Keyword::Var).is_ok()
+                            || self.peek_keyword(Keyword::Const).is_ok()
                         {
-                            self.bump();
-                            Mutability::Mutable
+                            self.eat_scoped_mutability().for_node_type(NodeType::Type)?
                         } else {
-                            Mutability::Immutable
+                            ScopedMutability::Unscoped {
+                                mutability: Mutability::Immutable,
+                            }
                         }
                     };
                     let span = self.tree.get_span(type_id).extend(self.pos());
@@ -494,8 +496,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::parse::r#type::TypeParserOptions;
     use crate::{
-        Argument, Expression, FloatType, IntType, Mutability, PrimitiveType, Type, assert_int,
-        assert_node, assert_path, assert_string,
+        Argument, Expression, FloatType, IntType, Mutability, PrimitiveType, ScopedMutability,
+        Type, assert_int, assert_node, assert_path, assert_string,
     };
 
     #[test]
@@ -845,7 +847,7 @@ mod tests {
                 mutability,
                 target: inner_id,
             } => {
-                assert_eq!(*mutability, Mutability::Immutable);
+                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                 assert_node!(
                     parser.tree,
                     *inner_id,
@@ -873,7 +875,7 @@ mod tests {
                 mutability,
                 target: inner_id,
             } => {
-                assert_eq!(*mutability, Mutability::Mutable);
+                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
                 assert_node!(
                     parser.tree,
                     *inner_id,
@@ -890,7 +892,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_reference_ampersand_prefix() {
-        let mut test = TestParser::new("&Vector2");
+        let mut test = TestParser::new("&var(x) Vector2");
         let mut parser = test.parser();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
@@ -901,7 +903,14 @@ mod tests {
                 mutability,
                 target: inner_id,
             } => {
-                assert_eq!(*mutability, Mutability::Immutable);
+                match mutability {
+                    ScopedMutability::Scoped { mutability, scopes } => {
+                        assert_eq!(*mutability, Mutability::Mutable);
+                        assert_eq!(scopes.len(), 1);
+                        assert_path!(parser.session, scopes[0], "x");
+                    }
+                    _ => panic!("expected scoped mutability"),
+                }
                 assert_node!(
                     parser.tree,
                     *inner_id,
@@ -929,7 +938,7 @@ mod tests {
                 mutability,
                 target: inner_id,
             } => {
-                assert_eq!(*mutability, Mutability::Immutable);
+                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                 assert_node!(
                     parser.tree,
                     *inner_id,
@@ -957,7 +966,7 @@ mod tests {
                 mutability,
                 target: inner_id,
             } => {
-                assert_eq!(*mutability, Mutability::Mutable);
+                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
                 assert_node!(
                     parser.tree,
                     *inner_id,

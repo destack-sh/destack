@@ -1,8 +1,9 @@
 use dyst_language_fir::format::FormatResult;
 
+use crate::r#let::FormatScopedMutability;
 use crate::{
     DystFormatContext, DystFormatter, FloatType, FormatNode, IntType, Mutability, NodeId,
-    PrimitiveType, Type,
+    PrimitiveType, ScopedMutability, Type,
 };
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
@@ -47,17 +48,18 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                 }
             }
             Type::Reference { mutability, target } => {
+                write!(f, [token("&")])?;
                 write!(
                     f,
-                    [
-                        if *mutability == Mutability::Mutable {
-                            token("&var")
-                        } else {
-                            token("&")
-                        },
-                        target,
-                    ]
-                )
+                    [FormatScopedMutability::implicit_const(mutability.clone()),]
+                )?;
+                match mutability {
+                    ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    } => {}
+                    _ => write!(f, [space()])?,
+                }
+                write!(f, [target])
             }
             Type::Virtual(target) => {
                 write!(f, [token("$"), target])

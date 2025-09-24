@@ -139,6 +139,29 @@ pub enum Mutability {
     Mutable,
 }
 
+/// Scoped Mutability is a mutability that is scoped to a specific pattern.
+///
+/// Examples:
+/// ```
+/// var(x, y)
+/// const(session.source)
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScopedMutability {
+    /// Unscoped mutability (like just `var` or `const`)
+    Unscoped {
+        /// The mutability of the scoped mutability.
+        mutability: Mutability,
+    },
+    /// Scoped mutability (like `var(x, y)` or `const(session.source)`)
+    Scoped {
+        /// The mutability of the scoped mutability.
+        mutability: Mutability,
+        /// The scopes of the scoped mutability.
+        scopes: Vec<PathId>,
+    },
+}
+
 // ----------------------------------------------------------------------------
 // Groupings
 // ----------------------------------------------------------------------------
@@ -279,7 +302,7 @@ pub enum Expression {
     },
     /// Reference operation (prefix as an Expression).
     Reference {
-        mutability: Mutability,
+        mutability: ScopedMutability,
         right: NodeId<Expression>,
     },
     /// Member access (postfix as an Expression, see Member).
@@ -797,7 +820,7 @@ impl Node for Function {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SelfParameter {
     /// Whether the self parameter is mutable.
-    pub mutability: Mutability,
+    pub mutability: ScopedMutability,
     /// Whether the self parameter is a pointer.
     pub is_pointer: bool,
 }
@@ -829,7 +852,7 @@ pub enum LetInitialization {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Let {
     /// Whether the binding is mutable.
-    pub mutability: Mutability,
+    pub mutability: ScopedMutability,
     /// The visibility of the binding.
     pub visibility: Option<Visibility>,
     /// The pattern of the binding.
@@ -902,13 +925,14 @@ impl Node for TupleField {
 /// float32[]
 /// float64[3]
 /// (int32, int32)
-/// T& // reference to T
-/// T&var // mutable reference to T
-/// T[]& // reference to slice of T
-/// T[5]& // reference to array of T
-/// T&[] // slice of references to T
-/// T&[5] // array of references to T
-/// T$ // virtual type T
+/// &T // reference to T
+/// &var T // mutable reference to T
+/// &var(x, y) // mutable reference to tuple of x and y
+/// &T[] // reference to slice of T
+/// &T[5] // reference to array of T
+/// &T[] // slice of references to T
+/// &T[5] // array of references to T
+/// $T // virtual type T
 /// T<int32>
 /// T<Validate: false>
 /// MyEnum
@@ -942,7 +966,7 @@ pub enum Type {
     },
     /// Reference `&T` to a `T`. Or `&var T` for a mutable reference.
     Reference {
-        mutability: Mutability,
+        mutability: ScopedMutability,
         target: NodeId<Type>,
     },
     /// Virtual type `$T`. Somewhat like Any<T>.

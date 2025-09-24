@@ -1,5 +1,6 @@
 //! Parse expressions. Mostly defers to other parsers.
 
+use crate::ScopedMutability;
 use crate::parse::prelude::*;
 use dyst_language_token::{TokenSpan, TokenType};
 
@@ -602,18 +603,18 @@ impl<'a> Parser<'a> {
                 };
                 self.tree.allocate(expression, self.get_span_from(start))
             }
-            // todo!: mutability scopes 
             // reference (`&` or `&var` or `&const`)
             else if self.peek_token(TokenType::BitwiseAnd).is_ok() {
                 self.bump(); // eat &
-                let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
-                    self.bump(); // eat var
-                    Mutability::Mutable
-                } else if self.peek_keyword(Keyword::Const).is_ok() {
-                    self.bump(); // eat const
-                    Mutability::Immutable
+                let mutability = if self.peek_keyword(Keyword::Var).is_ok()
+                    || self.peek_keyword(Keyword::Const).is_ok()
+                {
+                    self.eat_scoped_mutability()
+                        .for_node_type(NodeType::Expression)?
                 } else {
-                    Mutability::Immutable
+                    ScopedMutability::Unscoped {
+                        mutability: Mutability::Immutable,
+                    }
                 };
                 let right = self.eat_expression(options)?;
                 let expression = Expression::Reference { mutability, right };
@@ -754,9 +755,7 @@ impl<'a> Parser<'a> {
                 || keyword == Some(Keyword::Var)
                 || keyword == Some(Keyword::Const)
             {
-                let let_id = self
-                    .eat_let_or_var(visibility)
-                    .for_node_type(NodeType::Let)?;
+                let let_id = self.eat_let(visibility).for_node_type(NodeType::Let)?;
                 let expression = Expression::Let(let_id);
                 self.tree.allocate(expression, self.get_span_from(start))
             }
@@ -982,8 +981,8 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability, Pattern,
-        Runtime, ScalarLiteral, StructLiteral, TupleLiteral, Type, assert_expr_path, assert_int,
-        assert_node, assert_path, assert_string,
+        Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral, Type,
+        assert_expr_path, assert_int, assert_node, assert_path, assert_string,
     };
 
     /// Tuple literals are disambiguated.
@@ -1175,7 +1174,7 @@ geom.Mesh<2, Dims: 4> {
             expr_id,
             Expression::Reference { mutability, right } => {
                 // &
-                assert_eq!(*mutability, Mutability::Immutable);
+                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                 // x
                 assert_expr_path!(parser.session, parser.tree.get(*right), "x");
             }
@@ -1198,7 +1197,7 @@ geom.Mesh<2, Dims: 4> {
             expr_id,
             Expression::Reference { mutability, right } => {
                 // &var
-                assert_eq!(*mutability, Mutability::Mutable);
+                assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Mutable });
                 // self.foo()
                 assert_node!(
                     parser.tree,
@@ -1256,7 +1255,7 @@ let x =
                     parser.tree,
                     *let_id,
                     Let { mutability, pattern, r#type: _, value, visibility: _, initialization: _ } => {
-                        assert_eq!(*mutability, Mutability::Immutable);
+                        assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
                         // x
                         assert_node!(
                             parser.tree,
