@@ -1,8 +1,8 @@
 use dyst_language_fir::format::FormatResult;
 
 use crate::{
-    DystFormatter, FormatNode, Keyword, NodeId, StructStyle, Type, Union, UnionField, UnionStyle,
-    Visibility, empty_block_with_infix_annotations,
+    DystFormatter, FormatNode, Keyword, NodeId, StructStyle, Type, Union, UnionField, Visibility,
+    empty_block_with_infix_annotations,
 };
 use dyst_language_fir::prelude::*;
 use dyst_language_fir::{format_args, write};
@@ -13,143 +13,125 @@ impl<'ast> FormatNode<'ast, Union> for Union {
         node_id: NodeId<Union>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        match self.style {
-            UnionStyle::Implicit => {
-                let context = f.context();
-                let union_types: Vec<NodeId<Type>> = self
-                    .fields
-                    .iter()
-                    .map(|field| context.get_node(*field).r#type.unwrap())
-                    .collect::<Vec<_>>();
+        // visibility
+        if let Some(visibility) = self.visibility {
+            let keyword = match visibility {
+                Visibility::Public => Keyword::Public,
+                Visibility::Private => Keyword::Private,
+            };
+            write!(f, [keyword, space()])?;
+        }
+
+        // keyword
+        write!(f, [Keyword::Union])?;
+
+        // tag and representation type
+        if self.tag_type.is_some() || self.representation_type.is_some() {
+            write!(f, [token("(")])?;
+            let mut join = f.join_with(token(", "));
+            if let Some(tag_type) = self.tag_type {
+                join.entry(&tag_type);
+            }
+            if let Some(representation_type) = self.representation_type {
+                join.entry(&representation_type);
+            }
+            join.finish()?;
+            write!(f, [token(")")])?;
+        }
+
+        // name
+        if let Some(name) = self.name {
+            write!(f, [space()])?;
+            write!(f, [name])?;
+        }
+
+        // static parameters
+        if let Some(static_parameters) = &self.static_parameters {
+            if static_parameters.is_empty() {
+                write!(f, [token("<>")])?;
+            } else {
                 write!(
                     f,
-                    [format_with(|f| {
-                        f.join_with(token(" | ")).entries(&union_types).finish()
-                    })]
-                )
-            }
-            UnionStyle::Explicit => {
-                // visibility
-                if let Some(visibility) = self.visibility {
-                    let keyword = match visibility {
-                        Visibility::Public => Keyword::Public,
-                        Visibility::Private => Keyword::Private,
-                    };
-                    write!(f, [keyword, space()])?;
-                }
-
-                // keyword
-                write!(f, [Keyword::Union])?;
-
-                // tag and representation type
-                if self.tag_type.is_some() || self.representation_type.is_some() {
-                    write!(f, [token("(")])?;
-                    let mut join = f.join_with(token(", "));
-                    if let Some(tag_type) = self.tag_type {
-                        join.entry(&tag_type);
-                    }
-                    if let Some(representation_type) = self.representation_type {
-                        join.entry(&representation_type);
-                    }
-                    join.finish()?;
-                    write!(f, [token(")")])?;
-                }
-
-                // name
-                if let Some(name) = self.name {
-                    write!(f, [space()])?;
-                    write!(f, [name])?;
-                }
-
-                // static parameters
-                if let Some(static_parameters) = &self.static_parameters {
-                    if static_parameters.is_empty() {
-                        write!(f, [token("<>")])?;
-                    } else {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                token("<"),
-                                soft_block_indent(&format_with(|f| {
-                                    f.join_with(&format_args![
-                                        if_group_fits_on_line(&token(",")),
-                                        soft_line_break_or_space()
-                                    ])
-                                    .entries(static_parameters)
-                                    .finish()
-                                })),
-                                token(">")
-                            ])]
-                        )?;
-                    }
-                }
-
-                // super types
-                if let Some(super_types) = &self.super_types
-                    && !super_types.is_empty()
-                {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token(": "),
-                            soft_block_indent(&format_with(|f| {
-                                f.join_with(&format_args![
-                                    if_group_fits_on_line(&token(",")),
-                                    soft_line_break_or_space()
-                                ])
-                                .entries(super_types)
-                                .finish()
-                            }))
-                        ])]
-                    )?;
-                }
-
-                // space before body braces
-                write!(f, [space()])?;
-
-                // empty body (same line)
-                if self.fields.is_empty() && self.statements.is_empty() {
-                    write!(f, [empty_block_with_infix_annotations(node_id)])?;
-                    return Ok(());
-                }
-
-                // body
-                write!(f, [token("{"), hard_line_break()])?;
-
-                // fields
-                if !self.fields.is_empty() {
-                    write!(
-                        f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(&self.fields)
-                            .finish())),])]
-                    )?;
-                }
-
-                // blank line between fields and statements
-                if !self.fields.is_empty() && !self.statements.is_empty() {
-                    write!(f, [hard_line_break()])?;
-                    if !f.context().has_blank_prefix_annotation(self.statements[0]) {
-                        write!(f, [empty_line()])?;
-                    }
-                }
-
-                // statements
-                if !self.statements.is_empty() {
-                    write!(
-                        f,
-                        [group(&format_args![block_indent(&format_with(|f| f
-                            .join_with(hard_line_break())
-                            .entries(&self.statements)
-                            .finish())),])]
-                    )?;
-                }
-
-                // body closing braces
-                write!(f, [hard_line_break(), token("}")])
+                    [group(&format_args![
+                        token("<"),
+                        soft_block_indent(&format_with(|f| {
+                            f.join_with(&format_args![
+                                if_group_fits_on_line(&token(",")),
+                                soft_line_break_or_space()
+                            ])
+                            .entries(static_parameters)
+                            .finish()
+                        })),
+                        token(">")
+                    ])]
+                )?;
             }
         }
+
+        // super types
+        if let Some(super_types) = &self.super_types
+            && !super_types.is_empty()
+        {
+            write!(
+                f,
+                [group(&format_args![
+                    token(": "),
+                    soft_block_indent(&format_with(|f| {
+                        f.join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(super_types)
+                        .finish()
+                    }))
+                ])]
+            )?;
+        }
+
+        // space before body braces
+        write!(f, [space()])?;
+
+        // empty body (same line)
+        if self.fields.is_empty() && self.statements.is_empty() {
+            write!(f, [empty_block_with_infix_annotations(node_id)])?;
+            return Ok(());
+        }
+
+        // body
+        write!(f, [token("{"), hard_line_break()])?;
+
+        // fields
+        if !self.fields.is_empty() {
+            write!(
+                f,
+                [group(&format_args![block_indent(&format_with(|f| f
+                    .join_with(hard_line_break())
+                    .entries(&self.fields)
+                    .finish())),])]
+            )?;
+        }
+
+        // blank line between fields and statements
+        if !self.fields.is_empty() && !self.statements.is_empty() {
+            write!(f, [hard_line_break()])?;
+            if !f.context().has_blank_prefix_annotation(self.statements[0]) {
+                write!(f, [empty_line()])?;
+            }
+        }
+
+        // statements
+        if !self.statements.is_empty() {
+            write!(
+                f,
+                [group(&format_args![block_indent(&format_with(|f| f
+                    .join_with(hard_line_break())
+                    .entries(&self.statements)
+                    .finish())),])]
+            )?;
+        }
+
+        // body closing braces
+        write!(f, [hard_line_break(), token("}")])
     }
 }
 
@@ -163,10 +145,10 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
         write!(f, [self.name])?;
 
         // payload type
-        if let Some(r#type) = self.r#type {
-            let payload = f.context().get_node(r#type).clone();
+        if let Some(ty) = self.r#type {
+            let payload = f.context().get_node(ty).clone();
             match payload {
-                Type::Struct(struct_id) => {
+                Type::InlineStruct(struct_id) => {
                     let struct_ = f.context().get_node(struct_id).clone();
                     match struct_.style {
                         StructStyle::Tuple => {
@@ -205,14 +187,14 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
                 }
                 _ => {
                     // space separated type? (error?)
-                    write!(f, [space(), r#type])?;
+                    write!(f, [space(), ty])?;
                 }
             }
         }
 
         // default value
         if let Some(value) = self.value {
-            write!(f, [token(" = "), value])?;
+            write!(f, [space(), token("="), space(), value])?;
         }
 
         Ok(())
@@ -281,26 +263,6 @@ mod tests {
             "union Foo {\n\tlet X = 1\n}",
             |p| p.eat_union(None),
             DystFormatOptions::default_tab()
-        );
-    }
-
-    #[test]
-    fn test_format_union_implicit() {
-        assert_format!(
-            "boolean | &int32",
-            "boolean | &int32",
-            |p| p.eat_implicit_union(None),
-            DystFormatOptions::default()
-        );
-    }
-
-    #[test]
-    fn test_format_union_implicit_postfix_input() {
-        assert_format!(
-            "boolean | int32&",
-            "boolean | &int32",
-            |p| p.eat_implicit_union(None),
-            DystFormatOptions::default()
         );
     }
 }

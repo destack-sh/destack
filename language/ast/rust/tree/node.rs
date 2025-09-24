@@ -550,15 +550,6 @@ impl Node for EnumField {
     const KIND: NodeType = NodeType::EnumField;
 }
 
-/// The "style" of union. Implicit unions get some extra sugar.
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnionStyle {
-    /// Explicit with `union`.
-    Explicit,
-    /// Implicit with `|`.
-    Implicit,
-}
-
 /// A Union is a tagged sum type of structs.
 /// Like with structs, the ',' separator is optional if newline-delimited.
 ///
@@ -586,11 +577,6 @@ pub enum UnionStyle {
 ///     function myFunc() { // nested declaration
 ///     }
 /// }
-///
-/// // implicit anonymous union
-/// boolean | *int32
-/// // desugars to
-/// union { boolean(boolean) = boolean, int32(*int32) = *int32 }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Union {
@@ -598,8 +584,6 @@ pub struct Union {
     pub name: Option<StringId>,
     /// The visibility of the union.
     pub visibility: Option<Visibility>,
-    /// The style of union (explicit or implicit).
-    pub style: UnionStyle,
     /// The tag type of the union (if explicitly specified).
     pub tag_type: Option<NodeId<Type>>,
     /// The representation type of the union (if explicitly specified).
@@ -622,6 +606,7 @@ impl Node for Union {
 ///
 /// Examples:
 /// ```
+/// A
 /// A(int32)
 /// B { x: int32, y: int32 } = 4
 /// ```
@@ -938,10 +923,11 @@ impl Node for TupleField {
 /// MyEnum
 /// simulation.geometry.Vector2
 ///
+/// A | B // implicit anonymous union
+/// A & B // implicit anonymous intersection
 /// struct MyResponse { x: int32, y: int32 }
 /// enum { Good, Bad }
 /// union { A(int), B(float) } // explicit anonymous union
-/// boolean | int32 // implicit anonymous union
 /// function (int32) => int32
 /// function () => Result<int32, struct Error { message: string }>
 /// ```
@@ -973,24 +959,26 @@ pub enum Type {
     Virtual(NodeId<Type>),
     /// Variadic type `..T`. Behaves like a slice.
     Variadic(NodeId<Type>),
-    /// Inline Array type `[N]T`. Must have static length.
+    /// Array type `[N]T`. Must have static length.
     Array {
         element: NodeId<Type>,
         count: NodeId<Expression>,
     },
-    /// Inline Slice type `[]T`. Unknown length (dynamically sized).
+    /// Slice type `[]T`. Unknown length (dynamically sized).
     Slice { element: NodeId<Type> },
-    /// Inline anonymous tuple type `(T1, T2, ...)` (no tuple keyword).
+    /// Tuple type `(T1, T2, ...)` (no tuple keyword).
     Tuple(NodeId<Tuple>),
-    /// Inline Struct type `struct MyStruct { ... }`.
-    Struct(NodeId<Struct>),
-    /// Inline Enum type `enum MyEnum { ... }`.
-    Enum(NodeId<Enum>),
-    /// Inline Union type `union MyUnion { ... }` or implicit `A | B | C`.
-    Union(NodeId<Union>),
-    /// Inline Intersection type `T1 & T2 & ...`.
+    /// Inline struct type `struct MyStruct { ... }`.
+    InlineStruct(NodeId<Struct>),
+    /// Inline enum type `enum MyEnum { ... }`.
+    InlineEnum(NodeId<Enum>),
+    /// Inline union type `union MyUnion { ... }`.
+    InlineUnion(NodeId<Union>),
+    /// Union type `A | B | C`.
+    Union(Vec<NodeId<Type>>),
+    /// Intersection type `A & B & C`.
     Intersection(Vec<NodeId<Type>>),
-    /// Inline Function type `(T1, T2, ...) => T`.
+    /// Inline Function type `function (T1, T2, ...) => T`.
     Function(NodeId<Function>),
 }
 

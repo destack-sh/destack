@@ -300,7 +300,6 @@ pub fn walk_union_field<V: NodeVisitor + ?Sized>(
         let type_ref = tree.get(*type_node);
         visitor.visit_type(tree, *type_node, type_ref);
     }
-
     if let Some(value) = &field.value {
         let expression = tree.get(*value);
         visitor.visit_expression(tree, *value, expression);
@@ -522,22 +521,28 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let tuple = tree.get(*tuple_id);
             visitor.visit_tuple(tree, *tuple_id, tuple);
         }
-        Type::Struct(struct_id) => {
+        Type::InlineStruct(struct_id) => {
             let struct_node = tree.get(*struct_id);
             visitor.visit_struct(tree, *struct_id, struct_node);
         }
-        Type::Enum(enum_id) => {
+        Type::InlineEnum(enum_id) => {
             let enum_node = tree.get(*enum_id);
             visitor.visit_enum(tree, *enum_id, enum_node);
         }
-        Type::Union(union_id) => {
+        Type::InlineUnion(union_id) => {
             let union_node = tree.get(*union_id);
             visitor.visit_union(tree, *union_id, union_node);
         }
-        Type::Intersection(intersection_ids) => {
-            for intersection_id in intersection_ids {
-                let intersection_type = tree.get(*intersection_id);
-                visitor.visit_type(tree, *intersection_id, intersection_type);
+        Type::Union(types) => {
+            for type_id in types {
+                let type_node = tree.get(*type_id);
+                visitor.visit_type(tree, *type_id, type_node);
+            }
+        }
+        Type::Intersection(types) => {
+            for type_id in types {
+                let type_node = tree.get(*type_id);
+                visitor.visit_type(tree, *type_id, type_node);
             }
         }
         Type::Function(function_id) => {

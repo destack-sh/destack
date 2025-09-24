@@ -1002,13 +1002,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Type::Tuple(_tuple) => {
                 self.node("Type::Tuple", _id.id).end();
             }
-            Type::Struct(_struct_node) => {
-                self.node("Type::Struct", _id.id).end();
+            Type::InlineStruct(_struct_node) => {
+                self.node("Type::InlineStruct", _id.id).end();
             }
-            Type::Enum(_enum_node) => {
-                self.node("Type::Enum", _id.id).end();
+            Type::InlineEnum(_enum_node) => {
+                self.node("Type::InlineEnum", _id.id).end();
             }
-            Type::Union(_union_node) => {
+            Type::InlineUnion(_union_node) => {
+                self.node("Type::InlineUnion", _id.id).end();
+            }
+            Type::Union(_) => {
                 self.node("Type::Union", _id.id).end();
             }
             Type::Intersection(_) => {
