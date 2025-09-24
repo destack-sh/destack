@@ -838,12 +838,23 @@ impl<'a> Parser<'a> {
                 };
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // index (explicit with `[]`)
-            else if self.peek_token(TokenType::OpenBracket).is_ok() {
-                let index_id = self
-                    .eat_index_postfix_explicit(left_expression_id)
-                    .for_node_type(NodeType::Index)?;
-                let expression = Expression::Index(index_id);
+            // dereference (postfix with `.*`)
+            else if let Ok(distance) = self.peek_member(TokenType::Multiply) {
+                self.bump_by(distance); // eat dereference
+                let expression = Expression::Unary {
+                    operator: UnaryOperator::Dereference,
+                    right: left_expression_id,
+                };
+                left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
+            }
+            // reference (postfix with `&`)
+            else if let Ok(distance) = self.peek_member(TokenType::BitwiseAnd) {
+                self.bump_by(distance); // eat &
+                let mutability = self.eat_scoped_mutability()?;
+                let expression = Expression::Reference {
+                    mutability,
+                    right: left_expression_id,
+                };
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // index (implicit with `.0`)
@@ -855,13 +866,12 @@ impl<'a> Parser<'a> {
                 let expression = Expression::Index(index_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
-            // dereference (postfix with `.*`)
-            else if let Ok(distance) = self.peek_member(TokenType::Multiply) {
-                self.bump_by(distance); // eat dereference
-                let expression = Expression::Unary {
-                    operator: UnaryOperator::Dereference,
-                    right: left_expression_id,
-                };
+            // index (explicit with `[]`)
+            else if self.peek_token(TokenType::OpenBracket).is_ok() {
+                let index_id = self
+                    .eat_index_postfix_explicit(left_expression_id)
+                    .for_node_type(NodeType::Index)?;
+                let expression = Expression::Index(index_id);
                 left_expression_id = self.tree.allocate(expression, self.get_span_from(start));
             }
             // call
@@ -981,7 +991,7 @@ mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
         BinaryOperator, Call, Coalesce, Expression, FieldLiteral, Let, Mutability, Pattern,
-        Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral, Type,
+        Runtime, ScalarLiteral, ScopedMutability, StructLiteral, TupleLiteral, Type, UnaryOperator,
         assert_expr_path, assert_int, assert_node, assert_path, assert_string,
     };
 
@@ -1158,6 +1168,41 @@ geom.Mesh<2, Dims: 4> {
         );
     }
 
+    /// Dereference variable.
+    /// *x
+    #[test]
+    fn test_parse_dereference_variable() {
+        let mut test = TestParser::new("*x");
+        let mut parser = test.parser();
+
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // *x
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::Dereference);
+            assert_expr_path!(parser.session, parser.tree.get(*right), "x");
+        });
+    }
+
+    /// Dereference variable postfix.
+    /// x.*
+    #[test]
+    fn test_parse_dereference_variable_postfix() {
+        let mut test = TestParser::new("x.*");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // x.*
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::Dereference);
+            assert_expr_path!(parser.session, parser.tree.get(*right), "x");
+        });
+    }
+
     /// Reference operator on variable.
     /// &x
     #[test]
@@ -1179,6 +1224,47 @@ geom.Mesh<2, Dims: 4> {
                 assert_expr_path!(parser.session, parser.tree.get(*right), "x");
             }
         );
+    }
+
+    /// Reference operator postfix.
+    /// &var x
+    #[test]
+    fn test_parse_reference_variable_postfix() {
+        let mut test = TestParser::new("x.&");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // x.&
+        assert_node!(parser.tree, expr_id, Expression::Reference { mutability, right } => {
+            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+            assert_expr_path!(parser.session, parser.tree.get(*right), "x");
+        });
+    }
+
+    /// Reference operator postfix with scoped mutability.
+    /// &var x
+    #[test]
+    fn test_parse_reference_variable_postfix_with_scoped_mutability() {
+        let mut test = TestParser::new("pos.&var(y)");
+        let mut parser = test.parser();
+        let expr_id = parser
+            .eat_expression(ExpressionParserOptions::default())
+            .unwrap();
+
+        // pos.&var(y)
+        assert_node!(parser.tree, expr_id, Expression::Reference { mutability, right } => {
+            match mutability {
+                ScopedMutability::Scoped { mutability, scopes } => {
+                    assert_eq!(*mutability, Mutability::Mutable);
+                    assert_eq!(scopes.len(), 1);
+                    assert_path!(parser.session, scopes[0], "y");
+                }
+                _ => panic!("expected ScopedMutability::Scoped"),
+            }
+            assert_expr_path!(parser.session, parser.tree.get(*right), "pos");
+        });
     }
 
     /// Reference operator on member access with method call.
