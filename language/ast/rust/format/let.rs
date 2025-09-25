@@ -109,28 +109,51 @@ impl<'ast> FormatNode<'ast, Let> for Let {
         _node_id: NodeId<Let>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // let
-        if self.mutability.is_immutable() {
-            write!(f, [Keyword::Let])?;
-        }
-        // mutability
         write!(
             f,
-            [FormatScopedMutability::implicit_const(
-                self.mutability.clone()
-            )]
-        )?;
-        // emit pattern with optional type and value
-        write!(f, [space(), self.pattern])?;
-        if let Some(r#type) = self.r#type {
-            write!(f, [token(": "), r#type])?;
-        }
-        if let Some(value) = self.value {
-            write!(f, [token(" = "), value])?;
-        } else if self.initialization == LetInitialization::Explicit {
-            write!(f, [token(" = --")])?;
-        }
-        Ok(())
+            [group(&format_with(|f| {
+                // let
+                if self.mutability.is_immutable() {
+                    write!(f, [Keyword::Let])?;
+                }
+                // mutability
+                write!(
+                    f,
+                    [FormatScopedMutability::implicit_const(
+                        self.mutability.clone()
+                    )]
+                )?;
+                // emit pattern with optional type and value
+                write!(f, [space(), self.pattern])?;
+                if let Some(r#type) = self.r#type {
+                    write!(f, [token(": "), r#type])?;
+                }
+                if let Some(value) = self.value {
+                    write!(
+                        f,
+                        [
+                            space(),
+                            token("="),
+                            soft_block_indent(&format_args![soft_line_break_or_space(), value])
+                        ]
+                    )
+                } else if self.initialization == LetInitialization::Explicit {
+                    write!(
+                        f,
+                        [
+                            space(),
+                            token("="),
+                            soft_block_indent(&format_args![
+                                soft_line_break_or_space(),
+                                token("--")
+                            ])
+                        ]
+                    )
+                } else {
+                    Ok(())
+                }
+            }))]
+        )
     }
 }
 
@@ -145,6 +168,16 @@ mod tests {
             "var(x, y) pos: Vector4 = --",
             "var(x, y) pos: Vector4 = --",
             |p| p.eat_let(None)
+        );
+    }
+
+    #[test]
+    fn test_format_let_breaks_if_too_long() {
+        assert_format!(
+            "let veryLongIdentifierName = veryLongMethodCallWithManyWords()\n",
+            "let veryLongIdentifierName =\n\tveryLongMethodCallWithManyWords()\n",
+            |p| p.eat_let(None),
+            DystFormatOptions::default_tab().with_line_width(40)
         );
     }
 }

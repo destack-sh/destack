@@ -7,3 +7,5 @@ struct Path {
 struct PathSegment {
     name: String
 }
+
+@path("^$")
