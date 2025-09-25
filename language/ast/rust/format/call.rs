@@ -35,7 +35,9 @@ impl<'ast> FormatNode<'ast, Call> for Call {
         write!(f, [self.receiver])?;
 
         // static arguments
-        if let Some(static_arguments) = &self.static_arguments {
+        if let Some(static_arguments) = &self.static_arguments
+            && !static_arguments.is_empty()
+        {
             write!(
                 f,
                 [group(&format_args![

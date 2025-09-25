@@ -36,26 +36,24 @@ impl<'ast> FormatNode<'ast, Function> for Function {
         }
 
         // static parameters
-        if let Some(static_parameters) = &self.static_parameters {
-            if static_parameters.is_empty() {
-                write!(f, [token("<>")])?;
-            } else {
-                write!(
-                    f,
-                    [group(&format_args![
-                        token("<"),
-                        soft_block_indent(&format_with(|f| {
-                            f.join_with(&format_args![
-                                if_group_fits_on_line(&token(",")),
-                                soft_line_break_or_space()
-                            ])
-                            .entries(static_parameters)
-                            .finish()
-                        })),
-                        token(">")
-                    ])]
-                )?;
-            }
+        if let Some(static_parameters) = &self.static_parameters
+            && !static_parameters.is_empty()
+        {
+            write!(
+                f,
+                [group(&format_args![
+                    token("<"),
+                    soft_block_indent(&format_with(|f| {
+                        f.join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(static_parameters)
+                        .finish()
+                    })),
+                    token(">")
+                ])]
+            )?;
         }
 
         // self parameter and dynamic parameters

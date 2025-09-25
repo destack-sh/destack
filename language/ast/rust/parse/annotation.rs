@@ -69,10 +69,18 @@ impl<'a> Parser<'a> {
         let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
             self.eat_newlines_maybe()?;
-            let arguments = self.eat_arguments_body().for_node_type(NodeType::Tag)?;
-            self.eat_token(TokenType::CloseParenthesis)
-                .for_node_type(NodeType::Tag)?;
-            Some(arguments)
+            // empty parentheses
+            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                self.bump(); // eat close parenthesis
+                None
+            }
+            // non-empty parentheses
+            else {
+                let arguments = self.eat_arguments_body().for_node_type(NodeType::Tag)?;
+                self.eat_token(TokenType::CloseParenthesis)
+                    .for_node_type(NodeType::Tag)?;
+                Some(arguments)
+            }
         } else {
             None
         };
@@ -227,8 +235,6 @@ impl<'a> Parser<'a> {
         let start_token = group[0];
         let end_token = group[group.len() - 1];
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
-
-        // nocheckin: only attach annotations forward/backward within innermost / same parent node?
 
         // line prefix or postfix (or block infix if we have nothing)
         // entire span must be on one line together with the previous/next token
