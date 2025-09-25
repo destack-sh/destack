@@ -1,5 +1,5 @@
 use crate::Token;
-use dyst_language_source::Span;
+use dyst_source::Span;
 
 /// A Token with a Span.
 #[derive(Debug, Copy, Clone, PartialEq)]

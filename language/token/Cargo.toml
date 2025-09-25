@@ -1,5 +1,5 @@
 [package]
-name = "dyst_language_token"
+name = "dyst_token"
 description = "Dyst Language Tokens"
 version.workspace = true
 edition.workspace = true
@@ -9,13 +9,14 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
-dyst_language_source = { workspace = true }
-destack_library_unicode = { workspace = true }
+dyst_source = { workspace = true }
+destack_unicode = { workspace = true }
 
 [dev-dependencies]
-destack_library_file = { workspace = true }
+destack_file = { workspace = true }
 
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
@@ -23,7 +24,7 @@ criterion = { workspace = true }
 pprof = { workspace = true }
 
 [[bench]]
-name = "dyst_language_token"
+name = "dyst_token"
 harness = false
 
 [lints]

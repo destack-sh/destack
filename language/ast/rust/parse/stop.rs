@@ -1,4 +1,4 @@
-use dyst_language_token::{TokenSpan, TokenType};
+use dyst_token::{TokenSpan, TokenType};
 
 use crate::{ParseError, ParseResult, Parser};
 

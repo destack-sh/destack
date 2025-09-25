@@ -1,0 +1,25 @@
+[package]
+name = "destack_javascript"
+description = "Destack JavaScript Extension"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = true
+
+[dependencies]
+dyst_token = { workspace = true }
+dyst_ast = { workspace = true }
+
+dyst_prelude = { workspace = true }
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+[lints]
+workspace = true

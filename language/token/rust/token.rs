@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-pub use destack_library_unicode::UNICODE_VERSION;
+pub use destack_unicode::UNICODE_VERSION;
 
 /// A parsed Token.
 /// It doesn't contain information about data that has been parsed,

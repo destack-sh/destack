@@ -1,11 +1,11 @@
-use dyst_language_fir::format::FormatResult;
-use dyst_language_fir::format_args;
+use dyst_fir::format::FormatResult;
+use dyst_fir::format_args;
 
 use crate::{
     DystFormatter, Enum, EnumField, FormatNode, Keyword, NodeId, empty_block_with_infix_annotations,
 };
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::write;
+use dyst_fir::prelude::*;
+use dyst_fir::write;
 
 impl<'ast> FormatNode<'ast, Enum> for Enum {
     fn format_node(

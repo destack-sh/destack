@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use dyst_language_source::Source;
-use dyst_language_token::{RawLiteralType, TokenSpan, TokenType};
+use dyst_source::Source;
+use dyst_token::{RawLiteralType, TokenSpan, TokenType};
 
 use crate::{
     Keyword, Node, NodeId, NodeTree, NodeVisitor, Type, walk_argument, walk_enum_field,

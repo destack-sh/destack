@@ -1,4 +1,4 @@
-use dyst_language_source::Span;
+use dyst_source::Span;
 use std::cell::Cell;
 use std::marker::PhantomData;
 

@@ -2,7 +2,7 @@
 # fuzzer is in its own workspace
 
 [package]
-name = "destack_library_uuid_fuzz"
+name = "destack_uuid_fuzz"
 description = "Destack Library UUID Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
@@ -19,7 +19,7 @@ arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "destack_library_uuid_fuzz"
+name = "destack_uuid_fuzz"
 path = "fuzz_targets/uuid.rs"
 test = false
 doc = false

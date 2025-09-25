@@ -1,5 +1,5 @@
-use destack_library_cli::cli::{ast, format, lsp, print, tokei, token, version};
-use destack_library_cli::console::CommandApp;
+use destack_cli::cli::{ast, format, lsp, print, tokei, token, version};
+use destack_cli::console::CommandApp;
 
 fn main() {
     // build cli

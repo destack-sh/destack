@@ -1,8 +1,8 @@
 //! Semantic token LSP.
 
-use dyst_language_ast::{Module, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType};
-use dyst_language_source::{Source, Uri};
-use dyst_language_token::TokenSpan;
+use dyst_ast::{Module, NodeId, NodeTree, NodeVisitor, SemanticTokenIndex, SemanticType};
+use dyst_source::{Source, Uri};
+use dyst_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
 
 use crate::{Workspace, byte_to_utf16_position, range_to_byte_span, token_length_utf16};

@@ -3,17 +3,17 @@
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
-use destack_library_file::walk::{WalkOptions, walk};
-use dyst_language_ast::{
+use destack_file::walk::{WalkOptions, walk};
+use dyst_ast::{
     BlockFormat, DystFormatContext, DystFormatOptions, Module, ModuleFormat, NodeParentIndex,
     Parser,
 };
-use dyst_language_diagnostic::Severity;
-use dyst_language_fir::format::{IndentStyle, LineEnding, format as format_document};
-use dyst_language_fir::format_args;
-use dyst_language_session::Session;
-use dyst_language_source::{AnnotateOptions, Color, Source, SourceId, Uri, annotate_source};
-use dyst_language_token::TokenType;
+use dyst_diagnostic::Severity;
+use dyst_fir::format::{IndentStyle, LineEnding, format as format_document};
+use dyst_fir::format_args;
+use dyst_session::Session;
+use dyst_source::{AnnotateOptions, Color, Source, SourceId, Uri, annotate_source};
+use dyst_token::TokenType;
 
 use crate::cli::source::{render_semantic_spans, semantic_spans_from_text};
 use crate::console::console;

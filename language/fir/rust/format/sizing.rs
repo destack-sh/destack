@@ -2,7 +2,7 @@ use std::iter::FusedIterator;
 use std::num::NonZeroU32;
 use std::ops::Deref;
 
-use destack_library_unicode::UnicodeWidthChar;
+use destack_unicode::UnicodeWidthChar;
 
 use super::label::LabelId;
 use super::node::FormatNode;

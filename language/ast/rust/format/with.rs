@@ -1,8 +1,8 @@
-use dyst_language_fir::format::FormatResult;
+use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, Keyword, NodeId, With, WithClause};
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, With> for With {
     fn format_node(

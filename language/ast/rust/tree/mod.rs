@@ -9,7 +9,7 @@ mod visit;
 mod walk;
 
 pub use arena::*;
-pub use dyst_language_source::{PathId, PathPool, StringId, StringPool};
+pub use dyst_source::{PathId, PathPool, StringId, StringPool};
 pub use keyword::*;
 pub use map::*;
 pub use node::*;

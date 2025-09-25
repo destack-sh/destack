@@ -1,5 +1,5 @@
 [package]
-name = "destack_library_uuid"
+name = "destack_uuid"
 description = "Destack Library UUID"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

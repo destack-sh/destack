@@ -1,7 +1,7 @@
 use crate::{DystFormatContext, DystFormatter};
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::write;
-use dyst_language_source::{Path, PathId};
+use dyst_fir::prelude::*;
+use dyst_fir::write;
+use dyst_source::{Path, PathId};
 
 impl<'ast> Format<DystFormatContext<'ast>> for PathId {
     #[inline]

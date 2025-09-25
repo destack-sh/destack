@@ -2,7 +2,7 @@
 
 use crate::console::parse::{CommandApp, CommandArguments};
 use crate::console::{console, table};
-use destack_library_tokei as tokei;
+use destack_tokei as tokei;
 
 struct LanguageDeclaration<'a> {
     extension: &'a [&'a str],

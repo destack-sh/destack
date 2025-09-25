@@ -1,7 +1,7 @@
 use crate::format::sizing::CharWidth;
 use crate::print::{PrintOptions, Printed};
 
-use dyst_language_source::{Source, Span};
+use dyst_source::{Source, Span};
 
 use super::bomb::DebugDropBomb;
 use crate::format::{
@@ -1514,7 +1514,7 @@ enum Text<'a> {
 
 #[cfg(test)]
 mod tests {
-    use dyst_language_source::Source;
+    use dyst_source::Source;
 
     use crate::format::{Document, FormatState, IndentStyle, LineEnding, VecBuffer};
     use crate::prelude::*;

@@ -1,6 +1,6 @@
 use crate::parse::prelude::*;
-use dyst_language_source::StringId;
-use dyst_language_token::TokenType;
+use dyst_source::StringId;
+use dyst_token::TokenType;
 
 use crate::{
     BlockFormat, Keyword, Module, ModuleFormat, NodeId, NodeType, ParseResult, Parser, Visibility,

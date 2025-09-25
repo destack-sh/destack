@@ -5,8 +5,8 @@ use crate::{TokenSpan, is_identifier_continue, is_identifier_start, is_whitespac
 use super::token::{NumberBase, RawLiteralType, RawStringError, Token, TokenType};
 use super::tokenizer::{EOF_CHAR, Tokenizer};
 
-use destack_library_unicode::UnicodeEmoji;
-use dyst_language_source::{SourceId, Span};
+use destack_unicode::UnicodeEmoji;
+use dyst_source::{SourceId, Span};
 
 pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::Whitespace,

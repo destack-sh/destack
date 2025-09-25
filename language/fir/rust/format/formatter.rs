@@ -7,7 +7,7 @@ use crate::format::{
 use crate::prelude::*;
 use crate::print::{Printed, Printer};
 
-/// Formatting trait for types that can create a formatted representation. The `dyst_language_fir` equivalent
+/// Formatting trait for types that can create a formatted representation. The `dyst_fir` equivalent
 /// to [`std::fmt::Display`].
 pub trait Format<Context> {
     /// Formats the object using the given formatter.

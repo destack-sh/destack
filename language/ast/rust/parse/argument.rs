@@ -1,6 +1,6 @@
 use crate::parse::prelude::*;
 use crate::{Argument, NodeId, NodeType, Parameter, ParseResult, Parser, TypeParserOptions};
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat a parameter

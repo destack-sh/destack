@@ -1,8 +1,8 @@
 use core::fmt;
 
-use dyst_language_diagnostic::{Diagnostic, DiagnosticKind, Severity};
-use dyst_language_source::{LabeledSpan, Source, Span};
-use dyst_language_token::{TokenSpan, TokenType};
+use dyst_diagnostic::{Diagnostic, DiagnosticKind, Severity};
+use dyst_source::{LabeledSpan, Source, Span};
+use dyst_token::{TokenSpan, TokenType};
 
 use crate::NodeType;
 

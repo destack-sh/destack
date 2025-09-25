@@ -181,7 +181,7 @@ fn test_comparisons_and_equals() {
 
 #[test]
 fn test_unterminated_no_pound() {
-    // https://github.com/rust-language/rust/issues/70677
+    // https://github.com/rust-library/rust/issues/70677
     assert_raw_str_eq(
         r#"""#,
         Err(RawStringError::NoTerminator {

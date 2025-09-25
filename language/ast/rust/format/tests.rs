@@ -1,7 +1,7 @@
-use dyst_language_fir::format;
-use dyst_language_fir::format::Format;
-use dyst_language_session::Session;
-use dyst_language_source::{Source, SourceId, Uri};
+use dyst_fir::format;
+use dyst_fir::format::Format;
+use dyst_session::Session;
+use dyst_source::{Source, SourceId, Uri};
 
 use crate::{DystFormatContext, DystFormatOptions, NodeParentIndex, NodeTree, ParseResult, Parser};
 

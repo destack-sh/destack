@@ -1,10 +1,10 @@
-use dyst_language_fir::format::{
+use dyst_fir::format::{
     Format, FormatContext, FormatOptions, FormatResult, Formatter, IndentStyle, LineEnding,
 };
-use dyst_language_fir::print::PrintOptions;
-use dyst_language_session::Session;
-use dyst_language_source::{Path, PathId, Source, Span, StringId};
-use dyst_language_token::TokenSpan;
+use dyst_fir::print::PrintOptions;
+use dyst_session::Session;
+use dyst_source::{Path, PathId, Source, Span, StringId};
+use dyst_token::TokenSpan;
 
 use crate::{
     Annotation, AnnotationPosition, Node, NodeId, NodeParentIndex, NodeSpanIndex, NodeTree,

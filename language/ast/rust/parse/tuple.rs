@@ -1,6 +1,6 @@
 //! Parse tuples.
 
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{NodeId, NodeType, ParseResult, Parser, Tuple, TupleField, TypeParserOptions};

@@ -5,13 +5,16 @@ members = [
 	"language/air",
 	"language/ast",
 	"language/cranelift",
+	"language/collections",
+	"language/concurrency",
 	"language/diagnostic",
 	"language/dir",
 	"language/fir",
 	"language/llvm",
 	"language/mir",
-	"language/rust",
+	"language/prelude",
 	"language/source",
+	"language/string",
 	"language/token",
 	"language/vm",
 	# library
@@ -28,15 +31,15 @@ members = [
 	"library/json",
 	"library/locale",
 	"library/network",
-	"library/telemetry",
 	"library/order",
 	"library/perception",
 	"library/physics",
-	"library/prelude",
 	"library/scene",
 	"library/script",
 	"library/social",
 	"library/style",
+	"library/telemetry",
+	"library/text",
 	"library/time",
 	"library/tokei",
 	"library/unicode",
@@ -44,9 +47,11 @@ members = [
 	"library/uuid",
 	"library/video",
 	"library/view",
-	"library/text",
 	# extension
 	"extension/lsp",
+	"extension/python",
+	"extension/rust",
+	"extension/javascript",
 	"extension/zed",
 	# platform
 	"platform/web",
@@ -59,7 +64,7 @@ members = [
 ]
 
 [workspace.package]
-version = "2025.9.25-1"
+version = "2025.9.25-2"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -67,61 +72,65 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 # language
-dyst_language_air = { path = "language/air" }
-dyst_language_ast = { path = "language/ast" }
-dyst_language_cranelift = { path = "language/cranelift" }
-dyst_language_diagnostic = { path = "language/diagnostic" }
-dyst_language_dir = { path = "language/dir" }
-dyst_language_fir = { path = "language/fir" }
-dyst_language_llvm = { path = "language/llvm" }
-dyst_language_mir = { path = "language/mir" }
-dyst_language_rust = { path = "language/rust" }
-dyst_language_session = { path = "language/session" }
-dyst_language_source = { path = "language/source" }
-dyst_language_token = { path = "language/token" }
-dyst_language_vm = { path = "language/vm" }
-# TODO! :Architecture: re-sorganize / split Dyst & Destack (language, library, platform, ext, ...) 
+dyst_air = { path = "language/air" }
+dyst_ast = { path = "language/ast" }
+dyst_cranelift = { path = "language/cranelift" }
+dyst_collections = { path = "language/collections" }
+dyst_concurrency = { path = "language/concurrency" }
+dyst_diagnostic = { path = "language/diagnostic" }
+dyst_dir = { path = "language/dir" }
+dyst_fir = { path = "language/fir" }
+dyst_llvm = { path = "language/llvm" }
+dyst_mir = { path = "language/mir" }
+dyst_memory = { path = "language/memory" }
+dyst_session = { path = "language/session" }
+dyst_source = { path = "language/source" }
+dyst_token = { path = "language/token" }
+dyst_vm = { path = "language/vm" }
+dyst_prelude = { path = "language/prelude" }
 # library
-destack_library_access = { path = "library/access" }
-destack_library_animation = { path = "library/animation" }
-destack_library_audio = { path = "library/audio" }
-destack_library_cli = { path = "library/cli" }
-destack_library_cloud = { path = "library/cloud" }
-destack_library_entity = { path = "library/entity" }
-destack_library_event = { path = "library/event" }
-destack_library_file = { path = "library/file" }
-destack_library_geometry = { path = "library/geometry" }
-destack_library_image = { path = "library/image" }
-destack_library_json = { path = "library/json" }
-destack_library_locale = { path = "library/locale" }
-destack_library_network = { path = "library/network" }
-destack_library_telemetry = { path = "library/telemetry" }
-destack_library_order = { path = "library/order" }
-destack_library_perception = { path = "library/perception" }
-destack_library_physics = { path = "library/physics" }
-destack_library_prelude = { path = "library/prelude" }
-destack_library_scene = { path = "library/scene" }
-destack_library_script = { path = "library/script" }
-destack_library_social = { path = "library/social" }
-destack_library_style = { path = "library/style" }
-destack_library_text = { path = "library/text" }
-destack_library_time = { path = "library/time" }
-destack_library_tokei = { path = "library/tokei" }
-destack_library_unicode = { path = "library/unicode" }
-destack_library_universe = { path = "library/universe" }
-destack_library_uuid = { path = "library/uuid" }
-destack_library_video = { path = "library/video" }
-destack_library_view = { path = "library/view" }
+destack_access = { path = "library/access" }
+destack_animation = { path = "library/animation" }
+destack_audio = { path = "library/audio" }
+destack_cli = { path = "library/cli" }
+destack_cloud = { path = "library/cloud" }
+destack_entity = { path = "library/entity" }
+destack_event = { path = "library/event" }
+destack_file = { path = "library/file" }
+destack_geometry = { path = "library/geometry" }
+destack_image = { path = "library/image" }
+destack_json = { path = "library/json" }
+destack_locale = { path = "library/locale" }
+destack_network = { path = "library/network" }
+destack_order = { path = "library/order" }
+destack_perception = { path = "library/perception" }
+destack_physics = { path = "library/physics" }
+destack_scene = { path = "library/scene" }
+destack_script = { path = "library/script" }
+destack_social = { path = "library/social" }
+destack_style = { path = "library/style" }
+destack_text = { path = "library/text" }
+destack_time = { path = "library/time" }
+destack_tokei = { path = "library/tokei" }
+destack_unicode = { path = "library/unicode" }
+destack_universe = { path = "library/universe" }
+destack_uuid = { path = "library/uuid" }
+destack_video = { path = "library/video" }
+destack_view = { path = "library/view" }
 # extension
-destack_extension_lsp = { path = "extension/lsp" }
+destack_javascript = { path = "extension/javascript" }
+destack_python = { path = "extension/python" }
+destack_rust = { path = "extension/rust" }
+destack_telemetry = { path = "extension/telemetry" }
+destack_lsp = { path = "extension/lsp" }
 # platform
 destack_platform_web = { path = "platform/web" }
 # demo
-destack_demo_breakout = { path = "demo/breakout" }
-destack_demo_tetris = { path = "demo/tetris" }
+destack_breakout = { path = "demo/breakout" }
+destack_tetris = { path = "demo/tetris" }
 # test
-destack_test_demo = { path = "test/demo" }
-destack_test_simulation = { path = "test/simulation" }
+destack_demo = { path = "test/demo" }
+destack_simulation = { path = "test/simulation" }
 
 # build dependencies
 wasm-bindgen = "0.2.100"

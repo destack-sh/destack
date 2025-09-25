@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::sync::atomic::Ordering;
 
-use dyst_language_source::Source;
+use dyst_source::Source;
 
 use crate::format::{FormatOptions, GroupId, SimpleFormatOptions};
 

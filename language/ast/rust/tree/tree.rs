@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use dyst_language_source::Span;
+use dyst_source::Span;
 
 use crate::tree::arena::NodeArena;
 use crate::{

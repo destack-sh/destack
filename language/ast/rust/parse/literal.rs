@@ -1,4 +1,4 @@
-use dyst_language_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
+use dyst_token::{NumberBase, RawLiteralType, TokenSpan, TokenType};
 use std::borrow::Cow;
 
 use crate::parse::expression::ExpressionParserOptions;

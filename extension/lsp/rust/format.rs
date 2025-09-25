@@ -1,7 +1,7 @@
 use crate::{Document, Workspace};
-use dyst_language_ast::{DystFormatContext, DystFormatOptions, NodeParentIndex};
-use dyst_language_diagnostic::Severity;
-use dyst_language_fir::format;
+use dyst_ast::{DystFormatContext, DystFormatOptions, NodeParentIndex};
+use dyst_diagnostic::Severity;
+use dyst_fir::format;
 
 impl Workspace {
     /// Format a document.

@@ -3,7 +3,7 @@ use crate::parse::prelude::*;
 use crate::{
     BlockFormat, Implement, Keyword, NodeId, NodeType, ParseResult, Parser, TypeParserOptions,
 };
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Eat an implement (incl. `implement` keyword).

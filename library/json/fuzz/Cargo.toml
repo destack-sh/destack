@@ -1,5 +1,5 @@
 [package]
-name = "destack_library_json_fuzz"
+name = "destack_json_fuzz"
 description = "Destack Library JSON Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
@@ -16,7 +16,7 @@ arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "destack_library_json_fuzz"
+name = "destack_json_fuzz"
 path = "fuzz_targets/json.rs"
 test = false
 doc = false

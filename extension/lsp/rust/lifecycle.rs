@@ -225,7 +225,7 @@ impl DestackLanguageServer {
     /// Collect diagnostics for a URI and encode them for the client.
     pub(crate) fn get_diagnostics_for_uri(
         workspace: &Workspace,
-        uri: &dyst_language_source::Uri,
+        uri: &dyst_source::Uri,
     ) -> Vec<lsp::Diagnostic> {
         let Some(document) = workspace.get_document(uri) else {
             return Vec::new();
@@ -262,7 +262,7 @@ impl DestackLanguageServer {
     pub(crate) async fn analyze_workspace(
         &self,
         workspace_handle: Arc<RwLock<Workspace>>,
-        uris: Option<Vec<dyst_language_source::Uri>>,
+        uris: Option<Vec<dyst_source::Uri>>,
     ) {
         // NOTE #Incomplete: re-analyze in background (we just have the new AST-level diagnostics here)
 

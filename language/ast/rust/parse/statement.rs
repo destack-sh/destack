@@ -1,6 +1,6 @@
 //! Parse statements.
 
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 use crate::parse::prelude::*;
 use crate::{Keyword, NodeId, NodeType, ParseResult, Parser, ParserMark, Statement};

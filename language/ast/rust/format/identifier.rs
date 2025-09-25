@@ -1,8 +1,8 @@
 use crate::{DystFormatContext, DystFormatter, Keyword};
-use dyst_language_fir::format::text;
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::write;
-use dyst_language_source::StringId;
+use dyst_fir::format::text;
+use dyst_fir::prelude::*;
+use dyst_fir::write;
+use dyst_source::StringId;
 
 impl<'ast> Format<DystFormatContext<'ast>> for StringId {
     #[inline]
