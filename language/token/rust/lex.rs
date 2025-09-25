@@ -236,6 +236,7 @@ impl Tokenizer<'_> {
                 }
             }
             '@' => (TokenType::At, None),
+            '#' => (TokenType::Tag, None),
             '~' => (TokenType::BitwiseNot, None),
             '?' => {
                 // ??

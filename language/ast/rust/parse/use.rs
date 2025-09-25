@@ -179,7 +179,7 @@ mod tests {
     fn test_parse_use_simple() {
         // use dyst
         let mut test = TestParser::new("use dyst");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let use_id = parser.eat_use(None).unwrap();
 
         // use
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_parse_use_path() {
         let mut test = TestParser::new("use dyst.geometry");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let use_id = parser.eat_use(None).unwrap();
 
         // use dyst.geometry
@@ -221,7 +221,7 @@ mod tests {
     #[test]
     fn test_parse_use_with_alias() {
         let mut test = TestParser::new("use dyst as ds");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let use_id = parser.eat_use(None).unwrap();
 
         // use dyst as ds
@@ -241,7 +241,7 @@ mod tests {
     #[test]
     fn test_parse_use_with_items() {
         let mut test = TestParser::new("use ds.geometry.{Vector2, Vector3 as V3}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let use_id = parser.eat_use(None).unwrap();
 
         // use ds.geometry.{Vector2, Vector3 as V3}
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn test_parse_use_multiple_clauses() {
         let mut test = TestParser::new("use dyst, dyst");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let use_id = parser.eat_use(None).unwrap();
         // use dyst, dyst
         assert_node!(parser.tree, use_id, Use { body, clauses, .. } => {

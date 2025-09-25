@@ -195,7 +195,7 @@ mod tests {
     fn test_parse_index_postfix_explicit() {
         // [1]
         let mut test = TestParser::new("[1]");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
 
         let index_id = parser.eat_index_postfix_explicit(recv).unwrap();
@@ -211,7 +211,7 @@ mod tests {
     fn test_parse_index_postfix_implicit() {
         // .1
         let mut test = TestParser::new(".1");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
         let index_id = parser.eat_index_postfix_implicit(recv).unwrap();
         assert_node!(parser.tree, index_id, Index::Implicit { receiver, index } => {
@@ -224,7 +224,7 @@ mod tests {
     fn test_parse_call_postfix() {
         // <Validate: false>(1, x: 2)
         let mut test = TestParser::new("<Validate: false>(1, x: 2)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
         let call_id = parser
             .eat_call_postfix(recv, Some(Runtime::Dynamic))
@@ -268,7 +268,7 @@ mod tests {
     fn test_parse_call_postfix_empty() {
         // ()
         let mut test = TestParser::new("()");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
 
         let call_id = parser
@@ -286,7 +286,7 @@ mod tests {
     fn test_parse_as_postfix() {
         // as int32
         let mut test = TestParser::new("as int32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let recv = make_self_expression(&mut parser);
 
         let cast_id = parser.eat_as_postfix(recv).unwrap();

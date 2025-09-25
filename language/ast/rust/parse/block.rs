@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn test_parse_empty_block() {
         let mut test = TestParser::new("{}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
         assert_eq!(block.label, None);
@@ -245,7 +245,7 @@ mod tests {
     #[test]
     fn test_parse_labeled_empty_block() {
         let mut test = TestParser::new("label: {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let block_id = parser.eat_block().unwrap();
         let block = parser.tree.get(block_id);
         assert_string!(parser.session, block.label.unwrap(), "label");
@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn test_break_no_label_no_value() {
         let mut test = TestParser::new("break");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
             assert!(label.is_none());
@@ -266,7 +266,7 @@ mod tests {
     #[test]
     fn test_break_with_label() {
         let mut test = TestParser::new("break :label");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
             assert_string!(parser.session, label.unwrap(), "label");
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn test_break_with_label_and_value() {
         let mut test = TestParser::new("break :label 17");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
             assert_string!(parser.session, label.unwrap(), "label");
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn test_break_with_value() {
         let mut test = TestParser::new("break 15");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let break_id = parser.eat_break().unwrap();
         assert_node!(parser.tree, break_id, Break { label, value } => {
             assert!(label.is_none());
@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn test_continue_no_label() {
         let mut test = TestParser::new("continue");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Continue { label } => {
             assert!(label.is_none());
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn test_continue_with_label() {
         let mut test = TestParser::new("continue :label");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let continue_id = parser.eat_continue().unwrap();
         assert_node!(parser.tree, continue_id, Continue { label } => {
             assert_string!(parser.session, label.unwrap(), "label");
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn test_return_no_value() {
         let mut test = TestParser::new("return");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Return { value } => {
             assert!(value.is_none());
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn test_return_with_value() {
         let mut test = TestParser::new("return 42");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let return_id = parser.eat_return().unwrap();
         assert_node!(parser.tree, return_id, Return { value } => {
             assert!(value.is_some());
@@ -348,7 +348,7 @@ mod tests {
     #[test]
     fn test_defer_expression() {
         let mut test = TestParser::new("defer someFunction()");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Defer::Expression(expr_id) => {
             assert_node!(parser.tree, *expr_id, Expression::Call(_));
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn test_defer_block() {
         let mut test = TestParser::new("defer {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let defer_id = parser.eat_defer().unwrap();
         assert_node!(parser.tree, defer_id, Defer::Block(block_id) => {
             let block = parser.tree.get(*block_id);

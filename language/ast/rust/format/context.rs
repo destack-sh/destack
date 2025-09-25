@@ -238,7 +238,7 @@ impl<'ast> DystFormatContext<'ast> {
         self.spans.get_by_id(node_id)
     }
 
-    /// Get annotations for a node.
+    /// Get annotations for a node. Annotations are sorted by position.
     #[inline]
     pub fn get_annotations<T>(&self, node_id: NodeId<T>) -> Option<Vec<NodeId<Annotation>>>
     where

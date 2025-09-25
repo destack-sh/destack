@@ -295,7 +295,7 @@ struct { x: int32, y: boolean
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         // struct { x: int32, y: boolean }
@@ -332,7 +332,7 @@ struct { x: int32, y: boolean
 struct Foo: Bar {}
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
@@ -356,7 +356,7 @@ struct Foo: Bar {}
 struct Foo(int32, boolean) {}
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();
@@ -402,7 +402,7 @@ struct Foo<T: Numeric>: Boz {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct(None).unwrap();

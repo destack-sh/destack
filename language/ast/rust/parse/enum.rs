@@ -194,7 +194,7 @@ mod tests {
 enum Foo: Day {}
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
@@ -221,7 +221,7 @@ enum {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();
@@ -260,7 +260,7 @@ enum(uint8) Foo: Day {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let enum_id = parser.eat_enum(None).unwrap();

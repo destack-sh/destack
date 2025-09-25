@@ -21,7 +21,7 @@ impl TestParser {
     }
 
     /// Get a Parser for this test.
-    pub(crate) fn parser(&mut self) -> Parser<'_> {
+    pub(crate) fn prepare(&mut self) -> Parser<'_> {
         Parser::prepare(&self.source, &mut self.session)
     }
 }
@@ -184,6 +184,19 @@ macro_rules! assert_lit_string {
                 assert_eq!(got, $expected, "expected string");
             }
             other => panic!("expected ScalarLiteral::String, got {other:?}"),
+        }
+    }};
+}
+
+/// Assert a `ScalarLiteral::Integer`.
+#[macro_export]
+macro_rules! assert_lit_int {
+    ($session:expr, $id:expr, $expected:expr) => {{
+        match $id {
+            $crate::ScalarLiteral::Integer(n, _) => {
+                assert_eq!(*n, $expected, "expected integer");
+            }
+            other => panic!("expected ScalarLiteral::Integer, got {other:?}"),
         }
     }};
 }

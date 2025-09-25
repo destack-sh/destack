@@ -532,7 +532,7 @@ mod tests {
     #[test]
     fn test_parse_type_void() {
         let mut test = TestParser::new("void");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Void));
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn test_parse_type_null() {
         let mut test = TestParser::new("null");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Null));
@@ -550,7 +550,7 @@ mod tests {
     #[test]
     fn test_parse_type_boolean() {
         let mut test = TestParser::new("boolean");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Primitive(PrimitiveType::Boolean));
@@ -559,7 +559,7 @@ mod tests {
     #[test]
     fn test_parse_type_character() {
         let mut test = TestParser::new("character");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -572,7 +572,7 @@ mod tests {
     #[test]
     fn test_parse_type_int32() {
         let mut test = TestParser::new("int32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -588,7 +588,7 @@ mod tests {
     #[test]
     fn test_parse_type_uint7() {
         let mut test = TestParser::new("uint7");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -604,7 +604,7 @@ mod tests {
     #[test]
     fn test_parse_type_uint0() {
         let mut test = TestParser::new("uint0");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -620,7 +620,7 @@ mod tests {
     #[test]
     fn test_parse_type_uint999() {
         let mut test = TestParser::new("uint999");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -636,7 +636,7 @@ mod tests {
     #[test]
     fn test_parse_type_int128() {
         let mut test = TestParser::new("int128");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -652,7 +652,7 @@ mod tests {
     #[test]
     fn test_parse_type_float32() {
         let mut test = TestParser::new("float32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -665,7 +665,7 @@ mod tests {
     #[test]
     fn test_parse_type_float64() {
         let mut test = TestParser::new("float64");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn test_parse_type_infer() {
         let mut test = TestParser::new("_");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Infer);
@@ -687,7 +687,7 @@ mod tests {
     #[test]
     fn test_parse_type_maybe_prefix() {
         let mut test = TestParser::new("?float32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -706,7 +706,7 @@ mod tests {
     #[test]
     fn test_parse_type_maybe_postfix() {
         let mut test = TestParser::new("float32?");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -726,7 +726,7 @@ mod tests {
     #[ignore = "#Broken: unglue ?? tokens for Type #UnglueTokens"]
     fn test_parse_type_maybe_maybe_postfix() {
         let mut test = TestParser::new("float32??");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -747,7 +747,7 @@ mod tests {
     #[test]
     fn test_parse_type_never() {
         let mut test = TestParser::new("!");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Never);
@@ -756,7 +756,7 @@ mod tests {
     #[test]
     fn test_parse_type_not() {
         let mut test = TestParser::new("!Time");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -780,7 +780,7 @@ mod tests {
     #[test]
     fn test_parse_type_pointer_immutable() {
         let mut test = TestParser::new("*Vector2");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -808,7 +808,7 @@ mod tests {
     #[test]
     fn test_parse_type_pointer_mutable() {
         let mut test = TestParser::new("*var T");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -836,7 +836,7 @@ mod tests {
     #[test]
     fn test_parse_type_reference_ampersand_prefix() {
         let mut test = TestParser::new("&var(x) Vector2");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -871,7 +871,7 @@ mod tests {
     #[test]
     fn test_parse_type_slice_prefix() {
         let mut test = TestParser::new("[]int32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -893,7 +893,7 @@ mod tests {
     #[test]
     fn test_parse_type_slice_postfix() {
         let mut test = TestParser::new("int32[]");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -915,7 +915,7 @@ mod tests {
     #[test]
     fn test_parse_type_array_prefix() {
         let mut test = TestParser::new("[5]int32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -944,7 +944,7 @@ mod tests {
     #[test]
     fn test_parse_type_array_postfix() {
         let mut test = TestParser::new("int32[5]");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -973,7 +973,7 @@ mod tests {
     #[test]
     fn test_parse_type_virtual() {
         let mut test = TestParser::new("$T");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Virtual(inner_id) => {
@@ -989,7 +989,7 @@ mod tests {
     #[test]
     fn test_parse_type_variadic() {
         let mut test = TestParser::new("..T");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Variadic(inner_id) => {
@@ -1005,7 +1005,7 @@ mod tests {
     #[test]
     fn test_parse_type_path_simple() {
         let mut test = TestParser::new("geom.Vector2");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -1023,7 +1023,7 @@ mod tests {
     #[test]
     fn test_parse_type_path_with_static_arguments() {
         let mut test = TestParser::new("Mesh<false, Dims: 3>");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(
@@ -1083,7 +1083,7 @@ mod tests {
     #[ignore = "#Broken: unglue << and >> for static type arguments #UnglueTokens?"]
     fn test_parse_type_path_with_nested_static_arguments() {
         let mut test = TestParser::new("HashMap<Key<int32>, Value: List<number>>");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let _ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         // ...
@@ -1092,7 +1092,7 @@ mod tests {
     #[test]
     fn test_parse_type_implicit_union() {
         let mut test = TestParser::new("A | B | C");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         // A | B | C
@@ -1116,7 +1116,7 @@ mod tests {
     #[test]
     fn test_parse_type_implicit_intersection() {
         let mut test = TestParser::new("A & B & C");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let ty_id = parser.eat_type(TypeParserOptions::default()).unwrap();
 
         assert_node!(parser.tree, ty_id, Type::Intersection(types) => {

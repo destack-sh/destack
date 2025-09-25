@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_parse_tuple_positional_single() {
         let mut test = TestParser::new("(int32)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let tuple_id = parser.eat_tuple().unwrap();
 
         assert_node!(parser.tree, tuple_id, Tuple { elements } => {
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn test_parse_tuple_positional_two_elements_comma() {
         let mut test = TestParser::new("(int32, boolean)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let tuple_id = parser.eat_tuple().unwrap();
 
         assert_node!(parser.tree, tuple_id, Tuple { elements } => {
@@ -130,7 +130,7 @@ mod tests {
 )
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let tuple_id = parser.eat_tuple().unwrap();
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn test_parse_tuple_named_elements() {
         let mut test = TestParser::new("(x: int32, y: boolean)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let tuple_id = parser.eat_tuple().unwrap();
 
         assert_node!(parser.tree, tuple_id, Tuple { elements } => {
@@ -181,7 +181,7 @@ mod tests {
     #[test]
     fn test_parse_tuple_empty() {
         let mut test = TestParser::new("()");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let tuple_id = parser.eat_tuple().unwrap();
 
         assert_node!(parser.tree, tuple_id, Tuple { elements } => {

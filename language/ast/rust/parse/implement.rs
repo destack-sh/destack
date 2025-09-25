@@ -99,7 +99,7 @@ implement Foo {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
@@ -123,7 +123,7 @@ implement Foo<int32> {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
@@ -156,7 +156,7 @@ implement Bar<int32> for Baz {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();
@@ -193,7 +193,7 @@ implement<T> Bar<T> for Baz<T> {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let implement_id = parser.eat_implement().unwrap();

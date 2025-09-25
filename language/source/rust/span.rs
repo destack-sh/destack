@@ -124,9 +124,11 @@ impl MultiSpan {
         Self { spans }
     }
 
-    /// Check if the MultiSpan contains the given Span.
+    /// Check if the MultiSpan contains the given Span fully (start and end).
     pub fn contains(&self, span: &Span) -> bool {
-        self.spans.iter().any(|s| s.contains(span.start) && s.contains(span.end))
+        self.spans
+            .iter()
+            .any(|s| s.contains(span.start) && s.contains(span.end - 1))
     }
 }
 

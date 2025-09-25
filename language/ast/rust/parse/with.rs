@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_parse_with_type_assertion() {
         let mut test = TestParser::new("with T: int32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with T: int32
         assert_node!(parser.tree, with_id, With { clauses } => {
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     fn test_parse_with_simple_declaration() {
         let mut test = TestParser::new("with Foo");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with Foo
         assert_node!(parser.tree, with_id, With { clauses } => {
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn test_parse_with_aliased_declaration() {
         let mut test = TestParser::new("with Foo as Bar");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with Foo as Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn test_parse_with_path_declaration() {
         let mut test = TestParser::new("with Foo.Bar");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with Foo.Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn test_parse_with_negated_declaration() {
         let mut test = TestParser::new("with !Bar");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
         // with !Bar
         assert_node!(parser.tree, with_id, With { clauses } => {
@@ -226,7 +226,7 @@ mod tests {
     fn test_parse_with_multiple_clauses() {
         let input = "with !Bar, Time, F: Numeric";
         let mut test = TestParser::new(input);
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
 
         assert_node!(parser.tree, with_id, With { clauses } => {
@@ -269,7 +269,7 @@ mod tests {
   F: Numeric
 )"##;
         let mut test = TestParser::new(input);
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let with_id = parser.eat_with().unwrap();
 
         assert_node!(parser.tree, with_id, With { clauses } => {

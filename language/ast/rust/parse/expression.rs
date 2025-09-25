@@ -1000,7 +1000,7 @@ mod tests {
     #[test]
     fn test_parse_tuple_literal() {
         let mut test = TestParser::new("(1, 2)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1041,7 +1041,7 @@ mod tests {
     #[test]
     fn test_parse_struct_literal_path() {
         let mut test = TestParser::new("geom.Vector2 { x: 1, y }");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
@@ -1116,7 +1116,7 @@ geom.Mesh<2, Dims: 4> {
     y
 }"##,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let expr_id = parser
@@ -1173,7 +1173,7 @@ geom.Mesh<2, Dims: 4> {
     #[test]
     fn test_parse_dereference_variable() {
         let mut test = TestParser::new("*x");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
@@ -1191,7 +1191,7 @@ geom.Mesh<2, Dims: 4> {
     #[test]
     fn test_parse_dereference_variable_postfix() {
         let mut test = TestParser::new("x.*");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1208,7 +1208,7 @@ geom.Mesh<2, Dims: 4> {
     #[test]
     fn test_parse_reference_variable() {
         let mut test = TestParser::new("&x");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1231,7 +1231,7 @@ geom.Mesh<2, Dims: 4> {
     #[test]
     fn test_parse_reference_variable_postfix() {
         let mut test = TestParser::new("x.&");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1248,7 +1248,7 @@ geom.Mesh<2, Dims: 4> {
     #[test]
     fn test_parse_reference_variable_postfix_with_scoped_mutability() {
         let mut test = TestParser::new("pos.&var(y)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1272,7 +1272,7 @@ geom.Mesh<2, Dims: 4> {
     #[test]
     fn test_parse_reference_member_call() {
         let mut test = TestParser::new("&var self.foo()");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1325,7 +1325,7 @@ let x =
         + (x / 4)
 ",
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let expr_id = parser
@@ -1446,7 +1446,7 @@ self
     .baz()
 ",
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let expr_id = parser
@@ -1509,7 +1509,7 @@ self
     #[test]
     fn test_parse_precedence_addition_left_associative() {
         let mut test = TestParser::new("a + b + c");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1547,7 +1547,7 @@ self
     #[test]
     fn test_parse_precedence_addition_across_lines() {
         let mut test = TestParser::new("a +\n b +\n c");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1583,7 +1583,7 @@ self
     #[test]
     fn test_parse_precedence_multiply_before_addition() {
         let mut test = TestParser::new("a + b * c");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1620,7 +1620,7 @@ self
     #[test]
     fn test_parse_precedence_parentheses_override() {
         let mut test = TestParser::new("(a + b) * c");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1657,7 +1657,7 @@ self
     #[test]
     fn test_parse_precedence_chain_mixed() {
         let mut test = TestParser::new("a + b * c + d");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1705,7 +1705,7 @@ self
     #[test]
     fn test_parse_precedence_bitwise_vs_addition() {
         let mut test = TestParser::new("a + b | c + d");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1753,7 +1753,7 @@ self
     #[test]
     fn test_parse_precedence_comparison_vs_logical() {
         let mut test = TestParser::new("a == b && c == d");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1801,7 +1801,7 @@ self
     #[test]
     fn test_parse_precedence_unary_before_multiply() {
         let mut test = TestParser::new("-a * b");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1835,7 +1835,7 @@ self
     #[test]
     fn test_parse_precedence_postfix_call_before_add() {
         let mut test = TestParser::new("a() + @b() / c");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();
@@ -1901,7 +1901,7 @@ self
     #[test]
     fn test_parse_precedence_postfix_call_before_coalesce() {
         let mut test = TestParser::new("(y * y).sqrt() ?? 0");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let expr_id = parser
             .eat_expression(ExpressionParserOptions::default())
             .unwrap();

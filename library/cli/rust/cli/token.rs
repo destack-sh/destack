@@ -1,4 +1,4 @@
-use dyst_language_token::{TokenType, is_semantic, tokenize_with_spans};
+use dyst_language_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
 use crate::cli::source::read_source;
 use crate::console::parse::CommandArguments;
@@ -51,7 +51,7 @@ pub fn run(ctx: CommandArguments) -> i32 {
         |_| true
     };
     let (tokens, _) = tokenize_with_spans(source.id, &source.content);
-    let tokens = tokens
+    let tokens: Vec<TokenSpan> = tokens
         .into_iter()
         .filter(|token| filter(token.token.r#type))
         .collect();
@@ -173,7 +173,7 @@ fn get_token_color(kind: TokenType) -> &'static str {
         TokenType::OpenBracket => "33",
         TokenType::CloseBracket => "33",
         TokenType::At => "95",
-        TokenType::Hash => "95",
+        TokenType::Tag => "95",
         TokenType::BitwiseNot => "96",
         TokenType::Maybe => "95",
         TokenType::Coalesce => "95",

@@ -136,7 +136,7 @@ loop {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let loop_id = parser.eat_loop(None).unwrap();
@@ -154,7 +154,7 @@ for item in items {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for(None).unwrap();
@@ -177,7 +177,7 @@ for item in items outer: {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let for_id = parser.eat_for(None).unwrap();
@@ -198,7 +198,7 @@ for item in items outer: {
 while x {}
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let while_id = parser.eat_while(None).unwrap();
@@ -219,7 +219,7 @@ while x > y {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let while_id = parser.eat_while(None).unwrap();

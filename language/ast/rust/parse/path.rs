@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_parse_simple_path_single_segment() {
         let mut test = TestParser::new("destack");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
         assert_path!(parser.session, path, "destack");
     }
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_parse_simple_path_multiple_segments() {
         let mut test = TestParser::new("destack.geometry.math");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
         assert_path!(parser.session, path, "destack.geometry.math");
     }
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn test_parse_path_stops_before_group_brace() {
         let mut test = TestParser::new("ds.geometry.{Vector2}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
         assert_path!(parser.session, path, "ds.geometry");
         // ensure next token is the `.` for the group
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_parse_path_stops_before_angle_bracket() {
         let mut test = TestParser::new("geom.Vector<Dims: 2, float32>");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let path = parser.eat_path().unwrap();
         assert_path!(parser.session, path, "geom.Vector");
         // ensure next token is the `<` for the generic arguments

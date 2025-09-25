@@ -4,7 +4,9 @@ use std::fmt::Debug;
 use dyst_language_source::{MultiSpan, Path, PathId, Source, SourceId, Span, StringId};
 use dyst_language_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
-use crate::{Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParseError, ParseResult};
+use crate::{
+    Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParseError, ParseResult,
+};
 use dyst_language_session::Session;
 
 /// Configure Parser behavior.
@@ -83,30 +85,18 @@ impl<'a> Parser<'a> {
             errors: Vec::new(),
         };
 
-        // pre-parse annotations
-        parser.pre_parse_annotations();
-        // move all the tags' tokens to the side tokens
-        let tags_spans = MultiSpan::new(parser.tree.get_spans_for(NodeType::Tag));
-        let (tokens, side_tokens) = parser
-            .tokens
+        // pre-parse annotations and then ignore those tokens
+        parser.prepare_annotations();
+        let tags_span = MultiSpan::new(parser.tree.get_spans_for(NodeType::Tag));
+        let (tokens, side_tokens) = all_tokens
             .iter()
-            .partition(|token| tags_spans.contains(&token.span));
+            .partition(|token| is_semantic(token.token.r#type) && !tags_span.contains(&token.span));
         parser.tokens = tokens;
         parser.side_tokens = side_tokens;
 
         // return the parser
         parser.reset();
         parser
-    }
-
-    /// Create a new Dumper.
-    pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
-        Dumper::new(
-            &self.session.strings,
-            &self.session.paths,
-            &self.tree,
-            options,
-        )
     }
 
     /// Reset the parser.
@@ -120,8 +110,18 @@ impl<'a> Parser<'a> {
     /// Finalize the parser.
     pub fn finalize(&mut self) {
         assert!(!self.is_finalized, "already finalized");
-        self.is_finalized = true;
         self.attach_annotations();
+        self.is_finalized = true;
+    }
+
+    /// Create a new Dumper.
+    pub fn dumper(&self, options: DumperOptions) -> Dumper<'_> {
+        Dumper::new(
+            &self.session.strings,
+            &self.session.paths,
+            &self.tree,
+            options,
+        )
     }
 
     /// Get the current position.

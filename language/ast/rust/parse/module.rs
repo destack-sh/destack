@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_parse_empty_module() {
         let mut test = TestParser::new("module { }");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
         assert_node!(parser.tree, module_id, Module { name, visibility, statements, format, .. } => {
             assert!(name.is_none());
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn test_parse_forward_module() {
         let mut test = TestParser::new("module x;");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let module_id = parser.eat_module(None).unwrap();
         assert_node!(parser.tree, module_id, Module { name, visibility, statements, format, .. } => {
             assert_string!(parser.session, name.unwrap(), "x");

@@ -188,7 +188,7 @@ mod tests {
 var(x, y) pos: Vector4 = --
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let let_id = parser.eat_let(None).unwrap();
 
@@ -226,7 +226,7 @@ var(x, y) pos: Vector4 = --
 let x: int32 = 1
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let(None).unwrap();
@@ -261,7 +261,7 @@ let x: int32 = 1
 var x: [3]float64 = --
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let(None).unwrap();
@@ -298,7 +298,7 @@ var x: [3]float64 = --
 let (x, y) = foo()
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let let_id = parser.eat_let(None).unwrap();
@@ -332,7 +332,7 @@ let (x, y) = foo()
     #[test]
     fn test_parse_let_implicit_uninitialized() {
         let mut test = TestParser::new("let x: int32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let let_id = parser.eat_let(None).unwrap();
         let x = parser.intern_string("x");
