@@ -9,8 +9,8 @@ use crate::{
     Coalesce, Comment, Continue, Defer, Doc, Enum, EnumField, Expression, FieldLiteral, For,
     Function, If, Implement, Index, Let, Loop, Match, MatchCase, Module, Node, NodeId,
     NodeSpanIndex, NodeType, Parameter, Pattern, PatternField, RangeLiteral, Return, ScalarLiteral,
-    Statement, Struct, StructField, StructLiteral, Trait, Try, Tuple, TupleField, TupleLiteral,
-    Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause, Tag,
+    Statement, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField,
+    TupleLiteral, Type, Union, UnionField, Use, UseClause, UseItem, While, With, WithClause,
 };
 
 /// The Node tree.
@@ -247,15 +247,29 @@ impl NodeTree {
 
     /// Get the spans for all nodes of a given type.
     #[inline]
-    pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span>
-    {
+    pub fn get_spans_for(&self, node_type: NodeType) -> Vec<Span> {
         let mut spans = Vec::new();
-        for node_id in self.local_id_by_node.iter() {
-            if self.type_by_node[*node_id as usize] == node_type {
-                spans.push(self.spans.get_by_id(*node_id));
+        for (idx, ty) in self.type_by_node.iter().enumerate() {
+            if *ty == node_type {
+                spans.push(self.spans.get_by_id(idx as u32));
             }
         }
         spans
+    }
+
+    /// Get the nodes for all nodes of a given type.
+    #[inline]
+    pub fn get_nodes_for<T>(&self) -> Vec<NodeId<T>>
+    where
+        T: Node,
+    {
+        let mut nodes = Vec::new();
+        for (idx, ty) in self.type_by_node.iter().enumerate() {
+            if *ty == T::KIND {
+                nodes.push(NodeId::new(idx as u32));
+            }
+        }
+        nodes
     }
 
     /// Append a doc to a node by its global id.
@@ -274,13 +288,23 @@ impl NodeTree {
         self.annotations_per_node.contains_key(&node_id)
     }
 
-    /// Get annotations attached to a node, cloned as a Vec.
+    /// Get annotations attached to a node.
     #[inline]
     pub fn get_annotations_for(&self, node_id: u32) -> Vec<NodeId<Annotation>> {
         self.annotations_per_node
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
+    }
+
+    /// Sort all annotations.
+    #[inline]
+    pub(crate) fn sort_annotations(&mut self) {
+        self.annotations_per_node
+            .values_mut()
+            .for_each(|annotations| {
+                annotations.sort_by_key(|annotation| self.spans.get(*annotation).start)
+            });
     }
 
     /// Get blank annotation attached to a node, cloned as a Vec.

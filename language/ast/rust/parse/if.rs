@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn test_parse_if_basic() {
         let mut test = TestParser::new("if true {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let if_id = parser.eat_if(None).unwrap();
         assert_node!(parser.tree, if_id, If::If { condition, then_block, .. } => {
@@ -102,7 +102,7 @@ mod tests {
     #[test]
     fn test_parse_if_else() {
         let mut test = TestParser::new("if false {} else {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let if_id = parser.eat_if(None).unwrap();
         assert_node!(parser.tree, if_id, If::IfElse { condition, then_block, else_block, .. } => {
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_parse_if_else_if() {
         let mut test = TestParser::new("if true {} else if false {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let if_id = parser.eat_if(None).unwrap();
         assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if, .. } => {
@@ -164,7 +164,7 @@ if x > y {
     x 
 }",
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if(None).unwrap();
@@ -204,7 +204,7 @@ if x > y {
     #[test]
     fn test_parse_if_else_if_else() {
         let mut test = TestParser::new("if true {} else if false {} else {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let if_id = parser.eat_if(None).unwrap();
         assert_node!(parser.tree, if_id, If::IfElseIf { condition, then_block, else_if, .. } => {
@@ -246,7 +246,7 @@ else if v > hi { hi }
 else { v }
 ",
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if(None).unwrap();
@@ -297,7 +297,7 @@ if x > 0 {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let if_id = parser.eat_if(None).unwrap();

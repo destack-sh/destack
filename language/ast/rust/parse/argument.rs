@@ -152,7 +152,7 @@ mod tests {
     fn test_parse_parameter_type_only() {
         // T
         let mut test = TestParser::new("T");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
         assert_string!(parser.session, parameter.name, "T");
@@ -164,7 +164,7 @@ mod tests {
     fn test_parse_parameter_with_type() {
         // x: int32
         let mut test = TestParser::new("x: int32");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
 
@@ -185,7 +185,7 @@ mod tests {
     fn test_parse_parameter_with_default() {
         // validate: boolean = false
         let mut test = TestParser::new("validate: boolean = false");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let parameter_id = parser.eat_parameter().unwrap();
         let parameter = parser.tree.get(parameter_id);
 
@@ -210,7 +210,7 @@ mod tests {
     fn test_parse_argument_named() {
         // x: 1
         let mut test = TestParser::new("x: 1");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let argument_id = parser.eat_argument().unwrap();
 
         assert_node!(parser.tree, argument_id, Argument::Named { name, value } => {
@@ -227,7 +227,7 @@ mod tests {
     fn test_parse_argument_positional() {
         // 3
         let mut test = TestParser::new("3");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let argument_id = parser.eat_argument().unwrap();
 
         assert_node!(parser.tree, argument_id, Argument::Positional { value } => {

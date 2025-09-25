@@ -313,7 +313,7 @@ mod tests {
 union { A, B }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
@@ -346,7 +346,7 @@ union { A, B }
 union Foo: Bar {}
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();
@@ -379,7 +379,7 @@ union(uint4, uint60) Foo<T>: Boz {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let union_id = parser.eat_union(None).unwrap();

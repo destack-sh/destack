@@ -314,7 +314,7 @@ mod tests {
     fn test_parse_pattern_wildcard() {
         // _
         let mut test = TestParser::new("_");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Wildcard);
     }
@@ -323,7 +323,7 @@ mod tests {
     fn test_parse_pattern_rest() {
         // ..
         let mut test = TestParser::new("..");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Rest);
     }
@@ -332,7 +332,7 @@ mod tests {
     fn test_parse_pattern_reference() {
         // &var _
         let mut test = TestParser::new("&var _");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         // &
         assert_node!(parser.tree, pattern_id,
@@ -346,7 +346,7 @@ mod tests {
 
         // &1
         let mut test = TestParser::new("&1");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         // &
         assert_node!(parser.tree, pattern_id, Pattern::Reference { mutability, target } => {
@@ -361,7 +361,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_identifier() {
         let mut test = TestParser::new("x");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Binding { name } => {
             assert_string!(parser.session, *name, "x");
@@ -371,7 +371,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_path() {
         let mut test = TestParser::new("MyEnum.A");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::Path(path) => {
             assert_path!(parser.session, *path, "MyEnum.A");
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_tuple() {
         let mut test = TestParser::new("(x: 1, 2, var y, const z, ..)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
         // (x: 1, 2, var y, const z, ..)
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn test_parse_pattern_tuple_with_path() {
         let mut test = TestParser::new("Result.Success(_, ..)");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
         // Result.Success(_, ..)
@@ -456,7 +456,7 @@ mod tests {
     ..
 )",
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
@@ -490,7 +490,7 @@ mod tests {
     fn test_parse_pattern_union() {
         // 1 | 2 | 3
         let mut test = TestParser::new("1 | 2 | 3");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern(Default::default()).unwrap();
 
         assert_node!(parser.tree, pattern_id, Pattern::Union { fields } => {

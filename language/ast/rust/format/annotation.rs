@@ -160,9 +160,15 @@ where
                 // format annotation itself
                 annotation.format_node(annotation_id, f)?;
 
-                // insert space after line prefix
+                // insert space / newline
                 if position == AnnotationPosition::LinePrefix {
                     write!(f, [space()])?;
+                } else if position == AnnotationPosition::BlockInfix
+                    || position == AnnotationPosition::BlockPrefix
+                    || position == AnnotationPosition::BlockPostfix
+                    || position == AnnotationPosition::LinePostfixBoundary
+                {
+                    write!(f, [hard_line_break()])?;
                 }
             }
         }
@@ -227,8 +233,11 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
             }
             _ => {
                 // prefix every line with `///`
-                for line in string.lines() {
-                    write!(f, [token("///"), space(), text(line), hard_line_break()])?;
+                for (i, line) in string.lines().enumerate() {
+                    write!(f, [token("///"), space(), text(line)])?;
+                    if i < string.lines().count() - 1 {
+                        write!(f, [hard_line_break()])?;
+                    }
                 }
             }
         }
@@ -253,8 +262,11 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
             _ => {
                 // prefix every line with `//`
                 let string = f.context().session.strings.get(self.string);
-                for line in string.lines() {
-                    write!(f, [token("//"), space(), text(line), hard_line_break()])?;
+                for (i, line) in string.lines().enumerate() {
+                    write!(f, [token("//"), space(), text(line)])?;
+                    if i < string.lines().count() - 1 {
+                        write!(f, [hard_line_break()])?;
+                    }
                 }
             }
         }
@@ -273,7 +285,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
         if let Some(arguments) = &self.arguments {
             write!(
                 f,
-                [
+                [group(&format_args![
                     token("("),
                     soft_block_indent(&format_with(|f| f
                         .join_with(&format_args![
@@ -283,7 +295,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
                         .entries(arguments)
                         .finish())),
                     token(")")
-                ]
+                ])]
             )?;
         }
         Ok(())
@@ -294,6 +306,24 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
 mod tests {
     use crate::format::tests::TestFormatter;
     use crate::{DystFormatOptions, assert_format};
+
+    /// Tags should be preserved in order.
+    #[test]
+    fn test_format_tags_around_struct() {
+        let source = r#"struct Entity {
+    /// name
+    #BeginGroup(17)
+    #internal #something name: String #name
+    numBananas: int32 #bananas
+    #EndGroup
+}"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_struct(None),
+            DystFormatOptions::default()
+        );
+    }
 
     /// Multiple comments around an expression should retain their order.
     #[test]
@@ -313,17 +343,13 @@ mod tests {
         );
     }
 
-    /// Inline block comments should be preserved.
+    /// Inline statement comments should be preserved.
     #[test]
-    fn test_format_inline_block_comment() {
+    fn test_format_inline_statement_comment() {
         assert_format!(
-            "{
-    let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */
-}",
-            "{
-    let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */
-}",
-            |p| p.eat_block(),
+            "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */\n",
+            "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */\n",
+            |p| p.eat_statement(),
             DystFormatOptions::default()
         );
     }

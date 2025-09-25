@@ -23,23 +23,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank,
-    Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, Continue, Defer, Doc,
-    DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, FunctionStyle,
-    If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId,
-    NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern,
-    PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability,
-    Statement, StringId, StringPool, Struct, StructField, StructLiteral, Trait, Try, Tuple,
-    TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem,
-    Visibility, While, With, WithClause, walk_annotation, walk_argument, walk_array_literal,
-    walk_block, walk_break, walk_call, walk_cast, walk_coalesce, walk_continue, walk_defer,
-    walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function,
-    walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case,
-    walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return,
-    walk_scalar_literal, walk_statement, walk_struct, walk_struct_field, walk_struct_literal,
-    walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union,
-    walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with,
-    walk_with_clause,
+    Annotation, AnnotationPosition, Argument, ArrayLiteral, AssignOperator, BinaryOperator, Blank, Block, BlockFormat, Break, Call, Cast, Coalesce, Comment, CommentStyle, Continue, Defer, Doc, DocStyle, Enum, EnumField, Expression, FieldLiteral, FloatType, For, Function, FunctionStyle, If, Implement, Index, IntType, Let, Loop, Match, MatchCase, Module, Mutability, Node, NodeId, NodeTree, NodeTreeStore, NodeType, NodeVisitor, Parameter, PathId, PathPool, Pattern, PatternField, PrimitiveType, RangeLiteral, Return, Runtime, ScalarLiteral, ScopedMutability, Statement, StringId, StringPool, Struct, StructField, StructLiteral, Tag, Trait, Try, Tuple, TupleField, TupleLiteral, Type, UnaryOperator, Union, UnionField, Use, UseClause, UseItem, Visibility, While, With, WithClause, walk_annotation, walk_argument, walk_array_literal, walk_block, walk_break, walk_call, walk_cast, walk_coalesce, walk_continue, walk_defer, walk_enum, walk_enum_field, walk_expression, walk_field_literal, walk_for, walk_function, walk_if, walk_implement, walk_index, walk_let, walk_loop, walk_match, walk_match_case, walk_module, walk_parameter, walk_pattern, walk_pattern_field, walk_range_literal, walk_return, walk_scalar_literal, walk_statement, walk_struct, walk_struct_field, walk_struct_literal, walk_trait, walk_try, walk_tuple, walk_tuple_field, walk_tuple_literal, walk_type, walk_union, walk_union_field, walk_use, walk_use_clause, walk_use_item, walk_while, walk_with, walk_with_clause
 };
 
 /// The console colors.
@@ -1659,6 +1643,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
         self.node("Comment", _id.id)
             .field("string", &string.as_ref())
             .field("style", &comment.style)
+            .end();
+    }
+
+    fn visit_tag(&mut self, _tree: &NodeTree, _id: NodeId<Tag>, tag: &Tag) {
+        self.node("Tag", _id.id)
+            .field("name", &tag.name)
             .end();
     }
 }

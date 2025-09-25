@@ -553,7 +553,7 @@ mod tests {
     fn test_parse_integer_literals() {
         // Parse multiple integer literals including hex
         let mut test = TestParser::new("1 731 0x1234");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
         assert_int!(parser.tree, literal_id, 1);
@@ -569,7 +569,7 @@ mod tests {
     fn test_parse_float_literals() {
         // Parse scientific notation and decimal floats
         let mut test = TestParser::new("10e37 1.0");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
         assert_float!(parser.tree, literal_id, 1.0e38);
@@ -582,7 +582,7 @@ mod tests {
     fn test_parse_boolean_literals() {
         // Parse true and false literals
         let mut test = TestParser::new("true false");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
         assert_bool!(parser.tree, literal_id, true);
@@ -595,7 +595,7 @@ mod tests {
     fn test_parse_character_literals() {
         // Parse character and byte literals
         let mut test = TestParser::new("'a' b'a'");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_scalar_literal().unwrap();
         assert_char!(parser.tree, literal_id, 'a');
@@ -610,7 +610,7 @@ mod tests {
         let mut test = TestParser::new(
             r###""Hello, world!" b"abc" r"abc" r##"a#b#c"## br"abc" br##"a#b#c"##"###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         // "Hello, world!"
         let literal_id = parser.eat_scalar_literal().unwrap();
@@ -650,7 +650,7 @@ mod tests {
     fn test_parse_empty_array_literal() {
         // []
         let mut test = TestParser::new("[]");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_array_literal().unwrap();
         assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
@@ -662,7 +662,7 @@ mod tests {
     fn test_parse_single_element_array_literal() {
         // [1, ]
         let mut test = TestParser::new("[1, ]");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_array_literal().unwrap();
         assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
@@ -677,7 +677,7 @@ mod tests {
     fn test_parse_multi_element_array_literal() {
         // [10, false, "Hi"]
         let mut test = TestParser::new(r###"[10, false, "Hi"]"###);
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_array_literal().unwrap();
         assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
@@ -713,7 +713,7 @@ mod tests {
      3.0
     ]"###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_array_literal().unwrap();
         assert_node!(parser.tree, literal_id, ArrayLiteral::Fixed { elements } => {
@@ -740,7 +740,7 @@ mod tests {
     fn test_parse_single_element_tuple_literal() {
         // (1, )
         let mut test = TestParser::new("(1, )");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
         assert_node!(parser.tree, literal_id, TupleLiteral { elements } => {
@@ -755,7 +755,7 @@ mod tests {
     fn test_parse_multi_element_tuple_literal() {
         // (10, false, "Hi")
         let mut test = TestParser::new(r###"(10, false, "Hi")"###);
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
         assert_node!(parser.tree, literal_id, TupleLiteral { elements } => {
@@ -792,7 +792,7 @@ mod tests {
   3.0
 )"###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let literal_id = parser.eat_tuple_literal().unwrap();
         assert_node!(parser.tree, literal_id, TupleLiteral { elements } => {
@@ -825,7 +825,7 @@ destack.geometry.Mesh<2, int32> {
 }
             "##,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let struct_id = parser.eat_struct_literal().unwrap();

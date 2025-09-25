@@ -224,7 +224,7 @@ match x {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
@@ -277,7 +277,7 @@ match x {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
@@ -316,7 +316,7 @@ match self {
 }
     ",
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let match_id = parser.eat_match().unwrap();
@@ -367,7 +367,7 @@ match self {
 try foo()
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try_catch().unwrap();
@@ -389,7 +389,7 @@ try {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try_catch().unwrap();
@@ -411,7 +411,7 @@ try {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let try_id = parser.eat_try_catch().unwrap();

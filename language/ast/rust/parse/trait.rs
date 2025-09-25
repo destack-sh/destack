@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn test_parse_trait_anonymous_empty() {
         let mut test = TestParser::new("trait {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, withs, statements, .. } => {
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn test_parse_trait_with_super_types() {
         let mut test = TestParser::new("trait Foo: Bar {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, super_types, statements, .. } => {
@@ -174,7 +174,7 @@ trait Foo: Baz {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait(None).unwrap();
@@ -194,7 +194,7 @@ trait Foo: Baz {
     #[test]
     fn test_parse_trait_with_static_parameters() {
         let mut test = TestParser::new("trait Baz<T> {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let trait_id = parser.eat_trait(None).unwrap();
         assert_node!(parser.tree, trait_id, Trait { name, static_parameters, .. } => {
@@ -213,7 +213,7 @@ trait Baz<T> with T: Copy {
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let trait_id = parser.eat_trait(None).unwrap();

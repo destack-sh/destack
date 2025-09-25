@@ -257,7 +257,7 @@ function foo() with (
 }
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let function_id = parser.eat_function(None).unwrap();
@@ -309,7 +309,7 @@ function foo() with (
     #[test]
     fn test_parse_function_self_parameter_simple() {
         let mut test = TestParser::new("function a(self) {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {
@@ -333,7 +333,7 @@ function b(
 ) {}
 "###,
         );
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
         let function_id = parser.eat_function(None).unwrap();
@@ -359,7 +359,7 @@ function b(
     #[test]
     fn test_parse_function_self_parameter_mutable_pointer() {
         let mut test = TestParser::new("function c(&var self) {}");
-        let mut parser = test.parser();
+        let mut parser = test.prepare();
 
         let function_id = parser.eat_function(None).unwrap();
         assert_node!(parser.tree, function_id, Function { name, self_parameter, dynamic_parameters, .. } => {

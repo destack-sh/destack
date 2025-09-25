@@ -16,21 +16,9 @@
                 "args": ["run", "--bin", "destack_library_cli"],
                 "filter": { "kind": "bin", "name": "destack_library_cli" }
             },
-            "args": ["fmt", "--file", "library/geometry/path.ds"],
+            "args": ["fmt", "--file", "library/entity/entity.ds"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },
-        {
-            "name": "destack_extension_lsp",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": ["run", "--bin", "destack_extension_lsp"],
-                "filter": { "kind": "bin", "name": "destack_extension_lsp" }
-            },
-            "args": ["lsp"],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
-        }
     ]
 }
