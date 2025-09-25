@@ -14,55 +14,68 @@ impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
         node_id: NodeId<ScalarLiteral>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         let span = f.context().tree.get_span(node_id);
         let span_str = f.context().source.get_span_str(span);
         match self {
-            ScalarLiteral::Void => token("void").format(f),
-            ScalarLiteral::Null => token("null").format(f),
-            ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f),
+            ScalarLiteral::Void => token("void").format(f)?,
+            ScalarLiteral::Null => token("null").format(f)?,
+            ScalarLiteral::Boolean(value) => {
+                token(if *value { "true" } else { "false" }).format(f)?
+            }
             ScalarLiteral::Integer(_, _) => {
                 let normalized = normalize_integer(span_str);
-                text(&normalized).format(f)
+                text(&normalized).format(f)?;
             }
             ScalarLiteral::Float(_, _) => {
                 let normalized = normalize_floating_number(span_str);
-                text(&normalized).format(f)
+                text(&normalized).format(f)?;
             }
             ScalarLiteral::Character(value) => {
                 write!(
                     f,
                     [token("'"), text(value.to_string().as_str()), token("'")]
-                )
+                )?;
             }
             ScalarLiteral::Byte(value) => {
-                write!(f, [token("b'"), text(&value.to_string()), token("'")])
+                write!(f, [token("b'"), text(&value.to_string()), token("'")])?;
             }
             ScalarLiteral::String(_) => {
-                write!(f, [text(span_str)])
+                write!(f, [text(span_str)])?;
             }
             ScalarLiteral::ByteString(_) => {
-                write!(f, [text(span_str)])
+                write!(f, [text(span_str)])?;
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
 impl<'ast> FormatNode<'ast, RangeLiteral> for RangeLiteral {
     fn format_node(
         &self,
-        _node_id: NodeId<RangeLiteral>,
+        node_id: NodeId<RangeLiteral>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [self.start, token(".."), self.end,])
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        write!(f, [self.start, token(".."), self.end,])?;
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        Ok(())
     }
 }
 
 impl<'ast> FormatNode<'ast, TupleLiteral> for TupleLiteral {
     fn format_node(
         &self,
-        _node_id: NodeId<TupleLiteral>,
+        node_id: NodeId<TupleLiteral>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         write!(
             f,
             [group(&format_args![
@@ -76,16 +89,22 @@ impl<'ast> FormatNode<'ast, TupleLiteral> for TupleLiteral {
                     .finish())),
                 token(")"),
             ])]
-        )
+        )?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
 impl<'ast> FormatNode<'ast, ArrayLiteral> for ArrayLiteral {
     fn format_node(
         &self,
-        _node_id: NodeId<ArrayLiteral>,
+        node_id: NodeId<ArrayLiteral>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             ArrayLiteral::Fixed { elements } => {
                 write!(
@@ -101,18 +120,24 @@ impl<'ast> FormatNode<'ast, ArrayLiteral> for ArrayLiteral {
                             .finish())),
                         token("]"),
                     ])]
-                )
+                )?;
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
 impl<'ast> FormatNode<'ast, StructLiteral> for StructLiteral {
     fn format_node(
         &self,
-        _node_id: NodeId<StructLiteral>,
+        node_id: NodeId<StructLiteral>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         write!(
             f,
             [group(&format_args![
@@ -130,24 +155,34 @@ impl<'ast> FormatNode<'ast, StructLiteral> for StructLiteral {
                 if_group_fits_on_line(&space()),
                 token("}"),
             ])]
-        )
+        )?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
 impl<'ast> FormatNode<'ast, FieldLiteral> for FieldLiteral {
     fn format_node(
         &self,
-        _node_id: NodeId<FieldLiteral>,
+        node_id: NodeId<FieldLiteral>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             FieldLiteral::Named { name, value } => {
-                write!(f, [name, token(": "), value])
+                write!(f, [name, token(": "), value])?;
             }
             FieldLiteral::NamedShorthand { name } => {
-                write!(f, [name])
+                write!(f, [name])?;
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
@@ -273,23 +308,23 @@ mod tests {
     use crate::{DystFormatOptions, assert_format};
 
     #[test]
-    fn test_format_void() {
+    fn test_format_void_literal() {
         assert_format!("void", "void", |p| p.eat_scalar_literal());
     }
 
     #[test]
-    fn test_format_null() {
+    fn test_format_null_literal() {
         assert_format!("null", "null", |p| p.eat_scalar_literal());
     }
 
     #[test]
-    fn test_format_boolean() {
+    fn test_format_boolean_literal() {
         assert_format!("true", "true", |p| p.eat_scalar_literal());
         assert_format!("false", "false", |p| p.eat_scalar_literal());
     }
 
     #[test]
-    fn test_format_integer() {
+    fn test_format_integer_literal() {
         assert_format!(
             "1",
             "1",
@@ -299,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_integer_long() {
+    fn test_format_integer_literal_long() {
         assert_format!(
             "1_000_000",
             "1_000_000",
@@ -309,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_integer_hex() {
+    fn test_format_integer_literal_hex() {
         assert_format!(
             "0x1234",
             "0x1234",
@@ -319,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_integer_hex_long() {
+    fn test_format_integer_literal_hex_long() {
         assert_format!(
             "0x1234_5678",
             "0x1234_5678",
@@ -329,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_integer_binary() {
+    fn test_format_integer_literal_binary() {
         assert_format!(
             "0b1010",
             "0b1010",
@@ -339,7 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_float() {
+    fn test_format_float_literal() {
         assert_format!(
             "1.0",
             "1.0",
@@ -349,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_float_long() {
+    fn test_format_float_literal_long() {
         assert_format!(
             "1.0e38",
             "1.0e38",
@@ -359,7 +394,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_string() {
+    fn test_format_string_literal() {
         assert_format!(
             "\"Hello, world!\"",
             "\"Hello, world!\"",
@@ -369,7 +404,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_string_multiline() {
+    fn test_format_string_literal_multiline() {
         assert_format!(
             "\"Hello, world!\nHello, world!\"",
             "\"Hello, world!\nHello, world!\"",
@@ -380,13 +415,13 @@ mod tests {
 
     /// If the tuple fits on a single line, it should print on a single line.
     #[test]
-    fn test_format_tuple_short() {
+    fn test_format_tuple_literal_short() {
         assert_format!("(1, 2, 3)", "(1, 2, 3)", |p| p.eat_tuple_literal());
     }
 
     /// If the tuple doesn't fit on a single line, it should print one element per line (indented).
     #[test]
-    fn test_format_tuple_long() {
+    fn test_format_tuple_literal_long() {
         assert_format!(
             "(1, 2, 3, 4, 5)",
             "(\n\t1\n\t2\n\t3\n\t4\n\t5\n)",
@@ -397,13 +432,13 @@ mod tests {
 
     /// If the array fits on a single line, it should print on a single line.
     #[test]
-    fn test_format_array_short() {
+    fn test_format_array_literal_short() {
         assert_format!("[1, 2, 3]", "[1, 2, 3]", |p| p.eat_array_literal());
     }
 
     /// If the array doesn't fit on a single line, it should print one element per line (indented).
     #[test]
-    fn test_format_array_long() {
+    fn test_format_array_literal_long() {
         assert_format!(
             "[1, 2, 3, 4, 5]",
             "[\n\t1\n\t2\n\t3\n\t4\n\t5\n]",
@@ -414,19 +449,31 @@ mod tests {
 
     /// If the struct fits on a single line, it should print on a single line.
     #[test]
-    fn test_format_struct_short() {
+    fn test_format_struct_literal_short() {
         assert_format!("Vector2 { x: 1, y: 2 }", "Vector2 { x: 1, y: 2 }", |p| p
             .eat_struct_literal());
     }
 
     /// If the struct doesn't fit on a single line, it should print one field per line (indented).
     #[test]
-    fn test_format_struct_long() {
+    fn test_format_struct_literal_long() {
         assert_format!(
             "Vector4 { x: 1, y: 2, z: 3, w: 4 }",
             "Vector4 {\n\tx: 1\n\ty: 2\n\tz: 3\n\tw: 4\n}",
             |p| p.eat_struct_literal(),
             DystFormatOptions::default_tab_with_line_width(10)
+        );
+    }
+
+
+    #[test]
+    fn test_format_struct_literal_with_annotations() {
+        let source = r"Vector2 { #x x: 0.0, #y y: 0.0 }";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_struct_literal(),
+            DystFormatOptions::default()
         );
     }
 }

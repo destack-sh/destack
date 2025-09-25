@@ -86,9 +86,11 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
 impl<'ast> FormatNode<'ast, PatternField> for PatternField {
     fn format_node(
         &self,
-        _node_id: NodeId<PatternField>,
+        node_id: NodeId<PatternField>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             PatternField::Named {
                 name,
@@ -104,9 +106,9 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [mutability_token, space(), name])?;
                 }
                 if let Some(pattern) = pattern {
-                    write!(f, [name, token(": "), pattern])
+                    write!(f, [name, token(": "), pattern])?;
                 } else {
-                    write!(f, [name])
+                    write!(f, [name])?;
                 }
             }
             PatternField::NamedAlias {
@@ -122,10 +124,14 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     };
                     write!(f, [mutability_token, space(), name])?;
                 }
-                write!(f, [name, token(": "), alias])
+                write!(f, [name, token(": "), alias])?;
             }
-            PatternField::Positional { pattern } => write!(f, [pattern]),
+            PatternField::Positional { pattern } => write!(f, [pattern])?,
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 

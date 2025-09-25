@@ -10,10 +10,10 @@ use dyst_fir::write;
 impl<'ast> FormatNode<'ast, Struct> for Struct {
     fn format_node(
         &self,
-        _node_id: NodeId<Struct>,
+        node_id: NodeId<Struct>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [f.context().any_prefix_annotations(_node_id)])?;
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         // split tuple vs struct fields
         let tuple_fields: &[NodeId<StructField>] = if self.style == StructStyle::Tuple {
             &self.fields
@@ -149,9 +149,9 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
             )?;
         }
 
-        write!(f, [f.context().block_infix_annotations(_node_id)])?;
+        write!(f, [f.context().block_infix_annotations(node_id)])?;
         write!(f, [hard_line_break(), token("}")])?;
-        write!(f, [f.context().any_postfix_annotations(_node_id)])?;
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -164,17 +164,22 @@ impl<'ast> FormatNode<'ast, StructField> for StructField {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // name
         if let Some(name) = self.name {
             write!(f, [name, token(": ")])?;
         }
+
         // type
         write!(f, [self.r#type])?;
+
         // default
         if let Some(default) = self.default {
             write!(f, [token(" = "), default])?;
         }
+
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
         Ok(())
     }
 }

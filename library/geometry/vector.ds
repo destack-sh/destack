@@ -12,6 +12,16 @@ struct Vector2 {
 }
 @assert(@sizeOf(Vector2) == 8)
 
+function clampScalar(v: float32, lo: float32, hi: float32) => float32 {
+    if v < lo {
+        lo
+    } else if v > hi {
+        hi
+    } else {
+        v
+    }
+}
+
 implement Vector2 {
     /// The zero Vector2 (0, 0).
     let Zero: Vector2 = Vector2 { x: 0.0, y: 0.0 }
@@ -97,16 +107,6 @@ implement Vector2 {
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector2, max: Vector2) => Vector2 {
-        let clampScalar =
-            function (v: float32, lo: float32, hi: float32) => float32 {
-                if v < lo {
-                    lo
-                } else if v > hi {
-                    hi
-                } else {
-                    v
-                }
-            }
         Vector2 { x: clampScalar(self.x, min.x, max.x), y: clampScalar(self.y, min.y, max.y) }
     }
 
@@ -271,16 +271,6 @@ implement Vector3 {
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector3, max: Vector3) => Vector3 {
-        let clampScalar =
-            function (v: float32, lo: float32, hi: float32) => float32 {
-                if v < lo {
-                    lo
-                } else if v > hi {
-                    hi
-                } else {
-                    v
-                }
-            }
         Vector3 {
             x: clampScalar(self.x, min.x, max.x)
             y: clampScalar(self.y, min.y, max.y)
@@ -453,16 +443,6 @@ implement Vector4 {
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector4, max: Vector4) => Vector4 {
-        let clampScalar =
-            function (v: float32, lo: float32, hi: float32) => float32 {
-                if v < lo {
-                    lo
-                } else if v > hi {
-                    hi
-                } else {
-                    v
-                }
-            }
         Vector4 {
             x: clampScalar(self.x, min.x, max.x)
             y: clampScalar(self.y, min.y, max.y)
@@ -629,16 +609,6 @@ implement Vector2i {
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector2i, max: Vector2i) => Vector2i {
-        let clampScalar =
-            function (v: int32, lo: int32, hi: int32) => int32 {
-                if v < lo {
-                    lo
-                } else if v > hi {
-                    hi
-                } else {
-                    v
-                }
-            }
         Vector2i { x: clampScalar(self.x, min.x, max.x), y: clampScalar(self.y, min.y, max.y) }
     }
 
@@ -649,7 +619,7 @@ implement Vector2i {
 
     /// Create a copy with a different y component.
     function withY(self, y: int32) => Vector2i {
-        Vector2i { x: self.x, y }
+        Vector2i { x: self.x, y: y }
     }
 }
 
@@ -783,16 +753,6 @@ implement Vector3i {
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector3i, max: Vector3i) => Vector3i {
-        let clampScalar =
-            function (v: int32, lo: int32, hi: int32) => int32 {
-                if v < lo {
-                    lo
-                } else if v > hi {
-                    hi
-                } else {
-                    v
-                }
-            }
         Vector3i {
             x: clampScalar(self.x, min.x, max.x)
             y: clampScalar(self.y, min.y, max.y)
@@ -958,16 +918,6 @@ implement Vector4i {
 
     /// Clamp each component between corresponding min and max values.
     function clamp(self, min: Vector4i, max: Vector4i) => Vector4i {
-        let clampScalar =
-            function (v: int32, lo: int32, hi: int32) => int32 {
-                if v < lo {
-                    lo
-                } else if v > hi {
-                    hi
-                } else {
-                    v
-                }
-            }
         Vector4i {
             x: clampScalar(self.x, min.x, max.x)
             y: clampScalar(self.y, min.y, max.y)
