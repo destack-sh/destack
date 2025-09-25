@@ -161,14 +161,16 @@ where
                 annotation.format_node(annotation_id, f)?;
 
                 // insert space / newline
-                if position == AnnotationPosition::LinePrefix {
-                    write!(f, [space()])?;
-                } else if position == AnnotationPosition::BlockInfix
-                    || position == AnnotationPosition::BlockPrefix
-                    || position == AnnotationPosition::BlockPostfix
-                    || position == AnnotationPosition::LinePostfixBoundary
-                {
-                    write!(f, [hard_line_break()])?;
+                match position {
+                    AnnotationPosition::LinePrefix | AnnotationPosition::LinePostfix => {
+                        write!(f, [space()])?;
+                    }
+                    AnnotationPosition::BlockInfix
+                    | AnnotationPosition::BlockPrefix
+                    | AnnotationPosition::BlockPostfix
+                    | AnnotationPosition::LinePostfixBoundary => {
+                        write!(f, [hard_line_break()])?;
+                    }
                 }
             }
         }
@@ -223,7 +225,7 @@ impl<'ast> FormatNode<'ast, Doc> for Doc {
         let string = f.context().session.strings.get(self.string);
         let is_multi_line = string.contains('\n');
         match self.style {
-            DocStyle::Block if !is_multi_line => {
+            DocStyle::Star if !is_multi_line => {
                 // block doc comment with `/**` and `*/`
                 //  (unless multiline, we auto-convert to line comments)
                 write!(
@@ -254,7 +256,7 @@ impl<'ast> FormatNode<'ast, Comment> for Comment {
         let string = f.context().session.strings.get(self.string);
         let is_multi_line = string.contains('\n');
         match self.style {
-            CommentStyle::Block if !is_multi_line => {
+            CommentStyle::Star if !is_multi_line => {
                 // block comment with `/*` and `*/`
                 //  (unless multiline, we auto-convert to line comments)
                 write!(f, [token("/*"), space(), self.string, space(), token("*/")])?;
@@ -343,11 +345,11 @@ mod tests {
         );
     }
 
-    /// Inline statement comments should be preserved.
+    /// Inline statement comments should be preserved with proper spacing.
     #[test]
     fn test_format_inline_statement_comment() {
         assert_format!(
-            "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */\n",
+            "/* Pre-X comment */let X=/* Pre-A comment */A/* A comment */&&B/* B comment */\n",
             "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */\n",
             |p| p.eat_statement(),
             DystFormatOptions::default()

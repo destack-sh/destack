@@ -431,11 +431,11 @@ impl<'a> Parser<'a> {
             .filter(|s| s.span.start == span.start)
             .collect::<Vec<_>>();
         match search {
-            NodeSearch::BiggestOuter => {
+            NodeSearch::Outer => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::SmallestInner => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, span.idx as i64));
+            NodeSearch::Inner => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
             }
         }
         enclosing_spans.into_iter().next()
@@ -451,11 +451,11 @@ impl<'a> Parser<'a> {
             .filter(|s| s.span.end == span.end)
             .collect::<Vec<_>>();
         match search {
-            NodeSearch::BiggestOuter => {
+            NodeSearch::Outer => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::SmallestInner => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, span.idx as i64));
+            NodeSearch::Inner => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
             }
         }
         enclosing_spans.into_iter().next()
@@ -471,11 +471,11 @@ impl<'a> Parser<'a> {
             return None;
         }
         match search {
-            NodeSearch::BiggestOuter => {
+            NodeSearch::Outer => {
                 enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
             }
-            NodeSearch::SmallestInner => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, span.idx as i64));
+            NodeSearch::Inner => {
+                enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
             }
         }
         enclosing_spans.into_iter().next()

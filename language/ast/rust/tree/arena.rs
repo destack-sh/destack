@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-
 /// NodeArena for storing AST nodes.
 ///
 /// Provides stable NodeId handles for nodes and efficient access to both
