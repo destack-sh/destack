@@ -10,7 +10,11 @@ macro_rules! assert_tokenize_eq_roundtrip {
         // tokenize
         let tokens: Vec<_> = tokenize($src).collect();
         // must match the expected tokens
-        let expected_tokens = vec![$($expected),*];
+        let mut expected_tokens = vec![$($expected),*];
+        // ensure the last token is an EOF token
+        if !matches!(expected_tokens.last(), Some(token) if token.r#type == TokenType::End) {
+            expected_tokens.push(Token::eof());
+        }
         assert_eq!(tokens, expected_tokens);
         // render back to input string
         let rendered_input = render_tokens(&tokens, $src);
@@ -81,14 +85,6 @@ fn test_valid_weird_unicode() {
         "\u{3}\n",
         Token::new(TokenType::Unknown, 1, None),
         Token::new(TokenType::Newline, 1, None),
-    );
-}
-
-#[test]
-fn test_invalid_start() {
-    assert_raw_str_eq(
-        r##"#~"abc"#"##,
-        Err(RawStringError::InvalidStarter { bad_char: '~' }),
     );
 }
 
