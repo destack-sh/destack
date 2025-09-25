@@ -11,9 +11,10 @@ use dyst_fir::{format_args, write};
 impl<'ast> FormatNode<'ast, Type> for Type {
     fn format_node(
         &self,
-        _node_id: NodeId<Type>,
+        node_id: NodeId<Type>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         match self {
             Type::Infer => write!(f, [token("_")]),
             Type::Maybe(type_) => write!(f, [type_, token("?")]),
@@ -92,7 +93,9 @@ impl<'ast> FormatNode<'ast, Type> for Type {
                     .finish())]
             ),
             Type::Function(function) => write!(f, [function]),
-        }
+        }?;
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        Ok(())
     }
 }
 

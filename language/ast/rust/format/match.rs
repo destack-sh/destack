@@ -38,9 +38,11 @@ impl<'ast> FormatNode<'ast, Match> for Match {
 impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
     fn format_node(
         &self,
-        _node_id: NodeId<MatchCase>,
+        node_id: NodeId<MatchCase>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             MatchCase::Expression {
                 pattern,
@@ -52,7 +54,7 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
                 if let Some(guard) = guard {
                     write!(f, [space(), Keyword::If, space(), *guard])?;
                 }
-                write!(f, [token(" => "), *body])
+                write!(f, [token(" => "), *body])?;
             }
             MatchCase::Block {
                 pattern,
@@ -64,9 +66,13 @@ impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
                 if let Some(guard) = guard {
                     write!(f, [space(), Keyword::If, space(), *guard])?;
                 }
-                write!(f, [token(" => "), *body])
+                write!(f, [token(" => "), *body])?;
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 

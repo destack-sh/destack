@@ -44,9 +44,11 @@ impl<'ast> FormatNode<'ast, Use> for Use {
 impl<'ast> FormatNode<'ast, UseClause> for UseClause {
     fn format_node(
         &self,
-        _node_id: NodeId<UseClause>,
+        node_id: NodeId<UseClause>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // target expression
         write!(f, [self.target])?;
 
@@ -72,6 +74,8 @@ impl<'ast> FormatNode<'ast, UseClause> for UseClause {
             write!(f, [token(" as "), alias])?;
         }
 
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
         Ok(())
     }
 }
@@ -79,14 +83,19 @@ impl<'ast> FormatNode<'ast, UseClause> for UseClause {
 impl<'ast> FormatNode<'ast, UseItem> for UseItem {
     fn format_node(
         &self,
-        _node_id: NodeId<UseItem>,
+        node_id: NodeId<UseItem>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // name and alias
         write!(f, [self.name])?;
         if let Some(alias) = self.alias {
             write!(f, [token(" as "), alias])?;
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
         Ok(())
     }
 }

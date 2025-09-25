@@ -30,16 +30,19 @@ impl<'ast> FormatNode<'ast, Tuple> for Tuple {
 impl<'ast> FormatNode<'ast, TupleField> for TupleField {
     fn format_node(
         &self,
-        _node_id: NodeId<TupleField>,
+        node_id: NodeId<TupleField>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
         match self {
             TupleField::Named { name, r#type } => {
-                write!(f, [name, token(":"), space(), r#type])
+                write!(f, [name, token(":"), space(), r#type])?;
             }
             TupleField::Positional { r#type } => {
-                write!(f, [r#type])
+                write!(f, [r#type])?;
             }
-        }
+        };
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        Ok(())
     }
 }

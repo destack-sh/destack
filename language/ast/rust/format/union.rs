@@ -136,9 +136,11 @@ impl<'ast> FormatNode<'ast, Union> for Union {
 impl<'ast> FormatNode<'ast, UnionField> for UnionField {
     fn format_node(
         &self,
-        _node_id: NodeId<UnionField>,
+        node_id: NodeId<UnionField>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        
         // name
         write!(f, [self.name])?;
 
@@ -194,6 +196,8 @@ impl<'ast> FormatNode<'ast, UnionField> for UnionField {
         if let Some(value) = self.value {
             write!(f, [space(), token("="), space(), value])?;
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())
     }

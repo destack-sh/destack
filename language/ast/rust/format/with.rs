@@ -34,9 +34,11 @@ impl<'ast> FormatNode<'ast, With> for With {
 impl<'ast> FormatNode<'ast, WithClause> for WithClause {
     fn format_node(
         &self,
-        _node_id: NodeId<WithClause>,
+        node_id: NodeId<WithClause>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             WithClause::Declaration { target, alias } => {
                 // target
@@ -45,13 +47,16 @@ impl<'ast> FormatNode<'ast, WithClause> for WithClause {
                 if let Some(alias) = alias {
                     write!(f, [token(" as "), *alias])?;
                 }
-                Ok(())
             }
             WithClause::Assertion { target, assertion } => {
                 // target and assertion
-                write!(f, [*target, token(": "), *assertion])
+                write!(f, [*target, token(": "), *assertion])?;
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
