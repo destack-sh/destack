@@ -284,7 +284,9 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
     ) -> FormatResult<()> {
         let string = f.context().session.strings.get(self.name);
         write!(f, [token("#"), text(string)])?;
-        if let Some(arguments) = &self.arguments {
+        if let Some(arguments) = &self.arguments
+            && !arguments.is_empty()
+        {
             write!(
                 f,
                 [group(&format_args![
@@ -336,6 +338,36 @@ mod tests {
     let A = 1
     // comment part 3
     // comment part 4
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_statement(),
+            DystFormatOptions::default()
+        );
+    }
+
+    /// Multiple comments around an expression should retain their order across successive blocks.
+    #[test]
+    fn test_format_multiple_comments_around_statement_in_successive_blocks() {
+        let source = "{
+    // comment part 0
+    a: {
+        // comment part 1
+        // comment part 2
+        let A = 1
+        // comment part 3
+        // comment part 4
+    }
+    // comment part 5
+    // comment part 6
+    b: {
+        // comment part 7
+        // comment part 8
+        let B = 2
+        // comment part 9
+        // comment part 10
+    }
 }";
         assert_format!(
             source,

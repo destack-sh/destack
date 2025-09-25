@@ -32,26 +32,24 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
         }
 
         // static parameters
-        if let Some(static_parameters) = &self.static_parameters {
-            if static_parameters.is_empty() {
-                write!(f, [token("<>")])?;
-            } else {
-                write!(
-                    f,
-                    [group(&format_args![
-                        token("<"),
-                        soft_block_indent(&format_with(|f| {
-                            f.join_with(&format_with(|f| {
-                                if_group_fits_on_line(&token(",")).format(f)?;
-                                soft_line_break_or_space().format(f)
-                            }))
-                            .entries(static_parameters)
-                            .finish()
-                        })),
-                        token(">")
-                    ])]
-                )?;
-            }
+        if let Some(static_parameters) = &self.static_parameters
+            && !static_parameters.is_empty()
+        {
+            write!(
+                f,
+                [group(&format_args![
+                    token("<"),
+                    soft_block_indent(&format_with(|f| {
+                        f.join_with(&format_with(|f| {
+                            if_group_fits_on_line(&token(",")).format(f)?;
+                            soft_line_break_or_space().format(f)
+                        }))
+                        .entries(static_parameters)
+                        .finish()
+                    })),
+                    token(">")
+                ])]
+            )?;
         }
 
         // super types

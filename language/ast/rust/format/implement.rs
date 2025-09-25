@@ -16,26 +16,24 @@ impl<'ast> FormatNode<'ast, Implement> for Implement {
         write!(f, [Keyword::Implement])?;
 
         // static arguments
-        if let Some(static_arguments) = &self.static_arguments {
-            if static_arguments.is_empty() {
-                write!(f, [token("<>")])?;
-            } else {
-                write!(
-                    f,
-                    [group(&format_args![
-                        token("<"),
-                        soft_block_indent(&format_with(|f| {
-                            f.join_with(&format_args![
-                                if_group_fits_on_line(&token(",")),
-                                soft_line_break_or_space()
-                            ])
-                            .entries(static_arguments)
-                            .finish()
-                        })),
-                        token(">")
-                    ])]
-                )?;
-            }
+        if let Some(static_arguments) = &self.static_arguments
+            && !static_arguments.is_empty()
+        {
+            write!(
+                f,
+                [group(&format_args![
+                    token("<"),
+                    soft_block_indent(&format_with(|f| {
+                        f.join_with(&format_args![
+                            if_group_fits_on_line(&token(",")),
+                            soft_line_break_or_space()
+                        ])
+                        .entries(static_arguments)
+                        .finish()
+                    })),
+                    token(">")
+                ])]
+            )?;
         }
 
         // receiver
