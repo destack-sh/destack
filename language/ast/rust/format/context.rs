@@ -251,6 +251,39 @@ impl<'ast> DystFormatContext<'ast> {
         Some(self.tree.get_annotations_for(node_id.id).to_vec())
     }
 
+    /// Check if a node has a prefix annotation.
+    #[inline]
+    pub fn has_prefix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.get_annotations(node_id).is_some_and(|annotations| {
+            annotations.iter().any(|annotation| {
+                let position = self.tree.get::<Annotation>(*annotation).position();
+                position == AnnotationPosition::BlockPrefix
+                    || position == AnnotationPosition::LinePrefix
+            })
+        })
+    }
+
+    /// Check if a node has a postfix annotation.
+    #[inline]
+    pub fn has_postfix_annotation<T>(&self, node_id: NodeId<T>) -> bool
+    where
+        T: Node,
+        NodeTree: NodeTreeStore<T>,
+    {
+        self.get_annotations(node_id).is_some_and(|annotations| {
+            annotations.iter().any(|annotation| {
+                let position = self.tree.get::<Annotation>(*annotation).position();
+                position == AnnotationPosition::BlockPostfix
+                    || position == AnnotationPosition::LinePostfix
+                    || position == AnnotationPosition::LinePostfixBoundary
+            })
+        })
+    }
+
     /// Check if a node has a blank block prefix annotation.
     #[inline]
     pub fn has_blank_prefix_annotation<T>(&self, node_id: NodeId<T>) -> bool

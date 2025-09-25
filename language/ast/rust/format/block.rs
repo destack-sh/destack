@@ -224,4 +224,19 @@ mod tests {
             DystFormatOptions::default()
         );
     }
+
+    #[test]
+    fn test_format_mixed_block_with_postfix_annotations_mixed() {
+        let source = "{
+    let X = 1 #x // this is my X
+    let Y = 2 #y // this is my Y
+    let Z = 3 #z // this is my Z
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
 }

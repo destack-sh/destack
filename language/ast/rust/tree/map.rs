@@ -8,9 +8,9 @@ use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, NodeTreeStore, walk_an
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NodeSearch {
     /// Search for the biggest outermost node that matches.
-    BiggestOuter,
-    /// Search for the smallest innermost node that matches
-    SmallestInner,
+    Outer,
+    /// Search for the smallest outermost node that matches.
+    Inner,
 }
 
 /// The NodeSpanIndex is a side index of Spans into a NodeTree.

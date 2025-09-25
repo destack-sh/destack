@@ -17,6 +17,17 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
+impl Annotation {
+    pub fn position(&self) -> AnnotationPosition {
+        match self {
+            Annotation::Blank { position, .. } => *position,
+            Annotation::Doc { position, .. } => *position,
+            Annotation::Comment { position, .. } => *position,
+            Annotation::Tag { position, .. } => *position,
+        }
+    }
+}
+
 impl<'a> Parser<'a> {
     /// Pre-parse unattached annotations (like Tags).
     /// We do one full pass and consume the entire Parser.
@@ -184,7 +195,7 @@ impl<'a> Parser<'a> {
                 token_idx as u32,
                 tokens,
                 &token_group,
-                false,
+                true,
                 ignore_span,
             ) else {
                 continue;
@@ -215,21 +226,45 @@ impl<'a> Parser<'a> {
 
         let start_token = group[0];
         let end_token = group[group.len() - 1];
-        let prev_token = if token_idx > 0 {
-            Some(tokens[token_idx as usize - 1])
-        } else {
-            None
-        };
-        let next_token = tokens.get(token_idx as usize + group.len());
         let is_one_line = self.is_same_line(start_token.span, end_token.span);
 
-        // nocheckin: only attach annotations forward/backward within same parent node?
+        // nocheckin: only attach annotations forward/backward within innermost / same parent node?
 
         // line prefix or postfix (or block infix if we have nothing)
         // entire span must be on one line together with the previous/next token
-        if is_one_line
-        // && prev_token.token.r#type != TokenType::Newline
-        {
+        if is_one_line {
+            // find previous token not in ignore span
+            let prev_token = if token_idx > 0 {
+                let mut prev_token_idx = token_idx as usize - 1;
+                loop {
+                    let Some(prev_token) = tokens.get(prev_token_idx) else {
+                        break None;
+                    };
+                    if !ignore_span.contains(&prev_token.span) {
+                        break Some(prev_token);
+                    } else {
+                        prev_token_idx -= 1;
+                    }
+                }
+            } else {
+                None
+            };
+
+            // find next token not in ignore span
+            let next_token = {
+                let mut next_token_idx = token_idx as usize + group.len();
+                loop {
+                    let Some(next_token) = tokens.get(next_token_idx) else {
+                        break None;
+                    };
+                    if !ignore_span.contains(&next_token.span) {
+                        break Some(next_token);
+                    } else {
+                        next_token_idx += 1;
+                    }
+                }
+            };
+
             // line postfix has directly preceding node that ends at the start token
             if let Some(prev_token) = prev_token
                 && self.is_same_line(prev_token.span, end_token.span)
@@ -238,9 +273,9 @@ impl<'a> Parser<'a> {
                     .find_node_ending_at(
                         &prev_token.span,
                         if is_full_line {
-                            NodeSearch::BiggestOuter
+                            NodeSearch::Outer
                         } else {
-                            NodeSearch::SmallestInner
+                            NodeSearch::Inner
                         },
                     )
                     .map(|span| span.idx)
@@ -262,23 +297,11 @@ impl<'a> Parser<'a> {
                 && next_token.token.r#type != TokenType::Newline
                 && self.is_same_line(end_token.span, next_token.span)
                 && let Some(target_node_id) = self
-                    .find_node_starting_at(&next_token.span, NodeSearch::SmallestInner)
+                    .find_node_starting_at(&next_token.span, NodeSearch::Inner)
                     .map(|span| span.idx)
             {
                 return Some((AnnotationPosition::LinePrefix, target_node_id));
             }
-            // nocheckin
-            // // block infix has no directly preceding node, but have enclosing node
-            // else if let Some(target_node_id) = self
-            //     .find_node_enclosing(&prev_token.span, NodeSearch::SmallestInner)
-            //     .map(|span| span.idx)
-            // {
-            //     return Some((AnnotationPosition::BlockInfix, target_node_id));
-            // }
-            // // no directly preceding node, no enclosing node, floating
-            // else {
-            //     return None;
-            // }
         }
 
         // find the following targetable token (block postfix)
@@ -299,7 +322,7 @@ impl<'a> Parser<'a> {
         };
         if let Some(next_targetable_token) = next_targetable_token
             && let Some(next_node) =
-                self.find_node_starting_at(&next_targetable_token.span, NodeSearch::BiggestOuter)
+                self.find_node_starting_at(&next_targetable_token.span, NodeSearch::Outer)
         {
             return Some((AnnotationPosition::BlockPrefix, next_node.idx));
         }
@@ -322,14 +345,13 @@ impl<'a> Parser<'a> {
         };
         if let Some(prev_targetable_token) = prev_targetable_token
             && let Some(prev_node) =
-                self.find_node_ending_at(&prev_targetable_token.span, NodeSearch::BiggestOuter)
+                self.find_node_ending_at(&prev_targetable_token.span, NodeSearch::Outer)
         {
             return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
         }
 
         // find inner enclosing node (block infix)
-        if let Some(enclosing_node) =
-            self.find_node_enclosing(&start_token.span, NodeSearch::SmallestInner)
+        if let Some(enclosing_node) = self.find_node_enclosing(&start_token.span, NodeSearch::Inner)
         {
             return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
         }
@@ -385,7 +407,7 @@ impl<'a> Parser<'a> {
                 let comment = self.tree.allocate(
                     Comment {
                         string,
-                        style: CommentStyle::Line,
+                        style: CommentStyle::Slash,
                     },
                     span,
                 );
@@ -402,7 +424,7 @@ impl<'a> Parser<'a> {
                 let comment = self.tree.allocate(
                     Comment {
                         string,
-                        style: CommentStyle::Block,
+                        style: CommentStyle::Star,
                     },
                     span,
                 );
@@ -419,7 +441,7 @@ impl<'a> Parser<'a> {
                 let doc = self.tree.allocate(
                     Doc {
                         string,
-                        style: DocStyle::Line,
+                        style: DocStyle::Slash,
                     },
                     span,
                 );
@@ -436,7 +458,7 @@ impl<'a> Parser<'a> {
                 let doc = self.tree.allocate(
                     Doc {
                         string,
-                        style: DocStyle::Block,
+                        style: DocStyle::Star,
                     },
                     span,
                 );
@@ -567,7 +589,7 @@ struct Test {}
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Doc { string, style } => {
                 assert_string!(parser.session, *string, "Test doc");
-                assert_eq!(*style, DocStyle::Line);
+                assert_eq!(*style, DocStyle::Slash);
             });
         });
         // tag block prefix
@@ -621,7 +643,7 @@ struct Test {}
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(parser.get_string(*string), "line comment");
-                assert_eq!(*style, CommentStyle::Line);
+                assert_eq!(*style, CommentStyle::Slash);
             });
         });
     }
@@ -646,7 +668,7 @@ over multiple lines with trailing space    */",
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(parser.get_string(*string), "line comment\nover multiple lines with trailing space");
-                assert_eq!(*style, CommentStyle::Block);
+                assert_eq!(*style, CommentStyle::Star);
             });
         });
     }
@@ -674,7 +696,7 @@ over multiple lines with trailing space    */",
                 assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 assert_node!(parser.tree, *node, Doc { string, style } => {
                     assert_eq!(parser.get_string(*string), "some multiline\nblock comment\nover multiple lines");
-                    assert_eq!(*style, DocStyle::Block);
+                    assert_eq!(*style, DocStyle::Star);
                 });
             });
         });
@@ -708,7 +730,7 @@ over multiple lines with trailing space    */",
                             assert_eq!(*position, AnnotationPosition::LinePrefix);
                             assert_node!(parser.tree, *node, Comment { string, style } => {
                                 assert_eq!(parser.get_string(*string), "Pre-A comment");
-                                assert_eq!(*style, CommentStyle::Block);
+                                assert_eq!(*style, CommentStyle::Star);
                             });
                         });
                         // line postfix, A comment
@@ -716,7 +738,7 @@ over multiple lines with trailing space    */",
                             assert_eq!(*position, AnnotationPosition::LinePostfix);
                             assert_node!(parser.tree, *node, Comment { string, style } => {
                                 assert_eq!(parser.get_string(*string), "A comment");
-                                assert_eq!(*style, CommentStyle::Block);
+                                assert_eq!(*style, CommentStyle::Star);
                             });
                         });
 
@@ -731,7 +753,7 @@ over multiple lines with trailing space    */",
                             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                             assert_node!(parser.tree, *node, Comment { string, style } => {
                                 assert_eq!(parser.get_string(*string), "B comment");
-                                assert_eq!(*style, CommentStyle::Block);
+                                assert_eq!(*style, CommentStyle::Star);
                             });
                         });
                     });
@@ -765,7 +787,7 @@ let A = 1 // line suffix comment
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(parser.get_string(*string), "block prefix comment");
-                assert_eq!(*style, CommentStyle::Line);
+                assert_eq!(*style, CommentStyle::Slash);
             });
         });
         // line postfix boundary comment
@@ -773,7 +795,7 @@ let A = 1 // line suffix comment
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(parser.get_string(*string), "line suffix comment");
-                assert_eq!(*style, CommentStyle::Line);
+                assert_eq!(*style, CommentStyle::Slash);
             });
         });
         // block postfix comment
@@ -781,7 +803,7 @@ let A = 1 // line suffix comment
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
             assert_node!(parser.tree, *node, Comment { string, style } => {
                 assert_eq!(parser.get_string(*string), "block postfix comment");
-                assert_eq!(*style, CommentStyle::Line);
+                assert_eq!(*style, CommentStyle::Slash);
             });
         });
     }
@@ -848,7 +870,7 @@ function main() {
                 assert_eq!(*position, AnnotationPosition::BlockInfix);
                 assert_node!(parser.tree, *node, Comment { string, style } => {
                     assert_eq!(parser.get_string(*string), "block comment, infix");
-                    assert_eq!(*style, CommentStyle::Line);
+                    assert_eq!(*style, CommentStyle::Slash);
                 });
             });
         });
@@ -888,7 +910,7 @@ struct Floof {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Doc { string, style } => {
                 assert_eq!(parser.get_string(*string), "doc, floating");
-                assert_eq!(*style, DocStyle::Line);
+                assert_eq!(*style, DocStyle::Slash);
             });
         });
         // blank block prefix
@@ -904,7 +926,7 @@ struct Floof {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
             assert_node!(parser.tree, *node, Doc { string, style } => {
                 assert_eq!(parser.get_string(*string), "doc, struct\ndoc, struct continued");
-                assert_eq!(*style, DocStyle::Line);
+                assert_eq!(*style, DocStyle::Slash);
             });
         });
 
@@ -924,7 +946,7 @@ struct Floof {
                         assert_eq!(*position, AnnotationPosition::BlockPrefix);
                         assert_node!(parser.tree, *node, Doc { string, style } => {
                             assert_eq!(parser.get_string(*string), "doc, struct field\ndoc, struct field continued");
-                            assert_eq!(*style, DocStyle::Line);
+                            assert_eq!(*style, DocStyle::Slash);
                         });
                     });
 
@@ -934,7 +956,7 @@ struct Floof {
                         assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(parser.get_string(*string), "doc, struct field infix");
-                            assert_eq!(*style, CommentStyle::Line);
+                            assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
 
@@ -951,7 +973,7 @@ struct Floof {
                         assert_eq!(*position, AnnotationPosition::BlockPostfix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_eq!(parser.get_string(*string), "random comment");
-                            assert_eq!(*style, CommentStyle::Line);
+                            assert_eq!(*style, CommentStyle::Slash);
                         });
                     });
                 });

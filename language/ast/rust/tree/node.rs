@@ -2170,16 +2170,13 @@ impl Node for Blank {
     const KIND: NodeType = NodeType::Blank;
 }
 
-// NOTE @Incomplete: parse doc/comment content (code reference like `Node`, tags like "NOTE", "#Performance", ...)
-//  use proper tags with # like in code? # for syntactic and non-syntactic regions/tags?
-
 /// A DocStyle is the style of a documentation comment.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DocStyle {
-    /// Line comment.
-    Line,
-    /// Block comment.
-    Block,
+    /// End of line comment.
+    Slash,
+    /// Star delimited comment.
+    Star,
 }
 
 /// A Doc is a full documentation comment string.
@@ -2209,10 +2206,10 @@ impl Node for Doc {
 /// A CommentStyle is the style of a comment.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum CommentStyle {
-    /// Line comment.
-    Line,
-    /// Block comment.
-    Block,
+    /// End of line comment.
+    Slash,
+    /// Star delimited comment.
+    Star,
 }
 
 /// A Comment is a free-floating comment.

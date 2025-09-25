@@ -74,12 +74,24 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 left,
                 operator,
                 right,
-            } => write!(f, [left, space(), operator, space(), right])?,
+            } => {
+                write!(f, [left])?;
+                if !f.context().has_postfix_annotation(*left) {
+                    write!(f, [space()])?;
+                }
+                write!(f, [operator, space(), right])?;
+            }
             Expression::Assign {
                 left,
                 operator,
                 right,
-            } => write!(f, [left, space(), operator, space(), right])?,
+            } => {
+                write!(f, [left])?;
+                if !f.context().has_postfix_annotation(*left) {
+                    write!(f, [space()])?;
+                }
+                write!(f, [operator, space(), right])?;
+            }
 
             Expression::Error => panic!("invalid expression: {self:?}"),
         };
