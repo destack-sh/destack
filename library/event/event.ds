@@ -1,4 +1,5 @@
 use dyst
+use destack.entity
 
 /// The consensus status of an Event.
 enum EventStatus {
@@ -13,7 +14,7 @@ enum EventStatus {
 /// An immutable datum of something happening to an Entity.
 struct Event {
     /// The logical time self Event was created (system).
-    createdEpoch: uint64
+    createdAt: Epoch
     /// The exclusive owner of self Entity (the root on access).
     owner: Reference<Entity>
     /// The Client that created self Event (client, but verified).
@@ -21,9 +22,9 @@ struct Event {
     /// The nonce of the Client that created self Event (client).
     clientNonce: uint8
     /// The logical time last seen from the system in the Client for self space (client).
-    clientRemoteEpoch: uint64
+    clientRemoteEpoch: Epoch
     /// The logical time in the Client when it created self Event (client).
-    clientLocalEpoch: uint64
+    clientLocalEpoch: Epoch
     /// The status of the Event (system).
     status: EventStatus = EventStatus.Pending
     /// The Event that caused self Event (if any).

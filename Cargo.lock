@@ -513,6 +513,7 @@ name = "destack_rust"
 version = "2025.9.25-2"
 dependencies = [
  "dyst_ast",
+ "dyst_fir",
  "dyst_prelude",
  "dyst_token",
  "quickcheck",

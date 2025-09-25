@@ -16,13 +16,18 @@ impl<'ast> FormatNode<'ast, If> for If {
                 condition,
                 then_block,
             } => {
-                // if <condition> { <block> }
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
-                write!(f, [Keyword::If, space(), *condition, space(), *then_block])
+                write!(
+                    f,
+                    [group(&format_with(|f| {
+                        // if <condition> { <block> }
+                        if let Some(runtime) = runtime
+                            && *runtime == Runtime::Static
+                        {
+                            write!(f, [token("@")])?;
+                        }
+                        write!(f, [Keyword::If, space(), *condition, space(), *then_block])
+                    }))]
+                )
             }
             If::IfElse {
                 runtime,
@@ -31,13 +36,27 @@ impl<'ast> FormatNode<'ast, If> for If {
                 else_block,
             } => {
                 // if <condition> { <block> } else { <block> }
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
-                write!(f, [Keyword::If, space(), *condition, space(), *then_block])?;
-                write!(f, [space(), Keyword::Else, space(), *else_block])
+                write!(
+                    f,
+                    [group(&format_with(|f| {
+                        if let Some(runtime) = runtime
+                            && *runtime == Runtime::Static
+                        {
+                            write!(f, [token("@")])?;
+                        }
+                        write!(f, [Keyword::If])?;
+                        write!(f, [space()])?;
+                        write!(f, [*condition])?;
+                        write!(f, [space()])?;
+                        write!(f, [*then_block])?;
+                        if !f.context().has_postfix_annotation(*then_block) {
+                            write!(f, [space()])?;
+                        }
+                        write!(f, [Keyword::Else])?;
+                        write!(f, [space()])?;
+                        write!(f, [*else_block])
+                    }))]
+                )
             }
             If::IfElseIf {
                 runtime,
@@ -46,13 +65,27 @@ impl<'ast> FormatNode<'ast, If> for If {
                 else_if,
             } => {
                 // if <condition> { <block> } else if { <block> }
-                if let Some(runtime) = runtime
-                    && *runtime == Runtime::Static
-                {
-                    write!(f, [token("@")])?;
-                }
-                write!(f, [Keyword::If, space(), *condition, space(), *then_block])?;
-                write!(f, [space(), Keyword::Else, space(), *else_if])
+                write!(
+                    f,
+                    [group(&format_with(|f| {
+                        if let Some(runtime) = runtime
+                            && *runtime == Runtime::Static
+                        {
+                            write!(f, [token("@")])?;
+                        }
+                        write!(f, [Keyword::If])?;
+                        write!(f, [space()])?;
+                        write!(f, [*condition])?;
+                        write!(f, [space()])?;
+                        write!(f, [*then_block])?;
+                        if !f.context().has_postfix_annotation(*then_block) {
+                            write!(f, [space()])?;
+                        }
+                        write!(f, [Keyword::Else])?;
+                        write!(f, [space()])?;
+                        write!(f, [*else_if])
+                    }))]
+                )
             }
         }
     }
@@ -103,19 +136,35 @@ mod tests {
         );
     }
 
+    /// All clauses of an if/else should break if any breaks.
+    #[test]
+    fn test_format_if_else_breaks_together() {
+        let source = r"if cond1 {
+    // comment inside cond1
+    let X = 1
+} else {
+    let Y = 2
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_if(None),
+            DystFormatOptions::default()
+        );
+    }
+
     #[test]
     fn test_format_if_else_if_with_comments() {
-        // NOTE #Incomplete: would be nicer to omit the space before `else` if possible
         let source = r"if cond1 {
     // comment inside cond1
     let X = 1
 }
 // comment before cond2
- else if cond2 {
+else if cond2 {
     let Y = 2 // comment trailing Y
 }
 // comment before else
- else {
+else {
     let Z = 3 // comment trailing Z
 }";
         assert_format!(
