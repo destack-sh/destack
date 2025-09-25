@@ -1,7 +1,7 @@
 use crate::{DystFormatter, FormatNode, NodeId, Statement};
-use dyst_language_fir::format::FormatResult;
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::write;
+use dyst_fir::format::FormatResult;
+use dyst_fir::prelude::*;
+use dyst_fir::write;
 
 impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(

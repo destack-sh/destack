@@ -4,9 +4,9 @@ use crate::{
     ArrayLiteral, DystFormatter, FieldLiteral, FormatNode, NodeId, RangeLiteral, ScalarLiteral,
     StructLiteral, TupleLiteral,
 };
-use dyst_language_fir::format::{Format, FormatResult, group, text, token};
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::format::{Format, FormatResult, group, text, token};
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, ScalarLiteral> for ScalarLiteral {
     fn format_node(

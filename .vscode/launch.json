@@ -9,12 +9,12 @@
             "stopOnEntry": true
         },
         {
-            "name": "destack_library_cli",
+            "name": "destack_cli",
             "type": "lldb",
             "request": "launch",
             "cargo": {
-                "args": ["run", "--bin", "destack_library_cli"],
-                "filter": { "kind": "bin", "name": "destack_library_cli" }
+                "args": ["run", "--bin", "destack_cli"],
+                "filter": { "kind": "bin", "name": "destack_cli" }
             },
             "args": ["fmt", "--file", "library/entity/entity.ds"],
             "cwd": "${workspaceFolder}",

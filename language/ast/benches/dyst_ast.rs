@@ -1,7 +1,9 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use destack_library_file::glob;
-use dyst_language_source::SourceId;
-use dyst_language_token::tokenize_with_spans;
+use destack_file::glob;
+use dyst_ast::{ModuleFormat, Parser};
+use dyst_session::Session;
+use dyst_source::{Source, SourceId, Uri};
+use dyst_token::TokenType;
 use pprof::criterion::{Output, PProfProfiler};
 use std::fs;
 use std::path::PathBuf;
@@ -42,15 +44,27 @@ fn bench_parse(c: &mut Criterion) {
             }
         }
     }
+    let source = Source::from_string(SourceId::new(0), Uri::from_string("input"), ds_str);
 
     // single benchmark over the whole workspace content
-    let mut group = c.benchmark_group("dyst_language_token");
-    let line_count = ds_str.lines().count() as u64;
+    let mut session = Session::new();
+    let mut group = c.benchmark_group("dyst_ast");
+    let line_count = source.content.lines().count() as u64;
     group.throughput(Throughput::Elements(line_count));
-    group.bench_with_input(BenchmarkId::new("lex", "all"), &ds_str, |b, input| {
+    group.bench_with_input(BenchmarkId::new("parse", "all"), &source, |b, source| {
         b.iter(|| {
-            let (tokens, _) = tokenize_with_spans(SourceId::new(0), input);
-            black_box(tokens);
+            let mut parser = Parser::prepare(source, &mut session);
+            let module = parser.with_recovery(
+                parser.mark(),
+                |parser| {
+                    parser
+                        .eat_module_body(None, None, ModuleFormat::Implicit)
+                        .map(Some)
+                },
+                None,
+                TokenType::End,
+            );
+            black_box(module);
         });
     });
     group.finish();

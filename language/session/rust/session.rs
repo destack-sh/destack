@@ -1,7 +1,7 @@
 #![allow(clippy::new_without_default)]
 
-use dyst_language_diagnostic::Diagnostic;
-use dyst_language_source::{Path, PathId, PathPool, SourceId, StringId, StringPool};
+use dyst_diagnostic::Diagnostic;
+use dyst_source::{Path, PathId, PathPool, SourceId, StringId, StringPool};
 
 /// A session for diagnostic operations.
 #[derive(Debug)]

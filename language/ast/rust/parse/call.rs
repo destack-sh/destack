@@ -1,7 +1,7 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
 use crate::parse::prelude::*;
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
 use crate::{

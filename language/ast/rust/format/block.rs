@@ -1,11 +1,11 @@
-use dyst_language_fir::format::FormatResult;
+use dyst_fir::format::FormatResult;
 
 use crate::{
     Block, Break, Continue, Defer, DystFormatContext, DystFormatter, FormatNode, Keyword, Node,
     NodeId, NodeTree, NodeTreeStore, NodeType, Return,
 };
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]

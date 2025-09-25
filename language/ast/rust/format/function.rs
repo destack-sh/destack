@@ -1,11 +1,11 @@
-use dyst_language_fir::format::FormatResult;
+use dyst_fir::format::FormatResult;
 
 use crate::r#let::FormatScopedMutability;
 use crate::{
     DystFormatter, FormatNode, Function, FunctionStyle, Keyword, NodeId, Runtime, Visibility,
 };
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, Function> for Function {
     fn format_node(

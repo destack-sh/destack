@@ -1,5 +1,5 @@
 [package]
-name = "dyst_language_source"
+name = "dyst_source"
 description = "Dyst Language Span"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

@@ -1,7 +1,7 @@
 //! Annotation parsing.
 
-use dyst_language_source::{MultiSpan, Span};
-use dyst_language_token::{TokenSpan, TokenType};
+use dyst_source::{MultiSpan, Span};
+use dyst_token::{TokenSpan, TokenType};
 
 use crate::parse::prelude::*;
 use crate::{
@@ -63,7 +63,7 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Tag)?;
 
         // name
-        let name = self.eat_identifier()?;
+        let name = self.eat_identifier().for_node_type(NodeType::Tag)?;
 
         // arguments
         let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {

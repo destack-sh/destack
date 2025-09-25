@@ -2,7 +2,7 @@
 # fuzzer is in its own workspace
 
 [package]
-name = "destack_library_time_fuzz"
+name = "destack_time_fuzz"
 description = "Destack Library Time Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
@@ -19,31 +19,31 @@ arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "destack_library_time_fuzz"
+name = "destack_time_fuzz"
 path = "fuzz_targets/time.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_library_date_fuzz"
+name = "destack_date_fuzz"
 path = "fuzz_targets/date.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_library_datetime_fuzz"
+name = "destack_datetime_fuzz"
 path = "fuzz_targets/datetime.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_library_duration_fuzz"
+name = "destack_duration_fuzz"
 path = "fuzz_targets/duration.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "destack_library_timestamp_fuzz"
+name = "destack_timestamp_fuzz"
 path = "fuzz_targets/timestamp.rs"
 test = false
 doc = false

@@ -1,5 +1,5 @@
 [package]
-name = "destack_test_simulation"
+name = "destack_simulation"
 description = "Destack Test Simulation"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

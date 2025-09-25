@@ -1,5 +1,5 @@
 use crate::Suggestion;
-use dyst_language_source::{LabeledSpan, SourceId};
+use dyst_source::{LabeledSpan, SourceId};
 
 /// The kind of a diagnostic.
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]

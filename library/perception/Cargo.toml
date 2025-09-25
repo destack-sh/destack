@@ -1,5 +1,5 @@
 [package]
-name = "destack_library_perception"
+name = "destack_perception"
 description = "Destack Library Perception"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

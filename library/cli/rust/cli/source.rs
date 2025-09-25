@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use dyst_language_ast::{BlockFormat, NodeVisitor, Parser, SemanticTokenIndex, SemanticType};
-use dyst_language_session::Session;
-use dyst_language_source::{Source, SourceId, Uri};
-use dyst_language_token::{TokenSpan, TokenType};
+use dyst_ast::{BlockFormat, NodeVisitor, Parser, SemanticTokenIndex, SemanticType};
+use dyst_session::Session;
+use dyst_source::{Source, SourceId, Uri};
+use dyst_token::{TokenSpan, TokenType};
 
 use crate::console::console;
 use crate::console::parse::CommandArguments;

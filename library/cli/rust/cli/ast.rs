@@ -1,10 +1,10 @@
 //! AST parsing subcommand.
 
-use dyst_language_ast::{BlockFormat, DumperOptions, NodeVisitor, Parser};
-use dyst_language_diagnostic::Severity;
-use dyst_language_session::Session;
-use dyst_language_source::{AnnotateOptions, Color, annotate_source};
-use dyst_language_token::TokenType;
+use dyst_ast::{BlockFormat, DumperOptions, NodeVisitor, Parser};
+use dyst_diagnostic::Severity;
+use dyst_session::Session;
+use dyst_source::{AnnotateOptions, Color, annotate_source};
+use dyst_token::TokenType;
 
 use crate::cli::source::read_source;
 use crate::console::console;

@@ -1,4 +1,4 @@
-use dyst_language_source::{SourceId, Span};
+use dyst_source::{SourceId, Span};
 
 use crate::format::{SourceMarker, TextLen};
 

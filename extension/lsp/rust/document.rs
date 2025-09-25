@@ -1,7 +1,7 @@
-use dyst_language_ast::{Module, ModuleFormat, NodeId, NodeTree, Parser};
-use dyst_language_session::Session;
-use dyst_language_source::Source;
-use dyst_language_token::{TokenSpan, TokenType};
+use dyst_ast::{Module, ModuleFormat, NodeId, NodeTree, Parser};
+use dyst_session::Session;
+use dyst_source::Source;
+use dyst_token::{TokenSpan, TokenType};
 
 #[derive(Debug, Clone)]
 pub struct Document {

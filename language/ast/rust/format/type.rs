@@ -1,12 +1,12 @@
-use dyst_language_fir::format::FormatResult;
+use dyst_fir::format::FormatResult;
 
 use crate::r#let::FormatScopedMutability;
 use crate::{
     DystFormatContext, DystFormatter, FloatType, FormatNode, IntType, Mutability, NodeId,
     PrimitiveType, ScopedMutability, Type,
 };
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, Type> for Type {
     fn format_node(

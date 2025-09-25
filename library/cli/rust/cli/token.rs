@@ -1,4 +1,4 @@
-use dyst_language_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
+use dyst_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
 use crate::cli::source::read_source;
 use crate::console::parse::CommandArguments;

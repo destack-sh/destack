@@ -1,6 +1,6 @@
 [package]
-name = "destack_library_prelude"
-description = "Destack Library Preload"
+name = "dyst_concurrency"
+description = "Dyst Language Concurrency"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

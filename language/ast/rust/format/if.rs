@@ -1,8 +1,8 @@
-use dyst_language_fir::format::FormatResult;
+use dyst_fir::format::FormatResult;
 
 use crate::{DystFormatter, FormatNode, If, Keyword, NodeId, Runtime};
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::write;
+use dyst_fir::prelude::*;
+use dyst_fir::write;
 
 impl<'ast> FormatNode<'ast, If> for If {
     fn format_node(

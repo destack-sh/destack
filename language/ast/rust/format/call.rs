@@ -1,8 +1,8 @@
-use dyst_language_fir::format::FormatResult;
+use dyst_fir::format::FormatResult;
 
 use crate::{Call, Cast, Coalesce, DystFormatter, FormatNode, Index, NodeId, Runtime};
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 impl<'ast> FormatNode<'ast, Index> for Index {
     fn format_node(

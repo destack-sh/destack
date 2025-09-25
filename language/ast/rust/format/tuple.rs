@@ -1,6 +1,6 @@
-use dyst_language_fir::format::FormatResult;
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::format::FormatResult;
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 use crate::{DystFormatter, FormatNode, NodeId, Tuple, TupleField};
 

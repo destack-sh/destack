@@ -1,5 +1,5 @@
 [package]
-name = "destack_library_image"
+name = "destack_image"
 description = "Destack Library Image"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

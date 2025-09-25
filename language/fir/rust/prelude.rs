@@ -14,7 +14,7 @@ pub use crate::format::formatter::Formatter;
 pub use crate::format::node::*;
 pub use crate::format::options::FormatOptions;
 pub use crate::format::tag::{FormatTag, FormatTagKind};
-pub use dyst_language_source::{Source, Span};
+pub use dyst_source::{Source, Span};
 
 pub use crate::format::{
     Buffer as _, BufferExtensions, Format, Format as _, FormatResult, SimpleFormatContext,

@@ -1,0 +1,21 @@
+[package]
+name = "dyst_string"
+description = "Dyst Language String"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "rust/lib.rs"
+doctest = true
+
+[dependencies]
+
+[dev-dependencies]
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use destack_library_unicode::xid::UnicodeXID;
+use destack_unicode::xid::UnicodeXID;
 
 /// Checks if `c` is considered a whitespace according to Unicode `Pattern_White_Space``.
 pub fn is_whitespace(c: char) -> bool {

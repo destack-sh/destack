@@ -1,13 +1,13 @@
 use core::fmt;
 use std::fmt::Debug;
 
-use dyst_language_source::{MultiSpan, Path, PathId, Source, SourceId, Span, StringId};
-use dyst_language_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
+use dyst_source::{MultiSpan, Path, PathId, Source, SourceId, Span, StringId};
+use dyst_token::{TokenSpan, TokenType, is_semantic, tokenize_with_spans};
 
 use crate::{
     Dumper, DumperOptions, EnclosingSpan, NodeSearch, NodeTree, NodeType, ParseError, ParseResult,
 };
-use dyst_language_session::Session;
+use dyst_session::Session;
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.

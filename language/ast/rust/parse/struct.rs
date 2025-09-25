@@ -2,7 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::parse::prelude::*;
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 use crate::parse::ParserOptions;
 use crate::parse::expression::ExpressionParserOptions;

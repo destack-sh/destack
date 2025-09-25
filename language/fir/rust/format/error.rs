@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use dyst_language_source::Span;
+use dyst_source::Span;
 
 use crate::format::{FormatTagKind, GroupId};
 

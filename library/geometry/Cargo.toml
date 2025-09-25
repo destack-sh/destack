@@ -1,5 +1,5 @@
 [package]
-name = "destack_library_geometry"
+name = "destack_geometry"
 description = "Destack Library Geometry"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

@@ -1,5 +1,5 @@
 [package]
-name = "destack_library_telemetry"
+name = "destack_telemetry"
 description = "Destack Library Observability"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

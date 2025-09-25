@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use dyst_language_source::Span;
+use dyst_source::Span;
 
 use crate::{CapturingNodeVisitor, Node, NodeId, NodeTree, NodeTreeStore, walk_any};
 

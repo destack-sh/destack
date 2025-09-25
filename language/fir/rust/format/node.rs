@@ -2,7 +2,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
 
-use dyst_language_source::Span;
+use dyst_source::Span;
 
 use crate::format::{BestFittingMode, BestFittingVariants, FormatTag, FormatTagKind, TextWidth};
 

@@ -1,5 +1,5 @@
 [package]
-name = "dyst_language_vm"
+name = "dyst_vm"
 description = "Dyst Language Virtual Machine"
 version.workspace = true
 edition.workspace = true
@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [lib]
 path = "rust/lib.rs"
+doctest = true
 
 [dependencies]
 

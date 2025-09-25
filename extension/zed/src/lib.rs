@@ -15,7 +15,7 @@ impl zed::Extension for DestackZedExtension {
     ) -> zed::Result<zed::Command> {
         // prefer the workspace-installed CLI server via PATH
         Ok(zed::Command {
-            command: "destack_extension_lsp".into(),
+            command: "destack_lsp".into(),
             args: vec![],
             env: vec![],
         })

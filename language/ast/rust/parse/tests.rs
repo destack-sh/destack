@@ -1,5 +1,5 @@
-use dyst_language_session::Session;
-use dyst_language_source::{Source, SourceId, Uri};
+use dyst_session::Session;
+use dyst_source::{Source, SourceId, Uri};
 
 use crate::Parser;
 
@@ -235,10 +235,10 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    use destack_library_file::glob;
-    use dyst_language_session::Session;
-    use dyst_language_source::{Source, SourceId};
-    use dyst_language_token::TokenType;
+    use destack_file::glob;
+    use dyst_session::Session;
+    use dyst_source::{Source, SourceId};
+    use dyst_token::TokenType;
 
     use crate::{BlockFormat, Parser};
 
@@ -282,10 +282,10 @@ mod tests {
         if !session.diagnostics.is_empty() {
             for diagnostic in session.diagnostics.iter() {
                 let source = sources.get(&diagnostic.source).unwrap();
-                let annotated = dyst_language_source::annotate_source(
+                let annotated = dyst_source::annotate_source(
                     source,
                     &diagnostic.primary_span,
-                    dyst_language_source::AnnotateOptions {
+                    dyst_source::AnnotateOptions {
                         max_line_width: 100,
                         prefix_lines: 1,
                         suffix_lines: 1,

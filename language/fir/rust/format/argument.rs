@@ -21,7 +21,7 @@ impl<Context> Clone for Argument<'_, Context> {
 impl<Context> Copy for Argument<'_, Context> {}
 
 impl<'fmt, Context> Argument<'fmt, Context> {
-    /// Called by the [dyst_language_fir::format_args] macro.
+    /// Called by the [dyst_fir::format_args] macro.
     #[doc(hidden)]
     #[inline]
     pub const fn new<F: Format<Context>>(value: &'fmt F) -> Self {

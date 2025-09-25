@@ -1,8 +1,8 @@
 #![no_main]
 
-use dyst_language_ast::{BlockFormat, Parser};
-use dyst_language_source::{Source, SourceId};
-use dyst_language_token::TokenType;
+use dyst_ast::{BlockFormat, Parser};
+use dyst_source::{Source, SourceId};
+use dyst_token::TokenType;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

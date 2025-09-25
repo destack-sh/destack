@@ -1,6 +1,6 @@
 //! Parse enums.
 
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 use crate::parse::expression::ExpressionParserOptions;
 use crate::parse::prelude::*;

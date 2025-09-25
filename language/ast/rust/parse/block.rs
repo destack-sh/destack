@@ -3,7 +3,7 @@ use crate::{
     Block, BlockFormat, Break, Continue, Defer, Keyword, NodeId, NodeType, ParseError, ParseResult,
     Parser, Return, Statement,
 };
-use dyst_language_token::TokenType;
+use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Peek a block (test with and without label).

@@ -2,8 +2,8 @@
 
 use std::cmp;
 
-use dyst_language_source::{Source, Span};
-use dyst_language_token::TokenSpan;
+use dyst_source::{Source, Span};
+use dyst_token::TokenSpan;
 use tower_lsp_server::lsp_types as lsp;
 
 /// Convert byte span to LSP range.

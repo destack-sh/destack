@@ -1,6 +1,6 @@
-use dyst_language_fir::format::{Format, FormatResult, hard_line_break};
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::{format_args, write};
+use dyst_fir::format::{Format, FormatResult, hard_line_break};
+use dyst_fir::prelude::*;
+use dyst_fir::{format_args, write};
 
 use crate::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Doc, DocStyle, DystFormatContext,

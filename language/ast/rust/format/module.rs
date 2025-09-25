@@ -1,11 +1,11 @@
-use dyst_language_fir::format::{FormatResult, group};
-use dyst_language_fir::{format_args, write};
+use dyst_fir::format::{FormatResult, group};
+use dyst_fir::{format_args, write};
 
 use crate::{
     DystFormatter, FormatNode, Keyword, Module, ModuleFormat, NodeId,
     empty_block_with_infix_annotations,
 };
-use dyst_language_fir::prelude::*;
+use dyst_fir::prelude::*;
 
 impl<'ast> FormatNode<'ast, Module> for Module {
     fn format_node(

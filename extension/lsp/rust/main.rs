@@ -13,5 +13,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         wait_for_debugger();
     }
-    destack_extension_lsp::run_stdio_server().await
+    destack_lsp::run_stdio_server().await
 }

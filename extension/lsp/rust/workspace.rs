@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use std::{fs, io};
 
-use destack_library_file::glob::glob;
-use dyst_language_diagnostic::Diagnostic;
-use dyst_language_session::Session;
-use dyst_language_source::{Source, SourceId, Uri};
+use destack_file::glob::glob;
+use dyst_diagnostic::Diagnostic;
+use dyst_session::Session;
+use dyst_source::{Source, SourceId, Uri};
 use std::str::FromStr;
 use tower_lsp_server::{UriExt, lsp_types as lsp};
 

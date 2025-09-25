@@ -2,7 +2,7 @@
 # fuzzer is in its own workspace
 
 [package]
-name = "dyst_language_token_fuzz"
+name = "dyst_token_fuzz"
 description = "Dyst Language Token Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
@@ -13,14 +13,14 @@ rust-version = "1.88.0"
 cargo-fuzz = true
 
 [dependencies]
-dyst_language_token = { path = ".." }
-dyst_language_source = { path = "../../source" }
+dyst_token = { path = ".." }
+dyst_source = { path = "../../source" }
 
 arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]
-name = "dyst_language_token_fuzz"
+name = "dyst_token_fuzz"
 path = "fuzz_targets/token.rs"
 test = false
 doc = false

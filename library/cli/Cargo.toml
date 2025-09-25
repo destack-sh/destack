@@ -1,31 +1,31 @@
 [package]
-name = "destack_library_cli"
+name = "destack_cli"
 description = "Destack Library CLI"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
-default-run = "destack_library_cli"
+default-run = "destack_cli"
 
 [lib]
 path = "rust/lib.rs"
 
 [[bin]]
-name = "destack_library_cli"
+name = "destack_cli"
 path = "rust/main.rs"
 
 [dependencies]
-dyst_language_ast = { workspace = true }
-dyst_language_diagnostic = { workspace = true }
-dyst_language_source = { workspace = true }
-dyst_language_token = { workspace = true }
-dyst_language_session = { workspace = true }
-dyst_language_fir = { workspace = true }
+dyst_ast = { workspace = true }
+dyst_diagnostic = { workspace = true }
+dyst_source = { workspace = true }
+dyst_token = { workspace = true }
+dyst_session = { workspace = true }
+dyst_fir = { workspace = true }
 
-destack_library_tokei = { workspace = true }
-destack_extension_lsp = { workspace = true }
-destack_library_file = { workspace = true }
+destack_tokei = { workspace = true }
+destack_lsp = { workspace = true }
+destack_file = { workspace = true }
 
 tokio = { version = "1.47.1" }
 

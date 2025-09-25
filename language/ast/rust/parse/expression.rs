@@ -2,7 +2,7 @@
 
 use crate::ScopedMutability;
 use crate::parse::prelude::*;
-use dyst_language_token::{TokenSpan, TokenType};
+use dyst_token::{TokenSpan, TokenType};
 
 use crate::{
     AssignOperator, BinaryOperator, Call, Expression, InfixOperator, Keyword, Mutability, NodeId,

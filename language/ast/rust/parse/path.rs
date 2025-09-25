@@ -1,6 +1,6 @@
 use crate::{ParseError, ParseResult, Parser, PathId};
-use dyst_language_source::StringId;
-use dyst_language_token::TokenType;
+use dyst_source::StringId;
+use dyst_token::TokenType;
 
 impl<'a> Parser<'a> {
     /// Peek a path.
@@ -95,7 +95,7 @@ mod tests {
         assert_path!(parser.session, path, "ds.geometry");
         // ensure next token is the `.` for the group
         let next = parser.peek().unwrap();
-        assert_eq!(next.token.r#type, dyst_language_token::TokenType::Dot);
+        assert_eq!(next.token.r#type, dyst_token::TokenType::Dot);
     }
 
     #[test]
@@ -106,6 +106,6 @@ mod tests {
         assert_path!(parser.session, path, "geom.Vector");
         // ensure next token is the `<` for the generic arguments
         let next = parser.peek().unwrap();
-        assert_eq!(next.token.r#type, dyst_language_token::TokenType::LessThan);
+        assert_eq!(next.token.r#type, dyst_token::TokenType::LessThan);
     }
 }

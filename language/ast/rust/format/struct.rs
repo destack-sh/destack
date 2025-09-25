@@ -1,11 +1,11 @@
-use dyst_language_fir::format::FormatResult;
-use dyst_language_fir::format_args;
+use dyst_fir::format::FormatResult;
+use dyst_fir::format_args;
 
 use crate::{
     DystFormatter, FormatNode, Keyword, NodeId, Struct, StructField, StructStyle, Visibility,
 };
-use dyst_language_fir::prelude::*;
-use dyst_language_fir::write;
+use dyst_fir::prelude::*;
+use dyst_fir::write;
 
 impl<'ast> FormatNode<'ast, Struct> for Struct {
     fn format_node(
