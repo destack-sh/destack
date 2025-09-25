@@ -138,6 +138,7 @@ impl<'a> Parser<'a> {
         // value
         let (value, initialization) = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
+            self.eat_newlines_maybe()?;
             // explicitly uninitialized
             if self.peek_empty().is_ok() {
                 self.bump();
@@ -177,7 +178,7 @@ impl<'a> Parser<'a> {
 mod tests {
     use crate::parse::tests::TestParser;
     use crate::{
-        Expression, FloatType, Let, LetInitialization, Mutability, Pattern, PatternField,
+        Call, Expression, FloatType, Let, LetInitialization, Mutability, Pattern, PatternField,
         PrimitiveType, ScopedMutability, Type, assert_int, assert_node, assert_path, assert_string,
     };
 
@@ -348,6 +349,42 @@ let (x, y) = foo()
             assert!(r#type.is_some());
             assert!(value.is_none());
             assert_eq!(*initialization, LetInitialization::Implicit);
+        });
+    }
+
+    #[test]
+    fn test_parse_let_multiline_value() {
+        let mut test = TestParser::new(
+            r###"
+let x = 
+    foo.parse()
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let let_id = parser.eat_let(None).unwrap();
+        let x = parser.intern_string("x");
+
+        // let x = foo.parse()
+        assert_node!(parser.tree, let_id, Let { pattern, mutability, value, initialization, .. } => {
+            // x
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                assert_eq!(*name, x);
+            });
+            assert_eq!(*mutability, ScopedMutability::Unscoped { mutability: Mutability::Immutable });
+
+            // foo.parse()
+            assert_eq!(*initialization, LetInitialization::Explicit);
+            assert!(value.is_some());
+            assert_node!(parser.tree, value.unwrap(), Expression::Call(call_id) => {
+                assert_node!(parser.tree, *call_id, Call { runtime, receiver, static_arguments: _, dynamic_arguments: _ } => {
+                    assert_eq!(*runtime, None);
+                    assert_node!(parser.tree, *receiver, Expression::Path(path_id) => {
+                        assert_path!(parser.session, *path_id, "foo.parse");
+                    });
+                });
+            });
         });
     }
 }

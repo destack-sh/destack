@@ -138,17 +138,7 @@ impl<'ast> FormatNode<'ast, Let> for Let {
                         ]
                     )
                 } else if self.initialization == LetInitialization::Explicit {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            token("="),
-                            soft_block_indent(&format_args![
-                                soft_line_break_or_space(),
-                                token("--")
-                            ])
-                        ]
-                    )
+                    write!(f, [space(), token("="), space(), token("--"),])
                 } else {
                     Ok(())
                 }
@@ -169,6 +159,11 @@ mod tests {
             "var(x, y) pos: Vector4 = --",
             |p| p.eat_let(None)
         );
+    }
+
+    #[test]
+    fn test_format_let_with_value() {
+        assert_format!("let x = 1", "let x = 1", |p| p.eat_let(None));
     }
 
     #[test]

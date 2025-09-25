@@ -113,6 +113,7 @@ where
         };
         let mut first_node_type: Option<NodeType> = None;
         for annotation_id in annotations {
+            // read annotation
             let annotation = f.context().tree.get::<Annotation>(annotation_id);
             let (node_type, position) = match annotation {
                 Annotation::Blank { position, .. } => (NodeType::Blank, *position),
@@ -120,6 +121,8 @@ where
                 Annotation::Comment { position, .. } => (NodeType::Comment, *position),
                 Annotation::Tag { position, .. } => (NodeType::Tag, *position),
             };
+
+            // filter annotation
             let is_included = match position {
                 AnnotationPosition::BlockInfix => self.position == AnnotationCapture::BlockInfix,
                 AnnotationPosition::BlockPrefix => {
@@ -143,34 +146,38 @@ where
                         || self.position == AnnotationCapture::AnyPostfix
                 }
             };
-            if is_included {
-                // insert space/newline for first annotation in group
-                if first_node_type.is_none() {
-                    first_node_type = Some(node_type);
+            if !is_included {
+                continue;
+            }
+            
+            // insert space/newline for first annotation in group
+            if first_node_type.is_none() {
+                first_node_type = Some(node_type);
 
-                    if position == AnnotationPosition::LinePostfix
-                        || position == AnnotationPosition::LinePostfixBoundary
-                    {
-                        write!(f, [space()])?;
-                    } else if position != AnnotationPosition::LinePrefix {
-                        write!(f, [hard_line_break()])?;
-                    }
+                if position == AnnotationPosition::LinePostfix
+                    || position == AnnotationPosition::LinePostfixBoundary
+                {
+                    write!(f, [space()])?;
+                } else if position != AnnotationPosition::LinePrefix {
+                    write!(f, [hard_line_break()])?;
                 }
+            }
 
-                // format annotation itself
-                annotation.format_node(annotation_id, f)?;
+            // format annotation itself
+            annotation.format_node(annotation_id, f)?;
 
-                // insert space / newline
-                match position {
-                    AnnotationPosition::LinePrefix | AnnotationPosition::LinePostfix => {
-                        write!(f, [space()])?;
-                    }
-                    AnnotationPosition::BlockInfix
-                    | AnnotationPosition::BlockPrefix
-                    | AnnotationPosition::BlockPostfix
-                    | AnnotationPosition::LinePostfixBoundary => {
-                        write!(f, [hard_line_break()])?;
-                    }
+            // insert space / newline
+            match position {
+                AnnotationPosition::LinePrefix | AnnotationPosition::LinePostfix => {
+                    write!(f, [space()])?;
+                }
+                AnnotationPosition::BlockInfix
+                | AnnotationPosition::BlockPrefix
+                | AnnotationPosition::BlockPostfix => {
+                    write!(f, [hard_line_break()])?;
+                }
+                AnnotationPosition::LinePostfixBoundary => {
+                    write!(f, [soft_line_break()])?;
                 }
             }
         }
@@ -381,10 +388,10 @@ mod tests {
     #[test]
     fn test_format_inline_statement_comment() {
         assert_format!(
-            "/* Pre-X comment */let X=/* Pre-A comment */A/* A comment */&&B/* B comment */\n",
-            "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */\n",
+            "/* Pre-X comment */let X=/* Pre-A comment */A/* A comment */&&B/* B comment */",
+            "/* Pre-X comment */ let X = /* Pre-A comment */ A /* A comment */ && B /* B comment */",
             |p| p.eat_statement(),
-            DystFormatOptions::default()
+            DystFormatOptions::default_with_line_width(200)
         );
     }
 
