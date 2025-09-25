@@ -239,4 +239,22 @@ mod tests {
             DystFormatOptions::default()
         );
     }
+
+    #[test]
+    fn test_format_block_with_nested_declaration() {
+        let source = r"{
+    // x comment
+    let x =
+        // y comment
+        function y(v: float32) => float32 {
+            // z comment
+        }
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
+            DystFormatOptions::default()
+        );
+    }
 }
