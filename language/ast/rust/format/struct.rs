@@ -1,9 +1,9 @@
 use dyst_fir::format::FormatResult;
 use dyst_fir::format_args;
 
-use crate::empty_block_with_infix_annotations;
 use crate::{
     DystFormatter, FormatNode, Keyword, NodeId, Struct, StructField, StructStyle, Visibility,
+    empty_block_with_infix_annotations,
 };
 use dyst_fir::prelude::*;
 use dyst_fir::write;

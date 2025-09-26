@@ -462,7 +462,12 @@ impl<'a> Parser<'a> {
     }
 
     /// Get the node enclosing a token.
-    pub fn find_node_enclosing_at(&self, span: &Span, search: NodeSearch, filter: impl Fn(&EnclosingSpan) -> bool) -> Option<EnclosingSpan> {
+    pub fn find_node_enclosing_at(
+        &self,
+        span: &Span,
+        search: NodeSearch,
+        filter: impl Fn(&EnclosingSpan) -> bool,
+    ) -> Option<EnclosingSpan> {
         let mut enclosing_spans = self
             .tree
             .spans
