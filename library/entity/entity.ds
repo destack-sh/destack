@@ -44,7 +44,7 @@ struct Identity {
     /// The universally unique identifier of this Entity.
     id: Uuid
     /// The Space the Entity is in.
-    space: Reference<Space>
+    #A space: #B Reference<Space> #C
     /// The Branch this Entity is part of (in its Space).
     branch: Reference<Branch>
 }

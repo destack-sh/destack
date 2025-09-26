@@ -32,7 +32,7 @@ impl<'ast> FormatNode<'ast, With> for With {
             }))]
         )?;
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -61,7 +61,7 @@ impl<'ast> FormatNode<'ast, WithClause> for WithClause {
             }
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }

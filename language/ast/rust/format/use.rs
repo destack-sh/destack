@@ -39,7 +39,7 @@ impl<'ast> FormatNode<'ast, Use> for Use {
             write!(f, [space(), body])?;
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -78,7 +78,7 @@ impl<'ast> FormatNode<'ast, UseClause> for UseClause {
             write!(f, [token(" as "), alias])?;
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -98,7 +98,7 @@ impl<'ast> FormatNode<'ast, UseItem> for UseItem {
             write!(f, [token(" as "), alias])?;
         }
 
-        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
     }
