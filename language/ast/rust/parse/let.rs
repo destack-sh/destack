@@ -112,6 +112,7 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_let(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Let>> {
         let start = self.mark();
+
         // mutability
         let mutability = if self.peek_keyword(Keyword::Var).is_ok() {
             self.eat_scoped_mutability().for_node_type(NodeType::Let)?
@@ -121,10 +122,12 @@ impl<'a> Parser<'a> {
                 mutability: Mutability::Immutable,
             }
         };
+
         // pattern
         let pattern = self
             .eat_pattern(ExpressionParserOptions::default())
             .for_node_type(NodeType::Let)?;
+
         // type
         let r#type = if self.peek_colon().is_ok() {
             self.bump(); // eat colon
@@ -135,6 +138,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+
         // value
         let (value, initialization) = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
@@ -158,6 +162,7 @@ impl<'a> Parser<'a> {
             // implicitly uninitialized
             (None, LetInitialization::Implicit)
         };
+
         // let
         let let_id = self.tree.allocate(
             Let {

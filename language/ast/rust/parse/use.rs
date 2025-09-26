@@ -19,11 +19,13 @@ impl<'a> Parser<'a> {
     /// use foo as baz
     /// ```
     pub fn eat_use(&mut self, visibility: Option<Visibility>) -> ParseResult<NodeId<Use>> {
+        let start = self.mark();
         self.eat_keyword(Keyword::Use)?;
-        let using = self
+        let use_node = self
             .eat_use_header(visibility)
             .for_node_type(NodeType::Use)?;
-        Ok(using)
+        self.tree.set_span(use_node, self.get_span_from(start));
+        Ok(use_node)
     }
 
     /// Eat the content of a use declaration (without the `use` keyword).

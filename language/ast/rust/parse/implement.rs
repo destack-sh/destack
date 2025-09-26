@@ -28,6 +28,8 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_implement(&mut self) -> ParseResult<NodeId<Implement>> {
         let start = self.mark();
+
+        // keyword
         self.eat_keyword(Keyword::Implement)?;
 
         // static arguments
@@ -48,7 +50,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // target
+        // receiver
         let receiver = self
             .eat_type(TypeParserOptions::default())
             .for_node_type(NodeType::Implement)?;

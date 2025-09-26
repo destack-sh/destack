@@ -14,7 +14,8 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        // split tuple vs struct fields
+
+        // split tuple / struct fields
         let tuple_fields: &[NodeId<StructField>] = if self.style == StructStyle::Tuple {
             &self.fields
         } else {
@@ -150,7 +151,9 @@ impl<'ast> FormatNode<'ast, Struct> for Struct {
         }
 
         write!(f, [f.context().block_infix_annotations(node_id)])?;
+
         write!(f, [hard_line_break(), token("}")])?;
+
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())

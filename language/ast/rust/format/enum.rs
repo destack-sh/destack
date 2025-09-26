@@ -13,18 +13,24 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
         node_id: NodeId<Enum>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // header
         write!(f, [Keyword::Enum])?;
+        // type
         if let Some(r#type) = self.r#type {
             write!(f, [token("("), r#type, token(")"), space()])?;
         } else {
             write!(f, [space()])?;
         }
+        // name
         if let Some(name) = self.name {
             write!(f, [name, space()])?;
         }
+        // empty block
         if self.fields.is_empty() && self.statements.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
             return Ok(());
         }
 
@@ -57,6 +63,8 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
                 .finish())),])]
         )?;
         write!(f, [hard_line_break(), token("}")])?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
         Ok(())
     }
 }
@@ -64,13 +72,20 @@ impl<'ast> FormatNode<'ast, Enum> for Enum {
 impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     fn format_node(
         &self,
-        _node_id: NodeId<EnumField>,
+        node_id: NodeId<EnumField>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        // name
         write!(f, [self.name])?;
+
+        // value
         if let Some(value) = self.value {
             write!(f, [token(" = "), value])?;
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
         Ok(())
     }
 }
@@ -105,6 +120,16 @@ mod tests {
         assert_format!(
             "enum(int4) { A = 1, B = 2, C, D = 4 }",
             "enum(int4) {\n\tA = 1\n\tB = 2\n\tC\n\tD = 4\n}",
+            |p| p.eat_enum(None),
+            DystFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_enum_with_annotations() {
+        assert_format!(
+            "enum { A }",
+            "enum {\n\tA\n}",
             |p| p.eat_enum(None),
             DystFormatOptions::default_tab()
         );

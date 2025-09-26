@@ -7,9 +7,11 @@ use dyst_fir::{format_args, write};
 impl<'ast> FormatNode<'ast, Use> for Use {
     fn format_node(
         &self,
-        _node_id: NodeId<Use>,
+        node_id: NodeId<Use>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // visibility
         if let Some(visibility) = self.visibility {
             let keyword = match visibility {
@@ -36,6 +38,8 @@ impl<'ast> FormatNode<'ast, Use> for Use {
         if let Some(body) = self.body {
             write!(f, [space(), body])?;
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())
     }
@@ -142,6 +146,16 @@ mod tests {
             "use foo.{bar, baz}",
             |p| p.eat_use(None),
             DystFormatOptions::default_with_line_width(60)
+        );
+    }
+
+    #[test]
+    fn test_format_use_with_annotations() {
+        assert_format!(
+            "use #foo foo",
+            "use #foo foo",
+            |p| p.eat_use(None),
+            DystFormatOptions::default()
         );
     }
 }

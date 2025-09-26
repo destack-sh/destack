@@ -14,9 +14,13 @@ impl<'a> Parser<'a> {
     /// (int32, int32)
     /// ```
     pub fn eat_tuple(&mut self) -> ParseResult<NodeId<Tuple>> {
+        let start = self.mark();
+
+        // keyword
         self.eat_token(TokenType::OpenParenthesis)
             .for_node_type(NodeType::Tuple)?;
-        let start = self.mark();
+
+        // elements
         let mut elements: Vec<NodeId<TupleField>> = Vec::new();
         self.eat_newlines_maybe()?;
         loop {
@@ -31,11 +35,14 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
+        self.eat_token(TokenType::CloseParenthesis)
+            .for_node_type(NodeType::Tuple)?;
+
+        // tuple
         let tuple_id = self
             .tree
             .allocate(Tuple { elements }, self.get_span_from(start));
-        self.eat_token(TokenType::CloseParenthesis)
-            .for_node_type(NodeType::Tuple)?;
+
         Ok(tuple_id)
     }
 
@@ -49,8 +56,8 @@ impl<'a> Parser<'a> {
     pub fn eat_tuple_field(&mut self) -> ParseResult<NodeId<TupleField>> {
         let start = self.mark();
 
+        // named tuple element
         if self.peek_next_token(TokenType::Colon).is_ok() {
-            // named tuple element
             let name = self.eat_identifier()?;
             self.eat_colon()?;
             let r#type = self
@@ -61,8 +68,9 @@ impl<'a> Parser<'a> {
                 self.get_span_from(start),
             );
             Ok(tuple_element_id)
-        } else {
-            // positional tuple element
+        }
+        // positional tuple element
+        else {
             let r#type = self
                 .eat_type(TypeParserOptions::default())
                 .for_node_type(NodeType::TupleField)?;

@@ -17,9 +17,15 @@ impl<'a> Parser<'a> {
     /// }
     /// ```
     pub fn eat_loop(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<Loop>> {
-        self.eat_keyword(Keyword::Loop)?;
         let start = self.mark();
-        let block_id = self.eat_block().for_node_type(NodeType::Block)?;
+
+        // keyword
+        self.eat_keyword(Keyword::Loop)?;
+
+        // body
+        let block_id = self.eat_block().for_node_type(NodeType::Loop)?;
+
+        // loop
         let loop_id = self.tree.allocate(
             Loop {
                 runtime,
@@ -51,23 +57,32 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_for(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<For>> {
         let start = self.mark();
-        // header
+
+        // keyword
         self.eat_keyword(Keyword::For)?;
+
+        // pattern
         let pattern_id = self
             .eat_pattern(ExpressionParserOptions {
                 is_before_block: true,
                 ..ExpressionParserOptions::default()
             })
             .for_node_type(NodeType::For)?;
+
+        // in
         self.eat_keyword(Keyword::In)?;
+
+        // iterator
         let iterator_id = self
             .eat_expression(ExpressionParserOptions {
                 is_before_block: true,
                 ..ExpressionParserOptions::default()
             })
             .for_node_type(NodeType::For)?;
+
         // body
-        let block_id = self.eat_block().for_node_type(NodeType::Block)?;
+        let block_id = self.eat_block().for_node_type(NodeType::For)?;
+
         // for
         let for_id = self.tree.allocate(
             For {
@@ -96,16 +111,21 @@ impl<'a> Parser<'a> {
     /// ```
     pub fn eat_while(&mut self, runtime: Option<Runtime>) -> ParseResult<NodeId<While>> {
         let start = self.mark();
+
         // header
         self.eat_keyword(Keyword::While)?;
+
+        // condition
         let condition_id = self
             .eat_expression(ExpressionParserOptions {
                 is_before_block: true,
                 ..ExpressionParserOptions::default()
             })
             .for_node_type(NodeType::While)?;
+
         // body
-        let block_id = self.eat_block().for_node_type(NodeType::Block)?;
+        let block_id = self.eat_block().for_node_type(NodeType::While)?;
+
         // while
         let while_id = self.tree.allocate(
             While {

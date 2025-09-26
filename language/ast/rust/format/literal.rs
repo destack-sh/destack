@@ -62,8 +62,11 @@ impl<'ast> FormatNode<'ast, RangeLiteral> for RangeLiteral {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         write!(f, [self.start, token(".."), self.end,])?;
+
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
         Ok(())
     }
 }
@@ -464,7 +467,6 @@ mod tests {
             DystFormatOptions::default_tab_with_line_width(10)
         );
     }
-
 
     #[test]
     fn test_format_struct_literal_with_annotations() {

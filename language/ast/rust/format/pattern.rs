@@ -7,26 +7,28 @@ use dyst_fir::{format_args, write};
 impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
-        _node_id: NodeId<Pattern>,
+        node_id: NodeId<Pattern>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
-            Pattern::Wildcard => write!(f, [token("_")]),
-            Pattern::Rest => write!(f, [token("..")]),
+            Pattern::Wildcard => write!(f, [token("_")])?,
+            Pattern::Rest => write!(f, [token("..")])?,
             Pattern::Reference { target, mutability } => {
                 if *mutability == Mutability::Mutable {
-                    write!(f, [token("&var "), target])
+                    write!(f, [token("&var "), target])?
                 } else {
-                    write!(f, [token("&"), target])
+                    write!(f, [token("&"), target])?
                 }
             }
-            Pattern::Literal(literal) => write!(f, [literal]),
-            Pattern::Binding { name } => write!(f, [name]),
-            Pattern::Path(path) => write!(f, [path]),
-            Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,]),
+            Pattern::Literal(literal) => write!(f, [literal])?,
+            Pattern::Binding { name } => write!(f, [name])?,
+            Pattern::Path(path) => write!(f, [path])?,
+            Pattern::Range { start, end, .. } => write!(f, [start, token(".."), end,])?,
             Pattern::Tuple { path, fields } => {
                 if let Some(path) = path {
-                    write!(f, [path])?;
+                    write!(f, [path])?
                 }
                 write!(
                     f,
@@ -41,7 +43,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                             .finish())),
                         token(")"),
                     ])]
-                )
+                )?
             }
             Pattern::Slice { fields } => write!(
                 f,
@@ -56,7 +58,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                         .finish())),
                     token("]"),
                 ])]
-            ),
+            )?,
             Pattern::Struct { r#type, fields } => write!(
                 f,
                 [group(&format_args![
@@ -71,15 +73,19 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                         .finish())),
                     token("}"),
                 ])]
-            ),
+            )?,
             Pattern::Union { fields } => write!(
                 f,
                 [format_with(|f| f
                     .join_with(token(" | "))
                     .entries(fields)
                     .finish())]
-            ),
+            )?,
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 

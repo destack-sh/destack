@@ -15,6 +15,7 @@ impl<'ast> FormatNode<'ast, Type> for Type {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             Type::Infer => write!(f, [token("_")]),
             Type::Maybe(type_) => write!(f, [type_, token("?")]),
@@ -94,7 +95,9 @@ impl<'ast> FormatNode<'ast, Type> for Type {
             ),
             Type::Function(function) => write!(f, [function]),
         }?;
+
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
         Ok(())
     }
 }

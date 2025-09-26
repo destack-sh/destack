@@ -9,11 +9,11 @@ use dyst_fir::{format_args, write};
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
-pub struct EmptyBlockWithInfixAnnotations<T: Node> {
+pub struct EmptyBlockWithAnnotations<T: Node> {
     node_id: NodeId<T>,
 }
 
-impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithInfixAnnotations<T>
+impl<'ast, T> Format<DystFormatContext<'ast>> for EmptyBlockWithAnnotations<T>
 where
     T: Node + Clone,
     NodeTree: NodeTreeStore<T>,
@@ -44,8 +44,8 @@ where
 /// ```
 pub fn empty_block_with_infix_annotations<T: Node>(
     node_id: NodeId<T>,
-) -> EmptyBlockWithInfixAnnotations<T> {
-    EmptyBlockWithInfixAnnotations { node_id }
+) -> EmptyBlockWithAnnotations<T> {
+    EmptyBlockWithAnnotations { node_id }
 }
 
 impl<'ast> FormatNode<'ast, Block> for Block {

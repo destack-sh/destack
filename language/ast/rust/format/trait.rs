@@ -13,6 +13,8 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
         node_id: NodeId<Trait>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // visibility
         if let Some(visibility) = self.visibility {
             let keyword = match visibility {
@@ -85,6 +87,7 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
         // empty trait body (same line)
         if self.statements.is_empty() {
             write!(f, [empty_block_with_infix_annotations(node_id)])?;
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
             return Ok(());
         }
 
@@ -97,7 +100,10 @@ impl<'ast> FormatNode<'ast, Trait> for Trait {
                 .entries(&self.statements)
                 .finish())),])]
         )?;
-        write!(f, [hard_line_break(), token("}")])
+        write!(f, [hard_line_break(), token("}")])?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        Ok(())
     }
 }
 

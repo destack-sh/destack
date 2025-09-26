@@ -7,9 +7,11 @@ use crate::{DystFormatter, FormatNode, NodeId, Tuple, TupleField};
 impl<'ast> FormatNode<'ast, Tuple> for Tuple {
     fn format_node(
         &self,
-        _node_id: NodeId<Tuple>,
+        node_id: NodeId<Tuple>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         write!(
             f,
             [group(&format_args![
@@ -23,7 +25,11 @@ impl<'ast> FormatNode<'ast, Tuple> for Tuple {
                     .finish())),
                 token(")"),
             ])]
-        )
+        )?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
@@ -34,6 +40,7 @@ impl<'ast> FormatNode<'ast, TupleField> for TupleField {
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         match self {
             TupleField::Named { name, r#type } => {
                 write!(f, [name, token(":"), space(), r#type])?;
@@ -42,7 +49,9 @@ impl<'ast> FormatNode<'ast, TupleField> for TupleField {
                 write!(f, [r#type])?;
             }
         };
+
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
         Ok(())
     }
 }

@@ -7,9 +7,11 @@ use dyst_fir::write;
 impl<'ast> FormatNode<'ast, While> for While {
     fn format_node(
         &self,
-        _node_id: NodeId<While>,
+        node_id: NodeId<While>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         if let Some(runtime) = self.runtime
             && runtime == Runtime::Static
         {
@@ -18,16 +20,22 @@ impl<'ast> FormatNode<'ast, While> for While {
         write!(
             f,
             [Keyword::While, space(), self.condition, space(), self.body]
-        )
+        )?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
 impl<'ast> FormatNode<'ast, For> for For {
     fn format_node(
         &self,
-        _node_id: NodeId<For>,
+        node_id: NodeId<For>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         if let Some(runtime) = self.runtime
             && runtime == Runtime::Static
         {
@@ -46,21 +54,31 @@ impl<'ast> FormatNode<'ast, For> for For {
                 space(),
                 self.body
             ]
-        )
+        )?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
 impl<'ast> FormatNode<'ast, Loop> for Loop {
     fn format_node(
         &self,
-        _node_id: NodeId<Loop>,
+        node_id: NodeId<Loop>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         if let Some(runtime) = self.runtime
             && runtime == Runtime::Static
         {
             write!(f, [token("@")])?;
         }
-        write!(f, [Keyword::Loop, space(), self.body])
+        write!(f, [Keyword::Loop, space(), self.body])?;
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }

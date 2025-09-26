@@ -7,7 +7,7 @@ use dyst_fir::write;
 impl<'ast> FormatNode<'ast, If> for If {
     fn format_node(
         &self,
-        _node_id: NodeId<If>,
+        node_id: NodeId<If>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         match self {
@@ -16,6 +16,7 @@ impl<'ast> FormatNode<'ast, If> for If {
                 condition,
                 then_block,
             } => {
+                write!(f, [f.context().any_prefix_annotations(node_id)])?;
                 write!(
                     f,
                     [group(&format_with(|f| {
@@ -27,7 +28,9 @@ impl<'ast> FormatNode<'ast, If> for If {
                         }
                         write!(f, [Keyword::If, space(), *condition, space(), *then_block])
                     }))]
-                )
+                )?;
+                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                Ok(())
             }
             If::IfElse {
                 runtime,
@@ -36,6 +39,7 @@ impl<'ast> FormatNode<'ast, If> for If {
                 else_block,
             } => {
                 // if <condition> { <block> } else { <block> }
+                write!(f, [f.context().any_prefix_annotations(node_id)])?;
                 write!(
                     f,
                     [group(&format_with(|f| {
@@ -56,7 +60,9 @@ impl<'ast> FormatNode<'ast, If> for If {
                         write!(f, [space()])?;
                         write!(f, [*else_block])
                     }))]
-                )
+                )?;
+                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                Ok(())
             }
             If::IfElseIf {
                 runtime,
@@ -65,6 +71,7 @@ impl<'ast> FormatNode<'ast, If> for If {
                 else_if,
             } => {
                 // if <condition> { <block> } else if { <block> }
+                write!(f, [f.context().any_prefix_annotations(node_id)])?;
                 write!(
                     f,
                     [group(&format_with(|f| {
@@ -85,7 +92,9 @@ impl<'ast> FormatNode<'ast, If> for If {
                         write!(f, [space()])?;
                         write!(f, [*else_if])
                     }))]
-                )
+                )?;
+                write!(f, [f.context().any_postfix_annotations(node_id)])?;
+                Ok(())
             }
         }
     }

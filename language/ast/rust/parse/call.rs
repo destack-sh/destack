@@ -24,11 +24,19 @@ impl<'a> Parser<'a> {
         receiver_id: NodeId<Expression>,
     ) -> ParseResult<NodeId<Index>> {
         let start = self.mark();
+
+        // open bracket
         self.eat_token(TokenType::OpenBracket)?;
+
+        // expression
         let index = self
             .eat_expression(ExpressionParserOptions::default())
             .for_node_type(NodeType::Index)?;
+
+        // close bracket
         self.eat_token(TokenType::CloseBracket)?;
+
+        // index
         let index_id = self.tree.allocate(
             Index::Explicit {
                 receiver: receiver_id,
@@ -50,12 +58,18 @@ impl<'a> Parser<'a> {
         receiver_id: NodeId<Expression>,
     ) -> ParseResult<NodeId<Index>> {
         let start = self.mark();
+
+        // dot
         self.eat_token(TokenType::Dot)?;
+
+        // literal
         let literal_id = self.eat_scalar_literal().for_node_type(NodeType::Index)?;
         let index = match self.tree.get(literal_id) {
             ScalarLiteral::Integer(index, _) => *index,
             _ => return Err(ParseError::unexpected(self.peek()?.span)),
         };
+
+        // index
         let index_id = self.tree.allocate(
             Index::Implicit {
                 receiver: receiver_id,
@@ -82,6 +96,7 @@ impl<'a> Parser<'a> {
         runtime: Option<Runtime>,
     ) -> ParseResult<NodeId<Call>> {
         let start = self.mark();
+
         // static arguments (may not exist or be empty)
         let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
             self.bump(); // eat less than
@@ -104,6 +119,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
+
         // dynamic arguments (may be empty)
         self.eat_token(TokenType::OpenParenthesis)?;
         let dynamic_arguments = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
@@ -112,6 +128,7 @@ impl<'a> Parser<'a> {
             self.eat_arguments_body().for_node_type(NodeType::Call)?
         };
         self.eat_token(TokenType::CloseParenthesis)?;
+
         // call
         let call_id = self.tree.allocate(
             Call {

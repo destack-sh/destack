@@ -24,8 +24,10 @@ impl<'a> Parser<'a> {
     /// )
     /// ```
     pub fn eat_with(&mut self) -> ParseResult<NodeId<With>> {
+        let start = self.mark();
         self.eat_keyword(Keyword::With)?;
         let with = self.eat_with_body()?;
+        self.tree.set_span(with, self.get_span_from(start));
         Ok(with)
     }
 

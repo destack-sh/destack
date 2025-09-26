@@ -225,6 +225,7 @@ impl<'a> Parser<'a> {
             if self.peek_token(terminator).is_ok() {
                 break;
             }
+
             // field
             let field_start = self.mark();
             let pattern_field = {

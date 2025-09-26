@@ -13,21 +13,19 @@ impl<'ast> FormatNode<'ast, Module> for Module {
         node_id: NodeId<Module>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
         // implicit module (whole file)
         match self.format {
-            ModuleFormat::Implicit => {
-                write!(
-                    f,
-                    [format_with(|f| f
-                        .join_with(hard_line_break())
-                        .entries(&self.statements)
-                        .finish())]
-                )
-            }
+            ModuleFormat::Implicit => write!(
+                f,
+                [format_with(|f| f
+                    .join_with(hard_line_break())
+                    .entries(&self.statements)
+                    .finish()),]
+            )?,
             // declaration module (module x;)
-            ModuleFormat::Forward => {
-                write!(f, [Keyword::Module, space(), self.name])
-            }
+            ModuleFormat::Forward => write!(f, [Keyword::Module, space(), self.name])?,
             // explicit module (module { ... })
             ModuleFormat::Inline => {
                 // header
@@ -54,9 +52,13 @@ impl<'ast> FormatNode<'ast, Module> for Module {
                         hard_line_break(),
                         token("}")
                     ])]
-                )
+                )?
             }
         }
+
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+        Ok(())
     }
 }
 
