@@ -1663,7 +1663,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
     }
 
     fn visit_tag(&mut self, _tree: &NodeTree, _id: NodeId<Tag>, tag: &Tag) {
-        self.node("Tag", _id.id).field("name", &tag.name).end();
+        self.node("Tag", _id.id)
+            .field("receiver", &tag.receiver)
+            .end();
     }
 }
 

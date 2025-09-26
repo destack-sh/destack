@@ -14,7 +14,9 @@ doctest = true
 [dependencies]
 dyst_token = { workspace = true }
 dyst_ast = { workspace = true }
-
+dyst_fir = { workspace = true }
+dyst_session = { workspace = true }
+dyst_source = { workspace = true }
 dyst_prelude = { workspace = true }
 
 [dev-dependencies]

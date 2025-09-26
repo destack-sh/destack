@@ -312,8 +312,7 @@ impl<'ast> FormatNode<'ast, Tag> for Tag {
         _node_id: NodeId<Tag>,
         f: &mut DystFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        let string = f.context().session.strings.get(self.name);
-        write!(f, [token("#"), text(string)])?;
+        write!(f, [token("#"), self.receiver])?;
         if let Some(arguments) = &self.arguments
             && !arguments.is_empty()
         {
