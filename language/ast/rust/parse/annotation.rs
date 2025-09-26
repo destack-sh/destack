@@ -69,8 +69,8 @@ impl<'a> Parser<'a> {
         // #
         self.eat_token(TokenType::Tag)?;
 
-        // name
-        let name = self.eat_identifier().for_node_type(NodeType::Tag)?;
+        // receiver
+        let receiver = self.eat_path().for_node_type(NodeType::Tag)?;
 
         // arguments
         let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
@@ -93,9 +93,13 @@ impl<'a> Parser<'a> {
         };
 
         // tag
-        let tag = self
-            .tree
-            .allocate(Tag { name, arguments }, self.get_span_from(start));
+        let tag = self.tree.allocate(
+            Tag {
+                receiver,
+                arguments,
+            },
+            self.get_span_from(start),
+        );
         Ok(tag)
     }
 
@@ -517,42 +521,41 @@ impl<'a> Parser<'a> {
         let mut cleaned_tokens = Vec::with_capacity(group.len());
 
         for token in group {
-            let raw = self.source.get_span_str(token.span);
-
             // strip comment prefixes and suffixes
-            let inner = match token_type {
-                TokenType::LineComment => raw.strip_prefix("//").unwrap_or(raw),
-                TokenType::DocLineComment => raw.strip_prefix("///").unwrap_or(raw),
-                TokenType::BlockComment => raw
+            let raw_str = self.source.get_span_str(token.span);
+            let inner_str = match token_type {
+                TokenType::LineComment => raw_str.strip_prefix("//").unwrap_or(raw_str),
+                TokenType::DocLineComment => raw_str.strip_prefix("///").unwrap_or(raw_str),
+                TokenType::BlockComment => raw_str
                     .strip_prefix("/*")
-                    .unwrap_or(raw)
+                    .unwrap_or(raw_str)
                     .strip_suffix("*/")
-                    .unwrap_or(raw),
-                TokenType::DocBlockComment => raw
+                    .unwrap_or(raw_str),
+                TokenType::DocBlockComment => raw_str
                     .strip_prefix("/**")
-                    .unwrap_or(raw)
+                    .unwrap_or(raw_str)
                     .strip_suffix("*/")
-                    .unwrap_or(raw),
+                    .unwrap_or(raw_str),
                 _ => panic!("unexpected token type: {token_type:?}"),
             };
 
             // clean up whitespace and formatting characters
             let cleaned = match token_type {
                 TokenType::LineComment | TokenType::DocLineComment => {
-                    if inner.contains('\n') {
+                    if inner_str.contains('\n') {
                         // handle multiline comments by stripping leading space from each line
-                        inner
+                        inner_str
                             .lines()
                             .map(|line| line.strip_prefix(' ').unwrap_or(line).to_owned())
                             .collect::<Vec<_>>()
                             .join("\n")
                     } else {
                         // single line, just strip leading space
-                        inner.strip_prefix(' ').unwrap_or(inner).to_owned()
+                        inner_str.trim_start_matches(' ').to_owned()
                     }
                 }
                 TokenType::BlockComment | TokenType::DocBlockComment => {
-                    let trimmed = inner.trim();
+                    let trimmed = inner_str.trim();
                     if trimmed.is_empty() {
                         String::new()
                     } else {
@@ -602,9 +605,9 @@ mod tests {
         let mut test = TestParser::new(
             r#"
 /// Test doc
-#BeginGroup("MyGroup", length: 1)
+#dyst.BeginGroup("MyGroup", length: 1)
 struct Test {}
-#EndGroup
+#dyst.EndGroup
 "#,
         );
         let mut parser = test.prepare();
@@ -627,8 +630,8 @@ struct Test {}
         // #BeginGroup("MyGroup", 1)
         assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "BeginGroup");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "dyst.BeginGroup");
                 assert!(arguments.is_some());
                 assert_eq!(arguments.as_ref().unwrap().len(), 2);
                 // "MyGroup"
@@ -650,8 +653,8 @@ struct Test {}
         // #EndGroup
         assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "EndGroup");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "dyst.EndGroup");
                 assert!(arguments.is_none());
             });
         });
@@ -672,56 +675,56 @@ struct Test {}
         // A: block prefix
         assert_node!(parser.tree, annotations[0], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "A");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "A");
                 assert!(arguments.is_none());
             });
         });
         // B: line prefix
         assert_node!(parser.tree, annotations[1], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePrefix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "B");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "B");
                 assert!(arguments.is_none());
             });
         });
         // C: block infix
         assert_node!(parser.tree, annotations[2], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockInfix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "C");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "C");
                 assert!(arguments.is_none());
             });
         });
         // D: block infix
         assert_node!(parser.tree, annotations[3], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockInfix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "D");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "D");
                 assert!(arguments.is_none());
             });
         });
         // E: block infix
         assert_node!(parser.tree, annotations[4], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockInfix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "E");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "E");
                 assert!(arguments.is_none());
             });
         });
         // F: line postfix boundary
         assert_node!(parser.tree, annotations[5], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "F");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "F");
                 assert!(arguments.is_none());
             });
         });
         // G: block postfix
         assert_node!(parser.tree, annotations[6], Annotation::Tag { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPostfix);
-            assert_node!(parser.tree, *node, Tag { name, arguments } => {
-                assert_string!(parser.session, *name, "G");
+            assert_node!(parser.tree, *node, Tag { receiver, arguments } => {
+                assert_path!(parser.session, *receiver, "G");
                 assert!(arguments.is_none());
             });
         });

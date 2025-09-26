@@ -2235,8 +2235,8 @@ impl Node for Comment {
 /// A Tag is a tag annotation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tag {
-    /// The tag string.
-    pub name: StringId,
+    /// The tag name / path.
+    pub receiver: PathId,
     /// The arguments (if any).
     pub arguments: Option<Vec<NodeId<Argument>>>,
 }

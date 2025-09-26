@@ -12,6 +12,8 @@ path = "rust/lib.rs"
 doctest = true
 
 [dependencies]
+destack_uuid = { workspace = true }
+destack_time = { workspace = true }
 
 [dev-dependencies]
 quickcheck = { workspace = true }
