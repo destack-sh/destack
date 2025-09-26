@@ -70,16 +70,14 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         else if self.statements.len() == 1 && is_in_expression {
             write!(
                 f,
-                [
-                    group(&format_args![
-                        token("{"),
-                        soft_line_break_or_space(),
-                        soft_block_indent(&self.statements[0]),
-                        soft_line_break_or_space(),
-                        f.context().block_infix_annotations(node_id),
-                        token("}"),
-                    ]),
-                ]
+                [group(&format_args![
+                    token("{"),
+                    soft_line_break_or_space(),
+                    soft_block_indent(&self.statements[0]),
+                    soft_line_break_or_space(),
+                    f.context().block_infix_annotations(node_id),
+                    token("}"),
+                ]),]
             )?;
         }
         // multi-statement block gets newlines always
@@ -99,7 +97,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                 ])]
             )?;
         }
-        
+
         write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())
