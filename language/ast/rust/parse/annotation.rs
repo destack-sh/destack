@@ -551,7 +551,7 @@ impl<'a> Parser<'a> {
                             .join("\n")
                     } else {
                         // single line, just strip leading space
-                        inner_str.trim_start_matches(' ').to_owned()
+                        inner_str.strip_prefix(' ').unwrap_or(inner_str).to_owned()
                     }
                 }
                 TokenType::BlockComment | TokenType::DocBlockComment => {
@@ -563,7 +563,7 @@ impl<'a> Parser<'a> {
                         trimmed
                             .lines()
                             .map(|line| {
-                                let trimmed_star = line.trim_start_matches(' ');
+                                let trimmed_star = line.strip_prefix(' ').unwrap_or(line);
                                 if let Some(after_star) = trimmed_star.strip_prefix('*') {
                                     // line has asterisk prefix, strip it and following space
                                     after_star

@@ -1,6 +1,6 @@
 [package]
 name = "destack_cli"
-description = "Destack Library CLI"
+description = "Destack CLI"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

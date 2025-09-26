@@ -3,7 +3,7 @@
 
 [package]
 name = "dyst_token_fuzz"
-description = "Dyst Language Token Fuzz"
+description = "Dyst Token Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"

@@ -1,6 +1,6 @@
 [package]
 name = "dyst_collections"
-description = "Dyst Language Collections"
+description = "Dyst Collections"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

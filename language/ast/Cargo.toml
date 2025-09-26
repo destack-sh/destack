@@ -1,6 +1,6 @@
 [package]
 name = "dyst_ast"
-description = "Dyst Language AST"
+description = "Dyst AST"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

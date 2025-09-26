@@ -1,9 +1,18 @@
 use dyst
 
-@entity
-struct MeetupSeries {
+struct MeetupSeries: Entity {
     name: string
 }
 
-@entity
-struct Meetup { }
+struct Meetup: Entity {
+    fullName: string
+
+    {
+        function get(self) {
+            return @format("{self.name} {self.surname}")
+        }
+        function set(self, value: string) {
+            self.name = value
+        }
+    }
+}

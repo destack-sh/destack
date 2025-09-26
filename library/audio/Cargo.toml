@@ -1,6 +1,6 @@
 [package]
 name = "destack_audio"
-description = "Destack Library Audio"
+description = "Destack Audio"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

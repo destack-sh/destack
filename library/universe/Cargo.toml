@@ -1,6 +1,6 @@
 [package]
 name = "destack_universe"
-description = "Destack Library Universe"
+description = "Destack Universe"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

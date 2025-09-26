@@ -1,6 +1,6 @@
 [package]
 name = "destack_style"
-description = "Destack Library Style"
+description = "Destack Style"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

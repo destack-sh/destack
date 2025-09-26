@@ -3,7 +3,7 @@
 
 [package]
 name = "destack_uuid_fuzz"
-description = "Destack Library UUID Fuzz"
+description = "Destack UUID Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"

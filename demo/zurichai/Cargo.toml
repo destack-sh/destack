@@ -1,6 +1,6 @@
 [package]
 name = "destack_zurichai"
-description = "Destack Demo ZurichAI"
+description = "Destack ZurichAI"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

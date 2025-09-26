@@ -1,6 +1,6 @@
 [package]
 name = "dyst_source"
-description = "Dyst Language Span"
+description = "Dyst Span"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "destack_entity"
-description = "Destack Library Entity"
+description = "Destack Entity"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

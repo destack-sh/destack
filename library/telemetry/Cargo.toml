@@ -1,6 +1,6 @@
 [package]
 name = "destack_telemetry"
-description = "Destack Library Observability"
+description = "Destack Observability"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

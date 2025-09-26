@@ -1,6 +1,6 @@
 [package]
 name = "dyst_token"
-description = "Dyst Language Tokens"
+description = "Dyst Tokens"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

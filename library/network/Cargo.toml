@@ -1,6 +1,6 @@
 [package]
 name = "destack_network"
-description = "Destack Library Network"
+description = "Destack Network"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

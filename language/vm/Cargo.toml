@@ -1,6 +1,6 @@
 [package]
 name = "dyst_vm"
-description = "Dyst Language Virtual Machine"
+description = "Dyst Virtual Machine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

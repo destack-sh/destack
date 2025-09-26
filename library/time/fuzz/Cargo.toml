@@ -3,7 +3,7 @@
 
 [package]
 name = "destack_time_fuzz"
-description = "Destack Library Time Fuzz"
+description = "Destack Time Fuzz"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"

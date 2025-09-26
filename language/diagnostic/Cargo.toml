@@ -1,6 +1,6 @@
 [package]
 name = "dyst_diagnostic"
-description = "Dyst Language Diagnostic"
+description = "Dyst Diagnostic"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
