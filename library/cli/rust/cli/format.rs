@@ -4,12 +4,9 @@ use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use destack_file::walk::{WalkOptions, walk};
-use dyst_ast::{
-    BlockFormat, DystFormatContext, DystFormatOptions, Module, ModuleFormat, NodeParentIndex,
-    Parser,
-};
+use dyst_ast::{DystFormatContext, DystFormatOptions, ModuleFormat, NodeParentIndex, Parser};
 use dyst_diagnostic::Severity;
-use dyst_fir::format::{IndentStyle, LineEnding, format as format_document};
+use dyst_fir::format::{IndentStyle, LineEnding, format as format_fir};
 use dyst_fir::format_args;
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, Source, SourceId, Uri, annotate_source};
@@ -263,25 +260,24 @@ fn process_file(
 /// Format the provided source into a string along with diagnostics.
 fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatOutcome, String> {
     let mut session = Session::new();
+    let module_name = source.uri.last_segment().unwrap_or("<string>");
+    let module_name_id = session.intern_string(module_name);
 
     // parse the source into an AST
     let mut parser = Parser::prepare(source, &mut session);
-    let start = parser.mark();
-    let statements = parser.with_recovery(
+    let module_id = parser.with_recovery(
         parser.mark(),
-        |parser| parser.eat_block_body(BlockFormat::Implicit),
-        Vec::new(),
+        |parser| {
+            parser
+                .eat_module_body(None, Some(module_name_id), ModuleFormat::Implicit)
+                .map(Some)
+        },
+        None,
         TokenType::End,
     );
-    let module = parser.tree.allocate(
-        Module {
-            format: ModuleFormat::Implicit,
-            name: None,
-            visibility: None,
-            statements,
-        },
-        parser.get_span_from(start),
-    );
+    let Some(module_id) = module_id else {
+        return Err("failed to parse module".to_string());
+    };
     parser.finalize();
 
     // create format context and format the AST
@@ -296,7 +292,7 @@ fn format_source(source: &Source, options: &DystFormatOptions) -> Result<FormatO
     };
 
     // format and print the document
-    let formatted = format_document(context, format_args![module])
+    let formatted = format_fir(context, format_args![module_id])
         .map_err(|error| format!("format error: {error}"))?;
     let printed = formatted
         .print()

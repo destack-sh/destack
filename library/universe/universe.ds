@@ -3,11 +3,11 @@ use dyst
 /// Universe signup request.
 struct UniverseSignupRequest {
     /// The desired user name.
-    name: String
+    name: string
     /// The email address.
-    email: String
+    email: string
     /// The password.
-    password: String
+    password: string
 }
 
 /// Universe signup response.
@@ -19,11 +19,11 @@ struct UniverseSignupResponse {
 /// Universe spawn request.
 struct UniverseSpawnRequest {
     /// The Space name.
-    name: String
+    name: string
     /// The desired hosting region.
     region: Region
     /// The Space slug.
-    slug: String
+    slug: string
 }
 
 /// Universe spawn response.
@@ -36,7 +36,7 @@ struct UniverseSpawnResponse {
 @entity
 struct Universe {
     /// The current version of Destack.
-    VERSION: String
+    VERSION: string
     /// The float epsilon used for floating point comparisons.
     EPSILON: float64
     /// The exponent of the epsilon used for floating point comparisons.

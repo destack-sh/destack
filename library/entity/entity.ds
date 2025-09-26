@@ -39,15 +39,6 @@ struct Reference<T: Entity> {
     branchId: Uuid
 }
 
-/// Dereference a Reference to an Entity via Graph.
-implement<T: Entity> Dereference<T> for Reference<&T> {
-    function dereference(&self) => &T?
-    with GraphContext as graph
-    {
-        graph.get(self)
-    }
-}
-
 /// An Identity is globally unique identifier for an Entity.
 struct Identity {
     /// The universally unique identifier of this Entity.
@@ -85,9 +76,9 @@ struct Entity {
     /// The parent of the `Entity`. Most `Entity`s can be attached to any other `Entity`.
     parent: Reference<Entity>?
     /// The name of the `Entity`.
-    name: String
+    name: string
     /// The key of the `Entity` (for reconciliation and querying).
-    key: String?
+    key: string?
     #EndGroup
 
     #BeginGroup("extension")

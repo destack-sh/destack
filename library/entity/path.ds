@@ -5,7 +5,7 @@ struct Path {
 }
 
 struct PathSegment {
-    name: String
+    name: string
 }
 
 @path("^$")

@@ -4,6 +4,6 @@ use dyst
 @entity
 struct Team {
     /// The URL-friendly slug of the Team.
-    slug: String
+    slug: string
 }
 

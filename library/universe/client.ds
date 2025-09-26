@@ -6,20 +6,20 @@ struct Client {
     /// The client type.
     type: ClientType
     /// The access token, if any.
-    accessToken: String?
+    accessToken: string?
     /// When the client was last seen.
     seenAt: Timestamp?
     /// When the client last logged in.
     loggedInAt: Timestamp?
     /// The device type.
-    deviceType: String?
+    deviceType: string?
     /// The device name.
-    deviceName: String?
+    deviceName: string?
     /// The operating system name.
-    operatingSystem: String?
+    operatingSystem: string?
     /// The browser name.
-    browserName: String?
+    browserName: string?
     /// The browser version.
-    browserVersion: String?
+    browserVersion: string?
 }
 

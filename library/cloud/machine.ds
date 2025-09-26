@@ -15,13 +15,13 @@ struct Machine {
     /// Machine type.
     type: MachineType = MachineType.Runtime
     /// Runtime version string.
-    version: String
+    version: string
     /// External provider name.
-    externalName: String?
+    externalName: string?
     /// External provider id.
-    externalId: String?
+    externalId: string?
     /// Image id in provider.
-    imageId: String?
+    imageId: string?
     /// vCPU count.
     cpu: float32 = 1.0
     /// RAM in GB.

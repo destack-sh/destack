@@ -16,7 +16,7 @@
                 "args": ["run", "--bin", "destack_cli"],
                 "filter": { "kind": "bin", "name": "destack_cli" }
             },
-            "args": ["ast", "--string", "#A\n#B struct #C Test #D { #E } #F\n#G"],
+            "args": ["fmt", "--string", "#A struct #B Test #C { #D } #E"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         }

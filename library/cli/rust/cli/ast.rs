@@ -1,6 +1,6 @@
 //! AST parsing subcommand.
 
-use dyst_ast::{BlockFormat, DumperOptions, NodeVisitor, Parser};
+use dyst_ast::{DumperOptions, ModuleFormat, NodeVisitor, Parser};
 use dyst_diagnostic::Severity;
 use dyst_session::Session;
 use dyst_source::{AnnotateOptions, Color, annotate_source};
@@ -16,6 +16,8 @@ pub const HELP: &str = r"Parse source into AST (implicit block).
 
 /// Parse source into an AST and dump the statements.
 pub fn run(ctx: CommandArguments) -> i32 {
+    let mut session = Session::new();
+
     // read input source
     let source = match read_source(&ctx) {
         Ok(source) => source,
@@ -24,14 +26,19 @@ pub fn run(ctx: CommandArguments) -> i32 {
             return 1;
         }
     };
+    let module_name = source.uri.last_segment().unwrap_or("<string>");
+    let module_name_id = session.intern_string(module_name);
 
     // parse as implicit block of statements
-    let mut session = Session::new();
     let mut parser = Parser::prepare(&source, &mut session);
-    let statements = parser.with_recovery(
+    let module_id = parser.with_recovery(
         parser.mark(),
-        |parser| parser.eat_block_body(BlockFormat::Implicit),
-        Vec::new(),
+        |parser| {
+            parser
+                .eat_module_body(None, Some(module_name_id), ModuleFormat::Implicit)
+                .map(Some)
+        },
+        None,
         TokenType::End,
     );
     parser.finalize();
@@ -39,8 +46,8 @@ pub fn run(ctx: CommandArguments) -> i32 {
     // dump AST statements to output
     let dump_options = DumperOptions::default();
     let mut dumper = parser.dumper(dump_options);
-    for statement in statements {
-        dumper.visit_statement(&parser.tree, statement, parser.tree.get(statement));
+    if let Some(module_id) = module_id {
+        dumper.visit_module(&parser.tree, module_id, parser.tree.get(module_id));
     }
     console::info(&dumper.finish());
 

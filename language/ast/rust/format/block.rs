@@ -79,7 +79,6 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                         f.context().block_infix_annotations(node_id),
                         token("}"),
                     ]),
-                    f.context().any_postfix_annotations(node_id),
                 ]
             )?;
         }
@@ -99,8 +98,9 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                     token("}"),
                 ])]
             )?;
-            write!(f, [f.context().any_postfix_annotations(node_id)])?;
         }
+        
+        write!(f, [f.context().any_postfix_annotations(node_id)])?;
 
         Ok(())
     }

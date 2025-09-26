@@ -24,7 +24,7 @@ impl Document {
     pub fn parse(source: Source, session: &mut Session, is_open: bool) -> Self {
         // module name
         let module_name = source.uri.last_segment().unwrap_or("<string>");
-        let module_name = session.intern_string(module_name);
+        let module_name_id = session.intern_string(module_name);
 
         // parse the document AST
         let mut parser = Parser::prepare(&source, session);
@@ -32,7 +32,7 @@ impl Document {
             parser.mark(),
             |parser| {
                 parser
-                    .eat_module_body(None, Some(module_name), ModuleFormat::Implicit)
+                    .eat_module_body(None, Some(module_name_id), ModuleFormat::Implicit)
                     .map(Some)
             },
             None,
@@ -42,16 +42,16 @@ impl Document {
 
         // turn into document
         let tokens = parser.tokens;
-        let mut combined_tokens = Vec::with_capacity(tokens.len() + parser.side_tokens.len());
-        combined_tokens.extend(tokens.iter());
-        combined_tokens.extend(parser.side_tokens);
-        combined_tokens.sort_by_key(|token| token.span.start);
+        let mut all_tokens = Vec::with_capacity(tokens.len() + parser.side_tokens.len());
+        all_tokens.extend(tokens.iter());
+        all_tokens.extend(parser.side_tokens);
+        all_tokens.sort_by_key(|token| token.span.start);
         let ast = parser.tree;
         Document {
             source,
             is_open,
             tokens,
-            combined_tokens,
+            combined_tokens: all_tokens,
             ast,
             module_id,
         }

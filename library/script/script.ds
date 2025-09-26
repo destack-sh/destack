@@ -4,6 +4,6 @@ use dyst
 @entity
 struct Script {
     /// The script code.
-    code: String
+    code: string
 }
 
